@@ -35,10 +35,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the Counter instrument.
     counter.add(
         10,
-        AttributeSet::from(&[
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]),
+        ],
     );
 
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
@@ -65,10 +65,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the UpCounter instrument.
     updown_counter.add(
         -10,
-        AttributeSet::from(&[
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]),
+        ],
     );
 
     // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
@@ -98,10 +98,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
-        AttributeSet::from(&[
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]),
+        ],
     );
 
     // Note that there is no ObservableHistogram instrument.

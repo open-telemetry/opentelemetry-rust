@@ -384,26 +384,29 @@ mod tests {
         // drops all attributes, we expect only 1 time-series.
         counter.add(
             10,
-            AttributeSet::from(&[
+            [
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Get"),
-            ]),
+            ]
+            .as_ref(),
         );
 
         counter.add(
             10,
-            AttributeSet::from(&[
+            [
                 KeyValue::new("statusCode", "500"),
                 KeyValue::new("verb", "Get"),
-            ]),
+            ]
+            .as_ref(),
         );
 
         counter.add(
             10,
-            AttributeSet::from(&[
+            [
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Post"),
-            ]),
+            ]
+            .as_ref(),
         );
 
         meter_provider.force_flush().unwrap();
