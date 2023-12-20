@@ -80,12 +80,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
-        &[
+        [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ].as_ref(),
     );
 
     // Example 2 - Drop unwanted attributes using view.
@@ -97,12 +97,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // attribute.
     counter.add(
         10,
-        &[
+        [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ].as_ref(),
     );
 
     // Example 3 - Change Aggregation configuration using View.
@@ -120,32 +120,32 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // the change of boundaries.
     histogram2.record(
         1.5,
-        &[
+        [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ].as_ref(),
     );
 
     histogram2.record(
         1.2,
-        &[
+        [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ].as_ref(),
     );
 
     histogram2.record(
         1.23,
-        &[
+        [
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ].as_ref(),
     );
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,

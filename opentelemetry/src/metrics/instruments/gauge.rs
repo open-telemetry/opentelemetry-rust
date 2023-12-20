@@ -32,8 +32,8 @@ impl<T> Gauge<T> {
     }
 
     /// Records an independent value.
-    pub fn record(&self, value: T, attributes: AttributeSet) {
-        self.0.record(value, attributes)
+    pub fn record(&self, value: T, attributes: impl Into<AttributeSet>) {
+        self.0.record(value, attributes.into())
     }
 }
 
