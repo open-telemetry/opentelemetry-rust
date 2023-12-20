@@ -85,7 +85,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ].as_ref(),
+        ]
+        .as_ref(),
     );
 
     // Example 2 - Drop unwanted attributes using view.
@@ -102,7 +103,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ].as_ref(),
+        ]
+        .as_ref(),
     );
 
     // Example 3 - Change Aggregation configuration using View.
@@ -125,7 +127,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ].as_ref(),
+        ]
+        .as_ref(),
     );
 
     histogram2.record(
@@ -135,7 +138,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ].as_ref(),
+        ]
+        .as_ref(),
     );
 
     histogram2.record(
@@ -145,7 +149,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ].as_ref(),
+        ]
+        .as_ref(),
     );
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,
