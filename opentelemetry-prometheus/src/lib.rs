@@ -32,7 +32,7 @@
 //!     .with_description("Records values")
 //!     .init();
 //!
-//! let attributes = AttributeSet::from([KeyValue::new("key", "value")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("key", "value")]);
 //!
 //! counter.add(100, attributes.clone());
 //! histogram.record(100, attributes);

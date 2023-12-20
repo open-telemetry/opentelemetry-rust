@@ -32,7 +32,7 @@
 //!     .init();
 //!
 //! // use instruments to record measurements
-//! let attributes = AttributeSet::from([KeyValue::new("rate", "standard")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("rate", "standard")]);
 //! counter.add(10, attributes);
 //! ```
 //!

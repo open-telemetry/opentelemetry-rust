@@ -82,7 +82,7 @@ pub trait MeterProvider {
 /// let u64_counter = meter.u64_counter("my_u64_counter").init();
 ///
 /// // Define the attributes the counters will use
-/// let attributes = AttributeSet::from([
+/// let attributes = AttributeSet::from(&[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ]);

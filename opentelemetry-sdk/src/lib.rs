@@ -64,7 +64,7 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! let attributes = AttributeSet::from([KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("http.client_ip", "83.164.160.102")]);
 //! counter.add(1, attributes);
 //! # }
 //! ```
