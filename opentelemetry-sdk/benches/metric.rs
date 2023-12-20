@@ -175,20 +175,20 @@ fn counters(c: &mut Criterion) {
     });
 
     group.bench_function("AddOneAttr", |b| {
-        b.iter(|| cntr.add(1, [KeyValue::new("K", "V")]))
+        b.iter(|| cntr.add(1, &[KeyValue::new("K", "V")]))
     });
     group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(1, [KeyValue::new("K1", "V1")]))
+        b.iter(|| cntr2.add(1, &[KeyValue::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
             cntr.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
                     KeyValue::new("K4", "V4"),
-                ],
+                ]),
             )
         })
     });
@@ -196,11 +196,11 @@ fn counters(c: &mut Criterion) {
         b.iter(|| {
             cntr2.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K2", "V2"),
                     KeyValue::new("K3", "V3"),
                     KeyValue::new("K4", "V4"),
-                ],
+                ]),
             )
         })
     });
@@ -208,13 +208,13 @@ fn counters(c: &mut Criterion) {
         b.iter(|| {
             cntr.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K5", "V5"),
                     KeyValue::new("K6", "V6"),
                     KeyValue::new("K7", "V7"),
                     KeyValue::new("K8", "V8"),
                     KeyValue::new("K9", "V9"),
-                ],
+                ]),
             )
         })
     });
@@ -222,13 +222,13 @@ fn counters(c: &mut Criterion) {
         b.iter(|| {
             cntr2.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K5", "V5"),
                     KeyValue::new("K6", "V6"),
                     KeyValue::new("K7", "V7"),
                     KeyValue::new("K8", "V8"),
                     KeyValue::new("K9", "V9"),
-                ],
+                ]),
             )
         })
     });
@@ -236,7 +236,7 @@ fn counters(c: &mut Criterion) {
         b.iter(|| {
             cntr.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K10", "V10"),
                     KeyValue::new("K11", "V11"),
                     KeyValue::new("K12", "V12"),
@@ -247,7 +247,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K17", "V17"),
                     KeyValue::new("K18", "V18"),
                     KeyValue::new("K19", "V19"),
-                ],
+                ]),
             )
         })
     });
@@ -255,7 +255,7 @@ fn counters(c: &mut Criterion) {
         b.iter(|| {
             cntr2.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("K10", "V10"),
                     KeyValue::new("K11", "V11"),
                     KeyValue::new("K12", "V12"),
@@ -266,7 +266,7 @@ fn counters(c: &mut Criterion) {
                     KeyValue::new("K17", "V17"),
                     KeyValue::new("K18", "V18"),
                     KeyValue::new("K19", "V19"),
-                ],
+                ]),
             )
         })
     });
@@ -279,7 +279,7 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.clone()))
+        b.iter(|| cntr3.add(1, max_attributes.as_slice()))
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
@@ -287,23 +287,31 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.clone()))
+        b.iter(|| cntr3.add(1, max_attributes.as_slice()))
     });
 
     group.bench_function("AddInvalidAttr", |b| {
-        b.iter(|| cntr.add(1, [KeyValue::new("", "V"), KeyValue::new("K", "V")]))
+        b.iter(|| {
+            cntr.add(
+                1,
+                AttributeSet::from(&[KeyValue::new("", "V"), KeyValue::new("K", "V")]),
+            )
+        })
     });
     group.bench_function("AddSingleUseAttrs", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("K", v)]);
+            cntr.add(1, AttributeSet::from(&[KeyValue::new("K", v)]));
             v += 1;
         })
     });
     group.bench_function("AddSingleUseInvalid", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("", v), KeyValue::new("K", v)]);
+            cntr.add(
+                1,
+                AttributeSet::from(&[KeyValue::new("", v), KeyValue::new("K", v)]),
+            );
             v += 1;
         })
     });
@@ -322,7 +330,10 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddSingleUseFiltered", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("L", v), KeyValue::new("K", v)]);
+            cntr.add(
+                1,
+                AttributeSet::from(&[KeyValue::new("L", v), KeyValue::new("K", v)]),
+            );
             v += 1;
         })
     });
@@ -336,7 +347,7 @@ fn counters(c: &mut Criterion) {
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, [KeyValue::new("K", v)]);
+            cntr.add(1, AttributeSet::from(&[KeyValue::new("K", v)]));
             let _ = rdr.collect(&mut rm);
             v += 1;
         })
@@ -346,7 +357,7 @@ fn counters(c: &mut Criterion) {
         let mut v = 0;
         b.iter(|| {
             for i in 0..10 {
-                cntr.add(1, [KeyValue::new("K", i)]);
+                cntr.add(1, AttributeSet::from(&[KeyValue::new("K", i)]));
             }
             let _ = rdr.collect(&mut rm);
             v += 1;
@@ -401,7 +412,7 @@ fn histograms(c: &mut Criterion) {
                 ))
             }
 
-            let attributes = AttributeSet::from(attributes);
+            let attributes = AttributeSet::from(&attributes);
             let value: u64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
                 format!("Record{}Attrs{}bounds", attr_size, bound_size),

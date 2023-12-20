@@ -1,3 +1,4 @@
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -80,12 +81,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ]),
     );
 
     // Example 2 - Drop unwanted attributes using view.
@@ -97,12 +98,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // attribute.
     counter.add(
         10,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ]),
     );
 
     // Example 3 - Change Aggregation configuration using View.
@@ -120,32 +121,32 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // the change of boundaries.
     histogram2.record(
         1.5,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ]),
     );
 
     histogram2.record(
         1.2,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ]),
     );
 
     histogram2.record(
         1.23,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
             KeyValue::new("mykey3", "myvalue3"),
             KeyValue::new("mykey4", "myvalue4"),
-        ],
+        ]),
     );
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,

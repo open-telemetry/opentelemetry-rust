@@ -18,7 +18,7 @@ fn attribute_set(c: &mut Criterion) {
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute4", "value4"),
             ];
-            let _attribute_set: AttributeSet = AttributeSet::from(attributes);
+            let _attribute_set: AttributeSet = AttributeSet::from(&attributes);
         });
     });
 
@@ -30,7 +30,7 @@ fn attribute_set(c: &mut Criterion) {
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute4", "value4"),
             ];
-            let _attribute_set: AttributeSet = AttributeSet::from(attributes);
+            let _attribute_set: AttributeSet = AttributeSet::from(&attributes);
         });
     });
 }

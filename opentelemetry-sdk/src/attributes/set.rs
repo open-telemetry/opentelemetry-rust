@@ -9,7 +9,7 @@ impl From<&Resource> for AttributeSet {
             .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
             .collect::<Vec<_>>();
 
-        AttributeSet::from(key_values)
+        AttributeSet::from(&key_values)
     }
 }
 

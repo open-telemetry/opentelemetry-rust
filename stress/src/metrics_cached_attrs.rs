@@ -27,14 +27,11 @@ lazy_static! {
         for i0 in 0..ATTRIBUTE_VALUES.len() {
             for i1 in 0..ATTRIBUTE_VALUES.len() {
                 for i2 in 0..ATTRIBUTE_VALUES.len() {
-                    vec.push(
-                        [
-                            KeyValue::new("attribute1", ATTRIBUTE_VALUES[i0]),
-                            KeyValue::new("attribute2", ATTRIBUTE_VALUES[i1]),
-                            KeyValue::new("attribute3", ATTRIBUTE_VALUES[i2]),
-                        ]
-                        .into(),
-                    )
+                    vec.push(AttributeSet::from(&[
+                        KeyValue::new("attribute1", ATTRIBUTE_VALUES[i0]),
+                        KeyValue::new("attribute2", ATTRIBUTE_VALUES[i1]),
+                        KeyValue::new("attribute3", ATTRIBUTE_VALUES[i2]),
+                    ]))
                 }
             }
         }

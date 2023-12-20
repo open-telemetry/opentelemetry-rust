@@ -1,3 +1,4 @@
+use opentelemetry::attributes::AttributeSet;
 use opentelemetry::metrics::Unit;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
@@ -34,10 +35,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the Counter instrument.
     counter.add(
         10,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ],
+        ]),
     );
 
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
@@ -51,11 +52,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         observer.observe_u64(
             &observable_counter,
             100,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .into(),
+            ]),
         )
     })?;
 
@@ -65,10 +65,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the UpCounter instrument.
     updown_counter.add(
         -10,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ],
+        ]),
     );
 
     // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
@@ -82,11 +82,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         observer.observe_i64(
             &observable_up_down_counter,
             100,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .into(),
+            ]),
         )
     })?;
 
@@ -99,10 +98,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
-        [
+        AttributeSet::from(&[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ],
+        ]),
     );
 
     // Note that there is no ObservableHistogram instrument.
@@ -119,11 +118,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
         gauge.record(
             1.0,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .into(),
+            ]),
         );
     }
 
@@ -139,11 +137,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         observer.observe_f64(
             &observable_gauge,
             1.0,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .into(),
+            ]),
         )
     })?;
 

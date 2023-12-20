@@ -88,15 +88,15 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit(Unit::new("my_unit"))
             .init();
-        counter.add(1, [KeyValue::new("key1", "value1")]);
-        counter.add(1, [KeyValue::new("key1", "value1")]);
-        counter.add(1, [KeyValue::new("key1", "value1")]);
-        counter.add(1, [KeyValue::new("key1", "value1")]);
-        counter.add(1, [KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
 
-        counter.add(1, [KeyValue::new("key1", "value2")]);
-        counter.add(1, [KeyValue::new("key1", "value2")]);
-        counter.add(1, [KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
 
         meter_provider.force_flush().unwrap();
 
@@ -183,7 +183,7 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = AttributeSet::from([KeyValue::new("key1", "value1")]);
+        let attribute = AttributeSet::from(&[KeyValue::new("key1", "value1")]);
         counter.add(10, attribute.clone());
         counter_duplicated.add(5, attribute);
 
@@ -246,7 +246,7 @@ mod tests {
             .with_unit(Unit::new("test_unit"))
             .init();
 
-        histogram.record(1.5, [KeyValue::new("key1", "value1")]);
+        histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
 
         // Assert
@@ -301,6 +301,7 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "get"),
                     ]
+                    .as_slice()
                     .into(),
                 );
 
@@ -311,6 +312,7 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "post"),
                     ]
+                    .as_slice()
                     .into(),
                 );
 
@@ -321,6 +323,7 @@ mod tests {
                         KeyValue::new("statusCode", "500"),
                         KeyValue::new("verb", "get"),
                     ]
+                    .as_slice()
                     .into(),
                 );
             })
@@ -381,26 +384,26 @@ mod tests {
         // drops all attributes, we expect only 1 time-series.
         counter.add(
             10,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Get"),
-            ],
+            ]),
         );
 
         counter.add(
             10,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("statusCode", "500"),
                 KeyValue::new("verb", "Get"),
-            ],
+            ]),
         );
 
         counter.add(
             10,
-            [
+            AttributeSet::from(&[
                 KeyValue::new("statusCode", "200"),
                 KeyValue::new("verb", "Post"),
-            ],
+            ]),
         );
 
         meter_provider.force_flush().unwrap();

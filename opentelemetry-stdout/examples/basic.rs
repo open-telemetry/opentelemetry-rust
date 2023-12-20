@@ -1,5 +1,6 @@
 //! run with `$ cargo run --example basic --all-features
 
+use opentelemetry::attributes::AttributeSet;
 #[cfg(all(feature = "metrics", feature = "trace"))]
 use opentelemetry::{
     metrics::MeterProvider as _,
@@ -45,7 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let meter = meter_provider.meter("stdout-test");
     let c = meter.u64_counter("test_events").init();
-    c.add(1, [KeyValue::new("test_key", "test_value")]);
+    c.add(
+        1,
+        AttributeSet::from(&[KeyValue::new("test_key", "test_value")]),
+    );
 
     meter_provider.shutdown()?;
 

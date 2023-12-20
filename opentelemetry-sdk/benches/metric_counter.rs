@@ -39,12 +39,12 @@ fn counter_add(c: &mut Criterion) {
             let index_forth_attribute = rng.gen_range(0..10);
             counter.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ],
+                ]),
             );
         });
     });
@@ -59,18 +59,18 @@ fn counter_add(c: &mut Criterion) {
             let index_forth_attribute = rng.gen_range(0..10);
             counter.add(
                 1,
-                [
+                AttributeSet::from(&[
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
-                ],
+                ]),
             );
         });
     });
 
     c.bench_function("Counter_Add_Cached_Attributes", |b| {
-        let attributes = AttributeSet::from([
+        let attributes = AttributeSet::from(&[
             KeyValue::new("attribute2", attribute_values[0]),
             KeyValue::new("attribute3", attribute_values[1]),
             KeyValue::new("attribute1", attribute_values[2]),

@@ -137,10 +137,11 @@ where
             .into_iter()
             .rev()
             .filter_map(|kv| {
-                if seen_keys.insert(kv.key.clone()) {
-                    Some(HashKeyValue(kv.clone()))
-                } else {
+                if seen_keys.contains(&kv.key) {
                     None
+                } else {
+                    seen_keys.insert(kv.key.clone());
+                    Some(HashKeyValue(kv))
                 }
             })
             .collect::<Vec<_>>();
@@ -165,12 +166,14 @@ impl Hash for InternalAttributeSet {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct AttributeSet(Arc<InternalAttributeSet>);
 
-impl<I: IntoIterator<Item = KeyValue>> From<I> for AttributeSet
+impl<'a, I: IntoIterator<Item = &'a KeyValue>> From<I> for AttributeSet
 where
     <I as IntoIterator>::IntoIter: DoubleEndedIterator + ExactSizeIterator,
 {
     fn from(values: I) -> Self {
-        AttributeSet(Arc::new(InternalAttributeSet::from(values)))
+        AttributeSet(Arc::new(InternalAttributeSet::from(
+            values.into_iter().cloned(),
+        )))
     }
 }
 
@@ -222,7 +225,7 @@ mod tests {
     fn can_create_attribute_set_from_array() {
         let array = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
 
-        let set = AttributeSet::from(array);
+        let set = AttributeSet::from(&array);
         let mut kvs = set.iter().collect::<Vec<_>>();
 
         assert_eq!(kvs.len(), 2, "Incorrect number of attributes");
@@ -264,8 +267,8 @@ mod tests {
             KeyValue::new("key2", 3),
         ];
 
-        let set1 = AttributeSet::from(array1);
-        let set2 = AttributeSet::from(array2);
+        let set1 = AttributeSet::from(&array1);
+        let set2 = AttributeSet::from(&array2);
 
         assert_eq!(set1, set2);
     }
@@ -296,8 +299,8 @@ mod tests {
             KeyValue::new("key2", 3),
         ];
 
-        let set1 = AttributeSet::from(array1);
-        let set2 = AttributeSet::from(array2);
+        let set1 = AttributeSet::from(&array1);
+        let set2 = AttributeSet::from(&array2);
 
         let mut hasher1 = DefaultHasher::new();
         let mut hasher2 = DefaultHasher::new();
@@ -315,7 +318,7 @@ mod tests {
             KeyValue::new("key3", 4),
         ];
 
-        let set = AttributeSet::from(array);
+        let set = AttributeSet::from(&array);
         let set2 = set.clone_with(|kv| kv.key == Key::new("key2"));
 
         assert_ne!(set, set2, "Both sets were unexpectedly equal");
@@ -330,7 +333,7 @@ mod tests {
     fn len_returns_accurate_value() {
         let array = [KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)];
 
-        let set = AttributeSet::from(array);
+        let set = AttributeSet::from(&array);
         let kvs = set.iter().collect::<Vec<_>>();
 
         assert_eq!(set.len(), kvs.len());
@@ -338,7 +341,7 @@ mod tests {
 
     #[test]
     fn empty_when_no_attributes_provided() {
-        let set = AttributeSet::from([]);
+        let set = AttributeSet::from(&[]);
         assert!(set.is_empty());
     }
 
@@ -353,7 +356,7 @@ mod tests {
     fn last_key_wins_for_deduplication() {
         let array = [KeyValue::new("key1", "value1"), KeyValue::new("key1", 3)];
 
-        let set = AttributeSet::from(array);
+        let set = AttributeSet::from(&array);
         let kvs = set.iter().collect::<Vec<_>>();
 
         assert_eq!(set.len(), 1, "Expected only a single key value pair");

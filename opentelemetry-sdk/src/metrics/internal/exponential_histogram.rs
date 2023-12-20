@@ -624,7 +624,7 @@ mod tests {
     }
 
     fn run_min_max_sum_f64() {
-        let alice = AttributeSet::from([KeyValue::new("user", "alice")]);
+        let alice = AttributeSet::from(&[KeyValue::new("user", "alice")]);
         struct Expected {
             min: f64,
             max: f64,
@@ -685,7 +685,7 @@ mod tests {
     }
 
     fn run_min_max_sum<T: Number<T> + From<u32>>() {
-        let alice = AttributeSet::from([KeyValue::new("user", "alice")]);
+        let alice = AttributeSet::from(&[KeyValue::new("user", "alice")]);
         struct Expected<T> {
             min: T,
             max: T,

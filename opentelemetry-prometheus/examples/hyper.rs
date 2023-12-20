@@ -15,7 +15,8 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-static HANDLER_ALL: Lazy<AttributeSet> = Lazy::new(|| [KeyValue::new("handler", "all")].into());
+static HANDLER_ALL: Lazy<AttributeSet> =
+    Lazy::new(|| AttributeSet::from(&[KeyValue::new("handler", "all")]));
 
 async fn serve_req(
     req: Request<Body>,
