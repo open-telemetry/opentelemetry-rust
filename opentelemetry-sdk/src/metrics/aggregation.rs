@@ -134,7 +134,7 @@ impl Aggregation {
                         max_scale,
                     )));
                 }
-                if *max_scale < -EXPO_MIN_SCALE {
+                if *max_scale < EXPO_MIN_SCALE {
                     return Err(MetricsError::Config(format!(
                         "aggregation: exponential histogram: max scale ({}) is less than -10",
                         max_scale,
