@@ -146,3 +146,89 @@ impl Aggregation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::metrics::{
+        internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
+        Aggregation,
+    };
+    use opentelemetry::metrics::{MetricsError, Result};
+
+    #[test]
+    fn validate_aggregation() {
+        struct TestCase {
+            name: &'static str,
+            input: Aggregation,
+            check: Box<dyn Fn(Result<()>) -> bool>,
+        }
+        let ok = Box::new(|result: Result<()>| result.is_ok());
+        let config_error = Box::new(|result| matches!(result, Err(MetricsError::Config(_))));
+
+        let test_cases: Vec<TestCase> = vec![
+            TestCase {
+                name: "base2 histogram with maximum max_scale",
+                input: Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: EXPO_MAX_SCALE,
+                    record_min_max: true,
+                },
+                check: ok.clone(),
+            },
+            TestCase {
+                name: "base2 histogram with minimum max_scale",
+                input: Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: EXPO_MIN_SCALE,
+                    record_min_max: true,
+                },
+                check: ok.clone(),
+            },
+            TestCase {
+                name: "base2 histogram with max_scale too small",
+                input: Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: EXPO_MIN_SCALE - 1,
+                    record_min_max: true,
+                },
+                check: config_error.clone(),
+            },
+            TestCase {
+                name: "base2 histogram with max_scale too big",
+                input: Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: EXPO_MAX_SCALE + 1,
+                    record_min_max: true,
+                },
+                check: config_error.clone(),
+            },
+            TestCase {
+                name: "explicit histogram with one boundary",
+                input: Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.0],
+                    record_min_max: true,
+                },
+                check: ok.clone(),
+            },
+            TestCase {
+                name: "explicit histogram with monotonic boundaries",
+                input: Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.0, 2.0, 4.0, 8.0],
+                    record_min_max: true,
+                },
+                check: ok.clone(),
+            },
+            TestCase {
+                name: "explicit histogram with non-monotonic boundaries",
+                input: Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![2.0, 0.0, 4.0, 8.0],
+                    record_min_max: true,
+                },
+                check: config_error.clone(),
+            },
+        ];
+        for test in test_cases {
+            assert!((test.check)(test.input.validate()), "{}", test.name)
+        }
+    }
+}
