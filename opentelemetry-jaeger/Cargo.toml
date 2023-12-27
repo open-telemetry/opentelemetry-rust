@@ -20,7 +20,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-std = { workspace = true optional = true }
+async-std = { workspace = true, optional = true }
 async-trait = { workspace = true }
 base64 = { version = "0.21.0", optional = true }
 headers = { version = "0.3.2", optional = true }
@@ -53,7 +53,7 @@ futures-util = { workspace = true, default-features = false, features = ["std", 
 [dev-dependencies]
 tokio = { workspace = true, features = ["net", "sync"] }
 bytes = { workspace = true }
-futures-executor = workspace = true
+futures-executor = { workspace = true }
 opentelemetry_sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
 
 [dependencies.web-sys]
