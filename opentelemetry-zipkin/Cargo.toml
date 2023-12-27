@@ -35,7 +35,7 @@ opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetr
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.12"
-once_cell = { workspace = true }
+once_cell = "1.12"
 http = { workspace = true }
 reqwest = { workspace = true, optional = true, default-features = false }
 surf = { workspace = true, optional = true, default-features = false }
