@@ -62,6 +62,8 @@ tracing-core = "0.1"
 tracing-subscriber = "0.3"
 
 pin-project = "0.2"
+pin-project-lite = "0.2"
+
 temp-env = "0.3.6"
 env_logger = "0.10"
 

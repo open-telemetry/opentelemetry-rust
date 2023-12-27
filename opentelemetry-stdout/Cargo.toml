@@ -34,4 +34,4 @@ ordered-float = { workspace = true }
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
-tokio = { version = "1.27", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
