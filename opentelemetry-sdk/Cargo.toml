@@ -15,7 +15,7 @@ opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optiona
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
-futures-channel = { workspace = true }
+futures-channel = "0.3"
 futures-executor = { workspace = true }
 futures-util = { workspace = true, default-features = false, features = ["std", "sink", "async-await-macro"] }
 once_cell = { workspace = true }
