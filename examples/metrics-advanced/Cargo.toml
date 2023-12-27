@@ -9,5 +9,5 @@ publish = false
 opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
-tokio = { version = "1.0", features = ["full"] }
-serde_json = {version = "1.0"}
+tokio = { workspace = true, features = ["full"] }
+serde_json = { workspace = true }
