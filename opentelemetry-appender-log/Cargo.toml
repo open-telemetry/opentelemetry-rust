@@ -12,7 +12,7 @@ edition = "2021"
 
 [dependencies]
 opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"]}
-log = {version = "0.4.17", features = ["kv_unstable", "std"]}
+log = { version = "0.4.17", features = ["kv_unstable", "std"]}
 
 [features]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]
@@ -20,4 +20,4 @@ default = ["logs_level_enabled"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
-tokio = "1.32.0"
+tokio = { workspace = true }
