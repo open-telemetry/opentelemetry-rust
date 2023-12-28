@@ -116,15 +116,15 @@ async fn smoke_tracer() {
     let req = req_rx.recv().await.expect("missing export request");
     let first_span = req
         .resource_spans
-        .get(0)
+        .first()
         .unwrap()
         .scope_spans
-        .get(0)
+        .first()
         .unwrap()
         .spans
-        .get(0)
+        .first()
         .unwrap();
     assert_eq!("my-test-span", first_span.name);
-    let first_event = first_span.events.get(0).unwrap();
+    let first_event = first_span.events.first().unwrap();
     assert_eq!("my-test-event", first_event.name);
 }
