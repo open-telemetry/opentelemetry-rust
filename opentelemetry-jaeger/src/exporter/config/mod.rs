@@ -82,6 +82,20 @@ fn build_config_and_process(
     (config, Process { service_name, tags })
 }
 
+pub(crate) fn install_tracer_provider_and_get_tracer(
+    tracer_provider: TracerProvider,
+) -> Result<Tracer, TraceError> {
+    let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+        &tracer_provider,
+        "opentelemetry-jaeger",
+        Some(env!("CARGO_PKG_VERSION")),
+        Some(semcov::SCHEMA_URL),
+        None,
+    );
+    let _ = global::set_tracer_provider(tracer_provider);
+    Ok(tracer)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::exporter::config::build_config_and_process;
@@ -114,18 +128,4 @@ mod tests {
         assert_eq!(exporter.process.service_name, "test service");
         env::set_var("OTEL_SERVICE_NAME", "")
     }
-}
-
-pub(crate) fn install_tracer_provider_and_get_tracer(
-    tracer_provider: TracerProvider,
-) -> Result<Tracer, TraceError> {
-    let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
-        &tracer_provider,
-        "opentelemetry-jaeger",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(semcov::SCHEMA_URL),
-        None,
-    );
-    let _ = global::set_tracer_provider(tracer_provider);
-    Ok(tracer)
 }
