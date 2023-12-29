@@ -245,7 +245,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
@@ -325,7 +325,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
@@ -409,7 +409,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
@@ -489,7 +489,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
