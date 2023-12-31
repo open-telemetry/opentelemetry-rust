@@ -21,17 +21,17 @@ metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror"]
 
 [dependencies]
-async-trait = { version = "0.1", optional = true }
+async-trait = { workspace = true, optional = true }
 chrono = { version = "0.4.22", default-features = false, features = ["clock"] }
-thiserror = { version = "1", optional = true }
-futures-util = { version = "0.3", optional = true, default-features = false }
+thiserror = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true, default-features = false }
 opentelemetry = { version = "0.21", path = "../opentelemetry", default_features = false }
 opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", default_features = false }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-ordered-float = "4.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+ordered-float = { workspace = true }
 
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
-tokio = { version = "1.27", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }

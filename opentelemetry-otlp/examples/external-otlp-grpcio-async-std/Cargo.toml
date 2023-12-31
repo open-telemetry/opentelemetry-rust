@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 async-std = { version = "= 1.10.0", features = ["attributes"] }
-env_logger = "0.10.0"
+env_logger = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-async-std"] }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = [
@@ -15,4 +15,4 @@ opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = [
     "trace",
     "openssl-vendored"
 ], default-features = false }
-url = "2.2.0"
+url = { workspace = true }
