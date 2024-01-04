@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.21.2
+
+### Fixed
+
 - Fix delta aggregation metric reuse. (#1434)
 - Fix `max_scale` validation of exponential histogram configuration. (#1452)
 
