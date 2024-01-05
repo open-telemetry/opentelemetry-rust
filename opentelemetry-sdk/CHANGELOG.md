@@ -29,9 +29,12 @@
 
 - [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
 
+## v0.21.2
+
 ### Fixed
 
 - Fix delta aggregation metric reuse. (#1434)
+- Fix `max_scale` validation of exponential histogram configuration. (#1452)
 
 ## v0.21.1
 

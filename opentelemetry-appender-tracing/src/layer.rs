@@ -17,24 +17,12 @@ struct EventVisitor {
     log_record_body: Option<AnyValue>,
 }
 
+/// Logs from the log crate have duplicated attributes that we removed here.
 #[cfg(feature = "experimental_metadata_attributes")]
-fn is_metadata(field: &'static str) -> bool {
+fn is_duplicated_metadata(field: &'static str) -> bool {
     field
         .strip_prefix("log.")
-        .map(|remainder| {
-            matches!(
-                remainder,
-                "file"
-                    | "line"
-                    | "module_path"
-                    | "module.path"
-                    | "name"
-                    | "source.file.line"
-                    | "source.file.path"
-                    | "source.file.name"
-                    | "target"
-            )
-        })
+        .map(|remainder| matches!(remainder, "file" | "line" | "module_path" | "target"))
         .unwrap_or(false)
 }
 
@@ -65,21 +53,21 @@ impl EventVisitor {
 
         if let Some(module_path) = meta.module_path() {
             self.log_record_attributes
-                .push(("log.module.path".into(), module_path.to_owned().into()));
+                .push(("code.namespace".into(), module_path.to_owned().into()));
         }
 
         if let Some(filepath) = meta.file() {
             self.log_record_attributes
-                .push(("log.source.file.path".into(), filepath.to_owned().into()));
+                .push(("code.filepath".into(), filepath.to_owned().into()));
             self.log_record_attributes.push((
-                "log.source.file.name".into(),
+                "code.filename".into(),
                 get_filename(filepath).to_owned().into(),
             ));
         }
 
         if let Some(line) = meta.line() {
             self.log_record_attributes
-                .push(("log.source.file.line".into(), line.into()));
+                .push(("code.lineno".into(), line.into()));
         }
     }
 
@@ -92,7 +80,7 @@ impl EventVisitor {
 impl tracing::field::Visit for EventVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
-        if is_metadata(field.name()) {
+        if is_duplicated_metadata(field.name()) {
             return;
         }
         if field.name() == "message" {
@@ -105,7 +93,7 @@ impl tracing::field::Visit for EventVisitor {
 
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
         #[cfg(feature = "experimental_metadata_attributes")]
-        if is_metadata(field.name()) {
+        if is_duplicated_metadata(field.name()) {
             return;
         }
         self.log_record_attributes
@@ -124,7 +112,7 @@ impl tracing::field::Visit for EventVisitor {
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
         #[cfg(feature = "experimental_metadata_attributes")]
-        if is_metadata(field.name()) {
+        if is_duplicated_metadata(field.name()) {
             return;
         }
         self.log_record_attributes
@@ -257,7 +245,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
@@ -283,17 +271,17 @@ mod tests {
         assert!(attributes.contains(&(Key::new("user_email"), "otel@opentelemetry.io".into())));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(Key::new("code.filename"), "layer.rs".into())));
             assert!(attributes.contains(&(
-                Key::new("log.module.path"),
+                Key::new("code.namespace"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
             let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
-            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
-            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("code.filepath")));
+            assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
@@ -337,7 +325,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
@@ -380,17 +368,17 @@ mod tests {
         assert!(attributes.contains(&(Key::new("user_email"), "otel@opentelemetry.io".into())));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(Key::new("code.filename"), "layer.rs".into())));
             assert!(attributes.contains(&(
-                Key::new("log.module.path"),
+                Key::new("code.namespace"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
             let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
-            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
-            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("code.filepath")));
+            assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
@@ -421,7 +409,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
@@ -446,17 +434,17 @@ mod tests {
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(Key::new("code.filename"), "layer.rs".into())));
             assert!(attributes.contains(&(
-                Key::new("log.module.path"),
+                Key::new("code.namespace"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
             let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
-            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
-            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("code.filepath")));
+            assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }
@@ -501,7 +489,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
@@ -543,17 +531,17 @@ mod tests {
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&(Key::new("log.source.file.name"), "layer.rs".into())));
+            assert!(attributes.contains(&(Key::new("code.filename"), "layer.rs".into())));
             assert!(attributes.contains(&(
-                Key::new("log.module.path"),
+                Key::new("code.namespace"),
                 "opentelemetry_appender_tracing::layer::tests".into()
             )));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
             let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
-            assert!(attributes_key.contains(&Key::new("log.source.file.path")));
-            assert!(attributes_key.contains(&Key::new("log.source.file.line")));
+            assert!(attributes_key.contains(&Key::new("code.filepath")));
+            assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(attributes_key.contains(&Key::new("log.target")));
         }
     }

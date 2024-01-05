@@ -9,4 +9,4 @@ publish = false
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic"] }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
