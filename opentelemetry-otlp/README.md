@@ -70,7 +70,7 @@ automatically.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["async-std"] }
+opentelemetry_sdk = { version = "*", features = ["async-std"] }
 opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
 ```
 

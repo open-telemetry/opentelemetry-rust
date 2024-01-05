@@ -10,12 +10,12 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-async-trait = "0.1"
-bytes = "1"
-http = "0.2"
-hyper = { version = "0.14", default-features = false, features = ["http2", "client", "tcp"], optional = true }
-isahc = { version = "1.4", default-features = false, optional = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true, default-features = false, features = ["http2", "client", "tcp"], optional = true }
+isahc = { workspace = true, default-features = false, optional = true }
 opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["trace"] }
-reqwest = { version = "0.11", default-features = false, features = ["blocking"], optional = true }
-surf = { version = "2.0", default-features = false, optional = true }
-tokio = { version = "1.0", default-features = false, features = ["time"], optional = true }
+reqwest = { workspace = true, default-features = false, features = ["blocking"], optional = true }
+surf = { workspace = true, default-features = false, optional = true }
+tokio = { workspace = true, default-features = false, features = ["time"], optional = true }

@@ -217,11 +217,11 @@ impl From<opentelemetry::trace::Status> for Status {
             },
             opentelemetry::trace::Status::Error { description } => Status {
                 message: Some(description),
-                code: 1,
+                code: 2,
             },
             opentelemetry::trace::Status::Ok => Status {
                 message: None,
-                code: 2,
+                code: 1,
             },
         }
     }

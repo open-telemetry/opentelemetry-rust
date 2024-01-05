@@ -77,7 +77,7 @@ impl From<opentelemetry::Key> for Key {
 }
 
 #[derive(Debug, Serialize, Clone)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::enum_variant_names)] // we want to emphasize the *Values are collection
 pub(crate) enum Value {
     #[serde(rename = "boolValue")]
     Bool(bool),
