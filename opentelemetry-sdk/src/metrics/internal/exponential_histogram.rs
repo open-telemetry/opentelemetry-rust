@@ -1222,17 +1222,19 @@ mod tests {
         hist_aggregation::<f64>();
     }
 
+    type AggregateFns<T> = (
+        Box<dyn internal::Measure<T>>,
+        Box<dyn internal::ComputeAggregation>,
+        Box<dyn internal::BoundedMeasureGenerator<T>>,
+    );
+
     fn box_val<T>(
         (m, ca, bmg): (
             impl internal::Measure<T>,
             impl internal::ComputeAggregation,
             impl internal::BoundedMeasureGenerator<T>,
         ),
-    ) -> (
-        Box<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-        Box<dyn internal::BoundedMeasureGenerator<T>>,
-    ) {
+    ) -> AggregateFns<T> {
         (Box::new(m), Box::new(ca), Box::new(bmg))
     }
 
