@@ -10,6 +10,7 @@
 /// as well.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
@@ -24,6 +25,8 @@ pub struct TracesData {
 /// A collection of ScopeSpans from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
@@ -42,6 +45,8 @@ pub struct ResourceSpans {
 /// A collection of Spans produced by an InstrumentationScope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeSpans {
@@ -62,6 +67,8 @@ pub struct ScopeSpans {
 /// The next available field id is 17.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
@@ -72,6 +79,13 @@ pub struct Span {
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "1")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
@@ -80,6 +94,13 @@ pub struct Span {
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
     /// trace_state conveys information about request position in multiple distributed tracing graphs.
     /// It is a trace_state in w3c-trace-context format: <https://www.w3.org/TR/trace-context/#tracestate-header>
@@ -89,6 +110,13 @@ pub struct Span {
     /// The `span_id` of this span's parent span. If this is a root span, then this
     /// field must be empty. The ID is an 8-byte array.
     #[prost(bytes = "vec", tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub parent_span_id: ::prost::alloc::vec::Vec<u8>,
     /// A description of the span's operation.
     ///
@@ -169,6 +197,7 @@ pub mod span {
     /// text description and key-value pairs.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
@@ -197,6 +226,8 @@ pub mod span {
     /// traces or when the handler receives a request from a different project.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
@@ -226,6 +257,7 @@ pub mod span {
     /// in addition to a parent/child relationship.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(
         Clone,
         Copy,
@@ -293,6 +325,7 @@ pub mod span {
 /// programming environments, including REST APIs and RPC APIs.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
@@ -309,6 +342,7 @@ pub mod status {
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#set-status>
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(
         Clone,
         Copy,
