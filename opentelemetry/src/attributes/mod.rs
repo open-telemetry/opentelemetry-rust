@@ -2,4 +2,4 @@
 
 mod set;
 
-pub use set::AttributeSet;
+pub use set::{AttributeSet, ToKeyValue};

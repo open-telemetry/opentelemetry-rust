@@ -26,7 +26,7 @@ impl From<Vec<opentelemetry_sdk::export::logs::LogData>> for LogData {
             let resource: Resource = sdk_log.resource.as_ref().into();
 
             let rl = resource_logs
-                .entry(sdk_log.resource.as_ref().into())
+                .entry(sdk_log.resource.as_ref().to_attribute_set())
                 .or_insert_with(move || ResourceLogs {
                     resource,
                     scope_logs: Vec::with_capacity(1),

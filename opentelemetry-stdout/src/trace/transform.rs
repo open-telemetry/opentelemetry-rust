@@ -20,7 +20,7 @@ impl From<Vec<opentelemetry_sdk::export::trace::SpanData>> for SpanData {
             let resource = sdk_span.resource.as_ref().into();
 
             let rs = resource_spans
-                .entry(sdk_span.resource.as_ref().into())
+                .entry(sdk_span.resource.as_ref().to_attribute_set())
                 .or_insert_with(move || ResourceSpans {
                     resource,
                     scope_spans: Vec::with_capacity(1),
