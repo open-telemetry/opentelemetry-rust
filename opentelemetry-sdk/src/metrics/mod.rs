@@ -64,7 +64,7 @@ pub use view::*;
 mod tests {
     use super::*;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
-    use opentelemetry::attributes::AttributeSet;
+    use opentelemetry::AttributeSet;
     use opentelemetry::{
         metrics::{MeterProvider as _, Unit},
         KeyValue,

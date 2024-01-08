@@ -209,7 +209,8 @@ pub mod global;
 
 pub mod baggage;
 
-pub mod attributes;
+mod attributes;
+pub use attributes::{AttributeSet, ToKeyValue};
 
 mod context;
 

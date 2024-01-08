@@ -2,8 +2,8 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use opentelemetry::attributes::AttributeSet;
 use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
+use opentelemetry::AttributeSet;
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_prometheus::ExporterBuilder;

@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::Any, borrow::Cow, collections::HashSet, sync::Arc};
 
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use opentelemetry::{
     global,
     metrics::{

@@ -4,7 +4,7 @@ use crate::common::{
     as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, KeyValue, Resource,
     Scope, Value,
 };
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use serde::Serialize;
 
 /// Transformed logs data that can be serialized.

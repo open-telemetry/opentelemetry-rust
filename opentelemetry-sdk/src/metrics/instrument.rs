@@ -1,12 +1,11 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
 use opentelemetry::{
-    attributes::AttributeSet,
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
         SyncUpDownCounter, Unit,
     },
-    Key,
+    AttributeSet, Key,
 };
 
 use crate::{

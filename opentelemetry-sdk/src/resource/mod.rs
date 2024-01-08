@@ -30,7 +30,7 @@ pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
 
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use opentelemetry::{Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};

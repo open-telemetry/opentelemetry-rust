@@ -4,7 +4,7 @@ use hyper::{
     Body, Method, Request, Response, Server,
 };
 use once_cell::sync::Lazy;
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Unit},
     KeyValue,

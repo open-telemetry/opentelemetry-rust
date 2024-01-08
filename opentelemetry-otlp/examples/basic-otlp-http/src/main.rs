@@ -11,7 +11,7 @@ use opentelemetry_sdk::metrics as sdkmetrics;
 use opentelemetry_sdk::resource;
 use opentelemetry_sdk::trace as sdktrace;
 
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;

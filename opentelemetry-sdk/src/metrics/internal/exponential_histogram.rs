@@ -1,7 +1,7 @@
 use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
-use opentelemetry::{attributes::AttributeSet, metrics::MetricsError};
+use opentelemetry::{metrics::MetricsError, AttributeSet};
 
 use crate::metrics::data::{self, Aggregation, Temporality};
 

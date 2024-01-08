@@ -12,8 +12,8 @@ use serde::{Serialize, Serializer};
 #[derive(Debug, Serialize, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct AttributeSet(pub BTreeMap<Key, Value>);
 
-impl From<&opentelemetry::attributes::AttributeSet> for AttributeSet {
-    fn from(value: &opentelemetry::attributes::AttributeSet) -> Self {
+impl From<&opentelemetry::AttributeSet> for AttributeSet {
+    fn from(value: &opentelemetry::AttributeSet) -> Self {
         AttributeSet(
             value
                 .iter()

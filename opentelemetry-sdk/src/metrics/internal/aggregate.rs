@@ -1,7 +1,7 @@
 use std::{marker, sync::Arc};
 
 use once_cell::sync::Lazy;
-use opentelemetry::{attributes::AttributeSet, KeyValue};
+use opentelemetry::{AttributeSet, KeyValue};
 
 use crate::metrics::data::{Aggregation, Gauge, Temporality};
 

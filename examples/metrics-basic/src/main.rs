@@ -1,5 +1,5 @@
-use opentelemetry::attributes::AttributeSet;
 use opentelemetry::metrics::Unit;
+use opentelemetry::AttributeSet;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};

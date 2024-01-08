@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::attributes::AttributeSet;
+use opentelemetry::AttributeSet;
 use opentelemetry::KeyValue;
 
 // Run this benchmark with:
