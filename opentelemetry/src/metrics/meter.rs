@@ -72,7 +72,7 @@ pub trait MeterProvider {
 /// Provides access to instrument instances for recording measurements.
 ///
 /// ```
-/// use opentelemetry::{attributes::AttributeSet, global, KeyValue};
+/// use opentelemetry::{AttributeSet, global, KeyValue};
 ///
 /// let meter = global::meter("my-meter");
 ///

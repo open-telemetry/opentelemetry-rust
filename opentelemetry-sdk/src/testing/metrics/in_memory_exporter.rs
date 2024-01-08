@@ -29,7 +29,7 @@ use std::sync::{Arc, Mutex};
 /// ```
 ///# use opentelemetry_sdk::{metrics, runtime};
 ///# use opentelemetry::{KeyValue};
-///# use opentelemetry::attributes::AttributeSet;
+///# use opentelemetry::AttributeSet;
 ///# use opentelemetry::metrics::MeterProvider;
 ///# use opentelemetry_sdk::testing::metrics::InMemoryMetricsExporter;
 ///# use opentelemetry_sdk::metrics::PeriodicReader;

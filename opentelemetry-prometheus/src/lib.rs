@@ -3,14 +3,14 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry::{attributes::AttributeSet, metrics::MeterProvider, KeyValue};
+//! use opentelemetry::{AttributeSet, metrics::MeterProvider, KeyValue};
 //! use opentelemetry_sdk::metrics::SdkMeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! // create a new prometheus registry
-//! use opentelemetry::attributes::AttributeSet;
+//! use opentelemetry::AttributeSet;
 //! let registry = prometheus::Registry::new();
 //!
 //! // configure OpenTelemetry to use this registry

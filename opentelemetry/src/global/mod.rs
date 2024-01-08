@@ -92,7 +92,7 @@
 //! # #[cfg(feature="metrics")]
 //! # {
 //! use opentelemetry::metrics::{Meter, noop::NoopMeterProvider};
-//! use opentelemetry::{attributes::AttributeSet, global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! fn init_meter() {
 //!     let provider = NoopMeterProvider::new();
@@ -123,7 +123,7 @@
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::{attributes::AttributeSet, global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global meter provider

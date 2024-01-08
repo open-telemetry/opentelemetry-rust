@@ -13,7 +13,7 @@
 //!     metrics::{MeterProvider, Unit},
 //!     KeyValue,
 //! };
-//! use opentelemetry::attributes::AttributeSet;
+//! use opentelemetry::AttributeSet;
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc

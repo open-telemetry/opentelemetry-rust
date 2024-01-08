@@ -52,10 +52,10 @@
 //! ### Creating instruments and recording measurements
 //!
 //! ```
-//! # use opentelemetry::attributes::AttributeSet;
+//! # use opentelemetry::AttributeSet;
 //! #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{attributes::AttributeSet, global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
