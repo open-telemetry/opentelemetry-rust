@@ -156,7 +156,9 @@ impl Hash for InternalAttributeSet {
     }
 }
 
+/// Trait declaring that a type can be converted into a `KeyValue`
 pub trait ToKeyValue {
+    /// Create a `KeyValue` from the current instance.
     fn to_key_value(self) -> KeyValue;
 }
 

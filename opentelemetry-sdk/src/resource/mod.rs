@@ -192,6 +192,7 @@ impl Resource {
         self.attrs.get(&key).cloned()
     }
 
+    /// Creates a new attribute set from the resource's current attributes
     pub fn to_attribute_set(&self) -> AttributeSet {
         let key_values = self
             .iter()
