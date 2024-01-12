@@ -13,11 +13,29 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
-use std::sync::Mutex;
+use std::{env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
+    str::FromStr,
     time::Duration,
 };
+
+/// Delay interval between two consecutive exports.
+const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
+/// Default delay interval between two consecutive exports.
+const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: u64 = 1_000;
+/// Maximum allowed time to export data.
+const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
+/// Default maximum allowed time to export data.
+const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+/// Maximum queue size.
+const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
+/// Default maximum queue size.
+const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+/// Maximum batch size, must be less than or equal to OTEL_BLRP_MAX_QUEUE_SIZE.
+const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
+/// Default maximum batch size.
+const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
 /// The interface for plugging into a [`Logger`].
 ///
@@ -281,12 +299,54 @@ pub struct BatchConfig {
 
 impl Default for BatchConfig {
     fn default() -> Self {
-        BatchConfig {
-            max_queue_size: 2_048,
-            scheduled_delay: Duration::from_millis(1_000),
-            max_export_batch_size: 512,
-            max_export_timeout: Duration::from_millis(30_000),
+        let mut config = BatchConfig {
+            max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
+            scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
+            max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+            max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
+        };
+
+        if let Some(max_queue_size) = env::var(OTEL_BLRP_MAX_QUEUE_SIZE)
+            .ok()
+            .and_then(|queue_size| usize::from_str(&queue_size).ok())
+        {
+            config.max_queue_size = max_queue_size;
         }
+
+        if let Some(max_export_batch_size) = env::var(OTEL_BLRP_MAX_EXPORT_BATCH_SIZE)
+            .ok()
+            .and_then(|batch_size| usize::from_str(&batch_size).ok())
+        {
+            if max_export_batch_size > config.max_queue_size {
+                config.max_export_batch_size = config.max_queue_size;
+            } else {
+                config.max_export_batch_size = max_export_batch_size;
+            }
+        }
+
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        if config.max_export_batch_size > config.max_queue_size {
+            config.max_export_batch_size = config.max_queue_size;
+        }
+
+        if let Some(scheduled_delay) = env::var(OTEL_BLRP_SCHEDULE_DELAY)
+            .ok()
+            .or_else(|| env::var("OTEL_BLRP_SCHEDULE_DELAY_MILLIS").ok())
+            .and_then(|delay| u64::from_str(&delay).ok())
+        {
+            config.scheduled_delay = Duration::from_millis(scheduled_delay);
+        }
+
+        if let Some(max_export_timeout) = env::var(OTEL_BLRP_EXPORT_TIMEOUT)
+            .ok()
+            .or_else(|| env::var("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS").ok())
+            .and_then(|s| u64::from_str(&s).ok())
+        {
+            config.max_export_timeout = Duration::from_millis(max_export_timeout);
+        }
+
+        config
     }
 }
 
