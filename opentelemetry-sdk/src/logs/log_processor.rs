@@ -350,6 +350,43 @@ impl Default for BatchConfig {
     }
 }
 
+impl BatchConfig {
+    /// Set max_queue_size for [`BatchConfig`].
+    /// It's the maximum queue size to buffer logs for delayed processing.
+    /// If the queue gets full it will drop the logs.
+    /// The default value of is 2048.
+    pub fn with_max_queue_size(mut self, max_queue_size: usize) -> Self {
+        self.max_queue_size = max_queue_size;
+        self
+    }
+
+    /// Set scheduled_delay for [`BatchConfig`].
+    /// It's the delay interval in milliseconds between two consecutive processing of batches.
+    /// The default value is 1000 milliseconds.
+    pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
+        self.scheduled_delay = scheduled_delay;
+        self
+    }
+
+    /// Set max_export_timeout for [`BatchConfig`].
+    /// It's the maximum duration to export a batch of data.
+    /// The default value is 30000 milliseconds.
+    pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
+        self.max_export_timeout = max_export_timeout;
+        self
+    }
+
+    /// Set max_export_batch_size for [`BatchConfig`].
+    /// It's the maximum number of logs to process in a single batch. If there are
+    /// more than one batch worth of logs then it processes multiple batches
+    /// of logs one batch after the other without any delay. 
+    /// The default value is 512.
+    pub fn with_max_export_batch_size(mut self, max_export_batch_size: usize) -> Self {
+        self.max_export_batch_size = max_export_batch_size;
+        self
+    }
+}
+
 /// A builder for creating [`BatchLogProcessor`] instances.
 ///
 #[derive(Debug)]
@@ -402,7 +439,7 @@ where
         BatchLogProcessorBuilder { config, ..self }
     }
 
-    /// Set the BatchConfig for [BatchLogProcessorBuilder]
+    /// Set the BatchConfig for [`BatchLogProcessorBuilder`]
     pub fn with_batch_config(self, config: BatchConfig) -> Self {
         BatchLogProcessorBuilder { config, ..self }
     }
@@ -429,7 +466,7 @@ enum BatchMessage {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use std::time::Duration;
-
+    use crate::logs::BatchConfig;
     use super::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
@@ -437,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_default_batch_config_adheres_to_specification() {
-        let config = super::BatchConfig::default();
+        let config = BatchConfig::default();
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(30000));
@@ -454,7 +491,7 @@ mod tests {
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+        let config = temp_env::with_vars(env_vars, || BatchConfig::default());
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
@@ -469,7 +506,7 @@ mod tests {
             ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+        let config = temp_env::with_vars(env_vars, || BatchConfig::default());
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(3000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(70000));
@@ -486,7 +523,7 @@ mod tests {
             ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+        let config = temp_env::with_vars(env_vars, || BatchConfig::default());
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
@@ -495,17 +532,31 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_config_max_export_batch_size_validation(){
+    fn test_batch_config_max_export_batch_size_validation() {
         let env_vars = vec![
             (OTEL_BLRP_MAX_QUEUE_SIZE, Some("256")),
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+        let config = temp_env::with_vars(env_vars, || BatchConfig::default());
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
         assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(30000));
+    }
+
+    #[test]
+    fn test_batch_config_with_fields() {
+        let batch = BatchConfig::default()
+            .with_max_export_batch_size(1)
+            .with_scheduled_delay(Duration::from_millis(2))
+            .with_max_export_timeout(Duration::from_millis(3))
+            .with_max_queue_size(4);
+
+        assert_eq!(batch.max_export_batch_size, 1);
+        assert_eq!(batch.scheduled_delay, Duration::from_millis(2));
+        assert_eq!(batch.max_export_timeout, Duration::from_millis(3));
+        assert_eq!(batch.max_queue_size, 4);
     }
 }
