@@ -42,6 +42,7 @@ impl OtlpPipeline {
         OtlpLogPipeline {
             log_config: None,
             exporter_builder: NoExporterConfig(()),
+            batch_config: None,
         }
     }
 }
@@ -124,12 +125,19 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 pub struct OtlpLogPipeline<EB> {
     exporter_builder: EB,
     log_config: Option<opentelemetry_sdk::logs::Config>,
+    batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 }
 
 impl<EB> OtlpLogPipeline<EB> {
     /// Set the log provider configuration.
     pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
         self.log_config = Some(log_config);
+        self
+    }
+
+    /// Set the batch span processor configuration, and it will override the env vars.
+    pub fn with_batch_config(mut self, batch_config: opentelemetry_sdk::logs::BatchConfig) -> Self {
+        self.batch_config = Some(batch_config);
         self
     }
 }
@@ -143,6 +151,7 @@ impl OtlpLogPipeline<NoExporterConfig> {
         OtlpLogPipeline {
             exporter_builder: pipeline.into(),
             log_config: self.log_config,
+            batch_config: self.batch_config,
         }
     }
 }
@@ -174,6 +183,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
             self.exporter_builder.build_log_exporter()?,
             self.log_config,
             runtime,
+            self.batch_config,
         ))
     }
 }
@@ -202,9 +212,14 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,
+    batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 ) -> opentelemetry_sdk::logs::Logger {
-    let mut provider_builder =
-        opentelemetry_sdk::logs::LoggerProvider::builder().with_batch_exporter(exporter, runtime);
+    let mut provider_builder = opentelemetry_sdk::logs::LoggerProvider::builder();
+    let batch_processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter, runtime)
+        .with_batch_config(batch_config.unwrap_or_default())
+        .build();
+    provider_builder = provider_builder.with_log_processor(batch_processor);
+
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }

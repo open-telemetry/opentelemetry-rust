@@ -342,6 +342,11 @@ where
         BatchLogProcessorBuilder { config, ..self }
     }
 
+    /// Set the BatchConfig for [BatchLogProcessorBuilder]
+    pub fn with_batch_config(self, config: BatchConfig) -> Self {
+        BatchLogProcessorBuilder { config, ..self }
+    }
+
     /// Build a batch processor
     pub fn build(self) -> BatchLogProcessor<R> {
         BatchLogProcessor::new(Box::new(self.exporter), self.config, self.runtime)
