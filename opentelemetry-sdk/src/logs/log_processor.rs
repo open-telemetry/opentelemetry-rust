@@ -425,3 +425,18 @@ enum BatchMessage {
     /// Shut down the worker thread, push all logs in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
 }
+
+#[cfg(all(test, feature="testing", feature="logs"))]
+mod tests{
+    use std::time::Duration;
+
+    #[test]
+    fn test_default_batch_config_adheres_to_specification(){
+        let config = super::BatchConfig::default();
+
+        assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(30000));
+        assert_eq!(config.max_queue_size, 2048);
+        assert_eq!(config.max_export_batch_size, 512);
+    }
+}
