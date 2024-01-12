@@ -426,17 +426,86 @@ enum BatchMessage {
     Shutdown(oneshot::Sender<ExportResult>),
 }
 
-#[cfg(all(test, feature="testing", feature="logs"))]
-mod tests{
+#[cfg(all(test, feature = "testing", feature = "logs"))]
+mod tests {
     use std::time::Duration;
 
+    use super::{
+        OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
+        OTEL_BLRP_SCHEDULE_DELAY,
+    };
+
     #[test]
-    fn test_default_batch_config_adheres_to_specification(){
+    fn test_default_batch_config_adheres_to_specification() {
         let config = super::BatchConfig::default();
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(30000));
         assert_eq!(config.max_queue_size, 2048);
         assert_eq!(config.max_export_batch_size, 512);
+    }
+
+    #[test]
+    fn test_batch_config_configurable_by_env_vars() {
+        let env_vars = vec![
+            (OTEL_BLRP_SCHEDULE_DELAY, Some("2000")),
+            (OTEL_BLRP_EXPORT_TIMEOUT, Some("60000")),
+            (OTEL_BLRP_MAX_QUEUE_SIZE, Some("4096")),
+            (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+
+        assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
+        assert_eq!(config.max_queue_size, 4096);
+        assert_eq!(config.max_export_batch_size, 1024);
+    }
+
+    #[test]
+    fn test_batch_config_configurable_by_env_vars_millis() {
+        let env_vars = vec![
+            ("OTEL_BLRP_SCHEDULE_DELAY_MILLIS", Some("3000")),
+            ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+
+        assert_eq!(config.scheduled_delay, Duration::from_millis(3000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(70000));
+        assert_eq!(config.max_queue_size, 2048);
+        assert_eq!(config.max_export_batch_size, 512);
+    }
+
+    #[test]
+    fn test_batch_config_configurable_by_env_vars_precedence() {
+        let env_vars = vec![
+            (OTEL_BLRP_SCHEDULE_DELAY, Some("2000")),
+            ("OTEL_BLRP_SCHEDULE_DELAY_MILLIS", Some("3000")),
+            (OTEL_BLRP_EXPORT_TIMEOUT, Some("60000")),
+            ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+
+        assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
+        assert_eq!(config.max_queue_size, 2048);
+        assert_eq!(config.max_export_batch_size, 512);
+    }
+
+    #[test]
+    fn test_batch_config_max_export_batch_size_validation(){
+        let env_vars = vec![
+            (OTEL_BLRP_MAX_QUEUE_SIZE, Some("256")),
+            (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, || super::BatchConfig::default());
+
+        assert_eq!(config.max_queue_size, 256);
+        assert_eq!(config.max_export_batch_size, 256);
+        assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(30000));
     }
 }
