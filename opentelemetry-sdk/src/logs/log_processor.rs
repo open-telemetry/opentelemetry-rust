@@ -578,4 +578,38 @@ mod tests {
         assert_eq!(batch.max_export_timeout, Duration::from_millis(3));
         assert_eq!(batch.max_queue_size, 4);
     }
+
+    #[test]
+    fn test_build_batch_log_processor_builder() {
+        let mut env_vars = vec![
+            (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("500")),
+            (OTEL_BLRP_SCHEDULE_DELAY, Some("I am not number")),
+            (OTEL_BLRP_EXPORT_TIMEOUT, Some("2046")),
+        ];
+        temp_env::with_vars(env_vars.clone(), || {
+            let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+            
+            assert_eq!(builder.config.max_export_batch_size, 500);
+            assert_eq!(
+                builder.config.scheduled_delay,
+                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+            );
+            assert_eq!(
+                builder.config.max_queue_size,
+                OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT
+            );
+            assert_eq!(
+                builder.config.max_export_timeout,
+                Duration::from_millis(2046)
+            );
+        });
+
+        env_vars.push((OTEL_BLRP_MAX_QUEUE_SIZE, Some("120")));
+
+        temp_env::with_vars(env_vars, || {
+            let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+            assert_eq!(builder.config.max_export_batch_size, 120);
+            assert_eq!(builder.config.max_queue_size, 120);
+        });
+    }
 }
