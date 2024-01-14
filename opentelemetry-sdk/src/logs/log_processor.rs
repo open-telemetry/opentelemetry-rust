@@ -317,11 +317,7 @@ impl Default for BatchConfig {
             .ok()
             .and_then(|batch_size| usize::from_str(&batch_size).ok())
         {
-            if max_export_batch_size > config.max_queue_size {
-                config.max_export_batch_size = config.max_queue_size;
-            } else {
-                config.max_export_batch_size = max_export_batch_size;
-            }
+            config.max_export_batch_size = max_export_batch_size;
         }
 
         // max export batch size must be less or equal to max queue size.
@@ -470,7 +466,13 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::{
-        logs::{BatchConfig, log_processor::{OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT}},
+        logs::{
+            log_processor::{
+                OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+                OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
+            },
+            BatchConfig,
+        },
         runtime,
         testing::logs::InMemoryLogsExporter,
     };
@@ -495,10 +497,19 @@ mod tests {
     fn test_default_batch_config_adheres_to_specification() {
         let config = BatchConfig::default();
 
-        assert_eq!(config.scheduled_delay, Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT));
-        assert_eq!(config.max_export_timeout, Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT));
+        assert_eq!(
+            config.scheduled_delay,
+            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+        );
+        assert_eq!(
+            config.max_export_timeout,
+            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
+        );
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
-        assert_eq!(config.max_export_batch_size, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
+        assert_eq!(
+            config.max_export_batch_size,
+            OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT
+        );
     }
 
     #[test]
@@ -530,7 +541,10 @@ mod tests {
         assert_eq!(config.scheduled_delay, Duration::from_millis(3000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(70000));
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
-        assert_eq!(config.max_export_batch_size, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
+        assert_eq!(
+            config.max_export_batch_size,
+            OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT
+        );
     }
 
     #[test]
@@ -547,7 +561,10 @@ mod tests {
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
-        assert_eq!(config.max_export_batch_size, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT);
+        assert_eq!(
+            config.max_export_batch_size,
+            OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT
+        );
     }
 
     #[test]
@@ -561,8 +578,14 @@ mod tests {
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
-        assert_eq!(config.scheduled_delay, Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT));
-        assert_eq!(config.max_export_timeout, Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT));
+        assert_eq!(
+            config.scheduled_delay,
+            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+        );
+        assert_eq!(
+            config.max_export_timeout,
+            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
+        );
     }
 
     #[test]
@@ -587,8 +610,9 @@ mod tests {
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {
-            let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
-            
+            let builder =
+                BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
@@ -607,7 +631,8 @@ mod tests {
         env_vars.push((OTEL_BLRP_MAX_QUEUE_SIZE, Some("120")));
 
         temp_env::with_vars(env_vars, || {
-            let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+            let builder =
+                BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
             assert_eq!(builder.config.max_export_batch_size, 120);
             assert_eq!(builder.config.max_queue_size, 120);
         });
