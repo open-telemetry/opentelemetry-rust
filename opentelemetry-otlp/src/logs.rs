@@ -135,7 +135,7 @@ impl<EB> OtlpLogPipeline<EB> {
         self
     }
 
-    /// Set the batch span processor configuration, and it will override the env vars.
+    /// Set the batch log processor configuration, and it will override the env vars.
     pub fn with_batch_config(mut self, batch_config: opentelemetry_sdk::logs::BatchConfig) -> Self {
         self.batch_config = Some(batch_config);
         self
@@ -169,7 +169,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
         ))
     }
 
-    /// Install the configured log exporter and a batch span processor using the
+    /// Install the configured log exporter and a batch log processor using the
     /// specified runtime.
     ///
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
