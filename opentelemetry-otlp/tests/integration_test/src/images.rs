@@ -30,7 +30,7 @@ impl Image for Collector {
             // 4317,  // gRPC port, defined in Dockerfile
             // 4318,  // HTTP port, defined in Dockerfile
             // 55681, // OpenTelemetry protocol port, defined in Dockerfile
-            8888,  // Prometheus metrics exposed by the collector
+            8888, // Prometheus metrics exposed by the collector
         ]
     }
 }
@@ -38,12 +38,10 @@ impl Image for Collector {
 impl Default for Collector {
     fn default() -> Self {
         Collector {
-            volumes: HashMap::from([
-                (
-                    "./otel-collector-config.yaml".into(),
-                    "/etc/otelcol/config.yaml".into(),
-                ),
-            ]),
+            volumes: HashMap::from([(
+                "./otel-collector-config.yaml".into(),
+                "/etc/otelcol/config.yaml".into(),
+            )]),
         }
     }
 }

@@ -1,3 +1,4 @@
+use integration_test_runner::asserter::{assert_span_eq, read_spans_from_json};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
@@ -9,7 +10,6 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use std::fs::File;
-use integration_test_runner::asserter::{assert_span_eq, read_spans_from_json};
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
@@ -62,7 +62,6 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     Ok(())
 }
-
 
 pub fn assert_traces_results(result: &str, expected: &str) {
     let left = read_spans_from_json(File::open(expected).unwrap());
