@@ -655,5 +655,4 @@ mod tests {
         assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
     }
-    
 }
