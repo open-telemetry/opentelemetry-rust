@@ -637,4 +637,23 @@ mod tests {
             assert_eq!(builder.config.max_queue_size, 120);
         });
     }
+
+    #[test]
+    fn test_build_batch_log_processor_builder_with_custom_config() {
+        let expected = BatchConfig::default()
+            .with_max_export_batch_size(1)
+            .with_scheduled_delay(Duration::from_millis(2))
+            .with_max_export_timeout(Duration::from_millis(3))
+            .with_max_queue_size(4);
+
+        let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio)
+            .with_batch_config(expected);
+
+        let actual = &builder.config;
+        assert_eq!(actual.max_export_batch_size, 1);
+        assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
+        assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
+        assert_eq!(actual.max_queue_size, 4);
+    }
+    
 }
