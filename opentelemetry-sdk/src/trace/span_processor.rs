@@ -533,6 +533,12 @@ pub struct BatchConfig {
     max_concurrent_exports: usize,
 }
 
+impl Default for BatchConfig {
+    fn default() -> Self {
+        BatchConfigBuilder::default().build()
+    }
+}
+
 /// A builder for creating [`BatchConfig`] instances.
 #[derive(Debug)]
 pub struct BatchConfigBuilder {

@@ -297,6 +297,12 @@ pub struct BatchConfig {
     max_export_timeout: Duration,
 }
 
+impl Default for BatchConfig {
+    fn default() -> Self {
+        BatchConfigBuilder::default().build()
+    }
+}
+
 /// A builder for creating [`BatchConfig`] instances.
 #[derive(Debug)]
 pub struct BatchConfigBuilder {
