@@ -358,7 +358,7 @@ impl BatchConfigBuilder {
     }
 
     /// Builds a `BatchConfig` enforcing the following invariants:
-    /// * `max_export_batch_size` must be less than or equal to `max_queue_size`.    
+    /// * `max_export_batch_size` must be less than or equal to `max_queue_size`.
     pub fn build(self) -> BatchConfig {
         // max export batch size must be less or equal to max queue size.
         // we set max export batch size to max queue size if it's larger than max queue size.
