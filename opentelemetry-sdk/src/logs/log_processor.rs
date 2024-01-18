@@ -246,7 +246,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     {
         BatchLogProcessorBuilder {
             exporter,
-            config: BatchConfig::default(),
+            config: BatchConfigBuilder::default().build(),
             runtime,
         }
     }
@@ -403,92 +403,6 @@ impl BatchConfigBuilder {
             self.max_export_timeout = Duration::from_millis(max_export_timeout);
         }
 
-        self
-    }
-}
-
-impl Default for BatchConfig {
-    fn default() -> Self {
-        let mut config = BatchConfig {
-            max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
-            scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
-            max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-            max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
-        };
-
-        if let Some(max_queue_size) = env::var(OTEL_BLRP_MAX_QUEUE_SIZE)
-            .ok()
-            .and_then(|queue_size| usize::from_str(&queue_size).ok())
-        {
-            config.max_queue_size = max_queue_size;
-        }
-
-        if let Some(max_export_batch_size) = env::var(OTEL_BLRP_MAX_EXPORT_BATCH_SIZE)
-            .ok()
-            .and_then(|batch_size| usize::from_str(&batch_size).ok())
-        {
-            config.max_export_batch_size = max_export_batch_size;
-        }
-
-        // max export batch size must be less or equal to max queue size.
-        // we set max export batch size to max queue size if it's larger than max queue size.
-        if config.max_export_batch_size > config.max_queue_size {
-            config.max_export_batch_size = config.max_queue_size;
-        }
-
-        if let Some(scheduled_delay) = env::var(OTEL_BLRP_SCHEDULE_DELAY)
-            .ok()
-            .or_else(|| env::var("OTEL_BLRP_SCHEDULE_DELAY_MILLIS").ok())
-            .and_then(|delay| u64::from_str(&delay).ok())
-        {
-            config.scheduled_delay = Duration::from_millis(scheduled_delay);
-        }
-
-        if let Some(max_export_timeout) = env::var(OTEL_BLRP_EXPORT_TIMEOUT)
-            .ok()
-            .or_else(|| env::var("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS").ok())
-            .and_then(|s| u64::from_str(&s).ok())
-        {
-            config.max_export_timeout = Duration::from_millis(max_export_timeout);
-        }
-
-        config
-    }
-}
-
-impl BatchConfig {
-    /// Set max_queue_size for [`BatchConfig`].
-    /// It's the maximum queue size to buffer logs for delayed processing.
-    /// If the queue gets full it will drop the logs.
-    /// The default value of is 2048.
-    pub fn with_max_queue_size(mut self, max_queue_size: usize) -> Self {
-        self.max_queue_size = max_queue_size;
-        self
-    }
-
-    /// Set scheduled_delay for [`BatchConfig`].
-    /// It's the delay interval in milliseconds between two consecutive processing of batches.
-    /// The default value is 1000 milliseconds.
-    pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
-        self.scheduled_delay = scheduled_delay;
-        self
-    }
-
-    /// Set max_export_timeout for [`BatchConfig`].
-    /// It's the maximum duration to export a batch of data.
-    /// The default value is 30000 milliseconds.
-    pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
-        self.max_export_timeout = max_export_timeout;
-        self
-    }
-
-    /// Set max_export_batch_size for [`BatchConfig`].
-    /// It's the maximum number of logs to process in a single batch. If there are
-    /// more than one batch worth of logs then it processes multiple batches
-    /// of logs one batch after the other without any delay.
-    /// The default value is 512.
-    pub fn with_max_export_batch_size(mut self, max_export_batch_size: usize) -> Self {
-        self.max_export_batch_size = max_export_batch_size;
         self
     }
 }
