@@ -421,44 +421,6 @@ where
     E: LogExporter + 'static,
     R: RuntimeChannel,
 {
-    /// Set max queue size for batches
-    pub fn with_max_queue_size(self, size: usize) -> Self {
-        let mut config = self.config;
-        config.max_queue_size = size;
-
-        BatchLogProcessorBuilder { config, ..self }
-    }
-
-    /// Set scheduled delay for batches
-    pub fn with_scheduled_delay(self, delay: Duration) -> Self {
-        let mut config = self.config;
-        config.scheduled_delay = delay;
-
-        BatchLogProcessorBuilder { config, ..self }
-    }
-
-    /// Set max timeout for exporting.
-    pub fn with_max_timeout(self, timeout: Duration) -> Self {
-        let mut config = self.config;
-        config.max_export_timeout = timeout;
-
-        BatchLogProcessorBuilder { config, ..self }
-    }
-
-    /// Set max export size for batches, should always less than or equals to max queue size.
-    ///
-    /// If input is larger than max queue size, will lower it to be equal to max queue size
-    pub fn with_max_export_batch_size(self, size: usize) -> Self {
-        let mut config = self.config;
-        if size > config.max_queue_size {
-            config.max_export_batch_size = config.max_queue_size;
-        } else {
-            config.max_export_batch_size = size;
-        }
-
-        BatchLogProcessorBuilder { config, ..self }
-    }
-
     /// Set the BatchConfig for [`BatchLogProcessorBuilder`]
     pub fn with_batch_config(self, config: BatchConfig) -> Self {
         BatchLogProcessorBuilder { config, ..self }
