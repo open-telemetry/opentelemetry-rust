@@ -7,7 +7,7 @@ mod log_processor;
 pub use config::{config, Config};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
-    BatchConfig, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor, SimpleLogProcessor,
+    BatchConfig, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor, SimpleLogProcessor, BatchConfigBuilder
 };
 
 #[cfg(all(test, feature = "testing"))]
