@@ -5,7 +5,7 @@ use opentelemetry::trace::{
 use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
-use opentelemetry_sdk::trace::{BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor};
+use opentelemetry_sdk::trace::{BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor, BatchConfigBuilder};
 use opentelemetry_sdk::Resource;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -52,7 +52,11 @@ fn criterion_benchmark(c: &mut Criterion) {
                     rt.block_on(async move {
                         let span_processor =
                             BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio)
-                                .with_max_queue_size(10_000)
+                                .with_batch_config(
+                                    BatchConfigBuilder::default()
+                                        .with_max_queue_size(10_000)
+                                        .build(),
+                                )
                                 .build();
                         let mut shared_span_processor = Arc::new(span_processor);
                         let mut handles = Vec::with_capacity(10);
