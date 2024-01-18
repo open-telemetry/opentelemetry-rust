@@ -228,6 +228,7 @@ enum Message {
 /// # {
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
+/// use opentelemetry_sdk::trace::BatchConfigBuilder;
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -237,7 +238,7 @@ enum Message {
 ///
 ///     // Create a batch span processor using an exporter and a runtime
 ///     let batch = trace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
-///         .with_max_queue_size(4096)
+///         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
 ///         .build();
 ///
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
