@@ -19,9 +19,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LoggerProvider},
 };
-use opentelemetry_sdk::{
-    self, export::logs::LogData, logs::BatchConfigBuilder, runtime::RuntimeChannel,
-};
+use opentelemetry_sdk::{self, export::logs::LogData, runtime::RuntimeChannel};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -218,7 +216,7 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
 ) -> opentelemetry_sdk::logs::Logger {
     let mut provider_builder = opentelemetry_sdk::logs::LoggerProvider::builder();
     let batch_processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter, runtime)
-        .with_batch_config(batch_config.unwrap_or_else(|| BatchConfigBuilder::default().build()))
+        .with_batch_config(batch_config.unwrap_or_default())
         .build();
     provider_builder = provider_builder.with_log_processor(batch_processor);
 

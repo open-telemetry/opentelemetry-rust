@@ -14,7 +14,7 @@ use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData},
 };
 use opentelemetry_semantic_conventions::SCHEMA_URL;
-use sdk::{runtime::RuntimeChannel, trace::BatchConfigBuilder};
+use sdk::runtime::RuntimeChannel;
 
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -161,7 +161,7 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
 ) -> sdk::trace::Tracer {
     let mut provider_builder = sdk::trace::TracerProvider::builder();
     let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
-        .with_batch_config(batch_config.unwrap_or_else(|| BatchConfigBuilder::default().build()))
+        .with_batch_config(batch_config.unwrap_or_default())
         .build();
     provider_builder = provider_builder.with_span_processor(batch_processor);
 

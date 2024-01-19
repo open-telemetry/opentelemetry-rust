@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::{env, net};
 
 use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::trace::{BatchConfigBuilder, BatchSpanProcessor, Tracer};
+use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
 use opentelemetry_sdk::{
     self,
     trace::{BatchConfig, Config, TracerProvider},
@@ -91,7 +91,7 @@ impl Default for AgentPipeline {
         AgentPipeline {
             transformation_config: Default::default(),
             trace_config: Default::default(),
-            batch_config: Some(BatchConfigBuilder::default().build()),
+            batch_config: Some(Default::default()),
             agent_endpoint: Some(format!(
                 "{DEFAULT_AGENT_ENDPOINT_HOST}:{DEFAULT_AGENT_ENDPOINT_PORT}"
             )),
@@ -303,9 +303,7 @@ impl AgentPipeline {
         let uploader = self.build_async_agent_uploader(runtime.clone())?;
         let exporter = Exporter::new(process.into(), export_instrument_library, uploader);
         let batch_processor = BatchSpanProcessor::builder(exporter, runtime)
-            .with_batch_config(
-                batch_config.unwrap_or_else(|| BatchConfigBuilder::default().build()),
-            )
+            .with_batch_config(batch_config.unwrap_or_default())
             .build();
 
         builder = builder.with_span_processor(batch_processor);

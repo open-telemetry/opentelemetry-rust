@@ -246,7 +246,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     {
         BatchLogProcessorBuilder {
             exporter,
-            config: BatchConfigBuilder::default().build(),
+            config: Default::default(),
             runtime,
         }
     }
@@ -464,7 +464,7 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfigBuilder,
+            BatchConfig, BatchConfigBuilder,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_default_batch_config_adheres_to_specification() {
-        let config = BatchConfigBuilder::default().build();
+        let config = BatchConfig::default();
 
         assert_eq!(
             config.scheduled_delay,
@@ -514,7 +514,7 @@ mod tests {
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || BatchConfigBuilder::default().build());
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
@@ -529,7 +529,7 @@ mod tests {
             ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || BatchConfigBuilder::default().build());
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(3000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(70000));
@@ -549,7 +549,7 @@ mod tests {
             ("OTEL_BLRP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || BatchConfigBuilder::default().build());
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
@@ -567,7 +567,7 @@ mod tests {
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
         ];
 
-        let config = temp_env::with_vars(env_vars, || BatchConfigBuilder::default().build());
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
