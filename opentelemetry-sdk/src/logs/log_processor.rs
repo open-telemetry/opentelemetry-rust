@@ -276,7 +276,8 @@ where
     }
 }
 
-/// Batch log processor configuration
+/// Batch log processor configuration.
+/// Use [`BatchConfigBuilder`] to configure your own instance of [`BatchConfig`].
 #[derive(Debug)]
 pub struct BatchConfig {
     /// The maximum queue size to buffer logs for delayed processing. If the

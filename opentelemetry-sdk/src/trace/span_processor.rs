@@ -505,7 +505,8 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
     }
 }
 
-/// Batch span processor configuration
+/// Batch span processor configuration.
+/// Use [`BatchConfigBuilder`] to configure your own instance of [`BatchConfig`].
 #[derive(Debug)]
 pub struct BatchConfig {
     /// The maximum queue size to buffer spans for delayed processing. If the
