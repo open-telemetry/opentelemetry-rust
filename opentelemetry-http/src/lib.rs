@@ -5,10 +5,7 @@ use std::fmt::Debug;
 pub use bytes::Bytes;
 #[doc(no_inline)]
 pub use http::{Request, Response};
-use opentelemetry::{
-    propagation::{Extractor, Injector},
-    trace::TraceError,
-};
+use opentelemetry::propagation::{Extractor, Injector};
 
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
 
@@ -66,7 +63,7 @@ mod reqwest {
     impl HttpClient for reqwest::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let request = request.try_into()?;
-            let mut response = self.execute(request).await?;
+            let mut response = self.execute(request).await?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -81,7 +78,7 @@ mod reqwest {
     impl HttpClient for reqwest::blocking::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let request = request.try_into()?;
-            let mut response = self.execute(request)?;
+            let mut response = self.execute(request)?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -99,7 +96,7 @@ pub mod surf {
 
     use http::{header::HeaderName, HeaderMap, HeaderValue};
 
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, ResponseExt};
 
     #[derive(Debug)]
     pub struct BasicAuthMiddleware(pub surf::http::auth::BasicAuth);
@@ -148,13 +145,15 @@ pub mod surf {
 
             *http_response.headers_mut() = headers;
 
-            Ok(http_response)
+            Ok(http_response.error_for_status()?)
         }
     }
 }
 
 #[cfg(feature = "isahc")]
 mod isahc {
+    use crate::ResponseExt;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use isahc::AsyncReadResponseExt;
     use std::convert::TryInto as _;
@@ -172,13 +171,15 @@ mod isahc {
                 .body(bytes.into())?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response)
+            Ok(http_response.error_for_status()?)
         }
     }
 }
 
 #[cfg(any(feature = "hyper", feature = "hyper_tls"))]
 pub mod hyper {
+    use crate::ResponseExt;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
     use hyper::client::connect::Connect;
@@ -236,7 +237,7 @@ pub mod hyper {
                 .body(hyper::body::to_bytes(response.into_body()).await?)?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response)
+            Ok(http_response.error_for_status()?)
         }
     }
 }
@@ -244,11 +245,11 @@ pub mod hyper {
 /// Methods to make working with responses from the [`HttpClient`] trait easier.
 pub trait ResponseExt: Sized {
     /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
-    fn error_for_status(self) -> Result<Self, TraceError>;
+    fn error_for_status(self) -> Result<Self, HttpError>;
 }
 
 impl<T> ResponseExt for Response<T> {
-    fn error_for_status(self) -> Result<Self, TraceError> {
+    fn error_for_status(self) -> Result<Self, HttpError> {
         if self.status().is_success() {
             Ok(self)
         } else {
