@@ -20,7 +20,7 @@
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "cd7cf7bf939930b7",
-              "parentSpanId": "d58cf2d702a061e0",
+              "parentSpanId": "",
               "name": "Sub operation...",
               "kind": 1,
               "startTimeUnixNano": 1703985537070566698,
@@ -65,7 +65,7 @@
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "d58cf2d702a061e0",
-              "parentSpanId": "",
+              "parentSpanId": "cd7cf7bf939930b7",
               "name": "operation",
               "kind": 1,
               "startTimeUnixNano": 1703985537070558635,

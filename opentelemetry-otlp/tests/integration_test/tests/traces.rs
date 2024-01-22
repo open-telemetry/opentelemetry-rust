@@ -71,9 +71,17 @@ pub fn assert_traces_results(result: &str, expected: &str) {
 }
 
 #[test]
+#[should_panic(expected = "left: \"Sub operation...\"")] // we swap the parent spans with child spans in failed_traces.json
+pub fn test_assert_span_eq_failure() {
+    let left = read_spans_from_json(File::open("./expected/traces.json").unwrap());
+    let right = read_spans_from_json(File::open("./expected/failed_traces.json").unwrap());
+
+    TraceAsserter::new(right, left).assert();
+}
+
+#[test]
 pub fn test_assert_span_eq() {
-    let left = read_spans_from_json(File::open("/home/zhongyang/code/opentelemetry-rust/opentelemetry-otlp/tests/integration_test/expected/traces.json").unwrap());
-    // let right = read_spans_from_json(File::open("./traces.json").unwrap());
-    // TraceAsserter::new(left.clone(), left).assert();
-    assert_eq!(left.scope_spans.len(), 1);
+    let spans = read_spans_from_json(File::open("./expected/traces.json").unwrap());
+
+    TraceAsserter::new(spans.clone(), spans).assert();
 }

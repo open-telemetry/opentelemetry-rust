@@ -1,18 +1,19 @@
 use opentelemetry::trace::SpanId;
-use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
+use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, TracesData};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
+use std::io::Read;
 
 // Given two ResourceSpans, assert that they are equal except for the timestamps
 pub struct TraceAsserter {
-    results: ResourceSpans,
-    expected: ResourceSpans,
+    results: Vec<ResourceSpans>,
+    expected: Vec<ResourceSpans>,
 }
 
 impl TraceAsserter {
     // Create a new TraceAsserter
-    pub fn new(results: ResourceSpans, expected: ResourceSpans) -> Self {
+    pub fn new(results: Vec<ResourceSpans>, expected: Vec<ResourceSpans>) -> Self {
         TraceAsserter { results, expected }
     }
 
@@ -20,20 +21,35 @@ impl TraceAsserter {
         self.assert_resource_span_eq(&self.results, &self.expected);
     }
 
-    fn assert_resource_span_eq(&self, results: &ResourceSpans, expected: &ResourceSpans) {
-        assert_eq!(results.resource, expected.resource);
-        assert_eq!(results.schema_url, expected.schema_url);
-
-        assert_eq!(results.scope_spans.len(), expected.scope_spans.len());
+    fn assert_resource_span_eq(&self, results: &Vec<ResourceSpans>, expected: &Vec<ResourceSpans>) {
         let mut results_spans = Vec::new();
         let mut expected_spans = Vec::new();
 
-        for i in 0..results.scope_spans.len() {
-            let results_scope_span = &results.scope_spans[i];
-            let expected_results_span = &expected.scope_spans[i];
+        assert_eq!(results.len(), expected.len());
+        for i in 0..results.len() {
+            let result_resource_span = &results[i];
+            let expected_resource_span = &expected[i];
+            assert_eq!(
+                result_resource_span.resource,
+                expected_resource_span.resource
+            );
+            assert_eq!(
+                result_resource_span.schema_url,
+                expected_resource_span.schema_url
+            );
 
-            results_spans.extend(results_scope_span.spans.clone());
-            expected_spans.extend(expected_results_span.spans.clone());
+            assert_eq!(
+                result_resource_span.scope_spans.len(),
+                expected_resource_span.scope_spans.len()
+            );
+
+            for i in 0..result_resource_span.scope_spans.len() {
+                let results_scope_span = &result_resource_span.scope_spans[i];
+                let expected_results_span = &expected_resource_span.scope_spans[i];
+
+                results_spans.extend(results_scope_span.spans.clone());
+                expected_spans.extend(expected_results_span.spans.clone());
+            }
         }
 
         let results_span_forest = SpanForest::from_spans(results_spans);
@@ -116,13 +132,6 @@ impl SpanForest {
         self.spans.insert(span_id, node);
     }
 
-    fn add_span(&mut self, span: Span) {
-        if span.parent_span_id.is_empty() {
-            self.add_root_span(span);
-        } else {
-        }
-    }
-
     fn get_root_spans(&self) -> Vec<&SpanTreeNode> {
         self.spans
             .iter()
@@ -139,14 +148,14 @@ impl SpanForest {
 
 impl PartialEq for SpanForest {
     fn eq(&self, other: &Self) -> bool {
-        self.spans == other.spans
+        self.get_root_spans() == other.get_root_spans()
     }
 }
 
 // Compare span trees when their IDs are different
 struct SpanTreeNode {
     span: Span,
-    children: HashMap<Vec<u8>, SpanTreeNode>,
+    children: Vec<SpanTreeNode>,
 }
 
 impl Debug for SpanTreeNode {
@@ -162,13 +171,12 @@ impl SpanTreeNode {
     fn new(span: Span) -> Self {
         SpanTreeNode {
             span,
-            children: HashMap::new(),
+            children: Vec::new(),
         }
     }
 
     fn add_child(&mut self, child: Span) {
-        self.children
-            .insert(child.span_id.clone(), SpanTreeNode::new(child));
+        self.children.push(SpanTreeNode::new(child));
     }
 }
 
@@ -207,7 +215,9 @@ fn span_eq(left: &Span, right: &Span) -> bool {
 }
 
 // read a file contains ResourceSpans in json format
-pub fn read_spans_from_json(file: File) -> ResourceSpans {
+pub fn read_spans_from_json(file: File) -> Vec<ResourceSpans> {
     let reader = std::io::BufReader::new(file);
-    serde_json::from_reader(reader).unwrap()
+
+    let trace_data: TracesData = serde_json::from_reader(reader).unwrap();
+    trace_data.resource_spans
 }
