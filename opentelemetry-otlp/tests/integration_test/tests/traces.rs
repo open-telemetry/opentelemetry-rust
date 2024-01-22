@@ -1,4 +1,4 @@
-use integration_test_runner::asserter::{assert_span_eq, read_spans_from_json};
+use integration_test_runner::asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
@@ -66,5 +66,14 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 pub fn assert_traces_results(result: &str, expected: &str) {
     let left = read_spans_from_json(File::open(expected).unwrap());
     let right = read_spans_from_json(File::open(result).unwrap());
-    // todo: assert resource spans
+
+    TraceAsserter::new(left, right).assert();
+}
+
+#[test]
+pub fn test_assert_span_eq() {
+    let left = read_spans_from_json(File::open("/home/zhongyang/code/opentelemetry-rust/opentelemetry-otlp/tests/integration_test/expected/traces.json").unwrap());
+    // let right = read_spans_from_json(File::open("./traces.json").unwrap());
+    // TraceAsserter::new(left.clone(), left).assert();
+    assert_eq!(left.scope_spans.len(), 1);
 }

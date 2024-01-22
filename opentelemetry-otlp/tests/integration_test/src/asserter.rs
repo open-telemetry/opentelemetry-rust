@@ -1,5 +1,7 @@
+use opentelemetry::trace::SpanId;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
 use std::collections::{HashMap, HashSet};
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 
 // Given two ResourceSpans, assert that they are equal except for the timestamps
@@ -14,60 +16,43 @@ impl TraceAsserter {
         TraceAsserter { results, expected }
     }
 
-    pub fn assert(self) {}
-
-    fn assert_resource_span_eq(&self, left: &ResourceSpans, right: &ResourceSpans) {
-        assert_eq!(left.resource, right.resource);
-        assert_eq!(left.schema_url, right.schema_url);
-
-        assert_eq!(left.scope_spans.len(), right.scope_spans.len());
-        let length = left.scope_spans.len();
-        for i in 0..length {
-            let left_spans = &left.scope_spans[i];
-            let right_spans = &right.scope_spans[i];
-            assert_eq!(left_spans.scope, right_spans.scope);
-            assert_eq!(left_spans.schema_url, right_spans.schema_url);
-
-            assert_eq!(left_spans.spans.len(), right_spans.spans.len());
-            let length = left_spans.spans.len();
-            for i in 0..length {
-                let left_span = &left_spans.spans[i];
-                let right_span = &right_spans.spans[i];
-                assert_eq!(left_span.name, right_span.name);
-                assert_eq!(left_span.trace_state, right_span.trace_state);
-                assert_eq!(left_span.kind, right_span.kind);
-                // ignore start_time_unit_nano
-                // ignore end_time_unit_nano
-                assert_eq!(left_span.attributes, right_span.attributes);
-                assert_eq!(left_span.links, right_span.links);
-                assert_eq!(left_span.status, right_span.status);
-
-                assert_eq!(left_span.events.len(), right_span.events.len());
-                let length = left_span.events.len();
-                for i in 0..length {
-                    let left_event = &left_span.events[i];
-                    let right_event = &right_span.events[i];
-                    assert_eq!(left_event.name, right_event.name);
-                    // ignore time_unix_nano
-                    assert_eq!(left_event.attributes, right_event.attributes);
-                    assert_eq!(
-                        left_event.dropped_attributes_count,
-                        right_event.dropped_attributes_count
-                    );
-                }
-            }
-        }
+    pub fn assert(self) {
+        self.assert_resource_span_eq(&self.results, &self.expected);
     }
 
-    fn assert_scope_span_eq(left: &ScopeSpans, right: &ScopeSpans) {
-        assert_eq!(left.scope, right.scope);
-        assert_eq!(left.schema_url, right.schema_url);
+    fn assert_resource_span_eq(&self, results: &ResourceSpans, expected: &ResourceSpans) {
+        assert_eq!(results.resource, expected.resource);
+        assert_eq!(results.schema_url, expected.schema_url);
+
+        assert_eq!(results.scope_spans.len(), expected.scope_spans.len());
+        let mut results_spans = Vec::new();
+        let mut expected_spans = Vec::new();
+
+        for i in 0..results.scope_spans.len() {
+            let results_scope_span = &results.scope_spans[i];
+            let expected_results_span = &expected.scope_spans[i];
+
+            results_spans.extend(results_scope_span.spans.clone());
+            expected_spans.extend(expected_results_span.spans.clone());
+        }
+
+        let results_span_forest = SpanForest::from_spans(results_spans);
+        let expected_span_forest = SpanForest::from_spans(expected_spans);
+        assert_eq!(results_span_forest, expected_span_forest);
     }
 }
 
 // list of root spans
 pub struct SpanForest {
     spans: HashMap<Vec<u8>, SpanTreeNode>,
+}
+
+impl Debug for SpanForest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpanForest")
+            .field("spans", &self.spans)
+            .finish()
+    }
 }
 
 impl SpanForest {
@@ -137,12 +122,40 @@ impl SpanForest {
         } else {
         }
     }
+
+    fn get_root_spans(&self) -> Vec<&SpanTreeNode> {
+        self.spans
+            .iter()
+            .filter_map(|(_, span_node)| {
+                if span_node.span.parent_span_id.is_empty() {
+                    Some(span_node)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl PartialEq for SpanForest {
+    fn eq(&self, other: &Self) -> bool {
+        self.spans == other.spans
+    }
 }
 
 // Compare span trees when their IDs are different
 struct SpanTreeNode {
     span: Span,
     children: HashMap<Vec<u8>, SpanTreeNode>,
+}
+
+impl Debug for SpanTreeNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpanTreeNode")
+            .field("span", &self.span)
+            .field("children", &self.children)
+            .finish()
+    }
 }
 
 impl SpanTreeNode {
@@ -193,6 +206,7 @@ fn span_eq(left: &Span, right: &Span) -> bool {
     true
 }
 
+// read a file contains ResourceSpans in json format
 pub fn read_spans_from_json(file: File) -> ResourceSpans {
     let reader = std::io::BufReader::new(file);
     serde_json::from_reader(reader).unwrap()
