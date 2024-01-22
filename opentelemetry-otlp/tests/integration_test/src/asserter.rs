@@ -1,9 +1,7 @@
-use opentelemetry::trace::SpanId;
-use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, TracesData};
+use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, Span, TracesData};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
-use std::io::Read;
 
 // Given two ResourceSpans, assert that they are equal except for the timestamps
 pub struct TraceAsserter {
@@ -119,7 +117,7 @@ impl SpanForest {
             last_seen = next_seen;
         }
 
-        if spans.len() > 0 {
+        if !spans.is_empty() {
             panic!("found spans with invalid parent: {:?}", spans);
         }
 
