@@ -80,6 +80,35 @@
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
 //!
+//! # Feature Flags
+//! The following feature flags can enable exporters for different telemetry pillars:
+//!
+//! * `trace`: Includes the trace exporters (enabled by default).
+//! * `metrics`: Includes the unstable metrics exporters.
+//! * `logs`: Includes the unstable logs exporters.
+//!
+//! The following feature flags offer additional configurations on gRPC:
+//!
+//! For users uses `tonic` as grpc layer:
+//! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
+//! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
+//! * `tls-tonic`: Enable TLS.
+//! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
+//!
+//! For users uses `grpcio` as grpc layer:
+//! * `grpc-sys`: Use `grpcio` as grpc layer.
+//! * `openssl`: Enable TLS supported by OpenSSL
+//! * `openssl-vendored`: Same as `openssl` but it will build openssl from bundled sources.
+//!
+//! The following feature flags offer additional configurations on http:
+//!
+//! * `http-proto`: Use http as transport layer, protobuf as body format.
+//! * `reqwest-blocking-client`: Use reqwest blocking http client.
+//! * `reqwest-client`: Use reqwest http client.
+//! * `reqwest-rustls`: Use reqwest with TLS.
+//! * `surf-client`: Use surf http client.
+//!
+//!
 //! # Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options.
