@@ -87,6 +87,9 @@
 //! * `metrics`: Includes the unstable metrics exporters.
 //! * `logs`: Includes the unstable logs exporters.
 //!
+//! The following feature flags generate additional code and types:
+//! * `serialize`: Enables serialization support for type defined in this create via `serde`.
+//!
 //! The following feature flags offer additional configurations on gRPC:
 //!
 //! For users uses `tonic` as grpc layer:
