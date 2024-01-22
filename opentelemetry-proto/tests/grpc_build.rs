@@ -82,6 +82,7 @@ fn build_tonic() {
         "trace.v1.ResourceSpans",
         "common.v1.InstrumentationScope",
         "resource.v1.Resource",
+        "trace.v1.Span.Event",
     ] {
         builder = builder.type_attribute(
             path,
