@@ -96,6 +96,13 @@
 //! * `metrics`: Includes the unstable metrics API.
 //! * `logs`: Includes the logs bridge API.
 //!
+//! The following feature flags provides additional configuration for `logs`:
+//! * `logs_level_enabled`: Allow users to control the log level
+//!
+//! The following feature flags enables unstable APIs, those APIs are subject to changes without a major version bump,
+//! use it as your own risk:
+//! * `otel_unstable`: Includes unstable APIs (enabled by default).
+//!
 //! ## Related Crates
 //!
 //! In addition to `opentelemetry`, the [`open-telemetry/opentelemetry-rust`]
