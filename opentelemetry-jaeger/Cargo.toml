@@ -25,16 +25,16 @@ async-trait = { workspace = true }
 base64 = { version = "0.21.0", optional = true }
 headers = { version = "0.3.2", optional = true }
 http = { workspace = true, optional = true }
-hyper = { workspace = true, default-features = false, features = ["client"], optional = true }
+hyper = { workspace = true, features = ["client"], optional = true }
 hyper-tls = { version = "0.5.0", default-features = false, optional = true }
-isahc = { workspace = true, default-features = false, optional = true }
+isahc = { workspace = true, optional = true }
 js-sys = { version = "0.3", optional = true }
 opentelemetry = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
 pin-project-lite = { workspace = true, optional = true }
-reqwest = { workspace = true, default-features = false, optional = true }
+reqwest = { workspace = true, optional = true }
 surf = { workspace = true, optional = true }
 thrift = "0.17.0"
 tokio = { workspace = true, features = ["net", "sync"], optional = true }
@@ -46,9 +46,9 @@ prost = { version = "0.11.6", optional = true }
 prost-types = { version = "0.11.6", optional = true }
 
 # Futures
-futures-executor = { workspace = true, default-features = false, features = ["std"], optional = true }
+futures-executor = { workspace = true, features = ["std"], optional = true }
 futures-core = { workspace = true }
-futures-util = { workspace = true, default-features = false, features = ["std", "alloc"]}
+futures-util = { workspace = true, features = ["std", "alloc"]}
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["net", "sync"] }
