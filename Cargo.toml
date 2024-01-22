@@ -23,7 +23,7 @@ members = [
     "examples/tracing-grpc",
     "examples/tracing-http-propagator",
     "examples/tracing-jaeger",
-    "stress",
+    "stress", "opentelemetry-jaeger-propagator",
 ]
 resolver = "2"
 
