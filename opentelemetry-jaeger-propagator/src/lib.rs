@@ -830,7 +830,7 @@ mod propagator {
         #[test]
         fn test_fields() {
             let propagator = Propagator::new();
-            let fields = propagator.fields().into_iter().collect::<Vec<_>>();
+            let fields = propagator.fields().collect::<Vec<_>>();
             assert_eq!(fields.len(), 1);
             assert_eq!(fields.first().unwrap(), &JAEGER_HEADER);
         }
