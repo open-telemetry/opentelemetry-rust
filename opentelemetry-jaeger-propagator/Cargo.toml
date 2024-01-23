@@ -87,15 +87,6 @@ optional = true
 
 [features]
 full = [
-    "collector_client",
-    "hyper_collector_client",
-    "hyper_tls_collector_client",
-    "isahc_collector_client",
-    "reqwest_collector_client",
-    "reqwest_blocking_collector_client",
-    "reqwest_rustls_collector_client",
-    "surf_collector_client",
-    "wasm_collector_client",
     "rt-tokio",
     "rt-tokio-current-thread",
     "rt-async-std",
