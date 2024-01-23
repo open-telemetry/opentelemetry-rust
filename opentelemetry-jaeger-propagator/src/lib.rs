@@ -471,6 +471,22 @@ mod propagator {
             assert_eq!(default_propagator.header_name, JAEGER_HEADER);
             assert_eq!(default_propagator.baggage_prefix, JAEGER_BAGGAGE_PREFIX);
 
+            // Propagators are cloneable
+            let cloned_propagator = default_propagator.clone();
+            assert_eq!(
+                default_propagator.header_name,
+                cloned_propagator.header_name
+            );
+
+            // Propagators implement debug
+            assert_eq!(
+                format!("{:?}", default_propagator),
+                format!(
+                    "Propagator {{ baggage_prefix: \"{}\", header_name: \"{}\", fields: [\"{}\"] }}",
+                    JAEGER_BAGGAGE_PREFIX, JAEGER_HEADER, JAEGER_HEADER
+                )
+            );
+
             let custom_header_propagator = Propagator::with_custom_header("custom-header");
             assert_eq!(custom_header_propagator.header_name, "custom-header");
             assert_eq!(
