@@ -551,7 +551,7 @@ pub struct BatchConfigBuilder {
 }
 
 impl Default for BatchConfigBuilder {
-    /// Create a new [`BatchConfigBuilder`] initialized with standard OTLP default values.
+    /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
     /// The values are overriden by environment variables if set.
     /// For a list of supported environment variables see [Batch LogRecord Processor](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-span-processor).
     fn default() -> Self {
