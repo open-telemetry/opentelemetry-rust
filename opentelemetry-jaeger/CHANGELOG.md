@@ -2,6 +2,11 @@
 
 ## vNext
 
+## v0.21.0
+
+### Changed
+- Move opentelemetry-jaeger::Propagator logic to its own crate (opentelemetry-jaeger-propagator) to prepare for opentelemetry-jaeger exporter deprecation [#1487](https://github.com/open-telemetry/opentelemetry-rust/pull/1487)
+
 ## v0.20.0
 
 ### Changed
