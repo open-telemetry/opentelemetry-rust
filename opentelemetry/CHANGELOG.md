@@ -17,6 +17,16 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `LogRecord`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 - Add `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373)
+- `Counters`, `UpDownCounters`, `Observables`, and `Histograms` now take an
+  `Into<AttributeSet>` as the parameter type for recording metric values. This
+  allows passing in a precreated `AttributeSet` for better performance when the
+  same set of attributes are used across instruments. This is backward
+  compatible with previous calls passing in `&[KeyValue]`.
+  [#1421](https://github.com/open-telemetry/opentelemetry-rust/pull/1421)
+- `Histograms` and `Gauges` no longer accept `&[KeyValue]` parameters for
+  `observe()` or `record()` calls, and only accept a precreated `AttributeSet`
+  value.
+  [#1421](https://github.com/open-telemetry/opentelemetry-rust/pull/1421)
 
 ### Removed
 
