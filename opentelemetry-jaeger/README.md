@@ -41,9 +41,10 @@ exporting telemetry:
 ```rust
 use opentelemetry::global;
 use opentelemetry::trace::Tracer;
+use opentelemetry_jaeger_propagator;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
