@@ -631,10 +631,10 @@ mod propagator {
             );
 
             // Fail to extract span id with an invalid hex-string
-            assert!(propgator.extract_span_id("invalid").is_err());
+            assert_eq!(propgator.extract_span_id("invalid"), Err(()));
 
             // Fail to extract span id with a hex-string that is too long
-            assert!(propgator.extract_span_id("1".repeat(17).as_str()).is_err());
+            assert_eq!(propgator.extract_span_id("1".repeat(17).as_str()), Err(()));
         }
 
         #[test]
@@ -692,9 +692,10 @@ mod propagator {
                 HashMap::new();
             map_of_invalid_keys_with_custom_baggage_prefix
                 .set(&too_long_baggage_key, "value_1".to_string());
-            assert!(propagator
-                .extract_trace_state(&map_of_invalid_keys_with_custom_baggage_prefix)
-                .is_err());
+            assert_eq!(
+                propagator.extract_trace_state(&map_of_invalid_keys_with_custom_baggage_prefix),
+                Err(())
+            );
         }
 
         #[test]
