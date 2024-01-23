@@ -59,7 +59,7 @@ fn prometheus_exporter_integration() {
                     .init();
                 counter.add(5.0, attrs.clone());
                 counter.add(10.3, attrs.clone());
-                counter.add(9.0, attrs.clone());
+                counter.add(9.0, attrs);
 
                 let attrs2 = AttributeSet::from(&[
                     Key::new("A").string("D"),
@@ -90,7 +90,7 @@ fn prometheus_exporter_integration() {
                     .init();
                 counter.add(5.0, attrs.clone());
                 counter.add(10.3, attrs.clone());
-                counter.add(9.0, attrs.clone());
+                counter.add(9.0, attrs);
                 let attrs2 = AttributeSet::from(&[
                     Key::new("A").string("D"),
                     Key::new("C").string("B"),

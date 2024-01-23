@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
             span.add_event("Sub span event", vec![]);
 
-            histogram.record(1.3, AttributeSet::default());
+            histogram.record(1.3, &[]);
         });
     });
 
