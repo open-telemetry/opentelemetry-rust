@@ -513,6 +513,191 @@ mod propagator {
         }
 
         #[test]
+        fn test_extract_span_context() {
+            let propagator_with_custom_header =
+                Propagator::with_custom_header_and_baggage("custom_header", "custom_baggage");
+            let mut map: HashMap<String, String> = HashMap::new();
+            map.insert(
+                "custom_header".to_owned(),
+                "12345:54321:ignored_parent_span_id:3".to_owned(),
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Ok(SpanContext::new(
+                    TraceId::from_hex("12345").unwrap(),
+                    SpanId::from_hex("54321").unwrap(),
+                    TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
+                    true,
+                    TraceState::default(),
+                ))
+            );
+
+            map.clear();
+            let mut map: HashMap<String, String> = HashMap::new();
+            map.insert(
+                "custom_header".to_owned(),
+                "12345%3A54321%3Aignored_parent_span_id%3A3".to_owned(), // URL encoded
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Ok(SpanContext::new(
+                    TraceId::from_hex("12345").unwrap(),
+                    SpanId::from_hex("54321").unwrap(),
+                    TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
+                    true,
+                    TraceState::default(),
+                ))
+            );
+
+            map.clear();
+            map.set(
+                "custom_header",
+                "not:4:parts:long:delimited:by:colons".to_owned(),
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Err(())
+            );
+
+            map.clear();
+            map.set(
+                "custom_header",
+                "invalid_trace_id:54321:ignored_parent_span_id:3".to_owned(),
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Err(())
+            );
+
+            map.clear();
+            map.set(
+                "custom_header",
+                "12345:invalid_span_id:ignored_parent_span_id:3".to_owned(),
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Err(())
+            );
+
+            map.clear();
+            map.set(
+                "custom_header",
+                "12345:54321:ignored_parent_span_id:invalid_flag".to_owned(),
+            );
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Err(())
+            );
+
+            map.clear();
+            let mut map: HashMap<String, String> = HashMap::new();
+            map.set(
+                "custom_header",
+                "12345%3A54321%3Aignored_parent_span_id%3A3".to_owned(), // URL encoded
+            );
+            let too_long_baggage_key = format!("{}{}", "custom_baggage", "_".repeat(256)); // A baggage key cannot be longer than 256 characters
+            map.set(&too_long_baggage_key, "baggage_value".to_owned());
+            assert_eq!(
+                propagator_with_custom_header.extract_span_context(&map),
+                Err(())
+            );
+        }
+
+        #[test]
+        fn test_extract_trace_id() {
+            let propagator = Propagator::new();
+
+            assert_eq!(
+                propagator.extract_trace_id("12345"),
+                Ok(TraceId::from_hex("12345").unwrap())
+            );
+
+            // A trace cannot be more than 32 characters
+            assert_eq!(
+                propagator.extract_trace_id("1".repeat(33).as_str()),
+                Err(())
+            );
+
+            // A trace id must be a valid hex-string
+            assert_eq!(propagator.extract_trace_id("invalid"), Err(()));
+        }
+
+        #[test]
+        fn test_extract_span_id() {
+            let propgator = Propagator::new();
+            assert_eq!(
+                propgator.extract_span_id("12345"),
+                Ok(SpanId::from_u64(74565))
+            );
+
+            // Fail to extract span id with an invalid hex-string
+            assert!(propgator.extract_span_id("invalid").is_err());
+
+            // Fail to extract span id with a hex-string that is too long
+            assert!(propgator.extract_span_id("1".repeat(17).as_str()).is_err());
+        }
+
+        #[test]
+        fn test_extract_trace_flags() {
+            let propgator = Propagator::new();
+
+            // Extract TraceFlags::SAMPLED flag
+            assert_eq!(propgator.extract_trace_flags("1"), Ok(TraceFlags::SAMPLED));
+
+            // Extract TraceFlags::DEBUG flag - requires TraceFlags::SAMPLED to be set
+            assert_eq!(
+                propgator.extract_trace_flags("3"),
+                Ok(TRACE_FLAG_DEBUG | TraceFlags::SAMPLED)
+            );
+
+            // Attempt to extract the TraceFlags::DEBUG flag without the TraceFlags::SAMPLED flag and receive the default TraceFlags
+            assert_eq!(
+                propgator.extract_trace_flags("2"),
+                Ok(TraceFlags::default())
+            );
+        }
+
+        #[test]
+        fn test_extract_trace_state() {
+            let propagator = Propagator::with_custom_header_and_baggage("header", "baggage");
+
+            // When a type that implements Extractor has keys that start with the custom baggage prefix, they and their associated
+            // values are extracted into a TraceState
+            // In this case, no keys start with the custom baggage prefix
+            let mut map_of_keys_without_custom_baggage_prefix: HashMap<String, String> =
+                HashMap::new();
+            map_of_keys_without_custom_baggage_prefix
+                .set("different_prefix_1", "value_1".to_string());
+            let empty_trace_state = propagator
+                .extract_trace_state(&map_of_keys_without_custom_baggage_prefix)
+                .unwrap();
+            assert_eq!(empty_trace_state, TraceState::NONE);
+
+            // In this case, all keys start with the custom baggage prefix
+            let mut map_of_keys_with_custom_baggage_prefix: HashMap<String, String> =
+                HashMap::new();
+            map_of_keys_with_custom_baggage_prefix.set("baggage_1", "value_1".to_string());
+
+            let trace_state = propagator
+                .extract_trace_state(&map_of_keys_with_custom_baggage_prefix)
+                .unwrap();
+            assert_eq!(
+                trace_state,
+                TraceState::from_key_value(vec![("baggage_1", "value_1")]).unwrap()
+            );
+
+            // If a key that starts with the custom baggage prefix is an invalid TraceState, the result will be Err(())
+            let too_long_baggage_key = format!("{}{}", "baggage_1", "_".repeat(256)); // A baggage key cannot be longer than 256 characters
+            let mut map_of_invalid_keys_with_custom_baggage_prefix: HashMap<String, String> =
+                HashMap::new();
+            map_of_invalid_keys_with_custom_baggage_prefix
+                .set(&too_long_baggage_key, "value_1".to_string());
+            assert!(propagator
+                .extract_trace_state(&map_of_invalid_keys_with_custom_baggage_prefix)
+                .is_err());
+        }
+
+        #[test]
         fn test_extract_empty() {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = Propagator::new();
