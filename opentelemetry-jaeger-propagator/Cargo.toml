@@ -86,12 +86,7 @@ features = [
 optional = true
 
 [features]
-full = [
-    "rt-tokio",
-    "rt-tokio-current-thread",
-    "rt-async-std",
-    "integration_test",
-]
+full = ["integration_test"]
 default = []
 collector_client = ["http", "opentelemetry-http"]
 hyper_collector_client = [
