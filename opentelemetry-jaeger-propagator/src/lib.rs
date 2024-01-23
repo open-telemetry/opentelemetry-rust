@@ -465,6 +465,54 @@ mod propagator {
         }
 
         #[test]
+        fn test_propagator_creation_methods() {
+            // Without specifying any custom header or baggage prefix, the header and prefix wil be the default values
+            let default_propagator = Propagator::new();
+            assert_eq!(default_propagator.header_name, JAEGER_HEADER);
+            assert_eq!(default_propagator.baggage_prefix, JAEGER_BAGGAGE_PREFIX);
+
+            let custom_header_propagator = Propagator::with_custom_header("custom-header");
+            assert_eq!(custom_header_propagator.header_name, "custom-header");
+            assert_eq!(
+                custom_header_propagator.baggage_prefix,
+                JAEGER_BAGGAGE_PREFIX
+            );
+
+            // An empty custom header will result in the default header name
+            let propgator_with_empty_custom_header = Propagator::with_custom_header("");
+            assert_eq!(
+                propgator_with_empty_custom_header.header_name,
+                JAEGER_HEADER
+            );
+            assert_eq!(
+                propgator_with_empty_custom_header.baggage_prefix,
+                JAEGER_BAGGAGE_PREFIX
+            );
+
+            let propagator_with_custom_header_and_baggage_prefixes =
+                Propagator::with_custom_header_and_baggage(
+                    "custom-header",
+                    "custom-baggage-prefix",
+                );
+            assert_eq!(
+                propagator_with_custom_header_and_baggage_prefixes.header_name,
+                "custom-header"
+            );
+            assert_eq!(
+                propagator_with_custom_header_and_baggage_prefixes.baggage_prefix,
+                "custom-baggage-prefix"
+            );
+
+            let propagator_with_empty_prefix =
+                Propagator::with_custom_header_and_baggage("custom-header", "");
+            assert_eq!(propagator_with_empty_prefix.header_name, "custom-header");
+            assert_eq!(
+                propagator_with_empty_prefix.baggage_prefix,
+                JAEGER_BAGGAGE_PREFIX
+            );
+        }
+
+        #[test]
         fn test_extract_empty() {
             let map: HashMap<String, String> = HashMap::new();
             let propagator = Propagator::new();
