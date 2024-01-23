@@ -1,5 +1,4 @@
-//! Collects OpenTelemetry spans and reports them to a given Jaeger
-//! `agent` or `collector` endpoint, propagate the tracing context between the applications using [Jaeger propagation format].
+//! Propagates the tracing context between the applications using [Jaeger propagation format].
 //!
 //! *Warning*: Note that the exporter component from this crate will be [deprecated][jaeger-deprecation]
 //! in the future. Users are advised to move to [opentelemetry_otlp][otlp-exporter] instead as [Jaeger][jaeger-otlp]
@@ -87,14 +86,6 @@
 //!
 //! [`tokio`]: https://tokio.rs
 //! [`async-std`]: https://async.rs
-//!
-//! ## Jaeger Exporter From Environment Variables
-//!
-//! The jaeger pipeline builder can be configured dynamically via environment
-//! variables. All variables are optional, a full list of accepted options can
-//! be found in the [jaeger variables spec].
-//!
-//! [jaeger variables spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md
 //!
 //! ## Jaeger Collector Example
 //!
@@ -314,17 +305,7 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub use exporter::config;
-#[cfg(feature = "collector_client")]
-pub use exporter::config::collector::new_collector_pipeline;
-#[cfg(feature = "wasm_collector_client")]
-pub use exporter::config::collector::new_wasm_collector_pipeline;
-pub use exporter::{
-    config::agent::new_agent_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, Process,
-};
 pub use propagator::Propagator;
-
-mod exporter;
 
 #[cfg(feature = "integration_test")]
 #[doc(hidden)]
@@ -355,7 +336,7 @@ mod propagator {
     /// exchanged by the applications. Each concern creates a set of `Propagator`s for every
     /// supported `Propagator` type.
     ///
-    /// Note that jaeger header can be set in http header or encoded as url.
+    /// Note that a jaeger header can be set in http header or encoded as url.
     ///
     /// ## Examples
     /// ```
@@ -423,9 +404,9 @@ mod propagator {
 
         /// Create a Jaeger propagator with custom header name and baggage prefix
         ///
-        /// NOTE: it's implicitly fallback to the default header names when the ane of provided custom_* is empty
+        /// NOTE: it'll implicitly fallback to the default header names when the name of provided custom_* is empty
         /// Default header-name is `uber-trace-id` and baggage-prefix is `uberctx-`
-        /// The format of serialized context and baggage's stays unchanged and not depending
+        /// The format of serialized contexts and baggages stays unchanged and does not depend
         /// on provided header name and prefix.
         pub fn with_custom_header_and_baggage(
             custom_header_name: &'static str,
@@ -489,7 +470,7 @@ mod propagator {
                 16 => SpanId::from_hex(span_id).map_err(|_| ()),
                 // more than 16 is invalid
                 17.. => Err(()),
-                // less than 16 will result padding on left
+                // less than 16 will result in padding on left
                 _ => {
                     let padded = format!("{span_id:0>16}");
                     SpanId::from_hex(&padded).map_err(|_| ())
@@ -499,8 +480,8 @@ mod propagator {
 
         /// Extract flag from the header
         ///
-        /// First bit control whether to sample
-        /// Second bit control whether it's a debug trace
+        /// First bit controls whether to sample
+        /// Second bit controls whether it's a debug trace
         /// Third bit is not used.
         /// Forth bit is firehose flag, which is not supported in OT now.
         fn extract_trace_flags(&self, flag: &str) -> Result<TraceFlags, ()> {
