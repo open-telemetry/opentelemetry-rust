@@ -5,6 +5,7 @@ members = [
     "opentelemetry-jaeger",
     "opentelemetry-jaeger/examples/actix-udp",
     "opentelemetry-jaeger/examples/remote-sampler",
+    "opentelemetry-jaeger-propagator",
     "opentelemetry-appender-log",
     "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
@@ -23,7 +24,7 @@ members = [
     "examples/tracing-grpc",
     "examples/tracing-http-propagator",
     "examples/tracing-jaeger",
-    "stress", "opentelemetry-jaeger-propagator",
+    "stress",
 ]
 resolver = "2"
 
