@@ -24,7 +24,7 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
   compatible with previous calls passing in `&[KeyValue]`.
   [#1421](https://github.com/open-telemetry/opentelemetry-rust/pull/1421)
 - Observable instruments no longer accept `&[KeyValue]` parameters for
-  `observe()` or `record()` calls, and only accept a precreated `AttributeSet`
+  `observe()` calls, and only accept a precreated `AttributeSet`
   value.
   [#1421](https://github.com/open-telemetry/opentelemetry-rust/pull/1421)
 
