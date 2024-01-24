@@ -3,13 +3,14 @@
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
-//! use opentelemetry::{metrics::MeterProvider, KeyValue};
+//! use opentelemetry::{AttributeSet, metrics::MeterProvider, KeyValue};
 //! use opentelemetry_sdk::metrics::SdkMeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! // create a new prometheus registry
+//! use opentelemetry::AttributeSet;
 //! let registry = prometheus::Registry::new();
 //!
 //! // configure OpenTelemetry to use this registry
@@ -31,8 +32,10 @@
 //!     .with_description("Records values")
 //!     .init();
 //!
-//! counter.add(100, &[KeyValue::new("key", "value")]);
-//! histogram.record(100, &[KeyValue::new("key", "value")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("key", "value")]);
+//!
+//! counter.add(100, attributes.clone());
+//! histogram.record(100, attributes);
 //!
 //! // Encode data as text or protobuf
 //! let encoder = TextEncoder::new();
