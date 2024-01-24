@@ -1,7 +1,7 @@
 //! Export telemetry signals to stdout.
-//! This exporter is intended to be used during learning how telemetry data are
-//! created and exported. It is not recommended for any production environment.
-//! The format of the output is not specified and may change at any time.
+//! This exporter is designed for debugging and learning purposes. It is not
+//! recommended for use in production environments. The output format might not be
+//! exhaustive and is subject to change at any time.
 //!
 //! # Examples
 //!
