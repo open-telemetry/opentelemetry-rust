@@ -81,7 +81,7 @@
 //! [`async-std`]: https://async.rs
 //!
 //! # Feature Flags
-//! The following feature flags can enable exporters for different telemetry pillars:
+//! The following feature flags can enable exporters for different telemetry signals:
 //!
 //! * `trace`: Includes the trace exporters (enabled by default).
 //! * `metrics`: Includes the unstable metrics exporters.
