@@ -126,7 +126,6 @@ pub mod propagation;
 pub mod resource;
 pub mod runtime;
 #[cfg(any(feature = "testing", test))]
-#[doc(hidden)]
 pub mod testing;
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
