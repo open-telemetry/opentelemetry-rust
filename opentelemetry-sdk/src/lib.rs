@@ -77,7 +77,7 @@
 //!
 //! ## Crate Feature Flags
 //!
-//! The following feature flags can used to control the telemetry pillars to use:
+//! The following feature flags can used to control the telemetry signals to use:
 //!
 //! * `trace`: Includes the trace SDK (enabled by default).
 //! * `metrics`: Includes the unstable metrics SDK.
