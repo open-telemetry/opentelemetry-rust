@@ -1,10 +1,3 @@
-//! Propagates the tracing context between the applications using [Jaeger propagation format].
-//!
-//! *Warning*: Note that the exporter component from this crate will be [deprecated][jaeger-deprecation]
-//! in the future. Users are advised to move to [opentelemetry_otlp][otlp-exporter] instead as [Jaeger][jaeger-otlp]
-//! supports accepting data in the OTLP protocol.
-//! See the [Jaeger Docs] for details about Jaeger and deployment information.
-//!
 //! *Compiler support: [requires `rustc` 1.64+][msrv]*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
