@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{any::Any, borrow::Cow, collections::HashSet, sync::Arc};
 
+use opentelemetry::AttributeSet;
 use opentelemetry::{
     global,
     metrics::{
@@ -9,7 +10,6 @@ use opentelemetry::{
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Observer as ApiObserver, Result, Unit, UpDownCounter,
     },
-    KeyValue,
 };
 
 use crate::instrumentation::Scope;
@@ -647,7 +647,7 @@ impl Observer {
 }
 
 impl ApiObserver for Observer {
-    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]) {
+    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: AttributeSet) {
         if let Some(f64_obs) = inst.as_any().downcast_ref::<Observable<f64>>() {
             if self.f64s.contains(&f64_obs.id) {
                 f64_obs.observe(measurement, attrs)
@@ -666,7 +666,7 @@ impl ApiObserver for Observer {
         }
     }
 
-    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]) {
+    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: AttributeSet) {
         if let Some(u64_obs) = inst.as_any().downcast_ref::<Observable<u64>>() {
             if self.u64s.contains(&u64_obs.id) {
                 u64_obs.observe(measurement, attrs)
@@ -685,7 +685,7 @@ impl ApiObserver for Observer {
         }
     }
 
-    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]) {
+    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: AttributeSet) {
         if let Some(i64_obs) = inst.as_any().downcast_ref::<Observable<i64>>() {
             if self.i64s.contains(&i64_obs.id) {
                 i64_obs.observe(measurement, attrs)

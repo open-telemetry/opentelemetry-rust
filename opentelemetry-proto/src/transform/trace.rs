@@ -40,6 +40,7 @@ pub mod tonic {
                 trace_state: link.span_context.trace_state().header(),
                 attributes: Attributes::from(link.attributes).0,
                 dropped_attributes_count: link.dropped_attributes_count,
+                flags: link.span_context.trace_flags().to_u8() as u32,
             }
         }
     }
@@ -76,6 +77,7 @@ pub mod tonic {
                                 vec![]
                             }
                         },
+                        flags: source_span.span_context.trace_flags().to_u8() as u32,
                         name: source_span.name.into_owned(),
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),
@@ -151,6 +153,7 @@ pub mod grpcio {
                 trace_state: link.span_context.trace_state().header(),
                 attributes: Attributes::from(link.attributes).0,
                 dropped_attributes_count: link.dropped_attributes_count,
+                flags: link.span_context.trace_flags().to_u8() as u32,
             }
         }
     }
@@ -187,6 +190,7 @@ pub mod grpcio {
                                 vec![]
                             }
                         },
+                        flags: source_span.span_context.trace_flags().to_u8() as u32,
                         name: source_span.name.into_owned(),
                         kind: span_kind as i32,
                         start_time_unix_nano: to_nanos(source_span.start_time),

@@ -9,6 +9,11 @@ name = "metrics"
 path = "src/metrics.rs"
 doc = false
 
+[[bin]] # Bin to run the metrics cached attributes stress tests
+name = "metrics_cached_attrs"
+path = "src/metrics_cached_attrs.rs"
+doc = false
+
 [[bin]] # Bin to run the logs stress tests
 name = "logs"
 path = "src/logs.rs"
