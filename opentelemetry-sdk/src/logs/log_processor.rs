@@ -316,7 +316,11 @@ pub struct BatchConfigBuilder {
 impl Default for BatchConfigBuilder {
     /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
     /// The values are overriden by environment variables if set.
-    /// For a list of supported environment variables see [Batch LogRecord Processor](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-logrecord-processor).
+    /// The supported environment variables are:
+    /// * `OTEL_BLRP_MAX_QUEUE_SIZE`
+    /// * `OTEL_BLRP_SCHEDULE_DELAY`
+    /// * `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE`
+    /// * `OTEL_BLRP_EXPORT_TIMEOUT`
     fn default() -> Self {
         BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
