@@ -12,6 +12,11 @@
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
+**WARNING**
+[Jaeger](https://www.jaegertracing.io/) supports the OpenTelemetry Protocol (OTLP) as of [v1.35.0](https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0) and as a result, language specific Jaeger exporters within OpenTelemetry SDKs are [recommended for deprecation by the OpenTelemetry project](https://opentelemetry.io/blog/2022/jaeger-native-otlp/). More information and an example of using OTLP with Jaeger can be found in [Introducing native support for OpenTelemetry in Jaeger](https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c).
+
+The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a Jaeger propagator. To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
+
 ## Overview
 
 [`OpenTelemetry`] is a collection of tools, APIs, and SDKs used to instrument,
