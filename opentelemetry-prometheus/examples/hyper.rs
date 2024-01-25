@@ -4,6 +4,7 @@ use hyper::{
     Body, Method, Request, Response, Server,
 };
 use once_cell::sync::Lazy;
+use opentelemetry::AttributeSet;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Unit},
     KeyValue,
@@ -14,7 +15,8 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
+static HANDLER_ALL: Lazy<AttributeSet> =
+    Lazy::new(|| AttributeSet::from(&[KeyValue::new("handler", "all")]));
 
 async fn serve_req(
     req: Request<Body>,
@@ -23,7 +25,7 @@ async fn serve_req(
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
-    state.http_counter.add(1, HANDLER_ALL.as_ref());
+    state.http_counter.add(1, HANDLER_ALL.clone());
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
@@ -33,7 +35,7 @@ async fn serve_req(
             encoder.encode(&metric_families, &mut buffer).unwrap();
             state
                 .http_body_gauge
-                .record(buffer.len() as u64, HANDLER_ALL.as_ref());
+                .record(buffer.len() as u64, HANDLER_ALL.clone());
 
             Response::builder()
                 .status(200)
@@ -53,7 +55,7 @@ async fn serve_req(
 
     state.http_req_histogram.record(
         request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()),
-        &[],
+        AttributeSet::default(),
     );
     Ok(response)
 }

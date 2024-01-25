@@ -30,6 +30,7 @@ pub use os::OsResourceDetector;
 pub use process::ProcessResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
 
+use opentelemetry::AttributeSet;
 use opentelemetry::{Key, KeyValue, Value};
 use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
@@ -189,6 +190,16 @@ impl Resource {
     /// Retrieve the value from resource associate with given key.
     pub fn get(&self, key: Key) -> Option<Value> {
         self.attrs.get(&key).cloned()
+    }
+
+    /// Creates a new attribute set from the resource's current attributes
+    pub fn to_attribute_set(&self) -> AttributeSet {
+        let key_values = self
+            .iter()
+            .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
+            .collect::<Vec<_>>();
+
+        AttributeSet::from(&key_values)
     }
 }
 
@@ -364,5 +375,25 @@ mod tests {
                 )
             },
         )
+    }
+
+    #[test]
+    fn can_create_attribute_set_from_resource() {
+        let resource = Resource::new([KeyValue::new("key1", "value1"), KeyValue::new("key2", 3)]);
+
+        let set = resource.to_attribute_set();
+        let mut kvs = set.iter().collect::<Vec<(&Key, &Value)>>();
+
+        assert_eq!(kvs.len(), 2, "Incorrect number of attributes");
+
+        kvs.sort_by(|kv1, kv2| kv1.0.cmp(kv2.0));
+        assert_eq!(kvs[0].0, &Key::from("key1"), "Unexpected first key");
+        assert_eq!(
+            kvs[0].1,
+            &Value::String("value1".into()),
+            "Unexpected first value"
+        );
+        assert_eq!(kvs[1].0, &Key::from("key2"), "Unexpected second key");
+        assert_eq!(kvs[1].1, &Value::I64(3), "Unexpected second value");
     }
 }
