@@ -6,4 +6,4 @@
 
 ### Added
 
-- Move opentelemetry-jaeger::Propagator to new crate: opentelemetry-jaeger-propagator [#1487](https://github.com/open-telemetry/opentelemetry-rust/pull/1487)
+- As part of the gradual deprecation of the exporter functionality of the opentelemetry-jaeger crate, move the opentelemetry-jaeger propagator functionality to a new crate named opentelemetry-jaeger-propagator [#1487](https://github.com/open-telemetry/opentelemetry-rust/pull/1487)
