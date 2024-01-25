@@ -4,7 +4,7 @@
 
 # OpenTelemetry Jaeger Propagator
 
-[`Jaeger`] propagator integration for applications instrumented with [`OpenTelemetry`]. Jaeger exporter functionality can be found in the `opentelemetry-jaeger` crate until this functionality is deprecated.
+[`Jaeger`] propagator integration for applications instrumented with [`OpenTelemetry`]. To export telemetry to Jaeger, use the opentelemetry-otlp crate.
 
 [![Crates.io: opentelemetry-jaeger](https://img.shields.io/crates/v/opentelemetry-jaeger.svg)](https://crates.io/crates/opentelemetry-jaeger)
 [![Documentation](https://docs.rs/opentelemetry-jaeger/badge.svg)](https://docs.rs/opentelemetry-jaeger)
