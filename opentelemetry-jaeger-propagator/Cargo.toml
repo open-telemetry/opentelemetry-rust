@@ -33,4 +33,5 @@ prost-types = { version = "0.11.6", optional = true }
 opentelemetry_sdk = { features = ["testing"], path = "../opentelemetry-sdk" }
 
 [features]
+default = []
 integration_test = []
