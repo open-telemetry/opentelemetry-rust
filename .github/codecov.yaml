@@ -22,9 +22,9 @@ ignore:
   - "opentelemetry-jaeger/examples"
   - "opentelemetry-zipkin/examples"
   - "opentelemetry-otlp/examples"
-  - "opentelemetry-aws/examples"
-  - "opentelemetry-datadog/examples"
-  - "opentelemetry-dynatrace/examples"
   - "opentelemetry-http/examples"
   - "opentelemetry-prometheus/examples"
-  - "opentelemetry-zpages/examples"
+  - "opentelemetry-appender-tracing/examples"
+  - "opentelemetry-appender-log/examples"
+  # stress test
+  - "stress"
