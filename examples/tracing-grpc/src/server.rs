@@ -18,7 +18,8 @@ fn init_tracer() {
         .with_batch_exporter(
             SpanExporterBuilder::default()
                 .with_encoder(|writer, data| {
-                    Ok(serde_json::to_writer_pretty(writer, &data).unwrap())
+                    serde_json::to_writer_pretty(writer, &data).unwrap();
+                    Ok(())
                 })
                 .build(),
             Tokio,
