@@ -5,6 +5,7 @@ members = [
     "opentelemetry-jaeger",
     "opentelemetry-jaeger/examples/actix-udp",
     "opentelemetry-jaeger/examples/remote-sampler",
+    "opentelemetry-jaeger-propagator",
     "opentelemetry-appender-log",
     "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
