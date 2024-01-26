@@ -39,6 +39,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 indexmap = "2.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 temp-env = { workspace = true }
+serial_test = "3.0.0"
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
