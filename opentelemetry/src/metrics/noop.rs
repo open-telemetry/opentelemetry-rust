@@ -3,6 +3,7 @@
 //! This implementation is returned as the global Meter if no `Meter`
 //! has been set. It is also useful for testing purposes as it is intended
 //! to have minimal resource utilization and runtime impact.
+use crate::attributes::AttributeSet;
 use crate::{
     metrics::{
         AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
@@ -93,25 +94,25 @@ impl NoopSyncInstrument {
 }
 
 impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }
 }
 
 impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }
 }
 
 impl<T> SyncHistogram<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+    fn record(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }
 }
 
 impl<T> SyncGauge<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+    fn record(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }
 }
@@ -130,7 +131,7 @@ impl NoopAsyncInstrument {
 }
 
 impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
-    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
+    fn observe(&self, _value: T, _attributes: AttributeSet) {
         // Ignored
     }
 

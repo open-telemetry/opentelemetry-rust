@@ -52,9 +52,10 @@
 //! ### Creating instruments and recording measurements
 //!
 //! ```
-//! # #[cfg(feature = "metrics")]
+//! # use opentelemetry::AttributeSet;
+//! #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -63,7 +64,8 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, attributes);
 //! # }
 //! ```
 //!
@@ -111,7 +113,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "logs")]
@@ -135,7 +136,6 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

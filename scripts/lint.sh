@@ -40,6 +40,8 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-jaeger "collector_client, wasm_collector_client"
   cargo_feature opentelemetry-jaeger "default"
 
+  cargo_feature opentelemetry-jaeger-propagator "default"
+
   cargo_feature opentelemetry-proto "default"
   cargo_feature opentelemetry-proto "full"
   cargo_feature opentelemetry-proto "gen-tonic,trace"

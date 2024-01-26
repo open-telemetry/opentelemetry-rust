@@ -2,6 +2,11 @@
 
 ## vNext
 
+## v0.21.0
+
+### Changed
+- Previously, the opentelemetry-jaeger crate exposed both a Jaeger exporter and a Jaeger propagator. Going forwards, the Jaeger propagator functionality has been moved to a new crate [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/) to prepare for opentelemetry-jaeger exporter deprecation. Starting with [Jaeger v1.35](https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0), Jaeger supports the OpenTelemetry Protocol (OTLP). [OpenTelemetry has recommended](https://opentelemetry.io/blog/2022/jaeger-native-otlp/) that Jaeger exporters be deprecated from OpenTelemetry SDKs in favor of sending traces to Jaeger clients using OTLP. An example and further discussion of how to consume OpenTelemetry spans with Jaeger can be found at [Introducing native support for OpenTelemetry in Jaeger](https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c).
+
 ## v0.20.0
 
 ### Changed
