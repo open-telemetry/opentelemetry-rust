@@ -553,7 +553,12 @@ pub struct BatchConfigBuilder {
 impl Default for BatchConfigBuilder {
     /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
     /// The values are overriden by environment variables if set.
-    /// For a list of supported environment variables see [Batch LogRecord Processor](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-span-processor).
+    /// The supported environment variables are:
+    /// * `OTEL_BSP_MAX_QUEUE_SIZE`
+    /// * `OTEL_BSP_SCHEDULE_DELAY`
+    /// * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`
+    /// * `OTEL_BSP_EXPORT_TIMEOUT`
+    /// * `OTEL_BSP_MAX_CONCURRENT_EXPORTS`
     fn default() -> Self {
         BatchConfigBuilder {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
@@ -646,7 +651,6 @@ impl BatchConfigBuilder {
 
         if let Some(scheduled_delay) = env::var(OTEL_BSP_SCHEDULE_DELAY)
             .ok()
-            .or_else(|| env::var("OTEL_BSP_SCHEDULE_DELAY_MILLIS").ok())
             .and_then(|delay| u64::from_str(&delay).ok())
         {
             self.scheduled_delay = Duration::from_millis(scheduled_delay);
@@ -667,7 +671,6 @@ impl BatchConfigBuilder {
 
         if let Some(max_export_timeout) = env::var(OTEL_BSP_EXPORT_TIMEOUT)
             .ok()
-            .or_else(|| env::var("OTEL_BSP_EXPORT_TIMEOUT_MILLIS").ok())
             .and_then(|timeout| u64::from_str(&timeout).ok())
         {
             self.max_export_timeout = Duration::from_millis(max_export_timeout);
@@ -813,44 +816,6 @@ mod tests {
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, 4096);
         assert_eq!(config.max_export_batch_size, 1024);
-    }
-
-    #[test]
-    fn test_batch_config_configurable_by_env_vars_millis() {
-        let env_vars = vec![
-            ("OTEL_BSP_SCHEDULE_DELAY_MILLIS", Some("3000")),
-            ("OTEL_BSP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
-        ];
-
-        let config = temp_env::with_vars(env_vars, BatchConfig::default);
-
-        assert_eq!(config.scheduled_delay, Duration::from_millis(3000));
-        assert_eq!(config.max_export_timeout, Duration::from_millis(70000));
-        assert_eq!(config.max_queue_size, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
-        assert_eq!(
-            config.max_export_batch_size,
-            OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT
-        );
-    }
-
-    #[test]
-    fn test_batch_config_configurable_by_env_vars_precedence() {
-        let env_vars = vec![
-            (OTEL_BSP_SCHEDULE_DELAY, Some("2000")),
-            ("OTEL_BSP_SCHEDULE_DELAY_MILLIS", Some("3000")),
-            (OTEL_BSP_EXPORT_TIMEOUT, Some("60000")),
-            ("OTEL_BSP_EXPORT_TIMEOUT_MILLIS", Some("70000")),
-        ];
-
-        let config = temp_env::with_vars(env_vars, BatchConfig::default);
-
-        assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
-        assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
-        assert_eq!(config.max_queue_size, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
-        assert_eq!(
-            config.max_export_batch_size,
-            OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT
-        );
     }
 
     #[test]
