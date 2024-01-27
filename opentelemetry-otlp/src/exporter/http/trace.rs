@@ -3,6 +3,7 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry_http::ResponseExt;
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;
@@ -46,7 +47,15 @@ impl SpanExporter for OtlpHttpClient {
         }
 
         Box::pin(async move {
-            client.send(request).await?;
+            let request_uri = request.uri().to_string();
+            let response = client.send(request).await?;
+
+            if !response.status().is_success() {
+                eprintln!(
+                    "OpenTelemetry export failed. Url: {}, Response: {:?}",
+                    request_uri, response
+                );
+            }
 
             Ok(())
         })
