@@ -47,7 +47,7 @@ impl SpanExporter for OtlpHttpClient {
 
         Box::pin(async move {
             let request_uri = request.uri().to_string();
-            let response = client.send(request).await.map_err(|e| dbg!(e))?;
+            let response = client.send(request).await?;
 
             if response.status().is_success() {
                 Ok(())
