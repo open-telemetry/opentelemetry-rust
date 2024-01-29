@@ -102,8 +102,7 @@
 //! The following feature flags provides additional configuration for `logs`:
 //! * `logs_level_enabled`: Allow users to control the log level
 //!
-//! The following feature flags enables unstable APIs, those APIs are subject to changes without a major version bump,
-//! use it as your own risk:
+//! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
 //! * `otel_unstable`: Includes unstable APIs (enabled by default).
 //!
 //! ## Related Crates
