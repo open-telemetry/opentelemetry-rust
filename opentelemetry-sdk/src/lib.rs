@@ -80,8 +80,8 @@
 //! The following feature flags can used to control the telemetry pillars to use:
 //!
 //! * `trace`: Includes the trace SDK (enabled by default).
-//! * `metrics`: Includes the unstable metrics SDK.
-//! * `logs`: Includes the unstable logs SDK.
+//! * `metrics`: Includes the metrics SDK.
+//! * `logs`: Includes the logs SDK.
 //!
 //! For `trace` the following feature flags are available:
 //!

@@ -93,7 +93,7 @@
 //! The following core crate feature flags are available:
 //!
 //! * `trace`: Includes the trace API (enabled by default).
-//! * `metrics`: Includes the unstable metrics API.
+//! * `metrics`: Includes the metrics API.
 //! * `logs`: Includes the logs bridge API.
 //!
 //! The following feature flags provides additional configuration for `logs`:

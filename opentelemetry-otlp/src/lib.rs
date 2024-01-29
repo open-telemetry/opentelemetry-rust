@@ -84,8 +84,8 @@
 //! The following feature flags can enable exporters for different telemetry pillars:
 //!
 //! * `trace`: Includes the trace exporters (enabled by default).
-//! * `metrics`: Includes the unstable metrics exporters.
-//! * `logs`: Includes the unstable logs exporters.
+//! * `metrics`: Includes the metrics exporters.
+//! * `logs`: Includes the logs exporters.
 //!
 //! The following feature flags generate additional code and types:
 //! * `serialize`: Enables serialization support for type defined in this create via `serde`.
