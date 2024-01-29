@@ -1,22 +1,6 @@
 //! # W3C Trace Context Propagator
 //!
-//! The `traceparent` header represents the incoming request in a
-//! tracing system in a common format, understood by all vendors.
-//! Here’s an example of a `traceparent` header.
-//!
-//! `traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01`
-//!
-//! The `traceparent` HTTP header field identifies the incoming request in a
-//! tracing system. It has four fields:
-//!
-//!    - version
-//!    - trace-id
-//!    - parent-id
-//!    - trace-flags
-//!
-//! See the [w3c trace-context docs] for more details.
-//!
-//! [w3c trace-context docs]: https://w3c.github.io/trace-context/
+
 use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -33,8 +17,25 @@ const TRACESTATE_HEADER: &str = "tracestate";
 static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
     Lazy::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
 
-/// Propagates `SpanContext`s in [W3C TraceContext] format.
+/// Propagates `SpanContext`s in [W3C TraceContext] format under `traceparent` header.
 ///
+/// The `traceparent` header represents the incoming request in a
+/// tracing system in a common format, understood by all vendors.
+/// Here’s an example of a `traceparent` header.
+///
+/// `traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01`
+///
+/// The `traceparent` HTTP header field identifies the incoming request in a
+/// tracing system. It has four fields:
+///
+///    - version
+///    - trace-id
+///    - parent-id
+///    - trace-flags
+///
+/// See the [w3c trace-context docs] for more details.
+///
+/// [w3c trace-context docs]: https://w3c.github.io/trace-context/
 /// [W3C TraceContext]: https://www.w3.org/TR/trace-context/
 #[derive(Clone, Debug, Default)]
 pub struct TraceContextPropagator {
