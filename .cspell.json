@@ -50,6 +50,7 @@
         "reqwest",
         "rustc",
         "Tescher",
+        "tracerprovider",
         "Zhongyang",
         "zipkin"
     ],

@@ -10,7 +10,7 @@
 
 ## Usage
 
-Open a console, run the following command from the current folder:
+Open a console, run the following command from the current directory:
 
 ```sh
 cargo run --release --bin X
