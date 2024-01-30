@@ -39,8 +39,8 @@ prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
-reqwest = { workspace = true, optional = true, default-features = false }
-surf = { workspace = true, optional = true, default-features = false }
+reqwest = { workspace = true, optional = true }
+surf = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
@@ -51,7 +51,7 @@ tokio-stream = { workspace = true, features = ["net"] }
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
 time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-futures-util = { workspace = true, default-features = false }
+futures-util = { workspace = true }
 temp-env = { workspace = true }
 
 [features]
