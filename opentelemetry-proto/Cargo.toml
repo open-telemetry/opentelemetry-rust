@@ -51,7 +51,7 @@ with-serde = ["serde", "hex"]
 
 [dependencies]
 grpcio = { workspace = true, optional = true, features = ["prost-codec"] }
-tonic = { workspace = true, default-features = false, optional = true, features = ["codegen", "prost"] }
+tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
 opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }

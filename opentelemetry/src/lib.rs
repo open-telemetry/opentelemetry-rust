@@ -96,8 +96,14 @@
 //! The following core crate feature flags are available:
 //!
 //! * `trace`: Includes the trace API (enabled by default).
-//! * `metrics`: Includes the unstable metrics API.
+//! * `metrics`: Includes the metrics API.
 //! * `logs`: Includes the logs bridge API.
+//!
+//! The following feature flags provides additional configuration for `logs`:
+//! * `logs_level_enabled`: Allow users to control the log level
+//!
+//! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
+//! * `otel_unstable`: Includes unstable APIs (enabled by default).
 //!
 //! ## Related Crates
 //!
