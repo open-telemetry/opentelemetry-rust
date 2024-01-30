@@ -56,7 +56,7 @@ impl SpanExporter for OtlpHttpClient {
 
                 if !response.status().is_success() {
                     let error = format!(
-                        "OpenTelemetry export failed. Url: {}, Response: {:?}",
+                        "OpenTelemetry trace export failed. Url: {}, Response: {:?}",
                         request_uri,
                         response.body()
                     );
