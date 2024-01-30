@@ -237,11 +237,13 @@ impl AgentPipeline {
     /// # Examples
     /// Set max queue size.
     /// ```rust
-    /// use opentelemetry_sdk::trace::BatchConfig;
+    /// use opentelemetry_sdk::trace::BatchConfigBuilder;
     ///
     /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
     ///                 .with_batch_processor_config(
-    ///                       BatchConfig::default().with_max_queue_size(200)
+    ///                       BatchConfigBuilder::default()
+    ///                         .with_max_queue_size(200)
+    ///                         .build()
     ///                 );
     ///
     /// ```
