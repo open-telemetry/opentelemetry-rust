@@ -69,3 +69,98 @@ const fn severity_of_level(level: Level) -> Severity {
         Level::Trace => Severity::Trace,
     }
 }
+
+#[cfg(all(test, feature = "testing", feature = "logs"))]
+mod tests {
+    use super::OpenTelemetryLogBridge;
+
+    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogsExporter};
+
+    use log::Log;
+
+    #[test]
+    fn logbridge_with_default_metadata_is_enabled() {
+        let exporter = InMemoryLogsExporter::default();
+
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+
+        let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+
+        // As a result of using `with_simple_exporter` while building the logger provider,
+        // the processor used is a `SimpleLogProcessor` which has an implementation of `event_enabled`
+        // that always returns true.
+        #[cfg(feature = "logs_level_enabled")]
+        assert_eq!(
+            otel_log_appender.enabled(&log::Metadata::builder().build()),
+            true
+        );
+        #[cfg(not(feature = "logs_level_enabled"))]
+        assert_eq!(
+            otel_log_appender.enabled(&log::Metadata::builder().build()),
+            true
+        );
+    }
+
+    #[test]
+    fn logbridge_with_record_can_log() {
+        let exporter = InMemoryLogsExporter::default();
+
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+        otel_log_appender.log(
+            &log::Record::builder()
+                .args(format_args!("test message"))
+                .build(),
+        );
+
+        let logs = exporter.get_emitted_logs().unwrap();
+
+        assert_eq!(logs.len(), 1);
+        let body: String = match logs.first().unwrap().record.body.as_ref().unwrap() {
+            super::AnyValue::String(s) => s.to_string(),
+            _ => panic!("AnyValue::String expected"),
+        };
+        assert_eq!(body, "test message");
+    }
+
+    #[test]
+    fn test_flush() {
+        let exporter = InMemoryLogsExporter::default();
+
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+
+        let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+        otel_log_appender.flush();
+    }
+
+    #[test]
+    fn check_level_severities() {
+        assert_eq!(
+            super::severity_of_level(log::Level::Error),
+            opentelemetry::logs::Severity::Error
+        );
+        assert_eq!(
+            super::severity_of_level(log::Level::Warn),
+            opentelemetry::logs::Severity::Warn
+        );
+        assert_eq!(
+            super::severity_of_level(log::Level::Info),
+            opentelemetry::logs::Severity::Info
+        );
+        assert_eq!(
+            super::severity_of_level(log::Level::Debug),
+            opentelemetry::logs::Severity::Debug
+        );
+        assert_eq!(
+            super::severity_of_level(log::Level::Trace),
+            opentelemetry::logs::Severity::Trace
+        );
+    }
+}
