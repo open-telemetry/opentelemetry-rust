@@ -490,7 +490,15 @@ mod tests {
 
     #[test]
     fn test_default_batch_config_adheres_to_specification() {
-        let config = BatchConfig::default();
+        // The following environment variables are expected to be unset so that their default values are used.
+        let env_vars = vec![
+            OTEL_BLRP_SCHEDULE_DELAY,
+            OTEL_BLRP_EXPORT_TIMEOUT,
+            OTEL_BLRP_MAX_QUEUE_SIZE,
+            OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
+        ];
+
+        let config = temp_env::with_vars_unset(env_vars, BatchConfig::default);
 
         assert_eq!(
             config.scheduled_delay,
