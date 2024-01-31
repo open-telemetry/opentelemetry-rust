@@ -34,7 +34,6 @@ use std::sync::{Arc, Mutex};
 /// ```
 ///
 #[derive(Clone, Debug)]
-//TBD -1
 pub struct InMemoryLogsExporter {
     logs: Arc<Mutex<Vec<LogData>>>,
 }
