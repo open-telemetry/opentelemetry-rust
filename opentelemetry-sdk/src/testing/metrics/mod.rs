@@ -1,4 +1,4 @@
-//! In-memory metrics exporter for testing purposes.
+//! In-Memory metrics exporter for testing purpose.
 
 /// The `in_memory_exporter` module provides in-memory metrics functionalities.
 /// For detailed usage and examples, see `in_memory_exporter`.
