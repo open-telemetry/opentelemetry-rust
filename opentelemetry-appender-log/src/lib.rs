@@ -76,7 +76,7 @@ mod tests {
 
     use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogsExporter};
 
-    use log::Log;
+    use log::{Level, Log};
 
     #[test]
     fn logbridge_with_default_metadata_is_enabled() {
@@ -112,20 +112,26 @@ mod tests {
             .build();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
-        otel_log_appender.log(
-            &log::Record::builder()
-                .args(format_args!("test message"))
-                .build(),
-        );
+
+        log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+        log::set_max_level(Level::Trace.to_level_filter());
+
+        log::trace!("TRACE");
+        log::debug!("DEBUG");
+        log::info!("INFO");
+        log::warn!("WARN");
+        log::error!("ERROR");
 
         let logs = exporter.get_emitted_logs().unwrap();
 
-        assert_eq!(logs.len(), 1);
-        let body: String = match logs.first().unwrap().record.body.as_ref().unwrap() {
-            super::AnyValue::String(s) => s.to_string(),
-            _ => panic!("AnyValue::String expected"),
-        };
-        assert_eq!(body, "test message");
+        assert_eq!(logs.len(), 5);
+        for log in logs {
+            let body: String = match log.record.body.as_ref().unwrap() {
+                super::AnyValue::String(s) => s.to_string(),
+                _ => panic!("AnyValue::String expected"),
+            };
+            assert_eq!(body, log.record.severity_text.unwrap());
+        }
     }
 
     #[test]
