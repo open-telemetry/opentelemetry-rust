@@ -46,22 +46,17 @@ impl SpanExporter for OtlpHttpClient {
         }
 
         Box::pin(async move {
-            #[cfg(not(debug_assertions))]
-            client.send(request).await?;
+            let request_uri = request.uri().to_string();
+            let response = client.send(request).await?;
 
-            #[cfg(debug_assertions)]
-            {
-                let request_uri = request.uri().to_string();
-                let response = client.send(request).await?;
-
-                if !response.status().is_success() {
-                    let error = format!(
-                        "OpenTelemetry trace export failed. Url: {}, Response: {:?}",
-                        request_uri,
-                        response.body()
-                    );
-                    return Err(TraceError::Other(error.into()));
-                }
+            if !response.status().is_success() {
+                let error = format!(
+                    "OpenTelemetry trace export failed. Url: {}, Status Code: {}, Response: {:?}",
+                    response.status().as_u16(),
+                    request_uri,
+                    response.body()
+                );
+                return Err(TraceError::Other(error.into()));
             }
 
             Ok(())
