@@ -137,7 +137,6 @@ above, please let us know! We'd love to add your project to the list!
 
 [`open-telemetry/opentelemetry-rust`]: https://github.com/open-telemetry/opentelemetry-rust
 [`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
-[`Jaeger`]: https://www.jaegertracing.io
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
 [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
@@ -157,7 +156,7 @@ above, please let us know! We'd love to add your project to the list!
 [`actix-web-opentelemetry`]: https://crates.io/crates/actix-web-opentelemetry
 [`actix-web`]: https://crates.io/crates/actix-web
 [`opentelemetry-application-insights`]: https://crates.io/crates/opentelemetry-application-insights
-[Azure Application Insights]: https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
+[Azure Application Insights]: https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview
 [`opentelemetry-tide`]: https://crates.io/crates/opentelemetry-tide
 [`Tide`]: https://crates.io/crates/tide
 [`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver

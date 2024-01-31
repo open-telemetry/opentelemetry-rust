@@ -49,6 +49,7 @@ use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
+use std::cmp::min;
 use std::{env, fmt, str::FromStr, thread, time::Duration};
 
 /// Delay interval between two consecutive exports.
@@ -227,6 +228,7 @@ enum Message {
 /// # {
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
+/// use opentelemetry_sdk::trace::BatchConfigBuilder;
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
@@ -236,7 +238,7 @@ enum Message {
 ///
 ///     // Create a batch span processor using an exporter and a runtime
 ///     let batch = trace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
-///         .with_max_queue_size(4096)
+///         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
 ///         .build();
 ///
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
@@ -497,13 +499,14 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
     {
         BatchSpanProcessorBuilder {
             exporter,
-            config: BatchConfig::default(),
+            config: Default::default(),
             runtime,
         }
     }
 }
 
-/// Batch span processor configuration
+/// Batch span processor configuration.
+/// Use [`BatchConfigBuilder`] to configure your own instance of [`BatchConfig`].
 #[derive(Debug)]
 pub struct BatchConfig {
     /// The maximum queue size to buffer spans for delayed processing. If the
@@ -533,63 +536,43 @@ pub struct BatchConfig {
 
 impl Default for BatchConfig {
     fn default() -> Self {
-        let mut config = BatchConfig {
+        BatchConfigBuilder::default().build()
+    }
+}
+
+/// A builder for creating [`BatchConfig`] instances.
+#[derive(Debug)]
+pub struct BatchConfigBuilder {
+    max_queue_size: usize,
+    scheduled_delay: Duration,
+    max_export_batch_size: usize,
+    max_export_timeout: Duration,
+    max_concurrent_exports: usize,
+}
+
+impl Default for BatchConfigBuilder {
+    /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
+    /// The values are overriden by environment variables if set.
+    /// The supported environment variables are:
+    /// * `OTEL_BSP_MAX_QUEUE_SIZE`
+    /// * `OTEL_BSP_SCHEDULE_DELAY`
+    /// * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`
+    /// * `OTEL_BSP_EXPORT_TIMEOUT`
+    /// * `OTEL_BSP_MAX_CONCURRENT_EXPORTS`
+    fn default() -> Self {
+        BatchConfigBuilder {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
             max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT,
-        };
-
-        if let Some(max_concurrent_exports) = env::var(OTEL_BSP_MAX_CONCURRENT_EXPORTS)
-            .ok()
-            .and_then(|max_concurrent_exports| usize::from_str(&max_concurrent_exports).ok())
-        {
-            config.max_concurrent_exports = max_concurrent_exports;
         }
-
-        if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
-            .ok()
-            .and_then(|queue_size| usize::from_str(&queue_size).ok())
-        {
-            config.max_queue_size = max_queue_size;
-        }
-
-        if let Some(scheduled_delay) = env::var(OTEL_BSP_SCHEDULE_DELAY)
-            .ok()
-            .or_else(|| env::var("OTEL_BSP_SCHEDULE_DELAY_MILLIS").ok())
-            .and_then(|delay| u64::from_str(&delay).ok())
-        {
-            config.scheduled_delay = Duration::from_millis(scheduled_delay);
-        }
-
-        if let Some(max_export_batch_size) = env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
-            .ok()
-            .and_then(|batch_size| usize::from_str(&batch_size).ok())
-        {
-            config.max_export_batch_size = max_export_batch_size;
-        }
-
-        // max export batch size must be less or equal to max queue size.
-        // we set max export batch size to max queue size if it's larger than max queue size.
-        if config.max_export_batch_size > config.max_queue_size {
-            config.max_export_batch_size = config.max_queue_size;
-        }
-
-        if let Some(max_export_timeout) = env::var(OTEL_BSP_EXPORT_TIMEOUT)
-            .ok()
-            .or_else(|| env::var("OTEL_BSP_EXPORT_TIMEOUT_MILLIS").ok())
-            .and_then(|timeout| u64::from_str(&timeout).ok())
-        {
-            config.max_export_timeout = Duration::from_millis(max_export_timeout);
-        }
-
-        config
+        .init_from_env_vars()
     }
 }
 
-impl BatchConfig {
-    /// Set max_queue_size for [`BatchConfig`].
+impl BatchConfigBuilder {
+    /// Set max_queue_size for [`BatchConfigBuilder`].
     /// It's the maximum queue size to buffer spans for delayed processing.
     /// If the queue gets full it will drops the spans.
     /// The default value of is 2048.
@@ -598,7 +581,7 @@ impl BatchConfig {
         self
     }
 
-    /// Set max_export_batch_size for [`BatchConfig`].
+    /// Set max_export_batch_size for [`BatchConfigBuilder`].
     /// It's the maximum number of spans to process in a single batch. If there are
     /// more than one batch worth of spans then it processes multiple batches
     /// of spans one batch after the other without any delay. The default value
@@ -608,7 +591,7 @@ impl BatchConfig {
         self
     }
 
-    /// Set max_concurrent_exports for [`BatchConfig`].
+    /// Set max_concurrent_exports for [`BatchConfigBuilder`].
     /// It's the maximum number of concurrent exports.
     /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
     /// The default value is 1.
@@ -619,7 +602,7 @@ impl BatchConfig {
         self
     }
 
-    /// Set scheduled_delay_duration for [`BatchConfig`].
+    /// Set scheduled_delay_duration for [`BatchConfigBuilder`].
     /// It's the delay interval in milliseconds between two consecutive processing of batches.
     /// The default value is 5000 milliseconds.
     pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
@@ -627,11 +610,72 @@ impl BatchConfig {
         self
     }
 
-    /// Set max_export_timeout for [`BatchConfig`].
+    /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The The default value is 30000 milliseconds.
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
+        self
+    }
+
+    /// Builds a `BatchConfig` enforcing the following invariants:
+    /// * `max_export_batch_size` must be less than or equal to `max_queue_size`.
+    pub fn build(self) -> BatchConfig {
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        let max_export_batch_size = min(self.max_export_batch_size, self.max_queue_size);
+
+        BatchConfig {
+            max_queue_size: self.max_queue_size,
+            scheduled_delay: self.scheduled_delay,
+            max_export_timeout: self.max_export_timeout,
+            max_concurrent_exports: self.max_concurrent_exports,
+            max_export_batch_size,
+        }
+    }
+
+    fn init_from_env_vars(mut self) -> Self {
+        if let Some(max_concurrent_exports) = env::var(OTEL_BSP_MAX_CONCURRENT_EXPORTS)
+            .ok()
+            .and_then(|max_concurrent_exports| usize::from_str(&max_concurrent_exports).ok())
+        {
+            self.max_concurrent_exports = max_concurrent_exports;
+        }
+
+        if let Some(max_queue_size) = env::var(OTEL_BSP_MAX_QUEUE_SIZE)
+            .ok()
+            .and_then(|queue_size| usize::from_str(&queue_size).ok())
+        {
+            self.max_queue_size = max_queue_size;
+        }
+
+        if let Some(scheduled_delay) = env::var(OTEL_BSP_SCHEDULE_DELAY)
+            .ok()
+            .and_then(|delay| u64::from_str(&delay).ok())
+        {
+            self.scheduled_delay = Duration::from_millis(scheduled_delay);
+        }
+
+        if let Some(max_export_batch_size) = env::var(OTEL_BSP_MAX_EXPORT_BATCH_SIZE)
+            .ok()
+            .and_then(|batch_size| usize::from_str(&batch_size).ok())
+        {
+            self.max_export_batch_size = max_export_batch_size;
+        }
+
+        // max export batch size must be less or equal to max queue size.
+        // we set max export batch size to max queue size if it's larger than max queue size.
+        if self.max_export_batch_size > self.max_queue_size {
+            self.max_export_batch_size = self.max_queue_size;
+        }
+
+        if let Some(max_export_timeout) = env::var(OTEL_BSP_EXPORT_TIMEOUT)
+            .ok()
+            .and_then(|timeout| u64::from_str(&timeout).ok())
+        {
+            self.max_export_timeout = Duration::from_millis(max_export_timeout);
+        }
+
         self
     }
 }
@@ -650,54 +694,6 @@ where
     E: SpanExporter + 'static,
     R: RuntimeChannel,
 {
-    /// Set max queue size for batches
-    pub fn with_max_queue_size(self, size: usize) -> Self {
-        let mut config = self.config;
-        config.max_queue_size = size;
-
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
-    /// Set scheduled delay for batches
-    pub fn with_scheduled_delay(self, delay: Duration) -> Self {
-        let mut config = self.config;
-        config.scheduled_delay = delay;
-
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
-    /// Set max timeout for exporting.
-    pub fn with_max_timeout(self, timeout: Duration) -> Self {
-        let mut config = self.config;
-        config.max_export_timeout = timeout;
-
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
-    /// Set max export size for batches, should always less than or equals to max queue size.
-    ///
-    /// If input is larger than max queue size, will lower it to be equal to max queue size
-    pub fn with_max_export_batch_size(self, size: usize) -> Self {
-        let mut config = self.config;
-        if size > config.max_queue_size {
-            config.max_export_batch_size = config.max_queue_size;
-        } else {
-            config.max_export_batch_size = size;
-        }
-
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
-    /// Set the maximum number of concurrent exports
-    ///
-    /// This setting may be useful for limiting network throughput or memory
-    /// consumption.
-    pub fn with_max_concurrent_exports(self, max: usize) -> Self {
-        let mut config = self.config;
-        config.max_concurrent_exports = max;
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
     /// Set the BatchConfig for [BatchSpanProcessorBuilder]
     pub fn with_batch_config(self, config: BatchConfig) -> Self {
         BatchSpanProcessorBuilder { config, ..self }
@@ -721,7 +717,10 @@ mod tests {
     use crate::testing::trace::{
         new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
     };
-    use crate::trace::{BatchConfig, SpanEvents, SpanLinks};
+    use crate::trace::span_processor::{
+        OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+    };
+    use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -769,13 +768,86 @@ mod tests {
     }
 
     #[test]
+    fn test_default_const_values() {
+        assert_eq!(OTEL_BSP_MAX_QUEUE_SIZE, "OTEL_BSP_MAX_QUEUE_SIZE");
+        assert_eq!(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, 2048);
+        assert_eq!(OTEL_BSP_SCHEDULE_DELAY, "OTEL_BSP_SCHEDULE_DELAY");
+        assert_eq!(OTEL_BSP_SCHEDULE_DELAY_DEFAULT, 5000);
+        assert_eq!(
+            OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+            "OTEL_BSP_MAX_EXPORT_BATCH_SIZE"
+        );
+        assert_eq!(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT, 512);
+        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT, "OTEL_BSP_EXPORT_TIMEOUT");
+        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, 30000);
+    }
+
+    #[test]
+    fn test_default_batch_config_adheres_to_specification() {
+        let config = BatchConfig::default();
+
+        assert_eq!(
+            config.scheduled_delay,
+            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
+        );
+        assert_eq!(
+            config.max_export_timeout,
+            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
+        );
+        assert_eq!(config.max_queue_size, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
+        assert_eq!(
+            config.max_export_batch_size,
+            OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT
+        );
+    }
+
+    #[test]
+    fn test_batch_config_configurable_by_env_vars() {
+        let env_vars = vec![
+            (OTEL_BSP_SCHEDULE_DELAY, Some("2000")),
+            (OTEL_BSP_EXPORT_TIMEOUT, Some("60000")),
+            (OTEL_BSP_MAX_QUEUE_SIZE, Some("4096")),
+            (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
+
+        assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
+        assert_eq!(config.max_queue_size, 4096);
+        assert_eq!(config.max_export_batch_size, 1024);
+    }
+
+    #[test]
+    fn test_batch_config_max_export_batch_size_validation() {
+        let env_vars = vec![
+            (OTEL_BSP_MAX_QUEUE_SIZE, Some("256")),
+            (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
+        ];
+
+        let config = temp_env::with_vars(env_vars, BatchConfig::default);
+
+        assert_eq!(config.max_queue_size, 256);
+        assert_eq!(config.max_export_batch_size, 256);
+        assert_eq!(
+            config.scheduled_delay,
+            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
+        );
+        assert_eq!(
+            config.max_export_timeout,
+            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
+        );
+    }
+
+    #[test]
     fn test_batch_config_with_fields() {
-        let batch = BatchConfig::default()
+        let batch = BatchConfigBuilder::default()
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_millis(10))
             .with_max_export_timeout(Duration::from_millis(10))
             .with_max_concurrent_exports(10)
-            .with_max_queue_size(10);
+            .with_max_queue_size(10)
+            .build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
         assert_eq!(batch.max_export_timeout, Duration::from_millis(10));

@@ -13,6 +13,7 @@
 //!     metrics::{MeterProvider, Unit},
 //!     KeyValue,
 //! };
+//! use opentelemetry::AttributeSet;
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
@@ -31,7 +32,8 @@
 //!     .init();
 //!
 //! // use instruments to record measurements
-//! counter.add(10, &[KeyValue::new("rate", "standard")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("rate", "standard")]);
+//! counter.add(10, attributes);
 //! ```
 //!
 //! [Resource]: crate::Resource
@@ -62,6 +64,7 @@ pub use view::*;
 mod tests {
     use super::*;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use opentelemetry::AttributeSet;
     use opentelemetry::{
         metrics::{MeterProvider as _, Unit},
         KeyValue,
@@ -180,9 +183,9 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = vec![KeyValue::new("key1", "value1")];
-        counter.add(10, &attribute);
-        counter_duplicated.add(5, &attribute);
+        let attribute = AttributeSet::from(&[KeyValue::new("key1", "value1")]);
+        counter.add(10, attribute.clone());
+        counter_duplicated.add(5, attribute);
 
         meter_provider.force_flush().unwrap();
 
@@ -266,7 +269,6 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
 
@@ -299,7 +301,8 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "get"),
                     ]
-                    .as_ref(),
+                    .as_slice()
+                    .into(),
                 );
 
                 observer.observe_u64(
@@ -309,7 +312,8 @@ mod tests {
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "post"),
                     ]
-                    .as_ref(),
+                    .as_slice()
+                    .into(),
                 );
 
                 observer.observe_u64(
@@ -319,7 +323,8 @@ mod tests {
                         KeyValue::new("statusCode", "500"),
                         KeyValue::new("verb", "get"),
                     ]
-                    .as_ref(),
+                    .as_slice()
+                    .into(),
                 );
             })
             .expect("Expected to register callback");

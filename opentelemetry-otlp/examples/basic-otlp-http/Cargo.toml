@@ -14,6 +14,6 @@ opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-traci
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 
 tokio = { workspace = true, features = ["full"] }
-tracing-subscriber = { workspace = true, default-features = false, features = ["registry", "std"] }
-tracing = { workspace = true, default-features = false, features = ["std"] }
+tracing-subscriber = { workspace = true, features = ["registry", "std"] }
+tracing = { workspace = true, features = ["std"] }
 tracing-core = { workspace = true }

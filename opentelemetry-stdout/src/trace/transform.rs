@@ -1,5 +1,5 @@
 use crate::common::{as_human_readable, as_unix_nano, KeyValue, Resource, Scope};
-use opentelemetry_sdk::AttributeSet;
+use opentelemetry::AttributeSet;
 use serde::{Serialize, Serializer};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
@@ -20,7 +20,7 @@ impl From<Vec<opentelemetry_sdk::export::trace::SpanData>> for SpanData {
             let resource = sdk_span.resource.as_ref().into();
 
             let rs = resource_spans
-                .entry(sdk_span.resource.as_ref().into())
+                .entry(sdk_span.resource.as_ref().to_attribute_set())
                 .or_insert_with(move || ResourceSpans {
                     resource,
                     scope_spans: Vec::with_capacity(1),
@@ -84,6 +84,7 @@ struct Span {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     events: Vec<Event>,
     dropped_events_count: u32,
+    flags: u32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     links: Vec<Link>,
     dropped_links_count: u32,
@@ -108,6 +109,7 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             dropped_attributes_count: value.dropped_attributes_count,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_events_count: value.events.dropped_count,
+            flags: value.span_context.trace_flags().to_u8() as u32,
             events: value.events.into_iter().map(Into::into).collect(),
             dropped_links_count: value.links.dropped_count,
             links: value.links.iter().map(Into::into).collect(),

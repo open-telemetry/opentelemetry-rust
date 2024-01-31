@@ -1,5 +1,5 @@
 # Examples
-This folder contains some examples that should help you get start crates from `opentelemetry-rust`.
+This directory contains some examples that should help you get start crates from `opentelemetry-rust`.
 
 ## log-basic
 **Logs**
@@ -32,9 +32,10 @@ This example uses following crates from this repo:
 **Tracing**
 
 This example uses following crates from this repo:
+
 - opentelemetry(tracing)
-- opentelemetry-jaeger
+- opentelemetry-stdout
 
 The application is built using `tokio`.
 
-Check this example if you want to understand *how to integrate tracing with opentelemetry*.
+Check this example if you want to understand *how to create spans and propagate/restore context in OpenTelemetry*.
