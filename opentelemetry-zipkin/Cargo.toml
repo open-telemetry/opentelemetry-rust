@@ -37,8 +37,8 @@ serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.12"
 once_cell = "1.12"
 http = { workspace = true }
-reqwest = { workspace = true, optional = true, default-features = false }
-surf = { workspace = true, optional = true, default-features = false }
+reqwest = { workspace = true, optional = true}
+surf = { workspace = true, optional = true}
 thiserror = { workspace = true }
 futures-core = { workspace = true }
 

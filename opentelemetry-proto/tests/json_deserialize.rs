@@ -3,6 +3,7 @@ mod json_deserialize {
     use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
     use opentelemetry_proto::tonic::common::v1::any_value::Value;
     use opentelemetry_proto::tonic::common::v1::KeyValue;
+    use opentelemetry_proto::tonic::trace::v1::span::Event;
 
     // copied from example json file
     // see https://github.com/open-telemetry/opentelemetry-proto/blob/v1.0.0/examples/trace.json
@@ -67,6 +68,13 @@ mod json_deserialize {
               "stringValue": "my.service"
             }
           }
+    "#;
+
+    const EVENT_JSON: &str = r#"
+    {
+        "name": "my_event",
+        "time_unix_nano": 1234567890
+    }
     "#;
 
     #[test]
@@ -138,5 +146,12 @@ mod json_deserialize {
             keyvalue.value.unwrap().value.unwrap(),
             Value::StringValue("my.service".to_string())
         );
+    }
+
+    #[test]
+    fn test_event() {
+        let event_json: Event = serde_json::from_str(EVENT_JSON).unwrap();
+        assert_eq!(event_json.name, "my_event".to_string());
+        assert_eq!(event_json.attributes.len(), 0);
     }
 }
