@@ -194,6 +194,7 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 - [Dirkjan Ochtman](https://github.com/djc)
 - [Jan Kühle](https://github.com/frigus02)
 - [Isobel Redelmeier](https://github.com/iredelmeier)
+- [Mike Goldsmith](https://github.com/MikeGoldsmith)
 
 ### Become an Approver or a Maintainer
 
