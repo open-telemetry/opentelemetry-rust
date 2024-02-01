@@ -9,6 +9,9 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
 pub struct LogRecord {
+    /// Event name. Optional as not all the logging API support it.
+    pub event_name: Option<Cow<'static, str>>,
+
     /// Record timestamp
     pub timestamp: Option<SystemTime>,
 
@@ -33,6 +36,7 @@ pub struct LogRecord {
 impl Default for LogRecord {
     fn default() -> Self {
         LogRecord {
+            event_name: None,
             timestamp: None,
             observed_timestamp: SystemTime::now(),
             trace_context: None,
@@ -366,6 +370,16 @@ impl LogRecordBuilder {
         }
 
         self
+    }
+
+    /// Sets the `event_name` of a record.
+    pub fn with_name(self, name: Cow<'static, str>) -> Self {
+        Self {
+            record: LogRecord {
+                event_name: Some(name),
+                ..self.record
+            },
+        }
     }
 
     /// Build the record, consuming the Builder

@@ -52,9 +52,10 @@
 //! ### Creating instruments and recording measurements
 //!
 //! ```
-//! # #[cfg(feature = "metrics")]
+//! # use opentelemetry::AttributeSet;
+//! #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -63,7 +64,8 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! let attributes = AttributeSet::from(&[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, attributes);
 //! # }
 //! ```
 //!
@@ -77,10 +79,19 @@
 //!
 //! ## Crate Feature Flags
 //!
-//! The following core crate feature flags are available:
+//! The following feature flags can used to control the telemetry signals to use:
 //!
 //! * `trace`: Includes the trace SDK (enabled by default).
-//! * `metrics`: Includes the unstable metrics SDK.
+//! * `metrics`: Includes the metrics SDK.
+//! * `logs`: Includes the logs SDK.
+//!
+//! For `trace` the following feature flags are available:
+//!
+//! * `jaeger_remote_sampler`: Enables the [Jaeger remote sampler](https://www.jaegertracing.io/docs/1.53/sampling/).
+//!
+//! For `logs` the following feature flags are available:
+//!
+//! * `logs_level_enabled`: control the log level
 //!
 //! Support for recording and exporting telemetry asynchronously can be added
 //! via the following flags:
@@ -111,7 +122,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "logs")]
@@ -135,7 +145,6 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

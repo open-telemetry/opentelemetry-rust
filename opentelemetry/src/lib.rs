@@ -72,7 +72,7 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{AttributeSet, global, KeyValue};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -80,8 +80,11 @@
 //! // create an instrument
 //! let counter = meter.u64_counter("my_counter").init();
 //!
+//! // Form the attributes
+//! let attributes = AttributeSet::from(&[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//!
 //! // record a measurement
-//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, attributes);
 //! # }
 //! ```
 //!
@@ -93,8 +96,14 @@
 //! The following core crate feature flags are available:
 //!
 //! * `trace`: Includes the trace API (enabled by default).
-//! * `metrics`: Includes the unstable metrics API.
+//! * `metrics`: Includes the metrics API.
 //! * `logs`: Includes the logs bridge API.
+//!
+//! The following feature flags provides additional configuration for `logs`:
+//! * `logs_level_enabled`: Allow users to control the log level
+//!
+//! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
+//! * `otel_unstable`: Includes unstable APIs (enabled by default).
 //!
 //! ## Related Crates
 //!
@@ -205,6 +214,9 @@
 pub mod global;
 
 pub mod baggage;
+
+mod attributes;
+pub use attributes::{AttributeSet, ToKeyValue};
 
 mod context;
 
