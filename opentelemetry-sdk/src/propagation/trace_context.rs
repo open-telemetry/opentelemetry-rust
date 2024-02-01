@@ -17,7 +17,7 @@ const TRACESTATE_HEADER: &str = "tracestate";
 static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
     Lazy::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
 
-/// Propagates `SpanContext`s in [W3C TraceContext] format under `traceparent` header.
+/// Propagates `SpanContext`s in [W3C TraceContext] format under `traceparent` and `tracestate` header.
 ///
 /// The `traceparent` header represents the incoming request in a
 /// tracing system in a common format, understood by all vendors.
@@ -32,6 +32,12 @@ static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
 ///    - trace-id
 ///    - parent-id
 ///    - trace-flags
+/// 
+/// The `tracestate` header provides additional vendor-specific trace 
+/// identification information across different distributed tracing systems. 
+/// Here's an example of a `tracestate` header
+/// 
+/// `tracestate: vendorname1=opaqueValue1,vendorname2=opaqueValue2`
 ///
 /// See the [w3c trace-context docs] for more details.
 ///
