@@ -32,11 +32,11 @@ static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
 ///    - trace-id
 ///    - parent-id
 ///    - trace-flags
-/// 
-/// The `tracestate` header provides additional vendor-specific trace 
-/// identification information across different distributed tracing systems. 
+///
+/// The `tracestate` header provides additional vendor-specific trace
+/// identification information across different distributed tracing systems.
 /// Here's an example of a `tracestate` header
-/// 
+///
 /// `tracestate: vendorname1=opaqueValue1,vendorname2=opaqueValue2`
 ///
 /// See the [w3c trace-context docs] for more details.
