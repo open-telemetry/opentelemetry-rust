@@ -11,7 +11,22 @@ jobs:
     timeout-minutes: 10
     if: ${{ github.event.label.name == 'integration tests' || contains(github.event.pull_request.labels.*.name, 'integration tests') }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Free disk space
+        run: |
+          df -h
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          df -h
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt
+          profile: minimal
+      - uses: arduino/setup-protoc@v1
+      - name: Test
+        run: ./scripts/test.sh
       - name: Run integration tests using docker compose
         run: ./scripts/integration_tests.sh
