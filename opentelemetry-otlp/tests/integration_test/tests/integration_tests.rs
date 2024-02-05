@@ -48,6 +48,7 @@ impl TestSuite {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore] // skip when running unit test
 async fn integration_tests() {
     let test_suites = [TestSuite::new("traces.json")];
 
