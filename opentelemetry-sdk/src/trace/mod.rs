@@ -20,7 +20,6 @@ mod tracer;
 pub use config::{config, Config};
 pub use events::SpanEvents;
 pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
-
 pub use links::SpanLinks;
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, ShouldSample};
