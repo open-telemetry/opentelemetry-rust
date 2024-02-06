@@ -3,7 +3,7 @@ use opentelemetry::AttributeSet;
 use opentelemetry::KeyValue;
 
 // Run this benchmark with:
-// cargo bench --bench metric_counter
+// cargo bench --bench attribute_set --features=metrics
 
 fn criterion_benchmark(c: &mut Criterion) {
     attribute_set(c);
