@@ -4,8 +4,7 @@ use std::{any, borrow::Cow, fmt, time::SystemTime};
 
 use opentelemetry::{metrics::Unit, KeyValue};
 
-use crate::{instrumentation::Scope, Resource};
-use opentelemetry::AttributeSet;
+use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
 
 pub use self::temporality::Temporality;
 
