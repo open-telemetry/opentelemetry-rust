@@ -6,9 +6,25 @@ mod sum;
 
 use core::fmt;
 use std::ops::{Add, AddAssign, Sub};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::Mutex;
 
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+
+/// Marks a type that can have a value added and retrieved atomically. Required since
+/// different types have different backing atomic mechanisms
+pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
+    fn add(&self, value: T);
+    fn get_value(&self) -> T;
+    fn get_and_reset_value(&self) -> T;
+}
+
+/// Marks a type that can have an atomic tracker generated for it
+pub(crate) trait AtomicallyUpdate<T> {
+    type Tracker: AtomicTracker<T>;
+    fn new_atomic_tracker() -> Self::Tracker;
+}
 
 pub(crate) trait Number<T>:
     Add<Output = T>
@@ -23,6 +39,7 @@ pub(crate) trait Number<T>:
     + Send
     + Sync
     + 'static
+    + AtomicallyUpdate<T>
 {
     fn min() -> Self;
     fn max() -> Self;
@@ -69,5 +86,113 @@ impl Number<f64> for f64 {
 
     fn into_float(self) -> f64 {
         self
+    }
+}
+
+pub(crate) struct U64AtomicTracker {
+    atomic: AtomicU64,
+}
+
+impl U64AtomicTracker {
+    fn new() -> Self {
+        U64AtomicTracker {
+            atomic: AtomicU64::new(0),
+        }
+    }
+}
+
+impl AtomicTracker<u64> for U64AtomicTracker {
+    fn add(&self, value: u64) {
+        self.atomic.fetch_add(value, Ordering::Relaxed);
+    }
+
+    fn get_value(&self) -> u64 {
+        self.atomic.load(Ordering::Relaxed)
+    }
+
+    fn get_and_reset_value(&self) -> u64 {
+        self.atomic.swap(0, Ordering::Relaxed)
+    }
+}
+
+impl AtomicallyUpdate<u64> for u64 {
+    type Tracker = U64AtomicTracker;
+
+    fn new_atomic_tracker() -> Self::Tracker {
+        U64AtomicTracker::new()
+    }
+}
+
+pub(crate) struct I64AtomicTracker {
+    atomic: AtomicI64,
+}
+
+impl I64AtomicTracker {
+    fn new() -> Self {
+        I64AtomicTracker {
+            atomic: AtomicI64::new(0),
+        }
+    }
+}
+
+impl AtomicTracker<i64> for I64AtomicTracker {
+    fn add(&self, value: i64) {
+        self.atomic.fetch_add(value, Ordering::Relaxed);
+    }
+
+    fn get_value(&self) -> i64 {
+        self.atomic.load(Ordering::Relaxed)
+    }
+
+    fn get_and_reset_value(&self) -> i64 {
+        self.atomic.swap(0, Ordering::Relaxed)
+    }
+}
+
+impl AtomicallyUpdate<i64> for i64 {
+    type Tracker = I64AtomicTracker;
+
+    fn new_atomic_tracker() -> Self::Tracker {
+        I64AtomicTracker::new()
+    }
+}
+
+pub(crate) struct F64AtomicTracker {
+    inner: Mutex<f64>, // Floating points don't have true atomics, so we need to use mutex for them
+}
+
+impl F64AtomicTracker {
+    fn new() -> Self {
+        F64AtomicTracker {
+            inner: Mutex::new(0.0),
+        }
+    }
+}
+
+impl AtomicTracker<f64> for F64AtomicTracker {
+    fn add(&self, value: f64) {
+        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
+        *guard += value;
+    }
+
+    fn get_value(&self) -> f64 {
+        let guard = self.inner.lock().expect("F64 mutex was poisoned");
+        *guard
+    }
+
+    fn get_and_reset_value(&self) -> f64 {
+        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
+        let value = *guard;
+        *guard = 0.0;
+
+        value
+    }
+}
+
+impl AtomicallyUpdate<f64> for f64 {
+    type Tracker = F64AtomicTracker;
+
+    fn new_atomic_tracker() -> Self::Tracker {
+        F64AtomicTracker::new()
     }
 }
