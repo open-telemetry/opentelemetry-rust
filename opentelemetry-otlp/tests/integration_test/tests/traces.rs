@@ -26,8 +26,6 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                     opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                     "basic-otlp-tracing-example",
                 )]))
-                // use increment id generator so we get predictable test results
-                .with_id_generator(sdktrace::IncrementIdGenerator::new()),
         )
         .install_batch(runtime::Tokio)
 }

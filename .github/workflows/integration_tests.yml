@@ -27,7 +27,5 @@ jobs:
           components: rustfmt
           profile: minimal
       - uses: arduino/setup-protoc@v1
-      - name: Test
-        run: ./scripts/test.sh
       - name: Run integration tests using docker compose
         run: ./scripts/integration_tests.sh

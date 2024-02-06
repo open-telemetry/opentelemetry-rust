@@ -68,8 +68,6 @@ async fn integration_tests() {
     for port in [
         4317,  // gRPC port
         4318,  // HTTP port
-        55681, // OpenTelemetry protocol port
-        8888,  // Prometheus metrics exposed by the collector
     ] {
         image = image.with_mapped_port(Port {
             local: port,

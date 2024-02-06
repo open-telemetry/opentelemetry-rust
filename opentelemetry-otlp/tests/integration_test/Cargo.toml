@@ -13,6 +13,5 @@ opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic"
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "with-serde"] }
 tokio = { version = "1.0", features = ["full"] }
-log = { version = "0.4.17" }
 serde_json = "1"
 testcontainers = "0.15.0"
