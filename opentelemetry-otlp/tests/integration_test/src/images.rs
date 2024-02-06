@@ -29,8 +29,6 @@ impl Image for Collector {
         vec![
             // 4317,  // gRPC port, defined in Dockerfile
             // 4318,  // HTTP port, defined in Dockerfile
-            // 55681, // OpenTelemetry protocol port, defined in Dockerfile
-            8888, // Prometheus metrics exposed by the collector
         ]
     }
 }
