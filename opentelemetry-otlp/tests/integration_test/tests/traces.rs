@@ -21,11 +21,10 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .with_endpoint("http://localhost:4317"),
         )
         .with_trace_config(
-            sdktrace::config()
-                .with_resource(Resource::new(vec![KeyValue::new(
-                    opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                    "basic-otlp-tracing-example",
-                )]))
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                "basic-otlp-tracing-example",
+            )])),
         )
         .install_batch(runtime::Tokio)
 }

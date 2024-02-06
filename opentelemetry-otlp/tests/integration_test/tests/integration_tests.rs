@@ -66,8 +66,8 @@ async fn integration_tests() {
         RunnableImage::from(collector_image).with_container_name(COLLECTOR_CONTAINER_NAME);
 
     for port in [
-        4317,  // gRPC port
-        4318,  // HTTP port
+        4317, // gRPC port
+        4318, // HTTP port
     ] {
         image = image.with_mapped_port(Port {
             local: port,
