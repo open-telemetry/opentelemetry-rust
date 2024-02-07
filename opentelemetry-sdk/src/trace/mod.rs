@@ -127,6 +127,7 @@ mod tests {
                     Default::default(),
                 ),
                 Vec::new(),
+                0,
             ))
         }
 

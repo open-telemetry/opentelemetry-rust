@@ -10,7 +10,7 @@
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
 use crate::Resource;
-use opentelemetry::trace::{Event, SpanContext, SpanId, SpanKind, Status};
+use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::time::SystemTime;
@@ -167,6 +167,28 @@ impl opentelemetry::trace::Span for Span {
     {
         self.with_data(|data| {
             data.name = new_name.into();
+        });
+    }
+
+    /// Add link to this `Span`
+    ///
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+        let span_links_limit = self.span_limits.max_links_per_span as usize;
+        let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
+        self.with_data(|data| {
+            if data.links.links.len() < span_links_limit {
+                let dropped_attributes_count =
+                    attributes.len().saturating_sub(link_attributes_limit);
+                let mut attributes = attributes;
+                attributes.truncate(link_attributes_limit);
+                data.links.add_link(Link::new(
+                    span_context,
+                    attributes,
+                    dropped_attributes_count as u32,
+                ));
+            } else {
+                data.links.dropped_count += 1;
+            }
         });
     }
 
@@ -595,16 +617,13 @@ mod tests {
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
-        let mut link = Link::new(
-            SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
-                TraceFlags::default(),
-                false,
-                Default::default(),
-            ),
-            Vec::new(),
-        );
+        let mut link = Link::with_context(SpanContext::new(
+            TraceId::from_u128(12),
+            SpanId::from_u64(12),
+            TraceFlags::default(),
+            false,
+            Default::default(),
+        ));
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
             link.attributes
                 .push(KeyValue::new(format!("key {}", i), i.to_string()));
@@ -632,20 +651,29 @@ mod tests {
 
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
-            links.push(Link::new(
-                SpanContext::new(
-                    TraceId::from_u128(12),
-                    SpanId::from_u64(12),
-                    TraceFlags::default(),
-                    false,
-                    Default::default(),
-                ),
-                Vec::new(),
-            ))
+            links.push(Link::with_context(SpanContext::new(
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            )))
         }
 
         let span_builder = tracer.span_builder("test").with_links(links);
-        let span = tracer.build(span_builder);
+        let mut span = tracer.build(span_builder);
+
+        // add links using span api after building the span
+        span.add_link(
+            SpanContext::new(
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            ),
+            vec![],
+        );
         let link_queue = span
             .data
             .clone()
