@@ -22,8 +22,8 @@ pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
 
 /// Marks a type that can have an atomic tracker generated for it
 pub(crate) trait AtomicallyUpdate<T> {
-    type Tracker: AtomicTracker<T>;
-    fn new_atomic_tracker() -> Self::Tracker;
+    type AtomicTracker: AtomicTracker<T>;
+    fn new_atomic_tracker() -> Self::AtomicTracker;
 }
 
 pub(crate) trait Number<T>:
@@ -104,9 +104,9 @@ impl AtomicTracker<u64> for AtomicU64 {
 }
 
 impl AtomicallyUpdate<u64> for u64 {
-    type Tracker = AtomicU64;
+    type AtomicTracker = AtomicU64;
 
-    fn new_atomic_tracker() -> Self::Tracker {
+    fn new_atomic_tracker() -> Self::AtomicTracker {
         AtomicU64::new(0)
     }
 }
@@ -126,9 +126,9 @@ impl AtomicTracker<i64> for AtomicI64 {
 }
 
 impl AtomicallyUpdate<i64> for i64 {
-    type Tracker = AtomicI64;
+    type AtomicTracker = AtomicI64;
 
-    fn new_atomic_tracker() -> Self::Tracker {
+    fn new_atomic_tracker() -> Self::AtomicTracker {
         AtomicI64::new(0)
     }
 }
@@ -166,9 +166,9 @@ impl AtomicTracker<f64> for F64AtomicTracker {
 }
 
 impl AtomicallyUpdate<f64> for f64 {
-    type Tracker = F64AtomicTracker;
+    type AtomicTracker = F64AtomicTracker;
 
-    fn new_atomic_tracker() -> Self::Tracker {
+    fn new_atomic_tracker() -> Self::AtomicTracker {
         F64AtomicTracker::new()
     }
 }

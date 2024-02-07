@@ -18,7 +18,7 @@ use super::{
 struct ValueMap<T: Number<T>> {
     values: Mutex<HashMap<AttributeSet, T>>,
     has_no_value_attribute_value: AtomicBool,
-    no_attribute_value: Box<dyn AtomicTracker<T> + Send + Sync + 'static>,
+    no_attribute_value: T::AtomicTracker,
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
@@ -32,7 +32,7 @@ impl<T: Number<T>> ValueMap<T> {
         ValueMap {
             values: Mutex::new(HashMap::new()),
             has_no_value_attribute_value: AtomicBool::new(false),
-            no_attribute_value: Box::new(T::new_atomic_tracker()),
+            no_attribute_value: T::new_atomic_tracker(),
         }
     }
 }
