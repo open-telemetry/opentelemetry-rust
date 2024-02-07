@@ -89,71 +89,47 @@ impl Number<f64> for f64 {
     }
 }
 
-pub(crate) struct U64AtomicTracker {
-    atomic: AtomicU64,
-}
-
-impl U64AtomicTracker {
-    fn new() -> Self {
-        U64AtomicTracker {
-            atomic: AtomicU64::new(0),
-        }
-    }
-}
-
-impl AtomicTracker<u64> for U64AtomicTracker {
+impl AtomicTracker<u64> for AtomicU64 {
     fn add(&self, value: u64) {
-        self.atomic.fetch_add(value, Ordering::Relaxed);
+        self.fetch_add(value, Ordering::Relaxed);
     }
 
     fn get_value(&self) -> u64 {
-        self.atomic.load(Ordering::Relaxed)
+        self.load(Ordering::Relaxed)
     }
 
     fn get_and_reset_value(&self) -> u64 {
-        self.atomic.swap(0, Ordering::Relaxed)
+        self.swap(0, Ordering::Relaxed)
     }
 }
 
 impl AtomicallyUpdate<u64> for u64 {
-    type Tracker = U64AtomicTracker;
+    type Tracker = AtomicU64;
 
     fn new_atomic_tracker() -> Self::Tracker {
-        U64AtomicTracker::new()
+        AtomicU64::new(0)
     }
 }
 
-pub(crate) struct I64AtomicTracker {
-    atomic: AtomicI64,
-}
-
-impl I64AtomicTracker {
-    fn new() -> Self {
-        I64AtomicTracker {
-            atomic: AtomicI64::new(0),
-        }
-    }
-}
-
-impl AtomicTracker<i64> for I64AtomicTracker {
+impl AtomicTracker<i64> for AtomicI64 {
     fn add(&self, value: i64) {
-        self.atomic.fetch_add(value, Ordering::Relaxed);
+        self.fetch_add(value, Ordering::Relaxed);
     }
 
     fn get_value(&self) -> i64 {
-        self.atomic.load(Ordering::Relaxed)
+        self.load(Ordering::Relaxed)
     }
 
     fn get_and_reset_value(&self) -> i64 {
-        self.atomic.swap(0, Ordering::Relaxed)
+        self.swap(0, Ordering::Relaxed)
     }
 }
 
 impl AtomicallyUpdate<i64> for i64 {
-    type Tracker = I64AtomicTracker;
+    type Tracker = AtomicI64;
 
     fn new_atomic_tracker() -> Self::Tracker {
-        I64AtomicTracker::new()
+        AtomicI64::new(0)
     }
 }
 
