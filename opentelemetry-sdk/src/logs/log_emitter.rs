@@ -13,10 +13,7 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::{
-    borrow::Cow,
-    sync::{Arc, Weak},
-};
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
@@ -55,16 +52,11 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
-        Logger::new(library, Arc::downgrade(&self.inner))
+        Logger::new(library, self.clone())
     }
 }
 
 impl LoggerProvider {
-    /// Build a new logger provider.
-    pub(crate) fn new(inner: Arc<LoggerProviderInner>) -> Self {
-        LoggerProvider { inner }
-    }
-
     /// Create a new `LoggerProvider` builder.
     pub fn builder() -> Builder {
         Builder::default()
@@ -91,7 +83,7 @@ impl LoggerProvider {
     /// Shuts down this `LoggerProvider`, panicking on failure.
     pub fn shutdown(&mut self) -> Vec<LogResult<()>> {
         self.try_shutdown()
-            .expect("canont shutdown LoggerProvider when child Loggers are still active")
+            .expect("cannot shutdown LoggerProvider when child Loggers are still active")
     }
 
     /// Attempts to shutdown this `LoggerProvider`, succeeding only when
@@ -108,7 +100,7 @@ impl LoggerProvider {
 }
 
 #[derive(Debug)]
-pub(crate) struct LoggerProviderInner {
+struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     config: Config,
 }
@@ -179,13 +171,13 @@ impl Builder {
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
     instrumentation_lib: Arc<InstrumentationLibrary>,
-    provider: Weak<LoggerProviderInner>,
+    provider: LoggerProvider,
 }
 
 impl Logger {
     pub(crate) fn new(
         instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: Weak<LoggerProviderInner>,
+        provider: LoggerProvider,
     ) -> Self {
         Logger {
             instrumentation_lib,
@@ -194,8 +186,8 @@ impl Logger {
     }
 
     /// LoggerProvider associated with this logger.
-    pub fn provider(&self) -> Option<LoggerProvider> {
-        self.provider.upgrade().map(LoggerProvider::new)
+    pub fn provider(&self) -> &LoggerProvider {
+        &self.provider
     }
 
     /// Instrumentation library information of this logger.
@@ -207,16 +199,14 @@ impl Logger {
 impl opentelemetry::logs::Logger for Logger {
     /// Emit a `LogRecord`.
     fn emit(&self, record: LogRecord) {
-        let provider = match self.provider() {
-            Some(provider) => provider,
-            None => return,
-        };
+        let provider = self.provider();
+        let config = provider.config();
+        let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
-        let config = provider.config();
-        for processor in provider.log_processors() {
+        for p in processors {
             let mut record = record.clone();
             if let Some(ref trace_context) = trace_context {
                 record.trace_context = Some(trace_context.clone())
@@ -226,16 +216,13 @@ impl opentelemetry::logs::Logger for Logger {
                 resource: config.resource.clone(),
                 instrumentation: self.instrumentation_library().clone(),
             };
-            processor.emit(data);
+            p.emit(data);
         }
     }
 
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = match self.provider() {
-            Some(provider) => provider,
-            None => return false,
-        };
+        let provider = self.provider();
 
         let mut enabled = false;
         for processor in provider.log_processors() {
