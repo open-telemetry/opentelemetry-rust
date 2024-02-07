@@ -118,17 +118,13 @@ mod tests {
 
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
-            links.push(Link::new(
-                SpanContext::new(
-                    TraceId::from_u128(12),
-                    SpanId::from_u64(12),
-                    TraceFlags::default(),
-                    false,
-                    Default::default(),
-                ),
-                Vec::new(),
-                0,
-            ))
+            links.push(Link::with_context(SpanContext::new(
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            )))
         }
 
         let span_builder = SpanBuilder::from_name("span_name").with_links(links);
