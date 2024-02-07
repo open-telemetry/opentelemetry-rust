@@ -51,7 +51,7 @@ impl trace::Span for NoopSpan {
     where
         T: Into<Cow<'static, str>>,
     {
-        // Ignore
+        // Ignored
     }
 
     /// Ignores all events with timestamps
@@ -91,6 +91,10 @@ impl trace::Span for NoopSpan {
     where
         T: Into<Cow<'static, str>>,
     {
+        // Ignored
+    }
+
+    fn add_link(&mut self, _span_context: trace::SpanContext, _attributes: Vec<KeyValue>) {
         // Ignored
     }
 
