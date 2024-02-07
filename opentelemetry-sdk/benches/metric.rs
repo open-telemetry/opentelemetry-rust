@@ -2,7 +2,6 @@ use rand::Rng;
 use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-use opentelemetry::AttributeSet;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Result},
     Key, KeyValue,
@@ -167,12 +166,8 @@ fn counters(c: &mut Criterion) {
     let (_, cntr3) = bench_counter(None, "cumulative");
 
     let mut group = c.benchmark_group("Counter");
-    group.bench_function("AddNoAttrs", |b| {
-        b.iter(|| cntr.add(1, AttributeSet::default()))
-    });
-    group.bench_function("AddNoAttrsDelta", |b| {
-        b.iter(|| cntr2.add(1, AttributeSet::default()))
-    });
+    group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(1, &[])));
+    group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(1, &[])));
 
     group.bench_function("AddOneAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("K", "V")]))
@@ -279,16 +274,14 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.as_slice()))
+        b.iter(|| cntr3.add(1, &max_attributes))
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
         max_attributes.push(KeyValue::new(i.to_string(), i))
     }
 
-    group.bench_function("AddMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, max_attributes.as_slice()))
-    });
+    group.bench_function("AddMaxAttr", |b| b.iter(|| cntr3.add(1, &max_attributes)));
 
     group.bench_function("AddInvalidAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
@@ -400,12 +393,10 @@ fn histograms(c: &mut Criterion) {
                     format!("V,{},{},{}", bound_size, attr_size, i),
                 ))
             }
-
-            let attributes = AttributeSet::from(&attributes);
             let value: u64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
                 format!("Record{}Attrs{}bounds", attr_size, bound_size),
-                |b| b.iter(|| hist.record(value, attributes.clone())),
+                |b| b.iter(|| hist.record(value, &attributes)),
             );
         }
     }
@@ -424,7 +415,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
 
     for i in 0..n {
         let h = mtr.u64_histogram(format!("fake_data_{i}")).init();
-        h.record(1, AttributeSet::default());
+        h.record(1, &[]);
     }
 
     let mut rm = ResourceMetrics {

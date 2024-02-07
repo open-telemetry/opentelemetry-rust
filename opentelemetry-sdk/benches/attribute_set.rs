@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::AttributeSet;
 use opentelemetry::KeyValue;
+use opentelemetry_sdk::AttributeSet;
 
 // Run this benchmark with:
 // cargo bench --bench attribute_set --features=metrics
@@ -12,7 +12,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn attribute_set(c: &mut Criterion) {
     c.bench_function("AttributeSet_without_duplicates", |b| {
         b.iter(|| {
-            let attributes = &[
+            let attributes: &[KeyValue] = &[
                 KeyValue::new("attribute1", "value1"),
                 KeyValue::new("attribute2", "value2"),
                 KeyValue::new("attribute3", "value3"),
@@ -24,7 +24,7 @@ fn attribute_set(c: &mut Criterion) {
 
     c.bench_function("AttributeSet_with_duplicates", |b| {
         b.iter(|| {
-            let attributes = &[
+            let attributes: &[KeyValue] = &[
                 KeyValue::new("attribute1", "value1"),
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute3", "value3"),
