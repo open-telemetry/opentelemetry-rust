@@ -4,8 +4,8 @@ use std::{
     time::SystemTime,
 };
 
-use crate::metrics::data::DataPoint;
-use opentelemetry::{global, metrics::MetricsError, AttributeSet};
+use crate::{attributes::AttributeSet, metrics::data::DataPoint};
+use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},

@@ -6,7 +6,7 @@ use std::{fmt, hash};
 ///
 /// See the [attribute naming] spec for guidelines.
 ///
-/// [attribute naming]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/common/attribute-naming.md
+/// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
 
