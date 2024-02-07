@@ -92,7 +92,7 @@
 //! # #[cfg(feature="metrics")]
 //! # {
 //! use opentelemetry::metrics::{Meter, noop::NoopMeterProvider};
-//! use opentelemetry::{AttributeSet, global, KeyValue};
+//! use opentelemetry::{global, KeyValue};
 //!
 //! fn init_meter() {
 //!     let provider = NoopMeterProvider::new();
@@ -108,8 +108,7 @@
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
 //!     // record metrics
-//!     let attributes = AttributeSet::from(&[KeyValue::new("mykey", "myvalue")]);
-//!     counter.add(1, attributes);
+//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //!
 //! // in main or other app start
@@ -123,7 +122,7 @@
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::{AttributeSet, global, KeyValue};
+//! use opentelemetry::{global, KeyValue};
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global meter provider
@@ -132,8 +131,7 @@
 //!     let counter = tracer.u64_counter("my_counter").init();
 //!
 //!     // record metrics
-//!     let attributes = AttributeSet::from(&[KeyValue::new("mykey", "myvalue")]);
-//!     counter.add(1, attributes);
+//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //! # }
 //! ```
