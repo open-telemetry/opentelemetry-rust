@@ -170,7 +170,7 @@ impl opentelemetry::trace::Span for Span {
         });
     }
 
-    /// Add link to this `Span`
+    /// Add `Link` to this `Span`
     ///
     fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
         let span_links_limit = self.span_limits.max_links_per_span as usize;
