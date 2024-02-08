@@ -83,10 +83,11 @@ pub trait MeterProvider {
 /// // Record measurements using the counter instrument add()
 /// u64_counter.add(
 ///     10,
+///     &
 ///     [
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ].as_ref()
+///     ]
 /// );
 ///
 /// // f64 Counter
@@ -95,10 +96,11 @@ pub trait MeterProvider {
 /// // Record measurements using the counter instrument add()
 /// f64_counter.add(
 ///     3.15,
+///     &
 ///     [
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ].as_ref()
+///     ],
 /// );
 ///
 /// // u6 observable counter
@@ -109,10 +111,10 @@ pub trait MeterProvider {
 ///     observer.observe_u64(
 ///         &observable_u4_counter,
 ///         1,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -124,10 +126,10 @@ pub trait MeterProvider {
 ///     observer.observe_f64(
 ///         &observable_f64_counter,
 ///         1.55,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -137,10 +139,11 @@ pub trait MeterProvider {
 /// // Record measurements using the updown counter instrument add()
 /// updown_i64_counter.add(
 ///     -10,
+///     &
 ///     [
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ].as_ref(),
+///     ],
 /// );
 ///
 /// // f64 updown counter
@@ -149,10 +152,11 @@ pub trait MeterProvider {
 /// // Record measurements using the updown counter instrument add()
 /// updown_f64_counter.add(
 ///     -10.67,
+///     &
 ///     [
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ].as_ref(),
+///     ],
 /// );
 ///
 /// // i64 observable updown counter
@@ -163,10 +167,10 @@ pub trait MeterProvider {
 ///     observer.observe_i64(
 ///         &observable_i64_up_down_counter,
 ///         1,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -178,10 +182,10 @@ pub trait MeterProvider {
 ///     observer.observe_f64(
 ///         &observable_f64_up_down_counter,
 ///         1.16,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -193,10 +197,10 @@ pub trait MeterProvider {
 ///     observer.observe_f64(
 ///         &f64_gauge,
 ///         2.32,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -208,10 +212,10 @@ pub trait MeterProvider {
 ///     observer.observe_i64(
 ///         &i64_gauge,
 ///         12,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -223,10 +227,10 @@ pub trait MeterProvider {
 ///     observer.observe_u64(
 ///         &u64_gauge,
 ///         1,
-///         [
+///         &[
 ///             KeyValue::new("mykey1", "myvalue1"),
 ///             KeyValue::new("mykey2", "myvalue2"),
-///         ].as_ref(),
+///         ],
 ///     )
 /// });
 ///
@@ -236,11 +240,10 @@ pub trait MeterProvider {
 /// // Record measurements using the histogram instrument record()
 /// f64_histogram.record(
 ///     10.5,
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ]
-///     .as_ref(),
+///     ],
 /// );
 ///
 /// // u64 histogram
@@ -249,11 +252,10 @@ pub trait MeterProvider {
 /// // Record measurements using the histogram instrument record()
 /// u64_histogram.record(
 ///     12,
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ]
-///     .as_ref(),
+///     ],
 /// );
 ///
 /// ```
