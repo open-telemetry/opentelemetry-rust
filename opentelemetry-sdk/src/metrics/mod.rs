@@ -578,10 +578,16 @@ mod tests {
         test_context.flush_metrics();
         let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
 
+        counter.add(50, &[KeyValue::new("a", "b")]);
         test_context.flush_metrics();
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
 
-        assert_eq!(sum.data_points.len(), 0, "Expected only one data point");
+        let no_attr_data_point = sum.data_points.iter().find(|x| x.attributes.is_empty());
+
+        assert!(
+            no_attr_data_point.is_none(),
+            "Expected no data points with no attributes"
+        );
     }
 
     struct TestContext {

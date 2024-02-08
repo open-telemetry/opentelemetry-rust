@@ -154,7 +154,10 @@ impl<T: Number<T>> Sum<T> {
             *start = t;
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 
     pub(crate) fn cumulative(
@@ -220,7 +223,10 @@ impl<T: Number<T>> Sum<T> {
             });
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 }
 
@@ -322,7 +328,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
         *reported = new_reported;
         drop(reported); // drop before values guard is dropped
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 
     pub(crate) fn cumulative(
@@ -396,6 +405,9 @@ impl<T: Number<T>> PrecomputedSum<T> {
         *reported = new_reported;
         drop(reported); // drop before values guard is dropped
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 }
