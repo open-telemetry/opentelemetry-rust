@@ -19,7 +19,7 @@ impl TraceAsserter {
         self.assert_resource_span_eq(&self.results, &self.expected);
     }
 
-    fn assert_resource_span_eq(&self, results: &Vec<ResourceSpans>, expected: &Vec<ResourceSpans>) {
+    fn assert_resource_span_eq(&self, results: &[ResourceSpans], expected: &[ResourceSpans]) {
         let mut results_spans = Vec::new();
         let mut expected_spans = Vec::new();
 
