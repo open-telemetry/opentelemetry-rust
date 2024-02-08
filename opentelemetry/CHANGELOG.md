@@ -6,7 +6,7 @@
 
 - [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge. This is behind the feature flag, and can be enabled by enabling the feature `otel_unstable` for opentelemetry crate.
 
-- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Guidelines to add new unstable/experimental features. 
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Guidelines to add new unstable/experimental features.
 
 ### Changed
 
@@ -17,6 +17,8 @@ gains, and avoids `IndexMap` dependency. This affects `body` and `attributes` of
 `LogRecord`.
 [#1353](https://github.com/open-telemetry/opentelemetry-rust/pull/1353)
 - Add `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373)
+- Turned off events for `NoopLogger` to save on operations
+  [1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455)
 
 ### Removed
 
