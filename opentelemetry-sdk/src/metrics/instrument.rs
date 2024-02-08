@@ -5,10 +5,11 @@ use opentelemetry::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
         SyncUpDownCounter, Unit,
     },
-    AttributeSet, Key,
+    Key, KeyValue,
 };
 
 use crate::{
+    attributes::AttributeSet,
     instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
@@ -258,33 +259,33 @@ pub(crate) struct ResolvedMeasures<T> {
 }
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: AttributeSet) {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, attrs.clone())
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
 impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: AttributeSet) {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, attrs.clone())
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: AttributeSet) {
+    fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, attrs.clone())
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
 impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: AttributeSet) {
+    fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, attrs.clone())
+            measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
@@ -376,9 +377,9 @@ impl<T> Observable<T> {
 }
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
-    fn observe(&self, measurement: T, attrs: AttributeSet) {
+    fn observe(&self, measurement: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(measurement, attrs.clone())
+            measure.call(measurement, AttributeSet::from(attrs))
         }
     }
 

@@ -1,5 +1,7 @@
-use crate::attributes::AttributeSet;
-use crate::metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError};
+use crate::{
+    metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
+    KeyValue,
+};
 use core::fmt;
 use std::sync::Arc;
 use std::{any::Any, convert::TryFrom};
@@ -7,7 +9,7 @@ use std::{any::Any, convert::TryFrom};
 /// An SDK implemented instrument that records increasing values.
 pub trait SyncCounter<T> {
     /// Records an increment to the counter.
-    fn add(&self, value: T, attributes: AttributeSet);
+    fn add(&self, value: T, attributes: &[KeyValue]);
 }
 
 /// An instrument that records increasing values.
@@ -30,8 +32,8 @@ impl<T> Counter<T> {
     }
 
     /// Records an increment to the counter.
-    pub fn add(&self, value: T, attributes: impl Into<AttributeSet>) {
-        self.0.add(value, attributes.into())
+    pub fn add(&self, value: T, attributes: &[KeyValue]) {
+        self.0.add(value, attributes)
     }
 }
 
@@ -85,7 +87,7 @@ impl<T> ObservableCounter<T> {
     /// It is only valid to call this within a callback. If called outside of the
     /// registered callback it should have no effect on the instrument, and an
     /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: AttributeSet) {
+    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
         self.0.observe(value, attributes)
     }
 
@@ -96,7 +98,7 @@ impl<T> ObservableCounter<T> {
 }
 
 impl<T> AsyncInstrument<T> for ObservableCounter<T> {
-    fn observe(&self, measurement: T, attributes: AttributeSet) {
+    fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
     }
 

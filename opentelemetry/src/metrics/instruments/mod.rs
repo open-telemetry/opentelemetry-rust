@@ -1,5 +1,5 @@
-use crate::attributes::AttributeSet;
 use crate::metrics::{Meter, MetricsError, Result, Unit};
+use crate::KeyValue;
 use core::fmt;
 use std::any::Any;
 use std::borrow::Cow;
@@ -17,7 +17,7 @@ pub trait AsyncInstrument<T>: Send + Sync {
     /// Observes the state of the instrument.
     ///
     /// It is only valid to call this within a callback.
-    fn observe(&self, measurement: T, attributes: AttributeSet);
+    fn observe(&self, measurement: T, attributes: &[KeyValue]);
 
     /// Used for SDKs to downcast instruments in callbacks.
     fn as_any(&self) -> Arc<dyn Any>;

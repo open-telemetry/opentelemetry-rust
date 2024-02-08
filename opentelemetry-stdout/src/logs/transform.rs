@@ -4,7 +4,7 @@ use crate::common::{
     as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, KeyValue, Resource,
     Scope, Value,
 };
-use opentelemetry::AttributeSet;
+use opentelemetry_sdk::AttributeSet;
 use serde::Serialize;
 
 /// Transformed logs data that can be serialized.
@@ -26,7 +26,7 @@ impl From<Vec<opentelemetry_sdk::export::logs::LogData>> for LogData {
             let resource: Resource = sdk_log.resource.as_ref().into();
 
             let rl = resource_logs
-                .entry(sdk_log.resource.as_ref().to_attribute_set())
+                .entry(sdk_log.resource.as_ref().into())
                 .or_insert_with(move || ResourceLogs {
                     resource,
                     scope_logs: Vec::with_capacity(1),
