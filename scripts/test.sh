@@ -2,7 +2,7 @@
 
 set -eu
 
-cargo test --all --all-features "$@" -- --test-threads=1
+cargo test --workspace --all-features "$@" -- --test-threads=1
 
 # See https://github.com/rust-lang/cargo/issues/5364
 cargo test --manifest-path=opentelemetry/Cargo.toml --no-default-features
