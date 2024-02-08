@@ -1,5 +1,6 @@
-//! # OpenTelemetry Logs API
-
+//! # OpenTelemetry Logs Bridge API
+///  This API is not intended to be called by application developers directly. It
+///  is provided for logging library authors to build log appenders.
 use crate::ExportError;
 
 use std::{sync::PoisonError, time::Duration};

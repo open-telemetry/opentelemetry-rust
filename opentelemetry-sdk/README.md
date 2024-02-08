@@ -29,7 +29,7 @@ observability tools.
 
 ## OpenTelemetry Benchmarks
 
-From the root folder, run the following command:
+From the root directory, run the following command:
 
 ```sh
 cargo bench

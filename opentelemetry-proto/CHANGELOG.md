@@ -5,6 +5,7 @@
 ### Added
 
 - Add `schemars::JsonSchema` trait support with `with-schemars` feature (#1419)
+- Update protobuf definitions to v1.1.0 (#1154)
 
 ## v0.4.0
 

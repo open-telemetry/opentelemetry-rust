@@ -38,10 +38,7 @@ impl Default for SdkMeterProvider {
 }
 
 impl SdkMeterProvider {
-    /// Flushes all pending telemetry.
-    ///
-    /// There is no guaranteed that all telemetry be flushed or all resources have
-    /// been released on error.
+    /// Return default [MeterProviderBuilder]
     pub fn builder() -> MeterProviderBuilder {
         MeterProviderBuilder::default()
     }

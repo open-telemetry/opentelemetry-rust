@@ -3,6 +3,7 @@
 /// object containing arrays, key-value lists and primitives.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AnyValue {
@@ -17,6 +18,7 @@ pub mod any_value {
     /// in which case this AnyValue is considered to be "empty".
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
@@ -40,6 +42,7 @@ pub mod any_value {
 /// since oneof in AnyValue does not allow repeated fields.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArrayValue {
@@ -54,6 +57,7 @@ pub struct ArrayValue {
 /// are semantically equivalent.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValueList {
@@ -68,18 +72,28 @@ pub struct KeyValueList {
 /// attributes, etc.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValue {
     #[prost(string, tag = "1")]
     pub key: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_value",
+            deserialize_with = "crate::proto::serializers::deserialize_from_value"
+        )
+    )]
     pub value: ::core::option::Option<AnyValue>,
 }
 /// InstrumentationScope is a message representing the instrumentation scope information
 /// such as the fully qualified name and version.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstrumentationScope {

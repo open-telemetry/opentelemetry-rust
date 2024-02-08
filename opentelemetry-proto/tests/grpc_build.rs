@@ -54,7 +54,7 @@ fn build_tonic() {
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
     // build the generated files into OUT_DIR for now so we don't have to touch the src unless we have to
-    tonic_build::configure()
+    let mut builder = tonic_build::configure()
         .build_server(true)
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
@@ -67,6 +67,48 @@ fn build_tonic() {
             ".",
             "#[cfg_attr(feature = \"with-serde\", derive(serde::Serialize, serde::Deserialize))]",
         )
+        .type_attribute(
+            ".",
+            "#[cfg_attr(feature = \"with-serde\", serde(rename_all = \"camelCase\"))]",
+        );
+
+    // optional numeric and String field need to default it to 0 otherwise JSON files without those field
+    // cannot deserialize
+    // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
+    for path in [
+        "trace.v1.Span",
+        "trace.v1.Span.Link",
+        "trace.v1.ScopeSpans",
+        "trace.v1.ResourceSpans",
+        "common.v1.InstrumentationScope",
+        "resource.v1.Resource",
+        "trace.v1.Span.Event",
+        "trace.v1.Span.Status",
+    ] {
+        builder = builder.type_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(default))]",
+        )
+    }
+
+    // special serializer and deserializer for traceId and spanId
+    // OTLP/JSON format uses hex string for traceId and spanId
+    // the proto file uses bytes for traceId and spanId
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        "trace.v1.Span.trace_id",
+        "trace.v1.Span.span_id",
+        "trace.v1.Span.parent_span_id",
+    ] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
+    }
+
+    // add custom serializer and deserializer for AnyValue
+    builder = builder
+        .field_attribute("common.v1.KeyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+
+    builder
         .out_dir(out_dir.path())
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");

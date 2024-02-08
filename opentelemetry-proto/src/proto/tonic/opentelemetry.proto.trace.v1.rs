@@ -10,6 +10,7 @@
 /// as well.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
@@ -24,6 +25,8 @@ pub struct TracesData {
 /// A collection of ScopeSpans from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
@@ -34,6 +37,9 @@ pub struct ResourceSpans {
     /// A list of ScopeSpans that originate from a resource.
     #[prost(message, repeated, tag = "2")]
     pub scope_spans: ::prost::alloc::vec::Vec<ScopeSpans>,
+    /// The Schema URL, if known. This is the identifier of the Schema that the resource data
+    /// is recorded in. To learn more about Schema URL see
+    /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_spans" field which have their own schema_url field.
     #[prost(string, tag = "3")]
@@ -42,6 +48,8 @@ pub struct ResourceSpans {
 /// A collection of Spans produced by an InstrumentationScope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeSpans {
@@ -53,6 +61,9 @@ pub struct ScopeSpans {
     /// A list of Spans that originate from an instrumentation scope.
     #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
+    /// The Schema URL, if known. This is the identifier of the Schema that the span data
+    /// is recorded in. To learn more about Schema URL see
+    /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all spans and span events in the "spans" field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
@@ -62,6 +73,8 @@ pub struct ScopeSpans {
 /// The next available field id is 17.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
@@ -72,6 +85,13 @@ pub struct Span {
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "1")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
@@ -80,6 +100,13 @@ pub struct Span {
     ///
     /// This field is required.
     #[prost(bytes = "vec", tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
     /// trace_state conveys information about request position in multiple distributed tracing graphs.
     /// It is a trace_state in w3c-trace-context format: <https://www.w3.org/TR/trace-context/#tracestate-header>
@@ -89,7 +116,30 @@ pub struct Span {
     /// The `span_id` of this span's parent span. If this is a root span, then this
     /// field must be empty. The ID is an 8-byte array.
     #[prost(bytes = "vec", tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub parent_span_id: ::prost::alloc::vec::Vec<u8>,
+    /// Flags, a bit field. 8 least significant bits are the trace
+    /// flags as defined in W3C Trace Context specification. Readers
+    /// MUST not assume that 24 most significant bits will be zero.
+    /// To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+    ///
+    /// When creating span messages, if the message is logically forwarded from another source
+    /// with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD
+    /// be copied as-is. If creating from a source that does not have an equivalent flags field
+    /// (such as a runtime representation of an OpenTelemetry span), the high 24 bits MUST
+    /// be set to zero.
+    ///
+    /// \[Optional\].
+    ///
+    /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
+    #[prost(fixed32, tag = "16")]
+    pub flags: u32,
     /// A description of the span's operation.
     ///
     /// For example, the name can be a qualified method name or a file name
@@ -169,6 +219,8 @@ pub mod span {
     /// text description and key-value pairs.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
@@ -197,6 +249,8 @@ pub mod span {
     /// traces or when the handler receives a request from a different project.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
@@ -221,11 +275,22 @@ pub mod span {
         /// then no attributes were dropped.
         #[prost(uint32, tag = "5")]
         pub dropped_attributes_count: u32,
+        /// Flags, a bit field. 8 least significant bits are the trace
+        /// flags as defined in W3C Trace Context specification. Readers
+        /// MUST not assume that 24 most significant bits will be zero.
+        /// When creating new spans, the most-significant 24-bits MUST be
+        /// zero.  To read the 8-bit W3C trace flag (use flags &
+        /// SPAN_FLAGS_TRACE_FLAGS_MASK).  \[Optional\].
+        ///
+        /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
+        #[prost(fixed32, tag = "6")]
+        pub flags: u32,
     }
     /// SpanKind is the type of span. Can be used to specify additional relationships between spans
     /// in addition to a parent/child relationship.
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(
         Clone,
         Copy,
@@ -293,6 +358,7 @@ pub mod span {
 /// programming environments, including REST APIs and RPC APIs.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
@@ -309,6 +375,7 @@ pub mod status {
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md#set-status>
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(
         Clone,
         Copy,
@@ -350,6 +417,52 @@ pub mod status {
                 "STATUS_CODE_ERROR" => Some(Self::Error),
                 _ => None,
             }
+        }
+    }
+}
+/// SpanFlags represents constants used to interpret the
+/// Span.flags field, which is protobuf 'fixed32' type and is to
+/// be used as bit-fields. Each non-zero value defined in this enum is
+/// a bit-mask.  To extract the bit-field, for example, use an
+/// expression like:
+///
+///    (span.flags & SPAN_FLAGS_TRACE_FLAGS_MASK)
+///
+/// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
+///
+/// Note that Span flags were introduced in version 1.1 of the
+/// OpenTelemetry protocol.  Older Span producers do not set this
+/// field, consequently consumers should not rely on the absence of a
+/// particular flag bit to indicate the presence of a particular feature.
+#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SpanFlags {
+    /// The zero value for the enum. Should not be used for comparisons.
+    /// Instead use bitwise "and" with the appropriate mask as shown above.
+    DoNotUse = 0,
+    /// Bits 0-7 are used for trace flags.
+    TraceFlagsMask = 255,
+}
+impl SpanFlags {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            SpanFlags::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
+            SpanFlags::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SPAN_FLAGS_DO_NOT_USE" => Some(Self::DoNotUse),
+            "SPAN_FLAGS_TRACE_FLAGS_MASK" => Some(Self::TraceFlagsMask),
+            _ => None,
         }
     }
 }
