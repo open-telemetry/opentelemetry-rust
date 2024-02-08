@@ -83,8 +83,7 @@ pub trait MeterProvider {
 /// // Record measurements using the counter instrument add()
 /// u64_counter.add(
 ///     10,
-///     &
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ]
@@ -96,8 +95,7 @@ pub trait MeterProvider {
 /// // Record measurements using the counter instrument add()
 /// f64_counter.add(
 ///     3.15,
-///     &
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ],
