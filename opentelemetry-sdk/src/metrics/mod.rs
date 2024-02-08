@@ -60,7 +60,6 @@ pub use view::*;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use std::sync::{Arc, Mutex};
     use self::{data::Temporality, reader::TemporalitySelector};
     use super::*;
     use crate::{
@@ -71,6 +70,7 @@ mod tests {
         metrics::{MeterProvider as _, Unit},
         KeyValue,
     };
+    use std::sync::{Arc, Mutex};
 
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
