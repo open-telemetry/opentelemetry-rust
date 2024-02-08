@@ -60,8 +60,13 @@ pub use view::*;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use std::sync::{Arc, Mutex};
+    use self::{data::Temporality, reader::TemporalitySelector};
     use super::*;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use crate::{
+        runtime,
+        testing::metrics::{InMemoryMetricsExporter, InMemoryMetricsExporterBuilder},
+    };
     use opentelemetry::{
         metrics::{MeterProvider as _, Unit},
         KeyValue,
@@ -427,5 +432,213 @@ mod tests {
         // find and validate the single datapoint
         let data_point = &sum.data_points[0];
         assert_eq!(data_point.value, 30);
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta() {
+        // cargo test observable_counter_delta --features=metrics,testing  -- --nocapture
+        // Tests Observable counter in delta aggregation.
+        // ObservableCounter provides the current (i.e Cumulative) value of the counter at the time of observation,
+        // and the SDK is expected to remember the previous value, so that it can do cumulative to
+        // delta conversion.
+
+        #[derive(Clone, Default, Debug)]
+        struct DeltaTemporalitySelector {
+            pub(crate) _private: (),
+        }
+
+        impl DeltaTemporalitySelector {
+            /// Create a new delta temporality selector.
+            fn new() -> Self {
+                Self::default()
+            }
+        }
+
+        impl TemporalitySelector for DeltaTemporalitySelector {
+            fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+                Temporality::Delta
+            }
+        }
+
+        // Arrange
+        let exporter = InMemoryMetricsExporterBuilder::default()
+            .with_temporality_selector(DeltaTemporalitySelector::new())
+            .build();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
+
+        // The Observable counter reports 100,200,300 and so on.
+        let i = Arc::new(Mutex::new(0));
+        meter
+            .register_callback(&[observable_counter.as_any()], move |observer| {
+                let mut num = i.lock().unwrap();
+                *num += 1;
+
+                println!("Observable Counter is reporting: {}", *num * 100);
+
+                observer.observe_u64(
+                    &observable_counter,
+                    *num * 100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
+            })
+            .expect("Expected to register callback");
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Delta,
+            "Should produce Delta as configured."
+        );
+
+        assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 100);
+
+        // Flush again, to trigger next collection.
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        // The second observation should be 100 as well,  as temporality is delta
+        assert_eq!(data_point.value, 100);
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "Bug in the aggregation."]
+
+    async fn observable_counter_cumulative() {
+        // cargo test observable_counter_cumulative --features=metrics,testing -- --nocapture
+        // Tests Observable counter in cumulative aggregation.
+        // ObservableCounter provides the current (i.e Cumulative) value of the counter at the time of observation,
+        // and the SDK is expected to aggregate the value as-is.
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
+
+        // The Observable counter reports 100,200,300 and so on.
+        let i = Arc::new(Mutex::new(0));
+        meter
+            .register_callback(&[observable_counter.as_any()], move |observer| {
+                let mut num = i.lock().unwrap();
+                *num += 1;
+
+                println!("Observable Counter is reporting: {}", *num * 100);
+
+                observer.observe_u64(
+                    &observable_counter,
+                    *num * 100,
+                    [
+                        KeyValue::new("statusCode", "200"),
+                        KeyValue::new("verb", "get"),
+                    ]
+                    .as_ref(),
+                );
+            })
+            .expect("Expected to register callback");
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce Cumulative by default."
+        );
+
+        assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        // 100 is the first observation.
+        assert_eq!(data_point.value, 100);
+
+        // Flush again, to trigger next collection.
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter",);
+
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        assert_eq!(sum.data_points.len(), 1);
+
+        // find and validate the single datapoint
+        let data_point = &sum.data_points[0];
+        // The second observation should be 200
+        assert_eq!(data_point.value, 200);
     }
 }
