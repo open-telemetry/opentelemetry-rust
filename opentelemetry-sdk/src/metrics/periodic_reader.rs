@@ -438,7 +438,7 @@ mod tests {
         // Assert
         receiver
             .recv_timeout(interval * 2)
-            .expect("message should be available in channel");
+            .expect("message should be available in channel, indicating a collection occurred");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
