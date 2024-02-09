@@ -150,8 +150,8 @@ impl<T: Number<T>> AggregateBuilder<T> {
     }
 
     /// Builds a sum aggregate function input and output.
-    pub(crate) fn sum(&self, monotonic: bool) -> (impl Measure<T>, impl ComputeAggregation) {
-        let s = Arc::new(Sum::new(monotonic));
+    pub(crate) fn sum(&self, monotonic: bool, no_attribute_value: Arc<T::AtomicTracker>) -> (impl Measure<T>, impl ComputeAggregation) {
+        let s = Arc::new(Sum::new(monotonic, no_attribute_value));
         let agg_sum = Arc::clone(&s);
         let t = self.temporality;
 
@@ -213,6 +213,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicU64;
     use crate::metrics::data::{
         DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
         Histogram, HistogramDataPoint, Sum,
@@ -298,7 +299,7 @@ mod tests {
     #[test]
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None).sum(true);
+            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None).sum(true, Arc::new(AtomicU64::new(0)));
             let mut a = Sum {
                 data_points: vec![
                     DataPoint {

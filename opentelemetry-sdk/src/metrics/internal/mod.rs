@@ -138,7 +138,7 @@ pub(crate) struct F64AtomicTracker {
 }
 
 impl F64AtomicTracker {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         F64AtomicTracker {
             inner: Mutex::new(0.0),
         }
