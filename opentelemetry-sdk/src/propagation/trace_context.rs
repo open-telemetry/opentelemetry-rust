@@ -97,9 +97,10 @@ impl TraceContextPropagator {
         // supported sampling bit.
         let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
 
-        let trace_state: TraceState =
-            TraceState::from_str(extractor.get(TRACESTATE_HEADER).unwrap_or(""))
-                .unwrap_or_else(|_| TraceState::default());
+        let trace_state = match extractor.get(TRACESTATE_HEADER) {
+            Some(trace_state_str) => TraceState::from_str(trace_state_str).unwrap_or_else(|_| TraceState::default()),
+            None => TraceState::default(),
+        };
 
         // create context
         let span_context = SpanContext::new(trace_id, span_id, trace_flags, true, trace_state);
