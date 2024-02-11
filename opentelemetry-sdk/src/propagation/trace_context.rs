@@ -98,7 +98,7 @@ impl TraceContextPropagator {
         let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
 
         let trace_state = match extractor.get(TRACESTATE_HEADER) {
-            Some(trace_state_str) => TraceState::from_str(trace_state_str).unwrap_or_else(|_| TraceState::default()),
+            Some(trace_state_str) if TraceState::from_str(trace_state_str)=> TraceState::from_str(trace_state_str).unwrap_or_else(|_| TraceState::default()),
             None => TraceState::default(),
         };
 
