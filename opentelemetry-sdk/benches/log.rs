@@ -7,10 +7,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{AnyValue, LogRecord, LogResult, Logger, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::Key;
+use opentelemetry::{Key, KeyValue};
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::{Config, LoggerProvider};
 use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
+use opentelemetry_sdk::Resource;
 
 #[derive(Debug)]
 struct VoidExporter;
@@ -27,6 +28,12 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
 
     group.bench_function("no-context", |b| {
         let provider = LoggerProvider::builder()
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("service.name", "my-service"),
+                KeyValue::new("service.version", "1.0.0"),
+                KeyValue::new("service.environment", "production"),
+                KeyValue::new("service.instance.id", "1234"),
+            ])))
             .with_simple_exporter(VoidExporter)
             .build();
 
@@ -38,6 +45,12 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
     group.bench_function("with-context", |b| {
         let provider = LoggerProvider::builder()
             .with_simple_exporter(VoidExporter)
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("service.name", "my-service"),
+                KeyValue::new("service.version", "1.0.0"),
+                KeyValue::new("service.environment", "production"),
+                KeyValue::new("service.instance.id", "1234"),
+            ])))
             .build();
 
         let logger = provider.logger("with-context");
