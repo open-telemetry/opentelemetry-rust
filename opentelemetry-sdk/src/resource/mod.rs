@@ -108,10 +108,17 @@ impl Resource {
         KV: IntoIterator<Item = KeyValue>,
         S: Into<Cow<'static, str>>,
     {
+        let schema_url_str = schema_url.into();
+        let normalized_schema_url = if schema_url_str.is_empty() {
+            None
+        } else {
+            Some(schema_url_str)
+        };
+
         let mut resource = Self::new(kvs);
         let new_inner = ResourceInner {
             attrs: Arc::make_mut(&mut resource.inner).attrs.clone(),
-            schema_url: Some(schema_url.into()),
+            schema_url: normalized_schema_url,
         };
 
         resource.inner = Arc::new(new_inner);
@@ -127,11 +134,13 @@ impl Resource {
         for detector in detectors {
             let detected_res = detector.detect(timeout);
             for (key, value) in detected_res.into_iter() {
-                // This call ensures that if the Arc is not uniquely owned, 
+                // This call ensures that if the Arc is not uniquely owned,
                 // the data is cloned before modification, preserving safety.
                 // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
                 let inner = Arc::make_mut(&mut resource.inner);
-                inner.attrs.insert(Key::new(key.clone()), Value::from(value.clone()));
+                inner
+                    .attrs
+                    .insert(Key::new(key.clone()), value.clone());
             }
         }
 
@@ -154,6 +163,12 @@ impl Resource {
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
+        if self.is_empty() {
+            return other.clone();
+        }
+        if other.is_empty() {
+            return self.clone();
+        }
         let mut combined_attrs = self.inner.attrs.clone();
         for (k, v) in other.inner.attrs.iter() {
             combined_attrs.insert(k.clone(), v.clone());
@@ -162,12 +177,15 @@ impl Resource {
         let combined_schema_url = match (&self.inner.schema_url, &other.inner.schema_url) {
             // If both resources have a schema URL and it's the same, use it
             (Some(url1), Some(url2)) if url1 == url2 => Some(url1.clone()),
-            // If `self` does not have a schema URL, use `other`'s (even if it's None)
-            (None, _) => other.inner.schema_url.clone(),
-            // In all other cases (including if `other` is None), use `self`'s schema URL
-            _ => self.inner.schema_url.clone(),
+            // If both resources have a schema URL but they are not the same, the schema URL will be empty
+            (Some(_), Some(_)) => None,
+            // If this resource does not have a schema URL, and the other resource has a schema URL, it will be used
+            (None, Some(url)) => Some(url.clone()),
+            // If this resource has a schema URL, it will be used (covers case 1 and any other cases where `self` has a schema URL)
+            (Some(url), _) => Some(url.clone()),
+            // If both resources do not have a schema URL, the schema URL will be empty
+            (None, None) => None,
         };
-
         Resource {
             inner: Arc::new(ResourceInner {
                 attrs: combined_attrs,
@@ -203,7 +221,6 @@ impl Resource {
         self.inner.attrs.get(&key).cloned()
     }
 }
-
 
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
@@ -288,7 +305,7 @@ mod tests {
                 schema_url: None, // Assuming schema_url handling if needed
             }),
         };
-    
+
         assert_eq!(resource_a.merge(&resource_b), expected_resource);
     }
 
@@ -308,8 +325,14 @@ mod tests {
         ];
 
         for (schema_url_a, schema_url_b, expected_schema_url) in test_cases.into_iter() {
-            let resource_a = Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
-            let resource_b = Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
+            let resource_a = Resource::from_schema_url(
+                vec![KeyValue::new("key", "")],
+                schema_url_a.unwrap_or(""),
+            );
+            let resource_b = Resource::from_schema_url(
+                vec![KeyValue::new("key", "")],
+                schema_url_b.unwrap_or(""),
+            );
 
             let merged_resource = resource_a.merge(&resource_b);
             let result_schema_url = merged_resource.schema_url();
@@ -358,4 +381,3 @@ mod tests {
         )
     }
 }
- 
