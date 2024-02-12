@@ -131,7 +131,7 @@ impl Resource {
                 // the data is cloned before modification, preserving safety.
                 // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
                 let inner = Arc::make_mut(&mut resource.inner);
-                inner.attrs.insert(key, value);
+                inner.attrs.insert(Key::new(key.clone()), Value::from(value.clone()));
             }
         }
 
@@ -204,29 +204,6 @@ impl Resource {
     }
 }
 
-/// An owned iterator over the entries of a `Resource`.
-#[derive(Debug)]
-pub struct IntoIter(hash_map::IntoIter<Key, Value>);
-
-impl Iterator for IntoIter {
-    type Item = (Key, Value);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-impl IntoIterator for Resource {
-    type Item = (Key, Value);
-    type IntoIter = IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        // Extract the HashMap from the Arc<ResourceInner> safely upon consuming the Resource
-        let inner = Arc::try_unwrap(self.inner)
-            .ok()
-            .expect("Resource into_iter failed due to multiple Arc references");
-        IntoIter(inner.attrs.into_iter())    }
-}
 
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
