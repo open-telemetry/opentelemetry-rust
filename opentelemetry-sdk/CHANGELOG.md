@@ -46,6 +46,10 @@
   - `LoggerProviderInner` is no longer `pub (crate)`
   - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
 
+### Fixed
+
+- [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader
+
 ## v0.21.2
 
 ### Fixed
