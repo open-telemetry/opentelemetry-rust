@@ -138,9 +138,7 @@ impl Resource {
                 // the data is cloned before modification, preserving safety.
                 // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
                 let inner = Arc::make_mut(&mut resource.inner);
-                inner
-                    .attrs
-                    .insert(Key::new(key.clone()), value.clone());
+                inner.attrs.insert(Key::new(key.clone()), value.clone());
             }
         }
 
