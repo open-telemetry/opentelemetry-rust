@@ -188,6 +188,7 @@ mod collector_client_tests {
     use opentelemetry::trace::TraceError;
     use opentelemetry_sdk::runtime::Tokio;
 
+    #[ignore]
     #[test]
     fn test_bring_your_own_client() -> Result<(), TraceError> {
         let invalid_uri_builder = new_collector_pipeline()

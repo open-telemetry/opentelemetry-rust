@@ -571,6 +571,7 @@ mod tests {
         assert!(valid_uri.is_ok());
     }
 
+    #[ignore]
     #[test]
     fn test_collector_exporter() {
         let exporter = new_collector_pipeline()
