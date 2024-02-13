@@ -1,4 +1,3 @@
-use crate::attributes::AttributeSet;
 use core::fmt;
 use std::any::Any;
 use std::borrow::Cow;
@@ -72,7 +71,7 @@ pub trait MeterProvider {
 /// Provides access to instrument instances for recording measurements.
 ///
 /// ```
-/// use opentelemetry::{AttributeSet, global, KeyValue};
+/// use opentelemetry::{global, KeyValue};
 ///
 /// let meter = global::meter("my-meter");
 ///
@@ -81,107 +80,181 @@ pub trait MeterProvider {
 /// // u64 Counter
 /// let u64_counter = meter.u64_counter("my_u64_counter").init();
 ///
-/// // Define the attributes the counters will use
-/// let attributes = AttributeSet::from(&[
+/// // Record measurements using the counter instrument add()
+/// u64_counter.add(
+///     10,
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ]);
-///
-/// // Record measurements using the counter instrument add()
-/// u64_counter.add(10, attributes.clone());
+///     ]
+/// );
 ///
 /// // f64 Counter
 /// let f64_counter = meter.f64_counter("my_f64_counter").init();
 ///
 /// // Record measurements using the counter instrument add()
-/// f64_counter.add(3.15, attributes.clone());
+/// f64_counter.add(
+///     3.15,
+///     &[
+///         KeyValue::new("mykey1", "myvalue1"),
+///         KeyValue::new("mykey2", "myvalue2"),
+///     ],
+/// );
 ///
 /// // u6 observable counter
 /// let observable_u4_counter = meter.u64_observable_counter("my_observable_u64_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[observable_u4_counter.as_any()], move |observer| {
-///     observer.observe_u64(&observable_u4_counter, 1, observer_attributes.clone())
+///     observer.observe_u64(
+///         &observable_u4_counter,
+///         1,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // f64 observable counter
 /// let observable_f64_counter = meter.f64_observable_counter("my_observable_f64_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[observable_f64_counter.as_any()], move |observer| {
-///     observer.observe_f64(&observable_f64_counter, 1.55, observer_attributes.clone())
+///     observer.observe_f64(
+///         &observable_f64_counter,
+///         1.55,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // i64 updown counter
 /// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").init();
 ///
 /// // Record measurements using the updown counter instrument add()
-/// updown_i64_counter.add(-10, attributes.clone());
+/// updown_i64_counter.add(
+///     -10,
+///     &
+///     [
+///         KeyValue::new("mykey1", "myvalue1"),
+///         KeyValue::new("mykey2", "myvalue2"),
+///     ],
+/// );
 ///
 /// // f64 updown counter
 /// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").init();
 ///
 /// // Record measurements using the updown counter instrument add()
-/// updown_f64_counter.add(-10.67, attributes.clone());
+/// updown_f64_counter.add(
+///     -10.67,
+///     &
+///     [
+///         KeyValue::new("mykey1", "myvalue1"),
+///         KeyValue::new("mykey2", "myvalue2"),
+///     ],
+/// );
 ///
 /// // i64 observable updown counter
 /// let observable_i64_up_down_counter = meter.i64_observable_up_down_counter("my_observable_i64_updown_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[observable_i64_up_down_counter.as_any()], move |observer| {
-///     observer.observe_i64(&observable_i64_up_down_counter, 1, observer_attributes.clone())
+///     observer.observe_i64(
+///         &observable_i64_up_down_counter,
+///         1,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // f64 observable updown counter
 /// let observable_f64_up_down_counter = meter.f64_observable_up_down_counter("my_observable_f64_updown_counter").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[observable_f64_up_down_counter.as_any()], move |observer| {
-///     observer.observe_f64(&observable_f64_up_down_counter, 1.16, observer_attributes.clone())
+///     observer.observe_f64(
+///         &observable_f64_up_down_counter,
+///         1.16,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // Observable f64 gauge
 /// let f64_gauge = meter.f64_observable_gauge("my_f64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[f64_gauge.as_any()], move |observer| {
-///     observer.observe_f64(&f64_gauge, 2.32, observer_attributes.clone())
+///     observer.observe_f64(
+///         &f64_gauge,
+///         2.32,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // Observable i64 gauge
 /// let i64_gauge = meter.i64_observable_gauge("my_i64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[i64_gauge.as_any()], move |observer| {
-///     observer.observe_i64(&i64_gauge, 12, observer_attributes.clone())
+///     observer.observe_i64(
+///         &i64_gauge,
+///         12,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // Observable u64 gauge
 /// let u64_gauge = meter.u64_observable_gauge("my_u64_gauge").init();
 ///
 /// // Register a callback to this meter for an asynchronous instrument to record measurements
-/// let observer_attributes = attributes.clone();
 /// meter.register_callback(&[u64_gauge.as_any()], move |observer| {
-///     observer.observe_u64(&u64_gauge, 1, observer_attributes.clone())
+///     observer.observe_u64(
+///         &u64_gauge,
+///         1,
+///         &[
+///             KeyValue::new("mykey1", "myvalue1"),
+///             KeyValue::new("mykey2", "myvalue2"),
+///         ],
+///     )
 /// });
 ///
 /// // f64 histogram
 /// let f64_histogram = meter.f64_histogram("my_f64_histogram").init();
 ///
 /// // Record measurements using the histogram instrument record()
-/// f64_histogram.record(10.5, attributes.clone());
+/// f64_histogram.record(
+///     10.5,
+///     &[
+///         KeyValue::new("mykey1", "myvalue1"),
+///         KeyValue::new("mykey2", "myvalue2"),
+///     ],
+/// );
 ///
 /// // u64 histogram
 /// let u64_histogram = meter.u64_histogram("my_u64_histogram").init();
 ///
 /// // Record measurements using the histogram instrument record()
-/// u64_histogram.record(12, attributes);
+/// u64_histogram.record(
+///     12,
+///     &[
+///         KeyValue::new("mykey1", "myvalue1"),
+///         KeyValue::new("mykey2", "myvalue2"),
+///     ],
+/// );
 ///
 /// ```
 #[derive(Clone)]
@@ -365,13 +438,13 @@ pub trait CallbackRegistration: Send + Sync {
 /// Records measurements for multiple instruments in a callback.
 pub trait Observer {
     /// Records the f64 value with attributes for the observable.
-    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: AttributeSet);
+    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]);
 
     /// Records the u64 value with attributes for the observable.
-    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: AttributeSet);
+    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]);
 
     /// Records the i64 value with attributes for the observable.
-    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: AttributeSet);
+    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]);
 }
 
 impl fmt::Debug for Meter {

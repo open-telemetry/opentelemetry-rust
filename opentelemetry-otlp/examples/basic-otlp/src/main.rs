@@ -4,7 +4,6 @@ use opentelemetry::global;
 use opentelemetry::global::{logger_provider, shutdown_logger_provider, shutdown_tracer_provider};
 use opentelemetry::logs::LogError;
 use opentelemetry::trace::TraceError;
-use opentelemetry::AttributeSet;
 use opentelemetry::{
     metrics,
     trace::{TraceContextExt, Tracer},
@@ -73,13 +72,13 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
 const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
-static COMMON_ATTRIBUTES: Lazy<AttributeSet> = Lazy::new(|| {
-    AttributeSet::from(&[
+static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
+    [
         LEMONS_KEY.i64(10),
         KeyValue::new("A", "1"),
         KeyValue::new("B", "2"),
         KeyValue::new("C", "3"),
-    ])
+    ]
 });
 
 #[tokio::main]
@@ -110,11 +109,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .init();
 
     meter.register_callback(&[gauge.as_any()], move |observer| {
-        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.clone())
+        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.as_ref())
     })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(5.5, COMMON_ATTRIBUTES.clone());
+    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     tracer.in_span("operation", |cx| {
         let span = cx.span();
