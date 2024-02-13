@@ -9,8 +9,8 @@ use opentelemetry::propagation::{Extractor, Injector};
 
 /// Helper for injecting headers into HTTP Requests. This is used for OpenTelemetry context
 /// propagation over HTTP.
-/// See https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md
-/// for an example of how to use this.
+/// See [this](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md)
+/// for example usage.
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
 
 impl<'a> Injector for HeaderInjector<'a> {
@@ -26,8 +26,8 @@ impl<'a> Injector for HeaderInjector<'a> {
 
 /// Helper for extracting headers from HTTP Requests. This is used for OpenTelemetry context
 /// propagation over HTTP.
-/// See https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md
-/// for an example of how to use this.
+/// See [this](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md)
+/// for example usage.
 pub struct HeaderExtractor<'a>(pub &'a http::HeaderMap);
 
 impl<'a> Extractor for HeaderExtractor<'a> {
