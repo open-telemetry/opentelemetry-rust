@@ -1,9 +1,5 @@
-use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::{
-    logs::{Config, LogProcessor, LoggerProvider},
-    Resource,
-};
+use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
 use tracing_subscriber::{prelude::*, Layer};
 
@@ -65,12 +61,6 @@ impl LogProcessor for NoOpLogProcessor {
 fn main() {
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
-        .with_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "log-appender-tracing-example",
-            )])),
-        )
         .with_log_processor(NoOpLogProcessor {})
         .build();
 
