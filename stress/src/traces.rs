@@ -1,8 +1,12 @@
 use lazy_static::lazy_static;
 use opentelemetry::{
-    trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider as _}, Context, KeyValue
+    trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider as _},
+    Context, KeyValue,
 };
-use opentelemetry_sdk::{export::trace::SpanData, trace::{self as sdktrace, SpanProcessor}};
+use opentelemetry_sdk::{
+    export::trace::SpanData,
+    trace::{self as sdktrace, SpanProcessor},
+};
 
 mod throughput;
 
