@@ -65,12 +65,6 @@ impl LogProcessor for NoOpLogProcessor {
 fn main() {
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
-        .with_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "log-appender-tracing-example",
-            )])),
-        )
         .with_log_processor(NoOpLogProcessor {})
         .build();
 
