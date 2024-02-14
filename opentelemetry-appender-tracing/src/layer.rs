@@ -138,12 +138,10 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryTracingBridge {
-            logger: provider.versioned_logger(
-                INSTRUMENTATION_LIBRARY_NAME,
-                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
-                None,
-                None,
-            ),
+            logger: provider
+                .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
+                .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+                .build(),
             _phantom: Default::default(),
         }
     }

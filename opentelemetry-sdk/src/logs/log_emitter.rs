@@ -43,12 +43,19 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        self.library_logger(Arc::new(InstrumentationLibrary::new(
-            component_name,
-            version,
-            schema_url,
-            attributes,
-        )))
+        let mut builder = self.logger_builder(component_name);
+
+        if let Some(v) = version {
+            builder = builder.with_version(v);
+        }
+        if let Some(s) = schema_url {
+            builder = builder.with_schema_url(s);
+        }
+        if let Some(a) = attributes {
+            builder = builder.with_attributes(a);
+        }
+
+        builder.build()
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
