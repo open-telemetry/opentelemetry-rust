@@ -1,0 +1,102 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "basic-otlp-tracing-example"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "ex.com/basic"
+          },
+          "spans": [
+            {
+              "traceId": "9b458af7378cba65253d7042d34fc72e",
+              "spanId": "cd7cf7bf939930b7",
+              "parentSpanId": "",
+              "name": "Sub operation...",
+              "kind": 1,
+              "startTimeUnixNano": 1703985537070566698,
+              "endTimeUnixNano": 1703985537070572718,
+              "attributes": [
+                {
+                  "key": "lemons",
+                  "value": {
+                    "stringValue": "five"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "timeUnixNano": 1703985537070567697,
+                  "name": "Sub span event"
+                }
+              ],
+              "status": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "basic-otlp-tracing-example"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "ex.com/basic"
+          },
+          "spans": [
+            {
+              "traceId": "9b458af7378cba65253d7042d34fc72e",
+              "spanId": "d58cf2d702a061e0",
+              "parentSpanId": "cd7cf7bf939930b7",
+              "name": "operation",
+              "kind": 1,
+              "startTimeUnixNano": 1703985537070558635,
+              "endTimeUnixNano": 1703985537070580454,
+              "attributes": [
+                {
+                  "key": "ex.com/another",
+                  "value": {
+                    "stringValue": "yes"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "timeUnixNano": 1703985537070563326,
+                  "name": "Nice operation!",
+                  "attributes": [
+                    {
+                      "key": "bogons",
+                      "value": {
+                        "intValue": 100
+                      }
+                    }
+                  ]
+                }
+              ],
+              "status": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
