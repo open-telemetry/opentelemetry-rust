@@ -188,6 +188,7 @@ mod collector_client_tests {
     use opentelemetry::trace::TraceError;
     use opentelemetry_sdk::runtime::Tokio;
 
+    // Ignore this test as it is flaky and the opentelemetry-jaeger is on-track for deprecation
     #[ignore]
     #[test]
     fn test_bring_your_own_client() -> Result<(), TraceError> {

@@ -571,6 +571,7 @@ mod tests {
         assert!(valid_uri.is_ok());
     }
 
+    // Ignore this test as it is flaky and the opentelemetry-jaeger is on-track for deprecation
     #[ignore]
     #[test]
     fn test_collector_exporter() {
