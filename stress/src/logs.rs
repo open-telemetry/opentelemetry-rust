@@ -1,9 +1,5 @@
-use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::{
-    logs::{Config, LogProcessor, LoggerProvider},
-    Resource,
-};
+use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
 use tracing_subscriber::{prelude::*, Layer};
 
