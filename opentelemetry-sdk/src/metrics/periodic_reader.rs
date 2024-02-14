@@ -409,20 +409,52 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::reader::MetricReader, runtime,
-        testing::metrics::InMemoryMetricsExporter, Resource,
+        metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
+        runtime, testing::metrics::InMemoryMetricsExporter, Resource,
     };
+    use opentelemetry::metrics::MeterProvider;
+    use std::sync::mpsc;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn registration_triggers_collection() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_observable_counter("testcounter").init();
+        meter
+            .register_callback(&[counter.as_any()], move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .expect("callback registration should succeed");
+
+        // Assert
+        receiver
+            .recv_timeout(interval * 2)
+            .expect("message should be available in channel, indicating a collection occurred");
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn unregistered_collect() {
+        // Arrange
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-
         let mut rm = ResourceMetrics {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };
+
+        // Act
         let result = reader.collect(&mut rm);
+
+        // Assert
         result.expect_err("error expected when reader is not registered");
     }
 }
