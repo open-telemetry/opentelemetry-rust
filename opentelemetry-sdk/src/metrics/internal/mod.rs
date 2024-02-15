@@ -172,3 +172,75 @@ impl AtomicallyUpdate<f64> for f64 {
         F64AtomicTracker::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_add_and_get_u64_atomic_value() {
+        let atomic = u64::new_atomic_tracker();
+        atomic.add(15);
+        atomic.add(10);
+
+        let value = atomic.get_value();
+        assert_eq!(value, 25);
+    }
+
+    #[test]
+    fn can_reset_u64_atomic_value() {
+        let atomic = u64::new_atomic_tracker();
+        atomic.add(15);
+
+        let value = atomic.get_and_reset_value();
+        let value2 = atomic.get_value();
+
+        assert_eq!(value, 15, "Incorrect first value");
+        assert_eq!(value2, 0, "Incorrect second value");
+    }
+
+    #[test]
+    fn can_add_and_get_i64_atomic_value() {
+        let atomic = i64::new_atomic_tracker();
+        atomic.add(15);
+        atomic.add(-10);
+
+        let value = atomic.get_value();
+        assert_eq!(value, 5);
+    }
+
+    #[test]
+    fn can_reset_i64_atomic_value() {
+        let atomic = i64::new_atomic_tracker();
+        atomic.add(15);
+
+        let value = atomic.get_and_reset_value();
+        let value2 = atomic.get_value();
+
+        assert_eq!(value, 15, "Incorrect first value");
+        assert_eq!(value2, 0, "Incorrect second value");
+    }
+
+    #[test]
+    fn can_add_and_get_f64_atomic_value() {
+        let atomic = f64::new_atomic_tracker();
+        atomic.add(15.3);
+        atomic.add(10.4);
+
+        let value = atomic.get_value();
+
+        assert!(f64::abs(25.7 - value) < 0.0001);
+    }
+
+    #[test]
+    fn can_reset_f64_atomic_value() {
+        let atomic = f64::new_atomic_tracker();
+        atomic.add(15.5);
+
+        let value = atomic.get_and_reset_value();
+        let value2 = atomic.get_value();
+
+        assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
+        assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
+    }
+}

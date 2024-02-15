@@ -46,6 +46,10 @@
   - `LoggerProviderInner` is no longer `pub (crate)`
   - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
 
+- [1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements 
+    when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
+    (e.g. `counter.Add(5, &[])`)
+    
 ### Fixed
 
 - [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader
