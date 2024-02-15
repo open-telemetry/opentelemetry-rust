@@ -26,9 +26,6 @@ use opentelemetry_sdk::{
 use std::fmt::{Debug, Formatter};
 use std::time;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -70,16 +67,13 @@ pub enum MetricsExporterBuilder {
     /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
-    /// Grpcio metrics exporter builder
-    #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioExporterBuilder),
     /// Http metrics exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
 
     /// Missing exporter builder
     #[doc(hidden)]
-    #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+    #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
     Unconfigured,
 }
 
@@ -95,21 +89,16 @@ impl MetricsExporterBuilder {
             MetricsExporterBuilder::Tonic(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
             }
-            #[cfg(feature = "grpc-sys")]
-            MetricsExporterBuilder::Grpcio(builder) => {
-                builder.build_metrics_exporter(aggregation_selector, temporality_selector)
-            }
             #[cfg(feature = "http-proto")]
             MetricsExporterBuilder::Http(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
             }
-
-            #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+            #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
             MetricsExporterBuilder::Unconfigured => {
                 drop(temporality_selector);
                 drop(aggregation_selector);
                 Err(opentelemetry::metrics::MetricsError::Other(
-                    "no configured metrics exporter, enable `http-proto`, `grpc-sys` or `grpc-tonic` feature to configure a metrics exporter".into(),
+                    "no configured metrics exporter, enable `http-proto` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
             }
         }

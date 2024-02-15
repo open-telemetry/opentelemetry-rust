@@ -2,19 +2,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
 
-const GRPCIO_OUT_DIR: &str = "src/proto/grpcio";
-const GRPCIO_PROTO_FILES: &[&str] = &[
-    "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/metrics/v1/metrics.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
-    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
-];
-const GRPCIO_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto/"];
-
 const TONIC_OUT_DIR: &str = "src/proto/tonic";
 const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
@@ -28,24 +15,6 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
-
-// This test helps to keep files generated and used by grpcio update to date.
-// If the test fails, it means the generated files has been changed. Please commit the change
-// and rerun test. It should pass at the second time.
-#[test]
-fn build_grpc() {
-    let before_build = build_content_map(GRPCIO_OUT_DIR);
-
-    grpcio_compiler::prost_codegen::compile_protos(
-        GRPCIO_PROTO_FILES,
-        GRPCIO_INCLUDES,
-        GRPCIO_OUT_DIR,
-    )
-    .expect("cannot compile protobuf using grpcio");
-
-    let after_build = build_content_map(GRPCIO_OUT_DIR);
-    ensure_files_are_same(before_build, after_build, GRPCIO_OUT_DIR);
-}
 
 #[test]
 fn build_tonic() {
