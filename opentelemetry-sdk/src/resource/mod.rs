@@ -114,16 +114,16 @@ impl Resource {
         } else {
             Some(schema_url_str)
         };
-
-        let mut resource = Self::new(kvs);
-        let new_inner = ResourceInner {
-            attrs: Arc::make_mut(&mut resource.inner).attrs.clone(),
-            schema_url: normalized_schema_url,
-        };
-
-        resource.inner = Arc::new(new_inner);
-
-        resource
+        let mut attrs = HashMap::new();
+        for kv in kvs {
+            attrs.insert(kv.key, kv.value);
+        }
+        Resource {
+            inner: Arc::new(ResourceInner {
+                attrs,
+                schema_url: normalized_schema_url,
+            }),
+        }
     }
 
     /// Create a new `Resource` from resource detectors.
