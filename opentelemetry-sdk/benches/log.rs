@@ -28,12 +28,6 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
 
     group.bench_function("no-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_config(Config::default().with_resource(Resource::new(vec![
-                KeyValue::new("service.name", "my-service"),
-                KeyValue::new("service.version", "1.0.0"),
-                KeyValue::new("service.environment", "production"),
-                KeyValue::new("service.instance.id", "1234"),
-            ])))
             .with_simple_exporter(VoidExporter)
             .build();
 
