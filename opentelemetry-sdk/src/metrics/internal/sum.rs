@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Mutex,
@@ -10,26 +11,39 @@ use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
-    Number,
+    AtomicTracker, Number,
 };
 
 /// The storage for sums.
-#[derive(Default)]
 struct ValueMap<T: Number<T>> {
     values: Mutex<HashMap<AttributeSet, T>>,
+    has_no_value_attribute_value: AtomicBool,
+    no_attribute_value: T::AtomicTracker,
+}
+
+impl<T: Number<T>> Default for ValueMap<T> {
+    fn default() -> Self {
+        ValueMap::new()
+    }
 }
 
 impl<T: Number<T>> ValueMap<T> {
     fn new() -> Self {
         ValueMap {
             values: Mutex::new(HashMap::new()),
+            has_no_value_attribute_value: AtomicBool::new(false),
+            no_attribute_value: T::new_atomic_tracker(),
         }
     }
 }
 
 impl<T: Number<T>> ValueMap<T> {
     fn measure(&self, measurement: T, attrs: AttributeSet) {
-        if let Ok(mut values) = self.values.lock() {
+        if attrs.is_empty() {
+            self.no_attribute_value.add(measurement);
+            self.has_no_value_attribute_value
+                .store(true, Ordering::Release);
+        } else if let Ok(mut values) = self.values.lock() {
             let size = values.len();
             match values.entry(attrs) {
                 Entry::Occupied(mut occupied_entry) => {
@@ -103,7 +117,7 @@ impl<T: Number<T>> Sum<T> {
             Err(_) => return (0, None),
         };
 
-        let n = values.len();
+        let n = values.len() + 1;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -111,6 +125,20 @@ impl<T: Number<T>> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
+        if self
+            .value_map
+            .has_no_value_attribute_value
+            .swap(false, Ordering::AcqRel)
+        {
+            s_data.data_points.push(DataPoint {
+                attributes: AttributeSet::default(),
+                start_time: Some(prev_start),
+                time: Some(t),
+                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                exemplars: vec![],
+            });
+        }
+
         for (attrs, value) in values.drain() {
             s_data.data_points.push(DataPoint {
                 attributes: attrs,
@@ -126,7 +154,10 @@ impl<T: Number<T>> Sum<T> {
             *start = t;
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 
     pub(crate) fn cumulative(
@@ -155,7 +186,7 @@ impl<T: Number<T>> Sum<T> {
             Err(_) => return (0, None),
         };
 
-        let n = values.len();
+        let n = values.len() + 1;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -163,6 +194,21 @@ impl<T: Number<T>> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
+
+        if self
+            .value_map
+            .has_no_value_attribute_value
+            .load(Ordering::Acquire)
+        {
+            s_data.data_points.push(DataPoint {
+                attributes: AttributeSet::default(),
+                start_time: Some(prev_start),
+                time: Some(t),
+                value: self.value_map.no_attribute_value.get_value(),
+                exemplars: vec![],
+            });
+        }
+
         // TODO: This will use an unbounded amount of memory if there
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
@@ -177,7 +223,10 @@ impl<T: Number<T>> Sum<T> {
             });
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 }
 
@@ -230,7 +279,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Err(_) => return (0, None),
         };
 
-        let n = values.len();
+        let n = values.len() + 1;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -241,6 +290,20 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Ok(r) => r,
             Err(_) => return (0, None),
         };
+
+        if self
+            .value_map
+            .has_no_value_attribute_value
+            .swap(false, Ordering::AcqRel)
+        {
+            s_data.data_points.push(DataPoint {
+                attributes: AttributeSet::default(),
+                start_time: Some(prev_start),
+                time: Some(t),
+                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                exemplars: vec![],
+            });
+        }
 
         let default = T::default();
         for (attrs, value) in values.drain() {
@@ -265,7 +328,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
         *reported = new_reported;
         drop(reported); // drop before values guard is dropped
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 
     pub(crate) fn cumulative(
@@ -295,7 +361,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Err(_) => return (0, None),
         };
 
-        let n = values.len();
+        let n = values.len() + 1;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -306,6 +372,20 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Ok(r) => r,
             Err(_) => return (0, None),
         };
+
+        if self
+            .value_map
+            .has_no_value_attribute_value
+            .load(Ordering::Acquire)
+        {
+            s_data.data_points.push(DataPoint {
+                attributes: AttributeSet::default(),
+                start_time: Some(prev_start),
+                time: Some(t),
+                value: self.value_map.no_attribute_value.get_value(),
+                exemplars: vec![],
+            });
+        }
 
         let default = T::default();
         for (attrs, value) in values.iter() {
@@ -325,6 +405,9 @@ impl<T: Number<T>> PrecomputedSum<T> {
         *reported = new_reported;
         drop(reported); // drop before values guard is dropped
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (
+            s_data.data_points.len(),
+            new_agg.map(|a| Box::new(a) as Box<_>),
+        )
     }
 }

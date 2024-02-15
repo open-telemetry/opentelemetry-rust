@@ -61,7 +61,11 @@ pub use view::*;
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
+    use crate::metrics::data::{ResourceMetrics, Temporality};
+    use crate::metrics::reader::TemporalitySelector;
+    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use opentelemetry::metrics::{Counter, UpDownCounter};
     use opentelemetry::{
         metrics::{MeterProvider as _, Unit},
         KeyValue,
@@ -427,5 +431,261 @@ mod tests {
         // find and validate the single datapoint
         let data_point = &sum.data_points[0];
         assert_eq!(data_point.value, 30);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_cumulative_counter() {
+        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
+        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce cumulative"
+        );
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_delta_counter() {
+        let mut test_context = TestContext::new(Some(Temporality::Delta));
+        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_cumulative_up_down_counter() {
+        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
+        let counter = test_context.i64_up_down_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(!sum.is_monotonic, "Should not produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce cumulative"
+        );
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_delta_up_down_counter() {
+        let mut test_context = TestContext::new(Some(Temporality::Delta));
+        let counter = test_context.i64_up_down_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(!sum.is_monotonic, "Should not produce monotonic.");
+        assert_eq!(sum.temporality, Temporality::Delta, "Should produce Delta");
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_cumulative_counter_value_added_after_export() {
+        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
+        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        counter.add(5, &[]);
+        test_context.flush_metrics();
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce cumulative"
+        );
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 55, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn no_attr_delta_counter_value_reset_after_export() {
+        let mut test_context = TestContext::new(Some(Temporality::Delta));
+        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        counter.add(5, &[]);
+        test_context.flush_metrics();
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Delta,
+            "Should produce cumulative"
+        );
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 5, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn second_delta_export_does_not_give_no_attr_value_if_add_not_called() {
+        let mut test_context = TestContext::new(Some(Temporality::Delta));
+        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        counter.add(50, &[KeyValue::new("a", "b")]);
+        test_context.flush_metrics();
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+
+        let no_attr_data_point = sum.data_points.iter().find(|x| x.attributes.is_empty());
+
+        assert!(
+            no_attr_data_point.is_none(),
+            "Expected no data points with no attributes"
+        );
+    }
+
+    struct TestContext {
+        exporter: InMemoryMetricsExporter,
+        meter_provider: SdkMeterProvider,
+
+        // Saving this on the test context for lifetime simplicity
+        resource_metrics: Vec<ResourceMetrics>,
+    }
+
+    impl TestContext {
+        fn new(temporality: Option<Temporality>) -> Self {
+            struct TestTemporalitySelector(Temporality);
+            impl TemporalitySelector for TestTemporalitySelector {
+                fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+                    self.0
+                }
+            }
+
+            let mut exporter = InMemoryMetricsExporterBuilder::new();
+            if let Some(temporality) = temporality {
+                exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
+            }
+
+            let exporter = exporter.build();
+            let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+            let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+            TestContext {
+                exporter,
+                meter_provider,
+                resource_metrics: vec![],
+            }
+        }
+
+        fn u64_counter(
+            &self,
+            meter_name: &'static str,
+            counter_name: &'static str,
+            unit_name: &'static str,
+        ) -> Counter<u64> {
+            self.meter_provider
+                .meter(meter_name)
+                .u64_counter(counter_name)
+                .with_unit(Unit::new(unit_name))
+                .init()
+        }
+
+        fn i64_up_down_counter(
+            &self,
+            meter_name: &'static str,
+            counter_name: &'static str,
+            unit_name: &'static str,
+        ) -> UpDownCounter<i64> {
+            self.meter_provider
+                .meter(meter_name)
+                .i64_up_down_counter(counter_name)
+                .with_unit(Unit::new(unit_name))
+                .init()
+        }
+
+        fn flush_metrics(&self) {
+            self.meter_provider.force_flush().unwrap();
+        }
+
+        fn get_aggregation<T: data::Aggregation>(
+            &mut self,
+            counter_name: &str,
+            unit_name: &str,
+        ) -> &T {
+            self.resource_metrics = self
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported");
+
+            assert!(
+                !self.resource_metrics.is_empty(),
+                "no metrics were exported"
+            );
+
+            // Get the latest resource metric in case of multiple flushes/exports
+            let resource_metric = self.resource_metrics.last().unwrap();
+
+            assert!(
+                !resource_metric.scope_metrics.is_empty(),
+                "No scope metrics in latest export"
+            );
+            assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
+
+            let metric = &resource_metric.scope_metrics[0].metrics[0];
+            assert_eq!(metric.name, counter_name);
+            assert_eq!(metric.unit.as_str(), unit_name);
+
+            metric
+                .data
+                .as_any()
+                .downcast_ref::<T>()
+                .expect("Failed to cast aggregation to expected type")
+        }
     }
 }
