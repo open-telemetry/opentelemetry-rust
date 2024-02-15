@@ -4,6 +4,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
+use pprof::criterion::{Output, PProfProfiler};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 // Run this benchmark with:
@@ -69,6 +70,17 @@ fn counter_add(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
+#[cfg(target_os = "windows")]
+criterion_group! {
+    name = benches;
+    config = Criterion::default();
+    targets = criterion_benchmark
+}
 
 criterion_main!(benches);
