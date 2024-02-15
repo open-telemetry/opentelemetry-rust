@@ -48,7 +48,6 @@ thiserror = { workspace = true }
 tokio-stream = { workspace = true, features = ["net"] }
 # need tokio runtime to run smoke tests.
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
-time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
