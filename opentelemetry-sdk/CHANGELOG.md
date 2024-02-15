@@ -9,7 +9,7 @@
 - [#1503](https://github.com/open-telemetry/opentelemetry-rust/pull/1503) Make the documentation for In-Memory exporters visible.
 
 - [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526) 
-Optimize Resource Sharing Across Exporters with Arc Implementation
+Performance Improvement : Creating Spans and LogRecords are now faster, by avoiding expensive cloning of `Resource` for every Span/LogRecord.
 
 ### Changed
 
