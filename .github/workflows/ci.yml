@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-10-10
+          toolchain: nightly-2024-02-07
           components: rustfmt
           override: true
       - name: external-type-check
