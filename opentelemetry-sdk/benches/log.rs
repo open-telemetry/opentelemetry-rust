@@ -7,11 +7,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{AnyValue, LogRecord, LogResult, Logger, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::{Key, KeyValue};
+use opentelemetry::Key;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::{Config, LoggerProvider};
+use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
-use opentelemetry_sdk::Resource;
 
 #[derive(Debug)]
 struct VoidExporter;
