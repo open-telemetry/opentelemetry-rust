@@ -5,9 +5,6 @@
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -55,9 +52,6 @@ pub enum LogExporterBuilder {
     /// Tonic log exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
-    /// Grpc log exporter builder
-    #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioExporterBuilder),
     /// Http log exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
@@ -69,8 +63,6 @@ impl LogExporterBuilder {
         match self {
             #[cfg(feature = "grpc-tonic")]
             LogExporterBuilder::Tonic(builder) => builder.build_log_exporter(),
-            #[cfg(feature = "grpc-sys")]
-            LogExporterBuilder::Grpcio(builder) => builder.build_log_exporter(),
             #[cfg(feature = "http-proto")]
             LogExporterBuilder::Http(builder) => builder.build_log_exporter(),
         }
@@ -81,13 +73,6 @@ impl LogExporterBuilder {
 impl From<TonicExporterBuilder> for LogExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         LogExporterBuilder::Tonic(exporter)
-    }
-}
-
-#[cfg(feature = "grpc-sys")]
-impl From<GrpcioExporterBuilder> for LogExporterBuilder {
-    fn from(exporter: GrpcioExporterBuilder) -> Self {
-        LogExporterBuilder::Grpcio(exporter)
     }
 }
 
