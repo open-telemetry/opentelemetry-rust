@@ -2,8 +2,6 @@
 //!
 //! OTLP supports sending data via different protocols and formats.
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
@@ -33,13 +31,10 @@ pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION
 #[cfg(feature = "http-proto")]
 /// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
-#[cfg(all(
-    any(feature = "grpc-tonic", feature = "grpcio"),
-    not(feature = "http-proto")
-))]
+#[cfg(all(feature = "grpc-tonic", not(feature = "http-proto")))]
 /// Default protocol, using grpc as http-proto feature is not enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
-#[cfg(not(any(any(feature = "grpc-tonic", feature = "grpcio", feature = "http-proto"))))]
+#[cfg(not(any(any(feature = "grpc-tonic", feature = "http-proto"))))]
 /// Default protocol if no features are enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
 
@@ -55,8 +50,6 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
-#[cfg(feature = "grpc-sys")]
-pub(crate) mod grpcio;
 #[cfg(feature = "http-proto")]
 pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
@@ -132,7 +125,7 @@ fn default_endpoint(protocol: Protocol) -> String {
 }
 
 /// default user-agent headers
-#[cfg(any(feature = "grpc-tonic", feature = "grpc-sys", feature = "http-proto"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
 fn default_headers() -> std::collections::HashMap<String, String> {
     let mut headers = std::collections::HashMap::new();
     headers.insert(
@@ -150,13 +143,6 @@ pub trait HasExportConfig {
 
 #[cfg(feature = "grpc-tonic")]
 impl HasExportConfig for TonicExporterBuilder {
-    fn export_config(&mut self) -> &mut ExportConfig {
-        &mut self.exporter_config
-    }
-}
-
-#[cfg(feature = "grpc-sys")]
-impl HasExportConfig for GrpcioExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
         &mut self.exporter_config
     }

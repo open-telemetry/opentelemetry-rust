@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Remove support for grpcio transport (#1534)
+
 ## v0.14.0
 
 ### Added
