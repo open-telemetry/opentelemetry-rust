@@ -1,18 +1,16 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
+use opentelemetry::metrics::BoundSyncUpDownCounter;
 use opentelemetry::{
     metrics::{
-        AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
-        SyncUpDownCounter, Unit,
+        AsyncInstrument, BoundSyncCounter, MetricsError, Result, SyncCounter, SyncGauge,
+        SyncHistogram, SyncUpDownCounter, Unit,
     },
     Key, KeyValue,
 };
 
-use crate::{
-    attributes::AttributeSet,
-    instrumentation::Scope,
-    metrics::{aggregation::Aggregation, internal::Measure},
-};
+use crate::metrics::internal::{BoundedMeasure, MeasureSet};
+use crate::{attributes::AttributeSet, instrumentation::Scope, metrics::aggregation::Aggregation};
 
 pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
@@ -255,37 +253,77 @@ impl InstrumentId {
 }
 
 pub(crate) struct ResolvedMeasures<T> {
-    pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
+    pub(crate) measure_sets: Vec<MeasureSet<T>>,
 }
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+        for set in &self.measure_sets {
+            set.measure.call(val, AttributeSet::from(attrs))
         }
+    }
+
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<dyn BoundSyncCounter<T> + Send + Sync> {
+        Arc::new(BoundResolveMeasures::new(attributes, &self.measure_sets))
     }
 }
 
 impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+        for set in &self.measure_sets {
+            set.measure.call(val, AttributeSet::from(attrs))
         }
+    }
+
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<dyn BoundSyncUpDownCounter<T> + Send + Sync> {
+        Arc::new(BoundResolveMeasures::new(attributes, &self.measure_sets))
     }
 }
 
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+        for set in &self.measure_sets {
+            set.measure.call(val, AttributeSet::from(attrs))
         }
     }
 }
 
 impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
+        for set in &self.measure_sets {
+            set.measure.call(val, AttributeSet::from(attrs))
+        }
+    }
+}
+
+pub(crate) struct BoundResolveMeasures<T> {
+    pub(crate) measures: Vec<Arc<dyn BoundedMeasure<T>>>,
+}
+
+impl<T: Copy + 'static> BoundResolveMeasures<T> {
+    fn new(attrs: &[KeyValue], measure_sets: &[MeasureSet<T>]) -> Self {
+        let attrs = AttributeSet::from(attrs);
+        let measures = measure_sets
+            .iter()
+            .map(|s| s.bound_measure_generator.generate(attrs.clone()))
+            .collect::<Vec<_>>();
+
+        BoundResolveMeasures { measures }
+    }
+}
+
+impl<T: Copy + 'static> BoundSyncCounter<T> for BoundResolveMeasures<T> {
+    fn add(&self, value: T) {
         for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
+            measure.call(value);
+        }
+    }
+}
+
+impl<T: Copy + 'static> BoundSyncUpDownCounter<T> for BoundResolveMeasures<T> {
+    fn add(&self, value: T) {
+        for measure in &self.measures {
+            measure.call(value);
         }
     }
 }
@@ -328,7 +366,7 @@ impl<T> Eq for ObservableId<T> {}
 #[derive(Clone)]
 pub(crate) struct Observable<T> {
     pub(crate) id: ObservableId<T>,
-    measures: Vec<Arc<dyn Measure<T>>>,
+    measure_sets: Vec<MeasureSet<T>>,
 }
 
 impl<T> Observable<T> {
@@ -338,7 +376,7 @@ impl<T> Observable<T> {
         name: Cow<'static, str>,
         description: Cow<'static, str>,
         unit: Unit,
-        measures: Vec<Arc<dyn Measure<T>>>,
+        measures: Vec<MeasureSet<T>>,
     ) -> Self {
         Self {
             id: ObservableId {
@@ -351,7 +389,7 @@ impl<T> Observable<T> {
                 },
                 _marker: marker::PhantomData,
             },
-            measures,
+            measure_sets: measures,
         }
     }
 
@@ -362,7 +400,7 @@ impl<T> Observable<T> {
     /// any aggregators. Also, an error is returned if scope defines a Meter other
     /// than the observable it was created by.
     pub(crate) fn registerable(&self, scope: &Scope) -> Result<()> {
-        if self.measures.is_empty() {
+        if self.measure_sets.is_empty() {
             return Err(MetricsError::Other(EMPTY_MEASURE_MSG.into()));
         }
         if &self.id.inner.scope != scope {
@@ -378,8 +416,8 @@ impl<T> Observable<T> {
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
     fn observe(&self, measurement: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(measurement, AttributeSet::from(attrs))
+        for set in &self.measure_sets {
+            set.measure.call(measurement, AttributeSet::from(attrs))
         }
     }
 

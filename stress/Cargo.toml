@@ -9,6 +9,11 @@ name = "metrics"
 path = "src/metrics.rs"
 doc = false
 
+[[bin]] # Bin to run the metrics with bounded counters stress tests
+name = "metrics_bounded"
+path = "src/metrics_bounded.rs"
+doc = false
+
 [[bin]] # Bin to run the logs stress tests
 name = "logs"
 path = "src/logs.rs"

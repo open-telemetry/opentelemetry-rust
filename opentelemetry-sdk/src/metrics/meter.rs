@@ -13,11 +13,12 @@ use opentelemetry::{
 };
 
 use crate::instrumentation::Scope;
+use crate::metrics::internal::MeasureSet;
 use crate::metrics::{
     instrument::{
         Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
     },
-    internal::{self, Number},
+    internal::Number,
     pipeline::{Pipelines, Resolver},
 };
 
@@ -735,7 +736,7 @@ where
     ) -> Result<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
         Ok(ResolvedMeasures {
-            measures: aggregators,
+            measure_sets: aggregators,
         })
     }
 
@@ -745,7 +746,7 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> Result<Vec<MeasureSet<T>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),
