@@ -34,7 +34,7 @@ opentelemetry-http = { version = "0.10", path = "../opentelemetry-http" }
 opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-typed-builder = "0.12"
+typed-builder = "0.18"
 http = { workspace = true }
 reqwest = { workspace = true, optional = true}
 thiserror = { workspace = true }
