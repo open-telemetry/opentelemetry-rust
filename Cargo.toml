@@ -17,7 +17,6 @@ members = [
     "opentelemetry-zipkin",
     "opentelemetry-otlp/examples/basic-otlp",
     "opentelemetry-otlp/examples/basic-otlp-http",
-    "opentelemetry-otlp/examples/external-otlp-grpcio-async-std",
     "opentelemetry-otlp/tests/integration_test",
     "examples/metrics-basic",
     "examples/metrics-advanced",
@@ -39,18 +38,16 @@ debug = 1
 async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
-env_logger = "0.10"
+env_logger = "0.10" # env_logger requires a newer MSRV
 futures-core = "0.3"
 futures-executor = "0.3"
 futures-util = "0.3"
-grpcio = "0.12"
 hyper = "0.14"
 http = "0.2"
 isahc = "1.4"
 log = "0.4"
-one_cell = "1.13"
+once_cell = "1.13"
 ordered-float = "4.0"
-pin-project = "0.2"
 pin-project-lite = "0.2"
 prost = "0.11"
 rand = "0.8"

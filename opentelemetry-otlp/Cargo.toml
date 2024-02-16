@@ -28,7 +28,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = { workspace = true }
 futures-core = { workspace = true }
-grpcio = { workspace = true, optional = true }
 opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
@@ -49,7 +48,6 @@ thiserror = { workspace = true }
 tokio-stream = { workspace = true, features = ["net"] }
 # need tokio runtime to run smoke tests.
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
-time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
@@ -70,11 +68,6 @@ grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"
 gzip-tonic = ["tonic/gzip"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
-
-# grpc using grpcio
-grpc-sys = ["grpcio", "opentelemetry-proto/gen-grpcio"]
-openssl = ["grpcio/openssl"]
-openssl-vendored = ["grpcio/openssl-vendored"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
