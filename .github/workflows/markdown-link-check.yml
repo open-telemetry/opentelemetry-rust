@@ -22,4 +22,4 @@ jobs:
           find . -type f \
                  -name '*.md' \
                  -not -path '**/CHANGELOG.md' \
-               | xargs .github/scripts/markdown-link-check-with-retry.sh
+               | xargs ./scripts/markdown-link-check-with-retry.sh
