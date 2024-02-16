@@ -2,6 +2,10 @@
 
 ## vNext
 
+### Changed
+
+- Update to tonic 0.11 and prost 0.12 (#1536)
+
 ## v0.21.0
 
 ### Changed
