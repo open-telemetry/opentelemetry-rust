@@ -29,7 +29,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
         components: rustfmt
         profile: minimal
-    - uses: arduino/setup-protoc@v1
+    - uses: arduino/setup-protoc@v3
     - name: Test
       run: ./scripts/test.sh
   lint:
@@ -43,7 +43,7 @@ jobs:
         toolchain: stable
         components: rustfmt
         profile: minimal
-    - uses: arduino/setup-protoc@v1
+    - uses: arduino/setup-protoc@v3
     - uses: actions-rs/cargo@v1
       with:
         command: fmt
@@ -81,7 +81,7 @@ jobs:
         toolchain: stable
         components: rustfmt
         profile: minimal
-    - uses: arduino/setup-protoc@v1
+    - uses: arduino/setup-protoc@v3
     - name: Build
       run: |
         cd ${{ matrix.example }}
@@ -122,7 +122,7 @@ jobs:
           toolchain: nightly
           components: rustfmt
           override: true
-      - uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v3
       - name: doc
         run: cargo doc --no-deps --all-features
         env:
@@ -140,7 +140,7 @@ jobs:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
           override: true
-      - uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v3
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: cargo generate-lockfile
