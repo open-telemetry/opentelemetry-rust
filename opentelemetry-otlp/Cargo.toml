@@ -28,7 +28,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = { workspace = true }
 futures-core = { workspace = true }
-grpcio = { workspace = true, optional = true }
 opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
@@ -40,7 +39,6 @@ tonic = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
-surf = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
@@ -49,7 +47,6 @@ thiserror = { workspace = true }
 tokio-stream = { workspace = true, features = ["net"] }
 # need tokio runtime to run smoke tests.
 opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
-time = { version = "0.3", features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
@@ -71,17 +68,11 @@ gzip-tonic = ["tonic/gzip"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
 
-# grpc using grpcio
-grpc-sys = ["grpcio", "opentelemetry-proto/gen-grpcio"]
-openssl = ["grpcio/openssl"]
-openssl-vendored = ["grpcio/openssl-vendored"]
-
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-surf-client = ["surf", "opentelemetry-http/surf"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]

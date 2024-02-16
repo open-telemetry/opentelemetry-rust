@@ -61,7 +61,7 @@
 //! ```toml
 //! [dependencies]
 //! opentelemetry_sdk = { version = "*", features = ["async-std"] }
-//! opentelemetry-otlp = { version = "*", features = ["grpc-sys"] }
+//! opentelemetry-otlp = { version = "*", features = ["grpc-tonic"] }
 //! ```
 //!
 //! ```no_run
@@ -98,19 +98,12 @@
 //! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
 //!
-//! For users uses `grpcio` as grpc layer:
-//! * `grpc-sys`: Use `grpcio` as grpc layer.
-//! * `openssl`: Enable TLS supported by OpenSSL
-//! * `openssl-vendored`: Same as `openssl` but it will build openssl from bundled sources.
-//!
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS.
-//! * `surf-client`: Use surf http client.
-//!
 //!
 //! # Kitchen Sink Full Configuration
 //!
@@ -197,22 +190,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! # Grpc libraries comparison
-//!
-//! The table below provides a short comparison between `grpcio` and `tonic`, two
-//! of the most popular grpc libraries in Rust. Users can choose between them when
-//! working with otlp and grpc.
-//!
-//! | Project | [hyperium/tonic](https://github.com/hyperium/tonic) | [tikv/grpc-rs](https://github.com/tikv/grpc-rs) |
-//! |---|---|---|
-//! | Feature name | --features=default | --features=grpc-sys |
-//! | gRPC library | [`tonic`](https://crates.io/crates/tonic) | [`grpcio`](https://crates.io/crates/grpcio) |
-//! | Transport | [hyperium/hyper](https://github.com/hyperium/hyper) (Rust) | [grpc/grpc](https://github.com/grpc/grpc) (C++ binding) |
-//! | TLS support | yes | yes |
-//! | TLS optional | yes | yes |
-//! | TLS library | rustls | OpenSSL |
-//! | Supported .proto generator | [`prost`](https://crates.io/crates/prost) | [`prost`](https://crates.io/crates/prost), [`protobuf`](https://crates.io/crates/protobuf) |
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -270,9 +247,6 @@ pub use crate::exporter::{
 
 use opentelemetry_sdk::export::ExportError;
 
-#[cfg(feature = "grpc-sys")]
-pub use crate::exporter::grpcio::{Credentials, GrpcioConfig, GrpcioExporterBuilder};
-
 #[cfg(feature = "http-proto")]
 pub use crate::exporter::http::HttpExporterBuilder;
 
@@ -298,15 +272,6 @@ impl OtlpExporterPipeline {
     #[cfg(feature = "grpc-tonic")]
     pub fn tonic(self) -> TonicExporterBuilder {
         TonicExporterBuilder::default()
-    }
-
-    /// Use grpcio as grpc layer, return a `GrpcioExporterBuilder` to config the grpcio and build the exporter.
-    ///
-    /// This exporter can only be used in `tracing` pipeline. Support for `metrics` pipeline will be
-    /// added in the future.
-    #[cfg(feature = "grpc-sys")]
-    pub fn grpcio(self) -> GrpcioExporterBuilder {
-        GrpcioExporterBuilder::default()
     }
 
     /// Use HTTP as transport layer, return a `HttpExporterBuilder` to config the http transport
@@ -362,11 +327,6 @@ pub enum Error {
         /// error message
         message: String,
     },
-
-    /// Wrap errors from grpcio.
-    #[cfg(feature = "grpc-sys")]
-    #[error("grpcio error {0}")]
-    Grpcio(#[from] grpcio::Error),
 
     /// Http requests failed because no http client is provided.
     #[cfg(feature = "http-proto")]

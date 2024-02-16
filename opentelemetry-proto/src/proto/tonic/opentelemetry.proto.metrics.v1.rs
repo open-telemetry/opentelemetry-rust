@@ -91,7 +91,7 @@ pub struct ScopeMetrics {
 ///   |data        |---> |Gauge, Sum, Histogram, Summary, ... |
 ///   +------------+     +------------------------------------+
 ///
-///     Data [One of Gauge, Sum, Histogram, Summary, ...]
+///     Data \[One of Gauge, Sum, Histogram, Summary, ...\]
 ///   +-----------+
 ///   |...        |  // Metadata about the Data.
 ///   |points     |--+
@@ -516,7 +516,7 @@ pub struct ExponentialHistogramDataPoint {
     pub max: ::core::option::Option<f64>,
     /// ZeroThreshold may be optionally set to convey the width of the zero
     /// region. Where the zero region is defined as the closed interval
-    /// [-ZeroThreshold, ZeroThreshold].
+    /// \[-ZeroThreshold, ZeroThreshold\].
     /// When ZeroThreshold is 0, zero count bucket stores values that cannot be
     /// expressed using the standard exponential formula as well as values that
     /// have been rounded to zero.
@@ -617,7 +617,7 @@ pub mod summary_data_point {
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
-        /// [0.0, 1.0].
+        /// \[0.0, 1.0\].
         #[prost(double, tag = "1")]
         pub quantile: f64,
         /// The value at the given quantile of a distribution.

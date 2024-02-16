@@ -26,7 +26,6 @@ num_cpus = "1.15.0"
 opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace"] }
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
-opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
 rand = { version = "0.8.4", features = ["small_rng"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }

@@ -100,66 +100,6 @@ mod reqwest {
     }
 }
 
-#[cfg(feature = "surf")]
-pub mod surf {
-    use std::str::FromStr;
-
-    use http::{header::HeaderName, HeaderMap, HeaderValue};
-
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, ResponseExt};
-
-    #[derive(Debug)]
-    pub struct BasicAuthMiddleware(pub surf::http::auth::BasicAuth);
-
-    #[async_trait]
-    impl surf::middleware::Middleware for BasicAuthMiddleware {
-        async fn handle(
-            &self,
-            mut req: surf::Request,
-            client: surf::Client,
-            next: surf::middleware::Next<'_>,
-        ) -> surf::Result<surf::Response> {
-            req.insert_header(self.0.name(), self.0.value());
-            next.run(req, client).await
-        }
-    }
-
-    #[async_trait]
-    impl HttpClient for surf::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let (parts, body) = request.into_parts();
-            let method = parts.method.as_str().parse()?;
-            let uri = parts.uri.to_string().parse()?;
-
-            let mut request_builder = surf::Request::builder(method, uri).body(body);
-            let mut prev_name = None;
-            for (new_name, value) in parts.headers.into_iter() {
-                let name = new_name.or(prev_name).expect("the first time new_name should be set and from then on we always have a prev_name");
-                request_builder = request_builder.header(name.as_str(), value.to_str()?);
-                prev_name = Some(name);
-            }
-
-            let mut response = self.send(request_builder).await?;
-            let mut headers = HeaderMap::new();
-            for header_name in response.header_names() {
-                for header_value in &response[header_name.to_string().as_str()] {
-                    headers.append(
-                        HeaderName::from_str(&header_name.to_string())?,
-                        HeaderValue::from_str(header_value.as_str())?,
-                    );
-                }
-            }
-            let mut http_response = Response::builder()
-                .status(response.status() as u16)
-                .body(response.body_bytes().await?.into())?;
-
-            *http_response.headers_mut() = headers;
-
-            Ok(http_response.error_for_status()?)
-        }
-    }
-}
-
 #[cfg(feature = "isahc")]
 mod isahc {
     use crate::ResponseExt;

@@ -102,17 +102,6 @@ mod tests {
                 }),
             ),
             (
-                "collector_surf",
-                Box::new(|| {
-                    opentelemetry_jaeger::new_collector_pipeline()
-                        .with_endpoint(collector_endpoint)
-                        .with_surf()
-                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_surf"))
-                        .install_batch(opentelemetry_sdk::runtime::Tokio)
-                        .expect("cannot create tracer using default configuration")
-                }),
-            ),
-            (
                 "collector_hyper",
                 Box::new(|| {
                     opentelemetry_jaeger::new_collector_pipeline()
