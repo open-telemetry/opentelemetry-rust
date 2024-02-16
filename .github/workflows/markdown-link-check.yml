@@ -5,6 +5,8 @@ on:
   push:
     branches:
     - main
+    paths:
+      - '**/*.md'
 
 jobs:
   markdown-link-check:
