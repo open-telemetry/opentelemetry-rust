@@ -9,8 +9,6 @@ pub(crate) enum CollectorHttpClient {
     Hyper,
     #[cfg(feature = "isahc_collector_client")]
     Isahc,
-    #[cfg(feature = "surf_collector_client")]
-    Surf,
     #[cfg(feature = "reqwest_collector_client")]
     Reqwest,
     #[cfg(feature = "reqwest_blocking_collector_client")]
@@ -55,30 +53,6 @@ impl CollectorHttpClient {
                     pipeline_name: "collector",
                     reason: format!("cannot create isahc http client, {}", err),
                 })?;
-                Ok(Box::new(client))
-            }
-            #[cfg(feature = "surf_collector_client")]
-            CollectorHttpClient::Surf => {
-                use opentelemetry_http::surf::BasicAuthMiddleware;
-
-                let client: surf::Client = surf::Config::new()
-                    .set_timeout(Some(collector_timeout))
-                    .try_into()
-                    .map_err(|err| crate::Error::ConfigError {
-                        pipeline_name: "collector",
-                        config_name: "http_client",
-                        reason: format!("cannot create surf client. {}", err),
-                    })?;
-
-                let client = if let (Some(username), Some(password)) =
-                    (collector_username, collector_password)
-                {
-                    let auth = surf::http::auth::BasicAuth::new(username, password);
-                    client.with(BasicAuthMiddleware(auth))
-                } else {
-                    client
-                };
-
                 Ok(Box::new(client))
             }
             #[cfg(feature = "reqwest_blocking_collector_client")]

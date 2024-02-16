@@ -71,9 +71,7 @@
 //! crate. While this is compatible with both async and non-async projects, it
 //! is not optimal for high-performance async applications as it will block the
 //! executor thread. Consider using the `reqwest-client` (without blocking)
-//! or `surf-client` features if you are in the `tokio` or `async-std`
-//! ecosystems respectively, or select whichever client you prefer as shown
-//! below.
+//! if you are in the `tokio` ecosystem.
 //!
 //! Note that async http clients may require a specific async runtime to be
 //! available so be sure to match them appropriately.
@@ -99,7 +97,7 @@
 //! use std::error::Error;
 //! use hyper::{client::HttpConnector, Body};
 //!
-//! // `reqwest` and `surf` are supported through features, if you prefer an
+//! // `reqwest` is supported through a feature, if you prefer an
 //! // alternate http client you can add support by implementing `HttpClient` as
 //! // shown here.
 //! #[derive(Debug)]
@@ -161,7 +159,6 @@
 //! * `reqwest-blocking-client`: Export spans using the reqwest blocking http
 //!   client (enabled by default).
 //! * `reqwest-client`: Export spans using the reqwest non-blocking http client.
-//! * `surf-client`: Export spans using the surf non-blocking http client.
 //!
 //! ## Supported Rust Versions
 //!

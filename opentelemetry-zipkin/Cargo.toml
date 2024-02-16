@@ -24,7 +24,6 @@ default = ["reqwest-blocking-client", "reqwest/native-tls"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-surf-client = ["surf", "opentelemetry-http/surf"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -38,7 +37,6 @@ serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.12"
 http = { workspace = true }
 reqwest = { workspace = true, optional = true}
-surf = { workspace = true, optional = true}
 thiserror = { workspace = true }
 futures-core = { workspace = true }
 

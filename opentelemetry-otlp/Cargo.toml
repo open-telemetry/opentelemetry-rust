@@ -39,7 +39,6 @@ tonic = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
-surf = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
@@ -74,7 +73,6 @@ http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-mess
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-surf-client = ["surf", "opentelemetry-http/surf"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]
