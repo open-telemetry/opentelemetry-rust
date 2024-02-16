@@ -1,0 +1,23 @@
+name: Markdown link check
+
+on:
+  pull_request:
+  push:
+    branches:
+    - main
+
+jobs:
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install markdown-link-check
+        run: npm install -g markdown-link-check
+
+      - name: Run markdown-link-check
+        run: |
+          find . -type f \
+                 -name '*.md' \
+                 -not -path './CHANGELOG.md' \
+               | xargs .github/scripts/markdown-link-check-with-retry.sh
