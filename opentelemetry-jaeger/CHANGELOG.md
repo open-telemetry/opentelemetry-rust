@@ -9,6 +9,8 @@ Please check the [README](https://crates.io/crates/opentelemetry-jaeger) for mor
 
 ## vNext
 
+## v0.21.0
+
 ### Changed
 
 - Update to tonic 0.11 and prost 0.12 (#1536)

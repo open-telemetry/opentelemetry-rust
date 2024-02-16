@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger-propagator"
-version = "0.2.0"
+version = "0.1.0"
 description = "Jaeger propagator for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger-propagator"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger-propagator"
