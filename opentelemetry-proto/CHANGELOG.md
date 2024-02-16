@@ -2,6 +2,11 @@
 
 ## vNext
 
+### Changed
+
+- Update to tonic 0.11 and prost 0.12 (#1536)
+- Remove support for grpcio transport (#1534)
+
 ### Added
 
 - Add `schemars::JsonSchema` trait support with `with-schemars` feature (#1419)

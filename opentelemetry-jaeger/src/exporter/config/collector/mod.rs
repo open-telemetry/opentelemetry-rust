@@ -65,10 +65,9 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 /// implementation and relative configurations.
 ///
 /// - [hyper], requires `hyper_collector_client` feature enabled, use [`with_hyper`][CollectorPipeline::with_hyper] function to setup.
-/// - [surf], requires `surf_collector_client` feature enabled, use [`with_surf`][CollectorPipeline::with_surf] function to setup.
 /// - [isahc], requires `isahc_collector_client` feature enabled, use [`with_isahc`][CollectorPipeline::with_isahc] function to setup.
 /// - [reqwest], requires `reqwest_collector_client` feature enabled,  use [`with_reqwest`][CollectorPipeline::with_reqwest] function to setup.
-/// - [reqwest blocking client], requires `reqwest_blocking_collector_client` feature enabled, use [`with_reqwest_blocking`][CollectorPipeline::with_surf] function to setup.
+/// - [reqwest blocking client], requires `reqwest_blocking_collector_client` feature enabled, use [`with_reqwest_blocking`][CollectorPipeline::with_reqwest_blocking] function to setup.
 ///
 /// Additionally you can enable https
 ///
@@ -272,17 +271,6 @@ impl CollectorPipeline {
         Self {
             client_config: ClientConfig::Http {
                 client_type: CollectorHttpClient::Isahc,
-            },
-            ..self
-        }
-    }
-
-    /// Use surf http client in the exporter.
-    #[cfg(feature = "surf_collector_client")]
-    pub fn with_surf(self) -> Self {
-        Self {
-            client_config: ClientConfig::Http {
-                client_type: CollectorHttpClient::Surf,
             },
             ..self
         }

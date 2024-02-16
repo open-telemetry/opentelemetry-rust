@@ -19,9 +19,6 @@ use sdk::runtime::RuntimeChannel;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -189,9 +186,6 @@ pub enum SpanExporterBuilder {
     /// Tonic span exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
-    /// Grpc span exporter builder
-    #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioExporterBuilder),
     /// Http span exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
@@ -203,8 +197,6 @@ impl SpanExporterBuilder {
         match self {
             #[cfg(feature = "grpc-tonic")]
             SpanExporterBuilder::Tonic(builder) => builder.build_span_exporter(),
-            #[cfg(feature = "grpc-sys")]
-            SpanExporterBuilder::Grpcio(builder) => builder.build_span_exporter(),
             #[cfg(feature = "http-proto")]
             SpanExporterBuilder::Http(builder) => builder.build_span_exporter(),
         }
@@ -215,13 +207,6 @@ impl SpanExporterBuilder {
 impl From<TonicExporterBuilder> for SpanExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         SpanExporterBuilder::Tonic(exporter)
-    }
-}
-
-#[cfg(feature = "grpc-sys")]
-impl From<GrpcioExporterBuilder> for SpanExporterBuilder {
-    fn from(exporter: GrpcioExporterBuilder) -> Self {
-        SpanExporterBuilder::Grpcio(exporter)
     }
 }
 

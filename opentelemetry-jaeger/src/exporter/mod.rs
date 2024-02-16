@@ -2,8 +2,6 @@
 //!
 // Linting isn't detecting that it's used seems like linting bug.
 #[allow(unused_imports)]
-#[cfg(feature = "surf_collector_client")]
-use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
