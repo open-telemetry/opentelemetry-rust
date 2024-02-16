@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-semantic-conventions"
-version = "0.13.0"
+version = "0.14.0"
 description = "Semantic conventions for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
@@ -20,5 +20,5 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" } # for doctests
-opentelemetry_sdk = { features = ["trace"], path = "../opentelemetry-sdk" } # for doctests
+opentelemetry = { version = "0.22", default-features = false, path = "../opentelemetry" } # for doctests
+opentelemetry_sdk = { version = "0.22", features = ["trace"], path = "../opentelemetry-sdk" } # for doctests
