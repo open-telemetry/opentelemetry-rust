@@ -13,6 +13,7 @@ use opentelemetry::{
 };
 
 use crate::instrumentation::Scope;
+use crate::metrics::internal::{AtomicTracker, AtomicallyUpdate};
 use crate::metrics::{
     instrument::{
         Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
@@ -20,7 +21,6 @@ use crate::metrics::{
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
-use crate::metrics::internal::{AtomicallyUpdate, F64AtomicTracker};
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
@@ -167,7 +167,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
-            Arc::new(F64AtomicTracker::new()),
+            Arc::new(f64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -278,7 +278,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
-            Arc::new(F64AtomicTracker::new()),
+            Arc::new(f64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -742,7 +742,8 @@ where
         unit: Unit,
     ) -> Result<ResolvedMeasures<T>> {
         let no_attribute_value = Arc::new(T::new_atomic_tracker());
-        let aggregators = self.measures(kind, name, description, unit, no_attribute_value.clone())?;
+        let aggregators =
+            self.measures(kind, name, description, unit, no_attribute_value.clone())?;
         Ok(ResolvedMeasures {
             measures: aggregators,
             no_attribute_value,
@@ -755,7 +756,7 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
-        no_attribute_value: Arc<T::AtomicTracker>,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
     ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,

@@ -13,7 +13,7 @@ use super::{
     histogram::Histogram,
     last_value::LastValue,
     sum::{PrecomputedSum, Sum},
-    Number,
+    AtomicTracker, Number,
 };
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
@@ -150,7 +150,11 @@ impl<T: Number<T>> AggregateBuilder<T> {
     }
 
     /// Builds a sum aggregate function input and output.
-    pub(crate) fn sum(&self, monotonic: bool, no_attribute_value: Arc<T::AtomicTracker>) -> (impl Measure<T>, impl ComputeAggregation) {
+    pub(crate) fn sum(
+        &self,
+        monotonic: bool,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
+    ) -> (impl Measure<T>, impl ComputeAggregation) {
         let s = Arc::new(Sum::new(monotonic, no_attribute_value));
         let agg_sum = Arc::clone(&s);
         let t = self.temporality;
@@ -213,11 +217,11 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::AtomicU64;
     use crate::metrics::data::{
         DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
         Histogram, HistogramDataPoint, Sum,
     };
+    use crate::metrics::internal::AtomicallyUpdate;
     use std::time::SystemTime;
 
     use super::*;
@@ -299,7 +303,8 @@ mod tests {
     #[test]
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None).sum(true, Arc::new(AtomicU64::new(0)));
+            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None)
+                .sum(true, Arc::new(u64::new_atomic_tracker()));
             let mut a = Sum {
                 data_points: vec![
                     DataPoint {

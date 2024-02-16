@@ -8,12 +8,12 @@ use opentelemetry::{
     Key, KeyValue,
 };
 
+use crate::metrics::internal::{AtomicTracker, Number};
 use crate::{
     attributes::AttributeSet,
     instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
-use crate::metrics::internal::{AtomicTracker, Number};
 
 pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
@@ -257,7 +257,7 @@ impl InstrumentId {
 
 pub(crate) struct ResolvedMeasures<T: Number<T>> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
-    pub(crate) no_attribute_value: Arc<T::AtomicTracker>
+    pub(crate) no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
 }
 
 impl<T: Copy + 'static + Number<T>> SyncCounter<T> for ResolvedMeasures<T> {

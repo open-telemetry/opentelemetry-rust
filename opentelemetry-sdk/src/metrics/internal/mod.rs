@@ -5,8 +5,9 @@ mod last_value;
 mod sum;
 
 use core::fmt;
+use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
@@ -14,16 +15,22 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
 /// different types have different backing atomic mechanisms
-pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
+pub(crate) trait AtomicValue<T>: Sync + Send + 'static {
     fn add(&self, value: T);
-    fn get_value(&self) -> T;
-    fn get_and_reset_value(&self) -> T;
+    fn get_value(&self, reset: bool) -> T;
+}
+
+/// Keeps track if an atomic value has had a value set since the last reset
+pub(crate) struct AtomicTracker<N, T: AtomicValue<N>> {
+    value: T,
+    has_value: AtomicBool,
+    _number: PhantomData<N>, // Required for the N generic to be considered used
 }
 
 /// Marks a type that can have an atomic tracker generated for it
 pub(crate) trait AtomicallyUpdate<T> {
-    type AtomicTracker: AtomicTracker<T>;
-    fn new_atomic_tracker() -> Self::AtomicTracker;
+    type AtomicValue: AtomicValue<T>;
+    fn new_atomic_tracker() -> AtomicTracker<T, Self::AtomicValue>;
 }
 
 pub(crate) trait Number<T>:
@@ -89,47 +96,47 @@ impl Number<f64> for f64 {
     }
 }
 
-impl AtomicTracker<u64> for AtomicU64 {
+impl AtomicValue<u64> for AtomicU64 {
     fn add(&self, value: u64) {
         self.fetch_add(value, Ordering::Relaxed);
     }
 
-    fn get_value(&self) -> u64 {
-        self.load(Ordering::Relaxed)
-    }
-
-    fn get_and_reset_value(&self) -> u64 {
-        self.swap(0, Ordering::Relaxed)
+    fn get_value(&self, reset: bool) -> u64 {
+        if reset {
+            self.swap(0, Ordering::Relaxed)
+        } else {
+            self.load(Ordering::Relaxed)
+        }
     }
 }
 
 impl AtomicallyUpdate<u64> for u64 {
-    type AtomicTracker = AtomicU64;
+    type AtomicValue = AtomicU64;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
-        AtomicU64::new(0)
+    fn new_atomic_tracker() -> AtomicTracker<u64, Self::AtomicValue> {
+        AtomicTracker::new(AtomicU64::new(0))
     }
 }
 
-impl AtomicTracker<i64> for AtomicI64 {
+impl AtomicValue<i64> for AtomicI64 {
     fn add(&self, value: i64) {
         self.fetch_add(value, Ordering::Relaxed);
     }
 
-    fn get_value(&self) -> i64 {
-        self.load(Ordering::Relaxed)
-    }
-
-    fn get_and_reset_value(&self) -> i64 {
-        self.swap(0, Ordering::Relaxed)
+    fn get_value(&self, reset: bool) -> i64 {
+        if reset {
+            self.swap(0, Ordering::Relaxed)
+        } else {
+            self.load(Ordering::Relaxed)
+        }
     }
 }
 
 impl AtomicallyUpdate<i64> for i64 {
-    type AtomicTracker = AtomicI64;
+    type AtomicValue = AtomicI64;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
-        AtomicI64::new(0)
+    fn new_atomic_tracker() -> AtomicTracker<i64, Self::AtomicValue> {
+        AtomicTracker::new(AtomicI64::new(0))
     }
 }
 
@@ -145,31 +152,58 @@ impl F64AtomicTracker {
     }
 }
 
-impl AtomicTracker<f64> for F64AtomicTracker {
+impl AtomicValue<f64> for F64AtomicTracker {
     fn add(&self, value: f64) {
         let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
         *guard += value;
     }
 
-    fn get_value(&self) -> f64 {
-        let guard = self.inner.lock().expect("F64 mutex was poisoned");
-        *guard
-    }
-
-    fn get_and_reset_value(&self) -> f64 {
+    fn get_value(&self, reset: bool) -> f64 {
         let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
-        let value = *guard;
-        *guard = 0.0;
-
-        value
+        if reset {
+            let value = *guard;
+            *guard = 0.0;
+            value
+        } else {
+            *guard
+        }
     }
 }
 
 impl AtomicallyUpdate<f64> for f64 {
-    type AtomicTracker = F64AtomicTracker;
+    type AtomicValue = F64AtomicTracker;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
-        F64AtomicTracker::new()
+    fn new_atomic_tracker() -> AtomicTracker<f64, Self::AtomicValue> {
+        AtomicTracker::new(F64AtomicTracker::new())
+    }
+}
+
+impl<N, T: AtomicValue<N>> AtomicTracker<N, T> {
+    fn new(value: T) -> Self {
+        AtomicTracker {
+            value,
+            has_value: AtomicBool::new(false),
+            _number: PhantomData::default(),
+        }
+    }
+
+    pub(crate) fn add(&self, value: N) {
+        self.value.add(value);
+        self.has_value.store(true, Ordering::Release);
+    }
+
+    pub(crate) fn get_value(&self, reset: bool) -> Option<N> {
+        let has_value = if reset {
+            self.has_value.swap(false, Ordering::AcqRel)
+        } else {
+            self.has_value.load(Ordering::Acquire)
+        };
+
+        if has_value {
+            Some(self.value.get_value(reset))
+        } else {
+            None
+        }
     }
 }
 
@@ -183,7 +217,7 @@ mod tests {
         atomic.add(15);
         atomic.add(10);
 
-        let value = atomic.get_value();
+        let value = atomic.get_value(false).unwrap();
         assert_eq!(value, 25);
     }
 
@@ -192,8 +226,8 @@ mod tests {
         let atomic = u64::new_atomic_tracker();
         atomic.add(15);
 
-        let value = atomic.get_and_reset_value();
-        let value2 = atomic.get_value();
+        let value = atomic.get_value(true).unwrap();
+        let value2 = atomic.get_value(false).unwrap();
 
         assert_eq!(value, 15, "Incorrect first value");
         assert_eq!(value2, 0, "Incorrect second value");
@@ -205,7 +239,7 @@ mod tests {
         atomic.add(15);
         atomic.add(-10);
 
-        let value = atomic.get_value();
+        let value = atomic.get_value(false).unwrap();
         assert_eq!(value, 5);
     }
 
@@ -214,8 +248,8 @@ mod tests {
         let atomic = i64::new_atomic_tracker();
         atomic.add(15);
 
-        let value = atomic.get_and_reset_value();
-        let value2 = atomic.get_value();
+        let value = atomic.get_value(true).unwrap();
+        let value2 = atomic.get_value(false).unwrap();
 
         assert_eq!(value, 15, "Incorrect first value");
         assert_eq!(value2, 0, "Incorrect second value");
@@ -227,7 +261,7 @@ mod tests {
         atomic.add(15.3);
         atomic.add(10.4);
 
-        let value = atomic.get_value();
+        let value = atomic.get_value(false).unwrap();
 
         assert!(f64::abs(25.7 - value) < 0.0001);
     }
@@ -237,8 +271,8 @@ mod tests {
         let atomic = f64::new_atomic_tracker();
         atomic.add(15.5);
 
-        let value = atomic.get_and_reset_value();
-        let value2 = atomic.get_value();
+        let value = atomic.get_value(true).unwrap();
+        let value2 = atomic.get_value(false).unwrap();
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
         assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");

@@ -11,6 +11,7 @@ use opentelemetry::{
     KeyValue,
 };
 
+use crate::metrics::internal::AtomicTracker;
 use crate::{
     instrumentation::Scope,
     metrics::{
@@ -265,7 +266,11 @@ where
     ///
     /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
     /// that instrument is not inserted nor returned.
-    fn instrument(&self, inst: Instrument, no_attribute_value: Arc<T::AtomicTracker>) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    fn instrument(
+        &self,
+        inst: Instrument,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -288,14 +293,16 @@ where
                 continue; // This aggregator has already been added
             }
 
-            let agg = match self.cached_aggregator(&inst.scope, kind, stream, no_attribute_value.clone()) {
-                Ok(Some(agg)) => agg,
-                Ok(None) => continue, // Drop aggregator.
-                Err(err) => {
-                    errs.push(err);
-                    continue;
-                }
-            };
+            let agg =
+                match self.cached_aggregator(&inst.scope, kind, stream, no_attribute_value.clone())
+                {
+                    Ok(Some(agg)) => agg,
+                    Ok(None) => continue, // Drop aggregator.
+                    Err(err) => {
+                        errs.push(err);
+                        continue;
+                    }
+                };
             seen.insert(id);
             measures.push(agg);
         }
@@ -353,7 +360,7 @@ where
         scope: &Scope,
         kind: InstrumentKind,
         mut stream: Stream,
-        no_attribute_value: Arc<T::AtomicTracker>,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
     ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {
         let mut agg = stream
             .aggregation
@@ -461,7 +468,7 @@ fn aggregate_fn<T: Number<T>>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
-    no_attribute_value: Arc<T::AtomicTracker>,
+    no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
 ) -> Result<Option<AggregateFns<T>>> {
     use aggregation::Aggregation;
     fn box_val<T>(
@@ -486,7 +493,9 @@ fn aggregate_fn<T: Number<T>>(
             let fns = match kind {
                 InstrumentKind::ObservableCounter => box_val(b.precomputed_sum(true)),
                 InstrumentKind::ObservableUpDownCounter => box_val(b.precomputed_sum(false)),
-                InstrumentKind::Counter | InstrumentKind::Histogram => box_val(b.sum(true, no_attribute_value)),
+                InstrumentKind::Counter | InstrumentKind::Histogram => {
+                    box_val(b.sum(true, no_attribute_value))
+                }
                 _ => box_val(b.sum(false, no_attribute_value)),
             };
             Ok(Some(fns))
@@ -721,7 +730,11 @@ where
     }
 
     /// The measures that must be updated by the instrument defined by key.
-    pub(crate) fn measures(&self, id: Instrument, no_attribute_value: Arc<T::AtomicTracker>) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    pub(crate) fn measures(
+        &self,
+        id: Instrument,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
