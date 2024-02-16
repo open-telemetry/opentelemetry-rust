@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
 - Update to tonic 0.11 and prost 0.12 (#1536)
 
 ## v0.21.0

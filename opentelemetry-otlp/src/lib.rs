@@ -104,8 +104,6 @@
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS.
-//! * `surf-client`: Use surf http client.
-//!
 //!
 //! # Kitchen Sink Full Configuration
 //!
