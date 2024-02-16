@@ -14,7 +14,7 @@ const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
 /// general SDK configuration from environment.
 ///
 /// See
-/// [semantic conventions](https://github.com/open-telemetry/opentelemetry-specification/tree/master/specification/resource/semantic_conventions#telemetry-sdk)
+/// [semantic conventions](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md)
 /// for details.
 #[derive(Debug)]
 pub struct EnvResourceDetector {
