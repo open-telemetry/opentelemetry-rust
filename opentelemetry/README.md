@@ -71,7 +71,7 @@ In particular, the following crates are likely to be of interest:
 - [`opentelemetry-contrib`] provides additional exporters and propagators that
   are experimental.
 - [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-dynatrace`] *Deprecated, last release 0.4.0* provides additional exporters to [`Dynatrace`]. See [README](opentelemetry-dynatrace/README.md)
+- [`opentelemetry-dynatrace`] *Deprecated, last release 0.4.0* provides additional exporters to [`Dynatrace`]. See [README][`opentelemetry-dynatrace-readme`]
 - [`opentelemetry-http`] provides an interface for injecting and extracting
   trace information from [`http`] headers.
 - [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
@@ -119,6 +119,7 @@ above, please let us know! We'd love to add your project to the list!
 [`Dynatrace`]: https://www.dynatrace.com
 [`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
 [`opentelemetry-dynatrace`]: https://crates.io/crates/opentelemetry-dynatrace
+[`opentelemetry-dynatrace-readme`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/blob/main/opentelemetry-dynatrace/README.md
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 [`http`]: https://crates.io/crates/http
 
@@ -148,4 +149,4 @@ this policy.
 
 ## Contributing
 
-See the [contributing file](CONTRIBUTING.md).
+See the [contributing file](../CONTRIBUTING.md).

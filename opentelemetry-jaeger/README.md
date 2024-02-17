@@ -108,7 +108,7 @@ opentelemetry-jaeger = { version = "..", features = ["isahc_collector_client"] }
 
 Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 
-[`with_collector_endpoint`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html#method.with_collector_endpoint
+[`with_collector_endpoint`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/config/collector/struct.CollectorPipeline.html#method.with_endpoint
 
 ```rust
 // Note that this requires one of the following features enabled so that there is a default http client implementation
@@ -143,10 +143,11 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 ## Kitchen Sink Full Configuration
 
-[Example]((https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration)) showing how to override all configuration options. See the
-[`PipelineBuilder`] docs for details of each option.
+[`Example`] showing how to override all configuration options. See the
+[`AgentPipeline`] docs for details of each option.
 
-[`PipelineBuilder`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html
+[`Example`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration
+[`AgentPipeline`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/config/agent/struct.AgentPipeline.html
 
 ## Supported Rust Versions
 
