@@ -25,6 +25,6 @@ jobs:
           toolchain: stable
           components: rustfmt
           profile: minimal
-      - uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v3
       - name: Run integration tests using docker compose
         run: ./scripts/integration_tests.sh
