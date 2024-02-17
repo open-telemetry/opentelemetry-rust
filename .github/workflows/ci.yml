@@ -24,6 +24,16 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Mount Cargo cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
@@ -38,6 +48,16 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Mount Cargo cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -73,7 +93,7 @@ jobs:
         example: [opentelemetry-otlp/examples/basic-otlp]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - uses: actions-rs/toolchain@v1
