@@ -245,6 +245,28 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "http-proto")]
+    #[test]
+    fn test_default_http_endpoint() {
+        let exporter_builder = crate::new_exporter().http();
+
+        assert_eq!(
+            exporter_builder.exporter_config.endpoint,
+            "http://localhost:4318"
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_default_tonic_endpoint() {
+        let exporter_builder = crate::new_exporter().tonic();
+
+        assert_eq!(
+            exporter_builder.exporter_config.endpoint,
+            "http://localhost:4317"
+        );
+    }
+
     #[test]
     fn test_parse_header_string() {
         let test_cases = vec![
