@@ -2,7 +2,22 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-# OpenTelemetry Jaeger
+# OpenTelemetry Jaeger (Deprecated)
+
+**WARNING**
+As of [Jaeger 1.35.0], released in Sept 2022, ingesting the OpenTelemetry Protocol (OTLP) is stable and
+as a result, language specific Jaeger exporters within OpenTelemetry SDKs are [recommended for deprecation by the OpenTelemetry project][jaeger-deprecation].
+More information and examples of using OTLP with Jaeger can be found in [Introducing native support for OpenTelemetry in Jaeger][jaeger-otlp]
+and [Exporting OTLP traces to Jaeger][exporting-otlp].
+
+The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a Jaeger propagator.
+To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to
+[opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
+
+The plan is to have 0.22.0 be the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
+SDK will not work with the exporter.
+
+If you have any questions please comment on the [Jaeger Deprecation Issue].
 
 [`Jaeger`] integration for applications instrumented with [`OpenTelemetry`]. This includes a jaeger exporter and a jaeger propagator.
 
@@ -11,11 +26,6 @@
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-jaeger)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
-
-**WARNING**
-[Jaeger](https://www.jaegertracing.io/) supports the OpenTelemetry Protocol (OTLP) as of [v1.35.0](https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0) and as a result, language specific Jaeger exporters within OpenTelemetry SDKs are [recommended for deprecation by the OpenTelemetry project](https://opentelemetry.io/blog/2022/jaeger-native-otlp/). More information and examples of using OTLP with Jaeger can be found in [Introducing native support for OpenTelemetry in Jaeger](https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c) and [Exporting OTLP traces to Jaeger](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger).
-
-The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a Jaeger propagator. To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
 
 ## Overview
 
@@ -28,6 +38,11 @@ Jaeger `agent` or `collector` endpoint for processing and visualization.
 *Compiler support: [requires `rustc` 1.64+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
+[jaeger-otlp]: [jaeger-otlp]: https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c
+[jaeger-deprecation]: https://opentelemetry.io/blog/2022/jaeger-native-otlp/
+[exporting-otlp]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger
+[Jaeger 1.35.0]: https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0
+[Jaeger Deprecation Issue]: https://github.com/open-telemetry/opentelemetry-rust/pull/995
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
 
