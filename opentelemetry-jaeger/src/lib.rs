@@ -232,9 +232,6 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
 //!         )
-//!         // we config a surf http client with 2 seconds timeout
-//!         // and have basic authentication header with username=username, password=s3cr3t
-//!         .with_isahc() // requires `isahc_collector_client` feature
 //!         .with_username("username")
 //!         .with_password("s3cr3t")
 //!         .with_timeout(std::time::Duration::from_secs(2))
@@ -258,8 +255,6 @@
 //! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client.
 //!
 //! * `hyper_collector_client`: Export span data with Jaeger collector backed by a hyper default http client.
-//!
-//! * `surf_collector_client`: Export span data with Jaeger collector backed by a surf default http client.
 //!
 //! * `reqwest_collector_client`: Export span data with Jaeger collector backed by a reqwest http client.
 //!

@@ -4,9 +4,9 @@
 
 ### Changed
 
+- **Breaking** Remove built-in support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
 - **Breaking** Surface non-2xx status codes as errors; change `ResponseExt` trait to return `HttpError` instead of `TraceError`[#1484](https://github.com/open-telemetry/opentelemetry-rust/pull/1484)
-     
-  
+
 ## v0.10.0
 
 ### Changed
