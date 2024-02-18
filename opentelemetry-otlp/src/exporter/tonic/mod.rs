@@ -149,6 +149,7 @@ impl Default for TonicExporterBuilder {
         TonicExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: crate::Protocol::Grpc,
+                endpoint: crate::exporter::default_endpoint(crate::Protocol::Grpc),
                 ..Default::default()
             },
             tonic_config,
