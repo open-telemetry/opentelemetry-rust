@@ -6,7 +6,6 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
-use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use std::fs::File;
@@ -15,11 +14,7 @@ use std::os::unix::fs::MetadataExt;
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .with_trace_config(
             sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
