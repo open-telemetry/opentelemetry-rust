@@ -131,6 +131,7 @@ jobs:
   coverage:
     continue-on-error: true
     runs-on: ubuntu-latest
+    if: ${{ ! contains(github.event.pull_request.labels.*.name, 'dependencies') }}
     steps:
       - uses: actions/checkout@v4
         with:
