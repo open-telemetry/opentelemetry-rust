@@ -38,7 +38,7 @@ Jaeger `agent` or `collector` endpoint for processing and visualization.
 *Compiler support: [requires `rustc` 1.64+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
-[jaeger-otlp]: [jaeger-otlp]: https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c
+[jaeger-otlp]: https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c
 [jaeger-deprecation]: https://opentelemetry.io/blog/2022/jaeger-native-otlp/
 [exporting-otlp]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger
 [Jaeger 1.35.0]: https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0
