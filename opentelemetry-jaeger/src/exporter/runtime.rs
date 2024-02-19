@@ -18,7 +18,7 @@ use std::net::ToSocketAddrs;
 #[async_trait]
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub trait JaegerTraceRuntime: RuntimeChannel + std::fmt::Debug {
     /// A communication socket between Jaeger client and agent.

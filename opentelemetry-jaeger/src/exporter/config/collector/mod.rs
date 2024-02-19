@@ -94,7 +94,7 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 #[derive(Debug)]
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
@@ -181,7 +181,7 @@ impl Default for ClientConfig {
 #[cfg(feature = "collector_client")]
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub fn new_collector_pipeline() -> CollectorPipeline {
     CollectorPipeline::default()
@@ -198,7 +198,7 @@ pub fn new_collector_pipeline() -> CollectorPipeline {
 // make sure when collector_cilent and wasm_collector_client are both set. We will create a wasm type client
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub fn new_wasm_collector_pipeline() -> CollectorPipeline {
     let mut pipeline = CollectorPipeline::default();

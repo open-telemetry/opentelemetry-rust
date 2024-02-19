@@ -53,7 +53,7 @@ const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 /// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 #[derive(Debug)]
 pub struct Exporter {
@@ -85,7 +85,7 @@ impl Exporter {
 /// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 #[derive(Debug, Default)]
 pub struct Process {

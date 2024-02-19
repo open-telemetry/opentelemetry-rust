@@ -83,7 +83,7 @@ const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 #[derive(Debug)]
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub struct AgentPipeline {
     transformation_config: TransformationConfig,
@@ -138,7 +138,7 @@ impl HasRequiredConfig for AgentPipeline {
 /// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[deprecated(
     since = "0.21.0",
-    note = "Please Migrate to opentelemetry-otlp exporter."
+    note = "Please migrate to opentelemetry-otlp exporter."
 )]
 pub fn new_agent_pipeline() -> AgentPipeline {
     AgentPipeline::default()
