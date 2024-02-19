@@ -10,8 +10,16 @@ use std::net::ToSocketAddrs;
 
 /// Jaeger Trace Runtime is an extension to [`RuntimeChannel`].
 ///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
 /// [`RuntimeChannel`]: opentelemetry_sdk::runtime::RuntimeChannel
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[async_trait]
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub trait JaegerTraceRuntime: RuntimeChannel + std::fmt::Debug {
     /// A communication socket between Jaeger client and agent.
     type Socket: std::fmt::Debug + Send + Sync;

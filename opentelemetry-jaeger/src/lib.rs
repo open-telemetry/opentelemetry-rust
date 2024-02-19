@@ -303,6 +303,7 @@
     unreachable_pub,
     unused
 )]
+#![allow(deprecated)]
 #![cfg_attr(
     docsrs,
     feature(doc_cfg, doc_auto_cfg),
