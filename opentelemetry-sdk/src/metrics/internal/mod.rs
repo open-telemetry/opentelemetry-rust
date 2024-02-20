@@ -183,7 +183,7 @@ impl<N, T: AtomicValue<N>> AtomicTracker<N, T> {
         AtomicTracker {
             value,
             has_value: AtomicBool::new(false),
-            _number: PhantomData::default(),
+            _number: PhantomData,
         }
     }
 
