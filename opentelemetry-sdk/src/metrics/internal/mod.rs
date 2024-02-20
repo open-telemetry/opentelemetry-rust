@@ -140,19 +140,19 @@ impl AtomicallyUpdate<i64> for i64 {
     }
 }
 
-pub(crate) struct F64AtomicTracker {
+pub(crate) struct F64AtomicValue {
     inner: Mutex<f64>, // Floating points don't have true atomics, so we need to use mutex for them
 }
 
-impl F64AtomicTracker {
+impl F64AtomicValue {
     pub(crate) fn new() -> Self {
-        F64AtomicTracker {
+        F64AtomicValue {
             inner: Mutex::new(0.0),
         }
     }
 }
 
-impl AtomicValue<f64> for F64AtomicTracker {
+impl AtomicValue<f64> for F64AtomicValue {
     fn add(&self, value: f64) {
         let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
         *guard += value;
@@ -171,10 +171,10 @@ impl AtomicValue<f64> for F64AtomicTracker {
 }
 
 impl AtomicallyUpdate<f64> for f64 {
-    type AtomicValue = F64AtomicTracker;
+    type AtomicValue = F64AtomicValue;
 
     fn new_atomic_tracker() -> AtomicTracker<f64, Self::AtomicValue> {
-        AtomicTracker::new(F64AtomicTracker::new())
+        AtomicTracker::new(F64AtomicValue::new())
     }
 }
 
@@ -188,6 +188,15 @@ impl<N, T: AtomicValue<N>> AtomicTracker<N, T> {
     }
 
     pub(crate) fn add(&self, value: N) {
+        // Technically we lose atomicity from using 2 atomics. However, the `add()` is specifically
+        // designed mutate the value *then* set `has_value`, while the `get_value()` is designed
+        // to read `has_value` *then* read the value. This means that in a worst case race
+        // condition, the value added may get picked up from a previous `get_value()` call, but
+        // the `has_value` being true will be picked up in the next `get_value()` call. This really
+        // should only mean that the first export gets the added value, and the 2nd export will
+        // get a 0 value.
+        //
+        // This doesn't seem like a big deal, and we avoid the cost of locking.
         self.value.add(value);
         self.has_value.store(true, Ordering::Release);
     }
@@ -226,11 +235,11 @@ mod tests {
         let atomic = u64::new_atomic_tracker();
         atomic.add(15);
 
-        let value = atomic.get_value(true).unwrap();
-        let value2 = atomic.get_value(false).unwrap();
+        let value = atomic.get_value(true);
+        let value2 = atomic.get_value(false);
 
-        assert_eq!(value, 15, "Incorrect first value");
-        assert_eq!(value2, 0, "Incorrect second value");
+        assert_eq!(value, Some(15), "Incorrect first value");
+        assert_eq!(value2, None, "Incorrect second value");
     }
 
     #[test]
@@ -248,11 +257,11 @@ mod tests {
         let atomic = i64::new_atomic_tracker();
         atomic.add(15);
 
-        let value = atomic.get_value(true).unwrap();
-        let value2 = atomic.get_value(false).unwrap();
+        let value = atomic.get_value(true);
+        let value2 = atomic.get_value(false);
 
-        assert_eq!(value, 15, "Incorrect first value");
-        assert_eq!(value2, 0, "Incorrect second value");
+        assert_eq!(value, Some(15), "Incorrect first value");
+        assert_eq!(value2, None, "Incorrect second value");
     }
 
     #[test]
@@ -272,9 +281,9 @@ mod tests {
         atomic.add(15.5);
 
         let value = atomic.get_value(true).unwrap();
-        let value2 = atomic.get_value(false).unwrap();
+        let value2 = atomic.get_value(false);
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
-        assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
+        assert_eq!(value2, None, "Expected no value from second get_value call");
     }
 }
