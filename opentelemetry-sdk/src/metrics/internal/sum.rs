@@ -1,13 +1,15 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{
     collections::{hash_map::Entry, HashMap},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::SystemTime,
 };
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 use opentelemetry::{global, metrics::MetricsError};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
@@ -16,9 +18,10 @@ use super::{
 
 /// The storage for sums.
 struct ValueMap<T: Number<T>> {
-    values: Mutex<HashMap<AttributeSet, T>>,
+    buckets: Arc<HashMap<u8, Mutex<HashMap<AttributeSet, T>>>>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
+    total_count: AtomicUsize, // Add this line
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
@@ -29,11 +32,23 @@ impl<T: Number<T>> Default for ValueMap<T> {
 
 impl<T: Number<T>> ValueMap<T> {
     fn new() -> Self {
+        let mut outer_map = HashMap::new();
+        for i in 0..=255 {
+            outer_map.insert(i, Mutex::new(HashMap::new()));
+        }
         ValueMap {
-            values: Mutex::new(HashMap::new()),
+            buckets: Arc::new(outer_map),
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
+            total_count: AtomicUsize::new(0),
         }
+    }
+
+    // Hash function to determine the bucket
+    fn hash_to_bucket(key: &AttributeSet) -> u8 {
+        let mut hasher = DefaultHasher::new();
+        key.hash(&mut hasher);
+        (hasher.finish() % 256) as u8
     }
 }
 
@@ -43,22 +58,28 @@ impl<T: Number<T>> ValueMap<T> {
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
                 .store(true, Ordering::Release);
-        } else if let Ok(mut values) = self.values.lock() {
-            let size = values.len();
-            match values.entry(attrs) {
-                Entry::Occupied(mut occupied_entry) => {
-                    let sum = occupied_entry.get_mut();
-                    *sum += measurement;
-                }
-                Entry::Vacant(vacant_entry) => {
-                    if is_under_cardinality_limit(size) {
-                        vacant_entry.insert(measurement);
-                    } else {
-                        values
-                            .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
-                            .and_modify(|val| *val += measurement)
-                            .or_insert(measurement);
-                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+        } else {
+            let bucket_key = Self::hash_to_bucket(&attrs);
+            if let Some(bucket) = self.buckets.get(&bucket_key) {
+                let mut values = bucket.lock().unwrap();
+                let size = values.len();
+                match values.entry(attrs) {
+                    Entry::Occupied(mut occupied_entry) => {
+                        let sum = occupied_entry.get_mut();
+                        *sum += measurement;
+                    }
+                    Entry::Vacant(vacant_entry) => {
+                        if is_under_cardinality_limit(size) {
+                            vacant_entry.insert(measurement);
+                            self.total_count.fetch_add(1, Ordering::SeqCst);
+                        } else {
+                            // TBD - Update total_count ??
+                            values
+                                .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                                .and_modify(|val| *val += measurement)
+                                .or_insert(measurement);
+                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                        }
                     }
                 }
             }
@@ -112,17 +133,15 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let mut values = match self.value_map.values.lock() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
-        if n > s_data.data_points.capacity() {
+        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        if total_len > s_data.data_points.capacity() {
             s_data
                 .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
+                .reserve_exact(total_len - s_data.data_points.capacity());
+        };
+        s_data
+            .data_points
+            .reserve_exact(self.value_map.total_count.load(Ordering::SeqCst));
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         if self
@@ -139,14 +158,18 @@ impl<T: Number<T>> Sum<T> {
             });
         }
 
-        for (attrs, value) in values.drain() {
-            s_data.data_points.push(DataPoint {
-                attributes: attrs,
-                start_time: Some(prev_start),
-                time: Some(t),
-                value,
-                exemplars: vec![],
-            });
+        for (_, bucket) in self.value_map.buckets.iter() {
+            let mut locked_bucket = bucket.lock().unwrap();
+            for (attrs, value) in locked_bucket.drain() {
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs,
+                    start_time: Some(*self.start.lock().unwrap()),
+                    time: Some(t),
+                    value,
+                    exemplars: vec![],
+                });
+            }
+            // The bucket is automatically cleared by the .drain() method
         }
 
         // The delta collection cycle resets.
@@ -181,17 +204,12 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let values = match self.value_map.values.lock() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
-        if n > s_data.data_points.capacity() {
+        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        if total_len > s_data.data_points.capacity() {
             s_data
                 .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
+                .reserve_exact(total_len - s_data.data_points.capacity());
+        };
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
 
@@ -213,14 +231,17 @@ impl<T: Number<T>> Sum<T> {
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
         // overload the system.
-        for (attrs, value) in values.iter() {
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: *value,
-                exemplars: vec![],
-            });
+        for (_, bucket) in self.value_map.buckets.iter() {
+            let locked_bucket = bucket.lock().unwrap();
+            for (attrs, value) in locked_bucket.iter() {
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(*self.start.lock().unwrap()), // Consider last reset time
+                    time: Some(t),
+                    value: *value,
+                    exemplars: vec![],
+                });
+            }
         }
 
         (
@@ -274,18 +295,14 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
 
-        let mut values = match self.value_map.values.lock() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
-        if n > s_data.data_points.capacity() {
+        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        if total_len > s_data.data_points.capacity() {
             s_data
                 .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
-        let mut new_reported = HashMap::with_capacity(n);
+                .reserve_exact(total_len - s_data.data_points.capacity());
+        };
+
+        let mut new_reported = HashMap::with_capacity(total_len);
         let mut reported = match self.reported.lock() {
             Ok(r) => r,
             Err(_) => return (0, None),
@@ -305,19 +322,25 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
-        let default = T::default();
-        for (attrs, value) in values.drain() {
-            let delta = value - *reported.get(&attrs).unwrap_or(&default);
-            if delta != default {
-                new_reported.insert(attrs.clone(), value);
+        // Iterating through each bucket to aggregate and drain data points
+        for (_, bucket) in self.value_map.buckets.iter() {
+            let mut locked_bucket = bucket.lock().unwrap();
+
+            // Drain operation to move out values from the bucket
+            let default = T::default();
+            for (attrs, value) in locked_bucket.drain() {
+                let delta = value - *reported.get(&attrs).unwrap_or(&default);
+                if delta != default {
+                    new_reported.insert(attrs.clone(), value);
+                }
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(prev_start),
+                    time: Some(t),
+                    value: delta,
+                    exemplars: vec![],
+                });
             }
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: delta,
-                exemplars: vec![],
-            });
         }
 
         // The delta collection cycle resets.
@@ -355,19 +378,14 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.data_points.clear();
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
-
-        let values = match self.value_map.values.lock() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
-        if n > s_data.data_points.capacity() {
+        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        if total_len > s_data.data_points.capacity() {
             s_data
                 .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
-        let mut new_reported = HashMap::with_capacity(n);
+                .reserve_exact(total_len - s_data.data_points.capacity());
+        };
+
+        let mut new_reported = HashMap::with_capacity(total_len);
         let mut reported = match self.reported.lock() {
             Ok(r) => r,
             Err(_) => return (0, None),
@@ -388,18 +406,22 @@ impl<T: Number<T>> PrecomputedSum<T> {
         }
 
         let default = T::default();
-        for (attrs, value) in values.iter() {
-            let delta = *value - *reported.get(attrs).unwrap_or(&default);
-            if delta != default {
-                new_reported.insert(attrs.clone(), *value);
+        for (_, bucket) in self.value_map.buckets.iter() {
+            let locked_bucket = bucket.lock().unwrap();
+
+            for (attrs, value) in locked_bucket.iter() {
+                let delta = *value - *reported.get(attrs).unwrap_or(&default);
+                if delta != default {
+                    new_reported.insert(attrs.clone(), *value);
+                }
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(prev_start),
+                    time: Some(t),
+                    value: *value, // For cumulative, we use the value directly without calculating delta
+                    exemplars: vec![],
+                });
             }
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: delta,
-                exemplars: vec![],
-            });
         }
 
         *reported = new_reported;
