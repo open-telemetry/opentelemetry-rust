@@ -21,7 +21,7 @@ struct ValueMap<T: Number<T>> {
     buckets: Arc<HashMap<u8, Mutex<HashMap<AttributeSet, T>>>>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
-    total_count: AtomicUsize, // Add this line
+    total_count: AtomicUsize,
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
