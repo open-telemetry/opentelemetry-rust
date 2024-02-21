@@ -285,6 +285,9 @@ impl TemporalitySelector for InMemoryMetricsExporter {
 #[async_trait]
 impl PushMetricsExporter for InMemoryMetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+        if metrics.scope_metrics.len() == 0 || metrics.scope_metrics[0].metrics.len() == 0 {
+            return Ok(());
+        }
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
