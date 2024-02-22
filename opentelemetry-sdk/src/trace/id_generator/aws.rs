@@ -37,7 +37,7 @@ use std::time::{Duration, UNIX_EPOCH};
 #[deprecated(
     since = "0.21.0",
     note = "XrayId Generator has been migrated to the opentelemetry-aws crate"
-    )]
+)]
 pub struct XrayIdGenerator {
     sdk_default_generator: RandomIdGenerator,
 }
