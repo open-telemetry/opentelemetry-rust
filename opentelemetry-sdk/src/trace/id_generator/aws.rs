@@ -35,7 +35,7 @@ use std::time::{Duration, UNIX_EPOCH};
 /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 #[derive(Debug, Default)]
 #[deprecated(
-    since = "0.21.0",
+    since = "0.21.3",
     note = "XrayId Generator has been migrated to the opentelemetry-aws crate"
 )]
 pub struct XrayIdGenerator {
