@@ -12,7 +12,7 @@ rust-version = "1.65"
 [dependencies]
 opentelemetry = { version = "0.21", path = "../opentelemetry/" }
 opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
-async-std = { workspace = true, default-features = true, features = ["unstable"], optional = true }
+async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 crossbeam-channel = { version = "0.5", optional = true }
 futures-channel = "0.3"

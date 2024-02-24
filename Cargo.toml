@@ -35,7 +35,7 @@ resolver = "2"
 debug = 1
 
 [workspace.dependencies]
-async-std = { version = "1.10", default-features = false }
+async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
 env_logger = { version = "0.10", default-features = false } # env_logger requires a newer MSRV
@@ -49,7 +49,7 @@ log = "0.4"
 once_cell = "1.13"
 ordered-float = "4.0"
 pin-project-lite = "0.2"
-prost =  "0.12"
+prost = "0.12"
 prost-build = "0.12"
 prost-types = "0.12"
 rand = { version = "0.8", default-features = false }

@@ -57,7 +57,7 @@ serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
-tonic-build = { workspace = true, default-features = true }
-prost-build = { workspace = true, default-features = true }
+tonic-build = { workspace = true }
+prost-build = { workspace = true }
 tempfile = "3.3.0"
 serde_json = "1.0"
