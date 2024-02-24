@@ -23,8 +23,8 @@ if rustup component add clippy; then
                 "opentelemetry-semantic-conventions"
                 "opentelemetry-stdout"
                 "opentelemetry-zipkin")
-  for create in "${creates[@]}"; do
-      cargo clippy --manifest-path=$create/Cargo.toml --all-targets --all-features -- \
+  for crate in "${crates[@]}"; do
+      cargo clippy --manifest-path=$crate/Cargo.toml --all-targets --all-features -- \
           `# Exit with a nonzero code if there are clippy warnings` \
           -Dwarnings
   done
