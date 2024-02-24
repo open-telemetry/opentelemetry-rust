@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use actix_service::Service;
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};

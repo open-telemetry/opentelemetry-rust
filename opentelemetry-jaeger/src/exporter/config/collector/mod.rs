@@ -50,6 +50,9 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 
 /// CollectorPipeline config and build a exporter targeting a jaeger collector using HTTP protocol.
 ///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
 /// ## Environment variables
 ///
 /// - `OTEL_EXPORTER_JAEGER_ENDPOINT`: set the endpoint of the collector. Usually starts with `http://` or `https://`
@@ -87,7 +90,12 @@ const ENV_PASSWORD: &str = "OTEL_EXPORTER_JAEGER_PASSWORD";
 ///
 /// [reqwest]: reqwest::Client
 /// [reqwest blocking client]: reqwest::blocking::Client
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[derive(Debug)]
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub struct CollectorPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<Config>,
@@ -165,15 +173,33 @@ impl Default for ClientConfig {
 ///
 /// See details for each configurations at [`CollectorPipeline`].
 ///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
 /// [`CollectorPipeline`]: crate::config::collector::CollectorPipeline
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[cfg(feature = "collector_client")]
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub fn new_collector_pipeline() -> CollectorPipeline {
     CollectorPipeline::default()
 }
 
 /// Similar to [`new_collector_pipeline`] but the exporter is configured to run with wasm.
+///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 #[cfg(feature = "wasm_collector_client")]
-#[allow(clippy::field_reassign_with_default)] // make sure when collector_cilent and wasm_collector_client are both set. We will create a wasm type client
+#[allow(clippy::field_reassign_with_default)]
+// make sure when collector_cilent and wasm_collector_client are both set. We will create a wasm type client
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub fn new_wasm_collector_pipeline() -> CollectorPipeline {
     let mut pipeline = CollectorPipeline::default();
     pipeline.client_config = ClientConfig::Wasm;

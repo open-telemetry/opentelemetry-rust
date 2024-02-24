@@ -2,6 +2,10 @@
 
 ## vNext
 
+### Changed
+
+- Adjusted `chrono` features to reduce number of transitive dependencies. [#1569](https://github.com/open-telemetry/opentelemetry-rust/pull/1569)
+
 ## v0.2.0
 
 ### Changed
