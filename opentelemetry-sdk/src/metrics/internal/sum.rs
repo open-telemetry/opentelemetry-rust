@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
-    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -8,8 +7,18 @@ use std::{
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 use opentelemetry::{global, metrics::MetricsError};
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+#[cfg(feature = "use_hashbrown")]
+use ahash::AHasher;
+#[cfg(feature = "use_hashbrown")]
+use hashbrown::{hash_map::Entry, HashMap};
+
+#[cfg(not(feature = "use_hashbrown"))]
+use std::collections::{
+    hash_map::{DefaultHasher, Entry},
+    HashMap,
+};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
@@ -48,7 +57,11 @@ impl<T: Number<T>> ValueMap<T> {
 
     // Hash function to determine the bucket
     fn hash_to_bucket(key: &AttributeSet) -> u8 {
+        #[cfg(not(feature = "use_hashbrown"))]
         let mut hasher = DefaultHasher::new();
+        #[cfg(feature = "use_hashbrown")]
+        let mut hasher = AHasher::default();
+
         key.hash(&mut hasher);
         // Use the 8 least significant bits directly, avoiding the modulus operation.
         hasher.finish() as u8
