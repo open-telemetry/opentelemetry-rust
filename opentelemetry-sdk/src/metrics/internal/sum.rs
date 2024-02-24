@@ -16,9 +16,11 @@ use super::{
     AtomicTracker, Number,
 };
 
+type BucketValue<T> = Mutex<Option<HashMap<AttributeSet, T>>>;
+type Buckets<T> = Arc<[BucketValue<T>; 256]>;
 /// The storage for sums.
 struct ValueMap<T: Number<T>> {
-    buckets: Arc<[Mutex<Option<HashMap<AttributeSet, T>>>; 256]>,
+    buckets: Buckets<T>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
 }
