@@ -66,9 +66,9 @@ Project versioning information and stability guarantees can be found
 ```rust
 use opentelemetry::{
     global,
-    sdk::trace::TracerProvider,
     trace::{Tracer, TracerProvider as _},
 };
+use opentelemetry_sdk::trace::TracerProvider;
 
 fn main() {
     // Create a new trace pipeline that prints to stdout
@@ -84,6 +84,16 @@ fn main() {
     // Shutdown trace pipeline
     global::shutdown_tracer_provider();
 }
+```
+
+The example above requires the following packages:
+
+```toml
+# Cargo.toml
+[dependencies]
+opentelemetry = "0.21"
+opentelemetry_sdk = "0.21"
+opentelemetry-stdout = { version = "0.2", features = ["trace"] }
 ```
 
 See the [examples](./examples) directory for different integration patterns.
