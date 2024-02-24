@@ -1,12 +1,12 @@
 # Changelog
 
-## Deprecation Notice
-
-XrayIdGenerator has been migrated to the opentelemetry-aws crate starting from 0.10.0. [#33](https://github.com/open-telemetry/opentelemetry-rust-contrib/pull/33)
-
 
 ## vNext
 
+
+### Deprecated
+
+- XrayIdGenerator in the opentelemetry-sdk has been deprecated and moved to version 0.10.0 of the opentelemetry-aws crate.
 
 ### Added
 
@@ -18,7 +18,6 @@ XrayIdGenerator has been migrated to the opentelemetry-aws crate starting from 0
 Performance Improvement : Creating Spans and LogRecords are now faster, by avoiding expensive cloning of `Resource` for every Span/LogRecord.
 
 ### Changed
-- XrayIdGenerator in the opentelemetry-sdk has been deprecated. XrayIdGenerator has been added to the opentelemetry-aws crate starting from version 0.10.0.
 - **Breaking**
 [#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
 [#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
