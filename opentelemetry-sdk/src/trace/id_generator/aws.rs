@@ -34,6 +34,10 @@ use std::time::{Duration, UNIX_EPOCH};
 /// [xray-exporter]: https://godoc.org/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter
 /// [xray-trace-id]: https://docs.aws.amazon.com/xray/latest/devguide/xray-api-sendingdata.html#xray-api-traceids
 #[derive(Debug, Default)]
+#[deprecated(
+    since = "0.21.3",
+    note = "XrayId Generator has been migrated to the opentelemetry-aws crate"
+)]
 pub struct XrayIdGenerator {
     sdk_default_generator: RandomIdGenerator,
 }
