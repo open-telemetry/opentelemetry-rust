@@ -25,13 +25,8 @@ opentelemetry = { version = "0.21", default-features = false, features = [
     "trace",
 ], path = "../opentelemetry" }
 
-tonic = { workspace = true, optional = true }
-prost = { workspace = true, optional = true }
-prost-types = { workspace = true, optional = true }
-
 [dev-dependencies]
 opentelemetry_sdk = { features = ["testing"], path = "../opentelemetry-sdk" }
 
 [features]
 default = []
-integration_test = []
