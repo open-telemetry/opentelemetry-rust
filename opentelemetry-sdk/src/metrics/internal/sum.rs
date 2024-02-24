@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::{Arc, Mutex},
@@ -21,7 +21,6 @@ struct ValueMap<T: Number<T>> {
     buckets: Arc<[Mutex<Option<HashMap<AttributeSet, T>>>; 256]>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
-    total_count: AtomicUsize,
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
@@ -42,7 +41,6 @@ impl<T: Number<T>> ValueMap<T> {
             buckets: Arc::new(buckets),
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
-            total_count: AtomicUsize::new(0),
         }
     }
 
@@ -52,6 +50,17 @@ impl<T: Number<T>> ValueMap<T> {
         key.hash(&mut hasher);
         // Use the 8 least significant bits directly, avoiding the modulus operation.
         hasher.finish() as u8
+    }
+
+    // Calculate the total length of data points across all buckets.
+    fn total_data_points_count(&self) -> usize {
+        self.buckets
+            .iter()
+            .map(|bucket_mutex| {
+                let locked_bucket = bucket_mutex.lock().unwrap();
+                locked_bucket.as_ref().map_or(0, |bucket| bucket.len())
+            })
+            .sum::<usize>()
     }
 }
 
@@ -80,7 +89,6 @@ impl<T: Number<T>> ValueMap<T> {
                     Entry::Vacant(vacant_entry) => {
                         if is_under_cardinality_limit(size) {
                             vacant_entry.insert(measurement);
-                            self.total_count.fetch_add(1, Ordering::SeqCst);
                         } else {
                             // TBD - Update total_count ??
                             values
@@ -142,15 +150,11 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        let total_len: usize = self.value_map.total_data_points_count() + 1;
         if total_len > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(total_len - s_data.data_points.capacity());
-        };
-        s_data
-            .data_points
-            .reserve_exact(self.value_map.total_count.load(Ordering::SeqCst));
+            let additional_space_needed = total_len - s_data.data_points.capacity();
+            s_data.data_points.reserve_exact(additional_space_needed);
+        }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         if self
@@ -214,12 +218,11 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        let total_len: usize = self.value_map.total_data_points_count() + 1;
         if total_len > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(total_len - s_data.data_points.capacity());
-        };
+            let additional_space_needed = total_len - s_data.data_points.capacity();
+            s_data.data_points.reserve_exact(additional_space_needed);
+        }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
 
@@ -306,12 +309,11 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
 
-        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+        let total_len: usize = self.value_map.total_data_points_count() + 1;
         if total_len > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(total_len - s_data.data_points.capacity());
-        };
+            let additional_space_needed = total_len - s_data.data_points.capacity();
+            s_data.data_points.reserve_exact(additional_space_needed);
+        }
 
         let mut new_reported = HashMap::with_capacity(total_len);
         let mut reported = match self.reported.lock() {
@@ -387,12 +389,12 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.data_points.clear();
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
-        let total_len = self.value_map.total_count.load(Ordering::SeqCst) + 1;
+
+        let total_len: usize = self.value_map.total_data_points_count() + 1;
         if total_len > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(total_len - s_data.data_points.capacity());
-        };
+            let additional_space_needed = total_len - s_data.data_points.capacity();
+            s_data.data_points.reserve_exact(additional_space_needed);
+        }
 
         let mut new_reported = HashMap::with_capacity(total_len);
         let mut reported = match self.reported.lock() {
