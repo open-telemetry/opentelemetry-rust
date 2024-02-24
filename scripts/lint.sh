@@ -10,7 +10,7 @@ cargo_feature() {
 }
 
 if rustup component add clippy; then
- creates=( "opentelemetry"
+ crates=( "opentelemetry"
                 "opentelemetry-http"
                 "opentelemetry-jaeger"
                 "opentelemetry-jaeger-propagator"
