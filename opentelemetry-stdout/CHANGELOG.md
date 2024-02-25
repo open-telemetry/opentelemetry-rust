@@ -8,6 +8,7 @@
 
 - Fix StatusCode in stdout exporter [#1454](https://github.com/open-telemetry/opentelemetry-rust/pull/1454)
 - Add missing event timestamps [#1391](https://github.com/open-telemetry/opentelemetry-rust/pull/1391)
+- Adjusted `chrono` features to reduce number of transitive dependencies. [#1569](https://github.com/open-telemetry/opentelemetry-rust/pull/1569)
 
 ## v0.2.0
 

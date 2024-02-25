@@ -43,7 +43,7 @@ tokio = { workspace = true, features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
 
-tonic = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true, features = ["transport", "codegen", "prost"] }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
