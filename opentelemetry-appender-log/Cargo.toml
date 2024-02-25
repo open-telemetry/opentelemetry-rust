@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-log"
-version = "0.2.0"
+version = "0.3.0"
 description = "An OpenTelemetry appender for the log crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
@@ -11,7 +11,7 @@ rust-version = "1.65"
 edition = "2021"
 
 [dependencies]
-opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"]}
+opentelemetry = { version = "0.22", path = "../opentelemetry", features = ["logs"]}
 log = { workspace = true, features = ["kv_unstable", "std"]}
 
 [features]

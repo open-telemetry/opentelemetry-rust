@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.22.0
+
 ### Added
 
 - [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge. This is behind the feature flag, and can be enabled by enabling the feature `otel_unstable` for opentelemetry crate.

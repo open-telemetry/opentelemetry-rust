@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.11.0
+
 ### Changed
 
 - **Breaking** Remove built-in support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)

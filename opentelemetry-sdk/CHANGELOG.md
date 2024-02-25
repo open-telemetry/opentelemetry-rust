@@ -3,6 +3,7 @@
 
 ## vNext
 
+## v0.22.0
 
 ### Deprecated
 
@@ -14,7 +15,7 @@
 - [#1471](https://github.com/open-telemetry/opentelemetry-rust/pull/1471) Configure batch log record processor via [`OTEL_BLRP_*`](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-logrecord-processor) environment variables and via `OtlpLogPipeline::with_batch_config`
 - [#1503](https://github.com/open-telemetry/opentelemetry-rust/pull/1503) Make the documentation for In-Memory exporters visible.
 
-- [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526) 
+- [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526)
 Performance Improvement : Creating Spans and LogRecords are now faster, by avoiding expensive cloning of `Resource` for every Span/LogRecord.
 
 ### Changed
@@ -54,10 +55,10 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
   - `LoggerProviderInner` is no longer `pub (crate)`
   - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
 
-- [1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements 
+- [1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements
     when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
     (e.g. `counter.Add(5, &[])`)
-    
+
 ### Fixed
 
 - [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader

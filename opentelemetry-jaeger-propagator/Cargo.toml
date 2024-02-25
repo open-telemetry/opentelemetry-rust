@@ -15,13 +15,12 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
 
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.21", default-features = false, features = [
+opentelemetry = { version = "0.22", default-features = false, features = [
     "trace",
 ], path = "../opentelemetry" }
 

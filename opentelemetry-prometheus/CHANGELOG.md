@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.15.0
+
 ### Changed
 
 - Omit empty `otel_scope_info` and `otel_target_info` metrics [#1428](https://github.com/open-telemetry/opentelemetry-rust/pull/1428)
