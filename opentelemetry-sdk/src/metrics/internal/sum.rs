@@ -25,8 +25,9 @@ use super::{
     AtomicTracker, Number,
 };
 
+const BUCKET_COUNT: usize = 256;
 type BucketValue<T> = Mutex<Option<HashMap<AttributeSet, T>>>;
-type Buckets<T> = Arc<[BucketValue<T>; 256]>;
+type Buckets<T> = Arc<[BucketValue<T>; BUCKET_COUNT]>;
 /// The storage for sums.
 struct ValueMap<T: Number<T>> {
     buckets: Buckets<T>,
@@ -43,7 +44,7 @@ impl<T: Number<T>> Default for ValueMap<T> {
 impl<T: Number<T>> ValueMap<T> {
     fn new() -> Self {
         let buckets = std::iter::repeat_with(|| Mutex::new(None))
-            .take(256)
+            .take(BUCKET_COUNT)
             .collect::<Vec<_>>()
             .try_into()
             .unwrap_or_else(|_| panic!("Incorrect length"));
