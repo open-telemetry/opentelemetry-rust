@@ -316,10 +316,7 @@ mod tests {
         for (input_str, expected_headers) in test_cases {
             assert_eq!(
                 super::parse_header_key_value_string(input_str),
-                match expected_headers {
-                    Some((k, v)) => Some((k, v.to_string())),
-                    None => None,
-                }
+                expected_headers.map(|(k, v)| (k, v.to_string())),
             )
         }
     }
