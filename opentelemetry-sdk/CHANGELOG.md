@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.22.1
+
 ### Fixed
 
 - [#1576](https://github.com/open-telemetry/opentelemetry-rust/pull/1576)
