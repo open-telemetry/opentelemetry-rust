@@ -211,7 +211,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
+fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, String)> {
     value
         .split_terminator(',')
         .map(str::trim)
@@ -219,10 +219,17 @@ fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, &str)> {
+fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String)> {
     key_value_string
         .split_once('=')
-        .map(|(key, value)| (key.trim(), value.trim()))
+        .map(|(key, value)| {
+            (
+                key.trim(),
+                urlencoding::decode(value.trim())
+                    .unwrap_or_default()
+                    .into_owned(),
+            )
+        })
         .filter(|(key, value)| !key.is_empty() && !value.is_empty())
 }
 
@@ -280,7 +287,10 @@ mod tests {
         for (input_str, expected_headers) in test_cases {
             assert_eq!(
                 super::parse_header_string(input_str).collect::<Vec<_>>(),
-                expected_headers,
+                expected_headers
+                    .into_iter()
+                    .map(|(k, v)| (k, v.to_string()))
+                    .collect::<Vec<_>>(),
             )
         }
     }
@@ -290,6 +300,14 @@ mod tests {
         let test_cases = vec![
             // Format: (input_str, expected_header)
             ("k1=v1", Some(("k1", "v1"))),
+            (
+                "Authentication=Basic AAA",
+                Some(("Authentication", "Basic AAA")),
+            ),
+            (
+                "Authentication=Basic%20AAA",
+                Some(("Authentication", "Basic AAA")),
+            ),
             ("", None),
             ("=v1", None),
             ("k1=", None),
@@ -298,7 +316,10 @@ mod tests {
         for (input_str, expected_headers) in test_cases {
             assert_eq!(
                 super::parse_header_key_value_string(input_str),
-                expected_headers,
+                match expected_headers {
+                    Some((k, v)) => Some((k, v.to_string())),
+                    None => None,
+                }
             )
         }
     }

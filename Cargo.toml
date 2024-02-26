@@ -66,3 +66,4 @@ tracing = { version = "0.1", default-features = false }
 tracing-core = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.2", default-features = false }
+urlencoding = { version = "2.1.3" }
