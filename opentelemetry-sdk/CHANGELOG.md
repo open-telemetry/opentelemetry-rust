@@ -1,7 +1,11 @@
 # Changelog
 
-
 ## vNext
+
+### Fixed
+
+- [#10000](https://github.com/open-telemetry/opentelemetry-rust/pull/1000)
+  Fix Span kind is always set to "internal".
 
 ## v0.22.0
 
