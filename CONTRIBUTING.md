@@ -74,7 +74,7 @@ Open a pull request against the main
 repo.
 
 > **Note**
-> It is recommended to run [pre-commit script](precommit.sh) from the root of
+> It is recommended to run [pre-commit script](scripts/precommit.sh) from the root of
 the repo to catch any issues locally.
 
 ### How to Receive Comments
@@ -146,7 +146,7 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 - Environment variables
 - Compiling time configurations provided in the source code
 
-### Experimental/Unstable features:
+### Experimental/Unstable features
 
 Use `otel_unstable` feature flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
 
@@ -156,9 +156,10 @@ Use `otel_unstable` feature flag for implementation of specification with [exper
     // Your feature implementation
 }
 ```
+
 It's important to regularly review and remove the `otel_unstable` flag from the code once the feature becomes stable. This cleanup process is crucial to maintain the overall code quality and to ensure that stable features are accurately reflected in the main build.
 
-### Optional features:
+### Optional features
 
 The potential features include:
 

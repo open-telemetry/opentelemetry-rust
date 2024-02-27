@@ -94,22 +94,26 @@ See the [examples](./examples) directory for different integration patterns.
 The following crates are maintained in this repo:
 
 * [`opentelemetry`] This is the OpenTelemetry API crate, and is the crate
-  required to instrument libraries and applications. It contains Logging Bridge
-  API, Metrics API, and Tracing API.
+  required to instrument libraries and applications. It contains Context API,
+  Baggage API, Propagators API, Logging Bridge API, Metrics API, and Tracing
+  API.
 * [`opentelemetry-sdk`] This is the OpenTelemetry SDK crate, and contains the
   official OpenTelemetry SDK implementation. It contains Logging SDK, Metrics
-  SDK, and Tracing SDK.
+  SDK, and Tracing SDK. It also contains propagator implementations.
 * [`opentelemetry-otlp`] exporter for sending logs, metrics and traces in the
-  OTLP format to an endpoint accepting OTLP, typically the OpenTelemetry
-  collector.
+  OTLP format to an endpoint accepting OTLP, like the [OpenTelemetry
+  collector](https://opentelemetry.io/docs/collector/), or [vendor specific
+  endpoints](https://opentelemetry.io/ecosystem/vendors/).
 * [`opentelemetry-stdout`] exporter for sending logs, metrics and traces to
   stdout, for learning/debugging purposes.  
 * [`opentelemetry-http`] This crate contains utility functions to help with
   exporting telemetry, propagation, over [`http`].
 * [`opentelemetry-appender-log`] This crate provides logging appender to route
-  logs emitted using the `log` crate to opentelemetry.
-* [`opentelemetry-appender-tracing`] This crate provides logging appender to route
-  logs emitted using the `tracing` crate to opentelemetry.  
+  logs emitted using the [log](https://docs.rs/log/latest/log/) crate to
+  opentelemetry.
+* [`opentelemetry-appender-tracing`] This crate provides logging appender to
+  route logs emitted using the [tracing](https://crates.io/crates/tracing) crate
+  to opentelemetry.  
 * [`opentelemetry-jaeger-propagator`] provides context propagation using [jaeger
   propagation
   format](https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format).
@@ -159,9 +163,9 @@ this policy.
 See the [contributing file](CONTRIBUTING.md).
 
 The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
-Time. The meeting is subject to change depending on contributors'
-availability. Check the [OpenTelemetry community
-calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)
+Time. The meeting is subject to change depending on contributors' availability.
+Check the [OpenTelemetry community
+calendar](https://github.com/open-telemetry/community?tab=readme-ov-file#calendar)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
