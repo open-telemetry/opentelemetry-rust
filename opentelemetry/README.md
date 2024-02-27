@@ -12,12 +12,12 @@ This crate contains the [OpenTelemetry](https://opentelemetry.io/) API for Rust.
 ## Overview
 
 OpenTelemetry is an Observability framework and toolkit designed to create and
-manage telemetry data such as traces, metrics, and logs. Crucially,
-OpenTelemetry is vendor- and tool-agnostic, meaning that it can be used with a
-broad variety of Observability backends, including open source tools like
-[Jaeger] and [Prometheus], as well as commercial offerings.
+manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
+vendor- and tool-agnostic, meaning that it can be used with a broad variety of
+Observability backends, including open source tools like [Jaeger] and
+[Prometheus], as well as commercial offerings.
 
-OpenTelemetry is not an observability backend like Jaeger, Prometheus, or other
+OpenTelemetry is *not* an observability backend like Jaeger, Prometheus, or other
 commercial vendors. OpenTelemetry is focused on the generation, collection,
 management, and export of telemetry. A major goal of OpenTelemetry is that you
 can easily instrument your applications or systems, no matter their language,
@@ -32,32 +32,63 @@ of telemetry is intentionally left to other tools.
 
 ### What does this crate contain?
 
-This is the API crate which contains the [Context
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/README.md),
-[Propagators
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/api-propagators.md),[Baggage
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/baggage/api.md),
-[Logs Bridge
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md),
-[Tracing
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md),
-and [Metrics
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md).
+This crate is basic foundation for integrating OpenTelemetry into libraries and
+applications, encompassing several aspects of OpenTelemetry, such as context
+management and propagation, baggage, logging, tracing, and metrics. It follows
+the [OpenTelemetry
+specification](https://github.com/open-telemetry/opentelemetry-specification).
+Here's a breakdown of its components:
 
-This crates allows one to instrument libraries and application, but the APIs in
-this crate are ["no-ops" or just
-facades](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/library-guidelines.md#api-and-minimal-implementation),
-with actual implementation occurring in the
-[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk). This crate does
-not deal with concepts such as processing or exporting of telemetry, they are
-handled by the [opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk),
-along with one or more exporters like the
-[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp).
+- **[Context
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/README.md):**
+  Provides a way to manage and propagate context, which is essential for keeping
+  track of trace execution across asynchronous tasks.
+- **[Propagators
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/api-propagators.md):**
+  Defines how context can be shared across process boundaries, ensuring
+  continuity across microservices or distributed systems.
+- **[Baggage
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/baggage/api.md):**
+  Allows for the attachment of metadata (baggage) to telemetry, which can be
+  used for sharing application-specific information across service boundaries.
+- **[Logs Bridge
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md):**
+  Allows to bridge existing logging mechanisms with OpenTelemetry logging. This
+  is **NOT** meant for end users to call, instead it is meant to enable writing
+  bridges/appenders for existing logging mechanisms such as
+  [log](https://crates.io/crates/log) or
+  [tracing](https://crates.io/crates/tracing).
+- **[Tracing
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md):**
+  Offers a set of primitives to produce distributed traces to understand the
+  flow of a request across system boundaries.
+- **[Metrics
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md):**
+  Offers a set of primitives to produce measurements of operational metrics like
+  latency, throughput, or error rates.
 
-If you are a library author, then this is the crate you should be using to
-instrument it. If you are familiar with `tracing` or `log` ecosystem, this crate
-is just the facade part, and gets lights up, when the final application uses an
-sdk implementation.
+This crate serves as a facade or no-op implementation, meaning it defines the
+traits for instrumentation but does not itself implement the processing or
+exporting of telemetry data. This separation of concerns allows library authors
+to depend on the API crate without tying themselves to a specific
+implementation.
+
+Actual implementation and the heavy lifting of telemetry data collection,
+processing, and exporting are delegated to the
+[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk) crate and
+various exporter crates such as
+[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp). This
+architecture ensures that the final application can light up the instrumentation
+by integrating an SDK implementation.
+
+Library authors are recommended to depend on this crate *only*. This approach is
+also aligned with the design philosophy of existing telemetry solutions in the
+Rust ecosystem, like `tracing` or `log`, where these crates only offer a facade
+and the actual functionality is enabled through additional crates.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry).
 
 ## Supported Rust Versions
 
