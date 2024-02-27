@@ -100,7 +100,7 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
-  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
+  [#1194](https://github.com/open-telemetry/opentelemetry-rust/pull/1194).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Add unit/doc tests for MeterProvider #1220
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
@@ -146,7 +146,7 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Fixed
 
-- Fix metric instrument name validation to include `_` #1030
+- Fix metric instrument name validation to include `_` [#1274](https://github.com/open-telemetry/opentelemetry-rust/pull/1274)
 
 ## v0.20.0
 

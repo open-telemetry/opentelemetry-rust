@@ -12,7 +12,7 @@
 ### Added
 
 - Add `schemars::JsonSchema` trait support with `with-schemars` feature (#1419)
-- Update protobuf definitions to v1.1.0 (#1154)
+- Update protobuf definitions to v1.1.0 [#1482](https://github.com/open-telemetry/opentelemetry-rust/pull/1482)
 
 ## v0.4.0
 
