@@ -22,7 +22,7 @@ mod logs;
 mod trace;
 
 /// Configuration of the http transport
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 #[derive(Debug)]
 #[cfg_attr(
     all(

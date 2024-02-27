@@ -42,6 +42,7 @@ reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
@@ -58,7 +59,7 @@ metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 
 # add ons
-serialize = ["serde"]
+serialize = ["serde", "serde_json"]
 
 default = ["grpc-tonic", "trace"]
 
@@ -73,6 +74,8 @@ http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-mess
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+# http json
+http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]

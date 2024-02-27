@@ -68,7 +68,7 @@ impl SpanExporter for OtlpHttpClient {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
     use prost::Message;
@@ -79,12 +79,12 @@ fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     let mut buf = vec![];
     req.encode(&mut buf).map_err(crate::Error::from)?;
 
-    Ok((buf, "application/x-protobuf"))
+    Ok((buf, "application/x-protobuf"))    
 }
 
-#[cfg(not(feature = "http-proto"))]
+#[cfg(not(any(feature = "http-proto", feature = "http-json")))]
 fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     Err(TraceError::Other(
-        "No http protocol configured. Enable one via `http-proto`".into(),
+        "No http protocol configured. Enable one via `http-proto` or `http-json`".into(),
     ))
 }
