@@ -7,25 +7,25 @@
 ### Added
 
 - Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
-- Allow specifying OTLP Tonic metadata from env variable (#1377)
+- Allow specifying OTLP Tonic metadata from env variable [#1377](https://github.com/open-telemetry/opentelemetry-rust/pull/1377)
 
 ### Changed
-- Update to tonic 0.11 and prost 0.12 (#1536)
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
 
 ### Fixed
 - Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
 
 ### Removed
 - **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
-- **Breaking** Remove support for grpcio transport (#1534)
+- **Breaking** Remove support for grpcio transport [#1534](https://github.com/open-telemetry/opentelemetry-rust/pull/1534)
 
 ## v0.14.0
 
 ### Added
 
-- Add `build_{signal}_exporter` methods to client builders (#1187)
-- Add `grpcio` metrics exporter (#1202)
-- Allow specifying OTLP HTTP headers from env variable (#1290)
+- Add `build_{signal}_exporter` methods to client builders [#1187](https://github.com/open-telemetry/opentelemetry-rust/pull/1187)
+- Add `grpcio` metrics exporter [#1202](https://github.com/open-telemetry/opentelemetry-rust/pull/1202)
+- Allow specifying OTLP HTTP headers from env variable [#1290](https://github.com/open-telemetry/opentelemetry-rust/pull/1290)
 
 ### Changed
 
