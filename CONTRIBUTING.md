@@ -17,6 +17,15 @@ regardless of your experience level. Whether you're a seasoned OpenTelemetry
 developer, just starting your journey, or simply curious about the work we do,
 you're more than welcome to participate!
 
+Even though, anybody can contribute, there are benefits of being a member of our
+community. See to the [community membership
+document](https://github.com/open-telemetry/community/blob/main/community-membership.md)
+on how to become a
+[**Member**](https://github.com/open-telemetry/community/blob/main/community-membership.md#member),
+[**Approver**](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver)
+and
+[**Maintainer**](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
+
 ## Pull Requests
 
 ### Prerequisites
@@ -172,38 +181,6 @@ projects in this workspace.
 - Run `cargo bench` - this will run benchmarks to show performance
 - Run `cargo bench` - this will run benchmarks to show performance
 regressions
-
-## Approvers and Maintainers
-
-For GitHub groups see the [code owners](CODEOWNERS) file.
-
-### Maintainers
-
-* [Cijo Thomas](https://github.com/cijothomas)
-* [Harold Dost](https://github.com/hdost)
-* [Julian Tescher](https://github.com/jtescher)
-* [Zhongyang Wu](https://github.com/TommyCpp)
-
-### Approvers
-
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
-* [Shaun Cox](https://github.com/shaun-cox)
-
-### Emeritus
-
-- [Dirkjan Ochtman](https://github.com/djc)
-- [Jan Kühle](https://github.com/frigus02)
-- [Isobel Redelmeier](https://github.com/iredelmeier)
-- [Mike Goldsmith](https://github.com/MikeGoldsmith)
-
-### Become an Approver or a Maintainer
-
-See the [community membership document in OpenTelemetry community
-repo](https://github.com/open-telemetry/community/blob/master/community-membership.md).
-
-### Thanks to all the people who have contributed
-
-[![contributors](https://contributors-img.web.app/image?repo=open-telemetry/opentelemetry-rust)](https://github.com/open-telemetry/opentelemetry-rust/graphs/contributors)
 
 ## FAQ
 
