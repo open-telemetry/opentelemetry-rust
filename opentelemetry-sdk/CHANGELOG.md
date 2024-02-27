@@ -65,6 +65,8 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
     when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
     (e.g. `counter.Add(5, &[])`)
 
+- **Breaking** Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
+
 ### Fixed
 
 - [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader
@@ -95,7 +97,6 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Changed
 
-- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.

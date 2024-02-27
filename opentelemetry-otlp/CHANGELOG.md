@@ -4,6 +4,11 @@
 
 ## v0.15.0
 
+### Added
+
+- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
+- Allow specifying OTLP Tonic metadata from env variable (#1377)
+
 ### Changed
 - Update to tonic 0.11 and prost 0.12 (#1536)
 
@@ -21,8 +26,6 @@
 - Add `build_{signal}_exporter` methods to client builders (#1187)
 - Add `grpcio` metrics exporter (#1202)
 - Allow specifying OTLP HTTP headers from env variable (#1290)
-- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
-- Allow specifying OTLP Tonic metadata from env variable (#1377)
 
 ### Changed
 
