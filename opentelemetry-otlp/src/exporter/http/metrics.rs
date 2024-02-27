@@ -61,7 +61,7 @@ fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> 
 }
 
 #[cfg(not(feature = "http-proto"))]
-fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
+fn build_body(_metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
     Err(MetricsError::Other(
         "No http protocol configured. Enable one via `http-proto`".into(),
     ))

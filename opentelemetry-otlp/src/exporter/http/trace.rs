@@ -71,15 +71,23 @@ impl SpanExporter for OtlpHttpClient {
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-    use prost::Message;
 
     let req = ExportTraceServiceRequest {
         resource_spans: spans.into_iter().map(Into::into).collect(),
     };
-    let mut buf = vec![];
-    req.encode(&mut buf).map_err(crate::Error::from)?;
-
-    Ok((buf, "application/x-protobuf"))    
+    let buf;
+    let ctype;
+    #[cfg(all(feature = "http-proto", not(feature = "http-json")))]{
+        use prost::Message;
+        buf = req.encode_to_vec();
+        ctype = "application/x-protobuf";
+    }
+    #[cfg(all(feature = "http-json", not(feature = "http=proto")))]{
+        let json_struct = serde_json::to_string_pretty(&req).unwrap();
+        buf = json_struct.into();
+        ctype = "application/json";
+    }
+    Ok((buf, ctype))
 }
 
 #[cfg(not(any(feature = "http-proto", feature = "http-json")))]

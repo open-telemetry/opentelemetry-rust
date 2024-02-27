@@ -28,13 +28,13 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", not(all(feature = "http-json", feature = "trace"))))]
 /// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
-#[cfg(all(feature = "http-json", feature = "trace", not(any(feature = "http-proto", feature = "grpc-tonic"))))]
+#[cfg(all(feature = "http-json", feature = "trace", not(feature = "http-proto")))]
 /// Default protocol, using http-json.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
-#[cfg(all(feature = "grpc-tonic", not(any(feature = "http-proto", feature = "http-json"))))]
+#[cfg(all(feature = "grpc-tonic", not(all(feature = "http-proto", feature = "http-json", feature = "trace"))))]
 /// Default protocol, using grpc as http-proto or http-json feature is not enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
 #[cfg(not(any(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))))]
