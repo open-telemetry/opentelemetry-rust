@@ -193,10 +193,10 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Emeritus
 
-- [Dirkjan Ochtman](https://github.com/djc)
-- [Jan Kühle](https://github.com/frigus02)
-- [Isobel Redelmeier](https://github.com/iredelmeier)
-- [Mike Goldsmith](https://github.com/MikeGoldsmith)
+* [Dirkjan Ochtman](https://github.com/djc)
+* [Jan Kühle](https://github.com/frigus02)
+* [Isobel Redelmeier](https://github.com/iredelmeier)
+* [Mike Goldsmith](https://github.com/MikeGoldsmith)
 
 ### Thanks to all the people who have contributed
 
