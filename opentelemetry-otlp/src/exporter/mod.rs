@@ -227,7 +227,7 @@ fn url_decode(value: &str) -> Option<String> {
         }
 
         if !chars_to_decode.is_empty() {
-            result.push_str(&std::str::from_utf8(&chars_to_decode).ok()?);
+            result.push_str(std::str::from_utf8(&chars_to_decode).ok()?);
             chars_to_decode.clear();
         }
 
