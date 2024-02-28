@@ -2,15 +2,23 @@
 
 ## vNext
 
-### Fixed
-- Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
+### Added
+
+- Added `DeltaTemporalitySelector` ([#1568])
+
+[#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
+
+## v0.15.0
 
 ### Changed
 - Update to tonic 0.11 and prost 0.12 (#1536)
 
+### Fixed
+- Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
+
 ### Removed
 - **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
-- Remove support for grpcio transport (#1534)
+- **Breaking** Remove support for grpcio transport (#1534)
 
 ## v0.14.0
 

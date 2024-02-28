@@ -2,6 +2,13 @@
 
 ## vNext
 
+## v0.14.0
+
+### Changed
+
+* **Breaking** Add generated modules that output const &str for tracing compatibility
+  [#1334](https://github.com/open-telemetry/opentelemetry-rust/pull/1334)
+
 ## v0.13.0
 
 ### Changed

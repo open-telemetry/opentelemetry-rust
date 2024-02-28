@@ -3,7 +3,7 @@
 The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
 Time. The meeting is subject to change depending on contributors'
 availability. Check the [OpenTelemetry community
-calendar](https://calendar.google.com/calendar/embed?src=google.com_b79e3e90j7bbsa2n2p5an5lf60%40group.calendar.google.com)
+calendar](https://github.com/open-telemetry/community?tab=readme-ov-file#calendar)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
@@ -16,6 +16,15 @@ The meeting is open for all to join. We invite everyone to join our meeting,
 regardless of your experience level. Whether you're a seasoned OpenTelemetry
 developer, just starting your journey, or simply curious about the work we do,
 you're more than welcome to participate!
+
+Even though, anybody can contribute, there are benefits of being a member of our
+community. See to the [community membership
+document](https://github.com/open-telemetry/community/blob/main/community-membership.md)
+on how to become a
+[**Member**](https://github.com/open-telemetry/community/blob/main/community-membership.md#member),
+[**Approver**](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver)
+and
+[**Maintainer**](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
 
 ## Pull Requests
 
@@ -65,7 +74,7 @@ Open a pull request against the main
 repo.
 
 > **Note**
-> It is recommended to run [pre-commit script](precommit.sh) from the root of
+> It is recommended to run [pre-commit script](scripts/precommit.sh) from the root of
 the repo to catch any issues locally.
 
 ### How to Receive Comments
@@ -137,7 +146,7 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 - Environment variables
 - Compiling time configurations provided in the source code
 
-### Experimental/Unstable features:
+### Experimental/Unstable features
 
 Use `otel_unstable` feature flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
 
@@ -147,9 +156,10 @@ Use `otel_unstable` feature flag for implementation of specification with [exper
     // Your feature implementation
 }
 ```
+
 It's important to regularly review and remove the `otel_unstable` flag from the code once the feature becomes stable. This cleanup process is crucial to maintain the overall code quality and to ensure that stable features are accurately reflected in the main build.
 
-### Optional features:
+### Optional features
 
 The potential features include:
 
@@ -172,38 +182,6 @@ projects in this workspace.
 - Run `cargo bench` - this will run benchmarks to show performance
 - Run `cargo bench` - this will run benchmarks to show performance
 regressions
-
-## Approvers and Maintainers
-
-For GitHub groups see the [code owners](CODEOWNERS) file.
-
-### Maintainers
-
-* [Cijo Thomas](https://github.com/cijothomas)
-* [Harold Dost](https://github.com/hdost)
-* [Julian Tescher](https://github.com/jtescher)
-* [Zhongyang Wu](https://github.com/TommyCpp)
-
-### Approvers
-
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
-* [Shaun Cox](https://github.com/shaun-cox)
-
-### Emeritus
-
-- [Dirkjan Ochtman](https://github.com/djc)
-- [Jan Kühle](https://github.com/frigus02)
-- [Isobel Redelmeier](https://github.com/iredelmeier)
-- [Mike Goldsmith](https://github.com/MikeGoldsmith)
-
-### Become an Approver or a Maintainer
-
-See the [community membership document in OpenTelemetry community
-repo](https://github.com/open-telemetry/community/blob/master/community-membership.md).
-
-### Thanks to all the people who have contributed
-
-[![contributors](https://contributors-img.web.app/image?repo=open-telemetry/opentelemetry-rust)](https://github.com/open-telemetry/opentelemetry-rust/graphs/contributors)
 
 ## FAQ
 

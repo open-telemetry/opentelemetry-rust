@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.20.0"
+version = "0.21.0"
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
@@ -32,10 +32,10 @@ hyper = { workspace = true, features = ["client"], optional = true }
 hyper-tls = { version = "0.5.0", default-features = false, optional = true }
 isahc = { workspace = true, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
-opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
+opentelemetry = { version = "0.22", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.22", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
+opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
+opentelemetry-semantic-conventions = { version = "0.14", path = "../opentelemetry-semantic-conventions" }
 pin-project-lite = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 thrift = "0.17.0"
@@ -43,7 +43,7 @@ tokio = { workspace = true, features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
 
-tonic = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true, features = ["transport", "codegen", "prost"] }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
