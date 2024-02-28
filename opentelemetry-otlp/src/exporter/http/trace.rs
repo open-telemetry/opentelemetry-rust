@@ -82,7 +82,7 @@ fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
         buf = req.encode_to_vec();
         ctype = "application/x-protobuf";
     }
-    #[cfg(all(feature = "http-json", not(feature = "http=proto")))]{
+    #[cfg(all(feature = "http-json", not(feature = "http-proto")))]{
         let json_struct = serde_json::to_string_pretty(&req).unwrap();
         buf = json_struct.into();
         ctype = "application/json";
