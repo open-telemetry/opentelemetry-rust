@@ -210,6 +210,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
 fn url_decode(value: &str) -> Option<String> {
     let mut result = String::with_capacity(value.len());
     let mut chars_to_decode = Vec::<u8>::new();
