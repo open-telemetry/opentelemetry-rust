@@ -47,7 +47,7 @@ impl<T: Number<T>> ValueMap<T> {
             .take(BUCKET_COUNT)
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap_or_else(|_| panic!("Incorrect length"));
+            .unwrap();
 
         ValueMap {
             buckets: Arc::new(buckets),
