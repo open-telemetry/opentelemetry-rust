@@ -42,7 +42,6 @@ reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
-urlencoding = { workspace = true }
 
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
