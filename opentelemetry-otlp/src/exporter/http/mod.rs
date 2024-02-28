@@ -1,5 +1,5 @@
 use crate::{
-    ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+    ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
     OTEL_EXPORTER_OTLP_TIMEOUT,
 };
 use http::{HeaderName, HeaderValue, Uri};
@@ -10,7 +10,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::{default_headers, parse_header_string};
+use super::{default_headers, default_protocol, parse_header_string};
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -98,7 +98,7 @@ impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
             exporter_config: ExportConfig {
-                protocol: Protocol::HttpBinary,
+                protocol: default_protocol(),
                 ..ExportConfig::default()
             },
             http_config: HttpConfig {
