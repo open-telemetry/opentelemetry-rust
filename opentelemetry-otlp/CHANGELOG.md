@@ -6,6 +6,12 @@
 
 - URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
 
+### Added
+
+- Added `DeltaTemporalitySelector` ([#1568])
+
+[#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
+
 ## v0.15.0
 
 ### Changed
