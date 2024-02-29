@@ -86,6 +86,42 @@ also aligned with the design philosophy of existing telemetry solutions in the
 Rust ecosystem, like `tracing` or `log`, where these crates only offer a facade
 and the actual functionality is enabled through additional crates.
 
+### Related crates
+
+Unless you are a library author, you will almost always need to use additional
+crates along with this. Given this crate has no-op implementation only, an
+OpenTelemetry SDK is always required.
+[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk) is the official
+SDK implemented by OpenTelemetry itself, though it is possible to use a
+different sdk.
+
+Additionally one or more exporters are also required to export telemetry to a
+destination. OpenTelemetry provides the following exporters:
+
+- **[opentelemetry-stdout](https://crates.io/crates/opentelemetry-stdout):**
+  Prints telemetry to stdout, primarily used for learning/debugging purposes.
+- **[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp):** Exports
+  telemetry (logs, metrics and traces) in the [OTLP
+  format](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/protocol)
+  to an endpoint accepting OTLP. This could be the [OTel
+  Collector](https://github.com/open-telemetry/opentelemetry-collector),
+  telemetry backends like [Jaeger](https://www.jaegertracing.io/),
+  [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
+  or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
+- **[opentelemetry-zipkin](https://crates.io/crates/opentelemetry-zipkin):**
+  Exports telemetry (traces only) to Zipkin following [OpenTelemetry to Zipkin
+  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/zipkin.md)
+- **[opentelemetry-prometheus](https://crates.io/crates/opentelemetry-prometheus):**
+  Exports telemetry (metrics only) to Prometheus following [OpenTelemetry to
+  Prometheus
+  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md)
+
+OpenTelemetry Rust also has a [contrib
+repo](https://github.com/open-telemetry/opentelemetry-rust-contrib), where
+additional exporters could be found. Check [OpenTelemetry
+Registry](https://opentelemetry.io/ecosystem/registry/?language=rust) for
+additional exporters and other related components as well.
+
 ## Getting started
 
 See [docs](https://docs.rs/opentelemetry).

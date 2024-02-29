@@ -100,10 +100,14 @@ The following crates are maintained in this repo:
 * [`opentelemetry-sdk`] This is the OpenTelemetry SDK crate, and contains the
   official OpenTelemetry SDK implementation. It contains Logging SDK, Metrics
   SDK, and Tracing SDK. It also contains propagator implementations.
-* [`opentelemetry-otlp`] exporter for sending logs, metrics and traces in the
-  OTLP format to an endpoint accepting OTLP, like the [OpenTelemetry
-  collector](https://opentelemetry.io/docs/collector/), or [vendor specific
-  endpoints](https://opentelemetry.io/ecosystem/vendors/).
+* [`opentelemetry-otlp`] - exporter to send telemetry (logs, metrics and traces)
+  in the [OTLP
+  format](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/protocol)
+  to an endpoint accepting OTLP. This could be the [OTel
+  Collector](https://github.com/open-telemetry/opentelemetry-collector),
+  telemetry backends like [Jaeger](https://www.jaegertracing.io/),
+  [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
+  or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
 * [`opentelemetry-stdout`] exporter for sending logs, metrics and traces to
   stdout, for learning/debugging purposes.  
 * [`opentelemetry-http`] This crate contains utility functions to help with
