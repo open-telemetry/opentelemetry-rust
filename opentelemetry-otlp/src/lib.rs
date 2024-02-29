@@ -352,10 +352,13 @@ pub enum Error {
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
 
     /// Prost encode failed
-    #[cfg(any(feature = "http-proto", all(feature = "http-json", not(feature = "trace"))))]
+    #[cfg(any(
+        feature = "http-proto",
+        all(feature = "http-json", not(feature = "trace"))
+    ))]
     #[error("prost encoding error {0}")]
     EncodeError(#[from] prost::EncodeError),
-    
+
     /// The lock in exporters has been poisoned.
     #[cfg(feature = "metrics")]
     #[error("the lock of the {0} has been poisoned")]
