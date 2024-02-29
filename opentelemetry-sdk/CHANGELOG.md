@@ -56,14 +56,16 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 | OTEL_BSP_SCHEDULE_DELAY_MILLIS  | OTEL_BSP_SCHEDULE_DELAY   |
 | OTEL_BSP_EXPORT_TIMEOUT_MILLIS  | OTEL_BSP_EXPORT_TIMEOUT   |
 
-- **Breaking** [1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455) Make the LoggerProvider Owned
+- **Breaking** [#1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455) Make the LoggerProvider Owned
   - `Logger` now takes an Owned Logger instead of a `Weak<LoggerProviderInner>`
   - `LoggerProviderInner` is no longer `pub (crate)`
   - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
 
-- [1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements
+- [#1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements
     when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
     (e.g. `counter.Add(5, &[])`)
+
+- **Breaking** Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 
 ### Fixed
 
@@ -73,47 +75,46 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Fixed
 
-- Fix delta aggregation metric reuse. (#1434)
-- Fix `max_scale` validation of exponential histogram configuration. (#1452)
+- Fix delta aggregation metric reuse. [#1434](https://github.com/open-telemetry/opentelemetry-rust/pull/1434)
+- Fix `max_scale` validation of exponential histogram configuration. [#1452](https://github.com/open-telemetry/opentelemetry-rust/pull/1452)
 
 ## v0.21.1
 
 ### Fixed
 
-- Fix metric export corruption if gauges have not received a last value. (#1363)
-- Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
+- Fix metric export corruption if gauges have not received a last value. [#1363](https://github.com/open-telemetry/opentelemetry-rust/pull/1363)
+- Return consistent `Meter` for a given scope from `MeterProvider`. [#1351](https://github.com/open-telemetry/opentelemetry-rust/pull/1351)
 
 ## v0.21.0
 
 ### Added
 
-- Log warning if two instruments have the same name with different (#1266)
+- Log warning if two instruments have the same name with different [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
   casing
-- Log warning if view is created with empty criteria (#1266)
-- Add exponential histogram support (#1267)
-- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
+- Log warning if view is created with empty criteria [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add exponential histogram support [#1267](https://github.com/open-telemetry/opentelemetry-rust/pull/1267)
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` [#1197](https://github.com/open-telemetry/opentelemetry-rust/pull/1197)
 
 ### Changed
 
-- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
-  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
+  [#1194](https://github.com/open-telemetry/opentelemetry-rust/pull/1194).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
-- Add unit/doc tests for MeterProvider #1220
+- Add unit/doc tests for MeterProvider [#1220](https://github.com/open-telemetry/opentelemetry-rust/pull/1220)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 - Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
-- Move `MetricsProducer` config to builders to match other config (#1266)
-- Return error earlier if readers are shut down (#1266)
-- Add `/` to valid characters for instrument names (#1269)
-- Increase instrument name maximum length from 63 to 255 (#1269)
+- Move `MetricsProducer` config to builders to match other config [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Return error earlier if readers are shut down [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add `/` to valid characters for instrument names [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
+- Increase instrument name maximum length from 63 to 255 [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
-- Replace regex with glob (#1301)
+- Replace regex with glob [#1301](https://github.com/open-telemetry/opentelemetry-rust/pull/1301)
 - **Breaking**
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
   makes few breaking changes with respect to how Span attributes are stored to
@@ -145,7 +146,7 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Fixed
 
-- Fix metric instrument name validation to include `_` #1030
+- Fix metric instrument name validation to include `_` [#1274](https://github.com/open-telemetry/opentelemetry-rust/pull/1274)
 
 ## v0.20.0
 
