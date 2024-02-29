@@ -74,7 +74,6 @@ fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     #[cfg(feature = "http-json")]
     use crate::Protocol;
     use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-    #[cfg(feature = "http-proto")]
     use prost::Message;
 
     let req = ExportTraceServiceRequest {
