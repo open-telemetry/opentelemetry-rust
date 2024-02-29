@@ -13,7 +13,7 @@ Please check the [README](https://crates.io/crates/opentelemetry-jaeger) for mor
 
 ### Changed
 
-- Update to tonic 0.11 and prost 0.12 (#1536)
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
 
 ### Removed
 
