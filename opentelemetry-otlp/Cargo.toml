@@ -31,7 +31,7 @@ futures-core = { workspace = true }
 opentelemetry = { version = "0.22", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.22", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
-opentelemetry-proto = { version = "0.5", path = "../opentelemetry-proto", default-features = false,  features=["with-serde"] }
+opentelemetry-proto = { version = "0.5", path = "../opentelemetry-proto", default-features = false }
 opentelemetry-semantic-conventions = { version = "0.14", path = "../opentelemetry-semantic-conventions" }
 
 prost = { workspace = true, optional = true }
@@ -75,7 +75,7 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 # http json
-http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
+http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]
