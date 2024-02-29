@@ -2,6 +2,12 @@
 
 ## vNext
 
+### Added
+
+- Added `DeltaTemporalitySelector` ([#1568])
+
+[#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
+
 ## v0.15.0
 
 ### Added
