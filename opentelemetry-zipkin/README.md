@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     tracer.in_span("doing_work", |cx| {
         // Traced app logic here...
     });
-    
+
     global::shutdown_tracer_provider();
 
     Ok(())
@@ -86,9 +86,8 @@ a manual implementation of the [`HttpClient`] trait. By default the
 `reqwest-blocking-client` feature is enabled which will use the `reqwest` crate.
 While this is compatible with both async and non-async projects, it is not
 optimal for high-performance async applications as it will block the executor
-thread. Consider using the `reqwest-client` (without blocking) or `surf-client`
-features if you are in the `tokio` or `async-std` ecosystems respectively, or
-select whichever client you prefer as shown below.
+thread. Consider using the `reqwest-client` (without blocking) if you are in
+the `tokio` ecosystem.
 
 Note that async http clients may require a specific async runtime to be
 available so be sure to match them appropriately.
@@ -100,7 +99,7 @@ available so be sure to match them appropriately.
 [Example](https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/#kitchen-sink-full-configuration) showing how to override all configuration options. See the
 [`ZipkinPipelineBuilder`] docs for details of each option.
 
-[`ZipkinPipelineBuilder`]: struct.ZipkinPipelineBuilder.html
+[`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinPipelineBuilder.html
 
 ## Supported Rust Versions
 

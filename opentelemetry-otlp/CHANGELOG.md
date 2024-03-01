@@ -2,18 +2,40 @@
 
 ## vNext
 
-- Update to tonic 0.11 and prost 0.12 (#1536)
-- Remove support for grpcio transport (#1534)
+### Fixed
+
+- URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
+
+### Added
+
+- Added `DeltaTemporalitySelector` ([#1568])
+
+[#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
+
+## v0.15.0
+
+### Added
+
+- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
+- Allow specifying OTLP Tonic metadata from env variable [#1377](https://github.com/open-telemetry/opentelemetry-rust/pull/1377)
+
+### Changed
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
+
+### Fixed
+- Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
+
+### Removed
+- **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
+- **Breaking** Remove support for grpcio transport [#1534](https://github.com/open-telemetry/opentelemetry-rust/pull/1534)
 
 ## v0.14.0
 
 ### Added
 
-- Add `build_{signal}_exporter` methods to client builders (#1187)
-- Add `grpcio` metrics exporter (#1202)
-- Allow specifying OTLP HTTP headers from env variable (#1290)
-- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
-- Allow specifying OTLP Tonic metadata from env variable (#1377)
+- Add `build_{signal}_exporter` methods to client builders [#1187](https://github.com/open-telemetry/opentelemetry-rust/pull/1187)
+- Add `grpcio` metrics exporter [#1202](https://github.com/open-telemetry/opentelemetry-rust/pull/1202)
+- Allow specifying OTLP HTTP headers from env variable [#1290](https://github.com/open-telemetry/opentelemetry-rust/pull/1290)
 
 ### Changed
 
@@ -21,7 +43,7 @@
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
-- Make `NoExporterBuilder` a compiling time error [#1271](https://github.com/open-telemetry/opentelemetry-rust/pull/1271)
+- Make `NoExporterBuilder` a compiling time error [#1272](https://github.com/open-telemetry/opentelemetry-rust/pull/1272)
 
 ## v0.13.0
 

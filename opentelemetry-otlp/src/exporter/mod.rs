@@ -211,7 +211,37 @@ impl<B: HasExportConfig> WithExportConfig for B {
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
+fn url_decode(value: &str) -> Option<String> {
+    let mut result = String::with_capacity(value.len());
+    let mut chars_to_decode = Vec::<u8>::new();
+    let mut all_chars = value.chars();
+
+    loop {
+        let ch = all_chars.next();
+
+        if ch.is_some() && ch.unwrap() == '%' {
+            chars_to_decode.push(
+                u8::from_str_radix(&format!("{}{}", all_chars.next()?, all_chars.next()?), 16)
+                    .ok()?,
+            );
+            continue;
+        }
+
+        if !chars_to_decode.is_empty() {
+            result.push_str(std::str::from_utf8(&chars_to_decode).ok()?);
+            chars_to_decode.clear();
+        }
+
+        if let Some(c) = ch {
+            result.push(c);
+        } else {
+            return Some(result);
+        }
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, String)> {
     value
         .split_terminator(',')
         .map(str::trim)
@@ -219,10 +249,15 @@ fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, &str)> {
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, &str)> {
+fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String)> {
     key_value_string
         .split_once('=')
-        .map(|(key, value)| (key.trim(), value.trim()))
+        .map(|(key, value)| {
+            (
+                key.trim(),
+                url_decode(value.trim()).unwrap_or(value.to_string()),
+            )
+        })
         .filter(|(key, value)| !key.is_empty() && !value.is_empty())
 }
 
@@ -245,6 +280,46 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "http-proto")]
+    #[test]
+    fn test_default_http_endpoint() {
+        let exporter_builder = crate::new_exporter().http();
+
+        assert_eq!(
+            exporter_builder.exporter_config.endpoint,
+            "http://localhost:4318"
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_default_tonic_endpoint() {
+        let exporter_builder = crate::new_exporter().tonic();
+
+        assert_eq!(
+            exporter_builder.exporter_config.endpoint,
+            "http://localhost:4317"
+        );
+    }
+
+    #[test]
+    fn test_url_decode() {
+        let test_cases = vec![
+            // Format: (encoded, expected_decoded)
+            ("v%201", Some("v 1")),
+            ("v 1", Some("v 1")),
+            ("%C3%B6%C3%A0%C2%A7%C3%96abcd%C3%84", Some("öà§ÖabcdÄ")),
+            ("v%XX1", None),
+        ];
+
+        for (encoded, expected_decoded) in test_cases {
+            assert_eq!(
+                super::url_decode(encoded),
+                expected_decoded.map(|v| v.to_string()),
+            )
+        }
+    }
+
     #[test]
     fn test_parse_header_string() {
         let test_cases = vec![
@@ -258,7 +333,10 @@ mod tests {
         for (input_str, expected_headers) in test_cases {
             assert_eq!(
                 super::parse_header_string(input_str).collect::<Vec<_>>(),
-                expected_headers,
+                expected_headers
+                    .into_iter()
+                    .map(|(k, v)| (k, v.to_string()))
+                    .collect::<Vec<_>>(),
             )
         }
     }
@@ -268,6 +346,15 @@ mod tests {
         let test_cases = vec![
             // Format: (input_str, expected_header)
             ("k1=v1", Some(("k1", "v1"))),
+            (
+                "Authentication=Basic AAA",
+                Some(("Authentication", "Basic AAA")),
+            ),
+            (
+                "Authentication=Basic%20AAA",
+                Some(("Authentication", "Basic AAA")),
+            ),
+            ("k1=%XX", Some(("k1", "%XX"))),
             ("", None),
             ("=v1", None),
             ("k1=", None),
@@ -276,7 +363,7 @@ mod tests {
         for (input_str, expected_headers) in test_cases {
             assert_eq!(
                 super::parse_header_key_value_string(input_str),
-                expected_headers,
+                expected_headers.map(|(k, v)| (k, v.to_string())),
             )
         }
     }

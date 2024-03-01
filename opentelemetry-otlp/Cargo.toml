@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.14.0"
+version = "0.15.0"
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
@@ -28,18 +28,17 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-trait = { workspace = true }
 futures-core = { workspace = true }
-opentelemetry = { version = "0.21", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.21", default-features = false, path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
-opentelemetry-proto = { version = "0.4", path = "../opentelemetry-proto", default-features = false }
-opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
+opentelemetry = { version = "0.22", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.22", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
+opentelemetry-proto = { version = "0.5", path = "../opentelemetry-proto", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.14", path = "../opentelemetry-semantic-conventions" }
 
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
-surf = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
@@ -74,7 +73,6 @@ http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-mess
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-surf-client = ["surf", "opentelemetry-http/surf"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]

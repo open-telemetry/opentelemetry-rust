@@ -88,8 +88,5 @@
 ///
 ///  [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 pub mod propagator;
-#[cfg(feature = "integration_test")]
-#[doc(hidden)]
-pub mod testing;
 
 pub use propagator::Propagator;
