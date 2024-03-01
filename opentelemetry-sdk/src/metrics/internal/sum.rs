@@ -219,9 +219,10 @@ impl<T: Number<T>> Sum<T> {
                     }
                 }
                 Err(e) => {
-                    global::handle_error(MetricsError::Other(
-                        format!("Failed to acquire lock on bucket due to: {:?}", e).into(),
-                    ));
+                    global::handle_error(MetricsError::Other(format!(
+                        "Failed to acquire lock on bucket due to: {:?}",
+                        e
+                    )));
                 }
             }
         }
@@ -410,9 +411,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 }
                 Err(e) => {
                     // Log or handle the lock acquisition error if necessary
-                    global::handle_error(MetricsError::Other(
-                        format!("Failed to acquire lock on bucket due to: {:?}", e).into(),
-                    ));
+                    global::handle_error(MetricsError::Other(format!(
+                        "Failed to acquire lock on bucket due to: {:?}",
+                        e
+                    )));
                     // Continue to the next bucket if the lock cannot be acquired
                     continue;
                 }
@@ -488,9 +490,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 Ok(bucket) => bucket,
                 Err(e) => {
                     // Log the error or handle it as needed.
-                    global::handle_error(MetricsError::Other(
-                        format!("Failed to acquire lock on bucket due to: {:?}", e).into(),
-                    ));
+                    global::handle_error(MetricsError::Other(format!(
+                        "Failed to acquire lock on bucket due to: {:?}",
+                        e
+                    )));
                     continue; // Skip to the next bucket if the lock cannot be acquired.
                 }
             };
