@@ -231,7 +231,7 @@ fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, String)> {
         .filter_map(parse_header_key_value_string)
 }
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature="http-json"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn url_decode(value: &str) -> Option<String> {
     let mut result = String::with_capacity(value.len());
     let mut chars_to_decode = Vec::<u8>::new();
