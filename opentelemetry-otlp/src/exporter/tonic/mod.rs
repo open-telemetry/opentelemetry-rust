@@ -381,7 +381,7 @@ fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
                 .filter_map(|(key, value)| {
                     Some((
                         HeaderName::from_str(key).ok()?,
-                        HeaderValue::from_str(value).ok()?,
+                        HeaderValue::from_str(&value).ok()?,
                     ))
                 })
                 .collect::<HeaderMap>()
