@@ -315,6 +315,19 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "http-json")]
+    #[test]
+    fn test_default_http_json_endpoint() {
+        use crate::WithExportConfig;
+
+        let exporter_builder = crate::new_exporter().http().with_protocol(crate::Protocol::HttpJson);
+
+        assert_eq!(
+            exporter_builder.exporter_config.endpoint,
+            "http://localhost:4318"
+        );
+    }
+
     #[test]
     fn test_url_decode() {
         let test_cases = vec![
