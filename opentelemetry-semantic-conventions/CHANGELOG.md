@@ -2,6 +2,11 @@
 
 ## vNext
 
+### Changed
+
+- Update to v1.24.0 spec 
+  [#1596](https://github.com/open-telemetry/opentelemetry-rust/pull/1596)
+
 ## v0.14.0
 
 ### Changed
