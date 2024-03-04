@@ -56,7 +56,8 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
-# Enable use_hashbrown for critical performance when measurement attributes are secure and not prone to external manipulation.
+# Enable use_hashbrown to improve hashing performance in Metrics aggregation.
+# This feature should be used carefully, especially when the key/value pairs in measurement attributes are derived from external or untrusted sources.
 use_hashbrown = ["hashbrown", "ahash"]
 
 [[bench]]
