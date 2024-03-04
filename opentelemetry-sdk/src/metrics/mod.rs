@@ -599,7 +599,9 @@ mod tests {
         // cargo test delta_memory_efficiency_test --features=metrics,testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporterBuilder::new().with_temporality_selector(DeltaTemporalitySelector()).build();
+        let exporter = InMemoryMetricsExporterBuilder::new()
+            .with_temporality_selector(DeltaTemporalitySelector())
+            .build();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -687,7 +689,7 @@ mod tests {
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
         println!("resource_metrics: {:?}", resource_metrics);
-        assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");        
+        assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
     }
 
     struct DeltaTemporalitySelector();
