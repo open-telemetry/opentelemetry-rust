@@ -30,6 +30,7 @@ pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION
 
 #[cfg(all(
     feature = "trace",
+    feature = "http-json",
     not(feature = "http-proto"),
     not(feature = "grpc-tonic")
 ))]
@@ -315,16 +316,24 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "http-json")]
+    #[cfg(all(
+        feature = "trace",
+        feature = "http-json",
+        not(feature = "http-proto"),
+        not(feature = "grpc-tonic")
+    ))]
     #[test]
-    fn test_default_http_json_endpoint() {
-        use crate::WithExportConfig;
-
-        let exporter_builder = crate::new_exporter().http().with_protocol(crate::Protocol::HttpJson);
+    fn test_http_json_defaults() {
+        let exporter_builder = crate::new_exporter().http();
 
         assert_eq!(
             exporter_builder.exporter_config.endpoint,
             "http://localhost:4318"
+        );
+
+        assert_eq!(
+            exporter_builder.exporter_config.protocol,
+            crate::Protocol::HttpJson
         );
     }
 
