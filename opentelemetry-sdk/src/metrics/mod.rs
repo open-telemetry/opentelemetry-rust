@@ -867,7 +867,7 @@ mod tests {
     }
 
     fn find_scope_metric<'a>(
-        metrics: &'a Vec<ScopeMetrics>,
+        metrics: &'a [ScopeMetrics],
         name: &'a str,
     ) -> Option<&'a ScopeMetrics> {
         metrics.iter().find(|&scope_metric| scope_metric.scope.name == name)
