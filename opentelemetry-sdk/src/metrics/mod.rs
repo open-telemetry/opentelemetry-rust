@@ -283,7 +283,7 @@ mod tests {
             let datapoint1 = &sum1.data_points[0];
             assert_eq!(datapoint1.value, 10);
         } else {
-            assert!(false, "No MetricScope found for 'test.meter1'");
+            panic!("No MetricScope found for 'test.meter1'");
         }
 
         if let Some(scope2) = scope2 {
@@ -303,7 +303,7 @@ mod tests {
             let datapoint2 = &sum2.data_points[0];
             assert_eq!(datapoint2.value, 5);
         } else {
-            assert!(false, "No MetricScope found for 'test.meter2'");
+            panic!("No MetricScope found for 'test.meter2'");
         }
     }
 
