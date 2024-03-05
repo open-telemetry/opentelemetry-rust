@@ -870,7 +870,9 @@ mod tests {
         metrics: &'a [ScopeMetrics],
         name: &'a str,
     ) -> Option<&'a ScopeMetrics> {
-        metrics.iter().find(|&scope_metric| scope_metric.scope.name == name)
+        metrics
+            .iter()
+            .find(|&scope_metric| scope_metric.scope.name == name)
     }
 
     struct DeltaTemporalitySelector();
