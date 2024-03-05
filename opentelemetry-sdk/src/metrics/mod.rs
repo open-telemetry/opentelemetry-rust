@@ -870,12 +870,7 @@ mod tests {
         metrics: &'a Vec<ScopeMetrics>,
         name: &'a str,
     ) -> Option<&'a ScopeMetrics> {
-        for scope_metric in metrics {
-            if scope_metric.scope.name == name {
-                return Some(scope_metric);
-            }
-        }
-        None
+        metrics.iter().find(|&scope_metric| scope_metric.scope.name == name)
     }
 
     struct DeltaTemporalitySelector();
