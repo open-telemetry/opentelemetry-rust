@@ -60,7 +60,6 @@ pub use view::*;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use std::borrow::Cow;
     use self::data::ScopeMetrics;
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
@@ -72,6 +71,7 @@ mod tests {
         metrics::{MeterProvider as _, Unit},
         KeyValue,
     };
+    use std::borrow::Cow;
 
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
@@ -214,7 +214,7 @@ mod tests {
 
         let datapoint = &sum.data_points[0];
         assert_eq!(datapoint.value, 15);
-    }    
+    }
 
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
