@@ -593,7 +593,7 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Bug bug."]
+    #[ignore = "Known bug: https://github.com/open-telemetry/opentelemetry-rust/issues/1598"]
     async fn delta_memory_efficiency_test() {
         // Run this test with stdout enabled to see output.
         // cargo test delta_memory_efficiency_test --features=metrics,testing -- --nocapture
