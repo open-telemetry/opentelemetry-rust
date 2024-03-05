@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{
     sync::{Arc, Mutex},
     time::SystemTime,
@@ -12,13 +12,10 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "use_hashbrown")]
 use ahash::AHasher;
 #[cfg(feature = "use_hashbrown")]
-use hashbrown::{hash_map::Entry, HashMap};
+use hashbrown::HashMap;
 
 #[cfg(not(feature = "use_hashbrown"))]
-use std::collections::{
-    hash_map::{DefaultHasher, Entry},
-    HashMap,
-};
+use std::collections::{hash_map::DefaultHasher, HashMap};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
@@ -26,6 +23,7 @@ use super::{
 };
 
 const BUCKET_COUNT: usize = 256;
+const OVERFLOW_BUCKET_INDEX: usize = BUCKET_COUNT - 1; // Use the last bucket as overflow bucket
 type BucketValue<T> = Mutex<Option<HashMap<AttributeSet, T>>>;
 type Buckets<T> = Arc<[BucketValue<T>; BUCKET_COUNT]>;
 /// The storage for sums.
@@ -33,6 +31,7 @@ struct ValueMap<T: Number<T>> {
     buckets: Buckets<T>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
+    total_unique_entries: AtomicUsize,
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
@@ -53,11 +52,12 @@ impl<T: Number<T>> ValueMap<T> {
             buckets: Arc::new(buckets),
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
+            total_unique_entries: AtomicUsize::new(0),
         }
     }
 
     // Hash function to determine the bucket
-    fn hash_to_bucket(key: &AttributeSet) -> u8 {
+    fn hash_to_bucket(key: &AttributeSet) -> usize {
         #[cfg(not(feature = "use_hashbrown"))]
         let mut hasher = DefaultHasher::new();
         #[cfg(feature = "use_hashbrown")]
@@ -65,7 +65,7 @@ impl<T: Number<T>> ValueMap<T> {
 
         key.hash(&mut hasher);
         // Use the 8 least significant bits directly, avoiding the modulus operation.
-        hasher.finish() as u8
+        hasher.finish() as u8 as usize
     }
 
     // Calculate the total length of data points across all buckets.
@@ -90,43 +90,47 @@ impl<T: Number<T>> ValueMap<T> {
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
                 .store(true, Ordering::Release);
-        } else {
-            let bucket_index = Self::hash_to_bucket(&attrs) as usize;
-            let bucket_mutex = &self.buckets[bucket_index];
+            return;
+        }
 
-            let mut bucket_guard = match bucket_mutex.lock() {
-                Ok(guard) => guard,
-                Err(e) => {
-                    eprintln!("Failed to acquire lock due to: {:?}", e);
-                    return; // TBD - retry ?
-                }
+        let bucket_index = Self::hash_to_bucket(&attrs);
+        let (is_new_entry, should_use_overflow) = {
+            let bucket_mutex = &self.buckets[bucket_index];
+            let bucket_guard = bucket_mutex.lock().unwrap();
+
+            let is_new_entry = if let Some(bucket) = &*bucket_guard {
+                !bucket.contains_key(&attrs)
+            } else {
+                true
             };
 
-            if bucket_guard.is_none() {
-                *bucket_guard = Some(HashMap::new());
-            }
+            let should_use_overflow = is_new_entry
+                && !is_under_cardinality_limit(
+                    self.total_unique_entries.load(Ordering::Relaxed) + 1,
+                );
 
-            if let Some(ref mut values) = *bucket_guard {
-                let size = values.len();
-                match values.entry(attrs) {
-                    Entry::Occupied(mut occupied_entry) => {
-                        let sum = occupied_entry.get_mut();
-                        *sum += measurement;
-                    }
-                    Entry::Vacant(vacant_entry) => {
-                        if is_under_cardinality_limit(size) {
-                            vacant_entry.insert(measurement);
-                        } else {
-                            values
-                                .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
-                                .and_modify(|val| *val += measurement)
-                                .or_insert(measurement);
-                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
-                        }
-                    }
-                }
-            }
+            (is_new_entry, should_use_overflow)
+        };
+        if is_new_entry && !should_use_overflow {
+            self.total_unique_entries.fetch_add(1, Ordering::Relaxed);
         }
+        let final_bucket_index = if should_use_overflow {
+            OVERFLOW_BUCKET_INDEX
+        } else {
+            bucket_index
+        };
+        let bucket_mutex = &self.buckets[final_bucket_index];
+        let mut bucket_guard = bucket_mutex.lock().unwrap();
+        let bucket = bucket_guard.get_or_insert_with(HashMap::new);
+        let entry_key = if should_use_overflow {
+            STREAM_OVERFLOW_ATTRIBUTE_SET.clone()
+        } else {
+            attrs
+        };
+        bucket
+            .entry(entry_key)
+            .and_modify(|e| *e += measurement)
+            .or_insert(measurement);
     }
 }
 
@@ -215,6 +219,9 @@ impl<T: Number<T>> Sum<T> {
                                 value,
                                 exemplars: vec![],
                             });
+                            self.value_map
+                                .total_unique_entries
+                                .fetch_sub(1, Ordering::Relaxed);
                         }
                     }
                 }
@@ -406,6 +413,9 @@ impl<T: Number<T>> PrecomputedSum<T> {
                                 value: delta,
                                 exemplars: vec![],
                             });
+                            self.value_map
+                                .total_unique_entries
+                                .fetch_sub(1, Ordering::Relaxed);
                         }
                     }
                 }
