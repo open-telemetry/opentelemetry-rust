@@ -2,8 +2,29 @@
 
 ## vNext
 
-### Changed
+## v0.22.1
 
+### Fixed
+
+- [#1576](https://github.com/open-telemetry/opentelemetry-rust/pull/1576)
+  Fix Span kind is always set to "internal".
+
+## v0.22.0
+
+### Deprecated
+
+- XrayIdGenerator in the opentelemetry-sdk has been deprecated and moved to version 0.10.0 of the opentelemetry-aws crate.
+
+### Added
+
+- [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge
+- [#1471](https://github.com/open-telemetry/opentelemetry-rust/pull/1471) Configure batch log record processor via [`OTEL_BLRP_*`](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-logrecord-processor) environment variables and via `OtlpLogPipeline::with_batch_config`
+- [#1503](https://github.com/open-telemetry/opentelemetry-rust/pull/1503) Make the documentation for In-Memory exporters visible.
+
+- [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526)
+Performance Improvement : Creating Spans and LogRecords are now faster, by avoiding expensive cloning of `Resource` for every Span/LogRecord.
+
+### Changed
 - **Breaking**
 [#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
 [#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
@@ -24,45 +45,76 @@
 - **Breaking** Remove `TextMapCompositePropagator` [#1373](https://github.com/open-telemetry/opentelemetry-rust/pull/1373). Use `TextMapCompositePropagator` in opentelemetry API.
 
 - [#1375](https://github.com/open-telemetry/opentelemetry-rust/pull/1375/) Fix metric collections during PeriodicReader shutdown
+- **Breaking** [#1480](https://github.com/open-telemetry/opentelemetry-rust/pull/1480) Remove fine grained `BatchConfig` configurations from `BatchLogProcessorBuilder` and `BatchSpanProcessorBuilder`. Use `BatchConfigBuilder` to construct a `BatchConfig` instance and pass it using `BatchLogProcessorBuilder::with_batch_config` or `BatchSpanProcessorBuilder::with_batch_config`.
+- **Breaking** [#1480](https://github.com/open-telemetry/opentelemetry-rust/pull/1480) Remove mutating functions from `BatchConfig`, use `BatchConfigBuilder` to construct a `BatchConfig` instance.
+- **Breaking** [#1495](https://github.com/open-telemetry/opentelemetry-rust/pull/1495) Remove Batch LogRecord&Span Processor configuration via non-standard environment variables. Use the following table to migrate from the no longer supported non-standard environment variables to the standard ones.
+
+| No longer supported             | Standard equivalent       |
+|---------------------------------|---------------------------|
+| OTEL_BLRP_SCHEDULE_DELAY_MILLIS | OTEL_BLRP_SCHEDULE_DELAY  |
+| OTEL_BLRP_EXPORT_TIMEOUT_MILLIS | OTEL_BLRP_EXPORT_TIMEOUT  |
+| OTEL_BSP_SCHEDULE_DELAY_MILLIS  | OTEL_BSP_SCHEDULE_DELAY   |
+| OTEL_BSP_EXPORT_TIMEOUT_MILLIS  | OTEL_BSP_EXPORT_TIMEOUT   |
+
+- **Breaking** [#1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455) Make the LoggerProvider Owned
+  - `Logger` now takes an Owned Logger instead of a `Weak<LoggerProviderInner>`
+  - `LoggerProviderInner` is no longer `pub (crate)`
+  - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
+
+- [#1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements
+    when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
+    (e.g. `counter.Add(5, &[])`)
+
+- **Breaking** Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
+
+### Fixed
+
+- [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader
+
+## v0.21.2
+
+### Fixed
+
+- Fix delta aggregation metric reuse. [#1434](https://github.com/open-telemetry/opentelemetry-rust/pull/1434)
+- Fix `max_scale` validation of exponential histogram configuration. [#1452](https://github.com/open-telemetry/opentelemetry-rust/pull/1452)
 
 ## v0.21.1
 
 ### Fixed
 
-- Fix metric export corruption if gauges have not received a last value. (#1363)
-- Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
+- Fix metric export corruption if gauges have not received a last value. [#1363](https://github.com/open-telemetry/opentelemetry-rust/pull/1363)
+- Return consistent `Meter` for a given scope from `MeterProvider`. [#1351](https://github.com/open-telemetry/opentelemetry-rust/pull/1351)
 
 ## v0.21.0
 
 ### Added
 
-- Log warning if two instruments have the same name with different (#1266)
+- Log warning if two instruments have the same name with different [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
   casing
-- Log warning if view is created with empty criteria (#1266)
-- Add exponential histogram support (#1267)
-- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
+- Log warning if view is created with empty criteria [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add exponential histogram support [#1267](https://github.com/open-telemetry/opentelemetry-rust/pull/1267)
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` [#1197](https://github.com/open-telemetry/opentelemetry-rust/pull/1197)
 
 ### Changed
 
-- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
-  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
+  [#1194](https://github.com/open-telemetry/opentelemetry-rust/pull/1194).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
-- Add unit/doc tests for MeterProvider #1220
+- Add unit/doc tests for MeterProvider [#1220](https://github.com/open-telemetry/opentelemetry-rust/pull/1220)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 - Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
-- Move `MetricsProducer` config to builders to match other config (#1266)
-- Return error earlier if readers are shut down (#1266)
-- Add `/` to valid characters for instrument names (#1269)
-- Increase instrument name maximum length from 63 to 255 (#1269)
+- Move `MetricsProducer` config to builders to match other config [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Return error earlier if readers are shut down [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add `/` to valid characters for instrument names [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
+- Increase instrument name maximum length from 63 to 255 [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
-- Replace regex with glob (#1301)
+- Replace regex with glob [#1301](https://github.com/open-telemetry/opentelemetry-rust/pull/1301)
 - **Breaking**
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
   makes few breaking changes with respect to how Span attributes are stored to
@@ -94,7 +146,7 @@
 
 ### Fixed
 
-- Fix metric instrument name validation to include `_` #1030
+- Fix metric instrument name validation to include `_` [#1274](https://github.com/open-telemetry/opentelemetry-rust/pull/1274)
 
 ## v0.20.0
 

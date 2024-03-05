@@ -5,11 +5,12 @@ use std::fmt::Debug;
 pub use bytes::Bytes;
 #[doc(no_inline)]
 pub use http::{Request, Response};
-use opentelemetry::{
-    propagation::{Extractor, Injector},
-    trace::TraceError,
-};
+use opentelemetry::propagation::{Extractor, Injector};
 
+/// Helper for injecting headers into HTTP Requests. This is used for OpenTelemetry context
+/// propagation over HTTP.
+/// See [this](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md)
+/// for example usage.
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
 
 impl<'a> Injector for HeaderInjector<'a> {
@@ -23,6 +24,10 @@ impl<'a> Injector for HeaderInjector<'a> {
     }
 }
 
+/// Helper for extracting headers from HTTP Requests. This is used for OpenTelemetry context
+/// propagation over HTTP.
+/// See [this](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/tracing-http-propagator/README.md)
+/// for example usage.
 pub struct HeaderExtractor<'a>(pub &'a http::HeaderMap);
 
 impl<'a> Extractor for HeaderExtractor<'a> {
@@ -42,7 +47,9 @@ impl<'a> Extractor for HeaderExtractor<'a> {
 
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-/// A minimal interface necessary for export spans over HTTP.
+/// A minimal interface necessary for sending requests over HTTP.
+/// Used primarily for exporting telemetry over HTTP. Also used for fetching
+/// sampling strategies for JaegerRemoteSampler
 ///
 /// Users sometime choose HTTP clients that relay on a certain async runtime. This trait allows
 /// users to bring their choice of HTTP client.
@@ -66,7 +73,7 @@ mod reqwest {
     impl HttpClient for reqwest::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let request = request.try_into()?;
-            let mut response = self.execute(request).await?;
+            let mut response = self.execute(request).await?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -81,7 +88,7 @@ mod reqwest {
     impl HttpClient for reqwest::blocking::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let request = request.try_into()?;
-            let mut response = self.execute(request)?;
+            let mut response = self.execute(request)?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -93,68 +100,10 @@ mod reqwest {
     }
 }
 
-#[cfg(feature = "surf")]
-pub mod surf {
-    use std::str::FromStr;
-
-    use http::{header::HeaderName, HeaderMap, HeaderValue};
-
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-
-    #[derive(Debug)]
-    pub struct BasicAuthMiddleware(pub surf::http::auth::BasicAuth);
-
-    #[async_trait]
-    impl surf::middleware::Middleware for BasicAuthMiddleware {
-        async fn handle(
-            &self,
-            mut req: surf::Request,
-            client: surf::Client,
-            next: surf::middleware::Next<'_>,
-        ) -> surf::Result<surf::Response> {
-            req.insert_header(self.0.name(), self.0.value());
-            next.run(req, client).await
-        }
-    }
-
-    #[async_trait]
-    impl HttpClient for surf::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let (parts, body) = request.into_parts();
-            let method = parts.method.as_str().parse()?;
-            let uri = parts.uri.to_string().parse()?;
-
-            let mut request_builder = surf::Request::builder(method, uri).body(body);
-            let mut prev_name = None;
-            for (new_name, value) in parts.headers.into_iter() {
-                let name = new_name.or(prev_name).expect("the first time new_name should be set and from then on we always have a prev_name");
-                request_builder = request_builder.header(name.as_str(), value.to_str()?);
-                prev_name = Some(name);
-            }
-
-            let mut response = self.send(request_builder).await?;
-            let mut headers = HeaderMap::new();
-            for header_name in response.header_names() {
-                for header_value in &response[header_name.to_string().as_str()] {
-                    headers.append(
-                        HeaderName::from_str(&header_name.to_string())?,
-                        HeaderValue::from_str(header_value.as_str())?,
-                    );
-                }
-            }
-            let mut http_response = Response::builder()
-                .status(response.status() as u16)
-                .body(response.body_bytes().await?.into())?;
-
-            *http_response.headers_mut() = headers;
-
-            Ok(http_response)
-        }
-    }
-}
-
 #[cfg(feature = "isahc")]
 mod isahc {
+    use crate::ResponseExt;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use isahc::AsyncReadResponseExt;
     use std::convert::TryInto as _;
@@ -172,13 +121,15 @@ mod isahc {
                 .body(bytes.into())?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response)
+            Ok(http_response.error_for_status()?)
         }
     }
 }
 
 #[cfg(any(feature = "hyper", feature = "hyper_tls"))]
 pub mod hyper {
+    use crate::ResponseExt;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
     use hyper::client::connect::Connect;
@@ -236,7 +187,7 @@ pub mod hyper {
                 .body(hyper::body::to_bytes(response.into_body()).await?)?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response)
+            Ok(http_response.error_for_status()?)
         }
     }
 }
@@ -244,11 +195,11 @@ pub mod hyper {
 /// Methods to make working with responses from the [`HttpClient`] trait easier.
 pub trait ResponseExt: Sized {
     /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
-    fn error_for_status(self) -> Result<Self, TraceError>;
+    fn error_for_status(self) -> Result<Self, HttpError>;
 }
 
 impl<T> ResponseExt for Response<T> {
-    fn error_for_status(self) -> Result<Self, TraceError> {
+    fn error_for_status(self) -> Result<Self, HttpError> {
         if self.status().is_success() {
             Ok(self)
         } else {

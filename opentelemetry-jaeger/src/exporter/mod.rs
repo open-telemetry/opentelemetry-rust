@@ -2,8 +2,6 @@
 //!
 // Linting isn't detecting that it's used seems like linting bug.
 #[allow(unused_imports)]
-#[cfg(feature = "surf_collector_client")]
-use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -48,6 +46,15 @@ const INSTRUMENTATION_LIBRARY_NAME: &str = "otel.library.name";
 const INSTRUMENTATION_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// Jaeger span exporter
+///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 #[derive(Debug)]
 pub struct Exporter {
     /// Whether or not to export instrumentation information.
@@ -71,6 +78,15 @@ impl Exporter {
 }
 
 /// Jaeger process configuration
+///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 #[derive(Debug, Default)]
 pub struct Process {
     /// Jaeger service name

@@ -1,6 +1,25 @@
 # Changelog
 
+## Deprecation Notice
+
+Starting with [Jaeger v1.38](https://github.com/jaegertracing/jaeger/releases/tag/v1.38.0) Jaeger supports the OpenTelemetry Protocol (OTLP).
+[OpenTelemetry has recommended](https://opentelemetry.io/blog/2022/jaeger-native-otlp/) migrating to OTLP.
+
+Please check the [README](https://crates.io/crates/opentelemetry-jaeger) for more information.
+
 ## vNext
+
+## v0.21.0
+
+### Changed
+
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
+
+### Removed
+
+- **Breaking** Jaeger propagator functionality has been moved to a new crate [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/)
+  to prepare for opentelemetry-jaeger exporter deprecation. [#1487](https://github.com/open-telemetry/opentelemetry-rust/pull/1487)
+- **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
 
 ## v0.20.0
 

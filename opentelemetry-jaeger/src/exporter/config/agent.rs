@@ -35,6 +35,9 @@ const DEFAULT_AGENT_ENDPOINT_HOST: &str = "127.0.0.1";
 /// Default agent port if none is provided
 const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
 /// AgentPipeline config and build a exporter targeting a jaeger agent using UDP as transport layer protocol.
 ///
 /// ## UDP packet max length
@@ -68,6 +71,7 @@ const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 /// [`with_max_packet_size`]: AgentPipeline::with_max_packet_size
 /// [UDP packet size]: https://stackoverflow.com/questions/1098897/what-is-the-largest-safe-udp-packet-size-on-the-internet
 /// [why 65000]: https://serverfault.com/questions/246508/how-is-the-mtu-is-65535-in-udp-but-ethernet-does-not-allow-frame-size-more-than
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
 ///
 /// ## Environment variables
 /// The following environment variables are available to configure the agent exporter.
@@ -77,6 +81,10 @@ const DEFAULT_AGENT_ENDPOINT_PORT: &str = "6831";
 /// - `OTEL_EXPORTER_JAEGER_AGENT_PORT`, set the port of the agent. If the `OTEL_EXPORTER_JAEGER_AGENT_HOST`
 /// is not set, the exporter will use 127.0.0.1 as the host.
 #[derive(Debug)]
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub struct AgentPipeline {
     transformation_config: TransformationConfig,
     trace_config: Option<Config>,
@@ -123,7 +131,15 @@ impl HasRequiredConfig for AgentPipeline {
 ///
 /// See details for each configurations at [`AgentPipeline`]
 ///
+/// Deprecation Notice:
+/// Ingestion of OTLP is now supported in Jaeger please check [crates.io] for more details.
+///
 /// [`AgentPipeline`]: crate::config::agent::AgentPipeline
+/// [crates.io]: https://crates.io/crates/opentelemetry-jaeger
+#[deprecated(
+    since = "0.21.0",
+    note = "Please migrate to opentelemetry-otlp exporter."
+)]
 pub fn new_agent_pipeline() -> AgentPipeline {
     AgentPipeline::default()
 }
@@ -237,11 +253,13 @@ impl AgentPipeline {
     /// # Examples
     /// Set max queue size.
     /// ```rust
-    /// use opentelemetry_sdk::trace::BatchConfig;
+    /// use opentelemetry_sdk::trace::BatchConfigBuilder;
     ///
     /// let pipeline = opentelemetry_jaeger::new_agent_pipeline()
     ///                 .with_batch_processor_config(
-    ///                       BatchConfig::default().with_max_queue_size(200)
+    ///                       BatchConfigBuilder::default()
+    ///                         .with_max_queue_size(200)
+    ///                         .build()
     ///                 );
     ///
     /// ```

@@ -10,6 +10,7 @@
 /// as well.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsData {
@@ -24,6 +25,7 @@ pub struct LogsData {
 /// A collection of ScopeLogs from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
@@ -34,6 +36,9 @@ pub struct ResourceLogs {
     /// A list of ScopeLogs that originate from a resource.
     #[prost(message, repeated, tag = "2")]
     pub scope_logs: ::prost::alloc::vec::Vec<ScopeLogs>,
+    /// The Schema URL, if known. This is the identifier of the Schema that the resource data
+    /// is recorded in. To learn more about Schema URL see
+    /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_logs" field which have their own schema_url field.
     #[prost(string, tag = "3")]
@@ -42,6 +47,7 @@ pub struct ResourceLogs {
 /// A collection of Logs produced by a Scope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeLogs {
@@ -53,6 +59,9 @@ pub struct ScopeLogs {
     /// A list of log records.
     #[prost(message, repeated, tag = "2")]
     pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
+    /// The Schema URL, if known. This is the identifier of the Schema that the log data
+    /// is recorded in. To learn more about Schema URL see
+    /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all logs in the "logs" field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
@@ -61,6 +70,7 @@ pub struct ScopeLogs {
 /// <https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md>
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
@@ -144,6 +154,7 @@ pub struct LogRecord {
 /// Possible values for LogRecord.SeverityNumber.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum SeverityNumber {
@@ -240,14 +251,17 @@ impl SeverityNumber {
         }
     }
 }
-/// LogRecordFlags is defined as a protobuf 'uint32' type and is to be used as
-/// bit-fields. Each non-zero value defined in this enum is a bit-mask.
-/// To extract the bit-field, for example, use an expression like:
+/// LogRecordFlags represents constants used to interpret the
+/// LogRecord.flags field, which is protobuf 'fixed32' type and is to
+/// be used as bit-fields. Each non-zero value defined in this enum is
+/// a bit-mask.  To extract the bit-field, for example, use an
+/// expression like:
 ///
 ///    (logRecord.flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 ///
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum LogRecordFlags {

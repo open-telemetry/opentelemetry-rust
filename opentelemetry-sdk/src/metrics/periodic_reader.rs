@@ -1,5 +1,5 @@
 use std::{
-    env, fmt,
+    env, fmt, mem,
     sync::{Arc, Mutex, Weak},
     time::Duration,
 };
@@ -127,37 +127,39 @@ where
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
         let (message_sender, message_receiver) = mpsc::channel(256);
-        let ticker = self
-            .runtime
-            .interval(self.interval)
-            .map(|_| Message::Export);
 
-        let messages = Box::pin(stream::select(message_receiver, ticker));
-        let reader = PeriodicReader {
+        let worker = move |reader: &PeriodicReader| {
+            let ticker = self
+                .runtime
+                .interval(self.interval)
+                .map(|_| Message::Export);
+
+            let messages = Box::pin(stream::select(message_receiver, ticker));
+
+            let runtime = self.runtime.clone();
+            self.runtime.spawn(Box::pin(
+                PeriodicReaderWorker {
+                    reader: reader.clone(),
+                    timeout: self.timeout,
+                    runtime,
+                    rm: ResourceMetrics {
+                        resource: Resource::empty(),
+                        scope_metrics: Vec::new(),
+                    },
+                }
+                .run(messages),
+            ));
+        };
+
+        PeriodicReader {
             exporter: Arc::new(self.exporter),
             inner: Arc::new(Mutex::new(PeriodicReaderInner {
                 message_sender,
-                sdk_producer: None,
                 is_shutdown: false,
                 external_producers: self.producers,
+                sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
             })),
-        };
-
-        let runtime = self.runtime.clone();
-        self.runtime.spawn(Box::pin(
-            PeriodicReaderWorker {
-                reader: reader.clone(),
-                timeout: self.timeout,
-                runtime,
-                rm: ResourceMetrics {
-                    resource: Resource::empty(),
-                    scope_metrics: Vec::new(),
-                },
-            }
-            .run(messages),
-        ));
-
-        reader
+        }
     }
 }
 
@@ -223,9 +225,9 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     message_sender: mpsc::Sender<Message>,
-    sdk_producer: Option<Weak<dyn SdkProducer>>,
     is_shutdown: bool,
     external_producers: Vec<Box<dyn MetricProducer>>,
+    sdk_producer_or_worker: ProducerOrWorker,
 }
 
 #[derive(Debug)]
@@ -233,6 +235,11 @@ enum Message {
     Export,
     Flush(oneshot::Sender<Result<()>>),
     Shutdown(oneshot::Sender<Result<()>>),
+}
+
+enum ProducerOrWorker {
+    Producer(Weak<dyn SdkProducer>),
+    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
 }
 
 struct PeriodicReaderWorker<RT: Runtime> {
@@ -311,14 +318,19 @@ impl MetricReader for PeriodicReader {
             Err(_) => return,
         };
 
-        // Only register once. If producer is already set, do nothing.
-        if inner.sdk_producer.is_none() {
-            inner.sdk_producer = Some(pipeline);
-        } else {
-            global::handle_error(MetricsError::Other(
-                "duplicate meter registration, did not register manual reader".into(),
-            ))
-        }
+        let worker = match &mut inner.sdk_producer_or_worker {
+            ProducerOrWorker::Producer(_) => {
+                // Only register once. If producer is already set, do nothing.
+                global::handle_error(MetricsError::Other(
+                    "duplicate meter registration, did not register manual reader".into(),
+                ));
+                return;
+            }
+            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
+        };
+
+        inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
+        worker(self);
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
@@ -327,14 +339,14 @@ impl MetricReader for PeriodicReader {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
 
-        match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
-            Some(producer) => producer.produce(rm)?,
-            None => {
-                return Err(MetricsError::Other(
-                    "reader is shut down or not registered".into(),
-                ))
-            }
-        };
+        if let Some(producer) = match &inner.sdk_producer_or_worker {
+            ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
+            ProducerOrWorker::Worker(_) => None,
+        } {
+            producer.produce(rm)?;
+        } else {
+            return Err(MetricsError::Other("reader is not registered".into()));
+        }
 
         let mut errs = vec![];
         for producer in &inner.external_producers {
@@ -390,5 +402,59 @@ impl MetricReader for PeriodicReader {
         inner.is_shutdown = true;
 
         shutdown_result
+    }
+}
+
+#[cfg(all(test, feature = "testing"))]
+mod tests {
+    use super::PeriodicReader;
+    use crate::{
+        metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
+        runtime, testing::metrics::InMemoryMetricsExporter, Resource,
+    };
+    use opentelemetry::metrics::MeterProvider;
+    use std::sync::mpsc;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn registration_triggers_collection() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_observable_counter("testcounter").init();
+        meter
+            .register_callback(&[counter.as_any()], move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .expect("callback registration should succeed");
+
+        // Assert
+        receiver
+            .recv_timeout(interval * 2)
+            .expect("message should be available in channel, indicating a collection occurred");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn unregistered_collect() {
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+
+        // Act
+        let result = reader.collect(&mut rm);
+
+        // Assert
+        result.expect_err("error expected when reader is not registered");
     }
 }

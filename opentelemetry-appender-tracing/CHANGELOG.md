@@ -2,6 +2,16 @@
 
 ## vNext
 
+## v0.3.0
+
+### Added
+
+- New experimental metadata attributes feature (experimental\_metadata\_attributes) [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+  - Experimental new attributes for tracing metadata
+  - Fixes the following for events emitted using log crate
+    - Normalized metadata fields
+    - Remove redundant metadata
+
 ## v0.2.0
 
 ### Changed

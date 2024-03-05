@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger"
-version = "0.20.0"
+version = "0.21.0"
 description = "Jaeger exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger"
@@ -15,45 +15,48 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
 
+[badges]
+maintenance = { status = "deprecated" }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-std = { version = "1.10.0", optional = true }
-async-trait = "0.1"
+async-std = { workspace = true, optional = true }
+async-trait = { workspace = true }
 base64 = { version = "0.21.0", optional = true }
 headers = { version = "0.3.2", optional = true }
-http = { version = "0.2", optional = true }
-hyper = { version = "0.14", default-features = false, features = ["client"], optional = true }
+http = { workspace = true, optional = true }
+hyper = { workspace = true, features = ["client"], optional = true }
 hyper-tls = { version = "0.5.0", default-features = false, optional = true }
-isahc = { version = "1.4", default-features = false, optional = true }
+isahc = { workspace = true, optional = true }
 js-sys = { version = "0.3", optional = true }
-opentelemetry = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.21", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.10", path = "../opentelemetry-http", optional = true }
-opentelemetry-semantic-conventions = { version = "0.13", path = "../opentelemetry-semantic-conventions" }
-pin-project-lite = { version = "0.2", optional = true }
-reqwest = { version = "0.11", default-features = false, optional = true }
-surf = { version = "2.0", optional = true }
+opentelemetry = { version = "0.22", default-features = false, features = ["trace"], path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.22", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
+opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
+opentelemetry-semantic-conventions = { version = "0.14", path = "../opentelemetry-semantic-conventions" }
+pin-project-lite = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 thrift = "0.17.0"
-tokio = { version = "1.0", features = ["net", "sync"], optional = true }
+tokio = { workspace = true, features = ["net", "sync"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4.18", optional = true }
 
-tonic = { version = "0.9.0", optional = true }
-prost = { version = "0.11.6", optional = true }
-prost-types = { version = "0.11.6", optional = true }
+tonic = { workspace = true, optional = true, features = ["transport", "codegen", "prost"] }
+prost = { workspace = true, optional = true }
+prost-types = { workspace = true, optional = true }
 
 # Futures
-futures-executor = { version = "0.3", default-features = false, features = ["std"], optional = true }
-futures-core = "0.3"
-futures-util = { version = "0.3", default-features = false, features = ["std", "alloc"]}
+futures-executor = { workspace = true, features = ["std"], optional = true }
+futures-core = { workspace = true }
+futures-util = { workspace = true, features = ["std", "alloc"]}
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["net", "sync"] }
-bytes = "1"
-futures-executor = "0.3"
+tokio = { workspace = true, features = ["net", "sync"] }
+bytes = { workspace = true }
+futures-executor = { workspace = true }
+opentelemetry-jaeger-propagator = { version = "0.1", path = "../opentelemetry-jaeger-propagator" } # for doctests
 opentelemetry_sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
 
 [dependencies.web-sys]
@@ -78,12 +81,11 @@ full = [
     "reqwest_collector_client",
     "reqwest_blocking_collector_client",
     "reqwest_rustls_collector_client",
-    "surf_collector_client",
     "wasm_collector_client",
     "rt-tokio",
     "rt-tokio-current-thread",
     "rt-async-std",
-    "integration_test"
+    "integration_test",
 ]
 default = []
 collector_client = ["http", "opentelemetry-http"]
@@ -93,7 +95,6 @@ isahc_collector_client = ["isahc", "opentelemetry-http/isahc"]
 reqwest_blocking_collector_client = ["reqwest/blocking", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_collector_client = ["reqwest", "collector_client", "headers", "opentelemetry-http/reqwest"]
 reqwest_rustls_collector_client = ["reqwest_collector_client", "reqwest/rustls-tls-native-roots"]
-surf_collector_client = ["surf", "collector_client", "opentelemetry-http/surf"]
 wasm_collector_client = [
     "base64",
     "http",
@@ -106,4 +107,4 @@ wasm_collector_client = [
 rt-tokio = ["tokio", "opentelemetry_sdk/rt-tokio"]
 rt-tokio-current-thread = ["tokio", "opentelemetry_sdk/rt-tokio-current-thread"]
 rt-async-std = ["async-std", "opentelemetry_sdk/rt-async-std"]
-integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "hyper_tls_collector_client", "reqwest_collector_client", "surf_collector_client", "isahc_collector_client"]
+integration_test = ["tonic", "prost", "prost-types", "rt-tokio", "collector_client", "hyper_collector_client", "hyper_tls_collector_client", "reqwest_collector_client", "isahc_collector_client"]

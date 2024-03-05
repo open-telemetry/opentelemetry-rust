@@ -149,6 +149,7 @@ impl Default for TonicExporterBuilder {
         TonicExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: crate::Protocol::Grpc,
+                endpoint: crate::exporter::default_endpoint(crate::Protocol::Grpc),
                 ..Default::default()
             },
             tonic_config,
@@ -380,7 +381,7 @@ fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
                 .filter_map(|(key, value)| {
                     Some((
                         HeaderName::from_str(key).ok()?,
-                        HeaderValue::from_str(value).ok()?,
+                        HeaderValue::from_str(&value).ok()?,
                     ))
                 })
                 .collect::<HeaderMap>()

@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 #[cfg(feature = "integration_test")]
 mod tests {
     use opentelemetry::{
@@ -102,17 +103,6 @@ mod tests {
                 }),
             ),
             (
-                "collector_surf",
-                Box::new(|| {
-                    opentelemetry_jaeger::new_collector_pipeline()
-                        .with_endpoint(collector_endpoint)
-                        .with_surf()
-                        .with_service_name(format!("{}-{}", SERVICE_NAME, "collector_surf"))
-                        .install_batch(opentelemetry_sdk::runtime::Tokio)
-                        .expect("cannot create tracer using default configuration")
-                }),
-            ),
-            (
                 "collector_hyper",
                 Box::new(|| {
                     opentelemetry_jaeger::new_collector_pipeline()
@@ -191,7 +181,7 @@ mod tests {
             .collect::<Vec<&jaeger_api::SpanRef>>();
         if let Some(parent_span) = parent_span {
             assert_eq!(parent.len(), 1);
-            let parent = parent.get(0).unwrap();
+            let parent = parent.first().unwrap();
             assert_eq!(parent.span_id, parent_span.span_id);
             assert_eq!(parent.trace_id, parent_span.trace_id);
         } else {
@@ -217,10 +207,10 @@ mod tests {
             .filter(|kvs| kvs.key == "otel.library.name" || kvs.key == "otel.library.version")
             .collect::<Vec<&jaeger_api::KeyValue>>();
         assert_eq!(library_metadata.len(), 2);
-        if library_metadata.get(0).unwrap().key != "otel.library.name" {
+        if library_metadata.first().unwrap().key != "otel.library.name" {
             library_metadata.swap(0, 1)
         }
-        assert_eq!(library_metadata.get(0).unwrap().v_str, library_name.into());
+        assert_eq!(library_metadata.first().unwrap().v_str, library_name.into());
         assert_eq!(
             library_metadata.get(1).unwrap().v_str,
             library_version.into()

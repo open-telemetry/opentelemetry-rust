@@ -7,7 +7,8 @@ mod log_processor;
 pub use config::{config, Config};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
-    BatchConfig, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor, SimpleLogProcessor,
+    BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
+    SimpleLogProcessor,
 };
 
 #[cfg(all(test, feature = "testing"))]
@@ -45,7 +46,7 @@ mod tests {
             .expect("Logs are expected to be exported.");
         assert_eq!(exported_logs.len(), 1);
         let log = exported_logs
-            .get(0)
+            .first()
             .expect("Atleast one log is expected to be present.");
         assert_eq!(log.instrumentation.name, "test-logger");
         assert_eq!(log.record.severity_number, Some(Severity::Error));

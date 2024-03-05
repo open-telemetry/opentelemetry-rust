@@ -1,5 +1,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceRequest {
@@ -15,6 +16,7 @@ pub struct ExportLogsServiceRequest {
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceResponse {
@@ -38,6 +40,7 @@ pub struct ExportLogsServiceResponse {
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsPartialSuccess {
@@ -297,7 +300,9 @@ pub mod logs_service_server {
                             request: tonic::Request<super::ExportLogsServiceRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move { (*inner).export(request).await };
+                            let fut = async move {
+                                <T as LogsService>::export(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }

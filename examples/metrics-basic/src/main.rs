@@ -34,11 +34,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the Counter instrument.
     counter.add(
         10,
-        [
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]
-        .as_ref(),
+        ],
     );
 
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
@@ -52,11 +51,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         observer.observe_u64(
             &observable_counter,
             100,
-            [
+            &[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .as_ref(),
+            ],
         )
     })?;
 
@@ -66,11 +64,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the UpCounter instrument.
     updown_counter.add(
         -10,
-        [
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]
-        .as_ref(),
+        ],
     );
 
     // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
@@ -84,11 +81,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         observer.observe_i64(
             &observable_up_down_counter,
             100,
-            [
+            &[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .as_ref(),
+            ],
         )
     })?;
 
@@ -101,36 +97,51 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Record measurements using the histogram instrument.
     histogram.record(
         10.5,
-        [
+        &[
             KeyValue::new("mykey1", "myvalue1"),
             KeyValue::new("mykey2", "myvalue2"),
-        ]
-        .as_ref(),
+        ],
     );
 
     // Note that there is no ObservableHistogram instrument.
 
+    // Create a Gauge Instrument.
+    // Note that the Gauge instrument is experimental, and can be changed/removed in the future releases.
+    #[cfg(feature = "otel_unstable")]
+    {
+        let gauge = meter
+            .f64_gauge("my_gauge")
+            .with_description("A gauge set to 1.0")
+            .with_unit(Unit::new("myunit"))
+            .init();
+
+        gauge.record(
+            1.0,
+            &[
+                KeyValue::new("mykey1", "myvalue1"),
+                KeyValue::new("mykey2", "myvalue2"),
+            ],
+        );
+    }
+
     // Create a ObservableGauge instrument and register a callback that reports the measurement.
-    let gauge = meter
-        .f64_observable_gauge("my_gauge")
-        .with_description("A gauge set to 1.0")
+    let observable_gauge = meter
+        .f64_observable_gauge("my_observable_gauge")
+        .with_description("An observable gauge set to 1.0")
         .with_unit(Unit::new("myunit"))
         .init();
 
     // Register a callback that reports the measurement.
-    meter.register_callback(&[gauge.as_any()], move |observer| {
+    meter.register_callback(&[observable_gauge.as_any()], move |observer| {
         observer.observe_f64(
-            &gauge,
+            &observable_gauge,
             1.0,
-            [
+            &[
                 KeyValue::new("mykey1", "myvalue1"),
                 KeyValue::new("mykey2", "myvalue2"),
-            ]
-            .as_ref(),
+            ],
         )
     })?;
-
-    // Note that Gauge only has a Observable version.
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes

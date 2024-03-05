@@ -580,6 +580,7 @@ mod tests {
             .expect("span data should not be empty as we already set it before")
             .events;
         let event_vec: Vec<_> = event_queue.iter().take(2).collect();
+        #[allow(clippy::get_first)] // we want to extract first two elements
         let processed_event_1 = event_vec.get(0).expect("should have at least two events");
         let processed_event_2 = event_vec.get(1).expect("should have at least two events");
         assert_eq!(processed_event_1.attributes.len(), 128);
@@ -617,7 +618,7 @@ mod tests {
             .expect("span data should not be empty as we already set it before")
             .links;
         let link_vec: Vec<_> = link_queue.links;
-        let processed_link = link_vec.get(0).expect("should have at least one link");
+        let processed_link = link_vec.first().expect("should have at least one link");
         assert_eq!(processed_link.attributes.len(), 128);
     }
 

@@ -5,6 +5,7 @@ members = [
     "opentelemetry-jaeger",
     "opentelemetry-jaeger/examples/actix-udp",
     "opentelemetry-jaeger/examples/remote-sampler",
+    "opentelemetry-jaeger-propagator",
     "opentelemetry-appender-log",
     "opentelemetry-appender-tracing",
     "opentelemetry-otlp",
@@ -16,7 +17,7 @@ members = [
     "opentelemetry-zipkin",
     "opentelemetry-otlp/examples/basic-otlp",
     "opentelemetry-otlp/examples/basic-otlp-http",
-    "opentelemetry-otlp/examples/external-otlp-grpcio-async-std",
+    "opentelemetry-otlp/tests/integration_test",
     "examples/metrics-basic",
     "examples/metrics-advanced",
     "examples/logs-basic",
@@ -32,3 +33,36 @@ resolver = "2"
 # See function names in profiling reports.
 # 2/true is too much, 0 is not enough, 1 is just right for back traces
 debug = 1
+
+[workspace.dependencies]
+async-std = "1.10"
+async-trait = "0.1"
+bytes = "1"
+env_logger = { version = "0.10", default-features = false } # env_logger requires a newer MSRV
+futures-core = "0.3"
+futures-executor = "0.3"
+futures-util = { version = "0.3", default-features = false }
+hyper = { version = "0.14", default-features = false }
+http = { version = "0.2", default-features = false }
+isahc = { version = "1.4", default-features = false }
+log = "0.4"
+once_cell = "1.13"
+ordered-float = "4.0"
+pin-project-lite = "0.2"
+prost = "0.12"
+prost-build = "0.12"
+prost-types = "0.12"
+rand = { version = "0.8", default-features = false }
+reqwest = { version = "0.11", default-features = false }
+serde = { version = "1.0", default-features = false }
+serde_json = "1.0"
+temp-env = "0.3.6"
+thiserror = { version = "1", default-features = false }
+tonic = { version = "0.11", default-features = false }
+tonic-build = "0.11"
+tokio = { version = "1", default-features = false }
+tokio-stream = "0.1.1"
+tracing = { version = "0.1", default-features = false }
+tracing-core = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false }
+url = { version = "2.2", default-features = false }

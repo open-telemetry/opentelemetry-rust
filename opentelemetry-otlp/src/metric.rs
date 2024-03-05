@@ -26,9 +26,6 @@ use opentelemetry_sdk::{
 use std::fmt::{Debug, Formatter};
 use std::time;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -70,16 +67,13 @@ pub enum MetricsExporterBuilder {
     /// Tonic metrics exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
-    /// Grpcio metrics exporter builder
-    #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioExporterBuilder),
     /// Http metrics exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
 
     /// Missing exporter builder
     #[doc(hidden)]
-    #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+    #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
     Unconfigured,
 }
 
@@ -95,21 +89,16 @@ impl MetricsExporterBuilder {
             MetricsExporterBuilder::Tonic(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
             }
-            #[cfg(feature = "grpc-sys")]
-            MetricsExporterBuilder::Grpcio(builder) => {
-                builder.build_metrics_exporter(aggregation_selector, temporality_selector)
-            }
             #[cfg(feature = "http-proto")]
             MetricsExporterBuilder::Http(builder) => {
                 builder.build_metrics_exporter(aggregation_selector, temporality_selector)
             }
-
-            #[cfg(not(any(feature = "http-proto", feature = "grpc-sys", feature = "grpc-tonic")))]
+            #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
             MetricsExporterBuilder::Unconfigured => {
                 drop(temporality_selector);
                 drop(aggregation_selector);
                 Err(opentelemetry::metrics::MetricsError::Other(
-                    "no configured metrics exporter, enable `http-proto`, `grpc-sys` or `grpc-tonic` feature to configure a metrics exporter".into(),
+                    "no configured metrics exporter, enable `http-proto` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
             }
         }
@@ -178,6 +167,16 @@ where
             temporality_selector: Some(Box::new(selector)),
             ..self
         }
+    }
+
+    /// Build with delta temporality selector.
+    ///
+    /// This temporality selector is equivalent to OTLP Metrics Exporter's
+    /// `Delta` temporality preference (see [its documentation][exporter-docs]).
+    ///
+    /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+    pub fn with_delta_temporality(self) -> Self {
+        self.with_temporality_selector(DeltaTemporalitySelector)
     }
 
     /// Build with the given aggregation selector
@@ -256,6 +255,35 @@ impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
             .field("period", &self.period)
             .field("timeout", &self.timeout)
             .finish()
+    }
+}
+
+/// A temporality selector that returns [`Delta`][Temporality::Delta] for all
+/// instruments except `UpDownCounter` and `ObservableUpDownCounter`.
+///
+/// This temporality selector is equivalent to OTLP Metrics Exporter's
+/// `Delta` temporality preference (see [its documentation][exporter-docs]).
+///
+/// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+#[derive(Debug)]
+struct DeltaTemporalitySelector;
+
+impl TemporalitySelector for DeltaTemporalitySelector {
+    #[rustfmt::skip]
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        match kind {
+            InstrumentKind::Counter
+            | InstrumentKind::Histogram
+            | InstrumentKind::ObservableCounter
+            | InstrumentKind::Gauge
+            | InstrumentKind::ObservableGauge => {
+                Temporality::Delta
+            }
+            InstrumentKind::UpDownCounter
+            | InstrumentKind::ObservableUpDownCounter => {
+                Temporality::Cumulative
+            }
+        }
     }
 }
 

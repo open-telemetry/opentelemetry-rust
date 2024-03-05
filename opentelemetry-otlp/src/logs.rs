@@ -5,9 +5,6 @@
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "grpc-sys")]
-use crate::exporter::grpcio::GrpcioExporterBuilder;
-
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
 
@@ -42,6 +39,7 @@ impl OtlpPipeline {
         OtlpLogPipeline {
             log_config: None,
             exporter_builder: NoExporterConfig(()),
+            batch_config: None,
         }
     }
 }
@@ -54,9 +52,6 @@ pub enum LogExporterBuilder {
     /// Tonic log exporter builder
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
-    /// Grpc log exporter builder
-    #[cfg(feature = "grpc-sys")]
-    Grpcio(GrpcioExporterBuilder),
     /// Http log exporter builder
     #[cfg(feature = "http-proto")]
     Http(HttpExporterBuilder),
@@ -68,8 +63,6 @@ impl LogExporterBuilder {
         match self {
             #[cfg(feature = "grpc-tonic")]
             LogExporterBuilder::Tonic(builder) => builder.build_log_exporter(),
-            #[cfg(feature = "grpc-sys")]
-            LogExporterBuilder::Grpcio(builder) => builder.build_log_exporter(),
             #[cfg(feature = "http-proto")]
             LogExporterBuilder::Http(builder) => builder.build_log_exporter(),
         }
@@ -80,13 +73,6 @@ impl LogExporterBuilder {
 impl From<TonicExporterBuilder> for LogExporterBuilder {
     fn from(exporter: TonicExporterBuilder) -> Self {
         LogExporterBuilder::Tonic(exporter)
-    }
-}
-
-#[cfg(feature = "grpc-sys")]
-impl From<GrpcioExporterBuilder> for LogExporterBuilder {
-    fn from(exporter: GrpcioExporterBuilder) -> Self {
-        LogExporterBuilder::Grpcio(exporter)
     }
 }
 
@@ -124,12 +110,19 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 pub struct OtlpLogPipeline<EB> {
     exporter_builder: EB,
     log_config: Option<opentelemetry_sdk::logs::Config>,
+    batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 }
 
 impl<EB> OtlpLogPipeline<EB> {
     /// Set the log provider configuration.
     pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
         self.log_config = Some(log_config);
+        self
+    }
+
+    /// Set the batch log processor configuration, and it will override the env vars.
+    pub fn with_batch_config(mut self, batch_config: opentelemetry_sdk::logs::BatchConfig) -> Self {
+        self.batch_config = Some(batch_config);
         self
     }
 }
@@ -143,6 +136,7 @@ impl OtlpLogPipeline<NoExporterConfig> {
         OtlpLogPipeline {
             exporter_builder: pipeline.into(),
             log_config: self.log_config,
+            batch_config: self.batch_config,
         }
     }
 }
@@ -160,7 +154,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
         ))
     }
 
-    /// Install the configured log exporter and a batch span processor using the
+    /// Install the configured log exporter and a batch log processor using the
     /// specified runtime.
     ///
     /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
@@ -174,6 +168,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
             self.exporter_builder.build_log_exporter()?,
             self.log_config,
             runtime,
+            self.batch_config,
         ))
     }
 }
@@ -202,9 +197,14 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     exporter: LogExporter,
     log_config: Option<opentelemetry_sdk::logs::Config>,
     runtime: R,
+    batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 ) -> opentelemetry_sdk::logs::Logger {
-    let mut provider_builder =
-        opentelemetry_sdk::logs::LoggerProvider::builder().with_batch_exporter(exporter, runtime);
+    let mut provider_builder = opentelemetry_sdk::logs::LoggerProvider::builder();
+    let batch_processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter, runtime)
+        .with_batch_config(batch_config.unwrap_or_default())
+        .build();
+    provider_builder = provider_builder.with_log_processor(batch_processor);
+
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }

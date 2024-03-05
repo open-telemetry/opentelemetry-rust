@@ -84,6 +84,7 @@ struct Span {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     events: Vec<Event>,
     dropped_events_count: u32,
+    flags: u32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     links: Vec<Link>,
     dropped_links_count: u32,
@@ -108,6 +109,7 @@ impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
             dropped_attributes_count: value.dropped_attributes_count,
             attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_events_count: value.events.dropped_count,
+            flags: value.span_context.trace_flags().to_u8() as u32,
             events: value.events.into_iter().map(Into::into).collect(),
             dropped_links_count: value.links.dropped_count,
             links: value.links.iter().map(Into::into).collect(),
@@ -217,11 +219,11 @@ impl From<opentelemetry::trace::Status> for Status {
             },
             opentelemetry::trace::Status::Error { description } => Status {
                 message: Some(description),
-                code: 1,
+                code: 2,
             },
             opentelemetry::trace::Status::Ok => Status {
                 message: None,
-                code: 2,
+                code: 1,
             },
         }
     }

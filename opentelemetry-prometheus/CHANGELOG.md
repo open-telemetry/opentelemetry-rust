@@ -2,11 +2,17 @@
 
 ## vNext
 
+## v0.15.0
+
+### Changed
+
+- Omit empty `otel_scope_info` and `otel_target_info` metrics [#1428](https://github.com/open-telemetry/opentelemetry-rust/pull/1428)
+
 ## v0.14.1
 
 ### Fixed
 
-- Fix UCUM annotation escaping by ignoring unknown instrument units and annotations (#1348)
+- Fix UCUM annotation escaping by ignoring unknown instrument units and annotations [#1348](https://github.com/open-telemetry/opentelemetry-rust/pull/1348)
 
 ## v0.14.0
 

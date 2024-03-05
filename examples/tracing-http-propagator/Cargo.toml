@@ -16,8 +16,8 @@ path = "src/client.rs"
 doc = false
 
 [dependencies]
-hyper = { version = "0.14", features = ["full"] }
-tokio = { version = "1.0", features = ["full"] }
+hyper = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
 opentelemetry-http = { path = "../../opentelemetry-http" }

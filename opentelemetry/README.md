@@ -1,10 +1,6 @@
-![OpenTelemetry — An observability framework for cloud-native software.][splash]
-
-[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
-
 # OpenTelemetry Rust
 
-The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
+This crate contains the [OpenTelemetry](https://opentelemetry.io/) API for Rust.
 
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
@@ -15,11 +11,18 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
 ## Overview
 
-OpenTelemetry is a collection of tools, APIs, and SDKs used to instrument,
-generate, collect, and export telemetry data (metrics, logs, and traces) for
-analysis in order to understand your software's performance and behavior. You
-can export and analyze them using [Prometheus], [Jaeger], and other
-observability tools.
+OpenTelemetry is an Observability framework and toolkit designed to create and
+manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
+vendor- and tool-agnostic, meaning that it can be used with a broad variety of
+Observability backends, including open source tools like [Jaeger] and
+[Prometheus], as well as commercial offerings.
+
+OpenTelemetry is *not* an observability backend like Jaeger, Prometheus, or other
+commercial vendors. OpenTelemetry is focused on the generation, collection,
+management, and export of telemetry. A major goal of OpenTelemetry is that you
+can easily instrument your applications or systems, no matter their language,
+infrastructure, or runtime environment. Crucially, the storage and visualization
+of telemetry is intentionally left to other tools.
 
 *Compiler support: [requires `rustc` 1.64+][msrv]*
 
@@ -27,111 +30,101 @@ observability tools.
 [Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
 
-## Getting Started
+### What does this crate contain?
 
-```rust
-use opentelemetry::{
-    global,
-    sdk::trace::TracerProvider,
-    trace::{Tracer, TracerProvider as _},
-};
+This crate is basic foundation for integrating OpenTelemetry into libraries and
+applications, encompassing several aspects of OpenTelemetry, such as context
+management and propagation, baggage, logging, tracing, and metrics. It follows
+the [OpenTelemetry
+specification](https://github.com/open-telemetry/opentelemetry-specification).
+Here's a breakdown of its components:
 
-fn main() {
-    // Create a new trace pipeline that prints to stdout
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
-    let tracer = provider.tracer("readme_example");
+- **[Context
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/README.md):**
+  Provides a way to manage and propagate context, which is essential for keeping
+  track of trace execution across asynchronous tasks.
+- **[Propagators
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/api-propagators.md):**
+  Defines how context can be shared across process boundaries, ensuring
+  continuity across microservices or distributed systems.
+- **[Baggage
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/baggage/api.md):**
+  Allows for the attachment of metadata (baggage) to telemetry, which can be
+  used for sharing application-specific information across service boundaries.
+- **[Logs Bridge
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md):**
+  Allows to bridge existing logging mechanisms with OpenTelemetry logging. This
+  is **NOT** meant for end users to call, instead it is meant to enable writing
+  bridges/appenders for existing logging mechanisms such as
+  [log](https://crates.io/crates/log) or
+  [tracing](https://crates.io/crates/tracing).
+- **[Tracing
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/api.md):**
+  Offers a set of primitives to produce distributed traces to understand the
+  flow of a request across system boundaries.
+- **[Metrics
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md):**
+  Offers a set of primitives to produce measurements of operational metrics like
+  latency, throughput, or error rates.
 
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
+This crate serves as a facade or no-op implementation, meaning it defines the
+traits for instrumentation but does not itself implement the processing or
+exporting of telemetry data. This separation of concerns allows library authors
+to depend on the API crate without tying themselves to a specific
+implementation.
 
-    // Shutdown trace pipeline
-    global::shutdown_tracer_provider();
-}
-```
+Actual implementation and the heavy lifting of telemetry data collection,
+processing, and exporting are delegated to the
+[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk) crate and
+various exporter crates such as
+[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp). This
+architecture ensures that the final application can light up the instrumentation
+by integrating an SDK implementation.
 
-See the [examples](./examples) directory for different integration patterns.
+Library authors are recommended to depend on this crate *only*. This approach is
+also aligned with the design philosophy of existing telemetry solutions in the
+Rust ecosystem, like `tracing` or `log`, where these crates only offer a facade
+and the actual functionality is enabled through additional crates.
 
-## Ecosystem
+### Related crates
 
-### Related Crates
+Unless you are a library author, you will almost always need to use additional
+crates along with this. Given this crate has no-op implementation only, an
+OpenTelemetry SDK is always required.
+[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk) is the official
+SDK implemented by OpenTelemetry itself, though it is possible to use a
+different sdk.
 
-In addition to `opentelemetry`, which only carries the API, the
-[`open-telemetry/opentelemetry-rust`] repository contains several additional
-crates designed to be used with the `opentelemetry` ecosystem. This includes a
-collection of trace `SpanExporter` and metrics pull and push controller
-implementations, as well as utility and adapter crates to assist in propagating
-state and instrumenting applications.
+Additionally one or more exporters are also required to export telemetry to a
+destination. OpenTelemetry provides the following exporters:
 
-In particular, the following crates are likely to be of interest:
+- **[opentelemetry-stdout](https://crates.io/crates/opentelemetry-stdout):**
+  Prints telemetry to stdout, primarily used for learning/debugging purposes.
+- **[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp):** Exports
+  telemetry (logs, metrics and traces) in the [OTLP
+  format](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/protocol)
+  to an endpoint accepting OTLP. This could be the [OTel
+  Collector](https://github.com/open-telemetry/opentelemetry-collector),
+  telemetry backends like [Jaeger](https://www.jaegertracing.io/),
+  [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
+  or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
+- **[opentelemetry-zipkin](https://crates.io/crates/opentelemetry-zipkin):**
+  Exports telemetry (traces only) to Zipkin following [OpenTelemetry to Zipkin
+  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/zipkin.md)
+- **[opentelemetry-prometheus](https://crates.io/crates/opentelemetry-prometheus):**
+  Exports telemetry (metrics only) to Prometheus following [OpenTelemetry to
+  Prometheus
+  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md)
 
-- [`opentelemetry-aws`] provides unofficial propagators for AWS X-ray.
-- [`opentelemetry-contrib`] provides additional exporters and propagators that
-  are experimental.
-- [`opentelemetry-datadog`] provides additional exporters to [`Datadog`].
-- [`opentelemetry-dynatrace`] *Deprecated, last release 0.4.0* provides additional exporters to [`Dynatrace`]. See [README](opentelemetry-dynatrace/README.md)
-- [`opentelemetry-http`] provides an interface for injecting and extracting
-  trace information from [`http`] headers.
-- [`opentelemetry-jaeger`] provides a pipeline and exporter for sending trace
-  information to [`Jaeger`].
-- [`opentelemetry-otlp`] exporter for sending trace and metric data in the OTLP
-  format to the OpenTelemetry collector.
-- [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
-  metrics information to [`Prometheus`].
-- [`opentelemetry_sdk`] provides the standard reference implementation of
-  opentelemetry.
-- [`opentelemetry-semantic-conventions`] provides standard names and semantic
-  otel conventions.
-- [`opentelemetry-stackdriver`] provides an exporter for Google's [Cloud Trace]
-  (which used to be called StackDriver).
-- [`opentelemetry-zipkin`] provides a pipeline and exporter for sending trace
-  information to [`Zipkin`].
+OpenTelemetry Rust also has a [contrib
+repo](https://github.com/open-telemetry/opentelemetry-rust-contrib), where
+additional exporters could be found. Check [OpenTelemetry
+Registry](https://opentelemetry.io/ecosystem/registry/?language=rust) for
+additional exporters and other related components as well.
 
-Additionally, there are also several third-party crates which are not
-maintained by the `opentelemetry` project. These include:
+## Getting started
 
-- [`tracing-opentelemetry`] provides integration for applications instrumented
-  using the [`tracing`] API and ecosystem.
-- [`actix-web-opentelemetry`] provides integration for the [`actix-web`] web
-  server and ecosystem.
-- [`opentelemetry-application-insights`] provides an unofficial [Azure
-  Application Insights] exporter.
-- [`opentelemetry-tide`] provides integration for the [`Tide`] web server and
-  ecosystem.
-
-If you're the maintainer of an `opentelemetry` ecosystem crate not listed
-above, please let us know! We'd love to add your project to the list!
-
-[`open-telemetry/opentelemetry-rust`]: https://github.com/open-telemetry/opentelemetry-rust
-[`opentelemetry-jaeger`]: https://crates.io/crates/opentelemetry-jaeger
-[`Jaeger`]: https://www.jaegertracing.io
-[`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
-[`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
-[`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
-[`opentelemetry-aws`]: https://crates.io/crates/opentelemetry-aws
-[`Prometheus`]: https://prometheus.io
-[`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
-[`Zipkin`]: https://zipkin.io
-[`opentelemetry-contrib`]: https://crates.io/crates/opentelemetry-contrib
-[`Datadog`]: https://www.datadoghq.com
-[`Dynatrace`]: https://www.dynatrace.com
-[`opentelemetry-datadog`]: https://crates.io/crates/opentelemetry-datadog
-[`opentelemetry-dynatrace`]: https://crates.io/crates/opentelemetry-dynatrace
-[`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
-[`http`]: https://crates.io/crates/http
-
-[`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
-[`tracing`]: https://crates.io/crates/tracing
-[`actix-web-opentelemetry`]: https://crates.io/crates/actix-web-opentelemetry
-[`actix-web`]: https://crates.io/crates/actix-web
-[`opentelemetry-application-insights`]: https://crates.io/crates/opentelemetry-application-insights
-[Azure Application Insights]: https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
-[`opentelemetry-tide`]: https://crates.io/crates/opentelemetry-tide
-[`Tide`]: https://crates.io/crates/tide
-[`opentelemetry-stackdriver`]: https://crates.io/crates/opentelemetry-stackdriver
-[Cloud Trace]: https://cloud.google.com/trace/
+See [docs](https://docs.rs/opentelemetry).
 
 ## Supported Rust Versions
 
@@ -145,7 +138,3 @@ version is 1.49, the minimum supported version will not be increased past 1.46,
 three minor versions prior. Increasing the minimum supported compiler version
 is not considered a semver breaking change as long as doing so complies with
 this policy.
-
-## Contributing
-
-See the [contributing file](CONTRIBUTING.md).

@@ -29,10 +29,11 @@
 //!
 //! ```no_run
 //! use opentelemetry::{global, trace::{Tracer, TraceError}};
+//! use opentelemetry_jaeger_propagator;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), TraceError> {
-//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -49,9 +50,10 @@
 //! ```no_run
 //! use opentelemetry::{global, trace::{Tracer, TraceError}};
 //! use opentelemetry_sdk::runtime::Tokio;
+//! use opentelemetry_jaeger_propagator;
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_batch(Tokio)?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -174,9 +176,10 @@
 //! ```no_run
 //! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
 //! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_jaeger_propagator;
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_agent_pipeline()
 //!         .with_endpoint("localhost:6831")
 //!         .with_service_name("my_app")
@@ -211,9 +214,10 @@
 //! ```ignore
 //! use opentelemetry::{global, KeyValue, trace::{Tracer, TraceError}};
 //! use opentelemetry_sdk::{trace::{config, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_jaeger_propagator;
 //!
 //! fn main() -> Result<(), TraceError> {
-//!     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+//!     global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
 //!     let tracer = opentelemetry_jaeger::new_collector_pipeline()
 //!         .with_endpoint("http://localhost:14250/api/trace") // set collector endpoint
 //!         .with_service_name("my_app") // the name of the application
@@ -228,9 +232,6 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value"),
 //!                           KeyValue::new("process_key", "process_value")])),
 //!         )
-//!         // we config a surf http client with 2 seconds timeout
-//!         // and have basic authentication header with username=username, password=s3cr3t
-//!         .with_isahc() // requires `isahc_collector_client` feature
 //!         .with_username("username")
 //!         .with_password("s3cr3t")
 //!         .with_timeout(std::time::Duration::from_secs(2))
@@ -254,8 +255,6 @@
 //! * `collector_client`: Export span data directly to a Jaeger collector. User MUST provide the http client.
 //!
 //! * `hyper_collector_client`: Export span data with Jaeger collector backed by a hyper default http client.
-//!
-//! * `surf_collector_client`: Export span data with Jaeger collector backed by a surf default http client.
 //!
 //! * `reqwest_collector_client`: Export span data with Jaeger collector backed by a reqwest http client.
 //!
@@ -304,6 +303,7 @@
     unreachable_pub,
     unused
 )]
+#![allow(deprecated)]
 #![cfg_attr(
     docsrs,
     feature(doc_cfg, doc_auto_cfg),
@@ -322,537 +322,9 @@ pub use exporter::config::collector::new_wasm_collector_pipeline;
 pub use exporter::{
     config::agent::new_agent_pipeline, runtime::JaegerTraceRuntime, Error, Exporter, Process,
 };
-pub use propagator::Propagator;
 
 mod exporter;
 
 #[cfg(feature = "integration_test")]
 #[doc(hidden)]
 pub mod testing;
-
-mod propagator {
-    use opentelemetry::{
-        global::{self, Error},
-        propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-        trace::{
-            SpanContext, SpanId, TraceContextExt, TraceError, TraceFlags, TraceId, TraceState,
-        },
-        Context,
-    };
-    use std::borrow::Cow;
-    use std::str::FromStr;
-
-    const JAEGER_HEADER: &str = "uber-trace-id";
-    const JAEGER_BAGGAGE_PREFIX: &str = "uberctx-";
-    const DEPRECATED_PARENT_SPAN: &str = "0";
-
-    const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
-
-    /// The Jaeger propagator propagates span contexts in [Jaeger propagation format].
-    ///
-    /// Cross-cutting concerns send their state to the next process using `Propagator`s,
-    /// which are defined as objects used to read and write context data to and from messages
-    /// exchanged by the applications. Each concern creates a set of `Propagator`s for every
-    /// supported `Propagator` type.
-    ///
-    /// Note that jaeger header can be set in http header or encoded as url.
-    ///
-    /// ## Examples
-    /// ```
-    /// # use opentelemetry::{global, trace::{Tracer, TraceContextExt}, Context};
-    /// # use opentelemetry_jaeger::Propagator as JaegerPropagator;
-    /// # fn send_request() {
-    /// // setup jaeger propagator
-    /// global::set_text_map_propagator(JaegerPropagator::default());
-    /// // You also can init propagator with custom header name
-    /// // global::set_text_map_propagator(JaegerPropagator::with_custom_header("my-custom-header"));
-    ///
-    /// // before sending requests to downstream services.
-    /// let mut headers = std::collections::HashMap::new(); // replace by http header of the outgoing request
-    /// let caller_span = global::tracer("caller").start("say hello");
-    /// let cx = Context::current_with_span(caller_span);
-    /// global::get_text_map_propagator(|propagator| {
-    ///     propagator.inject_context(&cx, &mut headers); // propagator serialize the tracing context
-    /// });
-    /// // Send the request..
-    /// # }
-    ///
-    ///
-    /// # fn receive_request() {
-    /// // Receive the request sent above on the other service...
-    /// // setup jaeger propagator
-    /// global::set_text_map_propagator(JaegerPropagator::new());
-    /// // You also can init propagator with custom header name
-    /// // global::set_text_map_propagator(JaegerPropagator::with_custom_header("my-custom-header"));
-    ///
-    /// let headers = std::collections::HashMap::new(); // replace this with http header map from incoming requests.
-    /// let parent_context = global::get_text_map_propagator(|propagator| {
-    ///      propagator.extract(&headers)
-    /// });
-    ///
-    /// // this span's parent span will be caller_span in send_request functions.
-    /// let receiver_span = global::tracer("receiver").start_with_context("hello", &parent_context);
-    /// # }
-    /// ```
-    ///
-    ///  [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
-    #[derive(Clone, Debug)]
-    pub struct Propagator {
-        baggage_prefix: &'static str,
-        header_name: &'static str,
-        fields: [String; 1],
-    }
-
-    // Implement default using Propagator::new() to not break compatibility with previous versions
-    impl Default for Propagator {
-        fn default() -> Self {
-            Propagator::new()
-        }
-    }
-
-    impl Propagator {
-        /// Create a Jaeger propagator
-        pub fn new() -> Self {
-            Self::with_custom_header_and_baggage(JAEGER_HEADER, JAEGER_BAGGAGE_PREFIX)
-        }
-
-        /// Create a Jaeger propagator with custom header name
-        pub fn with_custom_header(custom_header_name: &'static str) -> Self {
-            Self::with_custom_header_and_baggage(custom_header_name, JAEGER_BAGGAGE_PREFIX)
-        }
-
-        /// Create a Jaeger propagator with custom header name and baggage prefix
-        ///
-        /// NOTE: it's implicitly fallback to the default header names when the ane of provided custom_* is empty
-        /// Default header-name is `uber-trace-id` and baggage-prefix is `uberctx-`
-        /// The format of serialized context and baggage's stays unchanged and not depending
-        /// on provided header name and prefix.
-        pub fn with_custom_header_and_baggage(
-            custom_header_name: &'static str,
-            custom_baggage_prefix: &'static str,
-        ) -> Self {
-            let custom_header_name = if custom_header_name.trim().is_empty() {
-                JAEGER_HEADER
-            } else {
-                custom_header_name
-            };
-
-            let custom_baggage_prefix = if custom_baggage_prefix.trim().is_empty() {
-                JAEGER_BAGGAGE_PREFIX
-            } else {
-                custom_baggage_prefix
-            };
-
-            Propagator {
-                baggage_prefix: custom_baggage_prefix.trim(),
-                header_name: custom_header_name.trim(),
-                fields: [custom_header_name.to_owned()],
-            }
-        }
-
-        /// Extract span context from header value
-        fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-            let mut header_value = Cow::from(extractor.get(self.header_name).unwrap_or(""));
-            // if there is no :, it means header_value could be encoded as url, try decode first
-            if !header_value.contains(':') {
-                header_value = Cow::from(header_value.replace("%3A", ":"));
-            }
-
-            let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
-            if parts.len() != 4 {
-                return Err(());
-            }
-
-            // extract trace id
-            let trace_id = self.extract_trace_id(parts[0])?;
-            let span_id = self.extract_span_id(parts[1])?;
-            // Ignore parent span id since it's deprecated.
-            let flags = self.extract_trace_flags(parts[3])?;
-            let state = self.extract_trace_state(extractor)?;
-
-            Ok(SpanContext::new(trace_id, span_id, flags, true, state))
-        }
-
-        /// Extract trace id from the header.
-        fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ()> {
-            if trace_id.len() > 32 {
-                return Err(());
-            }
-
-            TraceId::from_hex(trace_id).map_err(|_| ())
-        }
-
-        /// Extract span id from the header.
-        fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ()> {
-            match span_id.len() {
-                // exact 16
-                16 => SpanId::from_hex(span_id).map_err(|_| ()),
-                // more than 16 is invalid
-                17.. => Err(()),
-                // less than 16 will result padding on left
-                _ => {
-                    let padded = format!("{span_id:0>16}");
-                    SpanId::from_hex(&padded).map_err(|_| ())
-                }
-            }
-        }
-
-        /// Extract flag from the header
-        ///
-        /// First bit control whether to sample
-        /// Second bit control whether it's a debug trace
-        /// Third bit is not used.
-        /// Forth bit is firehose flag, which is not supported in OT now.
-        fn extract_trace_flags(&self, flag: &str) -> Result<TraceFlags, ()> {
-            if flag.len() > 2 {
-                return Err(());
-            }
-            let flag = u8::from_str(flag).map_err(|_| ())?;
-            if flag & 0x01 == 0x01 {
-                if flag & 0x02 == 0x02 {
-                    Ok(TraceFlags::SAMPLED | TRACE_FLAG_DEBUG)
-                } else {
-                    Ok(TraceFlags::SAMPLED)
-                }
-            } else {
-                // Debug flag should only be set when sampled flag is set.
-                // So if debug flag is set alone. We will just use not sampled flag
-                Ok(TraceFlags::default())
-            }
-        }
-
-        fn extract_trace_state(&self, extractor: &dyn Extractor) -> Result<TraceState, ()> {
-            let baggage_keys = extractor
-                .keys()
-                .into_iter()
-                .filter(|key| key.starts_with(self.baggage_prefix))
-                .filter_map(|key| {
-                    extractor
-                        .get(key)
-                        .map(|value| (key.to_string(), value.to_string()))
-                });
-
-            match TraceState::from_key_value(baggage_keys) {
-                Ok(trace_state) => Ok(trace_state),
-                Err(trace_state_err) => {
-                    global::handle_error(Error::Trace(TraceError::Other(Box::new(
-                        trace_state_err,
-                    ))));
-                    Err(()) //todo: assign an error type instead of using ()
-                }
-            }
-        }
-    }
-
-    impl TextMapPropagator for Propagator {
-        fn inject_context(&self, cx: &Context, injector: &mut dyn Injector) {
-            let span = cx.span();
-            let span_context = span.span_context();
-            if span_context.is_valid() {
-                let flag: u8 = if span_context.is_sampled() {
-                    if span_context.trace_flags() & TRACE_FLAG_DEBUG == TRACE_FLAG_DEBUG {
-                        0x03
-                    } else {
-                        0x01
-                    }
-                } else {
-                    0x00
-                };
-                let header_value = format!(
-                    "{}:{}:{:01}:{:01x}",
-                    span_context.trace_id(),
-                    span_context.span_id(),
-                    DEPRECATED_PARENT_SPAN,
-                    flag,
-                );
-                injector.set(self.header_name, header_value);
-            }
-        }
-
-        fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
-            self.extract_span_context(extractor)
-                .map(|sc| cx.with_remote_span_context(sc))
-                .unwrap_or_else(|_| cx.clone())
-        }
-
-        fn fields(&self) -> FieldIter<'_> {
-            FieldIter::new(self.fields.as_ref())
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        use opentelemetry::{
-            propagation::{Injector, TextMapPropagator},
-            testing::trace::TestSpan,
-            trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
-            Context,
-        };
-        use std::collections::HashMap;
-
-        const LONG_TRACE_ID_STR: &str = "000000000000004d0000000000000016";
-        const SHORT_TRACE_ID_STR: &str = "4d0000000000000016";
-        const TRACE_ID: u128 = 0x0000_0000_0000_004d_0000_0000_0000_0016;
-        const SPAN_ID_STR: &str = "0000000000017c29";
-        const SHORT_SPAN_ID_STR: &str = "17c29";
-        const SPAN_ID: u64 = 0x0000_0000_0001_7c29;
-
-        fn get_extract_data() -> Vec<(&'static str, &'static str, u8, SpanContext)> {
-            vec![
-                (
-                    LONG_TRACE_ID_STR,
-                    SPAN_ID_STR,
-                    1,
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                ),
-                (
-                    SHORT_TRACE_ID_STR,
-                    SPAN_ID_STR,
-                    1,
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                ),
-                (
-                    SHORT_TRACE_ID_STR,
-                    SHORT_SPAN_ID_STR,
-                    1,
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                ),
-                (
-                    LONG_TRACE_ID_STR,
-                    SPAN_ID_STR,
-                    3,
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                ),
-                (
-                    LONG_TRACE_ID_STR,
-                    SPAN_ID_STR,
-                    0,
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::default(),
-                        true,
-                        TraceState::default(),
-                    ),
-                ),
-                (
-                    "invalidtractid",
-                    SPAN_ID_STR,
-                    0,
-                    SpanContext::empty_context(),
-                ),
-                (
-                    LONG_TRACE_ID_STR,
-                    "invalidspanID",
-                    0,
-                    SpanContext::empty_context(),
-                ),
-                (
-                    LONG_TRACE_ID_STR,
-                    SPAN_ID_STR,
-                    120,
-                    SpanContext::empty_context(),
-                ),
-            ]
-        }
-
-        fn get_inject_data() -> Vec<(SpanContext, String)> {
-            vec![
-                (
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                    format!("{}:{}:0:1", LONG_TRACE_ID_STR, SPAN_ID_STR),
-                ),
-                (
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TraceFlags::default(),
-                        true,
-                        TraceState::default(),
-                    ),
-                    format!("{}:{}:0:0", LONG_TRACE_ID_STR, SPAN_ID_STR),
-                ),
-                (
-                    SpanContext::new(
-                        TraceId::from_u128(TRACE_ID),
-                        SpanId::from_u64(SPAN_ID),
-                        TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
-                        true,
-                        TraceState::default(),
-                    ),
-                    format!("{}:{}:0:3", LONG_TRACE_ID_STR, SPAN_ID_STR),
-                ),
-            ]
-        }
-
-        /// Try to extract the context using the created Propagator with custom header name
-        /// from the Extractor under the `context_key` key.
-        fn _test_extract_with_header(construct_header: &'static str, context_key: &'static str) {
-            let propagator = Propagator::with_custom_header(construct_header);
-            for (trace_id, span_id, flag, expected) in get_extract_data() {
-                let mut map: HashMap<String, String> = HashMap::new();
-                map.set(context_key, format!("{}:{}:0:{}", trace_id, span_id, flag));
-                let context = propagator.extract(&map);
-                assert_eq!(context.span().span_context(), &expected);
-            }
-        }
-
-        /// Try to inject the context using the created Propagator with custom header name
-        /// and expect the serialized context existence under `expect_header` key.
-        fn _test_inject_with_header(construct_header: &'static str, expect_header: &'static str) {
-            let propagator = Propagator::with_custom_header(construct_header);
-            for (span_context, header_value) in get_inject_data() {
-                let mut injector = HashMap::new();
-                propagator.inject_context(
-                    &Context::current_with_span(TestSpan(span_context)),
-                    &mut injector,
-                );
-                assert_eq!(injector.get(expect_header), Some(&header_value));
-            }
-        }
-
-        #[test]
-        fn test_extract_empty() {
-            let map: HashMap<String, String> = HashMap::new();
-            let propagator = Propagator::new();
-            let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context())
-        }
-
-        #[test]
-        fn test_inject_extract_with_default() {
-            let propagator = Propagator::default();
-            for (span_context, header_value) in get_inject_data() {
-                let mut injector = HashMap::new();
-                propagator.inject_context(
-                    &Context::current_with_span(TestSpan(span_context)),
-                    &mut injector,
-                );
-                assert_eq!(injector.get(JAEGER_HEADER), Some(&header_value));
-            }
-            for (trace_id, span_id, flag, expected) in get_extract_data() {
-                let mut map: HashMap<String, String> = HashMap::new();
-                map.set(
-                    JAEGER_HEADER,
-                    format!("{}:{}:0:{}", trace_id, span_id, flag),
-                );
-                let context = propagator.extract(&map);
-                assert_eq!(context.span().span_context(), &expected);
-            }
-        }
-
-        #[test]
-        fn test_extract_too_many_parts() {
-            let mut map: HashMap<String, String> = HashMap::new();
-            map.set(
-                JAEGER_HEADER,
-                format!("{}:{}:0:1:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
-            );
-            let propagator = Propagator::new();
-            let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
-        }
-
-        #[test]
-        fn test_extract_invalid_flag() {
-            let mut map: HashMap<String, String> = HashMap::new();
-            map.set(
-                JAEGER_HEADER,
-                format!("{}:{}:0:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
-            );
-            let propagator = Propagator::new();
-            let context = propagator.extract(&map);
-            assert_eq!(context.span().span_context(), &SpanContext::empty_context());
-        }
-
-        #[test]
-        fn test_extract_from_url() {
-            let mut map: HashMap<String, String> = HashMap::new();
-            map.set(
-                JAEGER_HEADER,
-                format!("{}%3A{}%3A0%3A1", LONG_TRACE_ID_STR, SPAN_ID_STR),
-            );
-            let propagator = Propagator::new();
-            let context = propagator.extract(&map);
-            assert_eq!(
-                context.span().span_context(),
-                &SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
-                    TraceFlags::SAMPLED,
-                    true,
-                    TraceState::default(),
-                )
-            );
-        }
-
-        #[test]
-        fn test_extract() {
-            _test_extract_with_header(JAEGER_HEADER, JAEGER_HEADER)
-        }
-
-        #[test]
-        fn test_inject() {
-            _test_inject_with_header(JAEGER_HEADER, JAEGER_HEADER)
-        }
-
-        #[test]
-        fn test_extract_with_invalid_header() {
-            for construct in &["", "   "] {
-                _test_extract_with_header(construct, JAEGER_HEADER)
-            }
-        }
-
-        #[test]
-        fn test_extract_with_valid_header() {
-            for construct in &["custom-header", "custom-header   ", "   custom-header   "] {
-                _test_extract_with_header(construct, "custom-header")
-            }
-        }
-
-        #[test]
-        fn test_inject_with_invalid_header() {
-            for construct in &["", "   "] {
-                _test_inject_with_header(construct, JAEGER_HEADER)
-            }
-        }
-
-        #[test]
-        fn test_inject_with_valid_header() {
-            for construct in &["custom-header", "custom-header   ", "   custom-header   "] {
-                _test_inject_with_header(construct, "custom-header")
-            }
-        }
-    }
-}

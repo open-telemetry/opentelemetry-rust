@@ -151,6 +151,7 @@
 //! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
 //!
 //! async fn some_work() { }
+//! # async fn in_an_async_context() {
 //!
 //! // Get a tracer
 //! let tracer = global::tracer("my_tracer");
@@ -159,7 +160,8 @@
 //! let span = tracer.start("my_span");
 //!
 //! // Perform some async work with this span as the currently active parent.
-//! some_work().with_context(Context::current_with_span(span));
+//! some_work().with_context(Context::current_with_span(span)).await;
+//! # }
 //! ```
 
 use std::borrow::Cow;

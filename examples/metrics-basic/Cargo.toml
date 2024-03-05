@@ -6,8 +6,12 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
+opentelemetry = { path = "../../opentelemetry", features = ["metrics", "otel_unstable"] }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
-tokio = { version = "1.0", features = ["full"] }
-serde_json = {version = "1.0"}
+tokio = { workspace = true, features = ["full"] }
+serde_json = { workspace = true }
+
+[features]
+default = ["otel_unstable"]
+otel_unstable = ["opentelemetry/otel_unstable"]

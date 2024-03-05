@@ -31,7 +31,18 @@ impl LogExporter for OtlpHttpClient {
             request.headers_mut().insert(k.clone(), v.clone());
         }
 
-        client.send(request).await?;
+        let request_uri = request.uri().to_string();
+        let response = client.send(request).await?;
+
+        if !response.status().is_success() {
+            let error = format!(
+                "OpenTelemetry logs export failed. Url: {}, Status Code: {}, Response: {:?}",
+                response.status().as_u16(),
+                request_uri,
+                response.body()
+            );
+            return Err(LogError::Other(error.into()));
+        }
 
         Ok(())
     }

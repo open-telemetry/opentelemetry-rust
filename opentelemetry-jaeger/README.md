@@ -2,7 +2,22 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-# OpenTelemetry Jaeger
+# OpenTelemetry Jaeger (Deprecated)
+
+**WARNING**
+As of [Jaeger 1.35.0], released in Sept 2022, ingesting the OpenTelemetry Protocol (OTLP) is stable and
+as a result, language specific Jaeger exporters within OpenTelemetry SDKs are [recommended for deprecation by the OpenTelemetry project][jaeger-deprecation].
+More information and examples of using OTLP with Jaeger can be found in [Introducing native support for OpenTelemetry in Jaeger][jaeger-otlp]
+and [Exporting OTLP traces to Jaeger][exporting-otlp].
+
+The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a Jaeger propagator.
+To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to
+[opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
+
+The plan is to have 0.22.0 be the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
+SDK will not work with the exporter.
+
+If you have any questions please comment on the [Jaeger Deprecation Issue][deprecation-issue].
 
 [`Jaeger`] integration for applications instrumented with [`OpenTelemetry`]. This includes a jaeger exporter and a jaeger propagator.
 
@@ -23,6 +38,11 @@ Jaeger `agent` or `collector` endpoint for processing and visualization.
 *Compiler support: [requires `rustc` 1.64+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
+[jaeger-otlp]: https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c
+[jaeger-deprecation]: https://opentelemetry.io/blog/2022/jaeger-native-otlp/
+[exporting-otlp]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger
+[Jaeger 1.35.0]: https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0
+[deprecation-issue]: https://github.com/open-telemetry/opentelemetry-rust/pull/995
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
 
@@ -41,9 +61,10 @@ exporting telemetry:
 ```rust
 use opentelemetry::global;
 use opentelemetry::trace::Tracer;
+use opentelemetry_jaeger_propagator;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    global::set_text_map_propagator(opentelemetry_jaeger_propagator::Propagator::new());
     let tracer = opentelemetry_jaeger::new_agent_pipeline().install_simple()?;
 
     tracer.in_span("doing_work", |cx| {
@@ -68,7 +89,7 @@ automatically.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["rt-tokio"] }
+opentelemetry_sdk = { version = "*", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "*", features = ["rt-tokio"] }
 ```
 
@@ -102,12 +123,11 @@ opentelemetry-jaeger = { version = "..", features = ["isahc_collector_client"] }
 
 Then you can use the [`with_collector_endpoint`] method to specify the endpoint:
 
-[`with_collector_endpoint`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html#method.with_collector_endpoint
+[`with_collector_endpoint`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/config/collector/struct.CollectorPipeline.html#method.with_endpoint
 
 ```rust
 // Note that this requires one of the following features enabled so that there is a default http client implementation
 // * hyper_collector_client
-// * surf_collector_client
 // * reqwest_collector_client
 // * reqwest_blocking_collector_client
 // * reqwest_rustls_collector_client
@@ -138,10 +158,11 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 ## Kitchen Sink Full Configuration
 
-[Example]((https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration)) showing how to override all configuration options. See the
-[`PipelineBuilder`] docs for details of each option.
+[`Example`] showing how to override all configuration options. See the
+[`AgentPipeline`] docs for details of each option.
 
-[`PipelineBuilder`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/struct.PipelineBuilder.html
+[`Example`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/#kitchen-sink-full-configuration
+[`AgentPipeline`]: https://docs.rs/opentelemetry-jaeger/latest/opentelemetry_jaeger/config/agent/struct.AgentPipeline.html
 
 ## Supported Rust Versions
 

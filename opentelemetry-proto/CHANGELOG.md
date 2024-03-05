@@ -2,17 +2,25 @@
 
 ## vNext
 
+## v0.5.0
+
+### Changed
+
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
+- **Breaking** Remove support for grpcio transport [#1534](https://github.com/open-telemetry/opentelemetry-rust/pull/1534)
+
 ### Added
 
-- Add `schemars::JsonSchema` trait support with `with-schemars` feature (#1419)
+- Add `schemars::JsonSchema` trait support with `with-schemars` feature [#1419](https://github.com/open-telemetry/opentelemetry-rust/pull/1419)
+- Update protobuf definitions to v1.1.0 [#1482](https://github.com/open-telemetry/opentelemetry-rust/pull/1482)
 
 ## v0.4.0
 
 ### Added
 
-- Implement tonic metrics proto transformations (#1184)
+- Implement tonic metrics proto transformations [#1184](https://github.com/open-telemetry/opentelemetry-rust/pull/1184)
 - Move proto for zPage to tonic [#1214](https://github.com/open-telemetry/opentelemetry-rust/pull/1214)
-- Support exponential histograms (#1267)
+- Support exponential histograms [#1267](https://github.com/open-telemetry/opentelemetry-rust/pull/1267)
 
 ### Changed
 
@@ -21,11 +29,11 @@
 
 ### Fixed
 
-- Rename `traces` feature to the more standard `trace` (#1183)
+- Rename `traces` feature to the more standard `trace` [#1183](https://github.com/open-telemetry/opentelemetry-rust/pull/1183)
 
 ### Changed
 
-- Switch to `prost` for `grpcio` protos. (#1202)
+- Switch to `prost` for `grpcio` protos. [#1202](https://github.com/open-telemetry/opentelemetry-rust/pull/1202)
   The `gen-protoc` feature is accordingly renamed to `gen-grpcio`.
 
 ## v0.3.0

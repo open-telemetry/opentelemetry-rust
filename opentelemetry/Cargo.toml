@@ -1,7 +1,7 @@
 [package]
 name = "opentelemetry"
-version = "0.21.0"
-description = "A metrics collection and distributed tracing framework"
+version = "0.22.0"
+description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
 readme = "README.md"
@@ -21,11 +21,11 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-futures-core = "0.3"
+futures-core = { workspace = true }
 futures-sink = "0.3"
-once_cell = "1.12.0"
-pin-project-lite = { version = "0.2", optional = true }
-thiserror = "1.0.7"
+once_cell = { workspace = true }
+pin-project-lite = { workspace = true, optional = true }
+thiserror = { workspace = true }
 urlencoding = "2.1.2"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
@@ -38,6 +38,7 @@ metrics = []
 testing = ["trace", "metrics"]
 logs = []
 logs_level_enabled = ["logs"]
+otel_unstable = []
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk" } # for documentation tests
