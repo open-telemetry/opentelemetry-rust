@@ -72,7 +72,7 @@ impl<T: Number<T>> ValueMap<T> {
         loop {
             let current = self.total_unique_entries.load(Ordering::Acquire);
             if is_under_cardinality_limit(current) {
-                // Attempt to increment atomically
+                // Attempt to increment atomically if old value is still current, else retry
                 match self.total_unique_entries.compare_exchange(
                     current,
                     current + 1,
