@@ -104,10 +104,8 @@ impl<T: Number<T>> ValueMap<T> {
                 true
             };
 
-            let should_use_overflow = is_new_entry
-                && !is_under_cardinality_limit(
-                    self.total_unique_entries.load(Ordering::Relaxed) + 1,
-                );
+            let should_use_overflow: bool = is_new_entry
+                && !is_under_cardinality_limit(self.total_unique_entries.load(Ordering::Relaxed));
 
             (is_new_entry, should_use_overflow)
         };

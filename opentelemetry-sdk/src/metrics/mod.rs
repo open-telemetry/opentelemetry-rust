@@ -164,6 +164,189 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_overflow() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        // PeriodicReader with large interval to avoid auto-flush
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(std::time::Duration::from_secs(100000))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .u64_counter("my_counter")
+            .with_unit(Unit::new("my_unit"))
+            .init();
+
+        // sleep for random ~5 milis to avoid recording during first collect cycle
+        // (TBD: need to fix PeriodicReader to NOT collect data immediately after start)
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let unique_measurements = 1999;
+        let overflow_measurements = 4;
+        // Generate measurements to enforce overflow
+        for i in 0..unique_measurements + overflow_measurements {
+            let attribute_value = format!("value{}", i); // Creates a unique attribute value for each measurement
+            counter.add(1, &[KeyValue::new("key1", attribute_value)]);
+        }
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        // Every collect cycle produces a new ResourceMetrics (even if no data is collected).
+        // TBD = This needs to be fixed, and then below assert should validate for one entry
+        assert!(resource_metrics.len() == 2);
+        let metric = &resource_metrics[1].scope_metrics[0].metrics[0]; // second ResourceMetrics
+        assert_eq!(metric.name, "my_counter");
+        assert_eq!(metric.unit.as_str(), "my_unit");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 2000 unique time-series.
+        assert_eq!(sum.data_points.len(), unique_measurements + 1); // all overflow measurements are merged into one
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
+        // ensure that overflow attribute is persent
+        for data_point in &sum.data_points {
+            let mut overflow_attribute_present = false;
+            for attribute in data_point.attributes.iter() {
+                if attribute.0 == &opentelemetry::Key::from("otel.metric.overflow") {
+                    overflow_attribute_present = true;
+                    break;
+                }
+            }
+            if overflow_attribute_present {
+                assert_eq!(data_point.value, overflow_measurements as u64);
+            } else {
+                assert_eq!(data_point.value, 1);
+            }
+        }
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_concurrent_overflow() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        // PeriodicReader with large interval to avoid auto-flush
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(std::time::Duration::from_secs(100000))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .u64_counter("my_counter")
+            .with_unit(Unit::new("my_unit"))
+            .init();
+
+        // sleep for random ~5 milis to avoid recording during first collect cycle
+        // (TBD: need to fix PeriodicReader to NOT collect data immediately after start)
+        std::thread::sleep(std::time::Duration::from_millis(5));
+
+        let unique_measurements = 1999;
+        let overflow_measurements = 4;
+        let total_measurements = unique_measurements + overflow_measurements;
+
+        let counter = std::sync::Arc::new(std::sync::Mutex::new(counter)); // Shared counter among threads
+
+        let num_threads = 4;
+        let measurements_per_thread = total_measurements / num_threads;
+        let remainder = total_measurements % num_threads; // Remainder to be added to the last thread
+
+        let mut handles = vec![];
+
+        for thread_id in 0..num_threads {
+            let counter_clone = std::sync::Arc::clone(&counter);
+            let start_index = thread_id * measurements_per_thread;
+            let end_index = if thread_id == num_threads - 1 {
+                start_index + measurements_per_thread + remainder // Add remainder to the last thread
+            } else {
+                start_index + measurements_per_thread
+            };
+
+            let handle = std::thread::spawn(move || {
+                for i in start_index..end_index {
+                    let attribute_value = format!("value{}", i);
+                    let kv = vec![KeyValue::new("key1", attribute_value)];
+
+                    let counter = counter_clone.lock().unwrap();
+                    counter.add(1, &kv);
+                }
+            });
+
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        // Every collect cycle produces a new ResourceMetrics (even if no data is collected).
+        // TBD = This needs to be fixed, and then below assert should validate for one entry
+        assert!(resource_metrics.len() == 2);
+        let metric = &resource_metrics[1].scope_metrics[0].metrics[0]; // second ResourceMetrics
+        assert_eq!(metric.name, "my_counter");
+        assert_eq!(metric.unit.as_str(), "my_unit");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 2000 unique time-series.
+        assert_eq!(sum.data_points.len(), unique_measurements + 1); // all overflow measurements are merged into one
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
+
+        // ensure that overflow attribute is persent
+        for data_point in &sum.data_points {
+            let mut overflow_attribute_present = false;
+            for attribute in data_point.attributes.iter() {
+                if attribute.0 == &opentelemetry::Key::from("otel.metric.overflow") {
+                    overflow_attribute_present = true;
+                    break;
+                }
+            }
+            if overflow_attribute_present {
+                assert_eq!(data_point.value, overflow_measurements as u64);
+            } else {
+                assert_eq!(data_point.value, 1);
+            }
+        }
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
