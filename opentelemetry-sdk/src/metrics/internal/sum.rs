@@ -67,21 +67,6 @@ impl<T: Number<T>> ValueMap<T> {
         // Use the 8 least significant bits directly, avoiding the modulus operation.
         hasher.finish() as u8 as usize
     }
-
-    // Calculate the total length of data points across all buckets.
-    fn total_data_points_count(&self) -> usize {
-        self.buckets
-        .iter()
-        .map(|bucket_mutex| {
-            bucket_mutex.lock()
-                .map(|locked_bucket| locked_bucket.as_ref().map_or(0, |bucket| bucket.len()))
-                .unwrap_or_else(|_| {
-                    global::handle_error(MetricsError::Other("Failed to acquire lock on a bucket. Using default `0` as total data points.".into()));
-                    0
-                })
-        })
-        .sum::<usize>()
-    }
 }
 
 impl<T: Number<T>> ValueMap<T> {
@@ -178,7 +163,7 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let total_len: usize = self.value_map.total_data_points_count() + 1;
+        let total_len: usize = self.value_map.total_unique_entries.load(Ordering::Relaxed) + 1;
         if total_len > s_data.data_points.capacity() {
             let additional_space_needed = total_len - s_data.data_points.capacity();
             s_data.data_points.reserve_exact(additional_space_needed);
@@ -264,7 +249,7 @@ impl<T: Number<T>> Sum<T> {
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
 
-        let total_len: usize = self.value_map.total_data_points_count() + 1;
+        let total_len: usize = self.value_map.total_unique_entries.load(Ordering::Relaxed) + 1;
         if total_len > s_data.data_points.capacity() {
             let additional_space_needed = total_len - s_data.data_points.capacity();
             s_data.data_points.reserve_exact(additional_space_needed);
@@ -368,7 +353,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
 
-        let total_len: usize = self.value_map.total_data_points_count() + 1;
+        let total_len: usize = self.value_map.total_unique_entries.load(Ordering::Relaxed) + 1;
         if total_len > s_data.data_points.capacity() {
             let additional_space_needed = total_len - s_data.data_points.capacity();
             s_data.data_points.reserve_exact(additional_space_needed);
@@ -465,7 +450,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
-        let total_len: usize = self.value_map.total_data_points_count() + 1;
+        let total_len: usize = self.value_map.total_unique_entries.load(Ordering::Relaxed) + 1;
         if total_len > s_data.data_points.capacity() {
             let additional_space_needed = total_len - s_data.data_points.capacity();
             s_data.data_points.reserve_exact(additional_space_needed);
