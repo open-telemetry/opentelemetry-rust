@@ -69,14 +69,22 @@ impl<T: Number<T>> ValueMap<T> {
     }
 
     fn try_increment(&self) -> bool {
-        let current = self.total_unique_entries.load(Ordering::Acquire);
-        if is_under_cardinality_limit(current) {
-            // Attempt to increment atomically
-            self.total_unique_entries
-                .compare_exchange(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-        } else {
-            false // Limit reached, do not increment
+        loop {
+            let current = self.total_unique_entries.load(Ordering::Acquire);
+            if is_under_cardinality_limit(current) {
+                // Attempt to increment atomically
+                match self.total_unique_entries.compare_exchange(
+                    current,
+                    current + 1,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => return true, // Increment successful
+                    Err(_) => continue, // Failed to increment due to concurrent modification, retry
+                }
+            } else {
+                return false; // Limit reached, do not increment
+            }
         }
     }
 }
