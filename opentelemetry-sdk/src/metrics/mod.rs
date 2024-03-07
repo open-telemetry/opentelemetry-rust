@@ -263,7 +263,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(5));
 
         let unique_measurements = 1999;
-        let overflow_measurements = 4;
+        let overflow_measurements = 1000;
         let total_measurements = unique_measurements + overflow_measurements;
 
         let counter = std::sync::Arc::new(std::sync::Mutex::new(counter)); // Shared counter among threads

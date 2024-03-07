@@ -67,6 +67,18 @@ impl<T: Number<T>> ValueMap<T> {
         // Use the 8 least significant bits directly, avoiding the modulus operation.
         hasher.finish() as u8 as usize
     }
+
+    fn try_increment(&self) -> bool {
+        let current = self.total_unique_entries.load(Ordering::Acquire);
+        if is_under_cardinality_limit(current) {
+            // Attempt to increment atomically
+            self.total_unique_entries
+                .compare_exchange(current, current + 1, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+        } else {
+            false // Limit reached, do not increment
+        }
+    }
 }
 
 impl<T: Number<T>> ValueMap<T> {
@@ -78,40 +90,36 @@ impl<T: Number<T>> ValueMap<T> {
             return;
         }
 
+        // Determine the bucket index for the attributes
         let bucket_index = Self::hash_to_bucket(&attrs);
-        let (is_new_entry, should_use_overflow) = {
-            let bucket_mutex = &self.buckets[bucket_index];
-            let bucket_guard = bucket_mutex.lock().unwrap();
-
-            let is_new_entry = if let Some(bucket) = &*bucket_guard {
-                !bucket.contains_key(&attrs)
-            } else {
-                true
-            };
-
-            let should_use_overflow: bool = is_new_entry
-                && !is_under_cardinality_limit(self.total_unique_entries.load(Ordering::Relaxed));
-
-            (is_new_entry, should_use_overflow)
-        };
-        if is_new_entry && !should_use_overflow {
-            self.total_unique_entries.fetch_add(1, Ordering::Relaxed);
+        let mut bucket_guard = self.buckets[bucket_index].lock().unwrap();
+        if let Some(bucket) = &mut *bucket_guard {
+            // if the attribute is present in bucket, lets update the value and return
+            // (we need to be fast here, as this is most common use-case)
+            if let Some(value) = bucket.get_mut(&attrs) {
+                *value += measurement;
+                return;
+            }
         }
-        let final_bucket_index = if should_use_overflow {
-            OVERFLOW_BUCKET_INDEX
+
+        // if the attribute is not present in bucket, lets unlock the bucket
+        drop(bucket_guard);
+        // Attempt to first increment the total unique entries if under limit.
+        let under_limit = self.try_increment();
+        // Determine the bucket index for the attributes
+        let (bucket_index, attrs) = if under_limit {
+            (bucket_index, attrs) // the index remains same
         } else {
-            bucket_index
+            // TBD - Should we log, as this can flood the logs ?
+            (OVERFLOW_BUCKET_INDEX, STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
         };
-        let bucket_mutex = &self.buckets[final_bucket_index];
-        let mut bucket_guard = bucket_mutex.lock().unwrap();
-        let bucket = bucket_guard.get_or_insert_with(HashMap::new);
-        let entry_key = if should_use_overflow {
-            STREAM_OVERFLOW_ATTRIBUTE_SET.clone()
-        } else {
-            attrs
-        };
+
+        // Lock and update the relevant bucket
+        let mut final_bucket_guard = self.buckets[bucket_index].lock().unwrap();
+        let bucket = final_bucket_guard.get_or_insert_with(HashMap::default);
+
         bucket
-            .entry(entry_key)
+            .entry(attrs)
             .and_modify(|e| *e += measurement)
             .or_insert(measurement);
     }
