@@ -69,6 +69,11 @@ harness = false
 required-features = ["metrics"]
 
 [[bench]]
+name = "noop_metrics"
+harness = false
+required-features = ["metrics"]
+
+[[bench]]
 name = "attribute_set"
 harness = false
 
