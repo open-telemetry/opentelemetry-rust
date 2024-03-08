@@ -120,7 +120,11 @@ impl HttpExporterBuilder {
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
         let mut inst_headers = self.http_config.headers.unwrap_or_default();
-        inst_headers.extend(headers);
+        inst_headers.extend(
+            headers
+                .into_iter()
+                .map(|(key, value)| (key, super::url_decode(&value).unwrap_or(value))),
+        );
         self.http_config.headers = Some(inst_headers);
         self
     }
@@ -270,6 +274,15 @@ impl OtlpHttpClient {
     }
 }
 
+fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, crate::Error> {
+    let path = if endpoint.ends_with('/') && path.starts_with('/') {
+        path.strip_prefix('/').unwrap()
+    } else {
+        path
+    };
+    format!("{endpoint}{path}").parse().map_err(From::from)
+}
+
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
 fn resolve_endpoint(
     signal_endpoint_var: &str,
@@ -287,15 +300,13 @@ fn resolve_endpoint(
     // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT is set
     if let Some(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
         .ok()
-        .and_then(|s| format!("{s}{signal_endpoint_path}").parse().ok())
+        .and_then(|s| build_endpoint_uri(&s, signal_endpoint_path).ok())
     {
         return Ok(endpoint);
     }
 
-    // if neither works, we use the one provided in pipeline. If user never provide one, we will use the default one
-    format!("{provided_or_default_endpoint}{signal_endpoint_path}")
-        .parse()
-        .map_err(From::from)
+    // if neither works, we use the one provided in pipeline. If user never provides one, we will use the default one
+    build_endpoint_uri(provided_or_default_endpoint, signal_endpoint_path)
 }
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
@@ -303,7 +314,7 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
     headers.extend(parse_header_string(input).filter_map(|(key, value)| {
         Some((
             HeaderName::from_str(key).ok()?,
-            HeaderValue::from_str(value).ok()?,
+            HeaderValue::from_str(&value).ok()?,
         ))
     }));
 }
@@ -312,6 +323,8 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 mod tests {
     use crate::exporter::tests::run_env_test;
     use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+
+    use super::build_endpoint_uri;
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
@@ -372,6 +385,20 @@ mod tests {
                     .unwrap();
             assert_eq!(endpoint, "http://localhost:4317/v1/traces");
         });
+    }
+
+    #[test]
+    fn test_build_endpoint_uri() {
+        let uri = build_endpoint_uri("https://example.com", "/v1/traces").unwrap();
+        assert_eq!(uri, "https://example.com/v1/traces");
+
+        // Should be no duplicate slahes:
+        let uri = build_endpoint_uri("https://example.com/", "/v1/traces").unwrap();
+        assert_eq!(uri, "https://example.com/v1/traces");
+
+        // Append paths properly:
+        let uri = build_endpoint_uri("https://example.com/additional/path/", "/v1/traces").unwrap();
+        assert_eq!(uri, "https://example.com/additional/path/v1/traces");
     }
 
     #[test]

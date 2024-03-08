@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 #[cfg(feature = "integration_test")]
 mod tests {
     use opentelemetry::{

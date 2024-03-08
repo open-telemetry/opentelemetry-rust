@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.10.0"
+version = "0.11.0"
 description = "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -15,6 +15,6 @@ bytes = { workspace = true }
 http = { workspace = true }
 hyper = { workspace = true, features = ["http2", "client", "tcp"], optional = true }
 isahc = { workspace = true, optional = true }
-opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { version = "0.22", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }

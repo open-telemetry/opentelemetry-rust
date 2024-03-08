@@ -10,9 +10,24 @@ cargo_feature() {
 }
 
 if rustup component add clippy; then
-  cargo clippy --all-targets --all-features -- \
-    `# Exit with a nonzero code if there are clippy warnings` \
-    -Dwarnings
+ crates=( "opentelemetry"
+                "opentelemetry-http"
+                "opentelemetry-jaeger"
+                "opentelemetry-jaeger-propagator"
+                "opentelemetry-appender-log"
+                "opentelemetry-appender-tracing"
+                "opentelemetry-otlp"
+                "opentelemetry-prometheus"
+                "opentelemetry-proto"
+                "opentelemetry-sdk"
+                "opentelemetry-semantic-conventions"
+                "opentelemetry-stdout"
+                "opentelemetry-zipkin")
+  for crate in "${crates[@]}"; do
+      cargo clippy --manifest-path=$crate/Cargo.toml --all-targets --all-features -- \
+          `# Exit with a nonzero code if there are clippy warnings` \
+          -Dwarnings
+  done
 
   cargo_feature opentelemetry "trace,metrics,logs,logs_level_enabled,testing"
 
