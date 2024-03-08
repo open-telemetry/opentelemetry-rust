@@ -64,6 +64,7 @@ fn noop_counter_add(c: &mut Criterion) {
         });
     });
 
+    #[allow(clippy::useless_vec)]
     c.bench_function("CreateVector_KeyValue", |b| {
         b.iter(|| {
             let _v1 = vec![
@@ -75,6 +76,7 @@ fn noop_counter_add(c: &mut Criterion) {
         });
     });
 
+    #[allow(clippy::useless_vec)]
     c.bench_function("CreateDynamicVector_StringPair", |b| {
         b.iter(|| {
             let _v1 = vec![
