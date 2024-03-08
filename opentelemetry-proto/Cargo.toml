@@ -48,7 +48,7 @@ with-schemars = ["schemars"]
 with-serde = ["serde", "hex"]
 
 [dependencies]
-tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
+tonic = { workspace = true, optional = true, default-features = false, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
 opentelemetry = { version = "0.22", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.22", default-features = false, path = "../opentelemetry-sdk" }
