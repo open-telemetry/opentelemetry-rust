@@ -120,7 +120,11 @@ impl HttpExporterBuilder {
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
         let mut inst_headers = self.http_config.headers.unwrap_or_default();
-        inst_headers.extend(headers);
+        inst_headers.extend(
+            headers
+                .into_iter()
+                .map(|(key, value)| (key, super::url_decode(&value).unwrap_or(value))),
+        );
         self.http_config.headers = Some(inst_headers);
         self
     }
@@ -310,7 +314,7 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
     headers.extend(parse_header_string(input).filter_map(|(key, value)| {
         Some((
             HeaderName::from_str(key).ok()?,
-            HeaderValue::from_str(value).ok()?,
+            HeaderValue::from_str(&value).ok()?,
         ))
     }));
 }
