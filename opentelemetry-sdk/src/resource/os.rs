@@ -19,7 +19,10 @@ pub struct OsResourceDetector;
 
 impl ResourceDetector for OsResourceDetector {
     fn detect(&self, _timeout: Duration) -> Resource {
-        Resource::new(vec![KeyValue::new("os.type", OS)])
+        Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::OS_TYPE,
+            OS,
+        )])
     }
 }
 
@@ -38,7 +41,8 @@ mod tests {
             resource
                 .iter()
                 .0
-                .find(|(k, _v)| **k == Key::from_static_str("os.type"))
+                .find(|(k, _v)| **k
+                    == Key::from_static_str(opentelemetry_semantic_conventions::resource::OS_TYPE))
                 .map(|(_k, v)| v.to_string()),
             Some("linux".to_string())
         );

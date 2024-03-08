@@ -27,8 +27,14 @@ impl ResourceDetector for ProcessResourceDetector {
             .map(|arg| arg.to_string_lossy().into_owned().into())
             .collect::<Vec<StringValue>>();
         Resource::new(vec![
-            KeyValue::new("process.command_args", Value::Array(cmd_arg_val.into())),
-            KeyValue::new("process.pid", id() as i64),
+            KeyValue::new(
+                opentelemetry_semantic_conventions::resource::PROCESS_COMMAND_ARGS,
+                Value::Array(cmd_arg_val.into()),
+            ),
+            KeyValue::new(
+                opentelemetry_semantic_conventions::resource::PROCESS_PID,
+                id() as i64,
+            ),
         ])
     }
 }
