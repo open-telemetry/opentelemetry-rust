@@ -2,18 +2,22 @@
 
 ## vNext
 
+### Changed
+
+- Update to [v1.24.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.24.0) of the semantic conventions.
+  [#1596](https://github.com/open-telemetry/opentelemetry-rust/pull/1596)
+
 ## v0.14.0
 
 ### Changed
 
-* **Breaking** Add generated modules that output const &str for tracing compatibility
+- **Breaking** Replaced Key constants with &'static str for tracing compatibility
   [#1334](https://github.com/open-telemetry/opentelemetry-rust/pull/1334)
 
 ## v0.13.0
 
 ### Changed
 
-- Replaced Key constants with &'static str [#1320]
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 

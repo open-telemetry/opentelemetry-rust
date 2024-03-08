@@ -12,7 +12,7 @@
 
 ### Fixed
 
-- Fix UCUM annotation escaping by ignoring unknown instrument units and annotations (#1348)
+- Fix UCUM annotation escaping by ignoring unknown instrument units and annotations [#1348](https://github.com/open-telemetry/opentelemetry-rust/pull/1348)
 
 ## v0.14.0
 
