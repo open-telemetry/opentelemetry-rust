@@ -12,10 +12,10 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "use_hashbrown")]
 use ahash::AHasher;
 #[cfg(feature = "use_hashbrown")]
-use hashbrown::HashMap;
+use hashbrown::{hash_map::Entry, HashMap};
 
 #[cfg(not(feature = "use_hashbrown"))]
-use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::collections::{hash_map::DefaultHasher, hash_map::Entry, HashMap};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
@@ -130,14 +130,17 @@ impl<T: Number<T>> ValueMap<T> {
             // Double check if the attribute is present in bucket.
             // This handles the case where another thread might have inserted the key
             // while this thread was incrementing the global counter
-            if !bucket.contains_key(&attrs) {
-                // Key still doesn't exist, insert the new measurement
-                bucket.insert(attrs, measurement);
-            } else {
-                // If another thread was faster, simply update the measurement.
-                *bucket.get_mut(&attrs).unwrap() += measurement;
-                // Correct the unique entries count as the thread's increment was redundant.
-                self.total_unique_entries.fetch_sub(1, Ordering::SeqCst);
+            match bucket.entry(attrs) {
+                Entry::Vacant(e) => {
+                    // The key still does not exist, insert the new measurement
+                    e.insert(measurement);
+                }
+                Entry::Occupied(mut e) => {
+                    // The key exists, update the measurement
+                    *e.get_mut() += measurement;
+                    // Correct the unique entries count as the thread's increment was redundant
+                    self.total_unique_entries.fetch_sub(1, Ordering::SeqCst);
+                }
             }
         } else {
             // Handle overflow cases quietly to avoid log flooding.
