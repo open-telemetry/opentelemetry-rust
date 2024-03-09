@@ -92,44 +92,63 @@ impl<T: Number<T>> ValueMap<T> {
 impl<T: Number<T>> ValueMap<T> {
     fn measure(&self, measurement: T, attrs: AttributeSet) {
         if attrs.is_empty() {
+            // Directly store measurements with no attributes.
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
                 .store(true, Ordering::Release);
             return;
         }
 
-        // Determine the bucket index for the attributes
+        // Hash attributes to find the corresponding bucket.
         let bucket_index = Self::hash_to_bucket(&attrs);
         let mut bucket_guard = self.buckets[bucket_index].lock().unwrap();
         if let Some(bucket) = &mut *bucket_guard {
-            // if the attribute is present in bucket, lets update the value and return
-            // (we need to be fast here, as this is most common use-case)
+            // Fast path: if attributes already exist, just update the value.
             if let Some(value) = bucket.get_mut(&attrs) {
                 *value += measurement;
                 return;
             }
         }
 
-        // if the attribute is not present in bucket, lets unlock the bucket
+        // Attributes not present, release lock to attempt adding them.
         drop(bucket_guard);
+
         // Attempt to first increment the total unique entries if under limit.
         let under_limit = self.try_increment();
+
         // Determine the bucket index for the attributes
         let (bucket_index, attrs) = if under_limit {
             (bucket_index, attrs) // the index remains same
         } else {
-            // TBD - Should we log, as this can flood the logs ?
             (OVERFLOW_BUCKET_INDEX, STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
         };
+        if under_limit {
+            // Reacquire lock to add new attributes or update existing ones.
+            let mut final_bucket_guard = self.buckets[bucket_index].lock().unwrap();
+            let bucket = final_bucket_guard.get_or_insert_with(HashMap::default);
 
-        // Lock and update the relevant bucket
-        let mut final_bucket_guard = self.buckets[bucket_index].lock().unwrap();
-        let bucket = final_bucket_guard.get_or_insert_with(HashMap::default);
+            // Double check if the attribute is present in bucket.
+            // This handles the case where another thread might have inserted the key
+            // while this thread was incrementing the global counter
+            if !bucket.contains_key(&attrs) {
+                // Key still doesn't exist, insert the new measurement
+                bucket.insert(attrs, measurement);
+            } else {
+                // If another thread was faster, simply update the measurement.
+                *bucket.get_mut(&attrs).unwrap() += measurement;
+                // Correct the unique entries count as the thread's increment was redundant.
+                self.total_unique_entries.fetch_sub(1, Ordering::SeqCst);
+            }
+        } else {
+            // Handle overflow cases quietly to avoid log flooding.
+            let mut oveflow_bucket_guard = self.buckets[bucket_index].lock().unwrap();
+            let overflow_bucket = oveflow_bucket_guard.get_or_insert_with(HashMap::default);
 
-        bucket
-            .entry(attrs)
-            .and_modify(|e| *e += measurement)
-            .or_insert(measurement);
+            overflow_bucket
+                .entry(attrs)
+                .and_modify(|e| *e += measurement)
+                .or_insert(measurement);
+        }
     }
 }
 
