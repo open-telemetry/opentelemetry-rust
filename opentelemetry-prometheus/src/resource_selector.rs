@@ -7,11 +7,11 @@ use std::collections::HashSet;
 /// `ResourceSelector` is used to select which resource to export with every metrics.
 ///
 /// By default, the exporter will only export resource as `target_info` metrics but not inline in every
-/// metrics. You can disable this behavior by calling [`ExporterBuilder::without_target_info`].
+/// metrics. You can disable this behavior by calling [`without_target_info`](crate::ExporterBuilder::without_target_info)
 ///
 /// You can add resource to every metrics by set `ResourceSelector` to anything other than `None`.
 ///
-/// By default, ResouceSelector is `None`.
+/// By default, ResourceSelector is `None`, meaning resource will not be attributes of every metrics.
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub enum ResourceSelector {
