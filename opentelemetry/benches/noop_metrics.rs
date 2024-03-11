@@ -67,24 +67,24 @@ fn noop_counter_add(c: &mut Criterion) {
     #[allow(clippy::useless_vec)]
     c.bench_function("CreateVector_KeyValue", |b| {
         b.iter(|| {
-            let _v1 = black_box(vec![
+            let _v1 = vec![
                 KeyValue::new("attribute1", "value1"),
                 KeyValue::new("attribute2", "value2"),
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute4", "value4"),
-            ]);
+            ];
         });
     });
 
     #[allow(clippy::useless_vec)]
     c.bench_function("CreateDynamicVector_StringPair", |b| {
         b.iter(|| {
-            let _v1 = black_box(vec![
+            let _v1 = vec![
                 ("attribute1", "value1"),
                 ("attribute2", "value2"),
                 ("attribute3", "value3"),
                 ("attribute4", "value4"),
-            ]);
+            ];
         });
     });
 }
