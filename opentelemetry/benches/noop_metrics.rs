@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     metrics::{noop::NoopMeterProvider, Counter, MeterProvider as _},
     KeyValue,
@@ -67,24 +67,24 @@ fn noop_counter_add(c: &mut Criterion) {
     #[allow(clippy::useless_vec)]
     c.bench_function("CreateVector_KeyValue", |b| {
         b.iter(|| {
-            let _v1 = vec![
+            let _v1 = black_box(vec![
                 KeyValue::new("attribute1", "value1"),
                 KeyValue::new("attribute2", "value2"),
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute4", "value4"),
-            ];
+            ]);
         });
     });
 
     #[allow(clippy::useless_vec)]
     c.bench_function("CreateDynamicVector_StringPair", |b| {
         b.iter(|| {
-            let _v1 = vec![
+            let _v1 = black_box(vec![
                 ("attribute1", "value1"),
                 ("attribute2", "value2"),
                 ("attribute3", "value3"),
                 ("attribute4", "value4"),
-            ];
+            ]);
         });
     });
 }
