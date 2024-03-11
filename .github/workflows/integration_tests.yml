@@ -7,7 +7,6 @@ on:
 
 jobs:
   integration_tests:
-    rust: stable
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: ${{ github.event.label.name == 'integration tests' || contains(github.event.pull_request.labels.*.name, 'integration tests') }}
@@ -18,14 +17,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
           df -h
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           components: rustfmt
           profile: minimal
-      - uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v3
       - name: Run integration tests using docker compose
         run: ./scripts/integration_tests.sh

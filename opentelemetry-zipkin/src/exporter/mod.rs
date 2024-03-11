@@ -17,12 +17,6 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_semantic_conventions as semcov;
 use std::borrow::Cow;
-#[cfg(all(
-    not(feature = "reqwest-client"),
-    not(feature = "reqwest-blocking-client"),
-    feature = "surf-client"
-))]
-use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -69,11 +63,7 @@ impl Default for ZipkinPipelineBuilder {
                     .build()
                     .unwrap_or_else(|_| reqwest::blocking::Client::new()),
             )),
-            #[cfg(all(
-                not(feature = "reqwest-blocking-client"),
-                not(feature = "surf-client"),
-                feature = "reqwest-client"
-            ))]
+            #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
             client: Some(Arc::new(
                 reqwest::Client::builder()
                     .timeout(timeout)
@@ -82,16 +72,6 @@ impl Default for ZipkinPipelineBuilder {
             )),
             #[cfg(all(
                 not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "surf-client"
-            ))]
-            client: Some(Arc::new(
-                surf::Client::try_from(surf::Config::new().set_timeout(Some(timeout)))
-                    .unwrap_or_else(|_| surf::Client::new()),
-            )),
-            #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "surf-client"),
                 not(feature = "reqwest-blocking-client")
             ))]
             client: None,
@@ -262,7 +242,7 @@ impl trace::SpanExporter for Exporter {
 #[non_exhaustive]
 pub enum Error {
     /// No http client implementation found. User should provide one or enable features.
-    #[error("http client must be set, users can enable reqwest or surf feature to use http client implementation within create")]
+    #[error("http client must be set, users can enable reqwest feature to use http client implementation within create")]
     NoHttpClient,
 
     /// Http requests failed
