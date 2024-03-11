@@ -48,6 +48,12 @@ pub struct TestSpanExporter {
     pub shutdown_called: Arc<Mutex<bool>>,
 }
 
+impl Default for TestSpanExporter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestSpanExporter {
     pub fn new() -> Self {
         TestSpanExporter {
