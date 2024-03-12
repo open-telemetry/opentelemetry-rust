@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
+  dependency on crossbeam-channel.
+  [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
+
 ## v0.22.1
 
 ### Fixed
