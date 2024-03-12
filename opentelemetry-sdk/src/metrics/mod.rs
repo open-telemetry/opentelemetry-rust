@@ -320,13 +320,13 @@ mod tests {
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
         let meter1 = meter_provider.versioned_meter(
-            "test.meter1",
+            "test.meter",
             Some("v0.1.0"),
             Some("schema_url"),
             Some(vec![KeyValue::new("key", "value1")]),
         );
         let meter2 = meter_provider.versioned_meter(
-            "test.meter1",
+            "test.meter",
             Some("v0.1.0"),
             Some("schema_url"),
             Some(vec![KeyValue::new("key", "value2")]),
@@ -364,11 +364,12 @@ mod tests {
         );
 
         let scope = &resource_metrics[0].scope_metrics[0].scope;
-        assert_eq!(scope.name, "test.meter1");
+        assert_eq!(scope.name, "test.meter");
         assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
         assert_eq!(scope.schema_url, Some(Cow::Borrowed("schema_url")));
 
-        // Should we validate this, as this is a user error
+        // This is validating current behavior, but it is not guaranteed to be the case in the future,
+        // as this is a user error and SDK reserves right to change this behavior.
         assert_eq!(scope.attributes, vec![KeyValue::new("key", "value1")]);
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
