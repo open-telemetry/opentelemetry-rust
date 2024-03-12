@@ -41,9 +41,13 @@ otel_unstable = []
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk" } # for documentation tests
-criterion = { version = "0.4", features = ["html_reports"] }
+criterion = { version = "0.3" }
 
 [[bench]]
-name = "noop_metrics"
+name = "metrics"
 harness = false
 required-features = ["metrics"]
+
+[[bench]]
+name = "attributes"
+harness = false
