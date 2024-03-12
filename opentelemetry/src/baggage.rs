@@ -290,14 +290,14 @@ fn encode(s: Cow<'_, str>) -> String {
         if char.is_ascii_alphanumeric() || special_characters.contains(&char) {
             encoded_string.push(char);
         } else if char == ' ' {
-                encoded_string.push_str("%20");
-            } else {
-                // Convert to a two-digit hexadecimal representation
-                for byte in char.to_string().as_bytes() {
-                    encoded_string.push_str(&format!("%{:02X}", byte));
-                }
+            encoded_string.push_str("%20");
+        } else {
+            // Convert to a two-digit hexadecimal representation
+            for byte in char.to_string().as_bytes() {
+                encoded_string.push_str(&format!("%{:02X}", byte));
             }
         }
+    }
     encoded_string
 }
 
