@@ -16,10 +16,10 @@
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
 use once_cell::sync::Lazy;
+use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::iter::FromIterator;
-use urlencoding::encode;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
@@ -282,10 +282,29 @@ impl FromIterator<KeyValueMetadata> for Baggage {
     }
 }
 
+fn encode(s: Cow<'_, str>) -> String {
+    let special_characters = ['.', '-', '_', '~'];
+    let mut encoded_string = String::new();
+
+    for char in s.as_ref().chars() {
+        if char.is_ascii_alphanumeric() || special_characters.contains(&char) {
+            encoded_string.push(char);
+        } else if char == ' ' {
+                encoded_string.push_str("%20");
+            } else {
+                // Convert to a two-digit hexadecimal representation
+                for byte in char.to_string().as_bytes() {
+                    encoded_string.push_str(&format!("%{:02X}", byte));
+                }
+            }
+        }
+    encoded_string
+}
+
 impl fmt::Display for Baggage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, (k, v)) in self.into_iter().enumerate() {
-            write!(f, "{}={}", k, encode(&v.0.as_str()))?;
+            write!(f, "{}={}", k, encode(v.0.as_str()))?;
             if !v.1.as_str().is_empty() {
                 write!(f, ";{}", v.1)?;
             }
@@ -471,6 +490,26 @@ mod tests {
         let mut baggage = Baggage::new();
         baggage.insert("🚫", "not ascii key");
         assert_eq!(baggage.len(), 0, "did not insert invalid key");
+    }
+
+    #[test]
+    fn test_ascii_values() {
+        let string1 = Cow::Borrowed("test_ 123");
+        let string2 = Cow::Borrowed("Hello123");
+        let string3 = Cow::Borrowed("This & That = More");
+        let string4 = Cow::Borrowed("Unicode: 😊");
+        let string5 = Cow::Borrowed("Non-ASCII: áéíóú");
+        let string6 = Cow::Borrowed("Unsafe: ~!@#$%^&*()_+{}[];:'\\\"<>?,./");
+
+        assert_eq!(encode(string1), "test_%20123");
+        assert_eq!(encode(string2), "Hello123");
+        assert_eq!(encode(string3), "This%20%26%20That%20%3D%20More");
+        assert_eq!(encode(string4), "Unicode%3A%20%F0%9F%98%8A");
+        assert_eq!(
+            encode(string5),
+            "Non-ASCII%3A%20%C3%A1%C3%A9%C3%AD%C3%B3%C3%BA"
+        );
+        assert_eq!(encode(string6), "Unsafe%3A%20~%21%40%23%24%25%5E%26%2A%28%29_%2B%7B%7D%5B%5D%3B%3A%27%5C%22%3C%3E%3F%2C.%2F");
     }
 
     #[test]
