@@ -9,20 +9,15 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn attributes_creation(c: &mut Criterion) {
-
     c.bench_function("CreateOTelKeyValue", |b| {
         b.iter(|| {
-            let _v1 = black_box(
-                KeyValue::new("attribute1", "value1")
-            );
+            let _v1 = black_box(KeyValue::new("attribute1", "value1"));
         });
     });
 
     c.bench_function("CreateKeyValueTuple", |b| {
         b.iter(|| {
-            let _v1 = black_box(
-                ("attribute1", "value1")
-            );
+            let _v1 = black_box(("attribute1", "value1"));
         });
     });
 
