@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use opentelemetry::{Key, KeyValue};
+use std::sync::Arc;
 
 // Run this benchmark with:
 // cargo bench --bench attributes
