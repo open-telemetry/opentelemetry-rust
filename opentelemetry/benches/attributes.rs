@@ -1,5 +1,6 @@
+use std::sync::Arc;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opentelemetry::KeyValue;
+use opentelemetry::{Key, KeyValue};
 
 // Run this benchmark with:
 // cargo bench --bench attributes
@@ -9,20 +10,38 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn attributes_creation(c: &mut Criterion) {
+    c.bench_function("CreateOTelKey_Static", |b| {
+        b.iter(|| {
+            let _v1 = black_box(Key::new("attribute1"));
+        });
+    });
+
+    c.bench_function("CreateOTelKey_Owned", |b| {
+        b.iter(|| {
+            let _v1 = black_box(Key::new(String::from("attribute1")));
+        });
+    });
+
+    c.bench_function("CreateOTelKey_Arc", |b| {
+        b.iter(|| {
+            let _v1 = black_box(Key::new(Arc::from("attribute1")));
+        });
+    });
+
     c.bench_function("CreateOTelKeyValue", |b| {
         b.iter(|| {
             let _v1 = black_box(KeyValue::new("attribute1", "value1"));
         });
     });
 
-    c.bench_function("CreateKeyValueTuple", |b| {
+    c.bench_function("CreateTupleKeyValue", |b| {
         b.iter(|| {
             let _v1 = black_box(("attribute1", "value1"));
         });
     });
 
     #[allow(clippy::useless_vec)]
-    c.bench_function("CreateVector_KeyValue", |b| {
+    c.bench_function("CreateOtelKeyValueVector", |b| {
         b.iter(|| {
             let _v1 = black_box(vec![
                 KeyValue::new("attribute1", "value1"),
@@ -34,7 +53,7 @@ fn attributes_creation(c: &mut Criterion) {
     });
 
     #[allow(clippy::useless_vec)]
-    c.bench_function("CreateVector_StringPairs", |b| {
+    c.bench_function("CreateTupleKeyValueVector", |b| {
         b.iter(|| {
             let _v1 = black_box(vec![
                 ("attribute1", "value1"),
