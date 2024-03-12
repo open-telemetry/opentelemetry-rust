@@ -501,15 +501,15 @@ mod tests {
         let string5 = "Non-ASCII: áéíóú";
         let string6 = "Unsafe: ~!@#$%^&*()_+{}[];:'\\\"<>?,./";
 
-        assert_eq!(encode(&string1), "test_%20123");
-        assert_eq!(encode(&string2), "Hello123");
-        assert_eq!(encode(&string3), "This%20%26%20That%20%3D%20More");
-        assert_eq!(encode(&string4), "Unicode%3A%20%F0%9F%98%8A");
+        assert_eq!(encode(string1), "test_%20123");
+        assert_eq!(encode(string2), "Hello123");
+        assert_eq!(encode(string3), "This%20%26%20That%20%3D%20More");
+        assert_eq!(encode(string4), "Unicode%3A%20%F0%9F%98%8A");
         assert_eq!(
-            encode(&string5),
+            encode(string5),
             "Non-ASCII%3A%20%C3%A1%C3%A9%C3%AD%C3%B3%C3%BA"
         );
-        assert_eq!(encode(&string6), "Unsafe%3A%20~%21%40%23%24%25%5E%26%2A%28%29_%2B%7B%7D%5B%5D%3B%3A%27%5C%22%3C%3E%3F%2C.%2F");
+        assert_eq!(encode(string6), "Unsafe%3A%20~%21%40%23%24%25%5E%26%2A%28%29_%2B%7B%7D%5B%5D%3B%3A%27%5C%22%3C%3E%3F%2C.%2F");
     }
 
     #[test]
