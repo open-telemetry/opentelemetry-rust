@@ -283,7 +283,7 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 
 fn encode(s: &str) -> String {
     let special_characters = ['.', '-', '_', '~'];
-    let mut encoded_string = String::new();
+    let mut encoded_string = String::with_capacity(s.len());
 
     for char in s.chars() {
         if char.is_ascii_alphanumeric() || special_characters.contains(&char) {
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_ascii_values() {
-        let string1  = "test_ 123";
+        let string1 = "test_ 123";
         let string2 = "Hello123";
         let string3 = "This & That = More";
         let string4 = "Unicode: 😊";
