@@ -1,15 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::{
-    metrics::{noop::NoopMeterProvider, Counter, MeterProvider as _},
-    KeyValue,
-};
+use opentelemetry::{global, metrics::Counter, KeyValue};
 
 // Run this benchmark with:
 // cargo bench --bench metrics --features=metrics
 
 fn create_counter() -> Counter<u64> {
-    let meter_provider: NoopMeterProvider = NoopMeterProvider::default();
-    let meter = meter_provider.meter("benchmarks");
+    let meter = global::meter("benchmarks");
     let counter = meter.u64_counter("counter_bench").init();
     counter
 }
