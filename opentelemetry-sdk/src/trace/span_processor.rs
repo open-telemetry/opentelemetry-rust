@@ -94,8 +94,10 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn shutdown(&mut self) -> TraceResult<()>;
 }
 
-/// A [SpanProcessor] that passes finished spans to the configured `SpanExporter`, as
-/// soon as they are finished, without any batching.
+/// A [SpanProcessor] that passes finished spans to the configured
+/// `SpanExporter`, as soon as they are finished, without any batching. This is
+/// typically useful for debugging and testing. For scenarios requiring higher
+/// performance/throughput, consider using [BatchSpanProcessor].
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
     exporter: Mutex<Box<dyn SpanExporter>>,

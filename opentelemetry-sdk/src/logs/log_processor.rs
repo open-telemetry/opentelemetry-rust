@@ -52,12 +52,10 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 }
 
-/// A [`LogProcessor`] that exports synchronously when logs are emitted.
-///
-/// # Examples
-///
-/// Note that the simple processor exports synchronously every time a log is
-/// emitted. If you find this limiting, consider the batch processor instead.
+/// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
+/// as they are emitted, without any batching. This is typically useful for
+/// debugging and testing. For scenarios requiring higher
+/// performance/throughput, consider using [BatchSpanProcessor].
 #[derive(Debug)]
 pub struct SimpleLogProcessor {
     exporter: Mutex<Box<dyn LogExporter>>,
