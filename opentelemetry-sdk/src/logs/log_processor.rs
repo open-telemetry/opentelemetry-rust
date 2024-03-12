@@ -55,7 +55,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
 /// as they are emitted, without any batching. This is typically useful for
 /// debugging and testing. For scenarios requiring higher
-/// performance/throughput, consider using [BatchSpanProcessor].
+/// performance/throughput, consider using [BatchLogProcessor].
 #[derive(Debug)]
 pub struct SimpleLogProcessor {
     exporter: Mutex<Box<dyn LogExporter>>,
