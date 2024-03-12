@@ -15,7 +15,6 @@ opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optiona
 opentelemetry-semantic-conventions = { version = "0.14", path = "../opentelemetry-semantic-conventions"}
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
-crossbeam-channel = { version = "0.5", optional = true }
 futures-channel = "0.3"
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
@@ -46,9 +45,9 @@ pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace"]
-trace = ["opentelemetry/trace", "crossbeam-channel", "rand", "async-trait", "percent-encoding"]
+trace = ["opentelemetry/trace", "rand", "async-trait", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
-logs = ["opentelemetry/logs", "crossbeam-channel", "async-trait", "serde_json"]
+logs = ["opentelemetry/logs", "async-trait", "serde_json"]
 logs_level_enabled = ["logs", "opentelemetry/logs_level_enabled"]
 metrics = ["opentelemetry/metrics", "glob", "async-trait"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
