@@ -291,8 +291,9 @@ fn encode(s: &str) -> String {
         } else if char == ' ' {
             encoded_string.push_str("%20");
         } else {
-            // Convert to a two-digit hexadecimal representation
-            for byte in char.to_string().as_bytes() {
+            let mut buffer = [0; 4];
+            let encoded_char = char.encode_utf8(&mut buffer);
+            for byte in encoded_char.as_bytes() {
                 encoded_string.push_str(&format!("%{:02X}", byte));
             }
         }
