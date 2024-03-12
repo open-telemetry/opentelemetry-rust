@@ -53,7 +53,7 @@ jobs:
   external-types:
     strategy:
       matrix:
-        example: [opentelemetry, opentelemetry-sdk]
+        example: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
