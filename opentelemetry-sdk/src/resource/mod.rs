@@ -24,6 +24,9 @@ mod os;
 mod process;
 mod telemetry;
 
+mod attributes;
+pub(crate) use attributes::*;
+
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
 pub use os::OsResourceDetector;
