@@ -282,22 +282,45 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 }
 
 fn encode(s: &str) -> String {
-    let special_characters = ['.', '-', '_', '~'];
-    let mut encoded_string = String::with_capacity(s.len());
+    let special_characters = [b'.', b'-', b'_', b'~'];
+    let mut encoded_string = String::with_capacity(s.len() * 3);
 
-    for char in s.chars() {
-        if char.is_ascii_alphanumeric() || special_characters.contains(&char) {
-            encoded_string.push(char);
-        } else if char == ' ' {
-            encoded_string.push_str("%20");
-        } else {
-            let mut buffer = [0; 4];
-            let encoded_char = char.encode_utf8(&mut buffer);
-            for byte in encoded_char.as_bytes() {
-                encoded_string.push_str(&format!("%{:02X}", byte));
+    let bytes = s.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let byte = bytes[i];
+
+        match byte {
+            b' ' => encoded_string.push_str("%20"),
+            byte if byte.is_ascii_alphanumeric() || special_characters.contains(&byte) => {
+                encoded_string.push(byte as char)
+            }
+            _ => {
+                if byte.is_ascii() {
+                    encoded_string.push_str(&format!("%{:02X}", byte));
+                } else {
+                    let start = i;
+                    let mut end = start + 1;
+
+                    while end < bytes.len() && !bytes[end].is_ascii() {
+                        end += 1;
+                    }
+
+                    // Encoding each byte of the multi-byte character
+                    for &multi_byte in &bytes[start..end] {
+                        encoded_string.push_str(&format!("%{:02X}", multi_byte));
+                    }
+
+                    // Adjust `i` to skip over the bytes we've just encoded
+                    i = end - 1;
+                }
             }
         }
+
+        i += 1;
     }
+
     encoded_string
 }
 
@@ -500,6 +523,8 @@ mod tests {
         let string4 = "Unicode: 😊";
         let string5 = "Non-ASCII: áéíóú";
         let string6 = "Unsafe: ~!@#$%^&*()_+{}[];:'\\\"<>?,./";
+        let string7: &str = "🚀Unicode:";
+        let string8 = "ΑΒΓ";
 
         assert_eq!(encode(string1), "test_%20123");
         assert_eq!(encode(string2), "Hello123");
@@ -510,6 +535,8 @@ mod tests {
             "Non-ASCII%3A%20%C3%A1%C3%A9%C3%AD%C3%B3%C3%BA"
         );
         assert_eq!(encode(string6), "Unsafe%3A%20~%21%40%23%24%25%5E%26%2A%28%29_%2B%7B%7D%5B%5D%3B%3A%27%5C%22%3C%3E%3F%2C.%2F");
+        assert_eq!(encode(string7), "%F0%9F%9A%80Unicode%3A");
+        assert_eq!(encode(string8), "%CE%91%CE%92%CE%93");
     }
 
     #[test]
