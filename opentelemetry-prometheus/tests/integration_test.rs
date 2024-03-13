@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
@@ -5,7 +6,7 @@ use std::time::Duration;
 use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
-use opentelemetry_prometheus::ExporterBuilder;
+use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
 use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, SdkMeterProvider, Stream};
 use opentelemetry_sdk::resource::{
     EnvResourceDetector, SdkProvidedResourceDetector, TelemetryResourceDetector,
@@ -304,6 +305,39 @@ fn prometheus_exporter_integration() {
                 counter.add(5.0, &attrs);
                 counter.add(10.3, &attrs);
                 counter.add(9.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "with resource in every metrics",
+            builder: ExporterBuilder::default().with_resource_selector(ResourceSelector::All),
+            expected_file: "resource_in_every_metrics.txt",
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let gauge = meter
+                    .i64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .with_unit(Unit::new("1"))
+                    .init();
+                gauge.add(2, &attrs);
+                gauge.add(-1, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "with select resource in every metrics",
+            builder: ExporterBuilder::default()
+                .with_resource_selector(HashSet::from([Key::new("service.name")])),
+            expected_file: "select_resource_in_every_metrics.txt",
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let gauge = meter
+                    .i64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .with_unit(Unit::new("1"))
+                    .init();
+                gauge.add(2, &attrs);
+                gauge.add(-1, &attrs);
             }),
             ..Default::default()
         },
