@@ -5,6 +5,8 @@
 - Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
   dependency on crossbeam-channel.
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
+- [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
+  Fix metrics aggregation bug when using Views to drop attributes.  
 
 ## v0.22.1
 
