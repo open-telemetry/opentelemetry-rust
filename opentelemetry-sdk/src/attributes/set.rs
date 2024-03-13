@@ -138,7 +138,7 @@ impl From<&Resource> for AttributeSet {
     }
 }
 
-fn calculate_hash(values: &Vec<HashKeyValue>) -> u64 {
+fn calculate_hash(values: &[HashKeyValue]) -> u64 {
     let mut hasher = DefaultHasher::new();
     values.iter().fold(&mut hasher, |mut hasher, item| {
         item.hash(&mut hasher);
