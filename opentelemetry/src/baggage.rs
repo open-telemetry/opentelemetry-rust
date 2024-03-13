@@ -282,45 +282,17 @@ impl FromIterator<KeyValueMetadata> for Baggage {
 }
 
 fn encode(s: &str) -> String {
-    let special_characters = [b'.', b'-', b'_', b'~'];
-    let mut encoded_string = String::with_capacity(s.len() * 3);
+    let mut encoded_string = String::with_capacity(s.len());
 
-    let bytes = s.as_bytes();
-    let mut i = 0;
-
-    while i < bytes.len() {
-        let byte = bytes[i];
-
-        match byte {
+    for byte in s.as_bytes() {
+        match *byte {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'.' | b'-' | b'_' | b'~' => {
+                encoded_string.push(*byte as char)
+            }
             b' ' => encoded_string.push_str("%20"),
-            byte if byte.is_ascii_alphanumeric() || special_characters.contains(&byte) => {
-                encoded_string.push(byte as char)
-            }
-            _ => {
-                if byte.is_ascii() {
-                    encoded_string.push_str(&format!("%{:02X}", byte));
-                } else {
-                    let start = i;
-                    let mut end = start + 1;
-
-                    while end < bytes.len() && !bytes[end].is_ascii() {
-                        end += 1;
-                    }
-
-                    // Encoding each byte of the multi-byte character
-                    for &multi_byte in &bytes[start..end] {
-                        encoded_string.push_str(&format!("%{:02X}", multi_byte));
-                    }
-
-                    // Adjust `i` to skip over the bytes we've just encoded
-                    i = end - 1;
-                }
-            }
+            _ => encoded_string.push_str(&format!("%{:02X}", byte)),
         }
-
-        i += 1;
     }
-
     encoded_string
 }
 
