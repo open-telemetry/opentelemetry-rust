@@ -15,9 +15,9 @@ pub use log_processor::{
 mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
+    use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
     use opentelemetry::logs::{LogRecord, Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry::global::{set_logger_provider, logger, shutdown_logger_provider};
 
     #[test]
     fn logging_sdk_test() {
@@ -81,7 +81,7 @@ mod tests {
         logger.emit(log_record);
 
         // Intentionally *not* calling shutdown/flush
-        // on the provider, but instead relying on 
+        // on the provider, but instead relying on
         // shutdown_logger_provider which causes
         // the global provider to be dropped, and
         // the sdk logger provider's drop implementation
