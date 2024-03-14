@@ -13,7 +13,7 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::{borrow::Cow, sync::Arc, thread};
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
@@ -319,7 +319,7 @@ mod tests {
         // logger. Since that is the last logger, the provider (inner provider)
         // is finally dropped, triggering shutdown
         *signal_to_end.lock().unwrap() = true;
-        let _h = handle.join().unwrap();
+        handle.join().unwrap();
         assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
