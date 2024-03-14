@@ -110,7 +110,6 @@ mod tests {
         span.set_attribute(KeyValue::new("attribute1", "value1"));
         span.add_event("test-event".to_string(), vec![]);
         span.set_status(Status::error("cancelled"));
-        provider.force_flush();
         drop(span);
 
         // Assert
