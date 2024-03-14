@@ -236,3 +236,98 @@ impl opentelemetry::logs::Logger for Logger {
         enabled
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
+    use opentelemetry::logs::Logger;
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn logging_sdk_shutdown_test() {
+        // Arrange
+        let shutdown_called = Arc::new(Mutex::new(false));
+        let flush_called = Arc::new(Mutex::new(false));
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(LazyLogProcessor::new(
+                shutdown_called.clone(),
+                flush_called.clone(),
+            ))
+            .build();
+        set_logger_provider(logger_provider);
+
+        // Act
+        let logger1 = logger("test-logger1");
+        let logger2 = logger("test-logger2");
+        logger1.emit(LogRecord::default());
+        logger2.emit(LogRecord::default());
+
+        // Intentionally *not* calling shutdown/flush
+        // on the provider, but instead relying on
+        // shutdown_logger_provider which causes
+        // the global provider to be dropped, and
+        // the sdk logger provider's drop implementation
+        // will cause shutdown to be called on processors/exporters.
+        shutdown_logger_provider();
+
+        // Assert
+        // shutting down logger provider is not enough,
+        // as loggers hold the provider's inner provider.
+        assert!(!*shutdown_called.lock().unwrap());
+
+        // flush is never called by the sdk.
+        assert!(!*flush_called.lock().unwrap());
+
+        // Drop one of the logger. Not enough!
+        drop(logger1);
+        assert!(!*shutdown_called.lock().unwrap());
+
+        // drop logger2, which is the only remaining logger,
+        // and this will drop the innerprovider, triggering shutdown
+        drop(logger2);
+        assert!(*shutdown_called.lock().unwrap());
+
+        // flush is never called by the sdk.
+        assert!(!*flush_called.lock().unwrap());
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct LazyLogProcessor {
+        shutdown_called: Arc<Mutex<bool>>,
+        flush_called: Arc<Mutex<bool>>,
+    }
+
+    impl LazyLogProcessor {
+        pub(crate) fn new(
+            shutdown_called: Arc<Mutex<bool>>,
+            flush_called: Arc<Mutex<bool>>,
+        ) -> Self {
+            LazyLogProcessor {
+                shutdown_called: shutdown_called,
+                flush_called: flush_called,
+            }
+        }
+    }
+
+    impl LogProcessor for LazyLogProcessor {
+        fn emit(&self, _data: LogData) {
+            // nothing to do.
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            *self.flush_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn shutdown(&mut self) -> LogResult<()> {
+            *self.shutdown_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+    }
+}
