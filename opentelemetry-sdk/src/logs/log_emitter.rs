@@ -13,7 +13,7 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, sync::Arc, thread};
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
@@ -243,6 +243,7 @@ mod tests {
     use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
     use opentelemetry::logs::Logger;
     use std::sync::{Arc, Mutex};
+    use std::thread;
 
     #[test]
     fn shutdown_test() {
@@ -251,6 +252,8 @@ mod tests {
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
         let flush_called = Arc::new(Mutex::new(false));
+        let signal_to_end = Arc::new(Mutex::new(false));
+        let signal_to_thread_started = Arc::new(Mutex::new(false));
         let logger_provider = LoggerProvider::builder()
             .with_log_processor(LazyLogProcessor::new(
                 shutdown_called.clone(),
@@ -264,6 +267,29 @@ mod tests {
         let logger2 = logger("test-logger2");
         logger1.emit(LogRecord::default());
         logger2.emit(LogRecord::default());
+
+        let signal_to_end_clone = signal_to_end.clone();
+        let signal_to_thread_started_clone = signal_to_thread_started.clone();
+
+        let handle = thread::spawn(move || {
+            let logger3 = logger("test-logger3");
+            loop {
+                // signal the main thread that this thread has started.
+                *signal_to_thread_started_clone.lock().unwrap() = true;
+                logger3.emit(LogRecord::default());
+                if *signal_to_end_clone.lock().unwrap() {
+                    break;
+                }
+            }
+        });
+
+        // wait for the spawned thread to start before calling shutdown This is
+        // very important - if shutdown is called before the spawned thread
+        // obtains its logger, then the logger will be no-op one, and the test
+        // will pass, but it will not be testing the intended scenario.
+        while !*signal_to_thread_started.lock().unwrap() {
+            thread::sleep(std::time::Duration::from_millis(10));
+        }
 
         // Intentionally *not* calling shutdown/flush on the provider, but
         // instead relying on shutdown_logger_provider which causes the global
@@ -280,13 +306,20 @@ mod tests {
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());
 
-        // Drop one of the logger. Still not enough!
+        // Drop one of the logger. Not enough!
         drop(logger1);
         assert!(!*shutdown_called.lock().unwrap());
 
-        // drop logger2, which is the only remaining logger, and this will
-        // finally drop the inner provider, triggering shutdown.
+        // drop logger2, which is the only remaining logger in this thread.
+        // Still not enough!
         drop(logger2);
+        assert!(!*shutdown_called.lock().unwrap());
+
+        // now signal the spawned thread to end, which causes it to drop its
+        // logger. Since that is the last logger, the provider (inner provider)
+        // is finally dropped, triggering shutdown
+        *signal_to_end.lock().unwrap() = true;
+        let _h = handle.join().unwrap();
         assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
