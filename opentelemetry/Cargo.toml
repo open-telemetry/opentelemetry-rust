@@ -26,7 +26,6 @@ futures-sink = "0.3"
 once_cell = { workspace = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true }
-urlencoding = "2.1.2"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"

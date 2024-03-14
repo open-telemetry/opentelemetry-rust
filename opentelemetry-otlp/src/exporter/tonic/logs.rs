@@ -33,7 +33,9 @@ impl TonicLogsClient {
     ) -> Self {
         let mut client = LogsServiceClient::new(channel);
         if let Some(compression) = compression {
-            client = client.send_compressed(compression);
+            client = client
+                .send_compressed(compression)
+                .accept_compressed(compression);
         }
 
         TonicLogsClient {
