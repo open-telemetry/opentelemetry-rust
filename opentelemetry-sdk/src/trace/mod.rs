@@ -80,8 +80,6 @@ mod tests {
             span.add_event("test-event".to_string(), vec![]);
         });
 
-        provider.force_flush();
-
         // Assert
         let exported_spans = exporter
             .get_finished_spans()
@@ -112,8 +110,8 @@ mod tests {
         span.set_attribute(KeyValue::new("attribute1", "value1"));
         span.add_event("test-event".to_string(), vec![]);
         span.set_status(Status::error("cancelled"));
-        drop(span);
         provider.force_flush();
+        drop(span);
 
         // Assert
         let exported_spans = exporter
@@ -150,7 +148,6 @@ mod tests {
         span.add_event("test-event".to_string(), vec![]);
         span.set_status(Status::Ok);
         drop(span);
-        provider.force_flush();
 
         // Assert
         let exported_spans = exporter
@@ -197,7 +194,6 @@ mod tests {
         let span_builder = SpanBuilder::from_name("span_name").with_links(links);
         let mut span = tracer.build(span_builder);
         span.end();
-        provider.force_flush();
 
         // Assert
         let exported_spans = exporter
@@ -233,7 +229,6 @@ mod tests {
         span.add_event("test event again, after span builder", Vec::new());
         span.add_event("test event once again, after span builder", Vec::new());
         span.end();
-        provider.force_flush();
 
         // Assert
         let exported_spans = exporter
