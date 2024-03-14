@@ -245,7 +245,9 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     #[test]
-    fn logging_sdk_shutdown_test() {
+    fn shutdown_test() {
+        // cargo test shutdown_test --features=logs
+
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
         let flush_called = Arc::new(Mutex::new(false));
@@ -263,28 +265,27 @@ mod tests {
         logger1.emit(LogRecord::default());
         logger2.emit(LogRecord::default());
 
-        // Intentionally *not* calling shutdown/flush
-        // on the provider, but instead relying on
-        // shutdown_logger_provider which causes
-        // the global provider to be dropped, and
-        // the sdk logger provider's drop implementation
-        // will cause shutdown to be called on processors/exporters.
+        // Intentionally *not* calling shutdown/flush on the provider, but
+        // instead relying on shutdown_logger_provider which causes the global
+        // provider to be dropped, leading to the sdk logger provider's drop to
+        // be called, which is expected to call shutdown on processors.
         shutdown_logger_provider();
 
         // Assert
-        // shutting down logger provider is not enough,
-        // as loggers hold the provider's inner provider.
+
+        // shutdown_logger_provider is necessary but not sufficient, as loggers
+        // hold on to the the provider (via inner provider clones).
         assert!(!*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());
 
-        // Drop one of the logger. Not enough!
+        // Drop one of the logger. Still not enough!
         drop(logger1);
         assert!(!*shutdown_called.lock().unwrap());
 
-        // drop logger2, which is the only remaining logger,
-        // and this will drop the innerprovider, triggering shutdown
+        // drop logger2, which is the only remaining logger, and this will
+        // finally drop the inner provider, triggering shutdown.
         drop(logger2);
         assert!(*shutdown_called.lock().unwrap());
 
@@ -304,8 +305,8 @@ mod tests {
             flush_called: Arc<Mutex<bool>>,
         ) -> Self {
             LazyLogProcessor {
-                shutdown_called: shutdown_called,
-                flush_called: flush_called,
+                shutdown_called,
+                flush_called,
             }
         }
     }
