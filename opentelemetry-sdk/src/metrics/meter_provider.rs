@@ -116,9 +116,6 @@ impl SdkMeterProvider {
 
 impl Drop for SdkMeterProvider {
     fn drop(&mut self) {
-        if self.is_shutdown.load(Ordering::Relaxed) {
-            return;
-        }
         if let Err(err) = self.shutdown() {
             global::handle_error(err);
         }
@@ -336,9 +333,8 @@ mod tests {
             .is_shutdown
             .load(std::sync::atomic::Ordering::Relaxed));
         assert!(reader.is_shutdown());
-        // TODO - assert that the instrument is no longer usable
-        // As of now, even after shutdown, the instrument can still be used.
-        // Even though reader is shutdown, and no collect will happen.
-        assert!(counter.add(1, &[]) == ());
+        // TODO Fix: the instrument is still available, and can be used.
+        // While the reader is shutdown, and no collect is happening
+        counter.add(1, &[]);
     }
 }

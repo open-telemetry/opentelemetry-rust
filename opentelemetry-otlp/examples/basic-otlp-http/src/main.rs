@@ -57,7 +57,7 @@ fn init_metrics() -> Result<(), MetricsError> {
                 .with_export_config(export_config),
         )
         .build();
-      provider.map(|_| ())
+    provider.map(|_| ())
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
