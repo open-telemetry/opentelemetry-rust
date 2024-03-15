@@ -1,32 +1,34 @@
+use opentelemetry::global::{meter_provider, set_meter_provider, shutdown_meter_provider};
 use opentelemetry::metrics::Unit;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() -> SdkMeterProvider {
+fn init_meter_provider() {
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
         // uncomment the below lines to pretty print output.
         //  .with_encoder(|writer, data|
         //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    SdkMeterProvider::builder()
+    let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
             "metrics-basic-example",
         )]))
-        .build()
+        .build();
+    set_meter_provider(provider);
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Initialize the MeterProvider with the stdout Exporter.
-    let meter_provider = init_meter_provider();
+    init_meter_provider();
 
     // Create a meter from the above MeterProvider.
-    let meter = meter_provider.meter("mylibraryname");
+    let meter = meter_provider().meter("mylibraryname");
 
     // Create a Counter Instrument.
     let counter = meter.u64_counter("my_counter").init();
@@ -146,6 +148,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    meter_provider.shutdown()?;
+    shutdown_meter_provider();
     Ok(())
 }

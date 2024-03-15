@@ -1,3 +1,4 @@
+use opentelemetry::global::{meter_provider, set_meter_provider, shutdown_meter_provider};
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -7,7 +8,7 @@ use opentelemetry_sdk::metrics::{
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() -> SdkMeterProvider {
+fn init_meter_provider() {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
@@ -50,7 +51,7 @@ fn init_meter_provider() -> SdkMeterProvider {
         //   Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    SdkMeterProvider::builder()
+    let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
@@ -59,13 +60,14 @@ fn init_meter_provider() -> SdkMeterProvider {
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
-        .build()
+        .build();
+    set_meter_provider(provider);
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let meter_provider = init_meter_provider();
-    let meter = meter_provider.meter("mylibraryname");
+    init_meter_provider();
+    let meter = meter_provider().meter("mylibraryname");
 
     // Example 1 - Rename metric using View.
     // This instrument will be renamed to "my_histogram_renamed",
@@ -151,6 +153,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    meter_provider.shutdown()?;
+    shutdown_meter_provider();
     Ok(())
 }

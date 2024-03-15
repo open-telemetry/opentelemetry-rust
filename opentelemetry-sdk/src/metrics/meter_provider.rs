@@ -9,6 +9,7 @@ use std::{
 };
 
 use opentelemetry::{
+    global,
     metrics::{noop::NoopMeterCore, Meter, MeterProvider, MetricsError, Result},
     KeyValue,
 };
@@ -113,6 +114,16 @@ impl SdkMeterProvider {
     }
 }
 
+impl Drop for SdkMeterProvider {
+    fn drop(&mut self) {
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            return;
+        }
+        if let Err(err) = self.shutdown() {
+            global::handle_error(err);
+        }
+    }
+}
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
