@@ -38,7 +38,6 @@ impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
     fn collect(&self, _rm: &mut ResourceMetrics) -> Result<()> {
-        println!("Collect called..");
         Ok(())
     }
 
@@ -47,20 +46,11 @@ impl MetricReader for TestMetricReader {
     }
 
     fn shutdown(&self) -> Result<()> {
-        println!(
-            "Shutdown called.. on {:?} and pointer for shutdown is {:?}",
-            self, self.is_shutdown
-        );
         let result = self.force_flush();
         {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();
             *is_shutdown = true;
         }
-        println!(
-            "Shutdown completed.. on {:?} and pointer for shutdown is {:?}",
-            self, self.is_shutdown
-        );
-
         result
     }
 }
