@@ -16,18 +16,14 @@
 //! SDK.
 //!
 //! - [`EnvResourceDetector`] - detect resource from environmental variables.
-//! - [`OsResourceDetector`] - detect OS from runtime.
-//! - [`ProcessResourceDetector`] - detect process information.
 //! - [`TelemetryResourceDetector`] - detect telemetry SDK's information.
+//!
+//! The OS and Process resource detectors are now packaged separately in the `opentelemetry-resource-detector` [contrib crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors), due to their experimental nature in semantic conventions.
 mod env;
-mod os;
-mod process;
 mod telemetry;
 
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
-pub use os::OsResourceDetector;
-pub use process::ProcessResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
 
 use opentelemetry::{Key, KeyValue, Value};
