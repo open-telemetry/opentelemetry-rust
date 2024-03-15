@@ -138,16 +138,20 @@ impl From<&Resource> for AttributeSet {
     }
 }
 
+fn calculate_hash(values: &[HashKeyValue]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    values.iter().fold(&mut hasher, |mut hasher, item| {
+        item.hash(&mut hasher);
+        hasher
+    });
+    hasher.finish()
+}
+
 impl AttributeSet {
     fn new(mut values: Vec<HashKeyValue>) -> Self {
         values.sort_unstable();
-        let mut hasher = DefaultHasher::new();
-        values.iter().fold(&mut hasher, |mut hasher, item| {
-            item.hash(&mut hasher);
-            hasher
-        });
-
-        AttributeSet(values, hasher.finish())
+        let hash = calculate_hash(&values);
+        AttributeSet(values, hash)
     }
 
     /// Returns the number of elements in the set.
@@ -165,7 +169,10 @@ impl AttributeSet {
     where
         F: Fn(&KeyValue) -> bool,
     {
-        self.0.retain(|kv| f(&kv.0))
+        self.0.retain(|kv| f(&kv.0));
+
+        // Recalculate the hash as elements are changed.
+        self.1 = calculate_hash(&self.0);
     }
 
     /// Iterate over key value pairs in the set

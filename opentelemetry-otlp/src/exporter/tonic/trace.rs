@@ -33,7 +33,9 @@ impl TonicTracesClient {
     ) -> Self {
         let mut client = TraceServiceClient::new(channel);
         if let Some(compression) = compression {
-            client = client.send_compressed(compression);
+            client = client
+                .send_compressed(compression)
+                .accept_compressed(compression);
         }
 
         TonicTracesClient {

@@ -127,8 +127,8 @@
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global meter provider
 //!     // so you can use the global meter without any setup
-//!     let tracer = global::meter("my-library-name");
-//!     let counter = tracer.u64_counter("my_counter").init();
+//!     let meter = global::meter("my-library-name");
+//!     let counter = meter.u64_counter("my_counter").init();
 //!
 //!     // record metrics
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
