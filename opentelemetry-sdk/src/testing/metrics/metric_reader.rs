@@ -28,6 +28,12 @@ impl TestMetricReader {
     }
 }
 
+impl Default for TestMetricReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
