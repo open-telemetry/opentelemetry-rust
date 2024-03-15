@@ -327,13 +327,18 @@ mod tests {
             .is_shutdown
             .load(std::sync::atomic::Ordering::Relaxed));
         assert!(!reader.is_shutdown());
-        // create a meter
-        let _meter = global::meter("test");
+        // create a meter and an instrument
+        let meter = global::meter("test");
+        let counter = meter.u64_counter("test_counter").init();
         // no need to drop a meter for meter_provider shutdown
         global::shutdown_meter_provider();
         assert!(provider
             .is_shutdown
             .load(std::sync::atomic::Ordering::Relaxed));
         assert!(reader.is_shutdown());
+        // TODO - assert that the instrument is no longer usable
+        // As of now, even after shutdown, the instrument can still be used.
+        // Even though reader is shutdown, and no collect will happen.
+        assert!(counter.add(1, &[]) == ());
     }
 }
