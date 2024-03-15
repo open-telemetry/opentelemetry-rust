@@ -19,7 +19,7 @@ fn init_meter_provider() {
             "metrics-basic-example",
         )]))
         .build();
-    opentelemetry::global::set_meter_provider(provider);
+    global::set_meter_provider(provider);
 }
 
 #[tokio::main]
