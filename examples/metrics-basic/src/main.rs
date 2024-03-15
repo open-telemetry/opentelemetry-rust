@@ -1,4 +1,4 @@
-use opentelemetry::global::{meter_provider, set_meter_provider, shutdown_meter_provider};
+use opentelemetry::global::{self, meter_provider};
 use opentelemetry::metrics::Unit;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
