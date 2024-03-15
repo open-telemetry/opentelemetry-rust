@@ -2,6 +2,9 @@
 
 ## vNext
 
+### Removed
+- Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
+
 ## v0.22.0
 
 ### Added
