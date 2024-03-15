@@ -1,7 +1,6 @@
 use log::{info, Level};
 use once_cell::sync::Lazy;
-use opentelemetry::global::{self, shutdown_meter_provider};
-use opentelemetry::global::{logger_provider, shutdown_logger_provider, shutdown_tracer_provider};
+use opentelemetry::global;
 use opentelemetry::logs::LogError;
 use opentelemetry::metrics::MetricsError;
 use opentelemetry::trace::TraceError;
@@ -97,7 +96,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_logs();
 
     // Retrieve the global LoggerProvider.
-    let logger_provider = logger_provider();
+    let logger_provider = global::logger_provider();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
@@ -141,9 +140,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    shutdown_tracer_provider();
-    shutdown_logger_provider();
-    shutdown_meter_provider();
+    global::shutdown_tracer_provider();
+    global::shutdown_logger_provider();
+    global::shutdown_meter_provider();
 
     Ok(())
 }

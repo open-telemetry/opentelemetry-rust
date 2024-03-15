@@ -1,4 +1,4 @@
-use opentelemetry::global::{meter_provider, set_meter_provider, shutdown_meter_provider};
+use opentelemetry::global;
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -61,13 +61,13 @@ fn init_meter_provider() {
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
         .build();
-    set_meter_provider(provider);
+    global::set_meter_provider(provider);
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     init_meter_provider();
-    let meter = meter_provider().meter("mylibraryname");
+    let meter = global::meter_provider().meter("mylibraryname");
 
     // Example 1 - Rename metric using View.
     // This instrument will be renamed to "my_histogram_renamed",
@@ -153,6 +153,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    shutdown_meter_provider();
+    global::shutdown_meter_provider();
     Ok(())
 }

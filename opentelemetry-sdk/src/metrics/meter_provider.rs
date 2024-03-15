@@ -330,7 +330,6 @@ mod tests {
         assert!(!reader.is_shutdown());
         // create a meter
         let _meter = global::meter("test");
-        let _ = reader.force_flush();
         // no need to drop a meter for meter_provider shutdown
         global::shutdown_meter_provider();
         assert!(provider
