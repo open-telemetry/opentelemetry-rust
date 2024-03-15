@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     init_meter_provider();
 
     // Create a meter from the above MeterProvider.
-    let meter = global::meter_provider().meter("mylibraryname");
+    let meter = global::meter("mylibraryname");
 
     // Create a Counter Instrument.
     let counter = meter.u64_counter("my_counter").init();
