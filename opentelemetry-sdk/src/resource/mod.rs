@@ -22,6 +22,9 @@
 mod env;
 mod telemetry;
 
+mod attributes;
+pub(crate) use attributes::*;
+
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
 pub use telemetry::TelemetryResourceDetector;

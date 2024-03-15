@@ -76,7 +76,7 @@ pub struct SdkProvidedResourceDetector;
 impl ResourceDetector for SdkProvidedResourceDetector {
     fn detect(&self, _timeout: Duration) -> Resource {
         Resource::new(vec![KeyValue::new(
-            "service.name",
+            super::SERVICE_NAME,
             env::var(OTEL_SERVICE_NAME)
                 .ok()
                 .filter(|s| !s.is_empty())
@@ -84,7 +84,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                 .or_else(|| {
                     EnvResourceDetector::new()
                         .detect(Duration::from_secs(0))
-                        .get(Key::new("service.name"))
+                        .get(Key::new(super::SERVICE_NAME))
                 })
                 .unwrap_or_else(|| "unknown_service".into()),
         )])
@@ -132,18 +132,17 @@ mod tests {
 
     #[test]
     fn test_sdk_provided_resource_detector() {
-        const SERVICE_NAME: &str = "service.name";
         // Ensure no env var set
         let no_env = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
         assert_eq!(
-            no_env.get(Key::from_static_str(SERVICE_NAME)),
+            no_env.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
             let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
             assert_eq!(
-                with_service.get(Key::from_static_str(SERVICE_NAME)),
+                with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                 Some(Value::from("test service")),
             )
         });
@@ -154,7 +153,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
                 assert_eq!(
-                    with_service.get(Key::from_static_str(SERVICE_NAME)),
+                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service1")),
                 )
             },
@@ -169,7 +168,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
                 assert_eq!(
-                    with_service.get(Key::from_static_str(SERVICE_NAME)),
+                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service"))
                 );
             },
