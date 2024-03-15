@@ -110,7 +110,10 @@ mod tests {
         span.set_attribute(KeyValue::new("attribute1", "value1"));
         span.add_event("test-event".to_string(), vec![]);
         span.set_status(Status::error("cancelled"));
-        drop(span);
+        span.end();
+
+        // After span end, further operations should not have any effect
+        span.update_name("span_name_updated");
 
         // Assert
         let exported_spans = exporter
