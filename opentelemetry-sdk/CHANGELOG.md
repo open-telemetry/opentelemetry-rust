@@ -6,7 +6,8 @@
   dependency on crossbeam-channel.
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
 - [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
-  Fix metrics aggregation bug when using Views to drop attributes.  
+  Fix metrics aggregation bug when using Views to drop attributes.
+- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkTracerProvider
 
 ## v0.22.1
 
