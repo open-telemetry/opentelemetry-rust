@@ -220,7 +220,6 @@ impl fmt::Debug for MeterProviderBuilder {
 }
 #[cfg(test)]
 mod tests {
-    use crate::metrics::reader::MetricReader;
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
     use opentelemetry::global;
