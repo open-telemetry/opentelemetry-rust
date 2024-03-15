@@ -67,7 +67,7 @@ fn init_meter_provider() {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     init_meter_provider();
-    let meter = global::meter_provider().meter("mylibraryname");
+    let meter = global::meter("mylibraryname");
 
     // Example 1 - Rename metric using View.
     // This instrument will be renamed to "my_histogram_renamed",
