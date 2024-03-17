@@ -6,7 +6,6 @@ use crate::{
     trace::{Config, SpanEvents, SpanLinks},
     InstrumentationLibrary,
 };
-use async_trait::async_trait;
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::trace::{
@@ -14,7 +13,6 @@ use opentelemetry::trace::{
 };
 use std::{
     fmt::{Display, Formatter},
-    sync::{Arc, Mutex},
 };
 
 pub fn new_test_export_span_data() -> SpanData {
@@ -39,47 +37,6 @@ pub fn new_test_export_span_data() -> SpanData {
         status: Status::Unset,
         resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct TestSpanExporter {
-    pub export_called: Arc<Mutex<bool>>,
-    pub shutdown_called: Arc<Mutex<bool>>,
-}
-
-impl Default for TestSpanExporter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TestSpanExporter {
-    pub fn new() -> Self {
-        TestSpanExporter {
-            export_called: Arc::new(Mutex::new(false)),
-            shutdown_called: Arc::new(Mutex::new(false)),
-        }
-    }
-
-    pub fn is_export_called(&self) -> bool {
-        *self.export_called.lock().unwrap()
-    }
-
-    pub fn is_shutdown_called(&self) -> bool {
-        *self.shutdown_called.lock().unwrap()
-    }
-}
-
-#[async_trait]
-impl SpanExporter for TestSpanExporter {
-    fn export(&mut self, _batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
-        *self.export_called.lock().unwrap() = true;
-        Box::pin(std::future::ready(Ok(())))
-    }
-
-    fn shutdown(&mut self) {
-        *self.shutdown_called.lock().unwrap() = true;
     }
 }
 
