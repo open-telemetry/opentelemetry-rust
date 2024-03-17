@@ -11,9 +11,7 @@ pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
-use std::{
-    fmt::{Display, Formatter},
-};
+use std::fmt::{Display, Formatter};
 
 pub fn new_test_export_span_data() -> SpanData {
     let config = Config::default();
