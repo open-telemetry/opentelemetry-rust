@@ -1,7 +1,7 @@
 # Changelog
 
 ## vNext
-
+- Replace TestExporter with InMemoryExporter [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624)
 - Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
   dependency on crossbeam-channel.
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
