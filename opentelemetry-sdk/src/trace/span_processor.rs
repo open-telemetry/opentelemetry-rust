@@ -671,7 +671,7 @@ mod tests {
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
     use crate::testing::trace::{
-        new_test_export_span_data, new_tokio_test_exporter, TestSpanExporter,
+        new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
     };
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
@@ -685,16 +685,17 @@ mod tests {
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
-        let exporter = TestSpanExporter::new();
+        let exporter = InMemorySpanExporterBuilder::new().build();
         let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
-        processor.on_end(new_test_export_span_data());
-        assert!(exporter.is_export_called());
+        let span_data = new_test_export_span_data();
+        processor.on_end(span_data.clone());
+        assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
 
     #[test]
     fn simple_span_processor_on_end_skips_export_if_not_sampled() {
-        let exporter = TestSpanExporter::new();
+        let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let unsampled = SpanData {
             span_context: SpanContext::empty_context(),
@@ -712,16 +713,19 @@ mod tests {
             instrumentation_lib: Default::default(),
         };
         processor.on_end(unsampled);
-        assert!(!exporter.is_export_called());
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
     #[test]
     fn simple_span_processor_shutdown_calls_shutdown() {
-        let exporter = TestSpanExporter::new();
+        let exporter = InMemorySpanExporterBuilder::new().build();
         let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
-        assert!(!exporter.is_shutdown_called());
+        let span_data = new_test_export_span_data();
+        processor.on_end(span_data.clone());
+        assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
-        assert!(exporter.is_shutdown_called());
+        // Assume shutdown is called by ensuring spans are empty in the exporter
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
     #[test]
@@ -820,7 +824,10 @@ mod tests {
             (OTEL_BSP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {
-            let builder = BatchSpanProcessor::builder(TestSpanExporter::new(), runtime::Tokio);
+            let builder = BatchSpanProcessor::builder(
+                InMemorySpanExporterBuilder::new().build(),
+                runtime::Tokio,
+            );
             // export batch size cannot exceed max queue size
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
@@ -840,7 +847,10 @@ mod tests {
         env_vars.push((OTEL_BSP_MAX_QUEUE_SIZE, Some("120")));
 
         temp_env::with_vars(env_vars, || {
-            let builder = BatchSpanProcessor::builder(TestSpanExporter::new(), runtime::Tokio);
+            let builder = BatchSpanProcessor::builder(
+                InMemorySpanExporterBuilder::new().build(),
+                runtime::Tokio,
+            );
             assert_eq!(builder.config.max_export_batch_size, 120);
             assert_eq!(builder.config.max_queue_size, 120);
         });
