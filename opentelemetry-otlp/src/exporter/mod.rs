@@ -28,9 +28,6 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
-/// Default protocol if no features are enabled.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
-
 #[cfg(all(
     feature = "http-json",
     not(all(feature = "grpc-tonic", feature = "http-proto"))
@@ -49,6 +46,10 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCO
 ))]
 /// Default protocol, using grpc
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
+
+#[cfg(not(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")))]
+/// Default protocol if no features are enabled.
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
 
 const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
 const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
