@@ -6,6 +6,7 @@ use opentelemetry::{
 };
 use std::borrow::Cow;
 use std::str::FromStr;
+use opentelemetry::propagation::PropagationError;
 
 const JAEGER_HEADER: &str = "uber-trace-id";
 const JAEGER_BAGGAGE_PREFIX: &str = "uberctx-";
@@ -69,7 +70,7 @@ impl Propagator {
     }
 
     /// Extract span context from header value
-    fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
+    fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
         let mut header_value = Cow::from(extractor.get(self.header_name).unwrap_or(""));
         // if there is no :, it means header_value could be encoded as url, try decode first
         if !header_value.contains(':') {
@@ -78,7 +79,11 @@ impl Propagator {
 
         let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
         if parts.len() != 4 {
-            return Err(());
+            global::handle_error(Error::Propagation(PropagationError::extract(
+                "invalid jaeger header format",
+                "JaegerPropagator",
+            )));
+            return None;
         }
 
         // extract trace id
@@ -88,7 +93,7 @@ impl Propagator {
         let flags = self.extract_trace_flags(parts[3])?;
         let state = self.extract_trace_state(extractor)?;
 
-        Ok(SpanContext::new(trace_id, span_id, flags, true, state))
+        Some(SpanContext::new(trace_id, span_id, flags, true, state))
     }
 
     /// Extract trace id from the header.

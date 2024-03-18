@@ -8,6 +8,7 @@ use crate::metrics::MetricsError;
 #[cfg(feature = "trace")]
 use crate::trace::TraceError;
 use once_cell::sync::Lazy;
+use crate::propagation::PropagationError;
 
 static GLOBAL_ERROR_HANDLER: Lazy<RwLock<Option<ErrorHandler>>> = Lazy::new(|| RwLock::new(None));
 
@@ -31,6 +32,9 @@ pub enum Error {
     #[error(transparent)]
     /// Failed to export logs.
     Log(#[from] LogError),
+    
+    #[error(transparent)]
+    Propagation(#[from] PropagationError),
 
     #[error("{0}")]
     /// Other types of failures not covered by the variants above.
@@ -61,6 +65,7 @@ pub fn handle_error<T: Into<Error>>(err: T) {
             #[cfg(feature = "logs")]
             #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
             Error::Log(err) => eprintln!("OpenTelemetry log error occurred. {}", err),
+            Error::Propagation(err) => eprintln!("OpenTelemetry propagation error occurred. {}", err),
             Error::Other(err_msg) => eprintln!("OpenTelemetry error occurred. {}", err_msg),
         },
     }

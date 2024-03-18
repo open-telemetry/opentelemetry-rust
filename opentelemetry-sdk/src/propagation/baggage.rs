@@ -1,6 +1,8 @@
 use once_cell::sync::Lazy;
+use opentelemetry::propagation::PropagationError;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
+    global,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
 };
@@ -111,18 +113,24 @@ impl TextMapPropagator for BaggagePropagator {
                             .collect::<Vec<String>>()
                             .join(";"); // join with ; because we deleted all ; when calling split above
 
-                        Ok(KeyValueMetadata::new(
+                        Some(KeyValueMetadata::new(
                             name.trim().to_owned(),
                             value.trim().to_string(),
                             decoded_props.as_str(),
                         ))
                     } else {
-                        // Invalid name-value format
-                        Err(())
+                        global::handle_error(PropagationError::extract(
+                            "invalid baggage key-value format",
+                            "BaggagePropagator",
+                        ));
+                        None
                     }
                 } else {
-                    // Invalid baggage value format
-                    Err(())
+                    global::handle_error(PropagationError::extract(
+                        "invalid baggage format",
+                        "BaggagePropagator",
+                    ));
+                    None
                 }
             });
             cx.with_baggage(baggage)
@@ -172,7 +180,7 @@ mod tests {
              vec![
                  (Key::new("key1"), (Value::from("value1"), BaggageMetadata::from("property1;property2"))),
                  (Key::new("key2"), (Value::from("value2"), BaggageMetadata::default())),
-                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue")))
+                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
              ].into_iter().collect()),
         ]
     }
@@ -220,12 +228,12 @@ mod tests {
                 vec![
                     KeyValueMetadata::new("key1", "val1", "prop1"),
                     KeyValue::new("key2", "val2").into(),
-                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue")
+                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue"),
                 ],
                 vec![
                     "key1=val1;prop1",
                     "key2=val2",
-                    "key3=val3;anykey=anyvalue"
+                    "key3=val3;anykey=anyvalue",
                 ],
             )
         ]
