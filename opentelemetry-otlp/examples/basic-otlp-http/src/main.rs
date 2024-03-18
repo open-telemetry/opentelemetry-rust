@@ -1,13 +1,13 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
-    global, metrics,
+    global,
+    metrics::MetricsError,
     trace::{TraceContextExt, TraceError, Tracer},
     Key, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs as sdklogs;
-use opentelemetry_sdk::metrics as sdkmetrics;
 use opentelemetry_sdk::resource;
 use opentelemetry_sdk::trace as sdktrace;
 
@@ -44,19 +44,20 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<sdkmetrics::SdkMeterProvider> {
+fn init_metrics() -> Result<(), MetricsError> {
     let export_config = opentelemetry_otlp::ExportConfig {
         endpoint: "http://localhost:4318/v1/metrics".to_string(),
         ..opentelemetry_otlp::ExportConfig::default()
     };
-    opentelemetry_otlp::new_pipeline()
+    let provider = opentelemetry_otlp::new_pipeline()
         .metrics(opentelemetry_sdk::runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
                 .with_export_config(export_config),
         )
-        .build()
+        .build();
+    provider.map(|_| ())
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
@@ -74,7 +75,7 @@ static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_tracer()?;
-    let meter_provider = init_metrics()?;
+    let _ = init_metrics()?;
     let _ = init_logs();
 
     let tracer = global::tracer("ex.com/basic");
@@ -108,7 +109,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     global::shutdown_tracer_provider();
     global::shutdown_logger_provider();
-    meter_provider.shutdown()?;
+    global::shutdown_meter_provider();
 
     Ok(())
 }

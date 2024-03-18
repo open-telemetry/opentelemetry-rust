@@ -1,18 +1,17 @@
 use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry::global;
-use opentelemetry::global::{logger_provider, shutdown_logger_provider, shutdown_tracer_provider};
 use opentelemetry::logs::LogError;
+use opentelemetry::metrics::MetricsError;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
-    metrics,
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::logs::Config;
-use opentelemetry_sdk::{metrics::SdkMeterProvider, runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
@@ -32,12 +31,12 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> metrics::Result<SdkMeterProvider> {
+fn init_metrics() -> Result<(), MetricsError> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
     };
-    opentelemetry_otlp::new_pipeline()
+    let provider = opentelemetry_otlp::new_pipeline()
         .metrics(runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
@@ -48,7 +47,11 @@ fn init_metrics() -> metrics::Result<SdkMeterProvider> {
             opentelemetry_semantic_conventions::resource::SERVICE_NAME,
             "basic-otlp-metrics-example",
         )]))
-        .build()
+        .build();
+    match provider {
+        Ok(_provider) => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
@@ -87,13 +90,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
     let _ = init_tracer()?;
-    let meter_provider = init_metrics()?;
+    let _ = init_metrics()?;
 
     // Initialize logs, which sets the global loggerprovider.
     let _ = init_logs();
 
     // Retrieve the global LoggerProvider.
-    let logger_provider = logger_provider();
+    let logger_provider = global::logger_provider();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
@@ -137,9 +140,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    shutdown_tracer_provider();
-    shutdown_logger_provider();
-    meter_provider.shutdown()?;
+    global::shutdown_tracer_provider();
+    global::shutdown_logger_provider();
+    global::shutdown_meter_provider();
 
     Ok(())
 }
