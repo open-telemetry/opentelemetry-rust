@@ -302,11 +302,24 @@ pub struct Link {
 }
 
 impl Link {
-    /// Create a new link.
-    pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
+    /// Create new `Link`
+    pub fn new(
+        span_context: SpanContext,
+        attributes: Vec<KeyValue>,
+        dropped_attributes_count: u32,
+    ) -> Self {
         Link {
             span_context,
             attributes,
+            dropped_attributes_count,
+        }
+    }
+
+    /// Create new `Link` with given context
+    pub fn with_context(span_context: SpanContext) -> Self {
+        Link {
+            span_context,
+            attributes: Vec::new(),
             dropped_attributes_count: 0,
         }
     }

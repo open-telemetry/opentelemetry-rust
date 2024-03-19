@@ -9,6 +9,7 @@ use std::{
 };
 
 use opentelemetry::{
+    global,
     metrics::{noop::NoopMeterCore, Meter, MeterProvider, MetricsError, Result},
     KeyValue,
 };
@@ -113,6 +114,13 @@ impl SdkMeterProvider {
     }
 }
 
+impl Drop for SdkMeterProvider {
+    fn drop(&mut self) {
+        if let Err(err) = self.shutdown() {
+            global::handle_error(err);
+        }
+    }
+}
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
@@ -211,6 +219,7 @@ impl fmt::Debug for MeterProviderBuilder {
 mod tests {
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
+    use opentelemetry::global;
     use opentelemetry::Key;
     use opentelemetry::KeyValue;
     use std::env;
@@ -228,14 +237,14 @@ mod tests {
                 expect.map(|s| s.to_string())
             );
         };
-        let reader = TestMetricReader {};
+        let reader = TestMetricReader::new();
         let default_meter_provider = super::SdkMeterProvider::builder()
             .with_reader(reader)
             .build();
         assert_service_name(default_meter_provider, Some("unknown_service"));
 
         // If user provided a resource, use that.
-        let reader2 = TestMetricReader {};
+        let reader2 = TestMetricReader::new();
         let custom_meter_provider = super::SdkMeterProvider::builder()
             .with_reader(reader2)
             .with_resource(Resource::new(vec![KeyValue::new(
@@ -250,7 +259,7 @@ mod tests {
             Some("key1=value1, k2, k3=value2"),
             || {
                 // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
-                let reader3 = TestMetricReader {};
+                let reader3 = TestMetricReader::new();
                 let env_resource_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader3)
                     .build();
@@ -273,7 +282,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("my-custom-key=env-val,k2=value2"),
             || {
-                let reader4 = TestMetricReader {};
+                let reader4 = TestMetricReader::new();
                 let user_provided_resource_config_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader4)
                     .with_resource(Resource::default().merge(&mut Resource::new(vec![
@@ -295,12 +304,37 @@ mod tests {
         );
 
         // If user provided a resource, it takes priority during collision.
-        let reader5 = TestMetricReader {};
+        let reader5 = TestMetricReader::new();
         let no_service_name = super::SdkMeterProvider::builder()
             .with_reader(reader5)
             .with_resource(Resource::empty())
             .build();
 
         assert_service_name(no_service_name, None);
+    }
+
+    #[test]
+    fn test_meter_provider_shutdown() {
+        let reader = TestMetricReader::new();
+        let provider = super::SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+        global::set_meter_provider(provider.clone());
+        assert!(!provider
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed));
+        assert!(!reader.is_shutdown());
+        // create a meter and an instrument
+        let meter = global::meter("test");
+        let counter = meter.u64_counter("test_counter").init();
+        // no need to drop a meter for meter_provider shutdown
+        global::shutdown_meter_provider();
+        assert!(provider
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed));
+        assert!(reader.is_shutdown());
+        // TODO Fix: the instrument is still available, and can be used.
+        // While the reader is shutdown, and no collect is happening
+        counter.add(1, &[]);
     }
 }

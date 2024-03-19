@@ -38,8 +38,6 @@ mod tests {
         log_record.attributes = Some(attributes);
         logger.emit(log_record);
 
-        logger_provider.force_flush();
-
         // Assert
         let exported_logs = exporter
             .get_emitted_logs()

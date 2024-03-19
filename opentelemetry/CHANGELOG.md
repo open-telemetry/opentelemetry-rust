@@ -2,6 +2,14 @@
 
 ## vNext
 
+### Added
+
+- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add global::meter_provider_shutdown
+
+### Removed
+
+- Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
+
 ## v0.22.0
 
 ### Added

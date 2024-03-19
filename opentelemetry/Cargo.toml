@@ -26,7 +26,6 @@ futures-sink = "0.3"
 once_cell = { workspace = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true }
-urlencoding = "2.1.2"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
@@ -42,3 +41,13 @@ otel_unstable = []
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk" } # for documentation tests
+criterion = { version = "0.3" }
+
+[[bench]]
+name = "metrics"
+harness = false
+required-features = ["metrics"]
+
+[[bench]]
+name = "attributes"
+harness = false

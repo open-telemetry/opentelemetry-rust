@@ -7,7 +7,7 @@ use opentelemetry_sdk::metrics::{
 };
 use std::sync::{Arc, Mutex};
 
-use crate::{Collector, PrometheusExporter};
+use crate::{Collector, PrometheusExporter, ResourceSelector};
 
 /// [PrometheusExporter] configuration options
 #[derive(Default)]
@@ -19,6 +19,7 @@ pub struct ExporterBuilder {
     namespace: Option<String>,
     disable_scope_info: bool,
     reader: ManualReaderBuilder,
+    resource_selector: ResourceSelector,
 }
 
 impl fmt::Debug for ExporterBuilder {
@@ -114,6 +115,19 @@ impl ExporterBuilder {
         self
     }
 
+    /// Configures whether to export resource as attributes with every metric.
+    ///
+    /// Note that this is orthogonal to the `target_info` metric, which can be disabled using `without_target_info`.
+    ///
+    /// If you called `without_target_info` and `with_resource_selector` with `ResourceSelector::None`, resource will not be exported at all.
+    pub fn with_resource_selector(
+        mut self,
+        resource_selector: impl Into<ResourceSelector>,
+    ) -> Self {
+        self.resource_selector = resource_selector.into();
+        self
+    }
+
     /// Registers an external [MetricProducer] with this reader.
     ///
     /// The producer is used as a source of aggregated metric data which is
@@ -136,6 +150,8 @@ impl ExporterBuilder {
             create_target_info_once: OnceCell::new(),
             namespace: self.namespace,
             inner: Mutex::new(Default::default()),
+            resource_selector: self.resource_selector,
+            resource_labels_once: OnceCell::new(),
         };
 
         let registry = self.registry.unwrap_or_default();

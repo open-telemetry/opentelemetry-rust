@@ -50,7 +50,8 @@ use opentelemetry::{
     Context,
 };
 use std::cmp::min;
-use std::{env, fmt, str::FromStr, thread, time::Duration};
+use std::sync::Mutex;
+use std::{env, fmt, str::FromStr, time::Duration};
 
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
@@ -93,65 +94,19 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn shutdown(&mut self) -> TraceResult<()>;
 }
 
-/// A [SpanProcessor] that passes finished spans to the configured `SpanExporter`, as
-/// soon as they are finished, without any batching.
+/// A [SpanProcessor] that passes finished spans to the configured
+/// `SpanExporter`, as soon as they are finished, without any batching. This is
+/// typically useful for debugging and testing. For scenarios requiring higher
+/// performance/throughput, consider using [BatchSpanProcessor].
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
-    message_sender: crossbeam_channel::Sender<Message>,
+    exporter: Mutex<Box<dyn SpanExporter>>,
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(mut exporter: Box<dyn SpanExporter>) -> Self {
-        let (message_sender, rx) = crossbeam_channel::unbounded();
-
-        let _ = thread::Builder::new()
-            .name("opentelemetry-exporter".to_string())
-            .spawn(move || {
-                while let Ok(msg) = rx.recv() {
-                    match msg {
-                        Message::ExportSpan(span) => {
-                            if let Err(err) =
-                                futures_executor::block_on(exporter.export(vec![span]))
-                            {
-                                global::handle_error(err);
-                            }
-                        }
-                        Message::Flush(sender) => {
-                            Self::respond(&sender, "sync");
-                        }
-                        Message::Shutdown(sender) => {
-                            exporter.shutdown();
-
-                            Self::respond(&sender, "shutdown");
-
-                            return;
-                        }
-                    }
-                }
-
-                exporter.shutdown();
-            });
-
-        Self { message_sender }
-    }
-
-    fn signal(&self, msg: fn(crossbeam_channel::Sender<()>) -> Message, description: &str) {
-        let (tx, rx) = crossbeam_channel::bounded(0);
-
-        if self.message_sender.send(msg(tx)).is_ok() {
-            if let Err(err) = rx.recv() {
-                global::handle_error(TraceError::from(format!(
-                    "error {description} span processor: {err:?}"
-                )));
-            }
-        }
-    }
-
-    fn respond(sender: &crossbeam_channel::Sender<()>, description: &str) {
-        if let Err(err) = sender.send(()) {
-            global::handle_error(TraceError::from(format!(
-                "could not send {description}: {err:?}"
-            )));
+    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
+        Self {
+            exporter: Mutex::new(exporter),
         }
     }
 }
@@ -166,32 +121,32 @@ impl SpanProcessor for SimpleSpanProcessor {
             return;
         }
 
-        if let Err(err) = self.message_sender.send(Message::ExportSpan(span)) {
-            global::handle_error(TraceError::from(format!("error processing span {:?}", err)));
+        let result = self
+            .exporter
+            .lock()
+            .map_err(|_| TraceError::Other("SimpleSpanProcessor mutex poison".into()))
+            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
+
+        if let Err(err) = result {
+            global::handle_error(err);
         }
     }
 
     fn force_flush(&self) -> TraceResult<()> {
-        self.signal(Message::Flush, "flushing");
-
+        // Nothing to flush for simple span processor.
         Ok(())
     }
 
     fn shutdown(&mut self) -> TraceResult<()> {
-        self.signal(Message::Shutdown, "shutting down");
-
-        Ok(())
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.shutdown();
+            Ok(())
+        } else {
+            Err(TraceError::Other(
+                "SimpleSpanProcessor mutex poison at shutdown".into(),
+            ))
+        }
     }
-}
-
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-// reason = "TODO: SpanData storing dropped_attribute_count separately triggered this clippy warning.
-//           Expecting to address that separately in the future."")
-enum Message {
-    ExportSpan(SpanData),
-    Flush(crossbeam_channel::Sender<()>),
-    Shutdown(crossbeam_channel::Sender<()>),
 }
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
@@ -707,6 +662,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
+    // cargo test trace::span_processor::tests:: --features=trace,testing
     use super::{
         BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT,
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
@@ -715,7 +671,7 @@ mod tests {
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
     use crate::testing::trace::{
-        new_test_export_span_data, new_test_exporter, new_tokio_test_exporter,
+        new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
     };
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
@@ -729,17 +685,18 @@ mod tests {
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
-        let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
-        let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
-        processor.on_end(new_test_export_span_data());
-        assert!(rx_export.recv().is_ok());
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let span_data = new_test_export_span_data();
+        processor.on_end(span_data.clone());
+        assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
 
     #[test]
     fn simple_span_processor_on_end_skips_export_if_not_sampled() {
-        let (exporter, rx_export, _rx_shutdown) = new_test_exporter();
-        let processor = SimpleSpanProcessor::new(Box::new(exporter));
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let unsampled = SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
@@ -756,15 +713,19 @@ mod tests {
             instrumentation_lib: Default::default(),
         };
         processor.on_end(unsampled);
-        assert!(rx_export.recv_timeout(Duration::from_millis(100)).is_err());
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
     #[test]
     fn simple_span_processor_shutdown_calls_shutdown() {
-        let (exporter, _rx_export, rx_shutdown) = new_test_exporter();
-        let mut processor = SimpleSpanProcessor::new(Box::new(exporter));
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let span_data = new_test_export_span_data();
+        processor.on_end(span_data.clone());
+        assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
-        assert!(rx_shutdown.try_recv().is_ok());
+        // Assume shutdown is called by ensuring spans are empty in the exporter
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
     #[test]
@@ -863,7 +824,10 @@ mod tests {
             (OTEL_BSP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {
-            let builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
+            let builder = BatchSpanProcessor::builder(
+                InMemorySpanExporterBuilder::new().build(),
+                runtime::Tokio,
+            );
             // export batch size cannot exceed max queue size
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
@@ -883,7 +847,10 @@ mod tests {
         env_vars.push((OTEL_BSP_MAX_QUEUE_SIZE, Some("120")));
 
         temp_env::with_vars(env_vars, || {
-            let builder = BatchSpanProcessor::builder(new_test_exporter().0, runtime::Tokio);
+            let builder = BatchSpanProcessor::builder(
+                InMemorySpanExporterBuilder::new().build(),
+                runtime::Tokio,
+            );
             assert_eq!(builder.config.max_export_batch_size, 120);
             assert_eq!(builder.config.max_queue_size, 120);
         });

@@ -2,6 +2,15 @@
 
 ## vNext
 
+- Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
+  dependency on crossbeam-channel.
+  [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
+- [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
+  Fix metrics aggregation bug when using Views to drop attributes.
+- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider, which shuts down
+metricreaders, thereby allowing metrics still in memory to be flushed out.
+- **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and `ProcessResourceDetector` resource detectors, use the `opentelemetry-resource-detector` [crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors) instead.
+
 ## v0.22.1
 
 ### Fixed
