@@ -12,14 +12,16 @@ edition = "2021"
 
 [dependencies]
 opentelemetry = { version = "0.22", path = "../opentelemetry", features = ["logs"]}
-log = { workspace = true, features = ["kv", "kv_serde", "std"]}
-serde = { workspace = true, features = ["std"] }
+log = { workspace = true, features = ["kv", "std"]}
+serde = { workspace = true, optional = true, features = ["std"] }
 
 [features]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]
+with_serde = ["log/kv_serde", "serde"]
 default = ["logs_level_enabled"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
+log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["std", "derive"] }

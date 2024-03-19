@@ -100,7 +100,77 @@ fn log_attributes(kvs: impl log::kv::Source) -> Vec<(Key, AnyValue)> {
     visitor.0
 }
 
+#[cfg(not(feature = "with_serde"))]
+mod any_value {
+    use opentelemetry::{logs::AnyValue, StringValue};
+
+    pub(crate) fn serialize(value: log::kv::Value) -> Option<AnyValue> {
+        struct ValueVisitor(Option<AnyValue>);
+
+        impl<'kvs> log::kv::VisitValue<'kvs> for ValueVisitor {
+            fn visit_any(&mut self, value: log::kv::Value) -> Result<(), log::kv::Error> {
+                self.0 = Some(AnyValue::String(StringValue::from(value.to_string())));
+
+                Ok(())
+            }
+
+            fn visit_bool(&mut self, value: bool) -> Result<(), log::kv::Error> {
+                self.0 = Some(AnyValue::Boolean(value));
+
+                Ok(())
+            }
+
+            fn visit_str(&mut self, value: &str) -> Result<(), log::kv::Error> {
+                self.0 = Some(AnyValue::String(StringValue::from(value.to_owned())));
+
+                Ok(())
+            }
+
+            fn visit_i64(&mut self, value: i64) -> Result<(), log::kv::Error> {
+                self.0 = Some(AnyValue::Int(value));
+
+                Ok(())
+            }
+
+            fn visit_u64(&mut self, value: u64) -> Result<(), log::kv::Error> {
+                if let Ok(value) = value.try_into() {
+                    self.visit_i64(value)
+                } else {
+                    self.visit_any(log::kv::Value::from(value))
+                }
+            }
+
+            fn visit_i128(&mut self, value: i128) -> Result<(), log::kv::Error> {
+                if let Ok(value) = value.try_into() {
+                    self.visit_i64(value)
+                } else {
+                    self.visit_any(log::kv::Value::from(value))
+                }
+            }
+
+            fn visit_u128(&mut self, value: u128) -> Result<(), log::kv::Error> {
+                if let Ok(value) = value.try_into() {
+                    self.visit_i64(value)
+                } else {
+                    self.visit_any(log::kv::Value::from(value))
+                }
+            }
+
+            fn visit_f64(&mut self, value: f64) -> Result<(), log::kv::Error> {
+                self.0 = Some(AnyValue::Double(value));
+
+                Ok(())
+            }
+        }
+
+        let mut visitor = ValueVisitor(None);
+        value.visit(&mut visitor).unwrap();
+        visitor.0
+    }
+}
+
 // This could make a nice addition to the SDK itself for serializing into `AnyValue`s
+#[cfg(feature = "with_serde")]
 mod any_value {
     use std::{collections::HashMap, fmt};
 
@@ -561,11 +631,9 @@ mod any_value {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::OpenTelemetryLogBridge;
 
-    use opentelemetry::{logs::AnyValue, Key, StringValue};
+    use opentelemetry::{logs::AnyValue, StringValue};
     use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogsExporter};
 
     use log::Log;
@@ -719,23 +787,41 @@ mod tests {
 
         assert_eq!(AnyValue::Boolean(true), get("boolean_value").unwrap());
 
-        assert_eq!(
-            AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(2), AnyValue::Int(3),]),
-            get("list_value").unwrap()
-        );
+        #[cfg(not(feature = "with_serde"))]
+        {
+            assert_eq!(
+                AnyValue::String(StringValue::from("(1, 2, 3)")),
+                get("list_value").unwrap()
+            );
 
-        assert_eq!(
-            AnyValue::Map({
-                let mut map = HashMap::new();
+            assert_eq!(
+                AnyValue::String(StringValue::from("Map { a: 1, b: 2, c: 3 }")),
+                get("map_value").unwrap()
+            );
+        }
+        #[cfg(feature = "with_serde")]
+        {
+            use opentelemetry::Key;
+            use std::collections::HashMap;
 
-                map.insert(Key::from("a"), AnyValue::Int(1));
-                map.insert(Key::from("b"), AnyValue::Int(2));
-                map.insert(Key::from("c"), AnyValue::Int(3));
+            assert_eq!(
+                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(2), AnyValue::Int(3),]),
+                get("list_value").unwrap()
+            );
 
-                map
-            }),
-            get("map_value").unwrap()
-        );
+            assert_eq!(
+                AnyValue::Map({
+                    let mut map = HashMap::new();
+
+                    map.insert(Key::from("a"), AnyValue::Int(1));
+                    map.insert(Key::from("b"), AnyValue::Int(2));
+                    map.insert(Key::from("c"), AnyValue::Int(3));
+
+                    map
+                }),
+                get("map_value").unwrap()
+            );
+        }
     }
 
     #[test]
