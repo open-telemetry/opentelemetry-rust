@@ -19,9 +19,9 @@ pub struct TelemetryResourceDetector;
 impl ResourceDetector for TelemetryResourceDetector {
     fn detect(&self, _timeout: Duration) -> Resource {
         Resource::new(vec![
-            KeyValue::new("telemetry.sdk.name", "opentelemetry"),
-            KeyValue::new("telemetry.sdk.language", "rust"),
-            KeyValue::new("telemetry.sdk.version", env!("CARGO_PKG_VERSION")),
+            KeyValue::new(super::TELEMETRY_SDK_NAME, "opentelemetry"),
+            KeyValue::new(super::TELEMETRY_SDK_LANGUAGE, "rust"),
+            KeyValue::new(super::TELEMETRY_SDK_VERSION, env!("CARGO_PKG_VERSION")),
         ])
     }
 }
