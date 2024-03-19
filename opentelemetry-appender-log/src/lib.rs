@@ -1,5 +1,8 @@
 use log::{Level, Metadata, Record};
-use opentelemetry::{logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity}, Key};
+use opentelemetry::{
+    logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity},
+    Key,
+};
 use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -75,7 +78,11 @@ fn log_attributes(kvs: impl log::kv::Source) -> Vec<(Key, AnyValue)> {
     struct AttributeVisitor(Vec<(Key, AnyValue)>);
 
     impl<'kvs> log::kv::VisitSource<'kvs> for AttributeVisitor {
-        fn visit_pair(&mut self, key: log::kv::Key<'kvs>, value: log::kv::Value<'kvs>) -> Result<(), log::kv::Error> {
+        fn visit_pair(
+            &mut self,
+            key: log::kv::Key<'kvs>,
+            value: log::kv::Value<'kvs>,
+        ) -> Result<(), log::kv::Error> {
             let key = Key::from(String::from(key.as_str()));
 
             if let Some(value) = any_value::serialize(value) {
@@ -104,9 +111,9 @@ mod any_value {
     };
 
     /// Serialize an arbitrary `serde::Serialize` into an `AnyValue`.
-    /// 
+    ///
     /// This method performs the following translations when converting between `serde`'s data model and OpenTelemetry's:
-    /// 
+    ///
     /// - Integers that don't fit in a `i64` are converted into strings.
     /// - Unit types and nones are discarded (effectively treated as undefined).
     /// - Struct and tuple variants are converted into an internally tagged map.
@@ -267,10 +274,10 @@ mod any_value {
             Ok(None)
         }
 
-        fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
-        where
-            T: serde::Serialize,
-        {
+        fn serialize_some<T: serde::Serialize + ?Sized>(
+            self,
+            value: &T,
+        ) -> Result<Self::Ok, Self::Error> {
             value.serialize(self)
         }
 
@@ -291,42 +298,32 @@ mod any_value {
             variant.serialize(self)
         }
 
-        fn serialize_newtype_struct<T: ?Sized>(
+        fn serialize_newtype_struct<T: serde::Serialize + ?Sized>(
             self,
             _: &'static str,
             value: &T,
-        ) -> Result<Self::Ok, Self::Error>
-        where
-            T: serde::Serialize,
-        {
+        ) -> Result<Self::Ok, Self::Error> {
             value.serialize(self)
         }
 
-        fn serialize_newtype_variant<T: ?Sized>(
+        fn serialize_newtype_variant<T: serde::Serialize + ?Sized>(
             self,
             _: &'static str,
             _: u32,
             variant: &'static str,
             value: &T,
-        ) -> Result<Self::Ok, Self::Error>
-        where
-            T: serde::Serialize,
-        {
+        ) -> Result<Self::Ok, Self::Error> {
             let mut map = self.serialize_map(Some(1))?;
             map.serialize_entry(variant, value)?;
             map.end()
         }
 
         fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-            Ok(ValueSerializeSeq {
-                value: Vec::new(),
-            })
+            Ok(ValueSerializeSeq { value: Vec::new() })
         }
 
         fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple, Self::Error> {
-            Ok(ValueSerializeTuple {
-                value: Vec::new(),
-            })
+            Ok(ValueSerializeTuple { value: Vec::new() })
         }
 
         fn serialize_tuple_struct(
@@ -334,9 +331,7 @@ mod any_value {
             _: &'static str,
             _: usize,
         ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-            Ok(ValueSerializeTupleStruct {
-                value: Vec::new(),
-            })
+            Ok(ValueSerializeTupleStruct { value: Vec::new() })
         }
 
         fn serialize_tuple_variant(
@@ -388,10 +383,10 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        fn serialize_element<T: serde::Serialize + ?Sized>(
+            &mut self,
+            value: &T,
+        ) -> Result<(), Self::Error> {
             if let Some(value) = value.serialize(ValueSerializer)? {
                 self.value.push(value);
             }
@@ -409,10 +404,10 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        fn serialize_element<T: serde::Serialize + ?Sized>(
+            &mut self,
+            value: &T,
+        ) -> Result<(), Self::Error> {
             if let Some(value) = value.serialize(ValueSerializer)? {
                 self.value.push(value);
             }
@@ -430,10 +425,10 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        fn serialize_field<T: serde::Serialize + ?Sized>(
+            &mut self,
+            value: &T,
+        ) -> Result<(), Self::Error> {
             if let Some(value) = value.serialize(ValueSerializer)? {
                 self.value.push(value);
             }
@@ -451,10 +446,10 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        fn serialize_field<T: serde::Serialize + ?Sized>(
+            &mut self,
+            value: &T,
+        ) -> Result<(), Self::Error> {
             if let Some(value) = value.serialize(ValueSerializer)? {
                 self.value.push(value);
             }
@@ -476,10 +471,10 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        fn serialize_key<T: serde::Serialize + ?Sized>(
+            &mut self,
+            key: &T,
+        ) -> Result<(), Self::Error> {
             let key = match key.serialize(ValueSerializer)? {
                 Some(AnyValue::String(key)) => Key::from(String::from(key)),
                 key => Key::from(format!("{:?}", key)),
@@ -490,11 +485,14 @@ mod any_value {
             Ok(())
         }
 
-        fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
-            let key = self.key.take().ok_or_else(|| Self::Error::custom("missing key"))?;
+        fn serialize_value<T: serde::Serialize + ?Sized>(
+            &mut self,
+            value: &T,
+        ) -> Result<(), Self::Error> {
+            let key = self
+                .key
+                .take()
+                .ok_or_else(|| Self::Error::custom("missing key"))?;
 
             if let Some(value) = value.serialize(ValueSerializer)? {
                 self.value.insert(key, value);
@@ -513,14 +511,11 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_field<T: ?Sized>(
+        fn serialize_field<T: serde::Serialize + ?Sized>(
             &mut self,
             key: &'static str,
             value: &T,
-        ) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        ) -> Result<(), Self::Error> {
             let key = Key::from(key);
 
             if let Some(value) = value.serialize(ValueSerializer)? {
@@ -540,14 +535,11 @@ mod any_value {
 
         type Error = ValueError;
 
-        fn serialize_field<T: ?Sized>(
+        fn serialize_field<T: serde::Serialize + ?Sized>(
             &mut self,
             key: &'static str,
             value: &T,
-        ) -> Result<(), Self::Error>
-        where
-            T: Serialize,
-        {
+        ) -> Result<(), Self::Error> {
             let key = Key::from(key);
 
             if let Some(value) = value.serialize(ValueSerializer)? {
@@ -614,19 +606,44 @@ mod tests {
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
         // log::trace!("TRACE")
-        otel_log_appender.log(&log::RecordBuilder::new().level(log::Level::Trace).args(format_args!("TRACE")).build());
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Trace)
+                .args(format_args!("TRACE"))
+                .build(),
+        );
 
         // log::trace!("DEBUG")
-        otel_log_appender.log(&log::RecordBuilder::new().level(log::Level::Debug).args(format_args!("DEBUG")).build());
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Debug)
+                .args(format_args!("DEBUG"))
+                .build(),
+        );
 
         // log::trace!("INFO")
-        otel_log_appender.log(&log::RecordBuilder::new().level(log::Level::Info).args(format_args!("INFO")).build());
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Info)
+                .args(format_args!("INFO"))
+                .build(),
+        );
 
         // log::trace!("WARN")
-        otel_log_appender.log(&log::RecordBuilder::new().level(log::Level::Warn).args(format_args!("WARN")).build());
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Warn)
+                .args(format_args!("WARN"))
+                .build(),
+        );
 
         // log::trace!("ERROR")
-        otel_log_appender.log(&log::RecordBuilder::new().level(log::Level::Error).args(format_args!("ERROR")).build());
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Error)
+                .args(format_args!("ERROR"))
+                .build(),
+        );
 
         let logs = exporter.get_emitted_logs().unwrap();
 
@@ -666,52 +683,65 @@ mod tests {
             map_value:serde = Map { a: 1, b: 2, c: 3 };
             "body"
         );*/
-        otel_log_appender.log(&log::RecordBuilder::new()
-            .level(log::Level::Info)
-            .args(format_args!("body"))
-            .key_values(&[
-                ("string_value", log::kv::Value::from("a string")),
-                ("int_value", log::kv::Value::from(42)),
-                ("double_value", log::kv::Value::from(3.14)),
-                ("boolean_value", log::kv::Value::from(true)),
-                ("list_value", log::kv::Value::from_serde(&[1, 2, 3])),
-                ("map_value", log::kv::Value::from_serde(&Map { a: 1, b: 2, c: 3 })),
-            ])
-            .build()
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Info)
+                .args(format_args!("body"))
+                .key_values(&[
+                    ("string_value", log::kv::Value::from("a string")),
+                    ("int_value", log::kv::Value::from(42)),
+                    ("double_value", log::kv::Value::from(3.14)),
+                    ("boolean_value", log::kv::Value::from(true)),
+                    ("list_value", log::kv::Value::from_serde(&[1, 2, 3])),
+                    (
+                        "map_value",
+                        log::kv::Value::from_serde(&Map { a: 1, b: 2, c: 3 }),
+                    ),
+                ])
+                .build(),
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
         let attributes = &logs[0].record.attributes.as_ref().unwrap();
 
-        let get = |needle: &str| attributes.iter().find_map(|(k, v)| if k.as_str() == needle {
-            Some(v.clone())
-        } else {
-            None
-        });
+        let get = |needle: &str| {
+            attributes.iter().find_map(|(k, v)| {
+                if k.as_str() == needle {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+        };
 
-        assert_eq!(AnyValue::String(StringValue::from("a string")), get("string_value").unwrap());
-        
+        assert_eq!(
+            AnyValue::String(StringValue::from("a string")),
+            get("string_value").unwrap()
+        );
+
         assert_eq!(AnyValue::Int(42), get("int_value").unwrap());
-        
+
         assert_eq!(AnyValue::Double(3.14), get("double_value").unwrap());
-        
+
         assert_eq!(AnyValue::Boolean(true), get("boolean_value").unwrap());
 
-        assert_eq!(AnyValue::ListAny(vec![
-            AnyValue::Int(1),
-            AnyValue::Int(2),
-            AnyValue::Int(3),
-        ]), get("list_value").unwrap());
+        assert_eq!(
+            AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(2), AnyValue::Int(3),]),
+            get("list_value").unwrap()
+        );
 
-        assert_eq!(AnyValue::Map({
-            let mut map = HashMap::new();
+        assert_eq!(
+            AnyValue::Map({
+                let mut map = HashMap::new();
 
-            map.insert(Key::from("a"), AnyValue::Int(1));
-            map.insert(Key::from("b"), AnyValue::Int(2));
-            map.insert(Key::from("c"), AnyValue::Int(3));
+                map.insert(Key::from("a"), AnyValue::Int(1));
+                map.insert(Key::from("b"), AnyValue::Int(2));
+                map.insert(Key::from("c"), AnyValue::Int(3));
 
-            map
-        }), get("map_value").unwrap());
+                map
+            }),
+            get("map_value").unwrap()
+        );
     }
 
     #[test]
