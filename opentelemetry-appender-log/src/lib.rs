@@ -584,15 +584,9 @@ mod tests {
         // the processor used is a `SimpleLogProcessor` which has an implementation of `event_enabled`
         // that always returns true.
         #[cfg(feature = "logs_level_enabled")]
-        assert_eq!(
-            otel_log_appender.enabled(&log::Metadata::builder().build()),
-            true
-        );
+        assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
         #[cfg(not(feature = "logs_level_enabled"))]
-        assert_eq!(
-            otel_log_appender.enabled(&log::Metadata::builder().build()),
-            true
-        );
+        assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
     }
 
     #[test]
@@ -677,7 +671,7 @@ mod tests {
         /*log::info!(
             string_value = "a string",
             int_value = 42,
-            double_value = 3.14,
+            double_value = 4.2,
             boolean_value = true,
             list_value:serde = [1, 2, 3],
             map_value:serde = Map { a: 1, b: 2, c: 3 };
@@ -690,7 +684,7 @@ mod tests {
                 .key_values(&[
                     ("string_value", log::kv::Value::from("a string")),
                     ("int_value", log::kv::Value::from(42)),
-                    ("double_value", log::kv::Value::from(3.14)),
+                    ("double_value", log::kv::Value::from(4.2)),
                     ("boolean_value", log::kv::Value::from(true)),
                     ("list_value", log::kv::Value::from_serde(&[1, 2, 3])),
                     (
@@ -721,7 +715,7 @@ mod tests {
 
         assert_eq!(AnyValue::Int(42), get("int_value").unwrap());
 
-        assert_eq!(AnyValue::Double(3.14), get("double_value").unwrap());
+        assert_eq!(AnyValue::Double(4.2), get("double_value").unwrap());
 
         assert_eq!(AnyValue::Boolean(true), get("boolean_value").unwrap());
 
