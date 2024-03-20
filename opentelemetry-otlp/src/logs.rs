@@ -103,6 +103,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry::logs::LogResult<()> {
         self.client.export(batch).await
     }
+
+    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {
+        todo!("set_resource");
+    }
 }
 
 /// Recommended configuration for an OTLP exporter pipeline.

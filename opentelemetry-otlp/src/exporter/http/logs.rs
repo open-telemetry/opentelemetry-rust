@@ -50,6 +50,10 @@ impl LogExporter for OtlpHttpClient {
     fn shutdown(&mut self) {
         let _ = self.client.lock().map(|mut c| c.take());
     }
+
+    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {
+        todo!("set_resource")
+    }
 }
 
 #[cfg(feature = "http-proto")]

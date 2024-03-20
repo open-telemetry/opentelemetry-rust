@@ -21,6 +21,8 @@ pub trait LogExporter: Send + Sync + Debug {
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
     }
+    /// Set the resource for the exporter.
+    fn set_resource(&mut self, resource: &Resource);
 }
 
 /// `LogData` associates a [`LogRecord`] with a [`Resource`] and

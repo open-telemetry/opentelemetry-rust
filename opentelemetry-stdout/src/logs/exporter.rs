@@ -54,6 +54,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     fn shutdown(&mut self) {
         self.writer.take();
     }
+
+    fn set_resource(&mut self, _: &opentelemetry_sdk::Resource) {
+        todo!()
+    }
 }
 
 /// Stdout exporter's error

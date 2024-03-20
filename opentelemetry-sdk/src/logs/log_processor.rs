@@ -1,6 +1,7 @@
 use crate::{
     export::logs::{ExportResult, LogData, LogExporter},
     runtime::{RuntimeChannel, TrySend},
+    Resource,
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -17,6 +18,7 @@ use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -50,6 +52,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
+
+    /// Set the resource for the log processor.
+    fn set_resource(&mut self, resource: &Resource);
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
@@ -93,6 +98,12 @@ impl LogProcessor for SimpleLogProcessor {
             Err(LogError::Other(
                 "simple logprocessor mutex poison during shutdown".into(),
             ))
+        }
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.set_resource(resource);
         }
     }
 
@@ -150,6 +161,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
             .and_then(std::convert::identity)
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
     }
 }
 
@@ -228,6 +246,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         }
 
                         break;
+                    }
+
+                    // propagate the resource
+                    BatchMessage::SetResource(resource) => {
+                        exporter.set_resource(&*resource);
                     }
                 }
             }
@@ -450,6 +473,8 @@ enum BatchMessage {
     Flush(Option<oneshot::Sender<ExportResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]

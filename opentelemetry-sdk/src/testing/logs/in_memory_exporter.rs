@@ -1,4 +1,5 @@
 use crate::export::logs::{LogData, LogExporter};
+use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
 use std::sync::{Arc, Mutex};
@@ -36,6 +37,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone, Debug)]
 pub struct InMemoryLogsExporter {
     logs: Arc<Mutex<Vec<LogData>>>,
+    resource: Arc<Mutex<Option<Resource>>>,
 }
 
 impl Default for InMemoryLogsExporter {
@@ -91,6 +93,7 @@ impl InMemoryLogsExporterBuilder {
     pub fn build(&self) -> InMemoryLogsExporter {
         InMemoryLogsExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
+            resource: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -144,5 +147,10 @@ impl LogExporter for InMemoryLogsExporter {
     }
     fn shutdown(&mut self) {
         self.reset();
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
+        *res_guard = Some(resource.clone());
     }
 }
