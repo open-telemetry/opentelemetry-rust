@@ -504,7 +504,7 @@ impl InstrumentationLibrary {
     }
 
     /// Create a new builder to create an [InstrumentationLibrary]
-    pub fn builder(name: impl Into<Cow<'static, str>>) -> InstrumentationLibraryBuilder {
+    pub fn builder<T: Into<Cow<'static, str>>>(name: T) -> InstrumentationLibraryBuilder {
         InstrumentationLibraryBuilder {
             name: name.into(),
             version: None,
