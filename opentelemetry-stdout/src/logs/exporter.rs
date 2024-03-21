@@ -4,7 +4,8 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     ExportError,
 };
-use opentelemetry_sdk::export::logs::{ExportResult, LogData};
+use opentelemetry_sdk::export::logs::{ExportResult, LogEvent};
+use opentelemetry_sdk::Resource;
 use std::io::{stdout, Write};
 
 type Encoder =
@@ -18,6 +19,7 @@ type Encoder =
 pub struct LogExporter {
     writer: Option<Box<dyn Write + Send + Sync>>,
     encoder: Encoder,
+    resource: Resource,
 }
 
 impl LogExporter {
@@ -42,9 +44,10 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<LogEvent>) -> ExportResult {
         if let Some(writer) = &mut self.writer {
-            let result = (self.encoder)(writer, crate::logs::LogData::from(batch)) as LogResult<()>;
+            let log_data = crate::logs::transform::LogData::from((batch, &self.resource));
+            let result = (self.encoder)(writer, log_data) as LogResult<()>;
             result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
         } else {
             Err("exporter is shut down".into())
@@ -55,8 +58,8 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         self.writer.take();
     }
 
-    fn set_resource(&mut self, _: &opentelemetry_sdk::Resource) {
-        todo!()
+    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
+        self.resource = res.clone();
     }
 }
 
@@ -131,6 +134,7 @@ impl LogExporterBuilder {
     pub fn build(self) -> LogExporter {
         LogExporter {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
+            resource: Resource::default(),
             encoder: self.encoder.unwrap_or_else(|| {
                 Box::new(|writer, logs| {
                     serde_json::to_writer(writer, &logs)

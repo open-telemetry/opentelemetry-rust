@@ -1,5 +1,5 @@
 use crate::{
-    export::logs::{ExportResult, LogData, LogExporter},
+    export::logs::{ExportResult, LogEvent, LogExporter},
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -44,7 +44,7 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
-    fn emit(&self, data: LogData);
+    fn emit(&self, data: LogEvent);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -75,7 +75,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: LogEvent) {
         let result = self
             .exporter
             .lock()
@@ -128,7 +128,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: LogEvent) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
 
         if let Err(err) = result {
@@ -277,7 +277,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<LogData>,
+    batch: Vec<LogEvent>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -467,7 +467,7 @@ where
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog(LogData),
+    ExportLog(LogEvent),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),

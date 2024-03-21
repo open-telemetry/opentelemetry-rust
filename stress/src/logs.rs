@@ -38,7 +38,7 @@ where
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {}
+    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogEvent) {}
 
     fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
@@ -57,7 +57,7 @@ impl LogProcessor for NoOpLogProcessor {
         true
     }
 
-    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {
         todo!("set_resource")
     }
 }
