@@ -1,6 +1,8 @@
-use crate::export::logs::{LogData, LogExporter};
+use crate::export::logs::{LogData, LogEvent, LogExporter};
+use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
+use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
 /// An in-memory logs exporter that stores logs data in memory..
@@ -35,7 +37,8 @@ use std::sync::{Arc, Mutex};
 ///
 #[derive(Clone, Debug)]
 pub struct InMemoryLogsExporter {
-    logs: Arc<Mutex<Vec<LogData>>>,
+    logs: Arc<Mutex<Vec<LogEvent>>>,
+    resource: Arc<Mutex<Resource>>,
 }
 
 impl Default for InMemoryLogsExporter {
@@ -91,6 +94,7 @@ impl InMemoryLogsExporterBuilder {
     pub fn build(&self) -> InMemoryLogsExporter {
         InMemoryLogsExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
+            resource: Arc::new(Mutex::new(Resource::default())),
         }
     }
 }
@@ -108,12 +112,19 @@ impl InMemoryLogsExporter {
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogData>> {
-        self.logs
-            .lock()
-            .map(|logs_guard| logs_guard.iter().cloned().collect())
-            .map_err(LogError::from)
-    }
+        let logs_guard = self.logs.lock().map_err(LogError::from)?;
+        let resource_guard = self.resource.lock().map_err(LogError::from)?;
+        let logs: Vec<LogData> = logs_guard
+            .iter()
+            .map(|log_event| LogData {
+                record: log_event.record.clone(),
+                resource: Cow::Owned(resource_guard.clone()),
+                instrumentation: log_event.instrumentation.clone(),
+            })
+            .collect();
 
+        Ok(logs)
+    }
     /// Clears the internal (in-memory) storage of logs.
     ///
     /// # Example
@@ -136,7 +147,7 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<LogEvent>) -> LogResult<()> {
         self.logs
             .lock()
             .map(|mut logs_guard| logs_guard.append(&mut batch.clone()))
@@ -144,5 +155,10 @@ impl LogExporter for InMemoryLogsExporter {
     }
     fn shutdown(&mut self) {
         self.reset();
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
+        *res_guard = resource.clone();
     }
 }

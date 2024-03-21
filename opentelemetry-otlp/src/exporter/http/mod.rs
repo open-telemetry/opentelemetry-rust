@@ -4,6 +4,7 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::Resource;
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -255,6 +256,7 @@ struct OtlpHttpClient {
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,
     _timeout: Duration,
+    resource: Arc<Mutex<opentelemetry_sdk::Resource>>,
 }
 
 impl OtlpHttpClient {
@@ -270,6 +272,7 @@ impl OtlpHttpClient {
             collector_endpoint,
             headers,
             _timeout: timeout,
+            resource: Arc::new(Mutex::new(Resource::default())),
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
-    export::logs::{ExportResult, LogData, LogExporter},
+    export::logs::{ExportResult, LogEvent, LogExporter},
     runtime::{RuntimeChannel, TrySend},
+    Resource,
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -17,6 +18,7 @@ use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -42,7 +44,7 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
-    fn emit(&self, data: LogData);
+    fn emit(&self, data: LogEvent);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -50,6 +52,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
+
+    /// Set the resource for the log processor.
+    fn set_resource(&mut self, resource: &Resource);
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
@@ -70,7 +75,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: LogEvent) {
         let result = self
             .exporter
             .lock()
@@ -96,6 +101,12 @@ impl LogProcessor for SimpleLogProcessor {
         }
     }
 
+    fn set_resource(&mut self, resource: &Resource) {
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.set_resource(resource);
+        }
+    }
+
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
@@ -117,7 +128,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: LogEvent) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
 
         if let Err(err) = result {
@@ -150,6 +161,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
             .and_then(std::convert::identity)
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
     }
 }
 
@@ -229,6 +247,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         break;
                     }
+
+                    // propagate the resource
+                    BatchMessage::SetResource(resource) => {
+                        exporter.set_resource(&*resource);
+                    }
                 }
             }
         }));
@@ -254,7 +277,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<LogData>,
+    batch: Vec<LogEvent>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -444,12 +467,14 @@ where
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog(LogData),
+    ExportLog(LogEvent),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]

@@ -1,6 +1,6 @@
 use super::{BatchLogProcessor, Config, LogProcessor, SimpleLogProcessor};
 use crate::{
-    export::logs::{LogData, LogExporter},
+    export::logs::{LogEvent, LogExporter},
     runtime::RuntimeChannel,
 };
 use opentelemetry::{
@@ -200,7 +200,6 @@ impl opentelemetry::logs::Logger for Logger {
     /// Emit a `LogRecord`.
     fn emit(&self, record: LogRecord) {
         let provider = self.provider();
-        let config = provider.config();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
@@ -211,9 +210,8 @@ impl opentelemetry::logs::Logger for Logger {
             if let Some(ref trace_context) = trace_context {
                 record.trace_context = Some(trace_context.clone())
             }
-            let data = LogData {
+            let data = LogEvent {
                 record,
-                resource: config.resource.clone(),
                 instrumentation: self.instrumentation_library().clone(),
             };
             p.emit(data);
@@ -345,7 +343,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: LogData) {
+        fn emit(&self, _data: LogEvent) {
             // nothing to do.
         }
 
@@ -362,6 +360,10 @@ mod tests {
         #[cfg(feature = "logs_level_enabled")]
         fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
             true
+        }
+
+        fn set_resource(&mut self, _resource: &crate::Resource) {
+            // nothing to do.
         }
     }
 }
