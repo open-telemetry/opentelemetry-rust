@@ -46,7 +46,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
-    fn shutdown(&mut self) -> LogResult<()>;
+    /// After shutdown returns the log processor should stop processing any logs.
+    /// It's up to the implementation on when to drop the LogProcessor.
+    fn shutdown(&self) -> LogResult<()>;
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
@@ -85,7 +87,7 @@ impl LogProcessor for SimpleLogProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&self) -> LogResult<()> {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -141,7 +143,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&self) -> LogResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -458,6 +460,8 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
+    use crate::export::logs::LogData;
+    use crate::logs::LogProcessor;
     use crate::{
         logs::{
             log_processor::{
@@ -619,5 +623,26 @@ mod tests {
         assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
         assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_shutdown() {
+        // assert we will receive an error
+        // setup
+        let exporter = InMemoryLogsExporter::default();
+        let processor =
+            BatchLogProcessor::new(Box::new(exporter), BatchConfig::default(), runtime::Tokio);
+        processor.emit(LogData {
+            record: Default::default(),
+            resource: Default::default(),
+            instrumentation: Default::default(),
+        });
+        processor.shutdown().unwrap();
+        // todo: expect to see errors here. How should we assert this?
+        processor.emit(LogData {
+            record: Default::default(),
+            resource: Default::default(),
+            instrumentation: Default::default(),
+        });
     }
 }
