@@ -1,6 +1,7 @@
 # Changelog
 
 ## vNext
+- Add feature flag enabling users to configure `reqwest` usage to use rustls via `reqwest/rustls-tls` feature flag
 
 ## v0.11.0
 
