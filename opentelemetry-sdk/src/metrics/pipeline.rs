@@ -408,10 +408,10 @@ where
             Ok(Some(m))
         });
 
-        cached
-            .as_ref()
-            .map_err(|e| MetricsError::Other(e.to_string()))
-            .cloned()
+        match cached {
+            Ok(opt) => Ok(opt.clone()),
+            Err(err) => Err(MetricsError::Other(err.to_string())),
+        }
     }
 
     /// Validates if an instrument with the same name as id has already been created.
