@@ -386,8 +386,7 @@ where
         let cached = cache.entry(id).or_insert_with(|| {
             let filter = stream
                 .allowed_attribute_keys
-                .as_ref()
-                .map(Arc::clone)
+                .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
             let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
@@ -411,8 +410,8 @@ where
 
         cached
             .as_ref()
-            .map(|o| o.as_ref().map(Arc::clone))
             .map_err(|e| MetricsError::Other(e.to_string()))
+            .cloned()
     }
 
     /// Validates if an instrument with the same name as id has already been created.
