@@ -62,20 +62,24 @@ fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> 
     let ctype;
     match default_protocol() {
         #[cfg(feature = "http-json")]
-        Protocol::HttpJson => {
-            let json_struct = serde_json::to_string_pretty(&req).unwrap();
-            buf = json_struct.into();
-            ctype = "application/json";
-        }
+        #[cfg(feature = "http-json")]
+        Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+            Ok(json) => {
+                buf = json.into();
+                ctype = "application/json";
+                Ok((buf, ctype))
+            }
+            Err(e) => Err(MetricsError::Other(e.to_string())),
+        },
         _ => {
             buf = req.encode_to_vec();
             ctype = "application/x-protobuf";
+            Ok((buf, ctype))
         }
-    };
-    Ok((buf, ctype))
+    }
 }
 
-#[cfg(not(feature = "http-proto"))]
+#[cfg(not(any(feature = "http-proto", feature = "http-json")))]
 fn build_body(_metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
     Err(MetricsError::Other(
         "No http protocol configured. Enable one via `http-proto`".into(),

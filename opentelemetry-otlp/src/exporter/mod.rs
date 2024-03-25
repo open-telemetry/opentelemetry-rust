@@ -318,7 +318,7 @@ mod tests {
     fn test_default_protocol() {
         #[cfg(all(
             feature = "http-json",
-            not(all(feature = "grpc-tonic", feature = "http-proto"))
+            not(any(feature = "grpc-tonic", feature = "http-proto"))
         ))]
         {
             assert_eq!(
@@ -329,7 +329,7 @@ mod tests {
 
         #[cfg(all(
             feature = "http-proto",
-            not(all(feature = "grpc-tonic", feature = "http-json"))
+            not(any(feature = "grpc-tonic", feature = "http-json"))
         ))]
         {
             assert_eq!(
@@ -340,7 +340,7 @@ mod tests {
 
         #[cfg(all(
             feature = "grpc-tonic",
-            not(all(feature = "http-proto", feature = "http-json"))
+            not(any(feature = "http-proto", feature = "http-json"))
         ))]
         {
             assert_eq!(crate::exporter::default_protocol(), crate::Protocol::Grpc);
