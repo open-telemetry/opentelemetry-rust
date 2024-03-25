@@ -1,7 +1,7 @@
 use opentelemetry::global;
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
-use opentelemetry::{metrics::MeterProvider as _, KeyValue};
+use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{
     Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream,
 };
