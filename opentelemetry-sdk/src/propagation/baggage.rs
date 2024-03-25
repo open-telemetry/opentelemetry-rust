@@ -101,23 +101,31 @@ impl TextMapPropagator for BaggagePropagator {
                 {
                     let mut iter = name_and_value.split('=');
                     if let (Some(name), Some(value)) = (iter.next(), iter.next()) {
-                        let name = percent_decode_str(name).decode_utf8().map_err(|_| ())?;
-                        let value = percent_decode_str(value).decode_utf8().map_err(|_| ())?;
+                        let decode_name = percent_decode_str(name).decode_utf8();
+                        let decode_value = percent_decode_str(value).decode_utf8();
 
-                        // Here we don't store the first ; into baggage since it should be treated
-                        // as separator rather part of metadata
-                        let decoded_props = props
-                            .iter()
-                            .flat_map(|prop| percent_decode_str(prop).decode_utf8())
-                            .map(|prop| prop.trim().to_string())
-                            .collect::<Vec<String>>()
-                            .join(";"); // join with ; because we deleted all ; when calling split above
+                        if let (Ok(name), Ok(value)) = (decode_name, decode_value) {
+                            // Here we don't store the first ; into baggage since it should be treated
+                            // as separator rather part of metadata
+                            let decoded_props = props
+                                .iter()
+                                .flat_map(|prop| percent_decode_str(prop).decode_utf8())
+                                .map(|prop| prop.trim().to_string())
+                                .collect::<Vec<String>>()
+                                .join(";"); // join with ; because we deleted all ; when calling split above
 
-                        Some(KeyValueMetadata::new(
-                            name.trim().to_owned(),
-                            value.trim().to_string(),
-                            decoded_props.as_str(),
-                        ))
+                            Some(KeyValueMetadata::new(
+                                name.trim().to_owned(),
+                                value.trim().to_string(),
+                                decoded_props.as_str(),
+                            ))
+                        } else {
+                            global::handle_error(PropagationError::extract(
+                                "invalid UTF8 string in key values",
+                                "BaggagePropagator",
+                            ));
+                            None
+                        }
                     } else {
                         global::handle_error(PropagationError::extract(
                             "invalid baggage key-value format",

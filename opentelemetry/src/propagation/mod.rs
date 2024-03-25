@@ -20,7 +20,6 @@
 //! [`Context`]: crate::Context
 
 use std::collections::HashMap;
-use std::fmt::Display;
 use thiserror::Error;
 
 pub mod composite;
@@ -74,7 +73,8 @@ pub struct PropagationError {
     ops: &'static str,
 }
 
-impl PropagationError{
+impl PropagationError {
+    /// Error happens when extracting information
     pub fn extract(message: &'static str, propagator_name: &'static str) -> Self {
         PropagationError {
             message,
@@ -83,11 +83,12 @@ impl PropagationError{
         }
     }
 
+    /// Error happens when extracting information
     pub fn inject(message: &'static str, propagator_name: &'static str) -> Self {
         PropagationError {
             message,
             propagator_name,
-            ops: "inject"
+            ops: "inject",
         }
     }
 }

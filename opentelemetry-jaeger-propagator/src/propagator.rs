@@ -1,3 +1,4 @@
+use opentelemetry::propagation::PropagationError;
 use opentelemetry::{
     global::{self, Error},
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
@@ -6,7 +7,6 @@ use opentelemetry::{
 };
 use std::borrow::Cow;
 use std::str::FromStr;
-use opentelemetry::propagation::PropagationError;
 
 const JAEGER_HEADER: &str = "uber-trace-id";
 const JAEGER_BAGGAGE_PREFIX: &str = "uberctx-";
@@ -86,14 +86,24 @@ impl Propagator {
             return None;
         }
 
-        // extract trace id
-        let trace_id = self.extract_trace_id(parts[0])?;
-        let span_id = self.extract_span_id(parts[1])?;
-        // Ignore parent span id since it's deprecated.
-        let flags = self.extract_trace_flags(parts[3])?;
-        let state = self.extract_trace_state(extractor)?;
-
-        Some(SpanContext::new(trace_id, span_id, flags, true, state))
+        match (
+            self.extract_trace_id(parts[0]),
+            self.extract_span_id(parts[1]),
+            // Ignore parent span id since it's deprecated.
+            self.extract_trace_flags(parts[3]),
+            self.extract_trace_state(extractor),
+        ) {
+            (Ok(trace_id), Ok(span_id), Ok(flags), Ok(state)) => {
+                Some(SpanContext::new(trace_id, span_id, flags, true, state))
+            }
+            _ => {
+                global::handle_error(Error::Propagation(PropagationError::extract(
+                    "invalid jaeger header format",
+                    "JaegerPropagator",
+                )));
+                None
+            }
+        }
     }
 
     /// Extract trace id from the header.
@@ -193,7 +203,7 @@ impl TextMapPropagator for Propagator {
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         self.extract_span_context(extractor)
             .map(|sc| cx.with_remote_span_context(sc))
-            .unwrap_or_else(|_| cx.clone())
+            .unwrap_or_else(|| cx.clone())
     }
 
     fn fields(&self) -> FieldIter<'_> {
@@ -435,7 +445,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Ok(SpanContext::new(
+            Some(SpanContext::new(
                 TraceId::from_hex("12345").unwrap(),
                 SpanId::from_hex("54321").unwrap(),
                 TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
@@ -452,7 +462,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Ok(SpanContext::new(
+            Some(SpanContext::new(
                 TraceId::from_hex("12345").unwrap(),
                 SpanId::from_hex("54321").unwrap(),
                 TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
@@ -468,7 +478,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Err(())
+            None,
         );
 
         map.clear();
@@ -478,7 +488,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Err(())
+            None,
         );
 
         map.clear();
@@ -488,7 +498,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Err(())
+            None,
         );
 
         map.clear();
@@ -498,7 +508,7 @@ mod tests {
         );
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Err(())
+            None,
         );
 
         map.clear();
@@ -511,7 +521,7 @@ mod tests {
         map.set(&too_long_baggage_key, "baggage_value".to_owned());
         assert_eq!(
             propagator_with_custom_header.extract_span_context(&map),
-            Err(())
+            None,
         );
     }
 
