@@ -48,20 +48,39 @@ impl MetricsClient for OtlpHttpClient {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
+    use crate::exporter::default_protocol;
+    #[cfg(feature = "http-json")]
+    use crate::Protocol;
     use prost::Message;
 
     let req: opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest =
         (&*metrics).into();
-    let mut buf = vec![];
-    req.encode(&mut buf).map_err(crate::Error::from)?;
 
-    Ok((buf, "application/x-protobuf"))
+    let buf;
+    let ctype;
+    match default_protocol() {
+        #[cfg(feature = "http-json")]
+        #[cfg(feature = "http-json")]
+        Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+            Ok(json) => {
+                buf = json.into();
+                ctype = "application/json";
+                Ok((buf, ctype))
+            }
+            Err(e) => Err(MetricsError::Other(e.to_string())),
+        },
+        _ => {
+            buf = req.encode_to_vec();
+            ctype = "application/x-protobuf";
+            Ok((buf, ctype))
+        }
+    }
 }
 
-#[cfg(not(feature = "http-proto"))]
-fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
+#[cfg(not(any(feature = "http-proto", feature = "http-json")))]
+fn build_body(_metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
     Err(MetricsError::Other(
         "No http protocol configured. Enable one via `http-proto`".into(),
     ))

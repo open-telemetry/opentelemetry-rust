@@ -68,23 +68,90 @@ impl SpanExporter for OtlpHttpClient {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
+    use crate::exporter::default_protocol;
+    #[cfg(feature = "http-json")]
+    use crate::Protocol;
     use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
     use prost::Message;
 
     let req = ExportTraceServiceRequest {
         resource_spans: spans.into_iter().map(Into::into).collect(),
     };
-    let mut buf = vec![];
-    req.encode(&mut buf).map_err(crate::Error::from)?;
-
-    Ok((buf, "application/x-protobuf"))
+    let buf;
+    let ctype;
+    match default_protocol() {
+        #[cfg(feature = "http-json")]
+        Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+            Ok(json) => {
+                buf = json.into();
+                ctype = "application/json";
+                Ok((buf, ctype))
+            }
+            Err(e) => Err(TraceError::from(e.to_string())),
+        },
+        _ => {
+            buf = req.encode_to_vec();
+            ctype = "application/x-protobuf";
+            Ok((buf, ctype))
+        }
+    }
 }
 
-#[cfg(not(feature = "http-proto"))]
+#[cfg(not(any(feature = "http-proto", feature = "http-json")))]
 fn build_body(spans: Vec<SpanData>) -> TraceResult<(Vec<u8>, &'static str)> {
     Err(TraceError::Other(
-        "No http protocol configured. Enable one via `http-proto`".into(),
+        "No http protocol configured. Enable one via `http-proto` or `http-json`".into(),
     ))
+}
+
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+mod tests {
+    #[test]
+    fn test_build_body() {
+        use crate::exporter::http::trace::build_body;
+        use opentelemetry::trace::{
+            SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+        };
+        use opentelemetry_sdk::export::trace::SpanData;
+        use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
+        use opentelemetry_sdk::Resource;
+        use std::{borrow::Cow, time::SystemTime};
+
+        let span_data = (0..5)
+            .map(|_| SpanData {
+                span_context: SpanContext::new(
+                    TraceId::from_u128(12),
+                    SpanId::from_u64(12),
+                    TraceFlags::default(),
+                    false,
+                    TraceState::default(),
+                ),
+                parent_span_id: SpanId::from_u64(12),
+                span_kind: SpanKind::Client,
+                name: Default::default(),
+                start_time: SystemTime::now(),
+                end_time: SystemTime::now(),
+                attributes: Vec::new(),
+                dropped_attributes_count: 0,
+                events: SpanEvents::default(),
+                links: SpanLinks::default(),
+                status: Status::Unset,
+                resource: Cow::Owned(Resource::empty()),
+                instrumentation_lib: Default::default(),
+            })
+            .collect::<Vec<SpanData>>();
+
+        let result = build_body(span_data).unwrap();
+        match crate::exporter::default_protocol() {
+            #[cfg(feature = "http-json")]
+            crate::Protocol::HttpJson => {
+                assert_eq!(result.1, "application/json")
+            }
+            _ => {
+                assert_eq!(result.1, "application/x-protobuf")
+            }
+        };
+    }
 }
