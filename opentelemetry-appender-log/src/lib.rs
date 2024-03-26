@@ -1,3 +1,99 @@
+//! Bridge `log` into OpenTelemetry.
+//!
+//! This library implements a log appender for the [`log`] crate using the [Logs Bridge API].
+//!
+//! # Getting Started
+//!
+//! The bridge requires configuration on both the `log` and OpenTelemetry sides.
+//!
+//! For OpenTelemetry, configure a [`LoggerProvider`] with the desired exporter:
+//!
+//! ```
+//! # #[tokio::main] async fn main() {
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::runtime;
+//! let exporter = opentelemetry_stdout::LogExporterBuilder::default().build();
+//!
+//! let logger_provider = LoggerProvider::builder()
+//!     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//!     .build();
+//! # }
+//! ```
+//!
+//! For `log`, set the global logger to an [`OpenTelemetryLogBridge`] instance using the `LoggerProvider`:
+//!
+//! ```
+//! # #[tokio::main] async fn main() {
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::runtime;
+//! # use opentelemetry_appender_log::OpenTelemetryLogBridge;
+//! # let exporter = opentelemetry_stdout::LogExporterBuilder::default().build();
+//! # let logger_provider = LoggerProvider::builder()
+//! #     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! #     .build();
+//! let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+//!
+//! log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+//! # }
+//! ```
+//!
+//! # Mapping Log Records
+//!
+//! This section outlines how log records produced by `log` are mapped into OpenTelemetry log records.
+//! Each subsection deals with a different property on `opentelemetry::logs::LogRecord`.
+//!
+//! ## Body
+//!
+//! The body is the stringified message ([`log::Record::args`]).
+//!
+//! ## Severity
+//!
+//! The severity number and text are mapped from the [`log::Level`] ([`log::Record::level`]):
+//!
+//! | `log::Level` | Severity Text | Severity Number |
+//! | ------------ | ------------- | --------------- |
+//! | `Error`      | Error         | 17              |
+//! | `Warn`       | Warn          | 13              |
+//! | `Info`       | Info          | 9               |
+//! | `Debug`      | Debug         | 5               |
+//! | `Trace`      | Trace         | 1               |
+//!
+//! # Attributes
+//!
+//! Any key-values ([`log::Record::key_values`]) are converted into attributes:
+//!
+//! | Type            | Result                | Notes                                                                                                                   |
+//! | --------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+//! | `i8`-`i128`     | [`AnyValue::Int`]     | If the value is too big then it will be stringified using [`std::fmt::Display`]                                         |
+//! | `u8`-`u128`     | [`AnyValue::Int`]     | If the value is too big then it will be stringified using [`std::fmt::Display`]                                         |
+//! | `f32`-`f64`     | [`AnyValue::Double`]  |                                                                                                                         |
+//! | `bool`          | [`AnyValue::Boolean`] |                                                                                                                         |
+//! | `str`           | [`AnyValue::String`]  |                                                                                                                         |
+//! | Bytes           | [`AnyValue::Bytes`]   | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | `()`            | -                     | Unit values are discared                                                                                                |
+//! | `Some`          | Any                   | `Some` variants use their inner value                                                                                   |
+//! | `None`          | -                     | `None` variants are discared                                                                                            |
+//! | Unit struct     | [`AnyValue::String`]  | Uses the name of the struct                                                                                             |
+//! | Unit variant    | [`AnyValue::String`]  | Uses the name of the variant                                                                                            |
+//! | Newtype struct  | Any                   | Uses the inner value of the newtype                                                                                     |
+//! | Newtype variant | [`AnyValue::Map`]     | An internally-tagged map. Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`] |
+//! | Sequence        | [`AnyValue::ListAny`] | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | Tuple           | [`AnyValue::ListAny`] | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | Tuple struct    | [`AnyValue::ListAny`] | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | Tuple variant   | [`AnyValue::Map`]     | An internally-tagged map. Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`] |
+//! | Map             | [`AnyValue::Map`]     | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | Struct          | [`AnyValue::Map`]     | Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`]                           |
+//! | Struct variant  | [`AnyValue::Map`]     | An internally-tagged map. Requires the `with-serde` feature, otherwise it will be stringified using [`std::fmt::Debug`] |
+//!
+//! # Feature Flags
+//!
+//! This library provides the following Cargo features:
+//!
+//! - `logs_level_enabled`: Allow users to control the log level.
+//! - `with-serde`: Support complex values as attributes without stringifying them.
+//!
+//! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
+
 use log::{Level, Metadata, Record};
 use opentelemetry::{
     logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity},
@@ -100,7 +196,7 @@ fn log_attributes(kvs: impl log::kv::Source) -> Vec<(Key, AnyValue)> {
     visitor.0
 }
 
-#[cfg(not(feature = "with_serde"))]
+#[cfg(not(feature = "with-serde"))]
 mod any_value {
     use opentelemetry::{logs::AnyValue, StringValue};
 
@@ -170,7 +266,7 @@ mod any_value {
 }
 
 // This could make a nice addition to the SDK itself for serializing into `AnyValue`s
-#[cfg(feature = "with_serde")]
+#[cfg(feature = "with-serde")]
 mod any_value {
     use std::{collections::HashMap, fmt};
 
@@ -722,10 +818,55 @@ mod tests {
     #[test]
     fn logbridge_attributes() {
         #[derive(serde::Serialize)]
+        struct Struct {
+            a: i32,
+            b: i32,
+            c: i32,
+        }
+
+        #[derive(serde::Serialize)]
+        struct Newtype(i32);
+
+        #[derive(serde::Serialize)]
+        enum Enum {
+            Unit,
+            Newtype(i32),
+            Struct { a: i32, b: i32, c: i32 },
+            Tuple(i32, i32, i32),
+        }
+
+        struct Bytes<B>(B);
+
+        impl<B: AsRef<[u8]>> serde::Serialize for Bytes<B> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                serializer.serialize_bytes(self.0.as_ref())
+            }
+        }
+
         struct Map {
             a: i32,
             b: i32,
             c: i32,
+        }
+
+        impl serde::Serialize for Map {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                use serde::ser::SerializeMap;
+
+                let mut map = serializer.serialize_map(Some(3))?;
+
+                map.serialize_entry(&"a", &self.a)?;
+                map.serialize_entry(&"b", &self.b)?;
+                map.serialize_entry(&"c", &self.c)?;
+
+                map.end()
+            }
         }
 
         let exporter = InMemoryLogsExporter::default();
@@ -736,28 +877,65 @@ mod tests {
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
-        /*log::info!(
-            string_value = "a string",
-            int_value = 42,
-            double_value = 4.2,
-            boolean_value = true,
-            list_value:serde = [1, 2, 3],
-            map_value:serde = Map { a: 1, b: 2, c: 3 };
-            "body"
-        );*/
         otel_log_appender.log(
             &log::RecordBuilder::new()
                 .level(log::Level::Info)
                 .args(format_args!("body"))
                 .key_values(&[
-                    ("string_value", log::kv::Value::from("a string")),
-                    ("int_value", log::kv::Value::from(42)),
-                    ("double_value", log::kv::Value::from(4.2)),
-                    ("boolean_value", log::kv::Value::from(true)),
-                    ("list_value", log::kv::Value::from_serde(&[1, 2, 3])),
+                    ("str_value", log::kv::Value::from("a string")),
+                    ("u8_value", log::kv::Value::from(1u8)),
+                    ("u16_value", log::kv::Value::from(2u16)),
+                    ("u32_value", log::kv::Value::from(42u32)),
+                    ("u64_value", log::kv::Value::from(2147483660u64)),
+                    ("u128_small_value", log::kv::Value::from(2147483660u128)),
+                    (
+                        "u128_big_value",
+                        log::kv::Value::from(9223372036854775820u128),
+                    ),
+                    ("i8_value", log::kv::Value::from(1i8)),
+                    ("i16_value", log::kv::Value::from(2i16)),
+                    ("i32_value", log::kv::Value::from(42i32)),
+                    ("i64_value", log::kv::Value::from(2147483660i64)),
+                    ("i128_small_value", log::kv::Value::from(2147483660i128)),
+                    (
+                        "i128_big_value",
+                        log::kv::Value::from(9223372036854775820i128),
+                    ),
+                    ("f64_value", log::kv::Value::from(4.2f64)),
+                    ("bool_value", log::kv::Value::from(true)),
+                    ("bytes_value", log::kv::Value::from_serde(&Bytes([1, 1, 1]))),
+                    ("unit_value", log::kv::Value::from_serde(&())),
+                    ("some_value", log::kv::Value::from_serde(&Some(42))),
+                    ("none_value", log::kv::Value::from_serde(&None::<i32>)),
+                    (
+                        "slice_value",
+                        log::kv::Value::from_serde(&(&[1, 1, 1] as &[i32])),
+                    ),
                     (
                         "map_value",
-                        log::kv::Value::from_serde(&Map { a: 1, b: 2, c: 3 }),
+                        log::kv::Value::from_serde(&Map { a: 1, b: 1, c: 1 }),
+                    ),
+                    (
+                        "struct_value",
+                        log::kv::Value::from_serde(&Struct { a: 1, b: 1, c: 1 }),
+                    ),
+                    ("tuple_value", log::kv::Value::from_serde(&(1, 1, 1))),
+                    ("newtype_value", log::kv::Value::from_serde(&Newtype(42))),
+                    (
+                        "unit_variant_value",
+                        log::kv::Value::from_serde(&Enum::Unit),
+                    ),
+                    (
+                        "newtype_variant_value",
+                        log::kv::Value::from_serde(&Enum::Newtype(42)),
+                    ),
+                    (
+                        "struct_variant_value",
+                        log::kv::Value::from_serde(&Enum::Struct { a: 1, b: 1, c: 1 }),
+                    ),
+                    (
+                        "tuple_variant_value",
+                        log::kv::Value::from_serde(&Enum::Tuple(1, 1, 1)),
                     ),
                 ])
                 .build(),
@@ -778,35 +956,82 @@ mod tests {
 
         assert_eq!(
             AnyValue::String(StringValue::from("a string")),
-            get("string_value").unwrap()
+            get("str_value").unwrap()
         );
 
-        assert_eq!(AnyValue::Int(42), get("int_value").unwrap());
+        assert_eq!(AnyValue::Int(1), get("i8_value").unwrap());
+        assert_eq!(AnyValue::Int(2), get("i16_value").unwrap());
+        assert_eq!(AnyValue::Int(42), get("i32_value").unwrap());
+        assert_eq!(AnyValue::Int(2147483660), get("i64_value").unwrap());
+        assert_eq!(AnyValue::Int(2147483660), get("i128_small_value").unwrap());
+        assert_eq!(
+            AnyValue::String(StringValue::from("9223372036854775820")),
+            get("i128_big_value").unwrap()
+        );
 
-        assert_eq!(AnyValue::Double(4.2), get("double_value").unwrap());
+        assert_eq!(AnyValue::Double(4.2), get("f64_value").unwrap());
 
-        assert_eq!(AnyValue::Boolean(true), get("boolean_value").unwrap());
+        assert_eq!(AnyValue::Boolean(true), get("bool_value").unwrap());
 
-        #[cfg(not(feature = "with_serde"))]
+        #[cfg(not(feature = "with-serde"))]
         {
             assert_eq!(
-                AnyValue::String(StringValue::from("(1, 2, 3)")),
-                get("list_value").unwrap()
+                AnyValue::String(StringValue::from("[1, 1, 1]")),
+                get("slice_value").unwrap()
             );
 
             assert_eq!(
-                AnyValue::String(StringValue::from("Map { a: 1, b: 2, c: 3 }")),
+                AnyValue::String(StringValue::from("{\"a\": 1, \"b\": 1, \"c\": 1}")),
                 get("map_value").unwrap()
             );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Struct { a: 1, b: 1, c: 1 }")),
+                get("struct_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("(1, 1, 1)")),
+                get("tuple_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Newtype(42)")),
+                get("newtype_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Unit")),
+                get("unit_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Newtype(42)")),
+                get("newtype_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Struct { a: 1, b: 1, c: 1 }")),
+                get("struct_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Tuple(1, 1, 1)")),
+                get("tuple_variant_value").unwrap()
+            );
         }
-        #[cfg(feature = "with_serde")]
+        #[cfg(feature = "with-serde")]
         {
             use opentelemetry::Key;
             use std::collections::HashMap;
 
+            assert_eq!(None, get("unit_value"));
+            assert_eq!(None, get("none_value"));
+            assert_eq!(AnyValue::Int(42), get("some_value").unwrap());
+
             assert_eq!(
-                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(2), AnyValue::Int(3),]),
-                get("list_value").unwrap()
+                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(1), AnyValue::Int(1)]),
+                get("slice_value").unwrap()
             );
 
             assert_eq!(
@@ -814,12 +1039,86 @@ mod tests {
                     let mut map = HashMap::new();
 
                     map.insert(Key::from("a"), AnyValue::Int(1));
-                    map.insert(Key::from("b"), AnyValue::Int(2));
-                    map.insert(Key::from("c"), AnyValue::Int(3));
+                    map.insert(Key::from("b"), AnyValue::Int(1));
+                    map.insert(Key::from("c"), AnyValue::Int(1));
 
                     map
                 }),
                 get("map_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::Map({
+                    let mut map = HashMap::new();
+
+                    map.insert(Key::from("a"), AnyValue::Int(1));
+                    map.insert(Key::from("b"), AnyValue::Int(1));
+                    map.insert(Key::from("c"), AnyValue::Int(1));
+
+                    map
+                }),
+                get("struct_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(1), AnyValue::Int(1)]),
+                get("tuple_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::String(StringValue::from("Unit")),
+                get("unit_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::Map({
+                    let mut map = HashMap::new();
+
+                    map.insert(Key::from("Newtype"), AnyValue::Int(42));
+
+                    map
+                }),
+                get("newtype_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::Map({
+                    let mut map = HashMap::new();
+
+                    map.insert(
+                        Key::from("Struct"),
+                        AnyValue::Map({
+                            let mut map = HashMap::new();
+
+                            map.insert(Key::from("a"), AnyValue::Int(1));
+                            map.insert(Key::from("b"), AnyValue::Int(1));
+                            map.insert(Key::from("c"), AnyValue::Int(1));
+
+                            map
+                        }),
+                    );
+
+                    map
+                }),
+                get("struct_variant_value").unwrap()
+            );
+
+            assert_eq!(
+                AnyValue::Map({
+                    let mut map = HashMap::new();
+
+                    map.insert(
+                        Key::from("Tuple"),
+                        AnyValue::ListAny(vec![
+                            AnyValue::Int(1),
+                            AnyValue::Int(1),
+                            AnyValue::Int(1),
+                        ]),
+                    );
+
+                    map
+                }),
+                get("tuple_variant_value").unwrap()
             );
         }
     }
