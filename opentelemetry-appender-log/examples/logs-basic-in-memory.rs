@@ -25,7 +25,10 @@ async fn main() {
     log::set_max_level(Level::Info.to_level_filter());
 
     // Emit logs using macros from the log crate.
-    error!("hello from {}. My price is {}", "apple", 2.99);
+    let fruit = "apple";
+    let price = 2.99;
+
+    error!(fruit, price; "hello from {fruit}. My price is {price}");
     warn!("warn!");
     info!("test log!");
 
