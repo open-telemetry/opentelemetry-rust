@@ -26,6 +26,7 @@
   - `shutdown` methods in `LoggerProvider` and `LogProcessor` now takes a immutable reference
   - After `shutdown`, `LoggerProvider` will return noop `Logger`
   - After `shutdown`, `LogProcessor` will not process any new logs
+- [#1644](https://github.com/open-telemetry/opentelemetry-rust/pull/1644) Fix cumulative aggregation for observable counters.
 
 ## v0.22.1
 
