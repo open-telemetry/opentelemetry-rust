@@ -85,13 +85,13 @@ fn build_config_and_process(
 pub(crate) fn install_tracer_provider_and_get_tracer(
     tracer_provider: TracerProvider,
 ) -> Result<Tracer, TraceError> {
-    let tracer = opentelemetry::trace::TracerProvider::versioned_tracer(
+    let tracer = opentelemetry::trace::TracerProvider::tracer_builder(
         &tracer_provider,
         "opentelemetry-jaeger",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(semcov::SCHEMA_URL),
-        None,
-    );
+    )
+    .with_version(env!("CARGO_PKG_VERSION"))
+    .with_schema_url(semcov::SCHEMA_URL)
+    .build();
     let _ = global::set_tracer_provider(tracer_provider);
     Ok(tracer)
 }

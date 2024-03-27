@@ -56,12 +56,10 @@
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
-//!     let tracer = global::tracer_provider().versioned_tracer(
-//!         "my-library-name",
-//!         Some(env!("CARGO_PKG_VERSION")),
-//!         Some("https://opentelemetry.io/schemas/1.17.0"),
-//!         None,
-//!     );
+//!     let tracer = global::tracer_provider().tracer_builder("my-library-name").
+//!         with_version(env!("CARGO_PKG_VERSION")).
+//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
+//!         build();
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...

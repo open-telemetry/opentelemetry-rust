@@ -140,12 +140,11 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(SCHEMA_URL),
-        None,
-    );
+    let tracer = provider
+        .tracer_builder("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .with_schema_url(SCHEMA_URL)
+        .build();
     let _ = global::set_tracer_provider(provider);
     tracer
 }
@@ -166,12 +165,11 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(SCHEMA_URL),
-        None,
-    );
+    let tracer = provider
+        .tracer_builder("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .with_schema_url(SCHEMA_URL)
+        .build();
     let _ = global::set_tracer_provider(provider);
     tracer
 }

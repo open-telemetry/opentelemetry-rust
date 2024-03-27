@@ -133,7 +133,19 @@ impl MeterProvider for SdkMeterProvider {
             return Meter::new(Arc::new(NoopMeterCore::new()));
         }
 
-        let scope = Scope::new(name, version, schema_url, attributes);
+        let mut builder = Scope::builder(name);
+
+        if let Some(v) = version {
+            builder = builder.with_version(v);
+        }
+        if let Some(s) = schema_url {
+            builder = builder.with_schema_url(s);
+        }
+        if let Some(a) = attributes {
+            builder = builder.with_attributes(a);
+        }
+
+        let scope = builder.build();
 
         if let Ok(mut meters) = self.meters.lock() {
             let meter = meters

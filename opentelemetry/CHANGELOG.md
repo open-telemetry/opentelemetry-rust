@@ -10,6 +10,10 @@
 
 - Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
 
+### Changed
+
+- Deprecate `versioned_logger()` and `versioned_tracer()` in favor of `logger_builder()` and `tracer_builder()` respectively [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+
 ## v0.22.0
 
 ### Added
