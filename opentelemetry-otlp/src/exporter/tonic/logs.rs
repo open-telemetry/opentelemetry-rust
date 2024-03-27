@@ -1,5 +1,7 @@
 use core::fmt;
 
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
@@ -12,6 +14,7 @@ use super::BoxInterceptor;
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
+    resource: Arc<Mutex<opentelemetry_sdk::Resource>>,
 }
 
 struct ClientInner {
@@ -43,6 +46,7 @@ impl TonicLogsClient {
                 client,
                 interceptor,
             }),
+            resource: Arc::new(Mutex::new(opentelemetry_sdk::Resource::default())),
         }
     }
 }
@@ -62,13 +66,20 @@ impl LogExporter for TonicLogsClient {
             None => return Err(LogError::Other("exporter is already shut down".into())),
         };
 
+        let resource_logs = {
+            let resource = self.resource.lock().unwrap();
+            batch
+                .into_iter()
+                .map(|log_event| (log_event, &*resource))
+                .map(Into::into)
+                .collect()
+        };
+
         client
             .export(Request::from_parts(
                 metadata,
                 extensions,
-                ExportLogsServiceRequest {
-                    resource_logs: batch.into_iter().map(Into::into).collect(),
-                },
+                ExportLogsServiceRequest { resource_logs },
             ))
             .await
             .map_err(crate::Error::from)?;

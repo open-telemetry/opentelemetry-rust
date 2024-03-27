@@ -110,27 +110,35 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry_sdk::export::logs::LogData> for ResourceLogs {
-        fn from(log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
+    impl
+        From<(
+            opentelemetry_sdk::export::logs::LogEvent,
+            &opentelemetry_sdk::Resource,
+        )> for ResourceLogs
+    {
+        fn from(
+            data: (
+                opentelemetry_sdk::export::logs::LogEvent,
+                &opentelemetry_sdk::Resource,
+            ),
+        ) -> Self {
+            let (log_event, resource) = data;
+
             ResourceLogs {
                 resource: Some(Resource {
-                    attributes: resource_attributes(&log_data.resource).0,
+                    attributes: resource_attributes(resource).0,
                     dropped_attributes_count: 0,
                 }),
-                schema_url: log_data
-                    .resource
-                    .schema_url()
-                    .map(Into::into)
-                    .unwrap_or_default(),
+                schema_url: resource.schema_url().map(Into::into).unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
-                    schema_url: log_data
+                    schema_url: log_event
                         .instrumentation
                         .schema_url
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some(log_data.instrumentation.into()),
-                    log_records: vec![log_data.record.into()],
+                    scope: Some(log_event.instrumentation.into()),
+                    log_records: vec![log_event.record.into()],
                 }],
             }
         }
