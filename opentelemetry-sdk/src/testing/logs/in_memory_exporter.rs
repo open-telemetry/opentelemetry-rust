@@ -1,4 +1,4 @@
-use crate::export::logs::{LogData, LogEvent, LogExporter};
+use crate::export::logs::{LogData, LogDataWithResource, LogExporter};
 use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 ///
 #[derive(Clone, Debug)]
 pub struct InMemoryLogsExporter {
-    logs: Arc<Mutex<Vec<LogEvent>>>,
+    logs: Arc<Mutex<Vec<LogData>>>,
     resource: Arc<Mutex<Resource>>,
 }
 
@@ -111,15 +111,15 @@ impl InMemoryLogsExporter {
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
-    pub fn get_emitted_logs(&self) -> LogResult<Vec<LogData>> {
+    pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
         let logs_guard = self.logs.lock().map_err(LogError::from)?;
         let resource_guard = self.resource.lock().map_err(LogError::from)?;
-        let logs: Vec<LogData> = logs_guard
+        let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
-            .map(|log_event| LogData {
-                record: log_event.record.clone(),
+            .map(|log_data| LogDataWithResource {
+                record: log_data.record.clone(),
                 resource: Cow::Owned(resource_guard.clone()),
-                instrumentation: log_event.instrumentation.clone(),
+                instrumentation: log_data.instrumentation.clone(),
             })
             .collect();
 
@@ -147,7 +147,7 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export(&mut self, batch: Vec<LogEvent>) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
         self.logs
             .lock()
             .map(|mut logs_guard| logs_guard.append(&mut batch.clone()))

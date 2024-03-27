@@ -4,7 +4,7 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     ExportError,
 };
-use opentelemetry_sdk::export::logs::{ExportResult, LogEvent};
+use opentelemetry_sdk::export::logs::{ExportResult, LogData};
 use opentelemetry_sdk::Resource;
 use std::io::{stdout, Write};
 
@@ -44,7 +44,7 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<LogEvent>) -> ExportResult {
+    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
         if let Some(writer) = &mut self.writer {
             let log_data = crate::logs::transform::LogData::from((batch, &self.resource));
             let result = (self.encoder)(writer, log_data) as LogResult<()>;

@@ -3,13 +3,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::logs::{LogError, LogResult};
-use opentelemetry_sdk::export::logs::{LogEvent, LogExporter};
+use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 
 use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: Vec<LogEvent>) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
         let client = self
             .client
             .lock()
@@ -62,7 +62,7 @@ impl LogExporter for OtlpHttpClient {
 
 #[cfg(feature = "http-proto")]
 fn build_body(
-    logs: Vec<LogEvent>,
+    logs: Vec<LogData>,
     resource: &opentelemetry_sdk::Resource,
 ) -> LogResult<(Vec<u8>, &'static str)> {
     use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -81,7 +81,7 @@ fn build_body(
 
 #[cfg(not(feature = "http-proto"))]
 fn build_body(
-    logs: Vec<LogEvent>,
+    logs: Vec<LogData>,
     resource: &opentelemetry_sdk::Resource,
 ) -> LogResult<(Vec<u8>, &'static str)> {
     Err(LogsError::Other(

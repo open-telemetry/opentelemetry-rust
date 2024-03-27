@@ -1,6 +1,6 @@
 use super::{BatchLogProcessor, Config, LogProcessor, SimpleLogProcessor};
 use crate::{
-    export::logs::{LogEvent, LogExporter},
+    export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
 };
 use opentelemetry::{
@@ -210,7 +210,7 @@ impl opentelemetry::logs::Logger for Logger {
             if let Some(ref trace_context) = trace_context {
                 record.trace_context = Some(trace_context.clone())
             }
-            let data = LogEvent {
+            let data = LogData {
                 record,
                 instrumentation: self.instrumentation_library().clone(),
             };
@@ -343,7 +343,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: LogEvent) {
+        fn emit(&self, _data: LogData) {
             // nothing to do.
         }
 

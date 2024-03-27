@@ -8,7 +8,7 @@ use opentelemetry::logs::{AnyValue, LogRecord, LogResult, Logger, LoggerProvider
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
-use opentelemetry_sdk::export::logs::{LogEvent, LogExporter};
+use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
 
@@ -17,7 +17,7 @@ struct VoidExporter;
 
 #[async_trait]
 impl LogExporter for VoidExporter {
-    async fn export(&mut self, _batch: Vec<LogEvent>) -> LogResult<()> {
+    async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
         LogResult::Ok(())
     }
 

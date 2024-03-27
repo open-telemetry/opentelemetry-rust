@@ -256,6 +256,8 @@ struct OtlpHttpClient {
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,
     _timeout: Duration,
+    #[allow(dead_code)]
+    // this would be removed once we support set_resource for metrics and traces.
     resource: Arc<Mutex<opentelemetry_sdk::Resource>>,
 }
 

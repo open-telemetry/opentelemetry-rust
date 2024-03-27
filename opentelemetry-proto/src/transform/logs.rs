@@ -112,13 +112,13 @@ pub mod tonic {
 
     impl
         From<(
-            opentelemetry_sdk::export::logs::LogEvent,
+            opentelemetry_sdk::export::logs::LogData,
             &opentelemetry_sdk::Resource,
         )> for ResourceLogs
     {
         fn from(
             data: (
-                opentelemetry_sdk::export::logs::LogEvent,
+                opentelemetry_sdk::export::logs::LogData,
                 &opentelemetry_sdk::Resource,
             ),
         ) -> Self {

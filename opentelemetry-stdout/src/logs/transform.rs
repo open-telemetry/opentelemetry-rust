@@ -17,13 +17,13 @@ pub struct LogData {
 
 impl
     From<(
-        Vec<opentelemetry_sdk::export::logs::LogEvent>,
+        Vec<opentelemetry_sdk::export::logs::LogData>,
         &opentelemetry_sdk::Resource,
     )> for LogData
 {
     fn from(
         (sdk_logs, sdk_resource): (
-            Vec<opentelemetry_sdk::export::logs::LogEvent>,
+            Vec<opentelemetry_sdk::export::logs::LogData>,
             &opentelemetry_sdk::Resource,
         ),
     ) -> Self {
@@ -105,8 +105,8 @@ struct LogRecord {
     trace_id: Option<String>,
 }
 
-impl From<opentelemetry_sdk::export::logs::LogEvent> for LogRecord {
-    fn from(value: opentelemetry_sdk::export::logs::LogEvent) -> Self {
+impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
+    fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
         LogRecord {
             trace_id: value
                 .record

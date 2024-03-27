@@ -13,7 +13,7 @@ use std::{borrow::Cow, fmt::Debug};
 #[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of [`LogData`].
-    async fn export(&mut self, batch: Vec<LogEvent>) -> LogResult<()>;
+    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "logs_level_enabled")]
@@ -24,25 +24,25 @@ pub trait LogExporter: Send + Sync + Debug {
     /// Set the resource for the exporter.
     fn set_resource(&mut self, resource: &Resource);
 }
-/// `LogEvent` represents a single log event without resource context.
+/// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
-pub struct LogEvent {
+pub struct LogData {
     /// Log record
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationLibrary,
 }
 
-/// `LogData` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
 /// [`InstrumentationLibrary`].
 #[derive(Clone, Debug)]
-pub struct LogData {
+pub struct LogDataWithResource {
     /// Log record
     pub record: LogRecord,
-    /// Resource for the emitter who produced this `LogData`.
-    pub resource: Cow<'static, Resource>,
     /// Instrumentation details for the emitter who produced this `LogData`.
     pub instrumentation: InstrumentationLibrary,
+    /// Resource for the emitter who produced this `LogData`.
+    pub resource: Cow<'static, Resource>,
 }
 
 /// Describes the result of an export.
