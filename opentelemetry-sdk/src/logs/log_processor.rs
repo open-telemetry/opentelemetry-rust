@@ -250,7 +250,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
-                        exporter.set_resource(&*resource);
+                        exporter.set_resource(&resource);
                     }
                 }
             }
