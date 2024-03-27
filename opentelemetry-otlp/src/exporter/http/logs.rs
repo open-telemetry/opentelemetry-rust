@@ -21,7 +21,7 @@ impl LogExporter for OtlpHttpClient {
 
         let (body, content_type) = {
             let resource = self.resource.lock().unwrap();
-            build_body(batch, &*resource)?
+            build_body(batch, &resource)?
         };
         let mut request = http::Request::builder()
             .method(Method::POST)
