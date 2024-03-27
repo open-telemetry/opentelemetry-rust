@@ -9,6 +9,9 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
 
+[features]
+reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+
 [dependencies]
 async-trait = { workspace = true }
 bytes = { workspace = true }
