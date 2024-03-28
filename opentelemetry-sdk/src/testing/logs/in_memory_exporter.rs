@@ -1,4 +1,4 @@
-use crate::export::logs::{LogData, LogDataWithResource, LogExporter};
+use crate::export::logs::{LogData, LogExporter};
 use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
@@ -45,6 +45,18 @@ impl Default for InMemoryLogsExporter {
     fn default() -> Self {
         InMemoryLogsExporterBuilder::new().build()
     }
+}
+
+/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// [`InstrumentationLibrary`].
+#[derive(Clone, Debug)]
+pub struct LogDataWithResource {
+    /// Log record
+    pub record: opentelemetry::logs::LogRecord,
+    /// Instrumentation details for the emitter who produced this `LogData`.
+    pub instrumentation: opentelemetry::InstrumentationLibrary,
+    /// Resource for the emitter who produced this `LogData`.
+    pub resource: Cow<'static, Resource>,
 }
 
 ///Builder for ['InMemoryLogsExporter'].

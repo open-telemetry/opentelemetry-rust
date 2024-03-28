@@ -156,6 +156,10 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        // invoke set_resource by invoking on all the processors
+        for processor in &self.processors {
+            processor.set_resource(&self.config.resource);
+        }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
@@ -362,7 +366,7 @@ mod tests {
             true
         }
 
-        fn set_resource(&mut self, _resource: &crate::Resource) {
+        fn set_resource(&self, _resource: &crate::Resource) {
             // nothing to do.
         }
     }

@@ -54,7 +54,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 
     /// Set the resource for the log processor.
-    fn set_resource(&mut self, resource: &Resource);
+    fn set_resource(&self, resource: &Resource);
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
@@ -101,7 +101,7 @@ impl LogProcessor for SimpleLogProcessor {
         }
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
+    fn set_resource(&self, resource: &Resource) {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
         }
@@ -163,7 +163,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
+    fn set_resource(&self, resource: &Resource) {
         let resource = Arc::new(resource.clone());
         let _ = self
             .message_sender
