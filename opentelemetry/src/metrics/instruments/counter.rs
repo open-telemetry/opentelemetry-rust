@@ -82,7 +82,7 @@ impl<T> fmt::Debug for ObservableCounter<T> {
 }
 
 impl<T> ObservableCounter<T> {
-    /// Records an increment to the counter.
+    /// Records the absolute value of the counter.
     ///
     /// It is only valid to call this within a callback. If called outside of the
     /// registered callback it should have no effect on the instrument, and an
