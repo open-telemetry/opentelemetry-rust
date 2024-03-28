@@ -299,7 +299,6 @@ mod tests {
                     SERVICE_NAME,
                     "test_service",
                 )])),
-                ..Default::default()
             })
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
@@ -332,7 +331,6 @@ mod tests {
                         resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
                             KeyValue::new("my-custom-key", "my-custom-value"),
                         ]))),
-                        ..Default::default()
                     })
                     .build();
                 assert_resource(
@@ -365,7 +363,6 @@ mod tests {
         let no_service_name = super::LoggerProvider::builder()
             .with_config(Config {
                 resource: Cow::Owned(Resource::empty()),
-                ..Default::default()
             })
             .build();
 
