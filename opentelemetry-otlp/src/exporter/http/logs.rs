@@ -19,10 +19,7 @@ impl LogExporter for OtlpHttpClient {
                 _ => Err(LogError::Other("exporter is already shut down".into())),
             })?;
 
-        let (body, content_type) = {
-            let resource = self.resource.lock().unwrap();
-            build_body(batch, &resource)?
-        };
+        let (body, content_type) = { build_body(batch, &self.resource)? };
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
@@ -55,15 +52,14 @@ impl LogExporter for OtlpHttpClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        let mut res = self.resource.lock().unwrap();
-        *res = resource.clone();
+        self.resource = resource.into();
     }
 }
 
 #[cfg(feature = "http-proto")]
 fn build_body(
     logs: Vec<LogData>,
-    resource: &opentelemetry_sdk::Resource,
+    resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 ) -> LogResult<(Vec<u8>, &'static str)> {
     use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
     use prost::Message;

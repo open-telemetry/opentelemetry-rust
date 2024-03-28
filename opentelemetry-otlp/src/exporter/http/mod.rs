@@ -4,7 +4,7 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
-use opentelemetry_sdk::Resource;
+use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
@@ -258,7 +258,7 @@ struct OtlpHttpClient {
     _timeout: Duration,
     #[allow(dead_code)]
     // this would be removed once we support set_resource for metrics and traces.
-    resource: Arc<Mutex<opentelemetry_sdk::Resource>>,
+    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
@@ -274,7 +274,7 @@ impl OtlpHttpClient {
             collector_endpoint,
             headers,
             _timeout: timeout,
-            resource: Arc::new(Mutex::new(Resource::default())),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 }

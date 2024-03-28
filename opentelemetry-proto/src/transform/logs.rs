@@ -7,7 +7,7 @@ pub mod tonic {
             resource::v1::Resource,
             Attributes,
         },
-        transform::common::{to_nanos, tonic::resource_attributes},
+        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
 
@@ -113,32 +113,32 @@ pub mod tonic {
     impl
         From<(
             opentelemetry_sdk::export::logs::LogData,
-            &opentelemetry_sdk::Resource,
+            &ResourceAttributesWithSchema,
         )> for ResourceLogs
     {
         fn from(
             data: (
                 opentelemetry_sdk::export::logs::LogData,
-                &opentelemetry_sdk::Resource,
+                &ResourceAttributesWithSchema,
             ),
         ) -> Self {
-            let (log_event, resource) = data;
+            let (log_data, resource) = data;
 
             ResourceLogs {
                 resource: Some(Resource {
-                    attributes: resource_attributes(resource).0,
+                    attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
                 }),
-                schema_url: resource.schema_url().map(Into::into).unwrap_or_default(),
+                schema_url: resource.schema_url.clone().unwrap(),
                 scope_logs: vec![ScopeLogs {
-                    schema_url: log_event
+                    schema_url: log_data
                         .instrumentation
                         .schema_url
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some(log_event.instrumentation.into()),
-                    log_records: vec![log_event.record.into()],
+                    scope: Some(log_data.instrumentation.into()),
+                    log_records: vec![log_data.record.into()],
                 }],
             }
         }
