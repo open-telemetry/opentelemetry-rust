@@ -244,7 +244,7 @@ mod tests {
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOff))
+            .with_config(Config::default().with_sampler(Sampler::AlwaysOff))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -297,7 +297,7 @@ mod tests {
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(TestRecordOnlySampler::default()))
+            .with_config(Config::default().with_sampler(TestRecordOnlySampler::default()))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
