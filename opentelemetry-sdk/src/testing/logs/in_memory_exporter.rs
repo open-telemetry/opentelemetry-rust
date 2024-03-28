@@ -1,7 +1,8 @@
 use crate::export::logs::{LogData, LogExporter};
 use crate::Resource;
 use async_trait::async_trait;
-use opentelemetry::logs::{LogError, LogResult};
+use opentelemetry::logs::{LogError, LogRecord, LogResult};
+use opentelemetry::InstrumentationLibrary;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
@@ -52,9 +53,9 @@ impl Default for InMemoryLogsExporter {
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
-    pub record: opentelemetry::logs::LogRecord,
+    pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogData`.
-    pub instrumentation: opentelemetry::InstrumentationLibrary,
+    pub instrumentation: InstrumentationLibrary,
     /// Resource for the emitter who produced this `LogData`.
     pub resource: Cow<'static, Resource>,
 }
