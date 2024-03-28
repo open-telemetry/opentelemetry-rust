@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Mutex,
@@ -18,21 +19,15 @@ use super::{
 struct ValueMap<T: Number<T>> {
     values: Mutex<HashMap<AttributeSet, T>>,
     has_no_value_attribute_value: AtomicBool,
-    no_attribute_value: T::AtomicTracker,
-}
-
-impl<T: Number<T>> Default for ValueMap<T> {
-    fn default() -> Self {
-        ValueMap::new()
-    }
+    no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
 }
 
 impl<T: Number<T>> ValueMap<T> {
-    fn new() -> Self {
+    fn new(no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>) -> Self {
         ValueMap {
             values: Mutex::new(HashMap::new()),
             has_no_value_attribute_value: AtomicBool::new(false),
-            no_attribute_value: T::new_atomic_tracker(),
+            no_attribute_value,
         }
     }
 }
@@ -79,9 +74,12 @@ impl<T: Number<T>> Sum<T> {
     ///
     /// Each sum is scoped by attributes and the aggregation cycle the measurements
     /// were made in.
-    pub(crate) fn new(monotonic: bool) -> Self {
+    pub(crate) fn new(
+        monotonic: bool,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
+    ) -> Self {
         Sum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(no_attribute_value),
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
@@ -125,16 +123,12 @@ impl<T: Number<T>> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
-        if self
-            .value_map
-            .has_no_value_attribute_value
-            .swap(false, Ordering::AcqRel)
-        {
+        if let Some(value) = self.value_map.no_attribute_value.get_value(true) {
             s_data.data_points.push(DataPoint {
                 attributes: AttributeSet::default(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                value,
                 exemplars: vec![],
             });
         }
@@ -194,17 +188,12 @@ impl<T: Number<T>> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
-
-        if self
-            .value_map
-            .has_no_value_attribute_value
-            .load(Ordering::Acquire)
-        {
+        if let Some(value) = self.value_map.no_attribute_value.get_value(false) {
             s_data.data_points.push(DataPoint {
                 attributes: AttributeSet::default(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_value(),
+                value,
                 exemplars: vec![],
             });
         }
@@ -241,7 +230,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
 impl<T: Number<T>> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(Arc::new(T::new_atomic_tracker())),
             monotonic,
             start: Mutex::new(SystemTime::now()),
             reported: Mutex::new(Default::default()),
@@ -291,16 +280,12 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Err(_) => return (0, None),
         };
 
-        if self
-            .value_map
-            .has_no_value_attribute_value
-            .swap(false, Ordering::AcqRel)
-        {
+        if let Some(value) = self.value_map.no_attribute_value.get_value(true) {
             s_data.data_points.push(DataPoint {
                 attributes: AttributeSet::default(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                value,
                 exemplars: vec![],
             });
         }
@@ -373,16 +358,12 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Err(_) => return (0, None),
         };
 
-        if self
-            .value_map
-            .has_no_value_attribute_value
-            .load(Ordering::Acquire)
-        {
+        if let Some(value) = self.value_map.no_attribute_value.get_value(false) {
             s_data.data_points.push(DataPoint {
                 attributes: AttributeSet::default(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_value(),
+                value,
                 exemplars: vec![],
             });
         }

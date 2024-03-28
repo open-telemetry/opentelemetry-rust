@@ -8,6 +8,7 @@ use opentelemetry::{
     Key, KeyValue,
 };
 
+use crate::metrics::internal::{AtomicTracker, Number};
 use crate::{
     attributes::AttributeSet,
     instrumentation::Scope,
@@ -254,11 +255,24 @@ impl InstrumentId {
     }
 }
 
-pub(crate) struct ResolvedMeasures<T> {
+pub(crate) struct ResolvedMeasures<T: Number<T>> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
+    pub(crate) no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
 }
 
-impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
+impl<T: Copy + 'static + Number<T>> SyncCounter<T> for ResolvedMeasures<T> {
+    fn add(&self, val: T, attrs: &[KeyValue]) {
+        if attrs.is_empty() {
+            self.no_attribute_value.add(val);
+        } else {
+            for measure in &self.measures {
+                measure.call(val, AttributeSet::from(attrs))
+            }
+        }
+    }
+}
+
+impl<T: Copy + 'static + Number<T>> SyncUpDownCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))
@@ -266,15 +280,7 @@ impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
     }
 }
 
-impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, AttributeSet::from(attrs))
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
+impl<T: Copy + 'static + Number<T>> SyncGauge<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))
@@ -282,7 +288,7 @@ impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
     }
 }
 
-impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
+impl<T: Copy + 'static + Number<T>> SyncHistogram<T> for ResolvedMeasures<T> {
     fn record(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))

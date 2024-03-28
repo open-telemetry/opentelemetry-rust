@@ -13,6 +13,7 @@ use opentelemetry::{
 };
 
 use crate::instrumentation::Scope;
+use crate::metrics::internal::{AtomicTracker, AtomicallyUpdate};
 use crate::metrics::{
     instrument::{
         Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
@@ -128,6 +129,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(u64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -165,6 +167,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(f64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -235,6 +238,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(i64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -274,6 +278,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(f64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -364,6 +369,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(u64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -401,6 +407,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(i64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -438,6 +445,7 @@ impl InstrumentProvider for SdkMeter {
             name.clone(),
             description.clone(),
             unit.clone().unwrap_or_default(),
+            Arc::new(f64::new_atomic_tracker()),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -733,9 +741,12 @@ where
         description: Option<Cow<'static, str>>,
         unit: Unit,
     ) -> Result<ResolvedMeasures<T>> {
-        let aggregators = self.measures(kind, name, description, unit)?;
+        let no_attribute_value = Arc::new(T::new_atomic_tracker());
+        let aggregators =
+            self.measures(kind, name, description, unit, no_attribute_value.clone())?;
         Ok(ResolvedMeasures {
             measures: aggregators,
+            no_attribute_value,
         })
     }
 
@@ -745,6 +756,7 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Unit,
+        no_attribute_value: Arc<AtomicTracker<T, T::AtomicValue>>,
     ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
@@ -754,7 +766,7 @@ where
             scope: self.meter.scope.clone(),
         };
 
-        self.resolve.measures(inst)
+        self.resolve.measures(inst, no_attribute_value)
     }
 }
 
