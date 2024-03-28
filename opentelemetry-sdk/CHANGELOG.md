@@ -14,7 +14,7 @@
   [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
 - [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Send resource attributes once to 
   processor and exporter, and not for every event.
-    - Add `set_resource` method in LogProcessor an Exporter
+    - Add `set_resource` method in LogProcessor and Exporter traits
     - Propagate resource attributes to processor and exporter during LoggerProvider creation.
 
 ## v0.22.1
