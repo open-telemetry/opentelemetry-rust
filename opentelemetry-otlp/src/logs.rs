@@ -104,8 +104,8 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         self.client.export(batch).await
     }
 
-    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {
-        todo!("set_resource");
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+        self.client.set_resource(resource);
     }
 }
 
