@@ -12,10 +12,15 @@
 - **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
   `ProcessResourceDetector` resource detectors, use the
   [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
-- [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Send resource attributes once to 
-  processor and exporter, and not for every event.
-    - Add `set_resource` method in LogProcessor and Exporter traits
-    - Propagate resource attributes to processor and exporter during LoggerProvider creation.
+- [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Improves performance by sending 
+  Resource information to processors (and exporters) once, instead of sending with every log. If you are an author
+  of Processor, Exporter, the following are *BREAKING* changes.
+    - Implement `set_resource` method in your custom LogProcessor, which invokes exporter's `set_resource`.
+    - Implement `set_resource` method in your custom LogExporter. This method should save the resource object
+      in original or serialized format, to be merged with every log event during export.
+    - `LogData` doesn't have the resource attributes. The `LogExporter::export()` method needs to merge it 
+      with the earlier preserved resource before export.
+- Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
 
 ## v0.22.1
 
