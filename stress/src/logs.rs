@@ -56,6 +56,8 @@ impl LogProcessor for NoOpLogProcessor {
     ) -> bool {
         true
     }
+
+    fn set_resource(&self, _resource: &opentelemetry_sdk::Resource) {}
 }
 
 fn main() {
