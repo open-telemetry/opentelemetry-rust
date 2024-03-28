@@ -257,7 +257,7 @@ struct OtlpHttpClient {
     headers: HashMap<HeaderName, HeaderValue>,
     _timeout: Duration,
     #[allow(dead_code)]
-    // this would be removed once we support set_resource for metrics and traces.
+    // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
