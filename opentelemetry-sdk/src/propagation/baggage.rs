@@ -1,6 +1,8 @@
 use once_cell::sync::Lazy;
+use opentelemetry::propagation::PropagationError;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
+    global,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
 };
@@ -99,30 +101,44 @@ impl TextMapPropagator for BaggagePropagator {
                 {
                     let mut iter = name_and_value.split('=');
                     if let (Some(name), Some(value)) = (iter.next(), iter.next()) {
-                        let name = percent_decode_str(name).decode_utf8().map_err(|_| ())?;
-                        let value = percent_decode_str(value).decode_utf8().map_err(|_| ())?;
+                        let decode_name = percent_decode_str(name).decode_utf8();
+                        let decode_value = percent_decode_str(value).decode_utf8();
 
-                        // Here we don't store the first ; into baggage since it should be treated
-                        // as separator rather part of metadata
-                        let decoded_props = props
-                            .iter()
-                            .flat_map(|prop| percent_decode_str(prop).decode_utf8())
-                            .map(|prop| prop.trim().to_string())
-                            .collect::<Vec<String>>()
-                            .join(";"); // join with ; because we deleted all ; when calling split above
+                        if let (Ok(name), Ok(value)) = (decode_name, decode_value) {
+                            // Here we don't store the first ; into baggage since it should be treated
+                            // as separator rather part of metadata
+                            let decoded_props = props
+                                .iter()
+                                .flat_map(|prop| percent_decode_str(prop).decode_utf8())
+                                .map(|prop| prop.trim().to_string())
+                                .collect::<Vec<String>>()
+                                .join(";"); // join with ; because we deleted all ; when calling split above
 
-                        Ok(KeyValueMetadata::new(
-                            name.trim().to_owned(),
-                            value.trim().to_string(),
-                            decoded_props.as_str(),
-                        ))
+                            Some(KeyValueMetadata::new(
+                                name.trim().to_owned(),
+                                value.trim().to_string(),
+                                decoded_props.as_str(),
+                            ))
+                        } else {
+                            global::handle_error(PropagationError::extract(
+                                "invalid UTF8 string in key values",
+                                "BaggagePropagator",
+                            ));
+                            None
+                        }
                     } else {
-                        // Invalid name-value format
-                        Err(())
+                        global::handle_error(PropagationError::extract(
+                            "invalid baggage key-value format",
+                            "BaggagePropagator",
+                        ));
+                        None
                     }
                 } else {
-                    // Invalid baggage value format
-                    Err(())
+                    global::handle_error(PropagationError::extract(
+                        "invalid baggage format",
+                        "BaggagePropagator",
+                    ));
+                    None
                 }
             });
             cx.with_baggage(baggage)
@@ -172,7 +188,7 @@ mod tests {
              vec![
                  (Key::new("key1"), (Value::from("value1"), BaggageMetadata::from("property1;property2"))),
                  (Key::new("key2"), (Value::from("value2"), BaggageMetadata::default())),
-                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue")))
+                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
              ].into_iter().collect()),
         ]
     }
@@ -220,12 +236,12 @@ mod tests {
                 vec![
                     KeyValueMetadata::new("key1", "val1", "prop1"),
                     KeyValue::new("key2", "val2").into(),
-                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue")
+                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue"),
                 ],
                 vec![
                     "key1=val1;prop1",
                     "key2=val2",
-                    "key3=val3;anykey=anyvalue"
+                    "key3=val3;anykey=anyvalue",
                 ],
             )
         ]
