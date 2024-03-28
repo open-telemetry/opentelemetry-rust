@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.11.0"
+version = "0.11.1"
 description = "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
