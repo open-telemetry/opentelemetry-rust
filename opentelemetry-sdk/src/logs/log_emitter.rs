@@ -156,7 +156,7 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
-        // invoke set_resource by invoking on all the processors
+        // invoke set_resource on all the processors
         for processor in &self.processors {
             processor.set_resource(&self.config.resource);
         }

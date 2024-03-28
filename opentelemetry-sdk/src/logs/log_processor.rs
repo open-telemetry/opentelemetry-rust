@@ -484,17 +484,48 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::{
+        export::logs::{LogData, LogExporter},
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder,
+            BatchConfig, BatchConfigBuilder, Config, LoggerProvider, SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
+        Resource,
     };
+    use async_trait::async_trait;
+    use opentelemetry::{logs::LogResult, KeyValue};
+    use std::sync::Arc;
     use std::time::Duration;
+
+    #[derive(Debug, Clone)]
+    struct MockLogExporter {
+        resource: Arc<Option<Resource>>,
+    }
+
+    #[async_trait]
+    impl LogExporter for MockLogExporter {
+        async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&mut self) {}
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let res = Arc::make_mut(&mut self.resource);
+            *res = Some(resource.clone());
+        }
+    }
+
+    // Implementation specific to the MockLogExporter, not part of the LogExporter trait
+    impl MockLogExporter {
+        fn get_resource(&self) -> Option<Resource> {
+            (*self.resource).clone()
+        }
+    }
 
     #[test]
     fn test_default_const_values() {
@@ -644,5 +675,46 @@ mod tests {
         assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
         assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
+    }
+
+    #[test]
+    fn test_set_resource_simple_processor() {
+        let exporter = MockLogExporter {
+            resource: Arc::new(Some(Resource::default())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let _ = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v3"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])))
+            .build();
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_set_resource_batch_processor() {
+        let exporter = MockLogExporter {
+            resource: Arc::new(Some(Resource::default())),
+        };
+        let processor = BatchLogProcessor::new(
+            Box::new(exporter.clone()),
+            BatchConfig::default(),
+            runtime::Tokio,
+        );
+        let mut provider = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v3"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])))
+            .build();
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        provider.shutdown();
     }
 }
