@@ -54,7 +54,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 
     /// Set the resource for the log processor.
-    fn set_resource(&self, resource: &Resource);
+    fn set_resource(&self, _resource: &Resource) {}
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
