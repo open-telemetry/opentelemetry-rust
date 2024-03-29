@@ -1,4 +1,4 @@
-//! run with `$ cargo run --example basic --all-features
+//! run with `$ cargo run --example basic-stdout --all-features
 
 #[cfg(all(feature = "metrics", feature = "trace"))]
 use opentelemetry::{

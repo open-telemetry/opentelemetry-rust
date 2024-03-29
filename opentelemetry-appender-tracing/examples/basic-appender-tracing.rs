@@ -1,4 +1,4 @@
-//! run with `$ cargo run --example basic
+//! run with `$ cargo run --example basic-appender-tracing
 
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
