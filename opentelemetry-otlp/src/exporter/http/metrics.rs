@@ -60,7 +60,6 @@ fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> 
 
     match default_protocol() {
         #[cfg(feature = "http-json")]
-        #[cfg(feature = "http-json")]
         Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
             Ok(json) => Ok((json.into(), "application/json")),
             Err(e) => Err(MetricsError::Other(e.to_string())),
