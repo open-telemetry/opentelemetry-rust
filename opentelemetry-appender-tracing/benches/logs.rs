@@ -2,119 +2,100 @@ use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LogResult;
 use opentelemetry::KeyValue;
-use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::export::logs::LogData;
-use opentelemetry_sdk::{
-    logs::{Config, LoggerProvider},
-    Resource,
-};
+use opentelemetry_appender_tracing::layer as tracing_layer;
+use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry_sdk::logs::{Config, LogProcessor, LoggerProvider};
+use opentelemetry_sdk::Resource;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Registry;
 
 #[derive(Debug, Clone)]
-struct VoidExporter {
-    is_enabled: bool,
+struct NoopExporter {
+    enabled: bool,
 }
 
 #[async_trait]
-impl opentelemetry_sdk::export::logs::LogExporter for VoidExporter {
-    async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+impl LogExporter for NoopExporter {
+    async fn export(&mut self, _: Vec<LogData>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
-    fn event_enabled(
-        &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
-    ) -> bool {
-        self.is_enabled
+    fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
+        self.enabled
     }
 }
 
-// disabled log processor
 #[derive(Debug)]
-struct VoidProcessor {
-    exporter: Box<dyn opentelemetry_sdk::export::logs::LogExporter>,
+struct NoopProcessor {
+    exporter: Box<dyn LogExporter>,
 }
 
-impl VoidProcessor {
-    fn new(exporter: Box<dyn opentelemetry_sdk::export::logs::LogExporter>) -> Self {
-        VoidProcessor { exporter: exporter }
+impl NoopProcessor {
+    fn new(exporter: Box<dyn LogExporter>) -> Self {
+        Self { exporter }
     }
 }
 
-impl opentelemetry_sdk::logs::LogProcessor for VoidProcessor {
-    fn emit(&self, _data: LogData) {
-        //  nop
+impl LogProcessor for NoopProcessor {
+    fn emit(&self, _: LogData) {
+        // no-op
     }
+
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
+
     fn shutdown(&mut self) -> LogResult<()> {
         Ok(())
     }
+
     fn event_enabled(
         &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
+        level: opentelemetry::logs::Severity,
+        target: &str,
+        name: &str,
     ) -> bool {
-        self.exporter.event_enabled(_level, _target, _name)
+        self.exporter.event_enabled(level, target, name)
     }
 }
 
-fn criterion_benchmark(c: &mut Criterion) {
-    let exporter1 = VoidExporter { is_enabled: false };
-    let processor1 = VoidProcessor::new(Box::new(exporter1));
-    let provider1: LoggerProvider = LoggerProvider::builder()
-        .with_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "log-appender-tracing-example",
-            )])),
-        )
-        .with_log_processor(processor1)
-        .build();
-
+fn benchmark_no_subscriber(c: &mut Criterion) {
     c.bench_function("log_no_subscriber", |b| {
         b.iter(|| {
             info!("my-event-name");
         });
     });
-    let layer1 = layer::OpenTelemetryTracingBridge::new(&provider1);
-    let subscriber1 = Registry::default().with(layer1);
-    tracing::subscriber::with_default(subscriber1, || {
-        c.bench_function("log_subscriber_log_level_disabled", |b| {
-            b.iter(|| {
-                info!("my-event-name");
-            });
-        });
-    });
-    drop(provider1);
+}
 
-    let exporter2 = VoidExporter { is_enabled: true };
-    let processor2 = VoidProcessor::new(Box::new(exporter2));
-    let provider2 = LoggerProvider::builder()
+fn benchmark_with_subscriber(c: &mut Criterion, enabled: bool, bench_name: &str) {
+    let exporter = NoopExporter { enabled };
+    let processor = NoopProcessor::new(Box::new(exporter));
+    let provider = LoggerProvider::builder()
         .with_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
                 "log-appender-tracing-example",
             )])),
         )
-        .with_log_processor(processor2)
+        .with_log_processor(processor)
         .build();
-    let layer2 = layer::OpenTelemetryTracingBridge::new(&provider2);
-    let subscriber2 = Registry::default().with(layer2);
-    tracing::subscriber::with_default(subscriber2, || {
-        c.bench_function("log_subscriber_log_level_enabled", |b| {
+    let tracing_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let subscriber = Registry::default().with(tracing_layer);
+
+    tracing::subscriber::with_default(subscriber, || {
+        c.bench_function(bench_name, |b| {
             b.iter(|| {
                 info!("my-event-name");
             });
         });
     });
-    drop(provider2);
+}
+
+fn criterion_benchmark(c: &mut Criterion) {
+    benchmark_no_subscriber(c);
+    benchmark_with_subscriber(c, false, "log_subscriber_disabled");
+    benchmark_with_subscriber(c, true, "log_subscriber_enabled");
 }
 
 criterion_group!(benches, criterion_benchmark);
