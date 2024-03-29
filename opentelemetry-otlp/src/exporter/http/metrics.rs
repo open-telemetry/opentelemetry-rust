@@ -58,24 +58,14 @@ fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> 
     let req: opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest =
         (&*metrics).into();
 
-    let buf;
-    let ctype;
     match default_protocol() {
         #[cfg(feature = "http-json")]
         #[cfg(feature = "http-json")]
         Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-            Ok(json) => {
-                buf = json.into();
-                ctype = "application/json";
-                Ok((buf, ctype))
-            }
+            Ok(json) => Ok((json.into(), "application/json")),
             Err(e) => Err(MetricsError::Other(e.to_string())),
         },
-        _ => {
-            buf = req.encode_to_vec();
-            ctype = "application/x-protobuf";
-            Ok((buf, ctype))
-        }
+        _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
     }
 }
 
