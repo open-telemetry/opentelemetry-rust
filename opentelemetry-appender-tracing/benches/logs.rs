@@ -1,3 +1,18 @@
+/*
+    The benchmark results:
+    criterion = "0.5.1"
+    OS: Ubuntu 22.04.2 LTS (5.10.102.1-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    RAM: 64.0 GB
+    | Test                        | Average time|
+    |-----------------------------|-------------|
+    | log_no_subscriber           | 313 ps      |
+    | noop_layer_disabled         | 12 ns       |
+    | noop_layer_enabled          | 25 ns       |
+    | ot_layer_disabled           | 19 ns       |
+    | ot_layer_enabled           | 561 ns       |
+*/
+
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LogResult;
