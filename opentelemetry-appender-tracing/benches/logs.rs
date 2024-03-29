@@ -6,8 +6,9 @@ use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::{Config, LogProcessor, LoggerProvider};
 use opentelemetry_sdk::Resource;
-use tracing::info;
+use tracing::error;
 use tracing_subscriber::prelude::*;
+use tracing_subscriber::Layer;
 use tracing_subscriber::Registry;
 
 #[derive(Debug, Clone)]
@@ -60,33 +61,92 @@ impl LogProcessor for NoopProcessor {
     }
 }
 
+struct NoOpLogLayer {
+    enabled: bool,
+}
+
+impl<S> Layer<S> for NoOpLogLayer
+where
+    S: tracing::Subscriber,
+{
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let mut visitor = NoopEventVisitor;
+        event.record(&mut visitor);
+    }
+
+    fn event_enabled(
+        &self,
+        _event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) -> bool {
+        self.enabled
+    }
+}
+
+struct NoopEventVisitor;
+
+impl tracing::field::Visit for NoopEventVisitor {
+    fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
+}
+
 fn benchmark_no_subscriber(c: &mut Criterion) {
     c.bench_function("log_no_subscriber", |b| {
         b.iter(|| {
-            info!("my-event-name");
+            error!(
+                name = "CheckoutFailed",
+                book_id = "12345",
+                book_title = "Rust Programming Adventures",
+                "Unable to process checkout."
+            );
         });
     });
 }
 
-fn benchmark_with_subscriber(c: &mut Criterion, enabled: bool, bench_name: &str) {
+fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(Box::new(exporter));
     let provider = LoggerProvider::builder()
         .with_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 "service.name",
-                "log-appender-tracing-example",
+                "benchmark",
             )])),
         )
         .with_log_processor(processor)
         .build();
-    let tracing_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
-    let subscriber = Registry::default().with(tracing_layer);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
         c.bench_function(bench_name, |b| {
             b.iter(|| {
-                info!("my-event-name");
+                error!(
+                    name = "CheckoutFailed",
+                    book_id = "12345",
+                    book_title = "Rust Programming Adventures",
+                    "Unable to process checkout."
+                );
+            });
+        });
+    });
+}
+
+fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
+    let subscriber = Registry::default().with(NoOpLogLayer { enabled });
+
+    tracing::subscriber::with_default(subscriber, || {
+        c.bench_function(bench_name, |b| {
+            b.iter(|| {
+                error!(
+                    name = "CheckoutFailed",
+                    book_id = "12345",
+                    book_title = "Rust Programming Adventures",
+                    "Unable to process checkout."
+                );
             });
         });
     });
@@ -94,8 +154,10 @@ fn benchmark_with_subscriber(c: &mut Criterion, enabled: bool, bench_name: &str)
 
 fn criterion_benchmark(c: &mut Criterion) {
     benchmark_no_subscriber(c);
-    benchmark_with_subscriber(c, false, "log_subscriber_disabled");
-    benchmark_with_subscriber(c, true, "log_subscriber_enabled");
+    benchmark_with_ot_layer(c, true, "ot_layer_enabled");
+    benchmark_with_ot_layer(c, false, "ot_layer_disabled");
+    benchmark_with_noop_layer(c, true, "noop_layer_enabled");
+    benchmark_with_noop_layer(c, false, "noop_layer_disabled");
 }
 
 criterion_group!(benches, criterion_benchmark);
