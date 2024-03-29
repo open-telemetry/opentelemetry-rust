@@ -365,9 +365,5 @@ mod tests {
         fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
             true
         }
-
-        fn set_resource(&self, _resource: &crate::Resource) {
-            // nothing to do.
-        }
     }
 }

@@ -20,8 +20,6 @@ impl LogExporter for VoidExporter {
     async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
         LogResult::Ok(())
     }
-
-    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {}
 }
 
 fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) {
