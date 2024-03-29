@@ -5,6 +5,7 @@ use std::sync::RwLock;
 use crate::logs::LogError;
 #[cfg(feature = "metrics")]
 use crate::metrics::MetricsError;
+use crate::propagation::PropagationError;
 #[cfg(feature = "trace")]
 use crate::trace::TraceError;
 use once_cell::sync::Lazy;
@@ -31,6 +32,10 @@ pub enum Error {
     #[error(transparent)]
     /// Failed to export logs.
     Log(#[from] LogError),
+
+    #[error(transparent)]
+    /// Error happens when injecting and extracting information using propagators.
+    Propagation(#[from] PropagationError),
 
     #[error("{0}")]
     /// Other types of failures not covered by the variants above.
@@ -61,6 +66,9 @@ pub fn handle_error<T: Into<Error>>(err: T) {
             #[cfg(feature = "logs")]
             #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
             Error::Log(err) => eprintln!("OpenTelemetry log error occurred. {}", err),
+            Error::Propagation(err) => {
+                eprintln!("OpenTelemetry propagation error occurred. {}", err)
+            }
             Error::Other(err_msg) => eprintln!("OpenTelemetry error occurred. {}", err_msg),
         },
     }
