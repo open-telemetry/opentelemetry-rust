@@ -279,6 +279,7 @@ mod tests {
             )]))
             .build();
         assert_resource(&custom_meter_provider, SERVICE_NAME, Some("test_service"));
+        assert_eq!(custom_meter_provider.pipes.0[0].resource.len(), 1);
 
         temp_env::with_var(
             "OTEL_RESOURCE_ATTRIBUTES",
@@ -346,6 +347,7 @@ mod tests {
             .build();
 
         assert_resource(&no_service_name, SERVICE_NAME, None);
+        assert_eq!(no_service_name.pipes.0[0].resource.len(), 0)
     }
 
     #[test]

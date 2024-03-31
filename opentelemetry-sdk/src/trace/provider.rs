@@ -328,6 +328,7 @@ mod tests {
             })
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
+        assert_eq!(custom_config_provider.config().resource.len(), 1);
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         temp_env::with_var(
@@ -395,5 +396,6 @@ mod tests {
             .build();
 
         assert_resource(&no_service_name, SERVICE_NAME, None);
+        assert_eq!(no_service_name.config().resource.len(), 0)
     }
 }
