@@ -13,6 +13,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
+use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -61,18 +62,25 @@ pub trait LogProcessor: Send + Sync + Debug {
 #[derive(Debug)]
 pub struct SimpleLogProcessor {
     exporter: Mutex<Box<dyn LogExporter>>,
+    is_shutdown: AtomicBool,
 }
 
 impl SimpleLogProcessor {
     pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
+            is_shutdown: AtomicBool::new(false),
         }
     }
 }
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, data: LogData) {
+        // noop after shutdown
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+
         let result = self
             .exporter
             .lock()
@@ -88,6 +96,8 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -461,7 +471,8 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::export::logs::LogData;
-    use crate::logs::LogProcessor;
+    use crate::logs::{LogProcessor, SimpleLogProcessor};
+    use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         logs::{
             log_processor::{
@@ -629,14 +640,20 @@ mod tests {
     async fn test_batch_shutdown() {
         // assert we will receive an error
         // setup
-        let exporter = InMemoryLogsExporter::default();
-        let processor =
-            BatchLogProcessor::new(Box::new(exporter), BatchConfig::default(), runtime::Tokio);
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
+        let processor = BatchLogProcessor::new(
+            Box::new(exporter.clone()),
+            BatchConfig::default(),
+            runtime::Tokio,
+        );
         processor.emit(LogData {
             record: Default::default(),
             resource: Default::default(),
             instrumentation: Default::default(),
         });
+        processor.force_flush().unwrap();
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
         processor.emit(LogData {
@@ -644,5 +661,35 @@ mod tests {
             resource: Default::default(),
             instrumentation: Default::default(),
         });
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+    }
+
+    #[test]
+    fn test_simple_shutdown() {
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        processor.emit(LogData {
+            record: Default::default(),
+            resource: Default::default(),
+            instrumentation: Default::default(),
+        });
+
+        processor.shutdown().unwrap();
+
+        let is_shutdown = processor
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed);
+        assert!(is_shutdown);
+
+        processor.emit(LogData {
+            record: Default::default(),
+            resource: Default::default(),
+            instrumentation: Default::default(),
+        });
+
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 }
