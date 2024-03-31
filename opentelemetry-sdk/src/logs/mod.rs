@@ -66,6 +66,7 @@ mod tests {
             .build();
         let instrumentation_library = logger.instrumentation_library();
         let attributes = &instrumentation_library.attributes;
+        assert_eq!(instrumentation_library.name, "test_logger");
         assert_eq!(
             instrumentation_library.schema_url,
             Some("https://opentelemetry.io/schema/1.0.0".into())

@@ -354,6 +354,7 @@ mod tests {
         );
         let instrumentation_library = tracer.instrumentation_library();
         let attributes = &instrumentation_library.attributes;
+        assert_eq!(instrumentation_library.name, "test_tracer");
         assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
         assert_eq!(
             instrumentation_library.schema_url,
