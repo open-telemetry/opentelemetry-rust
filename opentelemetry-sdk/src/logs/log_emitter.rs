@@ -333,6 +333,7 @@ mod tests {
                     .with_config(Config {
                         resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
                             KeyValue::new("my-custom-key", "my-custom-value"),
+                            KeyValue::new("my-custom-key2", "my-custom-value2"),
                         ]))),
                     })
                     .build();
@@ -348,6 +349,11 @@ mod tests {
                 );
                 assert_resource(
                     &user_provided_resource_config_provider,
+                    "my-custom-key2",
+                    Some("my-custom-value2"),
+                );
+                assert_resource(
+                    &user_provided_resource_config_provider,
                     "k2",
                     Some("value2"),
                 );
@@ -357,7 +363,7 @@ mod tests {
                         .config()
                         .resource
                         .len(),
-                    6
+                    7
                 );
             },
         );
