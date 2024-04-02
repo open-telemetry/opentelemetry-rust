@@ -397,7 +397,6 @@ mod tests {
             })
             .build();
 
-        assert_resource(&no_service_name, SERVICE_NAME, None);
         assert_eq!(no_service_name.config().resource.len(), 0)
     }
 }

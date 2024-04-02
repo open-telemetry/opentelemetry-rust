@@ -349,7 +349,6 @@ mod tests {
             .with_resource(Resource::empty())
             .build();
 
-        assert_resource(&no_service_name, SERVICE_NAME, None);
         assert_eq!(no_service_name.pipes.0[0].resource.len(), 0)
     }
 
