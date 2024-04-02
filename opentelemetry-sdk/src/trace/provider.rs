@@ -309,13 +309,15 @@ mod tests {
         };
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
-        let default_config_provider = super::TracerProvider::builder().build();
-        assert_resource(
-            &default_config_provider,
-            SERVICE_NAME,
-            Some("unknown_service"),
-        );
-        assert_telemetry_resource(&default_config_provider);
+        temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
+            let default_config_provider = super::TracerProvider::builder().build();
+            assert_resource(
+                &default_config_provider,
+                SERVICE_NAME,
+                Some("unknown_service"),
+            );
+            assert_telemetry_resource(&default_config_provider);
+        });
 
         // If user provided a resource, use that.
         let custom_config_provider = super::TracerProvider::builder()

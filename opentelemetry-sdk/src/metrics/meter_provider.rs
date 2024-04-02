@@ -257,17 +257,20 @@ mod tests {
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
+
         // If users didn't provide a resource and there isn't a env var set. Use default one.
-        let reader = TestMetricReader::new();
-        let default_meter_provider = super::SdkMeterProvider::builder()
-            .with_reader(reader)
-            .build();
-        assert_resource(
-            &default_meter_provider,
-            SERVICE_NAME,
-            Some("unknown_service"),
-        );
-        assert_telemetry_resource(&default_meter_provider);
+        temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
+            let reader = TestMetricReader::new();
+            let default_meter_provider = super::SdkMeterProvider::builder()
+                .with_reader(reader)
+                .build();
+            assert_resource(
+                &default_meter_provider,
+                SERVICE_NAME,
+                Some("unknown_service"),
+            );
+            assert_telemetry_resource(&default_meter_provider);
+        });
 
         // If user provided a resource, use that.
         let reader2 = TestMetricReader::new();
