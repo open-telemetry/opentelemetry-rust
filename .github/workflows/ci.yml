@@ -24,11 +24,9 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@${{ matrix.rust }}
       with:
-        toolchain: ${{ matrix.rust }}
         components: rustfmt
-        profile: minimal
     - uses: arduino/setup-protoc@v3
     - name: Test
       run: ./scripts/test.sh
@@ -38,11 +36,9 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
         components: rustfmt
-        profile: minimal
     - uses: arduino/setup-protoc@v3
     - uses: actions-rs/cargo@v1
       with:
@@ -57,11 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly-2024-02-07
         with:
-          toolchain: nightly-2024-02-07
           components: rustfmt
-          override: true
       - name: external-type-check
         run: |
           cargo install cargo-check-external-types
@@ -76,11 +70,9 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
         components: rustfmt
-        profile: minimal
     - uses: arduino/setup-protoc@v3
     - name: Build
       run: |
@@ -92,10 +84,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@1.65.0
       with:
-        profile: minimal
-        toolchain: 1.65.0
         override: true
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: ./scripts/patch_dependencies.sh
@@ -117,11 +107,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
           components: rustfmt
-          override: true
       - uses: arduino/setup-protoc@v3
       - name: doc
         run: cargo doc --no-deps --all-features
@@ -136,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
