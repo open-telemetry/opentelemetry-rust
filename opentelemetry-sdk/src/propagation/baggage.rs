@@ -156,7 +156,7 @@ impl TextMapPropagator for BaggagePropagator {
 mod tests {
     use super::*;
     use opentelemetry::{
-        baggage::BaggageMetadata, propagation::TextMapPropagator, Key, KeyValue, StringValue, Value,
+        baggage::BaggageMetadata, Key, KeyValue, StringValue, Value,
     };
     use std::collections::HashMap;
 

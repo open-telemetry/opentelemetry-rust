@@ -4,7 +4,7 @@ use crate::{
 };
 use core::fmt;
 use std::sync::Arc;
-use std::{any::Any, convert::TryFrom};
+use std::any::Any;
 
 use super::{AsyncInstrument, AsyncInstrumentBuilder};
 

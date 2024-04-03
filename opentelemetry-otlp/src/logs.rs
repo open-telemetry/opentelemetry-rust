@@ -16,7 +16,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LoggerProvider},
 };
-use opentelemetry_sdk::{self, export::logs::LogData, runtime::RuntimeChannel};
+use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";

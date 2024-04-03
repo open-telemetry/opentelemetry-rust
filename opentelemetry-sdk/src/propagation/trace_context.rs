@@ -154,12 +154,7 @@ impl TextMapPropagator for TraceContextPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use opentelemetry::{
-        propagation::{Extractor, Injector, TextMapPropagator},
-        trace::{SpanContext, SpanId, TraceId},
-    };
     use std::collections::HashMap;
-    use std::str::FromStr;
 
     #[rustfmt::skip]
     fn extract_data() -> Vec<(&'static str, &'static str, SpanContext)> {

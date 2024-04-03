@@ -283,8 +283,8 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
     use crate::trace::{SpanEvents, SpanLinks};
-    use opentelemetry::trace::{self, Link, SpanBuilder, TraceFlags, TraceId, Tracer};
-    use opentelemetry::{trace::Span as _, trace::TracerProvider, KeyValue};
+    use opentelemetry::trace::{self, SpanBuilder, TraceFlags, TraceId, Tracer};
+    use opentelemetry::{trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
     use std::vec;
 
