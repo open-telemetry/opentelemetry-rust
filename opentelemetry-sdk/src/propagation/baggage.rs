@@ -155,9 +155,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::{
-        baggage::BaggageMetadata, Key, KeyValue, StringValue, Value,
-    };
+    use opentelemetry::{baggage::BaggageMetadata, Key, KeyValue, StringValue, Value};
     use std::collections::HashMap;
 
     #[rustfmt::skip]

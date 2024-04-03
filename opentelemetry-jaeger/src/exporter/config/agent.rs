@@ -4,9 +4,8 @@ use std::sync::Arc;
 use std::{env, net};
 
 use opentelemetry::trace::TraceError;
+use opentelemetry_sdk::trace::{BatchConfig, Config, TracerProvider};
 use opentelemetry_sdk::trace::{BatchSpanProcessor, Tracer};
-use opentelemetry_sdk::trace
-    ::{BatchConfig, Config, TracerProvider};
 
 use crate::exporter::agent::{AgentAsyncClientUdp, AgentSyncClientUdp};
 use crate::exporter::config::{

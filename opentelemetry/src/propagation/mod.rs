@@ -96,7 +96,7 @@ impl PropagationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn hash_map_get() {
         let mut carrier = HashMap::new();

@@ -3,8 +3,8 @@ use crate::{
     KeyValue,
 };
 use core::fmt;
-use std::sync::Arc;
 use std::any::Any;
+use std::sync::Arc;
 
 /// An SDK implemented instrument that records independent values
 pub trait SyncGauge<T> {
