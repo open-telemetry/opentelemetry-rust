@@ -1,7 +1,7 @@
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
-use tracing_subscriber::{prelude::*, Layer};
+use tracing_subscriber::prelude::*;
 
 mod throughput;
 
