@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly-2024-02-07
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
       - name: external-type-check
