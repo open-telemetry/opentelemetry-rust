@@ -88,8 +88,6 @@ jobs:
       with:
         submodules: true
     - uses: dtolnay/rust-toolchain@1.65.0
-      with:
-        override: true
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: ./scripts/patch_dependencies.sh
     - name: Run tests
@@ -131,7 +129,6 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
-          override: true
       - uses: arduino/setup-protoc@v3
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
