@@ -134,13 +134,13 @@ fn ensure_files_are_same(
                 File::create(&temp_before_file_path).expect("Failed to create temp file");
             writeln!(temp_file, "{}", before_content).expect("Failed to write to temp file");
 
-            // Use the diff command to compare the before and after files
-            let output = Command::new("diff")
-                .arg("-u") // Unified diff
+            // Use the sdiff command to compare the before and after files
+            let output = Command::new("sdiff")
+                .arg("-s") // Suppress common lines
                 .arg(temp_before_file_path)
                 .arg(temp_after_file_path)
                 .output()
-                .expect("Failed to execute diff");
+                .expect("Failed to execute sdiff");
 
             // Print the diff output
             println!("{}", String::from_utf8_lossy(&output.stdout));
