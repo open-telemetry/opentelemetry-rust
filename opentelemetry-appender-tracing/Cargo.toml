@@ -24,8 +24,16 @@ log = { workspace = true }
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testing"]  }
 tracing-log = "0.2"
+async-trait = "0.1"
+criterion = "0.5.1"
 
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
 logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
 default = ["logs_level_enabled"]
+
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs_level_enabled"]

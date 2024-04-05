@@ -674,7 +674,8 @@ mod tests {
         new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
     };
     use crate::trace::span_processor::{
-        OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+        OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
+        OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use async_trait::async_trait;
@@ -745,8 +746,20 @@ mod tests {
 
     #[test]
     fn test_default_batch_config_adheres_to_specification() {
-        let config = BatchConfig::default();
+        let env_vars = vec![
+            OTEL_BSP_SCHEDULE_DELAY,
+            OTEL_BSP_EXPORT_TIMEOUT,
+            OTEL_BSP_MAX_QUEUE_SIZE,
+            OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+            OTEL_BSP_MAX_CONCURRENT_EXPORTS,
+        ];
 
+        let config = temp_env::with_vars_unset(env_vars, BatchConfig::default);
+
+        assert_eq!(
+            config.max_concurrent_exports,
+            OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT
+        );
         assert_eq!(
             config.scheduled_delay,
             Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
