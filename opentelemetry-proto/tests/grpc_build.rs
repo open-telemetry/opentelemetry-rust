@@ -2,6 +2,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
 
+use std::fs::File;
+use std::io::Write;
+use std::process::Command;
+
 const TONIC_OUT_DIR: &str = "src/proto/tonic";
 const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
@@ -108,19 +112,56 @@ fn ensure_files_are_same(
     after_build: HashMap<String, String>,
     target_dir: &'static str,
 ) {
-    if after_build == before_build {
-        return;
+    let mut changes_detected = false;
+
+    for (file_name, after_content) in &after_build {
+        let before_content = before_build.get(file_name);
+
+        if before_content.is_none() || before_content.unwrap() != after_content {
+            changes_detected = true;
+            println!("File changed: {}", file_name);
+
+            // Temporarily write the after content to a file for diffing
+            let temp_after_file_path = format!("/tmp/{}_after", file_name);
+            let mut temp_file =
+                File::create(&temp_after_file_path).expect("Failed to create temp file");
+            writeln!(temp_file, "{}", after_content).expect("Failed to write to temp file");
+
+            let before_content = before_content.cloned().unwrap_or_else(String::new);
+            // Temporarily write the before content to a file for diffing
+            let temp_before_file_path = format!("/tmp/{}_before", file_name);
+            let mut temp_file =
+                File::create(&temp_before_file_path).expect("Failed to create temp file");
+            writeln!(temp_file, "{}", before_content).expect("Failed to write to temp file");
+
+            // Use the diff command to compare the before and after files
+            let output = Command::new("diff")
+                .arg("-u") // Unified diff
+                .arg(temp_before_file_path)
+                .arg(temp_after_file_path)
+                .output()
+                .expect("Failed to execute diff");
+
+            // Print the diff output
+            println!("{}", String::from_utf8_lossy(&output.stdout));
+        }
     }
 
-    if std::env::var("CI").is_ok() {
-        panic!("generated file has changed but it's a CI environment, please rerun this test locally and commit the changes");
-    }
+    if changes_detected {
+        if std::env::var("CI").is_ok() {
+            panic!("Generated files have changed in a CI environment. Please rerun this test locally and commit the changes.");
+        } else {
+            // If there is at least one change, we will just copy the whole directory over
+            for (file_name, content) in after_build {
+                std::fs::write(Path::new(target_dir).join(file_name), content)
+                    .expect("Cannot write to the proto generate file. If it's happening in CI env, please rerun the test locally and commit the change.");
+            }
 
-    // if there is at least one changes we will just copy the whole directory over
-    for (file_name, content) in after_build {
-        std::fs::write(Path::new(target_dir).join(file_name), content)
-            .expect("cannot write to the proto generate file. If it's happening in CI env, please return the test locally and commit the change");
+            panic!(
+                "Generated files have changed, please commit the changed files and rerun the test."
+            );
+        }
+    } else {
+        println!("No changes detected.");
     }
-
-    panic!("generated file has changed, please commit the change file and rerun the test");
 }
