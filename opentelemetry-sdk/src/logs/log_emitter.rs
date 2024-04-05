@@ -239,11 +239,143 @@ impl opentelemetry::logs::Logger for Logger {
 
 #[cfg(test)]
 mod tests {
+    use crate::resource::{
+        SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
+    };
+    use crate::Resource;
+
     use super::*;
     use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
     use opentelemetry::logs::Logger;
+    use opentelemetry::{Key, KeyValue, Value};
     use std::sync::{Arc, Mutex};
     use std::thread;
+
+    #[test]
+    fn test_logger_provider_default_resource() {
+        let assert_resource = |provider: &super::LoggerProvider,
+                               resource_key: &'static str,
+                               expect: Option<&'static str>| {
+            assert_eq!(
+                provider
+                    .config()
+                    .resource
+                    .get(Key::from_static_str(resource_key))
+                    .map(|v| v.to_string()),
+                expect.map(|s| s.to_string())
+            );
+        };
+        let assert_telemetry_resource = |provider: &super::LoggerProvider| {
+            assert_eq!(
+                provider
+                    .config()
+                    .resource
+                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                Some(Value::from("rust"))
+            );
+            assert_eq!(
+                provider.config().resource.get(TELEMETRY_SDK_NAME.into()),
+                Some(Value::from("opentelemetry"))
+            );
+            assert_eq!(
+                provider.config().resource.get(TELEMETRY_SDK_VERSION.into()),
+                Some(Value::from(env!("CARGO_PKG_VERSION")))
+            );
+        };
+
+        // If users didn't provide a resource and there isn't a env var set. Use default one.
+        temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
+            let default_config_provider = super::LoggerProvider::builder().build();
+            assert_resource(
+                &default_config_provider,
+                SERVICE_NAME,
+                Some("unknown_service"),
+            );
+            assert_telemetry_resource(&default_config_provider);
+        });
+
+        // If user provided a resource, use that.
+        let custom_config_provider = super::LoggerProvider::builder()
+            .with_config(Config {
+                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
+                    SERVICE_NAME,
+                    "test_service",
+                )])),
+            })
+            .build();
+        assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
+        assert_eq!(custom_config_provider.config().resource.len(), 1);
+
+        // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
+        temp_env::with_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            Some("key1=value1, k2, k3=value2"),
+            || {
+                let env_resource_provider = super::LoggerProvider::builder().build();
+                assert_resource(
+                    &env_resource_provider,
+                    SERVICE_NAME,
+                    Some("unknown_service"),
+                );
+                assert_resource(&env_resource_provider, "key1", Some("value1"));
+                assert_resource(&env_resource_provider, "k3", Some("value2"));
+                assert_telemetry_resource(&env_resource_provider);
+                assert_eq!(env_resource_provider.config().resource.len(), 6);
+            },
+        );
+
+        // When `OTEL_RESOURCE_ATTRIBUTES` is set and also user provided config
+        temp_env::with_var(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            Some("my-custom-key=env-val,k2=value2"),
+            || {
+                let user_provided_resource_config_provider = super::LoggerProvider::builder()
+                    .with_config(Config {
+                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
+                            KeyValue::new("my-custom-key", "my-custom-value"),
+                            KeyValue::new("my-custom-key2", "my-custom-value2"),
+                        ]))),
+                    })
+                    .build();
+                assert_resource(
+                    &user_provided_resource_config_provider,
+                    SERVICE_NAME,
+                    Some("unknown_service"),
+                );
+                assert_resource(
+                    &user_provided_resource_config_provider,
+                    "my-custom-key",
+                    Some("my-custom-value"),
+                );
+                assert_resource(
+                    &user_provided_resource_config_provider,
+                    "my-custom-key2",
+                    Some("my-custom-value2"),
+                );
+                assert_resource(
+                    &user_provided_resource_config_provider,
+                    "k2",
+                    Some("value2"),
+                );
+                assert_telemetry_resource(&user_provided_resource_config_provider);
+                assert_eq!(
+                    user_provided_resource_config_provider
+                        .config()
+                        .resource
+                        .len(),
+                    7
+                );
+            },
+        );
+
+        // If user provided a resource, it takes priority during collision.
+        let no_service_name = super::LoggerProvider::builder()
+            .with_config(Config {
+                resource: Cow::Owned(Resource::empty()),
+            })
+            .build();
+        assert_eq!(no_service_name.config().resource.len(), 0);
+    }
 
     #[test]
     fn shutdown_test() {
