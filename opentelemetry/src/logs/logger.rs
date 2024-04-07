@@ -150,7 +150,5 @@ impl<'a, T: LoggerProvider + ?Sized> LoggerBuilder<'a, T> {
     ///
     /// Note that `shutdown` doesn't mean `Drop`(though `Drop` can call `shutdown`).
     /// It simply means the provider will emit anything in the buffer(if applicable) and stop processing
-    fn shutdown(&self) -> Vec<LogResult<()>> {
-        Vec::new() // noop
-    }
+    fn shutdown(&self) -> Vec<LogResult<()>>;
 }

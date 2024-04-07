@@ -269,14 +269,63 @@ mod tests {
 
     use super::*;
     use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
-    use opentelemetry::logs::Logger;
-    use opentelemetry::{Key, KeyValue, Value};
     use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
     use std::sync::{Arc, Mutex};
     use std::thread;
 
+    struct ShutdownTestLogProcessor {
+        is_shutdown: Arc<Mutex<bool>>,
+        counter: Arc<AtomicU64>,
+    }
+
+    impl Debug for ShutdownTestLogProcessor {
+        fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+            todo!()
+        }
+    }
+
+    impl ShutdownTestLogProcessor {
+        pub(crate) fn new(counter: Arc<AtomicU64>) -> Self {
+            ShutdownTestLogProcessor {
+                is_shutdown: Arc::new(Mutex::new(false)),
+                counter,
+            }
+        }
+    }
+
+    impl LogProcessor for ShutdownTestLogProcessor {
+        fn emit(&self, _data: LogData) {
+            self.is_shutdown
+                .lock()
+                .map(|is_shutdown| {
+                    if !*is_shutdown {
+                        self.counter
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                })
+                .expect("lock poisoned");
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            self.is_shutdown
+                .lock()
+                .map(|mut is_shutdown| *is_shutdown = true)
+                .expect("lock poisoned");
+            Ok(())
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+    }
     #[test]
     fn test_logger_provider_default_resource() {
         let assert_resource = |provider: &super::LoggerProvider,
@@ -403,57 +452,6 @@ mod tests {
         assert_eq!(no_service_name.config().resource.len(), 0);
     }
 
-    struct ShutdownTestLogProcessor {
-        is_shutdown: Arc<Mutex<bool>>,
-        counter: Arc<AtomicU64>,
-    }
-
-    impl Debug for ShutdownTestLogProcessor {
-        fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-            todo!()
-        }
-    }
-
-    impl ShutdownTestLogProcessor {
-        pub(crate) fn new(counter: Arc<AtomicU64>) -> Self {
-            ShutdownTestLogProcessor {
-                is_shutdown: Arc::new(Mutex::new(false)),
-                counter,
-            }
-        }
-    }
-
-    impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: LogData) {
-            self.is_shutdown
-                .lock()
-                .map(|is_shutdown| {
-                    if !*is_shutdown {
-                        self.counter
-                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    }
-                })
-                .expect("lock poisoned");
-        }
-
-        fn force_flush(&self) -> LogResult<()> {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> LogResult<()> {
-            self.is_shutdown
-                .lock()
-                .map(|mut is_shutdown| *is_shutdown = true)
-                .expect("lock poisoned");
-            Ok(())
-        }
-
-        #[cfg(feature = "logs_level_enabled")]
-        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-            true
-        }
-    }
-
     #[test]
     fn shutdown_test() {
         let counter = Arc::new(AtomicU64::new(0));
@@ -524,36 +522,19 @@ mod tests {
             thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        // Intentionally *not* calling shutdown/flush on the provider, but
-        // instead relying on shutdown_logger_provider which causes the global
-        // provider to be dropped, leading to the sdk logger provider's drop to
-        // be called, which is expected to call shutdown on processors.
+        // shutdown logger provider explicitly call shutdown on the logger
         shutdown_logger_provider();
 
         // Assert
 
-        // shutdown_logger_provider is necessary but not sufficient, as loggers
-        // hold on to the the provider (via inner provider clones).
-        assert!(!*shutdown_called.lock().unwrap());
+        // shutdown_logger_provider should be shutdown regardless if the logger is dropped.
+        assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());
 
-        // Drop one of the logger. Not enough!
-        drop(logger1);
-        assert!(!*shutdown_called.lock().unwrap());
-
-        // drop logger2, which is the only remaining logger in this thread.
-        // Still not enough!
-        drop(logger2);
-        assert!(!*shutdown_called.lock().unwrap());
-
-        // now signal the spawned thread to end, which causes it to drop its
-        // logger. Since that is the last logger, the provider (inner provider)
-        // is finally dropped, triggering shutdown
         *signal_to_end.lock().unwrap() = true;
         handle.join().unwrap();
-        assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());

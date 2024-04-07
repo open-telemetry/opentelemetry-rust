@@ -98,6 +98,10 @@ impl LoggerProvider for GlobalLoggerProvider {
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         BoxedLogger(self.provider.boxed_logger(library))
     }
+
+    fn shutdown(&self) -> Vec<LogResult<()>> {
+        self.provider.shutdown()
+    }
 }
 
 static GLOBAL_LOGGER_PROVIDER: Lazy<RwLock<GlobalLoggerProvider>> =
