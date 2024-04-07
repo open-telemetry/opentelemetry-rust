@@ -576,8 +576,11 @@ impl InstrumentationLibraryBuilder {
     ///     .with_attributes(vec![KeyValue::new("k", "v")])
     ///     .build();
     /// ```
-    pub fn with_attributes(mut self, attributes: impl Into<Vec<KeyValue>>) -> Self {
-        self.attributes = Some(attributes.into());
+    pub fn with_attributes<I>(mut self, attributes: I) -> Self
+    where
+        I: IntoIterator<Item = KeyValue>,
+    {
+        self.attributes = Some(attributes.into_iter().collect());
         self
     }
 

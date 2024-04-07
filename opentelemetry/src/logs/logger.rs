@@ -133,7 +133,10 @@ impl<'a, T: LoggerProvider + ?Sized> LoggerBuilder<'a, T> {
         self
     }
 
-    pub fn with_attributes(mut self, attributes: impl Into<Vec<KeyValue>>) -> Self {
+    pub fn with_attributes<I>(mut self, attributes: I) -> Self
+    where
+        I: IntoIterator<Item = KeyValue>,
+    {
         self.library_builder = self.library_builder.with_attributes(attributes);
         self
     }
