@@ -80,6 +80,20 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         }
         Logger::new(library, self.clone())
     }
+
+    /// Shuts down this `LoggerProvider`
+    fn shutdown(&self) -> Vec<LogResult<()>> {
+        // mark itself as already shutdown
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        // propagate the shutdown signal to processors
+        // it's up to the processor to properly block new logs after shutdown
+        self.inner
+            .processors
+            .iter()
+            .map(|processor| processor.shutdown())
+            .collect()
+    }
 }
 
 impl LoggerProvider {
@@ -104,27 +118,6 @@ impl LoggerProvider {
             .iter()
             .map(|processor| processor.force_flush())
             .collect()
-    }
-
-    /// Shuts down this `LoggerProvider`, panicking on failure.
-    pub fn shutdown(&mut self) -> Vec<LogResult<()>> {
-        // mark itself as already shutdown
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        // propagate the shutdown signal to processors
-        // it's up to the processor to properly block new logs after shutdown
-        self.inner
-            .processors
-            .iter()
-            .map(|processor| processor.shutdown())
-            .collect()
-    }
-
-    /// Attempts to shutdown this `LoggerProvider`, succeeding only when
-    /// all cloned `LoggerProvider` values have been dropped.
-    // todo: remove this
-    pub fn try_shutdown(&mut self) -> Option<Vec<LogResult<()>>> {
-        Some(self.shutdown())
     }
 }
 
@@ -464,7 +457,7 @@ mod tests {
     #[test]
     fn shutdown_test() {
         let counter = Arc::new(AtomicU64::new(0));
-        let mut logger_provider = LoggerProvider::builder()
+        let logger_provider = LoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
             .build();
 
