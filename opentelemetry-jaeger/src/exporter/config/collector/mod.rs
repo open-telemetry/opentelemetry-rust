@@ -1,5 +1,4 @@
 use std::borrow::BorrowMut;
-use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
 #[cfg(feature = "collector_client")]
