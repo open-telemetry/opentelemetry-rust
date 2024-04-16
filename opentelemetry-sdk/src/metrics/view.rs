@@ -177,7 +177,6 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::Instrument;
     #[test]
     fn test_new_view_matching_all() {
         let criteria = Instrument::new().name("*");
