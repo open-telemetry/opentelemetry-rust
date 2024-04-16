@@ -248,7 +248,7 @@ mod tests {
     use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
     use opentelemetry::logs::Logger;
     use opentelemetry::{Key, KeyValue, Value};
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
     use std::thread;
 
     #[test]
