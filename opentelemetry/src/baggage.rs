@@ -18,7 +18,6 @@ use crate::{Context, Key, KeyValue, Value};
 use once_cell::sync::Lazy;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
-use std::iter::FromIterator;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 

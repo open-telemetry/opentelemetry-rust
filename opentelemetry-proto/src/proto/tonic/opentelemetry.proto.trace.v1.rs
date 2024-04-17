@@ -166,6 +166,13 @@ pub struct Span {
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
     #[prost(fixed64, tag = "7")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub start_time_unix_nano: u64,
     /// end_time_unix_nano is the end time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution ends. On the server side, this
@@ -174,6 +181,13 @@ pub struct Span {
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
     #[prost(fixed64, tag = "8")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub end_time_unix_nano: u64,
     /// attributes is a collection of key/value pairs. Note, global attributes
     /// like server name can be set using the resource API. Examples of attributes:
@@ -227,6 +241,13 @@ pub mod span {
     pub struct Event {
         /// time_unix_nano is the time the event occurred.
         #[prost(fixed64, tag = "1")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+            )
+        )]
         pub time_unix_nano: u64,
         /// name of the event.
         /// This field is semantically required to be set to non-empty string.
