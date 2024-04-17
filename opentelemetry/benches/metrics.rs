@@ -37,15 +37,15 @@ fn counter_add(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("Counter_AddWithStaticArray", |b| {
-        b.iter(|| {
-            let kv = [
+    let kv = [
                 KeyValue::new("attribute1", "value1"),
                 KeyValue::new("attribute2", "value2"),
                 KeyValue::new("attribute3", "value3"),
                 KeyValue::new("attribute4", "value4"),
             ];
 
+    c.bench_function("Counter_AddWithStaticArray", |b| {
+        b.iter(|| {
             counter.add(1, &kv);
         });
     });
