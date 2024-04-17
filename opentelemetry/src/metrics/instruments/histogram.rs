@@ -3,7 +3,6 @@ use crate::{
     KeyValue,
 };
 use core::fmt;
-use std::convert::TryFrom;
 use std::sync::Arc;
 
 /// An SDK implemented instrument that records a distribution of values.

@@ -73,6 +73,19 @@ fn build_tonic() {
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
     }
 
+    // special serializer and deserializer for timestamp
+    // OTLP/JSON format may uses string for timestamp
+    // the proto file uses u64 for timestamp
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        "trace.v1.Span.start_time_unix_nano",
+        "trace.v1.Span.end_time_unix_nano",
+        "trace.v1.Span.Event.time_unix_nano",
+    ] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
+    }
+
     // add custom serializer and deserializer for AnyValue
     builder = builder
         .field_attribute("common.v1.KeyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
