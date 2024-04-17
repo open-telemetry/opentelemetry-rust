@@ -70,7 +70,7 @@ fn build_tonic() {
         "trace.v1.Span.parent_span_id",
     ] {
         builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
     }
 
     // special serializer and deserializer for timestamp
