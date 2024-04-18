@@ -32,7 +32,7 @@ After:
 let logger = provider
     .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url(semcov::SCHEMA_URL)
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
