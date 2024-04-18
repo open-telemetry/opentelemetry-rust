@@ -44,7 +44,7 @@ Before:
 ```
 let tracer = provider.versioned_tracer(
     "my-tracer-name",
-    Some("X.Y.Z"),
+    Some(env!("CARGO_PKG_VERSION")),
     Some("https://opentelemetry.io/schema/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
@@ -56,7 +56,7 @@ After:
 let tracer = provider
     .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url(semcov::SCHEMA_URL)
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
