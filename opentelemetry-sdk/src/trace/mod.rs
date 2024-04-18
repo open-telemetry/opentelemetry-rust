@@ -181,16 +181,13 @@ mod tests {
 
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
-            links.push(Link::new(
-                SpanContext::new(
-                    TraceId::from_u128(12),
-                    SpanId::from_u64(12),
-                    TraceFlags::default(),
-                    false,
-                    Default::default(),
-                ),
-                Vec::new(),
-            ))
+            links.push(Link::with_context(SpanContext::new(
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            )))
         }
 
         let span_builder = SpanBuilder::from_name("span_name").with_links(links);
@@ -247,7 +244,7 @@ mod tests {
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOff))
+            .with_config(Config::default().with_sampler(Sampler::AlwaysOff))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -300,7 +297,7 @@ mod tests {
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(TestRecordOnlySampler::default()))
+            .with_config(Config::default().with_sampler(TestRecordOnlySampler::default()))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 

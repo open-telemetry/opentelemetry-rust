@@ -2,6 +2,12 @@
 
 ## vNext
 
+## v0.11.1
+
+- Add feature flag enabling users to configure `reqwest` usage to use rustls via
+  `reqwest/rustls-tls` feature flag
+  [1638](https://github.com/open-telemetry/opentelemetry-rust/pull/1638).
+
 ## v0.11.0
 
 ### Changed

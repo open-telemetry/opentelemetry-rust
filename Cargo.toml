@@ -1,31 +1,14 @@
 [workspace]
 members = [
     "opentelemetry",
-    "opentelemetry-http",
-    "opentelemetry-jaeger",
-    "opentelemetry-jaeger/examples/actix-udp",
-    "opentelemetry-jaeger/examples/remote-sampler",
-    "opentelemetry-jaeger-propagator",
-    "opentelemetry-appender-log",
-    "opentelemetry-appender-tracing",
-    "opentelemetry-otlp",
-    "opentelemetry-prometheus",
-    "opentelemetry-proto",
-    "opentelemetry-sdk",
-    "opentelemetry-semantic-conventions",
-    "opentelemetry-stdout",
-    "opentelemetry-zipkin",
-    "opentelemetry-otlp/examples/basic-otlp",
-    "opentelemetry-otlp/examples/basic-otlp-http",
-    "opentelemetry-otlp/tests/integration_test",
-    "examples/metrics-basic",
-    "examples/metrics-advanced",
-    "examples/logs-basic",
-    "examples/tracing-grpc",
-    "examples/tracing-http-propagator",
-    "examples/tracing-jaeger",
+    "opentelemetry-*",
+    "opentelemetry-*/examples/*",
+    "opentelemetry-otlp/tests/*",
+    "examples/*",
     "stress",
 ]
+# Any deleted crates with remaining README
+exclude = []
 resolver = "2"
 
 [profile.bench]

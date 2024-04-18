@@ -7,8 +7,12 @@
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
 - [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
   Fix metrics aggregation bug when using Views to drop attributes.
-- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider, which shuts down
-metricreaders, thereby allowing metrics still in memory to be flushed out.
+- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider,
+  which shuts down metricreaders, thereby allowing metrics still in memory to be flushed out.
+- **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
+  `ProcessResourceDetector` resource detectors, use the
+  [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
+- Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
 
 ## v0.22.1
 

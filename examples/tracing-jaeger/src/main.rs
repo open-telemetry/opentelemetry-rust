@@ -6,6 +6,8 @@ use opentelemetry::{
 };
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
+
 use std::error::Error;
 
 fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
@@ -18,7 +20,7 @@ fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
         )
         .with_trace_config(
             sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
+                SERVICE_NAME,
                 "tracing-jaeger",
             )])),
         )
