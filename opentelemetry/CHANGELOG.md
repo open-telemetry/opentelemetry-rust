@@ -30,7 +30,7 @@ After:
 
 ```
 let logger = provider
-    .logger_builder("my-tracername")
+    .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
     .with_schema_url(semcov::SCHEMA_URL)
     .with_attributes(vec![KeyValue::new("key", "value")])
