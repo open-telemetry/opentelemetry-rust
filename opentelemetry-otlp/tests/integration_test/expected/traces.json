@@ -23,8 +23,8 @@
               "parentSpanId": "d58cf2d702a061e0",
               "name": "Sub operation...",
               "kind": 1,
-              "startTimeUnixNano": 1703985537070566698,
-              "endTimeUnixNano": 1703985537070572718,
+              "startTimeUnixNano": "1703985537070566698",
+              "endTimeUnixNano": "1703985537070572718",
               "attributes": [
                 {
                   "key": "lemons",
@@ -35,7 +35,7 @@
               ],
               "events": [
                 {
-                  "timeUnixNano": 1703985537070567697,
+                  "timeUnixNano": "1703985537070567697",
                   "name": "Sub span event"
                 }
               ],
@@ -68,8 +68,8 @@
               "parentSpanId": "",
               "name": "operation",
               "kind": 1,
-              "startTimeUnixNano": 1703985537070558635,
-              "endTimeUnixNano": 1703985537070580454,
+              "startTimeUnixNano": "1703985537070558635",
+              "endTimeUnixNano": "1703985537070580454",
               "attributes": [
                 {
                   "key": "ex.com/another",
@@ -80,7 +80,7 @@
               ],
               "events": [
                 {
-                  "timeUnixNano": 1703985537070563326,
+                  "timeUnixNano": "1703985537070563326",
                   "name": "Nice operation!",
                   "attributes": [
                     {

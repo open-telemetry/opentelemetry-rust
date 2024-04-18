@@ -58,6 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
+          toolchain: nightly-2024-02-07
           components: rustfmt
       - name: external-type-check
         run: |
