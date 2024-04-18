@@ -20,7 +20,7 @@ Before:
 ```
 let logger = provider.versioned_logger(
     "my-logger-name",
-    Some("X.Y.Z"),
+    Some(env!("CARGO_PKG_VERSION")),
     Some("https://opentelemetry.io/schema/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
