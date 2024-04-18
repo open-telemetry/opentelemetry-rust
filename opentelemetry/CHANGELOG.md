@@ -54,7 +54,7 @@ After:
 
 ```
 let tracer = provider
-    .tracer_builder("my-tracername")
+    .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
     .with_schema_url(semcov::SCHEMA_URL)
     .with_attributes(vec![KeyValue::new("key", "value")])
