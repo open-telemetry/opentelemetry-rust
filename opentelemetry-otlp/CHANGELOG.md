@@ -9,6 +9,7 @@
 ### Added
 
 - Added `DeltaTemporalitySelector` ([#1568])
+- Add `webkpi-roots` features to `reqwest` and `tonic` backends
 
 [#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
 
