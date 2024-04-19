@@ -73,8 +73,8 @@ tls-webkpi-roots = ["tls", "tonic/tls-webpki-roots"]
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-reqwest-rustls-webkpi-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
+reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
+reqwest-rustls-webkpi-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webkpi-roots"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]
