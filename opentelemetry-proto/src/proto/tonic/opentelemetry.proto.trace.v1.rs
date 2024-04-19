@@ -125,20 +125,27 @@ pub struct Span {
         )
     )]
     pub parent_span_id: ::prost::alloc::vec::Vec<u8>,
-    /// Flags, a bit field. 8 least significant bits are the trace
-    /// flags as defined in W3C Trace Context specification. Readers
-    /// MUST not assume that 24 most significant bits will be zero.
-    /// To read the 8-bit W3C trace flag, use `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+    /// Flags, a bit field.
+    ///
+    /// Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace
+    /// Context specification. To read the 8-bit W3C trace flag, use
+    /// `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
+    ///
+    /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
+    ///
+    /// Bits 8 and 9 represent the 3 states of whether a span's parent
+    /// is remote. The states are (unknown, is not remote, is remote).
+    /// To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
+    /// To read whether the span is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
     ///
     /// When creating span messages, if the message is logically forwarded from another source
     /// with an equivalent flags fields (i.e., usually another OTLP span message), the field SHOULD
     /// be copied as-is. If creating from a source that does not have an equivalent flags field
-    /// (such as a runtime representation of an OpenTelemetry span), the high 24 bits MUST
+    /// (such as a runtime representation of an OpenTelemetry span), the high 22 bits MUST
     /// be set to zero.
+    /// Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
     ///
     /// \[Optional\].
-    ///
-    /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
     #[prost(fixed32, tag = "16")]
     pub flags: u32,
     /// A description of the span's operation.
@@ -297,14 +304,23 @@ pub mod span {
         /// then no attributes were dropped.
         #[prost(uint32, tag = "5")]
         pub dropped_attributes_count: u32,
-        /// Flags, a bit field. 8 least significant bits are the trace
-        /// flags as defined in W3C Trace Context specification. Readers
-        /// MUST not assume that 24 most significant bits will be zero.
-        /// When creating new spans, the most-significant 24-bits MUST be
-        /// zero.  To read the 8-bit W3C trace flag (use flags &
-        /// SPAN_FLAGS_TRACE_FLAGS_MASK).  \[Optional\].
+        /// Flags, a bit field.
+        ///
+        /// Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace
+        /// Context specification. To read the 8-bit W3C trace flag, use
+        /// `flags & SPAN_FLAGS_TRACE_FLAGS_MASK`.
         ///
         /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
+        ///
+        /// Bits 8 and 9 represent the 3 states of whether the link is remote.
+        /// The states are (unknown, is not remote, is remote).
+        /// To read whether the value is known, use `(flags & SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK) != 0`.
+        /// To read whether the link is remote, use `(flags & SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK) != 0`.
+        ///
+        /// Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
+        /// When creating new spans, bits 10-31 (most-significant 22-bits) MUST be zero.
+        ///
+        /// \[Optional\].
         #[prost(fixed32, tag = "6")]
         pub flags: u32,
     }
@@ -468,6 +484,11 @@ pub enum SpanFlags {
     DoNotUse = 0,
     /// Bits 0-7 are used for trace flags.
     TraceFlagsMask = 255,
+    /// Bits 8 and 9 are used to indicate that the parent span or link span is remote.
+    /// Bit 8 (`HAS_IS_REMOTE`) indicates whether the value is known.
+    /// Bit 9 (`IS_REMOTE`) indicates whether the span or link is remote.
+    ContextHasIsRemoteMask = 256,
+    ContextIsRemoteMask = 512,
 }
 impl SpanFlags {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -478,6 +499,8 @@ impl SpanFlags {
         match self {
             SpanFlags::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
             SpanFlags::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
+            SpanFlags::ContextHasIsRemoteMask => "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK",
+            SpanFlags::ContextIsRemoteMask => "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -485,6 +508,8 @@ impl SpanFlags {
         match value {
             "SPAN_FLAGS_DO_NOT_USE" => Some(Self::DoNotUse),
             "SPAN_FLAGS_TRACE_FLAGS_MASK" => Some(Self::TraceFlagsMask),
+            "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK" => Some(Self::ContextHasIsRemoteMask),
+            "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK" => Some(Self::ContextIsRemoteMask),
             _ => None,
         }
     }
