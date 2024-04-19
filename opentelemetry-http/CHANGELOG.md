@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Add `reqwest-rustls-webkpi-roots` feature flag to configure `reqwest` to use embedded `webkpi-roots`.
+- Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
 
 ## v0.11.1
 
