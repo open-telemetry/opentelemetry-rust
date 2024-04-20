@@ -1,16 +1,22 @@
+use super::{default_headers, default_protocol, parse_header_string};
 use crate::{
-    ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+    ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
     OTEL_EXPORTER_OTLP_TIMEOUT,
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::export::logs::LogData;
+#[cfg(feature = "trace")]
+use opentelemetry_sdk::export::trace::SpanData;
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::metrics::data::ResourceMetrics;
+use prost::Message;
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-use super::{default_headers, default_protocol, parse_header_string};
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -181,7 +187,13 @@ impl HttpExporterBuilder {
             add_header_from_string(&input, &mut headers);
         }
 
-        Ok(OtlpHttpClient::new(http_client, endpoint, headers, timeout))
+        Ok(OtlpHttpClient::new(
+            http_client,
+            endpoint,
+            headers,
+            self.exporter_config.protocol,
+            timeout,
+        ))
     }
 
     /// Create a log exporter with the current configuration
@@ -254,6 +266,7 @@ struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,
+    protocol: Protocol,
     _timeout: Duration,
 }
 
@@ -263,13 +276,74 @@ impl OtlpHttpClient {
         client: Arc<dyn HttpClient>,
         collector_endpoint: Uri,
         headers: HashMap<HeaderName, HeaderValue>,
+        protocol: Protocol,
         timeout: Duration,
     ) -> Self {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
             collector_endpoint,
             headers,
+            protocol,
             _timeout: timeout,
+        }
+    }
+
+    #[cfg(feature = "trace")]
+    fn build_trace_export_body(
+        &self,
+        spans: Vec<SpanData>,
+    ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
+        use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+
+        let req = ExportTraceServiceRequest {
+            resource_spans: spans.into_iter().map(Into::into).collect(),
+        };
+        match self.protocol {
+            #[cfg(feature = "http-json")]
+            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+                Ok(json) => Ok((json.into(), "application/json")),
+                Err(e) => Err(opentelemetry::trace::TraceError::from(e.to_string())),
+            },
+            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
+        }
+    }
+
+    #[cfg(feature = "logs")]
+    fn build_logs_export_body(
+        &self,
+        logs: Vec<LogData>,
+    ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
+        use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+
+        let req = ExportLogsServiceRequest {
+            resource_logs: logs.into_iter().map(Into::into).collect(),
+        };
+        match self.protocol {
+            #[cfg(feature = "http-json")]
+            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+                Ok(json) => Ok((json.into(), "application/json")),
+                Err(e) => Err(opentelemetry::logs::LogError::from(e.to_string())),
+            },
+            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    fn build_metrics_export_body(
+        &self,
+        metrics: &mut ResourceMetrics,
+    ) -> opentelemetry::metrics::Result<(Vec<u8>, &'static str)> {
+        use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
+
+        let req: ExportMetricsServiceRequest = (&*metrics).into();
+
+        match self.protocol {
+            #[cfg(feature = "http-json")]
+            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
+                Ok(json) => Ok((json.into(), "application/json")),
+                Err(e) => Err(opentelemetry::metrics::MetricsError::Other(e.to_string())),
+            },
+            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
     }
 }
