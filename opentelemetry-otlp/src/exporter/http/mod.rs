@@ -116,6 +116,12 @@ impl Default for HttpExporterBuilder {
 }
 
 impl HttpExporterBuilder {
+    /// Specify the OTLP protocol to be used by the exporter
+    pub fn with_protocol(mut self, protocol: Protocol) -> Self {
+        self.exporter_config.protocol = protocol;
+        self
+    }
+
     /// Assign client implementation
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.http_config.client = Some(Arc::new(client));
