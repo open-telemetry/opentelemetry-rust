@@ -69,7 +69,21 @@ pub(crate) mod serializers {
         Ok(Some(AnyValue { value }))
     }
 
+    pub fn serialize_u64_to_string<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = value.to_string();
+        serializer.serialize_str(&s)
+    }
 
+    pub fn deserialize_string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        s.parse::<u64>().map_err(de::Error::custom)
+    }
 }
 
 #[cfg(feature = "gen-tonic-messages")]

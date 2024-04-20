@@ -67,6 +67,17 @@ fn counter_add(c: &mut Criterion) {
             );
         });
     });
+
+    c.bench_function("Random_Generator_5", |b| {
+        b.iter(|| {
+            let mut rng = SmallRng::from_entropy();
+            let _i1 = rng.gen_range(0..4);
+            let _i2 = rng.gen_range(0..4);
+            let _i3 = rng.gen_range(0..10);
+            let _i4 = rng.gen_range(0..10);
+            let _i5 = rng.gen_range(0..10);
+        });
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
