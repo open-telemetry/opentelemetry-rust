@@ -68,6 +68,7 @@ grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"
 gzip-tonic = ["tonic/gzip"]
 tls = ["tonic/tls"]
 tls-roots = ["tls", "tonic/tls-roots"]
+tls-webkpi-roots = ["tls", "tonic/tls-webpki-roots"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
@@ -75,7 +76,8 @@ http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-mess
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
+reqwest-rustls-webkpi-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webkpi-roots"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]

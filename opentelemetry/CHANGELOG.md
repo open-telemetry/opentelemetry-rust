@@ -11,6 +11,56 @@
 
 - Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
 
+### Changed
+
+- Deprecate `versioned_logger()` in favor of `logger_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+
+Before:
+
+```
+let logger = provider.versioned_logger(
+    "my-logger-name",
+    Some(env!("CARGO_PKG_VERSION")),
+    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some(vec![KeyValue::new("key", "value")]),
+);
+```
+
+After:
+
+```
+let logger = provider
+    .logger_builder("my-logger-name")
+    .with_version(env!("CARGO_PKG_VERSION"))
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_attributes(vec![KeyValue::new("key", "value")])
+    .build();
+```
+
+- Deprecate `versioned_tracer()` in favor of `tracer_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+
+Before:
+
+```
+let tracer = provider.versioned_tracer(
+    "my-tracer-name",
+    Some(env!("CARGO_PKG_VERSION")),
+    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some(vec![KeyValue::new("key", "value")]),
+);
+```
+
+After:
+
+```
+let tracer = provider
+    .tracer_builder("my-tracer-name")
+    .with_version(env!("CARGO_PKG_VERSION"))
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_attributes(vec![KeyValue::new("key", "value")])
+    .build();
+```
+
 ## v0.22.0
 
 ### Added
