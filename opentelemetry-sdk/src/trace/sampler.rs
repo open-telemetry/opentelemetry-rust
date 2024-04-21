@@ -4,7 +4,6 @@ use opentelemetry::{
     },
     Context, KeyValue,
 };
-use std::convert::TryInto;
 
 #[cfg(feature = "jaeger_remote_sampler")]
 mod jaeger_remote;
@@ -250,8 +249,7 @@ pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> Samp
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use crate::trace::{Sampler, ShouldSample};
-    use opentelemetry::trace::{SamplingDecision, SpanContext, SpanId, TraceFlags, TraceState};
+    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags};
     use rand::Rng;
 
     #[rustfmt::skip]

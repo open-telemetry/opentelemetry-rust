@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.11.0"
+version = "0.11.1"
 description = "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -8,6 +8,10 @@ keywords = ["opentelemetry", "tracing", "context", "propagation"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
+
+[features]
+reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-rustls-webkpi-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 
 [dependencies]
 async-trait = { workspace = true }

@@ -192,11 +192,11 @@ For GitHub groups see the [code owners](CODEOWNERS) file.
 * [Cijo Thomas](https://github.com/cijothomas)
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
+* [Lalit Kumar Bhasin](https://github.com/lalitb)
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
 * [Shaun Cox](https://github.com/shaun-cox)
 
 ### Emeritus
