@@ -21,7 +21,6 @@ debug = 1
 async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
-env_logger = { version = "0.10", default-features = false } # env_logger requires a newer MSRV
 futures-core = "0.3"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false }

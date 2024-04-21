@@ -93,9 +93,9 @@ jobs:
       run: ./scripts/patch_dependencies.sh
     - name: Run tests
       run: cargo --version &&
-        cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
-        cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
-        cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
+        cargo check --lib --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
+        cargo check --lib --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
+        cargo check --lib --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
     runs-on: ubuntu-latest
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
