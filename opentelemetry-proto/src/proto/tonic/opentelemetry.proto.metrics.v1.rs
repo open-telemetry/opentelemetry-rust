@@ -168,6 +168,15 @@ pub struct Metric {
     /// described by <http://unitsofmeasure.org/ucum.html.>
     #[prost(string, tag = "3")]
     pub unit: ::prost::alloc::string::String,
+    /// Additional metadata attributes that describe the metric. \[Optional\].
+    /// Attributes are non-identifying.
+    /// Consumers SHOULD NOT need to be aware of these attributes.
+    /// These attributes MAY be used to encode information allowing
+    /// for lossless roundtrip translation to / from another data model.
+    /// Attribute keys MUST be unique (it is not allowed to have more than one
+    /// attribute with the same key).
+    #[prost(message, repeated, tag = "12")]
+    pub metadata: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// Data determines the aggregation type (if any) of the metric, what is the
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
