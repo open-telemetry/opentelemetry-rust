@@ -97,13 +97,15 @@
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
+//! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
 //!
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
-//! * `reqwest-rustls`: Use reqwest with TLS.
+//! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
+//! * `reqwest-rustls-webkpi-roots`: Use reqwest with TLS with Mozilla's trust roots via `webkpi-roots` crate.
 //!
 //! # Kitchen Sink Full Configuration
 //!
