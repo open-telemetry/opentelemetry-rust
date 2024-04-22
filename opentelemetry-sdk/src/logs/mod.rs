@@ -16,7 +16,7 @@ mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
     use opentelemetry::logs::{LogRecord, Logger, LoggerProvider as _, Severity};
-    use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry::{logs::AnyValue, Key, KeyValue};
 
     #[test]
     fn logging_sdk_test() {
@@ -54,5 +54,47 @@ mod tests {
             .clone()
             .expect("Attributes are expected");
         assert_eq!(attributes.len(), 2);
+    }
+
+    #[test]
+    fn logger_attributes() {
+        let provider = LoggerProvider::builder().build();
+        let logger = provider
+            .logger_builder("test_logger")
+            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
+            .build();
+        let instrumentation_library = logger.instrumentation_library();
+        let attributes = &instrumentation_library.attributes;
+        assert_eq!(instrumentation_library.name, "test_logger");
+        assert_eq!(
+            instrumentation_library.schema_url,
+            Some("https://opentelemetry.io/schema/1.0.0".into())
+        );
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key, "test_k".into());
+        assert_eq!(attributes[0].value, "test_v".into());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn versioned_logger_options() {
+        let provider = LoggerProvider::builder().build();
+        let logger = provider.versioned_logger(
+            "test_logger",
+            Some("v1.2.3".into()),
+            Some("https://opentelemetry.io/schema/1.0.0".into()),
+            Some(vec![(KeyValue::new("test_k", "test_v"))]),
+        );
+        let instrumentation_library = logger.instrumentation_library();
+        let attributes = &instrumentation_library.attributes;
+        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
+        assert_eq!(
+            instrumentation_library.schema_url,
+            Some("https://opentelemetry.io/schema/1.0.0".into())
+        );
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key, "test_k".into());
+        assert_eq!(attributes[0].value, "test_v".into());
     }
 }

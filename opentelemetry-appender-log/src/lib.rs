@@ -149,12 +149,10 @@ where
 {
     pub fn new(provider: &P) -> Self {
         OpenTelemetryLogBridge {
-            logger: provider.versioned_logger(
-                "opentelemetry-log-appender",
-                Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
-                None,
-                None,
-            ),
+            logger: provider
+                .logger_builder("opentelemetry-log-appender")
+                .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+                .build(),
             _phantom: Default::default(),
         }
     }
