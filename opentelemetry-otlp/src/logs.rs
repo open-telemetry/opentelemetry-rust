@@ -187,12 +187,10 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let logger = provider.versioned_logger(
-        Cow::Borrowed("opentelemetry-otlp"),
-        Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
-        None,
-        None,
-    );
+    let logger = provider
+        .logger_builder(Cow::Borrowed("opentelemetry-otlp"))
+        .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+        .build();
     let _ = global::set_logger_provider(provider);
     logger
 }
@@ -213,12 +211,10 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let logger = provider.versioned_logger(
-        Cow::Borrowed("opentelemetry-otlp"),
-        Some(Cow::Borrowed(env!("CARGO_PKG_VERSION"))),
-        None,
-        None,
-    );
+    let logger = provider
+        .logger_builder(Cow::Borrowed("opentelemetry-otlp"))
+        .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+        .build();
     let _ = global::set_logger_provider(provider);
     logger
 }

@@ -19,6 +19,11 @@ name = "traces"
 path = "src/traces.rs"
 doc = false
 
+[[bin]] # Bin to run the stress tests to show the cost of random number generation
+name = "random"
+path = "src/random.rs"
+doc = false
+
 [dependencies]
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
