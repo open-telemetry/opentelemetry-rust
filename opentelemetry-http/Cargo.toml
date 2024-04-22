@@ -17,7 +17,7 @@ reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 async-trait = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
-hyper = { workspace = true, features = ["http2", "client", "tcp"], optional = true }
+hyper = { workspace = true, features = ["http2", "client"], optional = true }
 opentelemetry = { version = "0.23", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }

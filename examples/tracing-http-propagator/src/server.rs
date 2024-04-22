@@ -1,39 +1,39 @@
-use hyper::{
-    service::{make_service_fn, service_fn},
-    Body, Request, Response, Server, StatusCode,
-};
+use http_body_util::{Either, Full};
+use hyper::{body::Incoming, service::service_fn, Request, Response, StatusCode};
+use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::{
     global,
     trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
 };
-use opentelemetry_http::HeaderExtractor;
+use opentelemetry_http::{Bytes, HeaderExtractor};
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::SpanExporter;
 use std::{convert::Infallible, net::SocketAddr};
+use tokio::net::TcpListener;
 
 // Utility function to extract the context from the incoming request headers
-fn extract_context_from_request(req: &Request<Body>) -> Context {
+fn extract_context_from_request(req: &Request<Incoming>) -> Context {
     global::get_text_map_propagator(|propagator| {
         propagator.extract(&HeaderExtractor(req.headers()))
     })
 }
 
 // Separate async function for the handle endpoint
-async fn handle_health_check(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_health_check(_req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
         .start(&tracer);
     span.add_event("Health check accessed", vec![]);
-    let res = Response::new(Body::from("Server is up and running!"));
+    let res = Response::new(Full::new(Bytes::from_static(b"Server is up and running!")));
     Ok(res)
 }
 
 // Separate async function for the echo endpoint
-async fn handle_echo(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_echo(req: Request<Incoming>) -> Result<Response<Incoming>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("echo")
@@ -44,7 +44,9 @@ async fn handle_echo(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     Ok(res)
 }
 
-async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn router(
+    req: Request<Incoming>,
+) -> Result<Response<Either<Full<Bytes>, Incoming>>, Infallible> {
     // Extract the context from the incoming request headers
     let parent_cx = extract_context_from_request(&req);
     let response = {
@@ -59,17 +61,24 @@ async fn router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
 
         let cx = Context::default().with_span(span);
         match (req.method(), req.uri().path()) {
-            (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
-            (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
+            (&hyper::Method::GET, "/health") => handle_health_check(req)
+                .with_context(cx)
+                .await
+                .map(|response| response.map(Either::Left)),
+            (&hyper::Method::GET, "/echo") => handle_echo(req)
+                .with_context(cx)
+                .await
+                .map(|response| response.map(Either::Right)),
             _ => {
                 cx.span()
                     .set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, 404));
-                let mut not_found = Response::default();
+                let mut not_found = Response::new(Either::Left(Full::default()));
                 *not_found.status_mut() = StatusCode::NOT_FOUND;
                 Ok(not_found)
             }
         }
     };
+
     response
 }
 
@@ -87,15 +96,18 @@ fn init_tracer() {
 
 #[tokio::main]
 async fn main() {
+    use hyper_util::server::conn::auto::Builder;
+
     init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let listener = TcpListener::bind(addr).await.unwrap();
 
-    let make_svc = make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(router)) });
-
-    let server = Server::bind(&addr).serve(make_svc);
-
-    println!("Listening on {addr}");
-    if let Err(e) = server.await {
-        eprintln!("server error: {e}");
+    while let Ok((stream, _addr)) = listener.accept().await {
+        if let Err(err) = Builder::new(TokioExecutor::new())
+            .serve_connection(TokioIo::new(stream), service_fn(router))
+            .await
+        {
+            eprintln!("{err}");
+        }
     }
 }
