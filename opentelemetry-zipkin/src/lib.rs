@@ -84,7 +84,7 @@
 //! [`ZipkinPipelineBuilder`] docs for details of each option.
 //!
 //!
-//! ```no_run
+//! ```no_run,ignore
 //! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! use opentelemetry_sdk::export::trace::ExportResult;

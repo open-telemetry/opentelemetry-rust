@@ -36,7 +36,7 @@ serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.18"
 http = { workspace = true }
-reqwest = { workspace = true, optional = true}
+reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
 futures-core = { workspace = true }
 
