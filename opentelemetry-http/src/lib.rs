@@ -105,9 +105,9 @@ pub mod hyper {
 
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
+    use http_body_util::BodyExt;
     use hyper::body::Body;
     use hyper_util::client::legacy::{connect::Connect, Client};
-    use http_body_util::BodyExt;
     use std::error::Error;
     use std::fmt::Debug;
     use std::time::Duration;
