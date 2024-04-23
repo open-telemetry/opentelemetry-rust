@@ -13,6 +13,7 @@
   `ProcessResourceDetector` resource detectors, use the
   [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
 - Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
+- Make `LoggerProvider`'s `shutdown` method taking immutable reference [#1643](https://github.com/open-telemetry/opentelemetry-rust/pull/1643)
 
 ## v0.22.1
 
