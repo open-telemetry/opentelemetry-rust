@@ -16,18 +16,16 @@ use opentelemetry::logs::Severity;
 use std::sync::atomic::AtomicBool;
 use std::{borrow::Cow, sync::Arc};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
-lazy_static! {
-    // a no nop logger provider used as placeholder when the provider is shutdown
-    static ref NOOP_LOGGER_PROVIDER: LoggerProvider = LoggerProvider {
-        inner: Arc::new(LoggerProviderInner {
-            processors: Vec::new(),
-            config: Config::default(),
-        }),
-        is_shutdown: Arc::new(AtomicBool::new(true)),
-    };
-}
+// a no nop logger provider used as placeholder when the provider is shutdown
+static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
+    inner: Arc::new(LoggerProviderInner {
+        processors: Vec::new(),
+        config: Config::default(),
+    }),
+    is_shutdown: Arc::new(AtomicBool::new(true)),
+});
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.

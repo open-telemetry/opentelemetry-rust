@@ -1,6 +1,9 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::{logs::{LogRecord, LogResult}, InstrumentationLibrary, InstrumentationLibraryBuilder, KeyValue};
+use crate::{
+    logs::{LogRecord, LogResult},
+    InstrumentationLibrary, InstrumentationLibraryBuilder, KeyValue,
+};
 
 #[cfg(feature = "logs_level_enabled")]
 use super::Severity;
@@ -114,6 +117,15 @@ pub trait LoggerProvider {
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
         self.logger_builder(name).build()
     }
+
+    /// Shuts down this `LoggerProvider`
+    /// After shutdown the logger provider cannot be used to create new loggers.
+    /// The implementation should propagate the shutdown signal down to ensure no new logs are emitted.
+    /// Shutdown the logger provider. Noop logger will be returned after shutdown.
+    ///
+    /// Note that `shutdown` doesn't mean `Drop`(though `Drop` can call `shutdown`).
+    /// It simply means the provider will emit anything in the buffer(if applicable) and stop processing
+    fn shutdown(&self) -> Vec<LogResult<()>>;
 }
 
 #[derive(Debug)]
@@ -145,10 +157,4 @@ impl<'a, T: LoggerProvider + ?Sized> LoggerBuilder<'a, T> {
         self.provider
             .library_logger(Arc::new(self.library_builder.build()))
     }
-
-    /// Shutdown the logger provider. Noop logger will be returned after shutdown.
-    ///
-    /// Note that `shutdown` doesn't mean `Drop`(though `Drop` can call `shutdown`).
-    /// It simply means the provider will emit anything in the buffer(if applicable) and stop processing
-    fn shutdown(&self) -> Vec<LogResult<()>>;
 }
