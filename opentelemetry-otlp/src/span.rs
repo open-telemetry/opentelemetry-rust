@@ -19,7 +19,7 @@ use sdk::runtime::RuntimeChannel;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::exporter::http::HttpExporterBuilder;
 
 use crate::{NoExporterConfig, OtlpPipeline};
@@ -185,7 +185,7 @@ pub enum SpanExporterBuilder {
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
     /// Http span exporter builder
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     Http(HttpExporterBuilder),
 }
 
@@ -195,7 +195,7 @@ impl SpanExporterBuilder {
         match self {
             #[cfg(feature = "grpc-tonic")]
             SpanExporterBuilder::Tonic(builder) => builder.build_span_exporter(),
-            #[cfg(feature = "http-proto")]
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
             SpanExporterBuilder::Http(builder) => builder.build_span_exporter(),
         }
     }
@@ -208,7 +208,7 @@ impl From<TonicExporterBuilder> for SpanExporterBuilder {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl From<HttpExporterBuilder> for SpanExporterBuilder {
     fn from(exporter: HttpExporterBuilder) -> Self {
         SpanExporterBuilder::Http(exporter)
