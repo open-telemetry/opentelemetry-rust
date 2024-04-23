@@ -16,7 +16,7 @@ A draft PR can be created, but before releasing consider the following:
 
 * Are there any pending pull requests which should be included in the next release?
   * Are they blockers?
-* Are there any unresolved issues which should be resolved before the next release?
+* Are there any unresolved issues which should be resolved before the next release? Check the release [blockers milestone](https://github.com/open-telemetry/opentelemetry-rust/milestones) for every release
 * Bring it up at a SIG meeting, this can usually get some of these questions answered sooner than later. It will also
   help establish a person to perform the release. Ideally this can be someone different each time to ensure that the
   process is documented.
