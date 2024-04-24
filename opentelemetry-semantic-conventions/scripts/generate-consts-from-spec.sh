@@ -36,7 +36,7 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only resource \
+  --only resource,attribute_group \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/resource.rs \
