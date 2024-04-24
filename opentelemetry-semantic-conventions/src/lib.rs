@@ -20,4 +20,4 @@ pub mod trace;
 
 /// The schema URL that matches the version of the semantic conventions that
 /// this crate defines.
-pub const SCHEMA_URL: &str = "https://opentelemetry.io/schemas/1.24.0";
+pub const SCHEMA_URL: &str = "https://opentelemetry.io/schemas/1.25.0";

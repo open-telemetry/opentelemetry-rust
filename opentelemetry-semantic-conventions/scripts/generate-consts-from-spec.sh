@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.24.0
-SEMCOVGEN_VERSION=0.23.0
+SPEC_VERSION=1.25.0
+SEMCOVGEN_VERSION=0.24.0
 
 cd "$CRATE_DIR"
 
@@ -36,7 +36,7 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only resource \
+  --only resource,attribute_group \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/resource.rs \
@@ -51,6 +51,6 @@ fi
 "${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
 
 # handle doc generation failures
-"${SED[@]}" 's/\[2\]\.$//' src/resource.rs # remove trailing [2] from few of the doc comments
+"${SED[@]}" 's/\[2\]\.$//' src/resource.rs src/trace.rs # remove trailing [2] from few of the doc comments
 
 cargo fmt
