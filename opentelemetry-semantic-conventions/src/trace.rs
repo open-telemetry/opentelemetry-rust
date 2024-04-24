@@ -657,14 +657,14 @@ pub const CODE_STACKTRACE: &str = "code.stacktrace";
 /// - `otelcontribcol`
 pub const CONTAINER_COMMAND: &str = "container.command";
 
-/// All the command arguments (including the command/executable itself) run by the container. [2].
+/// All the command arguments (including the command/executable itself) run by the container.
 ///
 /// # Examples
 ///
 /// - `otelcontribcol, --config, config.yaml`
 pub const CONTAINER_COMMAND_ARGS: &str = "container.command_args";
 
-/// The full command run by the container as a single string representing the full command. [2].
+/// The full command run by the container as a single string representing the full command.
 ///
 /// # Examples
 ///

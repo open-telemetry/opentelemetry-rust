@@ -51,6 +51,6 @@ fi
 "${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
 
 # handle doc generation failures
-"${SED[@]}" 's/\[2\]\.$//' src/resource.rs # remove trailing [2] from few of the doc comments
+"${SED[@]}" 's/\[2\]\.$//' src/resource.rs src/trace.rs # remove trailing [2] from few of the doc comments
 
 cargo fmt
