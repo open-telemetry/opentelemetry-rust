@@ -19,7 +19,7 @@ impl LogExporter for OtlpHttpClient {
                 _ => Err(LogError::Other("exporter is already shut down".into())),
             })?;
 
-        let (body, content_type) = build_body(batch)?;
+        let (body, content_type) = self.build_logs_export_body(batch)?;
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
@@ -50,25 +50,4 @@ impl LogExporter for OtlpHttpClient {
     fn shutdown(&mut self) {
         let _ = self.client.lock().map(|mut c| c.take());
     }
-}
-
-#[cfg(feature = "http-proto")]
-fn build_body(logs: Vec<LogData>) -> LogResult<(Vec<u8>, &'static str)> {
-    use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-    use prost::Message;
-
-    let req = ExportLogsServiceRequest {
-        resource_logs: logs.into_iter().map(Into::into).collect(),
-    };
-    let mut buf = vec![];
-    req.encode(&mut buf).map_err(crate::Error::from)?;
-
-    Ok((buf, "application/x-protobuf"))
-}
-
-#[cfg(not(feature = "http-proto"))]
-fn build_body(logs: Vec<LogData>) -> LogResult<(Vec<u8>, &'static str)> {
-    Err(LogsError::Other(
-        "No http protocol configured. Enable one via `http-proto`".into(),
-    ))
 }

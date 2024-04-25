@@ -2,7 +2,7 @@
 //!
 //! OTLP supports sending data via different protocols and formats.
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -28,18 +28,29 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
-#[cfg(feature = "http-proto")]
+#[cfg(feature = "http-json")]
+/// Default protocol, using http-json.
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
+#[cfg(all(
+    feature = "http-proto",
+    not(any(feature = "grpc-tonic", feature = "http-json"))
+))]
 /// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
-#[cfg(all(feature = "grpc-tonic", not(feature = "http-proto")))]
-/// Default protocol, using grpc as http-proto feature is not enabled.
+#[cfg(all(
+    feature = "grpc-tonic",
+    not(any(feature = "http-proto", feature = "http-json"))
+))]
+/// Default protocol, using grpc
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
-#[cfg(not(any(any(feature = "grpc-tonic", feature = "http-proto"))))]
+
+#[cfg(not(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")))]
 /// Default protocol if no features are enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
 
 const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
 const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
+const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
@@ -50,7 +61,7 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
@@ -112,6 +123,7 @@ fn default_protocol() -> Protocol {
     match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
         OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Protocol::HttpBinary,
         OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Protocol::Grpc,
+        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Protocol::HttpJson,
         _ => Protocol::HttpBinary,
     }
 }
@@ -121,11 +133,12 @@ fn default_endpoint(protocol: Protocol) -> String {
     match protocol {
         Protocol::Grpc => OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string(),
         Protocol::HttpBinary => OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT.to_string(),
+        Protocol::HttpJson => OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT.to_string(),
     }
 }
 
 /// default user-agent headers
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn default_headers() -> std::collections::HashMap<String, String> {
     let mut headers = std::collections::HashMap::new();
     headers.insert(
@@ -148,7 +161,7 @@ impl HasExportConfig for TonicExporterBuilder {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl HasExportConfig for HttpExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
         &mut self.exporter_config
@@ -210,7 +223,15 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 }
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, String)> {
+    value
+        .split_terminator(',')
+        .map(str::trim)
+        .filter_map(parse_header_key_value_string)
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn url_decode(value: &str) -> Option<String> {
     let mut result = String::with_capacity(value.len());
     let mut chars_to_decode = Vec::<u8>::new();
@@ -240,15 +261,7 @@ fn url_decode(value: &str) -> Option<String> {
     }
 }
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
-fn parse_header_string(value: &str) -> impl Iterator<Item = (&str, String)> {
-    value
-        .split_terminator(',')
-        .map(str::trim)
-        .filter_map(parse_header_key_value_string)
-}
-
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String)> {
     key_value_string
         .split_once('=')
@@ -262,9 +275,8 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 }
 
 #[cfg(test)]
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod tests {
-
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
@@ -280,7 +292,7 @@ mod tests {
         )
     }
 
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn test_default_http_endpoint() {
         let exporter_builder = crate::new_exporter().http();
@@ -300,6 +312,39 @@ mod tests {
             exporter_builder.exporter_config.endpoint,
             "http://localhost:4317"
         );
+    }
+
+    #[test]
+    fn test_default_protocol() {
+        #[cfg(all(
+            feature = "http-json",
+            not(any(feature = "grpc-tonic", feature = "http-proto"))
+        ))]
+        {
+            assert_eq!(
+                crate::exporter::default_protocol(),
+                crate::Protocol::HttpJson
+            );
+        }
+
+        #[cfg(all(
+            feature = "http-proto",
+            not(any(feature = "grpc-tonic", feature = "http-json"))
+        ))]
+        {
+            assert_eq!(
+                crate::exporter::default_protocol(),
+                crate::Protocol::HttpBinary
+            );
+        }
+
+        #[cfg(all(
+            feature = "grpc-tonic",
+            not(any(feature = "http-proto", feature = "http-json"))
+        ))]
+        {
+            assert_eq!(crate::exporter::default_protocol(), crate::Protocol::Grpc);
+        }
     }
 
     #[test]
