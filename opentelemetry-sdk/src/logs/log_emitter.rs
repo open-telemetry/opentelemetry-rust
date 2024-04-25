@@ -216,33 +216,17 @@ impl opentelemetry::logs::Logger for Logger {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
-        // Prioritize the scenario where there is likely to be only one processor.
-        if processors.len() == 1 {
-            // If there is exactly one processor, use the record directly.
-            if let Some(p) = processors.first() {
-                let mut record = record; // Move the record directly, avoiding clone.
-                if let Some(ref trace_context) = trace_context {
-                    record.trace_context = Some(trace_context.clone());
-                }
-                let data = LogData {
-                    record,
-                    instrumentation: self.instrumentation_library().clone(),
-                };
-                p.emit(data);
+
+        for p in processors {
+            let mut cloned_record = record.clone();
+            if let Some(ref trace_context) = trace_context {
+                cloned_record.trace_context = Some(trace_context.clone());
             }
-        } else {
-            // For multiple processors, clone the record for each.
-            for p in processors {
-                let mut cloned_record = record.clone();
-                if let Some(ref trace_context) = trace_context {
-                    cloned_record.trace_context = Some(trace_context.clone());
-                }
-                let data = LogData {
-                    record: cloned_record,
-                    instrumentation: self.instrumentation_library().clone(),
-                };
-                p.emit(data);
-            }
+            let data = LogData {
+                record: cloned_record,
+                instrumentation: self.instrumentation_library().clone(),
+            };
+            p.emit(data);
         }
     }
 
