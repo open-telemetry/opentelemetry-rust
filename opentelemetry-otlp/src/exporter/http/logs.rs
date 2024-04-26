@@ -19,7 +19,7 @@ impl LogExporter for OtlpHttpClient {
                 _ => Err(LogError::Other("exporter is already shut down".into())),
             })?;
 
-        let (body, content_type) = {self.build_logs_export_body(batch, &self.resource)?};
+        let (body, content_type) = { self.build_logs_export_body(batch, &self.resource)? };
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
