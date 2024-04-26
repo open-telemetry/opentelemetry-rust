@@ -6,7 +6,6 @@ use std::{
 
 use once_cell::sync::Lazy;
 
-use crate::logs::LogResult;
 use crate::{
     logs::{Logger, LoggerProvider, NoopLoggerProvider},
     InstrumentationLibrary,
@@ -26,9 +25,6 @@ pub trait ObjectSafeLoggerProvider {
         &self,
         library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn Logger + Send + Sync + 'static>;
-
-    /// shutdown the logger provider, logs emitted after this will not be processed.
-    fn shutdown(&self) -> Vec<LogResult<()>>;
 }
 
 impl<L, P> ObjectSafeLoggerProvider for P
@@ -41,10 +37,6 @@ where
         library: Arc<InstrumentationLibrary>,
     ) -> Box<dyn Logger + Send + Sync + 'static> {
         Box::new(self.library_logger(library))
-    }
-
-    fn shutdown(&self) -> Vec<LogResult<()>> {
-        self.shutdown()
     }
 }
 
@@ -98,10 +90,6 @@ impl LoggerProvider for GlobalLoggerProvider {
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         BoxedLogger(self.provider.boxed_logger(library))
     }
-
-    fn shutdown(&self) -> Vec<LogResult<()>> {
-        self.provider.shutdown()
-    }
 }
 
 static GLOBAL_LOGGER_PROVIDER: Lazy<RwLock<GlobalLoggerProvider>> =
@@ -144,6 +132,5 @@ where
 
 /// Shut down the current global [`LoggerProvider`].
 pub fn shutdown_logger_provider() {
-    let logger_provider = set_logger_provider(NoopLoggerProvider::new());
-    let _ = ObjectSafeLoggerProvider::shutdown(&logger_provider);
+    let _ = set_logger_provider(NoopLoggerProvider::new());
 }

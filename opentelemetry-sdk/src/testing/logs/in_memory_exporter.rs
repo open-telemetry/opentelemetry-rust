@@ -91,19 +91,20 @@ impl InMemoryLogsExporterBuilder {
         }
     }
 
-    /// If set, the records will not be [`InMemoryLogsExporter::reset`] on shutdown.
-    pub fn keep_records_on_shutdown(self) -> Self {
-        Self {
-            reset_on_shutdown: false,
-        }
-    }
-
     /// Creates a new instance of `InMemoryLogsExporter`.
     ///
     pub fn build(&self) -> InMemoryLogsExporter {
         InMemoryLogsExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
             should_reset_on_shutdown: self.reset_on_shutdown,
+        }
+    }
+
+    /// If set, the records will not be [`InMemoryLogsExporter::reset`] on shutdown.
+    #[cfg(test)]
+    pub(crate) fn keep_records_on_shutdown(self) -> Self {
+        Self {
+            reset_on_shutdown: false,
         }
     }
 }

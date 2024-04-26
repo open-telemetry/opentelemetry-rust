@@ -1,6 +1,5 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::logs::LogResult;
 use crate::{
     logs::{LogRecord, Logger, LoggerProvider},
     InstrumentationLibrary, KeyValue,
@@ -32,10 +31,6 @@ impl LoggerProvider for NoopLoggerProvider {
         _attributes: Option<Vec<KeyValue>>,
     ) -> Self::Logger {
         NoopLogger(())
-    }
-
-    fn shutdown(&self) -> Vec<LogResult<()>> {
-        vec![]
     }
 }
 
