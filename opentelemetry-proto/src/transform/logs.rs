@@ -129,7 +129,7 @@ pub mod tonic {
                     attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
                 }),
-                schema_url: resource.schema_url.clone().unwrap(),
+                schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
                     schema_url: log_data
                         .instrumentation
