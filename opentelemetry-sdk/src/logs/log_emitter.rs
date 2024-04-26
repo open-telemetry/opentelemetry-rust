@@ -520,19 +520,36 @@ mod tests {
             thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        // shutdown logger provider explicitly call shutdown on the logger
+        // Intentionally *not* calling shutdown/flush on the provider, but
+        // instead relying on shutdown_logger_provider which causes the global
+        // provider to be dropped, leading to the sdk logger provider's drop to
+        // be called, which is expected to call shutdown on processors.
         shutdown_logger_provider();
 
         // Assert
 
-        // shutdown_logger_provider should be shutdown regardless if the logger is dropped.
-        assert!(*shutdown_called.lock().unwrap());
+        // shutdown_logger_provider is necessary but not sufficient, as loggers
+        // hold on to the the provider (via inner provider clones).
+        assert!(!*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());
 
+        // Drop one of the logger. Not enough!
+        drop(logger1);
+        assert!(!*shutdown_called.lock().unwrap());
+
+        // drop logger2, which is the only remaining logger in this thread.
+        // Still not enough!
+        drop(logger2);
+        assert!(!*shutdown_called.lock().unwrap());
+
+        // now signal the spawned thread to end, which causes it to drop its
+        // logger. Since that is the last logger, the provider (inner provider)
+        // is finally dropped, triggering shutdown
         *signal_to_end.lock().unwrap() = true;
         handle.join().unwrap();
+        assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
         assert!(!*flush_called.lock().unwrap());
