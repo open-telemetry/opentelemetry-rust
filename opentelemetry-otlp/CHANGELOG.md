@@ -8,6 +8,10 @@
 
 ### Added
 
+- Aded `http/json` support for all signals ([#1585])
+
+[#1585]: https://github.com/open-telemetry/opentelemetry-rust/pull/1585
+
 - Added `DeltaTemporalitySelector` ([#1568])
 - Add `webkpi-roots` features to `reqwest` and `tonic` backends
 

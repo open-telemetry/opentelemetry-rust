@@ -21,7 +21,7 @@ impl MetricsClient for OtlpHttpClient {
                 _ => Err(MetricsError::Other("exporter is already shut down".into())),
             })?;
 
-        let (body, content_type) = build_body(metrics)?;
+        let (body, content_type) = self.build_metrics_export_body(metrics)?;
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
@@ -46,23 +46,4 @@ impl MetricsClient for OtlpHttpClient {
 
         Ok(())
     }
-}
-
-#[cfg(feature = "http-proto")]
-fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
-    use prost::Message;
-
-    let req: opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest =
-        (&*metrics).into();
-    let mut buf = vec![];
-    req.encode(&mut buf).map_err(crate::Error::from)?;
-
-    Ok((buf, "application/x-protobuf"))
-}
-
-#[cfg(not(feature = "http-proto"))]
-fn build_body(metrics: &mut ResourceMetrics) -> Result<(Vec<u8>, &'static str)> {
-    Err(MetricsError::Other(
-        "No http protocol configured. Enable one via `http-proto`".into(),
-    ))
 }
