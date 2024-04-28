@@ -6,6 +6,7 @@
 
 - [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add global::meter_provider_shutdown
 - [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640) Add `PropagationError`
+- [#1686](https://github.com/open-telemetry/opentelemetry-rust/pull/1686) Add a `derive` feature to allow deriving conversions into `Key`, `KeyValue`, `StringValue` and `Value`.
 
 ### Removed
 
