@@ -373,10 +373,13 @@ impl LogRecordBuilder {
     }
 
     /// Sets the `event_name` of a record.
-    pub fn with_name(self, name: Cow<'static, str>) -> Self {
+    pub fn with_name<T>(self, name: T) -> Self
+    where
+        T: Into<Cow<'static, str>>,
+    {
         Self {
             record: LogRecord {
-                event_name: Some(name),
+                event_name: Some(name.into()),
                 ..self.record
             },
         }
