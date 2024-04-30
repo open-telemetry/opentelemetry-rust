@@ -19,6 +19,7 @@
         - opentelemetry::global::logger_provider
         - opentelemetry::global::GlobalLoggerProvider
         - opentelemetry::global::ObjectSafeLoggerProvider 
+    For creating appenders using Logging bridge API, refer to the opentelemetry-tracing-appender [example](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/examples/basic.rs)
 
 ### Changed
 

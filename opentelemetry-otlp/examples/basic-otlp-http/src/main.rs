@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
 
-    let layer = OpenTelemetryTracingBridge::new(&logger_provider.clone());
+    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry().with(layer).init();
 
     tracer.in_span("operation", |cx| {

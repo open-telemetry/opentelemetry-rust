@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
-    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider.clone());
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
     log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
     log::set_max_level(Level::Info.to_level_filter());
 
