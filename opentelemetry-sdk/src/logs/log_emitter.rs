@@ -483,7 +483,7 @@ mod tests {
         let flush_called = Arc::new(Mutex::new(false));
         let signal_to_end = Arc::new(Mutex::new(false));
         let signal_to_thread_started = Arc::new(Mutex::new(false));
-        let mut logger_provider = LoggerProvider::builder()
+        let logger_provider = LoggerProvider::builder()
             .with_log_processor(LazyLogProcessor::new(
                 shutdown_called.clone(),
                 flush_called.clone(),
