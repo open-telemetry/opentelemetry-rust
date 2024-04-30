@@ -176,6 +176,10 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        // invoke set_resource on all the processors
+        for processor in &self.processors {
+            processor.set_resource(&self.config.resource);
+        }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
@@ -221,20 +225,19 @@ impl opentelemetry::logs::Logger for Logger {
     /// Emit a `LogRecord`.
     fn emit(&self, record: LogRecord) {
         let provider = self.provider();
-        let config = provider.config();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
+
         for p in processors {
-            let mut record = record.clone();
+            let mut cloned_record = record.clone();
             if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone())
+                cloned_record.trace_context = Some(trace_context.clone());
             }
             let data = LogData {
-                record,
-                resource: config.resource.clone(),
+                record: cloned_record,
                 instrumentation: self.instrumentation_library().clone(),
             };
             p.emit(data);
