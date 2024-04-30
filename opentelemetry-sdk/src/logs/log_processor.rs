@@ -495,8 +495,6 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::LogData;
-    use crate::logs::{LogProcessor, SimpleLogProcessor};
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         export::logs::{LogData, LogExporter},
@@ -505,7 +503,8 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, Config, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, Config, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
@@ -720,7 +719,7 @@ mod tests {
             BatchConfig::default(),
             runtime::Tokio,
         );
-        let mut provider = LoggerProvider::builder()
+        let provider = LoggerProvider::builder()
             .with_log_processor(processor)
             .with_config(Config::default().with_resource(Resource::new(vec![
                 KeyValue::new("k1", "v1"),
@@ -732,7 +731,7 @@ mod tests {
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
         provider.shutdown();
     }
-      
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_shutdown() {
         // assert we will receive an error
@@ -747,7 +746,6 @@ mod tests {
         );
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
         processor.force_flush().unwrap();
@@ -755,7 +753,6 @@ mod tests {
         // todo: expect to see errors here. How should we assert this?
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
@@ -770,7 +767,6 @@ mod tests {
 
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
 
@@ -783,7 +779,6 @@ mod tests {
 
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
 
