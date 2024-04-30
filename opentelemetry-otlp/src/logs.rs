@@ -180,9 +180,8 @@ fn build_simple_with_exporter(
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }
-    let provider = provider_builder.build();
-    // the logger would be created while creating logging appender.
-    provider
+    // logger would be created in the tracing appender
+    provider_builder.build()
 }
 
 fn build_batch_with_exporter<R: RuntimeChannel>(
@@ -200,7 +199,6 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     if let Some(config) = log_config {
         provider_builder = provider_builder.with_config(config);
     }
-    let provider = provider_builder.build();
-    // the logger would be created while creating logging appender.
-    provider
+    // logger would be created in the tracing appender
+    provider_builder.build()
 }
