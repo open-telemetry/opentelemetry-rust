@@ -252,7 +252,7 @@ mod tests {
     use crate::Resource;
 
     use super::*;
-    use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
+    use opentelemetry::logs::LoggerProvider as _;
     use opentelemetry::logs::Logger;
     use opentelemetry::{Key, KeyValue, Value};
     use std::sync::Mutex;
@@ -393,25 +393,26 @@ mod tests {
         let flush_called = Arc::new(Mutex::new(false));
         let signal_to_end = Arc::new(Mutex::new(false));
         let signal_to_thread_started = Arc::new(Mutex::new(false));
-        let logger_provider = LoggerProvider::builder()
+        let mut logger_provider = LoggerProvider::builder()
             .with_log_processor(LazyLogProcessor::new(
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))
             .build();
-        set_logger_provider(logger_provider);
+        //set_logger_provider(logger_provider);
+        let logger1 = logger_provider.logger("test-logger1");
+        let logger2 = logger_provider.logger("test-logger2");
 
-        // Act
-        let logger1 = logger("test-logger1");
-        let logger2 = logger("test-logger2");
+        // Acts
         logger1.emit(LogRecord::default());
         logger2.emit(LogRecord::default());
 
         let signal_to_end_clone = signal_to_end.clone();
         let signal_to_thread_started_clone = signal_to_thread_started.clone();
+        let logger_provider_cloned = logger_provider.clone();
 
         let handle = thread::spawn(move || {
-            let logger3 = logger("test-logger3");
+            let logger3 = logger_provider_cloned.logger("test-logger3");
             loop {
                 // signal the main thread that this thread has started.
                 *signal_to_thread_started_clone.lock().unwrap() = true;
@@ -434,7 +435,7 @@ mod tests {
         // instead relying on shutdown_logger_provider which causes the global
         // provider to be dropped, leading to the sdk logger provider's drop to
         // be called, which is expected to call shutdown on processors.
-        shutdown_logger_provider();
+        logger_provider.shutdown();
 
         // Assert
 
