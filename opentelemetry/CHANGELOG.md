@@ -10,6 +10,16 @@
 ### Removed
 
 - Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
+- Remove global providers for Logs [$1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691)
+    LoggerProviders are not meant for end users to get loggers from. It is only required for the log bridges.
+    Below global constructs for the logs are removed from API:
+        - opentelemetry::global::logger
+        - opentelemetry::global::set_logger_provider
+        - opentelemetry::global::shutdown_logger_provider
+        - opentelemetry::global::logger_provider
+        - opentelemetry::global::GlobalLoggerProvider
+        - opentelemetry::global::ObjectSafeLoggerProvider 
+    For creating appenders using Logging bridge API, refer to the opentelemetry-tracing-appender [example](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/examples/basic.rs)
 
 ### Changed
 
