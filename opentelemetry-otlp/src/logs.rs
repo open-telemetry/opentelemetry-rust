@@ -12,8 +12,7 @@ use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
 use std::fmt::Debug;
 
-use opentelemetry::
-    logs::LogError;
+use opentelemetry::logs::LogError;
 
 use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel};
 

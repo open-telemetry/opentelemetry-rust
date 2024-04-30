@@ -252,8 +252,8 @@ mod tests {
     use crate::Resource;
 
     use super::*;
-    use opentelemetry::logs::LoggerProvider as _;
     use opentelemetry::logs::Logger;
+    use opentelemetry::logs::LoggerProvider as _;
     use opentelemetry::{Key, KeyValue, Value};
     use std::sync::Mutex;
     use std::thread;
