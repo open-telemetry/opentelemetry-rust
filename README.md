@@ -25,11 +25,18 @@ observability tools.
 
 ## Project Status
 
-| Signal  | Status     |
-| ------- | ---------- |
-| Logs    | Alpha*     |
-| Metrics | Alpha      |
-| Traces  | Beta       |
+| Signal/Component      | Overall Status     |
+| --------------------  | ------------------ |
+| Logs-API              | Alpha*             |
+| Logs-SDK              | Alpha              |
+| Logs-OTLP Exporter    | Alpha              |
+| Logs-Appender-Tracing | Alpha              |
+| Metrics-API           | Alpha              |
+| Metrics-SDK           | Alpha              |
+| Metrics-OTLP Exporter | Alpha              |
+| Traces-API            | Beta               |
+| Traces-SDK            | Beta               |
+| Traces-OTLP Exporter  | Beta               |
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
