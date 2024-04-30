@@ -5,6 +5,8 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
+use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
+
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::export::logs::LogData;
 #[cfg(feature = "trace")]
@@ -274,6 +276,9 @@ struct OtlpHttpClient {
     headers: HashMap<HeaderName, HeaderValue>,
     protocol: Protocol,
     _timeout: Duration,
+    #[allow(dead_code)]
+    // <allow dead> would be removed once we support set_resource for metrics and traces.
+    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
@@ -291,6 +296,7 @@ impl OtlpHttpClient {
             headers,
             protocol,
             _timeout: timeout,
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 
@@ -318,12 +324,15 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: Vec<LogData>,
+        resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
     ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+        let resource_logs = logs
+            .into_iter()
+            .map(|log_event| (log_event, resource).into())
+            .collect::<Vec<_>>();
+        let req = ExportLogsServiceRequest { resource_logs };
 
-        let req = ExportLogsServiceRequest {
-            resource_logs: logs.into_iter().map(Into::into).collect(),
-        };
         match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {

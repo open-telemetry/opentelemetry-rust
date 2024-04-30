@@ -23,6 +23,23 @@ pub mod tonic {
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
+    #[derive(Debug, Default)]
+    pub struct ResourceAttributesWithSchema {
+        pub attributes: Attributes,
+        pub schema_url: Option<String>,
+    }
+
+    #[cfg(any(feature = "trace", feature = "logs"))]
+    impl From<&opentelemetry_sdk::Resource> for ResourceAttributesWithSchema {
+        fn from(resource: &opentelemetry_sdk::Resource) -> Self {
+            ResourceAttributesWithSchema {
+                attributes: resource_attributes(resource),
+                schema_url: resource.schema_url().map(ToString::to_string),
+            }
+        }
+    }
+
+    #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
     impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
@@ -52,7 +69,7 @@ pub mod tonic {
     }
 
     /// Wrapper type for Vec<`KeyValue`>
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
     impl From<Vec<opentelemetry::KeyValue>> for Attributes {

@@ -1,6 +1,7 @@
 use crate::{
     export::logs::{ExportResult, LogData, LogExporter},
     runtime::{RuntimeChannel, TrySend},
+    Resource,
 };
 use futures_channel::oneshot;
 use futures_util::{
@@ -18,6 +19,7 @@ use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -53,6 +55,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
+
+    /// Set the resource for the log processor.
+    fn set_resource(&self, _resource: &Resource) {}
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
@@ -105,6 +110,12 @@ impl LogProcessor for SimpleLogProcessor {
             Err(LogError::Other(
                 "simple logprocessor mutex poison during shutdown".into(),
             ))
+        }
+    }
+
+    fn set_resource(&self, resource: &Resource) {
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.set_resource(resource);
         }
     }
 
@@ -162,6 +173,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         futures_executor::block_on(res_receiver)
             .map_err(|err| LogError::Other(err.into()))
             .and_then(std::convert::identity)
+    }
+
+    fn set_resource(&self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
     }
 }
 
@@ -240,6 +258,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         }
 
                         break;
+                    }
+
+                    // propagate the resource
+                    BatchMessage::SetResource(resource) => {
+                        exporter.set_resource(&resource);
                     }
                 }
             }
@@ -462,6 +485,8 @@ enum BatchMessage {
     Flush(Option<oneshot::Sender<ExportResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
@@ -470,21 +495,51 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::LogData;
-    use crate::logs::{LogProcessor, SimpleLogProcessor};
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
+        export::logs::{LogData, LogExporter},
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder,
+            BatchConfig, BatchConfigBuilder, Config, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
+        Resource,
     };
+    use async_trait::async_trait;
+    use opentelemetry::{logs::LogResult, KeyValue};
+    use std::sync::Arc;
     use std::time::Duration;
+
+    #[derive(Debug, Clone)]
+    struct MockLogExporter {
+        resource: Arc<Option<Resource>>,
+    }
+
+    #[async_trait]
+    impl LogExporter for MockLogExporter {
+        async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&mut self) {}
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let res = Arc::make_mut(&mut self.resource);
+            *res = Some(resource.clone());
+        }
+    }
+
+    // Implementation specific to the MockLogExporter, not part of the LogExporter trait
+    impl MockLogExporter {
+        fn get_resource(&self) -> Option<Resource> {
+            (*self.resource).clone()
+        }
+    }
 
     #[test]
     fn test_default_const_values() {
@@ -636,6 +691,47 @@ mod tests {
         assert_eq!(actual.max_queue_size, 4);
     }
 
+    #[test]
+    fn test_set_resource_simple_processor() {
+        let exporter = MockLogExporter {
+            resource: Arc::new(Some(Resource::default())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let _ = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v3"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])))
+            .build();
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_set_resource_batch_processor() {
+        let exporter = MockLogExporter {
+            resource: Arc::new(Some(Resource::default())),
+        };
+        let processor = BatchLogProcessor::new(
+            Box::new(exporter.clone()),
+            BatchConfig::default(),
+            runtime::Tokio,
+        );
+        let provider = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v3"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])))
+            .build();
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        provider.shutdown();
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_shutdown() {
         // assert we will receive an error
@@ -650,7 +746,6 @@ mod tests {
         );
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
         processor.force_flush().unwrap();
@@ -658,7 +753,6 @@ mod tests {
         // todo: expect to see errors here. How should we assert this?
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
@@ -673,7 +767,6 @@ mod tests {
 
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
 
@@ -686,7 +779,6 @@ mod tests {
 
         processor.emit(LogData {
             record: Default::default(),
-            resource: Default::default(),
             instrumentation: Default::default(),
         });
 
