@@ -13,12 +13,25 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
+use std::sync::atomic::AtomicBool;
 use std::{borrow::Cow, sync::Arc};
+
+use once_cell::sync::Lazy;
+
+// a no nop logger provider used as placeholder when the provider is shutdown
+static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
+    inner: Arc::new(LoggerProviderInner {
+        processors: Vec::new(),
+        config: Config::default(),
+    }),
+    is_shutdown: Arc::new(AtomicBool::new(true)),
+});
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
+    is_shutdown: Arc<AtomicBool>,
 }
 
 /// Default logger name if empty string is provided.
@@ -59,6 +72,10 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        // If the provider is shutdown, new logger will refer a no-op logger provider.
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
+        }
         Logger::new(library, self.clone())
     }
 }
@@ -87,22 +104,18 @@ impl LoggerProvider {
             .collect()
     }
 
-    /// Shuts down this `LoggerProvider`, panicking on failure.
-    pub fn shutdown(&mut self) -> Vec<LogResult<()>> {
-        self.try_shutdown()
-            .expect("cannot shutdown LoggerProvider when child Loggers are still active")
-    }
-
-    /// Attempts to shutdown this `LoggerProvider`, succeeding only when
-    /// all cloned `LoggerProvider` values have been dropped.
-    pub fn try_shutdown(&mut self) -> Option<Vec<LogResult<()>>> {
-        Arc::get_mut(&mut self.inner).map(|inner| {
-            inner
-                .processors
-                .iter_mut()
-                .map(|processor| processor.shutdown())
-                .collect()
-        })
+    /// Shuts down this `LoggerProvider`
+    pub fn shutdown(&self) -> Vec<LogResult<()>> {
+        // mark itself as already shutdown
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        // propagate the shutdown signal to processors
+        // it's up to the processor to properly block new logs after shutdown
+        self.inner
+            .processors
+            .iter()
+            .map(|processor| processor.shutdown())
+            .collect()
     }
 }
 
@@ -172,6 +185,7 @@ impl Builder {
                 processors: self.processors,
                 config: self.config,
             }),
+            is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -256,11 +270,63 @@ mod tests {
 
     use super::*;
     use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
-    use opentelemetry::logs::Logger;
+    use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
-    use std::sync::Mutex;
+    use std::fmt::{Debug, Formatter};
+    use std::sync::atomic::AtomicU64;
+    use std::sync::{Arc, Mutex};
     use std::thread;
 
+    struct ShutdownTestLogProcessor {
+        is_shutdown: Arc<Mutex<bool>>,
+        counter: Arc<AtomicU64>,
+    }
+
+    impl Debug for ShutdownTestLogProcessor {
+        fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+            todo!()
+        }
+    }
+
+    impl ShutdownTestLogProcessor {
+        pub(crate) fn new(counter: Arc<AtomicU64>) -> Self {
+            ShutdownTestLogProcessor {
+                is_shutdown: Arc::new(Mutex::new(false)),
+                counter,
+            }
+        }
+    }
+
+    impl LogProcessor for ShutdownTestLogProcessor {
+        fn emit(&self, _data: LogData) {
+            self.is_shutdown
+                .lock()
+                .map(|is_shutdown| {
+                    if !*is_shutdown {
+                        self.counter
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                })
+                .expect("lock poisoned");
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            self.is_shutdown
+                .lock()
+                .map(|mut is_shutdown| *is_shutdown = true)
+                .expect("lock poisoned");
+            Ok(())
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+    }
     #[test]
     fn test_logger_provider_default_resource() {
         let assert_resource = |provider: &super::LoggerProvider,
@@ -389,6 +455,30 @@ mod tests {
 
     #[test]
     fn shutdown_test() {
+        let counter = Arc::new(AtomicU64::new(0));
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
+            .build();
+
+        let logger1 = logger_provider.logger("test-logger1");
+        let logger2 = logger_provider.logger("test-logger2");
+        logger1.emit(LogRecord::default());
+        logger2.emit(LogRecord::default());
+
+        let logger3 = logger_provider.logger("test-logger3");
+        let handle = thread::spawn(move || {
+            logger3.emit(LogRecord::default());
+        });
+        handle.join().expect("thread panicked");
+
+        let _ = logger_provider.shutdown();
+        logger1.emit(LogRecord::default());
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn global_shutdown_test() {
         // cargo test shutdown_test --features=logs
 
         // Arrange
@@ -496,7 +586,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> LogResult<()> {
+        fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }

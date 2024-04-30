@@ -29,6 +29,7 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+lazy_static = "1.4.0"
 
 [package.metadata.docs.rs]
 all-features = true

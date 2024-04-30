@@ -15,7 +15,7 @@ impl LogProcessor for NoOpLogProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> opentelemetry::logs::LogResult<()> {
+    fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
 

@@ -40,6 +40,7 @@ use std::sync::{Arc, Mutex};
 pub struct InMemoryLogsExporter {
     logs: Arc<Mutex<Vec<LogData>>>,
     resource: Arc<Mutex<Resource>>,
+    should_reset_on_shutdown: bool,
 }
 
 impl Default for InMemoryLogsExporter {
@@ -87,7 +88,9 @@ pub struct LogDataWithResource {
 /// ```
 ///
 #[derive(Debug, Clone)]
-pub struct InMemoryLogsExporterBuilder {}
+pub struct InMemoryLogsExporterBuilder {
+    reset_on_shutdown: bool,
+}
 
 impl Default for InMemoryLogsExporterBuilder {
     fn default() -> Self {
@@ -99,7 +102,9 @@ impl InMemoryLogsExporterBuilder {
     /// Creates a new instance of `InMemoryLogsExporter`.
     ///
     pub fn new() -> Self {
-        Self {}
+        Self {
+            reset_on_shutdown: true,
+        }
     }
 
     /// Creates a new instance of `InMemoryLogsExporter`.
@@ -108,6 +113,15 @@ impl InMemoryLogsExporterBuilder {
         InMemoryLogsExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
             resource: Arc::new(Mutex::new(Resource::default())),
+            should_reset_on_shutdown: self.reset_on_shutdown,
+        }
+    }
+
+    /// If set, the records will not be [`InMemoryLogsExporter::reset`] on shutdown.
+    #[cfg(test)]
+    pub(crate) fn keep_records_on_shutdown(self) -> Self {
+        Self {
+            reset_on_shutdown: false,
         }
     }
 }
@@ -167,7 +181,9 @@ impl LogExporter for InMemoryLogsExporter {
             .map_err(LogError::from)
     }
     fn shutdown(&mut self) {
-        self.reset();
+        if self.should_reset_on_shutdown {
+            self.reset();
+        }
     }
 
     fn set_resource(&mut self, resource: &Resource) {
