@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_metrics()?;
 
     // Initialize logs, which sets the global loggerprovider.
-    let mut logger_provider = init_logs().unwrap();
+    let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider.clone());

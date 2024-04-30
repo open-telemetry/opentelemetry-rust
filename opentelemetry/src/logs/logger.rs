@@ -63,7 +63,9 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::sdk::logs::LoggerProvider as SdkLoggerProvider;
+    /// use opentelemetry::InstrumentationLibrary;
+    /// use crate::opentelemetry::logs::LoggerProvider;
+    /// use opentelemetry_sdk::logs::LoggerProvider as SdkLoggerProvider;
     ///
     /// let provider = SdkLoggerProvider::builder().build();
     ///
@@ -88,7 +90,9 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::sdk::logs::LoggerProvider as SdkLoggerProvider;
+    /// use opentelemetry::InstrumentationLibrary;
+    /// use crate::opentelemetry::logs::LoggerProvider;
+    /// use opentelemetry_sdk::logs::LoggerProvider as SdkLoggerProvider;
     ///
     /// let provider = SdkLoggerProvider::builder().build();
     ///

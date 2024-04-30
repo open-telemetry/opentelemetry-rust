@@ -76,7 +76,7 @@ static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_tracer()?;
     let _ = init_metrics()?;
-    let mut logger_provider = init_logs().unwrap();
+    let logger_provider = init_logs().unwrap();
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
