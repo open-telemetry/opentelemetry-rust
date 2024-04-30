@@ -63,9 +63,9 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, logs::LoggerProvider};
+    /// use opentelemetry::sdk::logs::LoggerProvider as SdkLoggerProvider;
     ///
-    /// let provider = global::logger_provider();
+    /// let provider = SdkLoggerProvider::builder().build();
     ///
     /// // logger used in applications/binaries
     /// let logger = provider.logger_builder("my_app").build();
@@ -88,9 +88,9 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, InstrumentationLibrary, logs::LoggerProvider};
+    /// use opentelemetry::sdk::logs::LoggerProvider as SdkLoggerProvider;
     ///
-    /// let provider = global::logger_provider();
+    /// let provider = SdkLoggerProvider::builder().build();
     ///
     /// // logger used in applications/binaries
     /// let logger = provider.logger("my_app");
