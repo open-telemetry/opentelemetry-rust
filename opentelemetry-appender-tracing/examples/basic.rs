@@ -26,3 +26,4 @@ fn main() {
     error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
     drop(provider);
 }
+
