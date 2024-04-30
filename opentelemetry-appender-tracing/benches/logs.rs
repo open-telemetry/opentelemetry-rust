@@ -62,7 +62,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 

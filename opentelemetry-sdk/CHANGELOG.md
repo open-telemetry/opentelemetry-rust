@@ -13,6 +13,11 @@
   `ProcessResourceDetector` resource detectors, use the
   [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
 - Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
+- Improves `shutdown` behavior of `LoggerProvider` and `LogProcessor` [#1643](https://github.com/open-telemetry/opentelemetry-rust/pull/1643).
+  - `shutdown` can be called by any clone of the `LoggerProvider` without the need of waiting on all `Logger` drops. Thus, `try_shutdown` has been removed. 
+  - `shutdown` methods in `LoggerProvider` and `LogProcessor` now takes a immutable reference
+  - After `shutdown`, `LoggerProvider` will return noop `Logger`
+  - After `shutdown`, `LogProcessor` will not process any new logs
 
 ## v0.22.1
 
