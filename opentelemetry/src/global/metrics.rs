@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-/// The global `Meter` provider singleton.
+/// The global `MeterProvider` singleton.
 static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
     RwLock::new(GlobalMeterProvider::new(
         metrics::noop::NoopMeterProvider::new(),
@@ -19,7 +19,7 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
 pub trait ObjectSafeMeterProvider {
     /// Creates a versioned named meter instance that is a trait object through the underlying
     /// [MeterProvider].
-    fn versioned_meter_cow(
+    fn versioned_meter(
         &self,
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
@@ -33,7 +33,7 @@ where
     P: MeterProvider,
 {
     /// Return a versioned boxed tracer
-    fn versioned_meter_cow(
+    fn versioned_meter(
         &self,
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
@@ -65,7 +65,7 @@ impl MeterProvider for GlobalMeterProvider {
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        self.provider.versioned_meter_cow(
+        self.provider.versioned_meter(
             name.into(),
             version.map(Into::into),
             schema_url.map(Into::into),
@@ -111,7 +111,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::meter_provider().versioned_meter(name, None, None, None)`.
+/// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
 pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
     meter_provider().meter(name.into())
 }
