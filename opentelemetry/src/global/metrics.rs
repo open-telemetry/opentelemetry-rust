@@ -19,7 +19,7 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
 pub trait ObjectSafeMeterProvider {
     /// Creates a versioned named meter instance that is a trait object through the underlying
     /// [MeterProvider].
-    fn versioned_meter(
+    fn versioned_meter_cow(
         &self,
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
@@ -33,7 +33,7 @@ where
     P: MeterProvider,
 {
     /// Return a versioned boxed tracer
-    fn versioned_meter(
+    fn versioned_meter_cow(
         &self,
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
@@ -65,7 +65,7 @@ impl MeterProvider for GlobalMeterProvider {
         schema_url: Option<impl Into<Cow<'static, str>>>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        self.provider.versioned_meter(
+        self.provider.versioned_meter_cow(
             name.into(),
             version.map(Into::into),
             schema_url.map(Into::into),
