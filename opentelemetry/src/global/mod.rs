@@ -93,7 +93,7 @@
 //! use opentelemetry::{global, KeyValue};
 //!
 //! fn init_meter() {
-//!     // Swap this no-op provider with an actual metrics provider,
+//!     // Swap this no-op provider with an actual meter provider,
 //!     // exporting to stdout, otlp, prometheus, etc.
 //!     let provider = NoopMeterProvider::new();
 //!
