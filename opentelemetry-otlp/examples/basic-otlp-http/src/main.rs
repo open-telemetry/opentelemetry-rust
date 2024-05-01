@@ -15,7 +15,7 @@ use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 
-fn init_logs() -> Result<sdklogs::Logger, opentelemetry::logs::LogError> {
+fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError> {
     let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
@@ -76,13 +76,12 @@ static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_tracer()?;
     let _ = init_metrics()?;
-    let _ = init_logs();
+    // Opentelemetry will not provide a global API to manage the logger provider. Application users must manage the lifecycle of the logger provider on their own. Dropping logger providers will disable log emitting.
+    let logger_provider = init_logs().unwrap();
 
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
 
-    // configure the global logger to use our opentelemetry logger
-    let logger_provider = opentelemetry::global::logger_provider();
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry().with(layer).init();
 
@@ -108,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
 
     global::shutdown_tracer_provider();
-    global::shutdown_logger_provider();
+    logger_provider.shutdown();
     global::shutdown_meter_provider();
 
     Ok(())

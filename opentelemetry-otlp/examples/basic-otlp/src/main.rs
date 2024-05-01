@@ -54,7 +54,7 @@ fn init_metrics() -> Result<(), MetricsError> {
     }
 }
 
-fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
     let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
@@ -93,10 +93,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _ = init_metrics()?;
 
     // Initialize logs, which sets the global loggerprovider.
-    let _ = init_logs();
-
-    // Retrieve the global LoggerProvider.
-    let logger_provider = global::logger_provider();
+    let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
@@ -141,7 +138,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    global::shutdown_logger_provider();
+    logger_provider.shutdown();
     global::shutdown_meter_provider();
 
     Ok(())
