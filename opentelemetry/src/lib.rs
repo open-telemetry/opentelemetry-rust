@@ -95,6 +95,7 @@
 //! * `trace`: Includes the trace API (enabled by default).
 //! * `metrics`: Includes the metrics API.
 //! * `logs`: Includes the logs bridge API.
+//! * `derive`: Includes the derive macros to convert into common types.
 //!
 //! The following feature flags provides additional configuration for `logs`:
 //! * `logs_level_enabled`: Allow users to control the log level
@@ -240,6 +241,13 @@ pub mod trace;
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
+
+#[cfg(feature = "derive")]
+mod derive;
+
+#[cfg(feature = "derive")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
+pub use derive::*;
 
 #[doc(hidden)]
 #[cfg(any(feature = "metrics", feature = "trace"))]

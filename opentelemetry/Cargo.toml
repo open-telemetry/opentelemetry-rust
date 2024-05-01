@@ -24,6 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 futures-core = { workspace = true }
 futures-sink = "0.3"
 once_cell = { workspace = true }
+opentelemetry-derive = { version = "0.22", path = "../opentelemetry-derive", optional = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
@@ -37,6 +38,7 @@ metrics = []
 testing = ["trace", "metrics"]
 logs = []
 logs_level_enabled = ["logs"]
+derive = ["dep:opentelemetry-derive"]
 otel_unstable = []
 
 [dev-dependencies]
