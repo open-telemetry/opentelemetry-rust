@@ -762,14 +762,26 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use opentelemetry::metrics::{InstrumentProvider, MetricsError, Unit};
+    use opentelemetry::metrics::{InstrumentProvider, MeterProvider, MetricsError, Unit};
 
     use super::{
         InstrumentValidationPolicy, SdkMeter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
-    use crate::{metrics::pipeline::Pipelines, Resource, Scope};
+    use crate::{metrics::{pipeline::Pipelines, SdkMeterProvider}, Resource, Scope};
+
+    #[test]
+    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1699"]
+    fn test_instrument_creation() {
+        let provider = SdkMeterProvider::builder()
+        .build();
+        let meter = provider.meter("test");
+        assert!(meter.u64_counter("test").try_init().is_ok());
+        let result = meter.u64_counter("test with invalid name").try_init();
+        // this assert fails, as result is always ok variant.
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_instrument_config_validation() {
@@ -787,9 +799,9 @@ mod tests {
             ("a".repeat(255).leak(), ""),
             ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
             ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
-            // hyphens are now valid characters in the specification.
-            // https://github.com/open-telemetry/opentelemetry-specification/pull/3684
-            ("allow/hyphen", ""),
+            ("allow/slash", ""),
+            ("allow_under_score", ""),
+            ("allow.dots.ok", ""),
         ];
         for (name, expected_error) in instrument_name_test_cases {
             let assert = |result: Result<_, MetricsError>| {
@@ -865,6 +877,9 @@ mod tests {
             ),
             ("utf8char锈", INSTRUMENT_UNIT_INVALID_CHAR),
             ("kb", ""),
+            ("Kb/sec", ""),
+            ("%", ""),
+            ("", ""),
         ];
 
         for (unit, expected_error) in instrument_unit_test_cases {
