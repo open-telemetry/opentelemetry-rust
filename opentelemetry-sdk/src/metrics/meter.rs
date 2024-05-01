@@ -769,13 +769,15 @@ mod tests {
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
-    use crate::{metrics::{pipeline::Pipelines, SdkMeterProvider}, Resource, Scope};
+    use crate::{
+        metrics::{pipeline::Pipelines, SdkMeterProvider},
+        Resource, Scope,
+    };
 
     #[test]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1699"]
     fn test_instrument_creation() {
-        let provider = SdkMeterProvider::builder()
-        .build();
+        let provider = SdkMeterProvider::builder().build();
         let meter = provider.meter("test");
         assert!(meter.u64_counter("test").try_init().is_ok());
         let result = meter.u64_counter("test with invalid name").try_init();
