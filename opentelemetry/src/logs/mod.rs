@@ -10,9 +10,9 @@ mod logger;
 mod noop;
 mod record;
 
-pub use logger::{Logger, LoggerProvider};
+pub use logger::{Logger, LoggerProvider, LogRecordBuilder};
 pub use noop::NoopLoggerProvider;
-pub use record::{AnyValue, LogRecord, LogRecordBuilder, Severity, TraceContext};
+pub use record::{AnyValue, LogRecord, LogRecordBuilder, Severity};
 
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;

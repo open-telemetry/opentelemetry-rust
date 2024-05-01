@@ -34,6 +34,21 @@ impl LoggerProvider for NoopLoggerProvider {
     }
 }
 
+/// No-operation implementation of LogRecord.
+pub struct NoopLogRecord;
+
+impl LogRecord for NoopLogRecord {
+    // Implement the LogRecord trait methods with empty bodies.
+    fn set_timestamp(&mut self, _timestamp: SystemTime) {}
+    fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
+    fn set_span_context(&mut self, _context: &SpanContext) {}
+    fn set_severity_text(&mut self, _text: &str) {}
+    fn set_severity_number(&mut self, _number: Severity) {}
+    fn set_body(&mut self, _body: AnyValue) {}
+    fn set_attributes(&mut self, _attributes: Vec<(Key, AnyValue)>) {}
+}
+
+
 /// A no-op implementation of a [`Logger`]
 #[derive(Clone, Debug)]
 pub struct NoopLogger(());
