@@ -118,7 +118,7 @@
 //! do_something_instrumented();
 //! // Shutdown ensures any metrics still in memory are given to exporters
 //! // before the program exits.
-//! shutdown_meter_provider();
+//! global::shutdown_meter_provider();
 //! # }
 //! ```
 //!
