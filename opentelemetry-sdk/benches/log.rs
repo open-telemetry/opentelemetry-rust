@@ -4,12 +4,12 @@ use std::time::SystemTime;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{AnyValue, LogRecord, LogResult, Logger, LoggerProvider as _, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord, Logger as _, LogResult, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::{LoggerProvider, Logger};
 use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl LogExporter for VoidExporter {
     }
 }
 
-fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) {
+fn log_benchmark_group<F: Fn(& Logger)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("no-context", |b| {
@@ -59,7 +59,8 @@ fn log_benchmark_group<F: Fn(&dyn Logger)>(c: &mut Criterion, name: &str, f: F) 
 
 fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "simple-log", |logger| {
-        logger.emit(LogRecord::builder().with_body("simple log").build())
+        let record :&_ = logger.create_log_record().set_body(Some("simple log".into()));
+        logger.emit(*record);
     });
 
     log_benchmark_group(c, "simple-log-with-int", |logger| {
@@ -73,6 +74,10 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     log_benchmark_group(c, "simple-log-with-double", |logger| {
         logger.emit(
+            logger.create_log_record()
+                .with_body("simple log")
+                .with_attribute("testdouble", 2.2)
+                .build(),
             LogRecord::builder()
                 .with_body("simple log")
                 .with_attribute("testdouble", 2.2)

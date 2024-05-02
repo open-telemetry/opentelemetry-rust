@@ -71,9 +71,11 @@ impl EventVisitor {
         }
     }
 
-    fn push_to_otel_log_record(self, log_record: &mut LogRecord) {
-        log_record.body = self.log_record_body;
-        log_record.attributes = Some(self.log_record_attributes);
+    fn push_to_otel_log_record<LR: LogRecord>(self, log_record: &mut LR) {
+        log_record.set_body(self.log_record_body);
+        log_record.set_attributes(self.log_record_attributes);
+        //log_record.body = self.log_record_body;
+        //log_record.attributes = Some(self.log_record_attributes);
     }
 }
 
@@ -166,9 +168,12 @@ where
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         let meta = event.metadata();
 
-        let mut log_record: LogRecord = LogRecord::default();
-        log_record.severity_number = Some(severity_of_level(meta.level()));
-        log_record.severity_text = Some(meta.level().to_string().into());
+        //let mut log_record: LogRecord = LogRecord::default();
+        let mut log_record = self.logger.create_log_record();
+        log_record.set_severity_number(severity_of_level(meta.level()));
+        log_record.set_severity_text(Some(meta.level().to_string().into()));
+        //log_record.severity_number = Some(severity_of_level(meta.level()));
+        //log_record.severity_text = Some(meta.level().to_string().into());
 
         // Not populating ObservedTimestamp, instead relying on OpenTelemetry
         // API to populate it with current time.

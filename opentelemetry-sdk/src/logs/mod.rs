@@ -3,6 +3,7 @@
 mod config;
 mod log_emitter;
 mod log_processor;
+mod record;
 
 pub use config::{config, Config};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
@@ -10,12 +11,13 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
+pub use record::{SdkLogRecord, TraceContext};
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
-    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider as _, Severity};
+    use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
 
     #[test]
@@ -28,7 +30,7 @@ mod tests {
 
         // Act
         let logger = logger_provider.logger("test-logger");
-        let mut log_record: LogRecord = LogRecord::default();
+        let mut log_record=  logger.create_log_record();
         log_record.severity_number = Some(Severity::Error);
         log_record.severity_text = Some("Error".into());
         let attributes = vec![

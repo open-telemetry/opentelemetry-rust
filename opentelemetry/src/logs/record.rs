@@ -1,32 +1,32 @@
 use crate::{
-    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
+    trace::{SpanContext, TraceContextExt},
     Array, Key, StringValue, Value,
 };
-use std::{borrow::Cow, collections::HashMap, time::SystemTime, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// Abstract interface for log records.
 pub trait LogRecord {
-    fn set_timestamp(&mut self, timestamp: SystemTime);
-    fn set_observed_timestamp(&mut self, timestamp: SystemTime);
-    fn set_span_context(&mut self, context: &SpanContext);
-    fn set_severity_text(&mut self, text: &str);
-    fn set_severity_number(&mut self, number: Severity);
-    fn set_body(&mut self, body: AnyValue);
-    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
-}
-
-/// Builder for creating log records.
-pub trait LogRecordBuilder {
-    type Record: LogRecord;
-
-    fn with_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
-    fn with_observed_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
-    fn with_span_context(&mut self, context: &SpanContext) -> &mut Self;
-    fn with_severity_text(&mut self, text: &str) -> &mut Self;
-    fn with_severity_number(&mut self, number: Severity) -> &mut Self;
-    fn with_body(&mut self, body: AnyValue) -> &mut Self;
-    fn with_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) -> &mut Self;
-    fn build(&self) -> Arc<Self::Record>;
+    fn set_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
+    fn set_observed_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
+    fn set_span_context(&mut self, context: &SpanContext) -> &mut Self;
+    fn set_severity_text(&mut self, text: Option<Cow<'static, str>>) -> &mut Self;
+    fn set_severity_number(&mut self, number: Severity) -> &mut Self;
+    fn set_body(&mut self, body: Option<AnyValue>) -> &mut Self;
+    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) ->&mut Self;
+    fn set_attribute<K,V>(&mut self, key: K, value: V) -> &mut Self
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>;
+    fn set_context<T>(&mut self, context: &T) -> &mut Self
+    where
+        T: TraceContextExt,
+        {
+            if context.has_active_span() {
+                self.set_span_context(context.span().span_context());
+            }
+            self
+        }
+    
 }
 
 /// Value types for representing arbitrary values in a log record.

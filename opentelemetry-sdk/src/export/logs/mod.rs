@@ -4,9 +4,10 @@ use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
-    logs::{LogError, LogRecord, LogResult},
+    logs::{LogError, LogResult},
     InstrumentationLibrary,
 };
+use crate::logs::SdkLogRecord;
 use std::fmt::Debug;
 
 /// `LogExporter` defines the interface that log exporters should implement.
@@ -29,7 +30,7 @@ pub trait LogExporter: Send + Sync + Debug {
 #[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationLibrary,
 }
