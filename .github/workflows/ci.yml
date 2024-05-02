@@ -13,7 +13,8 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta]
-    runs-on: ubuntu-latest
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
       run: |
@@ -34,7 +35,7 @@ jobs:
     - name: Test
       run: ./scripts/test.sh
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -53,7 +54,7 @@ jobs:
     strategy:
       matrix:
         example: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -69,7 +70,7 @@ jobs:
     strategy:
       matrix:
         example: [opentelemetry-otlp/examples/basic-otlp]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -83,7 +84,7 @@ jobs:
         cd ${{ matrix.example }}
         cargo build --verbose
   msrv:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -97,7 +98,7 @@ jobs:
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +107,7 @@ jobs:
           command: check advisories
   docs:
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -120,7 +121,7 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
   coverage:
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     if: ${{ ! contains(github.event.pull_request.labels.*.name, 'dependencies') }}
     steps:
       - uses: actions/checkout@v4
