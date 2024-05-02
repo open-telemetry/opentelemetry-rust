@@ -1,4 +1,5 @@
 //! Log exporters
+use crate::logs::SdkLogRecord;
 use crate::Resource;
 use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
@@ -7,7 +8,6 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     InstrumentationLibrary,
 };
-use crate::logs::SdkLogRecord;
 use std::fmt::Debug;
 
 /// `LogExporter` defines the interface that log exporters should implement.

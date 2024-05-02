@@ -11,7 +11,8 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use record::{SdkLogRecord, TraceContext};
+pub use opentelemetry::logs::LogRecordBuilder;
+pub use record::{SdkLogRecord, SdkLogRecordBuilder, TraceContext};
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
@@ -30,14 +31,15 @@ mod tests {
 
         // Act
         let logger = logger_provider.logger("test-logger");
-        let mut log_record=  logger.create_log_record();
-        log_record.severity_number = Some(Severity::Error);
-        log_record.severity_text = Some("Error".into());
-        let attributes = vec![
-            (Key::new("key1"), "value1".into()),
-            (Key::new("key2"), "value2".into()),
-        ];
-        log_record.attributes = Some(attributes);
+        let log_record = logger
+            .create_log_record()
+            .with_severity_number(Severity::Error)
+            .with_severity_text("Error".into())
+            .with_attributes(vec![
+                (Key::new("key1"), "value1".into()),
+                (Key::new("key2"), "value2".into()),
+            ])
+            .build();
         logger.emit(log_record);
 
         // Assert

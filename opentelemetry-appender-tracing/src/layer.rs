@@ -1,5 +1,5 @@
 use opentelemetry::{
-    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
+    logs::{AnyValue, LogRecord, LogRecordBuilder, Logger, LoggerProvider, Severity},
     Key,
 };
 use std::borrow::Cow;
@@ -72,10 +72,8 @@ impl EventVisitor {
     }
 
     fn push_to_otel_log_record<LR: LogRecord>(self, log_record: &mut LR) {
-        log_record.set_body(self.log_record_body);
+        log_record.set_body(self.log_record_body.unwrap()); // unwrap should be safe, as value is always there
         log_record.set_attributes(self.log_record_attributes);
-        //log_record.body = self.log_record_body;
-        //log_record.attributes = Some(self.log_record_attributes);
     }
 }
 
@@ -169,14 +167,12 @@ where
         let meta = event.metadata();
 
         //let mut log_record: LogRecord = LogRecord::default();
-        let mut log_record = self.logger.create_log_record();
-        log_record.set_severity_number(severity_of_level(meta.level()));
-        log_record.set_severity_text(Some(meta.level().to_string().into()));
-        //log_record.severity_number = Some(severity_of_level(meta.level()));
-        //log_record.severity_text = Some(meta.level().to_string().into());
-
-        // Not populating ObservedTimestamp, instead relying on OpenTelemetry
-        // API to populate it with current time.
+        let mut log_record = self
+            .logger
+            .create_log_record()
+            .with_severity_number(severity_of_level(meta.level()))
+            .with_severity_text(meta.level().to_string().into())
+            .build();
 
         let mut visitor = EventVisitor::default();
         visitor.visit_metadata(meta);

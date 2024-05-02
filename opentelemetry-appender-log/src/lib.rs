@@ -1,5 +1,5 @@
 use log::{Level, Metadata, Record};
-use opentelemetry::logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity};
+use opentelemetry::logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity};
 use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -27,10 +27,13 @@ where
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let mut log_record = self.logger.create_log_record();
-            log_record.set_severity_number(severity_of_level(record.level()));
-            log_record.set_severity_text(Some(record.level().as_str().into()));
-            log_record.set_body(Some(AnyValue::from(record.args().to_string())));
+            let log_record = self
+                .logger
+                .create_log_record()
+                .with_severity_number(severity_of_level(record.level()))
+                .with_severity_text(record.level().as_str().into())
+                .with_body(AnyValue::from(record.args().to_string()))
+                .build();
 
             self.logger.emit(log_record);
         }

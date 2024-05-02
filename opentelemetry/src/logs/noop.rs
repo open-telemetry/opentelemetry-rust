@@ -1,9 +1,9 @@
 use std::{borrow::Cow, sync::Arc, time::SystemTime};
 
 use crate::{
-    logs::{LogRecord, Logger, LoggerProvider, AnyValue, Severity},
-    InstrumentationLibrary, KeyValue, Key,
-    trace::SpanContext
+    logs::{AnyValue, LogRecord, LogRecordBuilder, Logger, LoggerProvider, Severity},
+    trace::SpanContext,
+    InstrumentationLibrary, Key, KeyValue,
 };
 
 /// A no-op implementation of a [`LoggerProvider`].
@@ -41,18 +41,78 @@ pub struct NoopLogRecord;
 
 impl LogRecord for NoopLogRecord {
     // Implement the LogRecord trait methods with empty bodies.
-    fn set_timestamp(&mut self, _timestamp: SystemTime) -> &mut Self {self}
-    fn set_observed_timestamp(&mut self, _timestamp: SystemTime) -> &mut Self {self}
-    fn set_span_context(&mut self, _context: &SpanContext) ->  &mut Self {self}
-    fn set_severity_text(&mut self, _text: Option<Cow<'static, str>>) -> &mut Self {self}
-    fn set_severity_number(&mut self, _number: Severity) -> &mut Self {self}
-    fn set_body(&mut self, _body: Option<AnyValue>) -> &mut Self {self}
-    fn set_attributes(&mut self, _attributes: Vec<(Key, AnyValue)>) -> &mut Self {self}
-    fn set_attribute<K,V>(&mut self, _key: K, _value: V) -> &mut Self
-        where
-            K: Into<Key>,
-            V: Into<AnyValue> {self}
-    fn set_context<T>(&mut self, _context: &T) -> &mut Self where T: crate::trace::TraceContextExt  {self}
+    fn set_timestamp(&mut self, _timestamp: SystemTime) {}
+    fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
+    fn set_span_context(&mut self, _context: &SpanContext) {}
+    fn set_severity_text(&mut self, _text: Cow<'static, str>) {}
+    fn set_severity_number(&mut self, _number: Severity) {}
+    fn set_body(&mut self, _body: AnyValue) {}
+    fn set_attributes(&mut self, _attributes: Vec<(Key, AnyValue)>) {}
+    fn set_attribute<K, V>(&mut self, _key: K, _value: V)
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+    }
+    fn set_context<T>(&mut self, _context: &T)
+    where
+        T: crate::trace::TraceContextExt,
+    {
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NoopLogRecordBuilder;
+
+impl LogRecordBuilder for NoopLogRecordBuilder {
+    type LogRecord = NoopLogRecord;
+
+    fn with_timestamp(self, _timestamp: SystemTime) -> Self {
+        self
+    }
+
+    fn with_observed_timestamp(self, _timestamp: SystemTime) -> Self {
+        self
+    }
+
+    fn with_span_context(self, _context: &SpanContext) -> Self {
+        self
+    }
+
+    fn with_severity_text(self, _text: Cow<'static, str>) -> Self {
+        self
+    }
+
+    fn with_severity_number(self, _number: Severity) -> Self {
+        self
+    }
+
+    fn with_body(self, _body: AnyValue) -> Self {
+        self
+    }
+
+    fn with_attributes(self, _attributes: Vec<(Key, AnyValue)>) -> Self {
+        self
+    }
+
+    fn with_attribute<K, V>(self, _key: K, _value: V) -> Self
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+        self
+    }
+
+    fn with_context<T>(self, _context: &T) -> Self
+    where
+        T: crate::trace::TraceContextExt,
+    {
+        self
+    }
+
+    fn build(&self) -> Self::LogRecord {
+        NoopLogRecord
+    }
 }
 
 /// A no-op implementation of a [`Logger`]
@@ -61,8 +121,10 @@ pub struct NoopLogger(());
 
 impl Logger for NoopLogger {
     type LogRecord = NoopLogRecord;
-    fn create_log_record(&self) -> Self::LogRecord {
-        NoopLogRecord
+    type LogRecordBuilder = NoopLogRecordBuilder;
+
+    fn create_log_record(&self) -> Self::LogRecordBuilder {
+        NoopLogRecordBuilder {}
     }
     fn emit(&self, _record: Self::LogRecord) {}
     #[cfg(feature = "logs_level_enabled")]

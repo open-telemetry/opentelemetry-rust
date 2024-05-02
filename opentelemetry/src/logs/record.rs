@@ -4,28 +4,86 @@ use crate::{
 };
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-/// Abstract interface for log records.
+/// Abstract interface for managing log records. The implementation is provided by the SDK
+/// Abstract interface for log records in an observability framework.
 pub trait LogRecord {
-    fn set_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
-    fn set_observed_timestamp(&mut self, timestamp: SystemTime) -> &mut Self;
-    fn set_span_context(&mut self, context: &SpanContext) -> &mut Self;
-    fn set_severity_text(&mut self, text: Option<Cow<'static, str>>) -> &mut Self;
-    fn set_severity_number(&mut self, number: Severity) -> &mut Self;
-    fn set_body(&mut self, body: Option<AnyValue>) -> &mut Self;
-    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) ->&mut Self;
-    fn set_attribute<K,V>(&mut self, key: K, value: V) -> &mut Self
+    /// Sets the creation timestamp.
+    fn set_timestamp(&mut self, timestamp: SystemTime);
+
+    /// Sets the observed event timestamp.
+    fn set_observed_timestamp(&mut self, timestamp: SystemTime);
+
+    /// Associates a span context.
+    fn set_span_context(&mut self, context: &SpanContext);
+
+    /// Sets severity as text.
+    fn set_severity_text(&mut self, text: Cow<'static, str>);
+
+    /// Sets severity as a numeric value.
+    fn set_severity_number(&mut self, number: Severity);
+
+    /// Sets the message body of the log.
+    fn set_body(&mut self, body: AnyValue);
+
+    /// Adds multiple attributes.
+    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
+
+    /// Adds or updates a single attribute.
+    fn set_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
         V: Into<AnyValue>;
-    fn set_context<T>(&mut self, context: &T) -> &mut Self
+
+    /// Sets the trace context, pulling from the active span if available.
+    fn set_context<T>(&mut self, context: &T)
     where
         T: TraceContextExt,
-        {
-            if context.has_active_span() {
-                self.set_span_context(context.span().span_context());
-            }
-            self
+    {
+        if context.has_active_span() {
+            self.set_span_context(context.span().span_context());
         }
+    }
+}
+
+/// Builder trait for constructing `LogRecord` instances.
+pub trait LogRecordBuilder {
+    /// Specifies the `LogRecord` type this builder creates.
+    type LogRecord: LogRecord;
+
+    /// Sets the timestamp when the log was created.
+    fn with_timestamp(self, timestamp: SystemTime) -> Self;
+
+    /// Sets the timestamp when the event was observed.
+    fn with_observed_timestamp(self, timestamp: SystemTime) -> Self;
+
+    /// Associates a span context with the log record.
+    fn with_span_context(self, context: &SpanContext) -> Self;
+
+    /// Specifies severity as text.
+    fn with_severity_text(self, text: Cow<'static, str>) -> Self;
+
+    /// Specifies severity as a numeric value.
+    fn with_severity_number(self, number: Severity) -> Self;
+
+    /// Sets the body of the log record.
+    fn with_body(self, body: AnyValue) -> Self;
+
+    /// Adds multiple attributes to the log record.
+    fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self;
+
+    /// Adds or updates a single attribute.
+    fn with_attribute<K, V>(self, key: K, value: V) -> Self
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>;
+
+    /// Sets the trace context, pulling from the active span from context if available.
+    fn with_context<T>(self, context: &T) -> Self
+    where
+        T: TraceContextExt;
+
+    /// Builds and returns the `LogRecord`.
+    fn build(&self) -> Self::LogRecord;
 }
 
 /// Value types for representing arbitrary values in a log record.
