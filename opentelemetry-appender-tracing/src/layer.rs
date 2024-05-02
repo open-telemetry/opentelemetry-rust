@@ -72,7 +72,9 @@ impl EventVisitor {
     }
 
     fn push_to_otel_log_record<LR: LogRecord>(self, log_record: &mut LR) {
-        log_record.set_body(self.log_record_body.unwrap()); // unwrap should be safe, as value is always there
+        if let Some(body) = self.log_record_body {
+            log_record.set_body(body);
+        }        
         log_record.set_attributes(self.log_record_attributes);
     }
 }

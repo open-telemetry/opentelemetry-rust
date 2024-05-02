@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{
-    AnyValue, LogRecord, LogRecordBuilder, LogResult, Logger as _, LoggerProvider as _, Severity,
+    AnyValue, LogRecordBuilder, LogResult, Logger as _, LoggerProvider as _, Severity,
 };
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
