@@ -83,8 +83,8 @@
 //!
 //! ### Usage in Applications
 //!
-//! Applications configure their meter either by installing a metrics pipeline,
-//! or calling [`set_meter_provider`].
+//! Applications configure their meter by configuring a meter provider,
+//! and calling [`set_meter_provider`] to set it as global meter provider.
 //!
 //! ```
 //! # #[cfg(feature="metrics")]
@@ -93,6 +93,8 @@
 //! use opentelemetry::{global, KeyValue};
 //!
 //! fn init_meter() {
+//!     // Swap this no-op provider with an actual meter provider,
+//!     // exporting to stdout, otlp, prometheus, etc.
 //!     let provider = NoopMeterProvider::new();
 //!
 //!     // Configure the global `MeterProvider` singleton when your app starts
@@ -101,17 +103,22 @@
 //! }
 //!
 //! fn do_something_instrumented() {
-//!     // Then you can get a named tracer instance anywhere in your codebase.
+//!     // You can get a named meter instance anywhere in your codebase.
 //!     let meter = global::meter("my-component");
+//!     // It is recommended to reuse the same counter instance for the
+//!     // lifetime of the application
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
-//!     // record metrics
+//!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //!
 //! // in main or other app start
 //! init_meter();
 //! do_something_instrumented();
+//! // Shutdown ensures any metrics still in memory are given to exporters
+//! // before the program exits.
+//! global::shutdown_meter_provider();
 //! # }
 //! ```
 //!
@@ -122,13 +129,15 @@
 //! # {
 //! use opentelemetry::{global, KeyValue};
 //!
-//! pub fn my_traced_library_function() {
+//! pub fn my_instrumented_library_function() {
 //!     // End users of your library will configure their global meter provider
 //!     // so you can use the global meter without any setup
 //!     let meter = global::meter("my-library-name");
+//!     // It is recommended to reuse the same counter instance for the
+//!     // lifetime of the application
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
-//!     // record metrics
+//!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //! # }
