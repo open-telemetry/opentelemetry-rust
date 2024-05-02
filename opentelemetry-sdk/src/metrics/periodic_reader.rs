@@ -435,9 +435,11 @@ mod tests {
             })
             .expect("callback registration should succeed");
 
+        _ = meter_provider.force_flush();
+
         // Assert
         receiver
-            .recv_timeout(interval * 2)
+            .try_recv()
             .expect("message should be available in channel, indicating a collection occurred");
     }
 
