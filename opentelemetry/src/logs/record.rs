@@ -26,7 +26,6 @@ pub trait LogRecord {
             }
             self
         }
-    
 }
 
 /// Value types for representing arbitrary values in a log record.
