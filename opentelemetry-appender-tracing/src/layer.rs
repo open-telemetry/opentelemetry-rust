@@ -74,7 +74,7 @@ impl EventVisitor {
     fn push_to_otel_log_record<LR: LogRecord>(self, log_record: &mut LR) {
         if let Some(body) = self.log_record_body {
             log_record.set_body(body);
-        }        
+        }
         log_record.set_attributes(self.log_record_attributes);
     }
 }

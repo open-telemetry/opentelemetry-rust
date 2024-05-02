@@ -50,7 +50,7 @@ impl Default for InMemoryLogsExporter {
     }
 }
 
-/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`SdkLogRecord`] with a [`Resource`] and
 /// [`InstrumentationLibrary`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
