@@ -42,7 +42,7 @@ use futures_util::{
     future::{self, BoxFuture, Either},
     select,
     stream::{self, FusedStream, FuturesUnordered},
-    Stream, StreamExt as _,
+    StreamExt as _,
 };
 use opentelemetry::global;
 use opentelemetry::{
