@@ -9,7 +9,7 @@ use futures_util::{
     future::{self, Either},
     pin_mut,
     stream::{self, FusedStream},
-    Stream, StreamExt,
+    StreamExt,
 };
 use opentelemetry::{
     global,
@@ -290,7 +290,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         true
     }
 
-    async fn run(mut self, mut messages: impl Stream<Item = Message> + Unpin + FusedStream) {
+    async fn run(mut self, mut messages: impl Unpin + FusedStream<Item = Message>) {
         while let Some(message) = messages.next().await {
             if !self.process_message(message).await {
                 break;
