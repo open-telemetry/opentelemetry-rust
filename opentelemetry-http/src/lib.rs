@@ -152,7 +152,7 @@ pub mod hyper {
     {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
-            let mut request: Request<B> = Request::from_parts(parts, body.into());
+            let mut request = Request::from_parts(parts, B::from(body));
             if let Some(ref authorization) = self.authorization {
                 request
                     .headers_mut()
