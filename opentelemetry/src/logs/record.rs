@@ -40,50 +40,9 @@ pub trait LogRecord {
         T: TraceContextExt,
     {
         if context.has_active_span() {
-            self.set_span_context(context.span().span_context());
+            self.set_span_context(context.span().span_context())
         }
     }
-}
-
-/// Builder trait for constructing `LogRecord` instances.
-pub trait LogRecordBuilder {
-    /// Specifies the `LogRecord` type this builder creates.
-    type LogRecord: LogRecord;
-
-    /// Sets the timestamp when the log was created.
-    fn with_timestamp(self, timestamp: SystemTime) -> Self;
-
-    /// Sets the timestamp when the event was observed.
-    fn with_observed_timestamp(self, timestamp: SystemTime) -> Self;
-
-    /// Associates a span context with the log record.
-    fn with_span_context(self, context: &SpanContext) -> Self;
-
-    /// Specifies severity as text.
-    fn with_severity_text(self, text: Cow<'static, str>) -> Self;
-
-    /// Specifies severity as a numeric value.
-    fn with_severity_number(self, number: Severity) -> Self;
-
-    /// Sets the body of the log record.
-    fn with_body(self, body: AnyValue) -> Self;
-
-    /// Adds multiple attributes to the log record.
-    fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self;
-
-    /// Adds or updates a single attribute.
-    fn with_attribute<K, V>(self, key: K, value: V) -> Self
-    where
-        K: Into<Key>,
-        V: Into<AnyValue>;
-
-    /// Sets the trace context, pulling from the active span from context if available.
-    fn with_context<T>(self, context: &T) -> Self
-    where
-        T: TraceContextExt;
-
-    /// Builds and returns the `LogRecord`.
-    fn build(&self) -> Self::LogRecord;
 }
 
 /// Value types for representing arbitrary values in a log record.

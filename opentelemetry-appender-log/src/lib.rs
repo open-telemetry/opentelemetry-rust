@@ -96,7 +96,7 @@
 
 use log::{Level, Metadata, Record};
 use opentelemetry::{
-    logs::{AnyValue, LogRecordBuilder, Logger, LoggerProvider, Severity},
+    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     Key,
 };
 use std::borrow::Cow;
@@ -126,14 +126,11 @@ where
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let log_record = self
-                .logger
-                .create_log_record()
-                .with_severity_number(severity_of_level(record.level()))
-                .with_severity_text(record.level().as_str().into())
-                .with_body(AnyValue::from(record.args().to_string()))
-                .with_attributes(log_attributes(record.key_values()))
-                .build();
+            let mut log_record = self.logger.create_log_record();
+            log_record.set_severity_number(severity_of_level(record.level()));
+            log_record.set_severity_text(record.level().as_str().into());
+            log_record.set_body(AnyValue::from(record.args().to_string()));
+            log_record.set_attributes(log_attributes(record.key_values()));
 
             self.logger.emit(log_record);
         }

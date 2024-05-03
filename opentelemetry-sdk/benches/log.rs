@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{
-    AnyValue, LogRecordBuilder, LogResult, Logger as _, LoggerProvider as _, Severity,
+    AnyValue, LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity,
 };
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
@@ -61,63 +61,45 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
 fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "simple-log", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .build(),
-        );
+        let mut log_record = logger.create_log_record();
+        log_record.set_body(AnyValue::String("simple log".into()));
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "simple-log-with-int", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testint", 2)
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testint", 2);
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "simple-log-with-double", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testdouble", 2.2)
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testdouble", 2.2);
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "simple-log-with-string", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("teststring", "test")
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("teststring", "test");
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "simple-log-with-bool", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testbool", AnyValue::Boolean(true))
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testbool", AnyValue::Boolean(true));
+        logger.emit(log_record);
     });
 
     let bytes = AnyValue::Bytes(vec![25u8, 30u8, 40u8]);
     log_benchmark_group(c, "simple-log-with-bytes", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testbytes", bytes.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testbytes", bytes.clone());
+        logger.emit(log_record);
     });
 
     let bytes = AnyValue::Bytes(vec![
@@ -129,24 +111,18 @@ fn criterion_benchmark(c: &mut Criterion) {
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
     ]);
     log_benchmark_group(c, "simple-log-with-a-lot-of-bytes", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testbytes", bytes.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testbytes", bytes.clone());
+        logger.emit(log_record);
     });
 
     let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
     log_benchmark_group(c, "simple-log-with-vec-any-value", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testvec", vec_any_values.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testvec", vec_any_values.clone());
+        logger.emit(log_record);
     });
 
     let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
@@ -157,13 +133,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         vec_any_values,
     ]);
     log_benchmark_group(c, "simple-log-with-inner-vec-any-value", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testvec", vec_any_values.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testvec", vec_any_values.clone());
+        logger.emit(log_record);
     });
 
     let map_any_values = AnyValue::Map(HashMap::from([
@@ -172,13 +145,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         ("teststring".into(), "test".into()),
     ]));
     log_benchmark_group(c, "simple-log-with-map-any-value", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testmap", map_any_values.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testmap", map_any_values.clone());
+        logger.emit(log_record);
     });
 
     let map_any_values = AnyValue::Map(HashMap::from([
@@ -193,70 +163,60 @@ fn criterion_benchmark(c: &mut Criterion) {
         ("testmap".into(), map_any_values),
     ]));
     log_benchmark_group(c, "simple-log-with-inner-map-any-value", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("simple log".into())
-                .with_attribute("testmap", map_any_values.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("simple log".into());
+        log_record.set_attribute("testmap", map_any_values.clone());
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "long-log", |logger| {
-        logger.emit(logger.create_log_record().with_body("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Gravida in fermentum et sollicitudin ac orci phasellus. Ullamcorper dignissim cras tincidunt lobortis feugiat vivamus at augue. Magna etiam tempor orci eu. Sed tempus urna et pharetra pharetra massa.".into()).build())
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Gravida in fermentum et sollicitudin ac orci phasellus. Ullamcorper dignissim cras tincidunt lobortis feugiat vivamus at augue. Magna etiam tempor orci eu. Sed tempus urna et pharetra pharetra massa.".into());
+        logger.emit(log_record);
     });
 
     let now = SystemTime::now();
     log_benchmark_group(c, "full-log", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("full log".into())
-                .with_timestamp(now)
-                .with_observed_timestamp(now)
-                .with_severity_number(Severity::Warn)
-                .with_severity_text(Severity::Warn.name().into())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("full log".into());
+        log_record.set_timestamp(now);
+        log_record.set_observed_timestamp(now);
+        log_record.set_severity_number(Severity::Warn);
+        log_record.set_severity_text(Severity::Warn.name().into());
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "full-log-with-4-attributes", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("full log".into())
-                .with_timestamp(now)
-                .with_observed_timestamp(now)
-                .with_severity_number(Severity::Warn)
-                .with_severity_text(Severity::Warn.name().into())
-                .with_attribute("name", "my-event-name")
-                .with_attribute("event.id", 20)
-                .with_attribute("user.name", "otel")
-                .with_attribute("user.email", "otel@opentelemetry.io")
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("full log".into());
+        log_record.set_timestamp(now);
+        log_record.set_observed_timestamp(now);
+        log_record.set_severity_number(Severity::Warn);
+        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_attribute("name", "my-event-name");
+        log_record.set_attribute("event.id", 20);
+        log_record.set_attribute("user.name", "otel");
+        log_record.set_attribute("user.email", "otel@opentelemetry.io");
+        logger.emit(log_record);
     });
 
     log_benchmark_group(c, "full-log-with-9-attributes", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("full log".into())
-                .with_timestamp(now)
-                .with_observed_timestamp(now)
-                .with_severity_number(Severity::Warn)
-                .with_severity_text(Severity::Warn.name().into())
-                .with_attribute("name", "my-event-name")
-                .with_attribute("event.id", 20)
-                .with_attribute("user.name", "otel")
-                .with_attribute("user.email", "otel@opentelemetry.io")
-                .with_attribute("code.filename", "log.rs")
-                .with_attribute("code.filepath", "opentelemetry_sdk/benches/log.rs")
-                .with_attribute("code.lineno", 96)
-                .with_attribute("code.namespace", "opentelemetry_sdk::benches::log")
-                .with_attribute("log.target", "opentelemetry_sdk::benches::log")
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("full log".into());
+        log_record.set_timestamp(now);
+        log_record.set_observed_timestamp(now);
+        log_record.set_severity_number(Severity::Warn);
+        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_attribute("name", "my-event-name");
+        log_record.set_attribute("event.id", 20);
+        log_record.set_attribute("user.name", "otel");
+        log_record.set_attribute("user.email", "otel@opentelemetry.io");
+        log_record.set_attribute("code.filename", "log.rs");
+        log_record.set_attribute("code.filepath", "opentelemetry_sdk/benches/log.rs");
+        log_record.set_attribute("code.lineno", 96);
+        log_record.set_attribute("code.namespace", "opentelemetry_sdk::benches::log");
+        log_record.set_attribute("log.target", "opentelemetry_sdk::benches::log");
+        logger.emit(log_record);
     });
 
     let attributes: Vec<(Key, AnyValue)> = vec![
@@ -280,17 +240,14 @@ fn criterion_benchmark(c: &mut Criterion) {
         ),
     ];
     log_benchmark_group(c, "full-log-with-attributes", |logger| {
-        logger.emit(
-            logger
-                .create_log_record()
-                .with_body("full log".into())
-                .with_timestamp(now)
-                .with_observed_timestamp(now)
-                .with_severity_number(Severity::Warn)
-                .with_severity_text(Severity::Warn.name().into())
-                .with_attributes(attributes.clone())
-                .build(),
-        )
+        let mut log_record = logger.create_log_record();
+        log_record.set_body("full log".into());
+        log_record.set_timestamp(now);
+        log_record.set_observed_timestamp(now);
+        log_record.set_severity_number(Severity::Warn);
+        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_attributes(attributes.clone());
+        logger.emit(log_record);
     });
 }
 

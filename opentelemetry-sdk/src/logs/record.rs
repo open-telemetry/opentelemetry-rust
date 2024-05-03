@@ -1,6 +1,6 @@
 use opentelemetry::{
-    logs::{AnyValue, LogRecord, LogRecordBuilder, Severity},
-    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
+    logs::{AnyValue, LogRecord, Severity},
+    trace::{SpanContext, SpanId, TraceFlags, TraceId},
     Key,
 };
 use std::{borrow::Cow, time::SystemTime};
@@ -69,88 +69,14 @@ impl LogRecord for SdkLogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        if self.attributes.is_none() {
-            self.attributes = Some(Vec::new());
-        }
-        if let Some(ref mut attributes) = self.attributes {
-            attributes.push((key.into(), value.into()));
+        if let Some(ref mut attrs) = self.attributes {
+            attrs.push((key.into(), value.into()));
+        } else {
+            self.attributes = Some(vec![(key.into(), value.into())]);
         }
     }
 }
 
-/// Implementation for LogRecordBuilder
-#[derive(Debug, Default)]
-pub struct SdkLogRecordBuilder {
-    record: SdkLogRecord,
-}
-impl LogRecordBuilder for SdkLogRecordBuilder {
-    type LogRecord = SdkLogRecord;
-
-    fn with_timestamp(mut self, timestamp: SystemTime) -> Self {
-        self.record.set_timestamp(timestamp);
-        self
-    }
-
-    fn with_observed_timestamp(mut self, timestamp: SystemTime) -> Self {
-        self.record.observed_timestamp = Some(timestamp);
-        self
-    }
-
-    fn with_span_context(mut self, context: &SpanContext) -> Self {
-        self.record.trace_context = Some(TraceContext {
-            span_id: context.span_id(),
-            trace_id: context.trace_id(),
-            trace_flags: Some(context.trace_flags()),
-        });
-        self
-    }
-
-    fn with_severity_text(mut self, text: Cow<'static, str>) -> Self {
-        self.record.severity_text = Some(text);
-        self
-    }
-
-    fn with_severity_number(mut self, number: Severity) -> Self {
-        self.record.severity_number = Some(number);
-        self
-    }
-
-    fn with_body(mut self, body: AnyValue) -> Self {
-        self.record.body = Some(body);
-        self
-    }
-
-    fn with_attributes(mut self, attributes: Vec<(Key, AnyValue)>) -> Self {
-        self.record.attributes = Some(attributes);
-        self
-    }
-
-    fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
-    where
-        K: Into<Key>,
-        V: Into<AnyValue>,
-    {
-        if self.record.attributes.is_none() {
-            self.record.attributes = Some(Vec::new());
-        }
-        if let Some(ref mut attributes) = self.record.attributes {
-            attributes.push((key.into(), value.into()));
-        }
-        self
-    }
-
-    fn with_context<T>(mut self, context: &T) -> Self
-    where
-        T: TraceContextExt,
-    {
-        self.record.set_context(context);
-        self
-    }
-
-    fn build(&self) -> Self::LogRecord {
-        self.record.clone()
-    }
-}
 /// TraceContext stores the trace data for logs that have an associated
 /// span.
 #[derive(Debug, Clone)]

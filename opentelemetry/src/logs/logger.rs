@@ -1,9 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::{
-    logs::LogRecord, logs::LogRecordBuilder, InstrumentationLibrary, InstrumentationLibraryBuilder,
-    KeyValue,
-};
+use crate::{logs::LogRecord, InstrumentationLibrary, InstrumentationLibraryBuilder, KeyValue};
 
 #[cfg(feature = "logs_level_enabled")]
 use super::Severity;
@@ -14,11 +11,8 @@ pub trait Logger {
     /// Specifies the `LogRecord` type associated with this logger.
     type LogRecord: LogRecord;
 
-    /// Specifies the `LogRecordBuilder` type for constructing log records.
-    type LogRecordBuilder: LogRecordBuilder<LogRecord = Self::LogRecord>;
-
     /// Creates a new log record builder.
-    fn create_log_record(&self) -> Self::LogRecordBuilder;
+    fn create_log_record(&self) -> Self::LogRecord;
 
     /// Emit a [`LogRecord`]. If there is active current thread's [`Context`],
     ///  the logger will set the record's [`TraceContext`] to the active trace context,

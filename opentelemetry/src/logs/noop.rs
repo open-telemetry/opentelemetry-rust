@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc, time::SystemTime};
 
 use crate::{
-    logs::{AnyValue, LogRecord, LogRecordBuilder, Logger, LoggerProvider, Severity},
+    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     trace::SpanContext,
     InstrumentationLibrary, Key, KeyValue,
 };
@@ -61,70 +61,15 @@ impl LogRecord for NoopLogRecord {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct NoopLogRecordBuilder;
-
-impl LogRecordBuilder for NoopLogRecordBuilder {
-    type LogRecord = NoopLogRecord;
-
-    fn with_timestamp(self, _timestamp: SystemTime) -> Self {
-        self
-    }
-
-    fn with_observed_timestamp(self, _timestamp: SystemTime) -> Self {
-        self
-    }
-
-    fn with_span_context(self, _context: &SpanContext) -> Self {
-        self
-    }
-
-    fn with_severity_text(self, _text: Cow<'static, str>) -> Self {
-        self
-    }
-
-    fn with_severity_number(self, _number: Severity) -> Self {
-        self
-    }
-
-    fn with_body(self, _body: AnyValue) -> Self {
-        self
-    }
-
-    fn with_attributes(self, _attributes: Vec<(Key, AnyValue)>) -> Self {
-        self
-    }
-
-    fn with_attribute<K, V>(self, _key: K, _value: V) -> Self
-    where
-        K: Into<Key>,
-        V: Into<AnyValue>,
-    {
-        self
-    }
-
-    fn with_context<T>(self, _context: &T) -> Self
-    where
-        T: crate::trace::TraceContextExt,
-    {
-        self
-    }
-
-    fn build(&self) -> Self::LogRecord {
-        NoopLogRecord
-    }
-}
-
 /// A no-op implementation of a [`Logger`]
 #[derive(Clone, Debug)]
 pub struct NoopLogger(());
 
 impl Logger for NoopLogger {
     type LogRecord = NoopLogRecord;
-    type LogRecordBuilder = NoopLogRecordBuilder;
 
-    fn create_log_record(&self) -> Self::LogRecordBuilder {
-        NoopLogRecordBuilder {}
+    fn create_log_record(&self) -> Self::LogRecord {
+        NoopLogRecord {}
     }
     fn emit(&self, _record: Self::LogRecord) {}
     #[cfg(feature = "logs_level_enabled")]

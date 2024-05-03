@@ -1,5 +1,5 @@
 use opentelemetry::{
-    logs::{AnyValue, LogRecord, LogRecordBuilder, Logger, LoggerProvider, Severity},
+    logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     Key,
 };
 use std::borrow::Cow;
@@ -169,12 +169,9 @@ where
         let meta = event.metadata();
 
         //let mut log_record: LogRecord = LogRecord::default();
-        let mut log_record = self
-            .logger
-            .create_log_record()
-            .with_severity_number(severity_of_level(meta.level()))
-            .with_severity_text(meta.level().to_string().into())
-            .build();
+        let mut log_record = self.logger.create_log_record();
+        log_record.set_severity_number(severity_of_level(meta.level()));
+        log_record.set_severity_text(meta.level().to_string().into());
 
         let mut visitor = EventVisitor::default();
         visitor.visit_metadata(meta);
