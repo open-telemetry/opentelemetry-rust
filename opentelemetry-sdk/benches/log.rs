@@ -62,7 +62,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 fn criterion_benchmark(c: &mut Criterion) {
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
-        log_record.set_body(AnyValue::String("simple log".into()));
+        log_record.set_body("simple log".into());
         logger.emit(log_record);
     });
 
