@@ -405,13 +405,12 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
-    let output_string;
 
-    if cfg!(windows) {
-        output_string = String::from_utf8(output).unwrap().replace("\n", "\r\n");
+    let output_string =if cfg!(windows) {
+        String::from_utf8(output).unwrap().replace('\n', "\r\n")
     } else {
-        output_string = String::from_utf8(output).unwrap();
-    }
+        String::from_utf8(output).unwrap()
+    };
 
     assert_eq!(output_string, expected, "{name}");
 }
@@ -823,13 +822,11 @@ fn gather_and_compare_multi(
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
 
-    let output_string;
-
-    if cfg!(windows) {
-        output_string = String::from_utf8(output).unwrap().replace("\n", "\r\n");
+    let output_string = if cfg!(windows){
+        String::from_utf8(output).unwrap().replace('\n', "\r\n")
     } else {
-        output_string = String::from_utf8(output).unwrap();
-    }
+        String::from_utf8(output).unwrap()
+    };
 
     assert!(
         expected.contains(&output_string),
