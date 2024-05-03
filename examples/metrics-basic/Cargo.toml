@@ -10,7 +10,6 @@ opentelemetry = { path = "../../opentelemetry", features = ["metrics", "otel_uns
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
 tokio = { workspace = true, features = ["full"] }
-serde_json = { workspace = true }
 
 [features]
 default = ["otel_unstable"]
