@@ -19,8 +19,8 @@ async-trait = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true, optional = true }
-hyper = { workspace = true, features = ["http2", "client"], optional = true }
-hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"], optional = true }
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http2"], optional = true }
 opentelemetry = { version = "0.23", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
