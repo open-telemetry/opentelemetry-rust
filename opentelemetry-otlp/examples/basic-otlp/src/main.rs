@@ -91,10 +91,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // execution.
 
     let result = init_tracer();
-    assert!(result.is_ok(), "Init tracer failed with error: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Init tracer failed with error: {:?}",
+        result.err()
+    );
 
     let result = init_metrics();
-    assert!(result.is_ok(), "Init metrics failed with error: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Init metrics failed with error: {:?}",
+        result.err()
+    );
 
     // Initialize logs, which sets the global loggerprovider.
     let logger_provider = init_logs().unwrap();
