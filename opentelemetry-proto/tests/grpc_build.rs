@@ -109,7 +109,7 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
                 .file_name()
                 .expect("file name should always exist for generated files");
 
-            let file_contents =  if normalize_line_feed && cfg!(windows) {
+            let file_contents = if normalize_line_feed && cfg!(windows) {
                 std::fs::read_to_string(path.clone())
                     .expect("cannot read from existing generated file")
                     .replace('\n', "\r\n")
