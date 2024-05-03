@@ -12,3 +12,4 @@ opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["logs"
 opentelemetry-appender-log = { path = "../../opentelemetry-appender-log", default-features = false}
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }
 log = { workspace = true }
+serde_json = { workspace = true }
