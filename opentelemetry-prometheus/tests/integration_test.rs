@@ -409,8 +409,7 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
 
     if cfg!(windows) {
         output_string = String::from_utf8(output).unwrap().replace("\n", "\r\n");
-    }
-    else {
+    } else {
         output_string = String::from_utf8(output).unwrap();
     }
 
@@ -828,8 +827,7 @@ fn gather_and_compare_multi(
 
     if cfg!(windows) {
         output_string = String::from_utf8(output).unwrap().replace("\n", "\r\n");
-    }
-    else {
+    } else {
         output_string = String::from_utf8(output).unwrap();
     }
 
