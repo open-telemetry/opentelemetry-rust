@@ -74,6 +74,7 @@ LogData {
 }
 ```
 The `LogRecord::target` field contains the actual target/component emitting the logs, while the `Instrumentation::name` contains the name of the OpenTelemetry appender.
+- Update to `http` v1 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
 
 ## v0.23.0
 
