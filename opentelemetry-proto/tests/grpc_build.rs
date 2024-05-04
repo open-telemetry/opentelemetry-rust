@@ -109,18 +109,25 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
                 .file_name()
                 .expect("file name should always exist for generated files");
 
-            let file_contents = if normalize_line_feed && cfg!(windows) {
-                std::fs::read_to_string(path.clone())
-                    .expect("cannot read from existing generated file")
-                    .replace('\n', "\r\n")
-            } else {
-                std::fs::read_to_string(path.clone())
-                    .expect("cannot read from existing generated file")
-            };
+            let mut file_contents = std::fs::read_to_string(path.clone())
+                .expect("cannot read from existing generated file");
+
+            if normalize_line_feed {
+                file_contents = get_platform_specific_string(file_contents);
+            }
 
             (file_name.to_string_lossy().to_string(), file_contents)
         })
         .collect()
+}
+
+///  Returns a String with the platform specific new line feed character.
+fn get_platform_specific_string(input: String) -> String {
+    if cfg!(windows) {
+        input.replace('\n', "\r\n")
+    } else {
+        input
+    }
 }
 
 fn ensure_files_are_same(

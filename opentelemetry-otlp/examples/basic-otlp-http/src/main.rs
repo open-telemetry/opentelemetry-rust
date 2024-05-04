@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         "Init metrics failed with error: {:?}",
         result.err()
     );
-    
+
     // Opentelemetry will not provide a global API to manage the logger provider. Application users must manage the lifecycle of the logger provider on their own. Dropping logger providers will disable log emitting.
     let logger_provider = init_logs().unwrap();
 
