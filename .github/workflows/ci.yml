@@ -13,9 +13,11 @@ jobs:
     strategy:
       matrix:
         rust: [stable, beta]
-    runs-on: ubuntu-latest
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
+      if: ${{ matrix.os == 'ubuntu-latest'}}
       run: |
         df -h
         sudo rm -rf /usr/local/lib/android
@@ -32,9 +34,12 @@ jobs:
       run: rustup set profile minimal
     - uses: arduino/setup-protoc@v3
     - name: Test
-      run: ./scripts/test.sh
+      run: bash ./scripts/test.sh
   lint:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -48,12 +53,13 @@ jobs:
         command: fmt
         args: --all -- --check
     - name: Lint
-      run: ./scripts/lint.sh
+      run: bash ./scripts/lint.sh
   external-types:
     strategy:
       matrix:
+        os: [ windows-latest, ubuntu-latest ]
         example: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -68,8 +74,9 @@ jobs:
   non-default-examples:
     strategy:
       matrix:
+        os: [ windows-latest, ubuntu-latest ]
         example: [opentelemetry-otlp/examples/basic-otlp]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -83,21 +90,27 @@ jobs:
         cd ${{ matrix.example }}
         cargo build --verbose
   msrv:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - uses: dtolnay/rust-toolchain@1.65.0
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
-      run: ./scripts/patch_dependencies.sh
+      run: bash ./scripts/patch_dependencies.sh
     - name: Run tests
       run: cargo --version &&
         cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
     steps:
       - uses: actions/checkout@v4
@@ -105,8 +118,11 @@ jobs:
         with:
           command: check advisories
   docs:
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -120,7 +136,10 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
   coverage:
     continue-on-error: true
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     if: ${{ ! contains(github.event.pull_request.labels.*.name, 'dependencies') }}
     steps:
       - uses: actions/checkout@v4
