@@ -1,4 +1,4 @@
-use http_body_util::{Either, Full};
+use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{body::Incoming, service::service_fn, Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::{
@@ -21,32 +21,44 @@ fn extract_context_from_request(req: &Request<Incoming>) -> Context {
 }
 
 // Separate async function for the handle endpoint
-async fn handle_health_check(_req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+async fn handle_health_check(
+    _req: Request<Incoming>,
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
         .start(&tracer);
     span.add_event("Health check accessed", vec![]);
-    let res = Response::new(Full::new(Bytes::from_static(b"Server is up and running!")));
+
+    let res = Response::new(
+        Full::new(Bytes::from_static(b"Server is up and running!"))
+            .map_err(|err| match err {})
+            .boxed(),
+    );
+
     Ok(res)
 }
 
 // Separate async function for the echo endpoint
-async fn handle_echo(req: Request<Incoming>) -> Result<Response<Incoming>, Infallible> {
+async fn handle_echo(
+    req: Request<Incoming>,
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = global::tracer("example/server");
     let mut span = tracer
         .span_builder("echo")
         .with_kind(SpanKind::Internal)
         .start(&tracer);
     span.add_event("Echoing back the request", vec![]);
-    let res = Response::new(req.into_body());
+
+    let res = Response::new(req.into_body().boxed());
+
     Ok(res)
 }
 
 async fn router(
     req: Request<Incoming>,
-) -> Result<Response<Either<Full<Bytes>, Incoming>>, Infallible> {
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     // Extract the context from the incoming request headers
     let parent_cx = extract_context_from_request(&req);
     let response = {
@@ -61,18 +73,12 @@ async fn router(
 
         let cx = Context::default().with_span(span);
         match (req.method(), req.uri().path()) {
-            (&hyper::Method::GET, "/health") => handle_health_check(req)
-                .with_context(cx)
-                .await
-                .map(|response| response.map(Either::Left)),
-            (&hyper::Method::GET, "/echo") => handle_echo(req)
-                .with_context(cx)
-                .await
-                .map(|response| response.map(Either::Right)),
+            (&hyper::Method::GET, "/health") => handle_health_check(req).with_context(cx).await,
+            (&hyper::Method::GET, "/echo") => handle_echo(req).with_context(cx).await,
             _ => {
                 cx.span()
                     .set_attribute(KeyValue::new(trace::HTTP_RESPONSE_STATUS_CODE, 404));
-                let mut not_found = Response::new(Either::Left(Full::default()));
+                let mut not_found = Response::new(BoxBody::default());
                 *not_found.status_mut() = StatusCode::NOT_FOUND;
                 Ok(not_found)
             }
