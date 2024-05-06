@@ -99,3 +99,105 @@ impl From<&SpanContext> for TraceContext {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use opentelemetry::logs::{AnyValue, LogRecord, Severity};
+    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId};
+    use std::borrow::Cow;
+    use std::time::SystemTime;
+
+    // Helper function to create a TraceId from a u128 number
+    fn trace_id_from_u128(num: u128) -> TraceId {
+        TraceId::from_bytes(num.to_be_bytes())
+    }
+
+    // Helper function to create a SpanId from a u64 number
+    fn span_id_from_u64(num: u64) -> SpanId {
+        SpanId::from_bytes(num.to_be_bytes())
+    }
+
+    #[test]
+    fn test_set_timestamp() {
+        let mut log_record = SdkLogRecord::default();
+        let now = SystemTime::now();
+        log_record.set_timestamp(now);
+        assert_eq!(log_record.timestamp, Some(now));
+    }
+
+    #[test]
+    fn test_set_observed_timestamp() {
+        let mut log_record = SdkLogRecord::default();
+        let now = SystemTime::now();
+        log_record.set_observed_timestamp(now);
+        assert_eq!(log_record.observed_timestamp, Some(now));
+    }
+
+    #[test]
+    fn test_set_span_context() {
+        let mut log_record = SdkLogRecord::default();
+        let span_context = SpanContext::new(
+            trace_id_from_u128(123),
+            span_id_from_u64(456),
+            TraceFlags::default(),
+            true,
+            Default::default(),
+        );
+        log_record.set_span_context(&span_context);
+        assert_eq!(
+            log_record.trace_context.clone().unwrap().trace_id,
+            span_context.trace_id()
+        );
+        assert_eq!(
+            log_record.trace_context.clone().unwrap().span_id,
+            span_context.span_id()
+        );
+        assert_eq!(
+            log_record.trace_context.unwrap().trace_flags,
+            Some(span_context.trace_flags())
+        );
+    }
+
+    #[test]
+    fn test_set_severity_text() {
+        let mut log_record = SdkLogRecord::default();
+        let severity_text: Cow<'static, str> = "ERROR".into(); // Explicitly typed
+        log_record.set_severity_text(severity_text);
+        assert_eq!(log_record.severity_text, Some(Cow::Borrowed("ERROR")));
+    }
+
+    #[test]
+    fn test_set_severity_number() {
+        let mut log_record = SdkLogRecord::default();
+        let severity_number = Severity::Error;
+        log_record.set_severity_number(severity_number);
+        assert_eq!(log_record.severity_number, Some(Severity::Error));
+    }
+
+    #[test]
+    fn test_set_body() {
+        let mut log_record = SdkLogRecord::default();
+        let body = AnyValue::String("Test body".into());
+        log_record.set_body(body.clone());
+        assert_eq!(log_record.body, Some(body));
+    }
+
+    #[test]
+    fn test_set_attributes() {
+        let mut log_record = SdkLogRecord::default();
+        let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
+        log_record.set_attributes(attributes.clone());
+        assert_eq!(log_record.attributes, Some(attributes));
+    }
+
+    #[test]
+    fn test_set_attribute() {
+        let mut log_record = SdkLogRecord::default();
+        log_record.set_attribute("key", "value");
+        assert_eq!(
+            log_record.attributes,
+            Some(vec![(Key::new("key"), AnyValue::String("value".into()))])
+        );
+    }
+}
