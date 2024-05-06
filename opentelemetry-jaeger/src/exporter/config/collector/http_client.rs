@@ -129,7 +129,7 @@ impl CollectorHttpClient {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
+#[cfg(feature = "rt-tokio")]
 pub(crate) mod test_http_client {
     use async_trait::async_trait;
     use bytes::Bytes;
