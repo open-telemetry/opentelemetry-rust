@@ -89,8 +89,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // By binding the result to an unused variable, the lifetime of the variable
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
-    let _ = init_tracer()?;
-    let _ = init_metrics()?;
+
+    let result = init_tracer();
+    assert!(
+        result.is_ok(),
+        "Init tracer failed with error: {:?}",
+        result.err()
+    );
+
+    let result = init_metrics();
+    assert!(
+        result.is_ok(),
+        "Init metrics failed with error: {:?}",
+        result.err()
+    );
 
     // Initialize logs, which sets the global loggerprovider.
     let logger_provider = init_logs().unwrap();
