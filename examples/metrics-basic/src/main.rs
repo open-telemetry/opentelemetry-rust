@@ -43,22 +43,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     );
 
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
-    let observable_counter = meter
+    let _observable_counter = meter
         .u64_observable_counter("my_observable_counter")
         .with_description("My observable counter example description")
         .with_unit(Unit::new("myunit"))
+        .with_callback(|observer| {
+            observer.observe(
+                100,
+                &[
+                    KeyValue::new("mykey1", "myvalue1"),
+                    KeyValue::new("mykey2", "myvalue2"),
+                ],
+            )
+        })
         .init();
-
-    meter.register_callback(&[observable_counter.as_any()], move |observer| {
-        observer.observe_u64(
-            &observable_counter,
-            100,
-            &[
-                KeyValue::new("mykey1", "myvalue1"),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        )
-    })?;
 
     // Create a UpCounter Instrument.
     let updown_counter = meter.i64_up_down_counter("my_updown_counter").init();
