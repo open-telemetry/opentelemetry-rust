@@ -28,7 +28,7 @@
 
 Before:
 
-```
+```rust
 let logger = provider.versioned_logger(
     "my-logger-name",
     Some(env!("CARGO_PKG_VERSION")),
@@ -39,7 +39,7 @@ let logger = provider.versioned_logger(
 
 After:
 
-```
+```rust
 let logger = provider
     .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
@@ -52,7 +52,7 @@ let logger = provider
 
 Before:
 
-```
+```rust
 let tracer = provider.versioned_tracer(
     "my-tracer-name",
     Some(env!("CARGO_PKG_VERSION")),
@@ -63,7 +63,7 @@ let tracer = provider.versioned_tracer(
 
 After:
 
-```
+```rust
 let tracer = provider
     .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
