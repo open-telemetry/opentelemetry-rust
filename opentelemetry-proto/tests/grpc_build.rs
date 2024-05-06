@@ -18,7 +18,7 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR);
+    let before_build = build_content_map(TONIC_OUT_DIR, false);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
@@ -95,11 +95,11 @@ fn build_tonic() {
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
-    let after_build = build_content_map(out_dir.path());
+    let after_build = build_content_map(out_dir.path(), true);
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
 
-fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, String> {
+fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashMap<String, String> {
     std::fs::read_dir(path)
         .expect("cannot open dictionary of generated files")
         .flatten()
@@ -108,12 +108,26 @@ fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, String> {
             let file_name = path
                 .file_name()
                 .expect("file name should always exist for generated files");
-            (
-                file_name.to_string_lossy().to_string(),
-                std::fs::read_to_string(path).expect("cannot read from existing generated file"),
-            )
+
+            let mut file_contents = std::fs::read_to_string(path.clone())
+                .expect("cannot read from existing generated file");
+
+            if normalize_line_feed {
+                file_contents = get_platform_specific_string(file_contents);
+            }
+
+            (file_name.to_string_lossy().to_string(), file_contents)
         })
         .collect()
+}
+
+///  Returns a String with the platform specific new line feed character.
+fn get_platform_specific_string(input: String) -> String {
+    if cfg!(windows) {
+        input.replace('\n', "\r\n")
+    } else {
+        input
+    }
 }
 
 fn ensure_files_are_same(

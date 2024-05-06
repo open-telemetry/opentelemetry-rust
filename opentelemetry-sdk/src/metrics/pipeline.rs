@@ -165,9 +165,9 @@ impl SdkProducer for Pipeline {
                             // previous aggregation was of a different type
                             prev_agg.data = data;
                         }
-                        prev_agg.name = inst.name.clone();
-                        prev_agg.description = inst.description.clone();
-                        prev_agg.unit = inst.unit.clone();
+                        prev_agg.name.clone_from(&inst.name);
+                        prev_agg.description.clone_from(&inst.description);
+                        prev_agg.unit.clone_from(&inst.unit);
                     }
                     _ => continue,
                 }
