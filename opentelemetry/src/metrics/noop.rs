@@ -14,13 +14,13 @@ use std::{any::Any, borrow::Cow, sync::Arc};
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
-pub struct NoopMeterProvider {
+pub(crate) struct NoopMeterProvider {
     _private: (),
 }
 
 impl NoopMeterProvider {
     /// Create a new no-op meter provider.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         NoopMeterProvider { _private: () }
     }
 }
@@ -81,13 +81,13 @@ impl CallbackRegistration for NoopRegistration {
 
 /// A no-op sync instrument
 #[derive(Debug, Default)]
-pub struct NoopSyncInstrument {
+pub(crate) struct NoopSyncInstrument {
     _private: (),
 }
 
 impl NoopSyncInstrument {
     /// Create a new no-op sync instrument
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         NoopSyncInstrument { _private: () }
     }
 }
