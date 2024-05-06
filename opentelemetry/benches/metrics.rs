@@ -6,8 +6,8 @@ use opentelemetry::{global, metrics::Counter, KeyValue};
 
 fn create_counter() -> Counter<u64> {
     let meter = global::meter("benchmarks");
-    let counter = meter.u64_counter("counter_bench").init();
-    counter
+    
+    meter.u64_counter("counter_bench").init()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
