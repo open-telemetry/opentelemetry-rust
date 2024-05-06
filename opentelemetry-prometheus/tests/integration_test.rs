@@ -405,9 +405,19 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
-    let output_string = String::from_utf8(output).unwrap();
+
+    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
 
     assert_eq!(output_string, expected, "{name}");
+}
+
+///  Returns a String which uses the platform specific new line feed character.
+fn get_platform_specific_string(input: String) -> String {
+    if cfg!(windows) {
+        input.replace('\n', "\r\n")
+    } else {
+        input
+    }
 }
 
 #[test]
@@ -816,7 +826,8 @@ fn gather_and_compare_multi(
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
-    let output_string = String::from_utf8(output).unwrap();
+
+    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
 
     assert!(
         expected.contains(&output_string),
