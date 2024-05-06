@@ -74,8 +74,20 @@ static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _ = init_tracer()?;
-    let _ = init_metrics()?;
+    let result = init_tracer();
+    assert!(
+        result.is_ok(),
+        "Init tracer failed with error: {:?}",
+        result.err()
+    );
+
+    let result = init_metrics();
+    assert!(
+        result.is_ok(),
+        "Init metrics failed with error: {:?}",
+        result.err()
+    );
+
     // Opentelemetry will not provide a global API to manage the logger provider. Application users must manage the lifecycle of the logger provider on their own. Dropping logger providers will disable log emitting.
     let logger_provider = init_logs().unwrap();
 

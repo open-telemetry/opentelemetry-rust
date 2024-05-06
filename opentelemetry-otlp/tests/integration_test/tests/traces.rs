@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use integration_test_runner::asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
