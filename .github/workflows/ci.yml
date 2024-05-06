@@ -57,9 +57,8 @@ jobs:
   external-types:
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-latest ]
         example: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest # TODO: Check if this could be covered on Windows. The step used currently fails on Windows.
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -107,10 +106,7 @@ jobs:
         cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
-    strategy:
-      matrix:
-        os: [ windows-latest, ubuntu-latest ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest # This is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
     steps:
       - uses: actions/checkout@v4
@@ -161,3 +157,4 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: false
+          
