@@ -11,13 +11,13 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use opentelemetry::logs::LogRecord;
-pub use record::{SdkLogRecord, TraceContext};
+pub use record::{LogRecord, TraceContext};
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
+    use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
 

@@ -50,8 +50,8 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
-        fn from(log_record: opentelemetry_sdk::logs::SdkLogRecord) -> Self {
+    impl From<opentelemetry_sdk::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry_sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,

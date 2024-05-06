@@ -1,6 +1,4 @@
-use super::{
-    BatchLogProcessor, Config, LogProcessor, SdkLogRecord, SimpleLogProcessor, TraceContext,
-};
+use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
@@ -224,10 +222,10 @@ impl Logger {
 }
 
 impl opentelemetry::logs::Logger for Logger {
-    type LogRecord = SdkLogRecord;
+    type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        SdkLogRecord::default()
+        LogRecord::default()
     }
 
     /// Emit a `LogRecord`.

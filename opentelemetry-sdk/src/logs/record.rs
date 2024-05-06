@@ -1,5 +1,5 @@
 use opentelemetry::{
-    logs::{AnyValue, LogRecord, Severity},
+    logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
     Key,
 };
@@ -9,7 +9,7 @@ use std::{borrow::Cow, time::SystemTime};
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
-pub struct SdkLogRecord {
+pub struct LogRecord {
     /// Record timestamp
     pub timestamp: Option<SystemTime>,
 
@@ -31,7 +31,7 @@ pub struct SdkLogRecord {
     pub attributes: Option<Vec<(Key, AnyValue)>>,
 }
 
-impl LogRecord for SdkLogRecord {
+impl opentelemetry::logs::LogRecord for LogRecord {
     fn set_timestamp(&mut self, timestamp: SystemTime) {
         self.timestamp = Some(timestamp);
     }
@@ -103,7 +103,7 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord, Severity};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
     use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId};
     use std::borrow::Cow;
     use std::time::SystemTime;
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_set_timestamp() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let now = SystemTime::now();
         log_record.set_timestamp(now);
         assert_eq!(log_record.timestamp, Some(now));
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_set_observed_timestamp() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let now = SystemTime::now();
         log_record.set_observed_timestamp(now);
         assert_eq!(log_record.observed_timestamp, Some(now));
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_set_span_context() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let span_context = SpanContext::new(
             trace_id_from_u128(123),
             span_id_from_u64(456),
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_set_severity_text() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let severity_text: Cow<'static, str> = "ERROR".into(); // Explicitly typed
         log_record.set_severity_text(severity_text);
         assert_eq!(log_record.severity_text, Some(Cow::Borrowed("ERROR")));
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_set_severity_number() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let severity_number = Severity::Error;
         log_record.set_severity_number(severity_number);
         assert_eq!(log_record.severity_number, Some(Severity::Error));
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_set_body() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let body = AnyValue::String("Test body".into());
         log_record.set_body(body.clone());
         assert_eq!(log_record.body, Some(body));
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn test_set_attributes() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.set_attributes(attributes.clone());
         assert_eq!(log_record.attributes, Some(attributes));
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_set_attribute() {
-        let mut log_record = SdkLogRecord::default();
+        let mut log_record = LogRecord::default();
         log_record.set_attribute("key", "value");
         assert_eq!(
             log_record.attributes,

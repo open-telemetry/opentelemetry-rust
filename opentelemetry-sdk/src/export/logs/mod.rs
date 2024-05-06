@@ -1,5 +1,5 @@
 //! Log exporters
-use crate::logs::SdkLogRecord;
+use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
@@ -30,7 +30,7 @@ pub trait LogExporter: Send + Sync + Debug {
 #[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
-    pub record: SdkLogRecord,
+    pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationLibrary,
 }
