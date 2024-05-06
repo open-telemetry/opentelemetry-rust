@@ -12,8 +12,13 @@ jobs:
   test:
     strategy:
       matrix:
+        # test all Rust versions on ubuntu-latest
+        os: [ubuntu-latest]
         rust: [stable, beta]
-        os: [ windows-latest, ubuntu-latest ]
+        # test stable Rust on Windows
+        include:
+          - rust: stable
+            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
@@ -126,10 +131,7 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
   coverage:
     continue-on-error: true
-    strategy:
-      matrix:
-        os: [ windows-latest, ubuntu-latest ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     if: ${{ ! contains(github.event.pull_request.labels.*.name, 'dependencies') }}
     steps:
       - uses: actions/checkout@v4
