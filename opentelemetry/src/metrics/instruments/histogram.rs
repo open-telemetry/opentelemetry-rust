@@ -36,26 +36,22 @@ impl<T> Histogram<T> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, Histogram<f64>>> for Histogram<f64> {
+impl TryFrom<InstrumentBuilder<Histogram<f64>>> for Histogram<f64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<f64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_histogram(
-            builder.name,
-            builder.description,
-            builder.unit,
-        )
+    fn try_from(builder: InstrumentBuilder<Histogram<f64>>) -> Result<Self, Self::Error> {
+        builder
+            .instrument_provider
+            .f64_histogram(builder.name, builder.description, builder.unit)
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, Histogram<u64>>> for Histogram<u64> {
+impl TryFrom<InstrumentBuilder<Histogram<u64>>> for Histogram<u64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<u64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_histogram(
-            builder.name,
-            builder.description,
-            builder.unit,
-        )
+    fn try_from(builder: InstrumentBuilder<Histogram<u64>>) -> Result<Self, Self::Error> {
+        builder
+            .instrument_provider
+            .u64_histogram(builder.name, builder.description, builder.unit)
     }
 }

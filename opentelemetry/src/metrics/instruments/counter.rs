@@ -37,27 +37,23 @@ impl<T> Counter<T> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, Counter<u64>>> for Counter<u64> {
+impl TryFrom<InstrumentBuilder<Counter<u64>>> for Counter<u64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-        )
+    fn try_from(builder: InstrumentBuilder<Counter<u64>>) -> Result<Self, Self::Error> {
+        builder
+            .instrument_provider
+            .u64_counter(builder.name, builder.description, builder.unit)
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, Counter<f64>>> for Counter<f64> {
+impl TryFrom<InstrumentBuilder<Counter<f64>>> for Counter<f64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-        )
+    fn try_from(builder: InstrumentBuilder<Counter<f64>>) -> Result<Self, Self::Error> {
+        builder
+            .instrument_provider
+            .f64_counter(builder.name, builder.description, builder.unit)
     }
 }
 

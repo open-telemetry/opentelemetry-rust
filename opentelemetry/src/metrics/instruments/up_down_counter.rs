@@ -42,11 +42,11 @@ impl<T> UpDownCounter<T> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<i64>>> for UpDownCounter<i64> {
+impl TryFrom<InstrumentBuilder<UpDownCounter<i64>>> for UpDownCounter<i64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<i64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.i64_up_down_counter(
+    fn try_from(builder: InstrumentBuilder<UpDownCounter<i64>>) -> Result<Self, Self::Error> {
+        builder.instrument_provider.i64_up_down_counter(
             builder.name,
             builder.description,
             builder.unit,
@@ -54,11 +54,11 @@ impl TryFrom<InstrumentBuilder<'_, UpDownCounter<i64>>> for UpDownCounter<i64> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<f64>>> for UpDownCounter<f64> {
+impl TryFrom<InstrumentBuilder<UpDownCounter<f64>>> for UpDownCounter<f64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<f64>>) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_up_down_counter(
+    fn try_from(builder: InstrumentBuilder<UpDownCounter<f64>>) -> Result<Self, Self::Error> {
+        builder.instrument_provider.f64_up_down_counter(
             builder.name,
             builder.description,
             builder.unit,
