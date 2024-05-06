@@ -12,10 +12,10 @@ jobs:
   test:
     strategy:
       matrix:
-        # test all Rust versions on ubuntu-latest
+        # test both stable and beta versions of Rust on ubuntu-latest
         os: [ubuntu-latest]
         rust: [stable, beta]
-        # test stable Rust on Windows
+        # test only stable version of Rust on Windows
         include:
           - rust: stable
             os: windows-latest
