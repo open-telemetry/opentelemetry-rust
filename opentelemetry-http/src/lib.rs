@@ -125,7 +125,7 @@ mod isahc {
     }
 }
 
-#[cfg(any(feature = "hyper", feature = "hyper_tls"))]
+#[cfg(feature = "hyper")]
 pub mod hyper {
     use crate::ResponseExt;
 
