@@ -41,19 +41,28 @@ pub struct NoopLogRecord;
 
 impl LogRecord for NoopLogRecord {
     // Implement the LogRecord trait methods with empty bodies.
+    #[inline]
     fn set_timestamp(&mut self, _timestamp: SystemTime) {}
+    #[inline]
     fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
+    #[inline]
     fn set_span_context(&mut self, _context: &SpanContext) {}
+    #[inline]
     fn set_severity_text(&mut self, _text: Cow<'static, str>) {}
+    #[inline]
     fn set_severity_number(&mut self, _number: Severity) {}
+    #[inline]
     fn set_body(&mut self, _body: AnyValue) {}
+    #[inline]
     fn set_attributes(&mut self, _attributes: Vec<(Key, AnyValue)>) {}
+    #[inline]
     fn set_attribute<K, V>(&mut self, _key: K, _value: V)
     where
         K: Into<Key>,
         V: Into<AnyValue>,
     {
     }
+    #[inline]
     fn set_context<T>(&mut self, _context: &T)
     where
         T: crate::trace::TraceContextExt,
