@@ -40,6 +40,12 @@ fn attributes_creation(c: &mut Criterion) {
         });
     });
 
+    c.bench_function("CreateTupleKeyValueUsingGenerics", |b| {
+        b.iter(|| {
+            let _v1 = black_box(no_op("attribute1", "value1"));
+        });
+    });
+
     #[allow(clippy::useless_vec)]
     c.bench_function("CreateOtelKeyValueVector", |b| {
         b.iter(|| {
@@ -63,6 +69,17 @@ fn attributes_creation(c: &mut Criterion) {
             ]);
         });
     });
+}
+
+
+trait OTelValueType {}
+
+impl OTelValueType for u32 {}
+
+impl  OTelValueType for &str {}
+
+fn no_op<T : OTelValueType>(key: &'static str, value: T) {
+    black_box("test");
 }
 
 criterion_group!(benches, criterion_benchmark);
