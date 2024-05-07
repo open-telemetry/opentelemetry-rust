@@ -71,22 +71,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     );
 
     // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
-    let observable_up_down_counter = meter
+    let _observable_up_down_counter = meter
         .i64_observable_up_down_counter("my_observable_updown_counter")
         .with_description("My observable updown counter example description")
         .with_unit(Unit::new("myunit"))
+        .with_callback(|observer| {
+            observer.observe(
+                100,
+                &[
+                    KeyValue::new("mykey1", "myvalue1"),
+                    KeyValue::new("mykey2", "myvalue2"),
+                ],
+            )
+        })
         .init();
-
-    meter.register_callback(&[observable_up_down_counter.as_any()], move |observer| {
-        observer.observe_i64(
-            &observable_up_down_counter,
-            100,
-            &[
-                KeyValue::new("mykey1", "myvalue1"),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        )
-    })?;
 
     // Create a Histogram Instrument.
     let histogram = meter
@@ -106,8 +104,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Note that there is no ObservableHistogram instrument.
 
     // Create a Gauge Instrument.
-    {
-        let gauge = meter
+    let gauge = meter
             .f64_gauge("my_gauge")
             .with_description("A gauge set to 1.0")
             .with_unit(Unit::new("myunit"))
@@ -120,26 +117,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 KeyValue::new("mykey2", "myvalue2"),
             ],
         );
-    }
 
     // Create a ObservableGauge instrument and register a callback that reports the measurement.
-    let observable_gauge = meter
+    let _observable_gauge = meter
         .f64_observable_gauge("my_observable_gauge")
         .with_description("An observable gauge set to 1.0")
         .with_unit(Unit::new("myunit"))
+        .with_callback(|observer| {
+            observer.observe(
+                1.0,
+                &[
+                    KeyValue::new("mykey1", "myvalue1"),
+                    KeyValue::new("mykey2", "myvalue2"),
+                ],
+            )
+        })
         .init();
-
-    // Register a callback that reports the measurement.
-    meter.register_callback(&[observable_gauge.as_any()], move |observer| {
-        observer.observe_f64(
-            &observable_gauge,
-            1.0,
-            &[
-                KeyValue::new("mykey1", "myvalue1"),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        )
-    })?;
 
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
