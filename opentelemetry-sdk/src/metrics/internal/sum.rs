@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -14,30 +15,56 @@ use super::{
     AtomicTracker, Number,
 };
 
+/// Abstracts the update operation for a measurement.
+trait UpdateOperation<T> {
+    fn update(a: &mut T, b: T);
+}
+
+struct AddAssign;
+
+impl<T> UpdateOperation<T> for AddAssign
+where
+    T: std::ops::AddAssign<T>,
+{
+    fn update(a: &mut T, b: T) {
+        *a += b
+    }
+}
+
+struct Assign;
+
+impl<T> UpdateOperation<T> for Assign {
+    fn update(a: &mut T, b: T) {
+        *a = b
+    }
+}
+
 /// The storage for sums.
-struct ValueMap<T: Number<T>> {
+struct ValueMap<T: Number<T>, O> {
     values: Mutex<HashMap<AttributeSet, T>>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
+    _operation: PhantomData<O>,
 }
 
-impl<T: Number<T>> Default for ValueMap<T> {
+impl<T: Number<T>, O: UpdateOperation<T>> Default for ValueMap<T, O> {
     fn default() -> Self {
         ValueMap::new()
     }
 }
 
-impl<T: Number<T>> ValueMap<T> {
+impl<T: Number<T>, O: UpdateOperation<T>> ValueMap<T, O> {
     fn new() -> Self {
         ValueMap {
             values: Mutex::new(HashMap::new()),
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
+            _operation: PhantomData,
         }
     }
 }
 
-impl<T: Number<T>> ValueMap<T> {
+impl<T: Number<T>, O: UpdateOperation<T>> ValueMap<T, O> {
     fn measure(&self, measurement: T, attrs: AttributeSet) {
         if attrs.is_empty() {
             self.no_attribute_value.add(measurement);
@@ -47,8 +74,8 @@ impl<T: Number<T>> ValueMap<T> {
             let size = values.len();
             match values.entry(attrs) {
                 Entry::Occupied(mut occupied_entry) => {
-                    let sum = occupied_entry.get_mut();
-                    *sum += measurement;
+                    let value = occupied_entry.get_mut();
+                    O::update(value, measurement);
                 }
                 Entry::Vacant(vacant_entry) => {
                     if is_under_cardinality_limit(size) {
@@ -56,7 +83,7 @@ impl<T: Number<T>> ValueMap<T> {
                     } else {
                         values
                             .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
-                            .and_modify(|val| *val += measurement)
+                            .and_modify(|val| O::update(val, measurement))
                             .or_insert(measurement);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                     }
@@ -68,7 +95,7 @@ impl<T: Number<T>> ValueMap<T> {
 
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number<T>> {
-    value_map: ValueMap<T>,
+    value_map: ValueMap<T, AddAssign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
@@ -232,7 +259,7 @@ impl<T: Number<T>> Sum<T> {
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number<T>> {
-    value_map: ValueMap<T>,
+    value_map: ValueMap<T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<AttributeSet, T>>,
@@ -367,11 +394,6 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 .data_points
                 .reserve_exact(n - s_data.data_points.capacity());
         }
-        let mut new_reported = HashMap::with_capacity(n);
-        let mut reported = match self.reported.lock() {
-            Ok(r) => r,
-            Err(_) => return (0, None),
-        };
 
         if self
             .value_map
@@ -387,23 +409,15 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
-        let default = T::default();
         for (attrs, value) in values.iter() {
-            let delta = *value - *reported.get(attrs).unwrap_or(&default);
-            if delta != default {
-                new_reported.insert(attrs.clone(), *value);
-            }
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: delta,
+                value: *value,
                 exemplars: vec![],
             });
         }
-
-        *reported = new_reported;
-        drop(reported); // drop before values guard is dropped
 
         (
             s_data.data_points.len(),
