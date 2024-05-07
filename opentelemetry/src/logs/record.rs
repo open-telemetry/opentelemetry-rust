@@ -1,20 +1,13 @@
-use crate::{
-    trace::{SpanContext, TraceContextExt},
-    Array, Key, StringValue, Value,
-};
+use crate::{Array, Key, StringValue, Value};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-/// Abstract interface for managing log records. The implementation is provided by the SDK
-/// Abstract interface for log records in an observability framework.
+/// SDK implemented trait for managing log records
 pub trait LogRecord {
     /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
 
     /// Sets the observed event timestamp.
     fn set_observed_timestamp(&mut self, timestamp: SystemTime);
-
-    /// Associates a span context.
-    fn set_span_context(&mut self, context: &SpanContext);
 
     /// Sets severity as text.
     fn set_severity_text(&mut self, text: Cow<'static, str>);
@@ -26,23 +19,13 @@ pub trait LogRecord {
     fn set_body(&mut self, body: AnyValue);
 
     /// Adds multiple attributes.
-    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
+    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
 
-    /// Adds or updates a single attribute.
-    fn set_attribute<K, V>(&mut self, key: K, value: V)
+    /// Adds a single attribute.
+    fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
         V: Into<AnyValue>;
-
-    /// Sets the trace context, pulling from the active span if available.
-    fn set_context<T>(&mut self, context: &T)
-    where
-        T: TraceContextExt,
-    {
-        if context.has_active_span() {
-            self.set_span_context(context.span().span_context())
-        }
-    }
 }
 
 /// Value types for representing arbitrary values in a log record.

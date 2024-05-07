@@ -40,14 +40,6 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.observed_timestamp = Some(timestamp);
     }
 
-    fn set_span_context(&mut self, span_context: &SpanContext) {
-        self.trace_context = Some(TraceContext {
-            span_id: span_context.span_id(),
-            trace_id: span_context.trace_id(),
-            trace_flags: Some(span_context.trace_flags()),
-        });
-    }
-
     fn set_severity_text(&mut self, severity_text: Cow<'static, str>) {
         self.severity_text = Some(severity_text);
     }
@@ -60,11 +52,11 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.body = Some(body);
     }
 
-    fn set_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) {
+    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) {
         self.attributes = Some(attributes);
     }
 
-    fn set_attribute<K, V>(&mut self, key: K, value: V)
+    fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
         V: Into<AnyValue>,
@@ -104,19 +96,8 @@ impl From<&SpanContext> for TraceContext {
 mod tests {
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
-    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId};
     use std::borrow::Cow;
     use std::time::SystemTime;
-
-    // Helper function to create a TraceId from a u128 number
-    fn trace_id_from_u128(num: u128) -> TraceId {
-        TraceId::from_bytes(num.to_be_bytes())
-    }
-
-    // Helper function to create a SpanId from a u64 number
-    fn span_id_from_u64(num: u64) -> SpanId {
-        SpanId::from_bytes(num.to_be_bytes())
-    }
 
     #[test]
     fn test_set_timestamp() {
@@ -132,31 +113,6 @@ mod tests {
         let now = SystemTime::now();
         log_record.set_observed_timestamp(now);
         assert_eq!(log_record.observed_timestamp, Some(now));
-    }
-
-    #[test]
-    fn test_set_span_context() {
-        let mut log_record = LogRecord::default();
-        let span_context = SpanContext::new(
-            trace_id_from_u128(123),
-            span_id_from_u64(456),
-            TraceFlags::default(),
-            true,
-            Default::default(),
-        );
-        log_record.set_span_context(&span_context);
-        assert_eq!(
-            log_record.trace_context.clone().unwrap().trace_id,
-            span_context.trace_id()
-        );
-        assert_eq!(
-            log_record.trace_context.clone().unwrap().span_id,
-            span_context.span_id()
-        );
-        assert_eq!(
-            log_record.trace_context.unwrap().trace_flags,
-            Some(span_context.trace_flags())
-        );
     }
 
     #[test]
@@ -187,14 +143,14 @@ mod tests {
     fn test_set_attributes() {
         let mut log_record = LogRecord::default();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
-        log_record.set_attributes(attributes.clone());
+        log_record.add_attributes(attributes.clone());
         assert_eq!(log_record.attributes, Some(attributes));
     }
 
     #[test]
     fn test_set_attribute() {
         let mut log_record = LogRecord::default();
-        log_record.set_attribute("key", "value");
+        log_record.add_attribute("key", "value");
         assert_eq!(
             log_record.attributes,
             Some(vec![(Key::new("key"), AnyValue::String("value".into()))])

@@ -75,7 +75,7 @@ impl EventVisitor {
         if let Some(body) = self.log_record_body {
             log_record.set_body(body);
         }
-        log_record.set_attributes(self.log_record_attributes);
+        log_record.add_attributes(self.log_record_attributes);
     }
 }
 

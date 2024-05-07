@@ -34,7 +34,7 @@ mod tests {
         let mut log_record = logger.create_log_record();
         log_record.set_severity_number(Severity::Error);
         log_record.set_severity_text("Error".into());
-        log_record.set_attributes(vec![
+        log_record.add_attributes(vec![
             (Key::new("key1"), "value1".into()),
             (Key::new("key2"), "value2".into()),
         ]);
