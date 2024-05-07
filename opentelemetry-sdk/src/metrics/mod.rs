@@ -530,7 +530,7 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Spatial aggregation is not yet implemented."]
+    // #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
 
@@ -550,43 +550,34 @@ mod tests {
 
         // Act
         let meter = meter_provider.meter("test");
-        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
-
-        // Normally, these callbacks would generate 3 time-series, but since the view
-        // drops all attributes, we expect only 1 time-series.
-        meter
-            .register_callback(&[observable_counter.as_any()], move |observer| {
-                observer.observe_u64(
-                    &observable_counter,
+        let _observable_counter = meter
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(|observer| {
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "get"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
 
-                observer.observe_u64(
-                    &observable_counter,
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "post"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
 
-                observer.observe_u64(
-                    &observable_counter,
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "500"),
                         KeyValue::new("verb", "get"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
             })
-            .expect("Expected to register callback");
+            .init();
 
         meter_provider.force_flush().unwrap();
 
