@@ -40,14 +40,14 @@ fn attributes_creation(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("CreateKeyValueUsingGenericMethod", |b| {
+    c.bench_function("ProvideKeyValueUsingGenericMethod", |b| {
         b.iter(|| {
             let _v1 = black_box(no_op("attribute1", "value1"));
         });
     });
 
     #[allow(clippy::useless_vec)]
-    c.bench_function("CreateKeyValueVectorUsingGenericMethod", |b| {
+    c.bench_function("ProvideMultipleKeyValuesUsingGenericMethod", |b| {
         b.iter(|| {
             let _v1 = black_box(vec![
                 no_op("attribute1", "value1"),
