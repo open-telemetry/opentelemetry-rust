@@ -40,9 +40,21 @@ fn attributes_creation(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("CreateTupleKeyValueUsingGenerics", |b| {
+    c.bench_function("CreateKeyValueUsingGenericMethod", |b| {
         b.iter(|| {
             let _v1 = black_box(no_op("attribute1", "value1"));
+        });
+    });
+
+    #[allow(clippy::useless_vec)]
+    c.bench_function("CreateKeyValueVectorUsingGenericMethod", |b| {
+        b.iter(|| {
+            let _v1 = black_box(vec![
+                no_op("attribute1", "value1"),
+                no_op("attribute2", "value2"),
+                no_op("attribute3", "value3"),
+                no_op("attribute4", "value4"),
+            ]);
         });
     });
 
