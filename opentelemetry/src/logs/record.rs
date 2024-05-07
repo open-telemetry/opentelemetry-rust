@@ -7,7 +7,7 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 /// Abstract interface for managing log records. The implementation is provided by the SDK
 /// Abstract interface for log records in an observability framework.
 pub trait LogRecord {
-    /// Sets the creation timestamp.
+    /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
 
     /// Sets the observed event timestamp.
