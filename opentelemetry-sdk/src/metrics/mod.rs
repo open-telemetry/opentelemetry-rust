@@ -166,6 +166,91 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("my_observable_counter")
+            .with_unit(Unit::new("my_unit"))
+            .with_callback(|observer| {
+                observer.observe(100, &[KeyValue::new("key1", "value1")]);
+                observer.observe(200, &[KeyValue::new("key1", "value2")]);
+            })
+            .init();
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_observable_counter");
+        assert_eq!(metric.unit.as_str(), "my_unit");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for ObservableCounter instruments by default");
+
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 2);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
+
+        // find and validate key1=value1 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value1 expected")
+                .value,
+            100
+        );
+
+        // find and validate key1=value2 datapoint
+        let mut data_point1 = None;
+        for datapoint in &sum.data_points {
+            if datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
+            {
+                data_point1 = Some(datapoint);
+            }
+        }
+        assert_eq!(
+            data_point1
+                .expect("datapoint with key1=value2 expected")
+                .value,
+            200
+        );
+    }
+
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
@@ -445,7 +530,7 @@ mod tests {
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Spatial aggregation is not yet implemented."]
+    // #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
 
@@ -465,43 +550,34 @@ mod tests {
 
         // Act
         let meter = meter_provider.meter("test");
-        let observable_counter = meter.u64_observable_counter("my_observable_counter").init();
-
-        // Normally, these callbacks would generate 3 time-series, but since the view
-        // drops all attributes, we expect only 1 time-series.
-        meter
-            .register_callback(&[observable_counter.as_any()], move |observer| {
-                observer.observe_u64(
-                    &observable_counter,
+        let _observable_counter = meter
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(|observer| {
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "get"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
 
-                observer.observe_u64(
-                    &observable_counter,
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "200"),
                         KeyValue::new("verb", "post"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
 
-                observer.observe_u64(
-                    &observable_counter,
+                observer.observe(
                     100,
-                    [
+                    &[
                         KeyValue::new("statusCode", "500"),
                         KeyValue::new("verb", "get"),
-                    ]
-                    .as_ref(),
+                    ],
                 );
             })
-            .expect("Expected to register callback");
+            .init();
 
         meter_provider.force_flush().unwrap();
 
