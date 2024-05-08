@@ -175,11 +175,12 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
-        self.logs
-            .lock()
-            .map(|mut logs_guard| logs_guard.append(&mut batch.clone()))
-            .map_err(LogError::from)
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+        let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+        for log in batch.into_iter() {
+            logs_guard.push((*log).clone());
+        }
+        Ok(())
     }
     fn shutdown(&mut self) {
         if self.should_reset_on_shutdown {

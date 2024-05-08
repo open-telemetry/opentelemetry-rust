@@ -22,6 +22,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use std::borrow::Cow;
 
 /// Delay interval between two consecutive exports.
 const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
@@ -45,7 +46,7 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
-    fn emit(&self, data: LogData);
+    fn emit(&self, data: &mut LogData);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -80,7 +81,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: &mut LogData) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return;
@@ -90,7 +91,7 @@ impl LogProcessor for SimpleLogProcessor {
             .exporter
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
-            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![data])));
+            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)])));
         if let Err(err) = result {
             global::handle_error(err);
         }
@@ -140,8 +141,8 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, data: LogData) {
-        let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
+    fn emit(&self, data: &mut LogData) {
+        let result = self.message_sender.try_send(BatchMessage::ExportLog(data.clone()));
 
         if let Err(err) = result {
             global::handle_error(LogError::Other(err.into()));
@@ -201,7 +202,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 match message {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
-                        logs.push(log);
+                        logs.push(Cow::Owned(log));
 
                         if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(
@@ -285,11 +286,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     }
 }
 
-async fn export_with_timeout<R, E>(
+async fn export_with_timeout<'a, R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<LogData>,
+    batch: Vec<Cow<'a, LogData>>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -496,6 +497,7 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::testing::logs::InMemoryLogsExporterBuilder;
+    use std::borrow::Cow;
     use crate::{
         export::logs::{LogData, LogExporter},
         logs::{
@@ -522,7 +524,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+        async fn export<'a>(&mut self,  _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
             Ok(())
         }
 
@@ -744,17 +746,15 @@ mod tests {
             BatchConfig::default(),
             runtime::Tokio,
         );
-        processor.emit(LogData {
+        let mut log_data = LogData {
             record: Default::default(),
             instrumentation: Default::default(),
-        });
+        };
+        processor.emit(&mut log_data);
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
-        processor.emit(LogData {
-            record: Default::default(),
-            instrumentation: Default::default(),
-        });
+        processor.emit(&mut log_data);
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 
@@ -765,10 +765,12 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
-        processor.emit(LogData {
+        let mut log_data = LogData{
             record: Default::default(),
             instrumentation: Default::default(),
-        });
+        };
+
+        processor.emit(&mut log_data);
 
         processor.shutdown().unwrap();
 
@@ -777,10 +779,7 @@ mod tests {
             .load(std::sync::atomic::Ordering::Relaxed);
         assert!(is_shutdown);
 
-        processor.emit(LogData {
-            record: Default::default(),
-            instrumentation: Default::default(),
-        });
+        processor.emit(&mut log_data);
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }

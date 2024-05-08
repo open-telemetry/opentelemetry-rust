@@ -236,17 +236,19 @@ impl opentelemetry::logs::Logger for Logger {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
+        let mut log_record = record;
+        if let Some(ref trace_context) = trace_context {
+            log_record.trace_context = Some(trace_context.clone());
+        }
+
+        let mut data = LogData {
+            record: log_record,
+            instrumentation: self.instrumentation_library().clone(),
+        };
 
         for p in processors {
-            let mut cloned_record = record.clone();
-            if let Some(ref trace_context) = trace_context {
-                cloned_record.trace_context = Some(trace_context.clone());
-            }
-            let data = LogData {
-                record: cloned_record,
-                instrumentation: self.instrumentation_library().clone(),
-            };
-            p.emit(data);
+            //let mut cloned_record = record.clone();
+            p.emit(&mut data);
         }
     }
 
@@ -303,7 +305,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: LogData) {
+        fn emit(&self, _data: &mut LogData) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -535,7 +537,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: LogData) {
+        fn emit(&self, _data: &mut LogData) {
             // nothing to do.
         }
 

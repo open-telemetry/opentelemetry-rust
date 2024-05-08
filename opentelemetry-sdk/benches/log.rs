@@ -19,7 +19,7 @@ struct VoidExporter;
 
 #[async_trait]
 impl LogExporter for VoidExporter {
-    async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 }

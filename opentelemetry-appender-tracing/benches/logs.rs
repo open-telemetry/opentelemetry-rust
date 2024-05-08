@@ -33,7 +33,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
@@ -54,7 +54,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: LogData) {
+    fn emit(&self, _: &mut LogData) {
         // no-op
     }
 

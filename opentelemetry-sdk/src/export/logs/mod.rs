@@ -9,12 +9,15 @@ use opentelemetry::{
     InstrumentationLibrary,
 };
 use std::fmt::Debug;
+use std::borrow::Cow;
 
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of [`LogData`].
-    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
+    //async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "logs_level_enabled")]
