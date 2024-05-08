@@ -607,6 +607,104 @@ mod tests {
         assert_eq!(data_point.value, 30);
     }
 
+    // "multi_thread" tokio flavor must be used else flush won't
+    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_attribute_order() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_attribute_order --features=metrics,testing -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").init();
+        // Add the same set of attributes in different order. (they are expected
+        // to be treated as same attributes)
+        counter.add(
+            1,
+            &[
+                KeyValue::new("A", "a"),
+                KeyValue::new("B", "b"),
+                KeyValue::new("C", "c"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("A", "a"),
+                KeyValue::new("C", "c"),
+                KeyValue::new("B", "b"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("B", "b"),
+                KeyValue::new("A", "a"),
+                KeyValue::new("C", "c"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("B", "b"),
+                KeyValue::new("C", "c"),
+                KeyValue::new("A", "a"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("C", "c"),
+                KeyValue::new("B", "b"),
+                KeyValue::new("A", "a"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("C", "c"),
+                KeyValue::new("A", "a"),
+                KeyValue::new("B", "b"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_counter");
+        let sum = metric
+            .data
+            .as_any()
+            .downcast_ref::<data::Sum<u64>>()
+            .expect("Sum aggregation expected for Counter instruments by default");
+
+        // Expecting 1 time-series.
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Expected only one data point as attributes are same, but just reordered."
+        );
+        assert_eq!(
+            sum.temporality,
+            data::Temporality::Cumulative,
+            "Should produce cumulative by default."
+        );
+
+        // validate the sole datapoint
+        let data_point1 = &sum.data_points[0];
+        assert_eq!(data_point1.value, 6);
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_cumulative_counter() {
         let mut test_context = TestContext::new(Some(Temporality::Cumulative));
