@@ -25,22 +25,22 @@ pub trait AsyncInstrument<T>: Send + Sync {
 }
 
 /// Configuration for building a sync instrument.
-pub struct InstrumentBuilder<T> {
-    instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
+pub struct InstrumentBuilder<'a, T> {
+    instrument_provider: &'a dyn InstrumentProvider,
     name: Cow<'static, str>,
     description: Option<Cow<'static, str>>,
     unit: Option<Unit>,
     _marker: marker::PhantomData<T>,
 }
 
-impl<T> InstrumentBuilder<T>
+impl<'a, T> InstrumentBuilder<'a, T>
 where
     T: TryFrom<Self, Error = MetricsError>,
 {
     /// Create a new instrument builder
-    pub(crate) fn new(meter: &Meter, name: Cow<'static, str>) -> Self {
+    pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         InstrumentBuilder {
-            instrument_provider: meter.instrument_provider.clone(),
+            instrument_provider: meter.instrument_provider.as_ref(),
             name,
             description: None,
             unit: None,
@@ -84,7 +84,7 @@ where
     }
 }
 
-impl<T> fmt::Debug for InstrumentBuilder<T> {
+impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InstrumentBuilder")
             .field("name", &self.name)

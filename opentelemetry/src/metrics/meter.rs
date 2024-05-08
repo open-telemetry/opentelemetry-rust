@@ -273,7 +273,7 @@ impl Meter {
     pub fn u64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<Counter<u64>> {
+    ) -> InstrumentBuilder<'_, Counter<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -281,7 +281,7 @@ impl Meter {
     pub fn f64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<Counter<f64>> {
+    ) -> InstrumentBuilder<'_, Counter<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -305,7 +305,7 @@ impl Meter {
     pub fn i64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<UpDownCounter<i64>> {
+    ) -> InstrumentBuilder<'_, UpDownCounter<i64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -313,7 +313,7 @@ impl Meter {
     pub fn f64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<UpDownCounter<f64>> {
+    ) -> InstrumentBuilder<'_, UpDownCounter<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -334,17 +334,26 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording independent values.
-    pub fn u64_gauge(&self, name: impl Into<Cow<'static, str>>) -> InstrumentBuilder<Gauge<u64>> {
+    pub fn u64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording independent values.
-    pub fn f64_gauge(&self, name: impl Into<Cow<'static, str>>) -> InstrumentBuilder<Gauge<f64>> {
+    pub fn f64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording independent values.
-    pub fn i64_gauge(&self, name: impl Into<Cow<'static, str>>) -> InstrumentBuilder<Gauge<i64>> {
+    pub fn i64_gauge(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> InstrumentBuilder<'_, Gauge<i64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -376,7 +385,7 @@ impl Meter {
     pub fn f64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<Histogram<f64>> {
+    ) -> InstrumentBuilder<'_, Histogram<f64>> {
         InstrumentBuilder::new(self, name.into())
     }
 
@@ -384,7 +393,7 @@ impl Meter {
     pub fn u64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<Histogram<u64>> {
+    ) -> InstrumentBuilder<'_, Histogram<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
 

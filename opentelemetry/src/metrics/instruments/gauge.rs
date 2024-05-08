@@ -37,30 +37,30 @@ impl<T> Gauge<T> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<Gauge<u64>>> for Gauge<u64> {
+impl TryFrom<InstrumentBuilder<'_, Gauge<u64>>> for Gauge<u64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<Gauge<u64>>) -> Result<Self, Self::Error> {
+    fn try_from(builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Self, Self::Error> {
         builder
             .instrument_provider
             .u64_gauge(builder.name, builder.description, builder.unit)
     }
 }
 
-impl TryFrom<InstrumentBuilder<Gauge<f64>>> for Gauge<f64> {
+impl TryFrom<InstrumentBuilder<'_, Gauge<f64>>> for Gauge<f64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<Gauge<f64>>) -> Result<Self, Self::Error> {
+    fn try_from(builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Self, Self::Error> {
         builder
             .instrument_provider
             .f64_gauge(builder.name, builder.description, builder.unit)
     }
 }
 
-impl TryFrom<InstrumentBuilder<Gauge<i64>>> for Gauge<i64> {
+impl TryFrom<InstrumentBuilder<'_, Gauge<i64>>> for Gauge<i64> {
     type Error = MetricsError;
 
-    fn try_from(builder: InstrumentBuilder<Gauge<i64>>) -> Result<Self, Self::Error> {
+    fn try_from(builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Self, Self::Error> {
         builder
             .instrument_provider
             .i64_gauge(builder.name, builder.description, builder.unit)
