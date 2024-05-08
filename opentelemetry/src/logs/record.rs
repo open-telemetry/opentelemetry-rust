@@ -1,81 +1,31 @@
-use crate::{
-    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId},
-    Array, Key, StringValue, Value,
-};
+use crate::{Array, Key, StringValue, Value};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-/// LogRecord represents all data carried by a log record, and
-/// is provided to `LogExporter`s as input.
-pub struct LogRecord {
-    /// Event name. Optional as not all the logging API support it.
-    pub event_name: Option<Cow<'static, str>>,
+/// SDK implemented trait for managing log records
+pub trait LogRecord {
+    /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
+    fn set_timestamp(&mut self, timestamp: SystemTime);
 
-    /// Record timestamp
-    pub timestamp: Option<SystemTime>,
+    /// Sets the observed event timestamp.
+    fn set_observed_timestamp(&mut self, timestamp: SystemTime);
 
-    /// Timestamp for when the record was observed by OpenTelemetry
-    pub observed_timestamp: SystemTime,
+    /// Sets severity as text.
+    fn set_severity_text(&mut self, text: Cow<'static, str>);
 
-    /// Trace context for logs associated with spans
-    pub trace_context: Option<TraceContext>,
+    /// Sets severity as a numeric value.
+    fn set_severity_number(&mut self, number: Severity);
 
-    /// The original severity string from the source
-    pub severity_text: Option<Cow<'static, str>>,
-    /// The corresponding severity value, normalized
-    pub severity_number: Option<Severity>,
+    /// Sets the message body of the log.
+    fn set_body(&mut self, body: AnyValue);
 
-    /// Record body
-    pub body: Option<AnyValue>,
+    /// Adds multiple attributes.
+    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
 
-    /// Additional attributes associated with this record
-    pub attributes: Option<Vec<(Key, AnyValue)>>,
-}
-
-impl Default for LogRecord {
-    fn default() -> Self {
-        LogRecord {
-            event_name: None,
-            timestamp: None,
-            observed_timestamp: SystemTime::now(),
-            trace_context: None,
-            severity_text: None,
-            severity_number: None,
-            body: None,
-            attributes: None,
-        }
-    }
-}
-
-impl LogRecord {
-    /// Create a [`LogRecordBuilder`] to create a new Log Record
-    pub fn builder() -> LogRecordBuilder {
-        LogRecordBuilder::new()
-    }
-}
-
-/// TraceContext stores the trace data for logs that have an associated
-/// span.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct TraceContext {
-    /// Trace id
-    pub trace_id: TraceId,
-    /// Span Id
-    pub span_id: SpanId,
-    /// Trace flags
-    pub trace_flags: Option<TraceFlags>,
-}
-
-impl From<&SpanContext> for TraceContext {
-    fn from(span_context: &SpanContext) -> Self {
-        TraceContext {
-            trace_id: span_context.trace_id(),
-            span_id: span_context.span_id(),
-            trace_flags: Some(span_context.trace_flags()),
-        }
-    }
+    /// Adds a single attribute.
+    fn add_attribute<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>;
 }
 
 /// Value types for representing arbitrary values in a log record.
@@ -248,151 +198,5 @@ impl Severity {
             Severity::Fatal3 => "FATAL3",
             Severity::Fatal4 => "FATAL4",
         }
-    }
-}
-
-/// A builder for [`LogRecord`] values.
-#[derive(Debug, Clone)]
-pub struct LogRecordBuilder {
-    record: LogRecord,
-}
-
-impl LogRecordBuilder {
-    /// Create a new LogRecordBuilder
-    pub fn new() -> Self {
-        Self {
-            record: Default::default(),
-        }
-    }
-
-    /// Assign timestamp
-    pub fn with_timestamp(self, timestamp: SystemTime) -> Self {
-        Self {
-            record: LogRecord {
-                timestamp: Some(timestamp),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign observed timestamp
-    pub fn with_observed_timestamp(self, timestamp: SystemTime) -> Self {
-        Self {
-            record: LogRecord {
-                observed_timestamp: timestamp,
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign the record's [`TraceContext`]
-    pub fn with_span_context(self, span_context: &SpanContext) -> Self {
-        Self {
-            record: LogRecord {
-                trace_context: Some(TraceContext {
-                    span_id: span_context.span_id(),
-                    trace_id: span_context.trace_id(),
-                    trace_flags: Some(span_context.trace_flags()),
-                }),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign the record's [`TraceContext`] from a `TraceContextExt` trait
-    pub fn with_context<T>(self, context: &T) -> Self
-    where
-        T: TraceContextExt,
-    {
-        if context.has_active_span() {
-            self.with_span_context(context.span().span_context())
-        } else {
-            self
-        }
-    }
-
-    /// Assign severity text
-    pub fn with_severity_text<T>(self, severity: T) -> Self
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        Self {
-            record: LogRecord {
-                severity_text: Some(severity.into()),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign severity number
-    pub fn with_severity_number(self, severity: Severity) -> Self {
-        Self {
-            record: LogRecord {
-                severity_number: Some(severity),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign body
-    pub fn with_body(self, body: impl Into<AnyValue>) -> Self {
-        Self {
-            record: LogRecord {
-                body: Some(body.into()),
-                ..self.record
-            },
-        }
-    }
-
-    /// Assign attributes.
-    /// The SDK doesn't carry on any deduplication on these attributes.
-    pub fn with_attributes(self, attributes: Vec<(Key, AnyValue)>) -> Self {
-        Self {
-            record: LogRecord {
-                attributes: Some(attributes),
-                ..self.record
-            },
-        }
-    }
-
-    /// Set a single attribute for this record.
-    /// The SDK doesn't carry on any deduplication on these attributes.
-    pub fn with_attribute<K, V>(mut self, key: K, value: V) -> Self
-    where
-        K: Into<Key>,
-        V: Into<AnyValue>,
-    {
-        if let Some(ref mut vec) = self.record.attributes {
-            vec.push((key.into(), value.into()));
-        } else {
-            let vec = vec![(key.into(), value.into())];
-            self.record.attributes = Some(vec);
-        }
-
-        self
-    }
-
-    /// Sets the `event_name` of a record.
-    pub fn with_name<T>(self, name: T) -> Self
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        Self {
-            record: LogRecord {
-                event_name: Some(name.into()),
-                ..self.record
-            },
-        }
-    }
-
-    /// Build the record, consuming the Builder
-    pub fn build(self) -> LogRecord {
-        self.record
-    }
-}
-
-impl Default for LogRecordBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

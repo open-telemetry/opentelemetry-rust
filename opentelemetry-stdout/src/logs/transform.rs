@@ -125,8 +125,8 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .unwrap_or_default(),
             time_unix_nano: value.record.timestamp,
             time: value.record.timestamp,
-            observed_time_unix_nano: value.record.observed_timestamp,
-            observed_time: value.record.observed_timestamp,
+            observed_time_unix_nano: value.record.observed_timestamp.unwrap(),
+            observed_time: value.record.observed_timestamp.unwrap(),
             severity_number: value
                 .record
                 .severity_number
