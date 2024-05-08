@@ -26,6 +26,8 @@
   - `shutdown` methods in `LoggerProvider` and `LogProcessor` now takes a immutable reference
   - After `shutdown`, `LoggerProvider` will return noop `Logger`
   - After `shutdown`, `LogProcessor` will not process any new logs
+- Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
+    - Relocated `LogRecord` struct to SDK, as an implementation for the trait in the API.
 
 ## v0.22.1
 

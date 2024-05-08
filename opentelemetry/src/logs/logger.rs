@@ -8,12 +8,17 @@ use super::Severity;
 /// The interface for emitting [`LogRecord`]s.
 
 pub trait Logger {
+    /// Specifies the `LogRecord` type associated with this logger.
+    type LogRecord: LogRecord;
+
+    /// Creates a new log record builder.
+    fn create_log_record(&self) -> Self::LogRecord;
+
     /// Emit a [`LogRecord`]. If there is active current thread's [`Context`],
-    ///  the logger will set the record's [`TraceContext`] to the active trace context,
+    ///  the logger will set the record's `TraceContext` to the active trace context,
     ///
     /// [`Context`]: crate::Context
-    /// [`TraceContext`]: crate::logs::TraceContext
-    fn emit(&self, record: LogRecord);
+    fn emit(&self, record: Self::LogRecord);
 
     #[cfg(feature = "logs_level_enabled")]
     /// Check if the given log level is enabled.
