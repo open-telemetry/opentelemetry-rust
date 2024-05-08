@@ -66,7 +66,7 @@ impl LogExporter for TonicLogsClient {
             None => return Err(LogError::Other("exporter is already shut down".into())),
         };
 
-        // TBD: We can avoid cloning and work only on logdata reference
+        // TODO: Avoid cloning when logdata is borrowed?
         let resource_logs = {
             batch
                 .into_iter()
