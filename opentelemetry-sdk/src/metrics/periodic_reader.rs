@@ -428,12 +428,12 @@ mod tests {
         // Act
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
-        let counter = meter.u64_observable_counter("testcounter").init();
-        meter
-            .register_callback(&[counter.as_any()], move |_| {
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
                 sender.send(()).expect("channel should still be open");
             })
-            .expect("callback registration should succeed");
+            .init();
 
         _ = meter_provider.force_flush();
 
