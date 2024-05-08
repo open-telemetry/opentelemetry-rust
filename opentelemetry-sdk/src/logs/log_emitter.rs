@@ -1,11 +1,11 @@
-use super::{BatchLogProcessor, Config, LogProcessor, SimpleLogProcessor};
+use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
 };
 use opentelemetry::{
     global::{self},
-    logs::{LogRecord, LogResult, TraceContext},
+    logs::LogResult,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -222,8 +222,14 @@ impl Logger {
 }
 
 impl opentelemetry::logs::Logger for Logger {
+    type LogRecord = LogRecord;
+
+    fn create_log_record(&self) -> Self::LogRecord {
+        LogRecord::default()
+    }
+
     /// Emit a `LogRecord`.
-    fn emit(&self, record: LogRecord) {
+    fn emit(&self, record: Self::LogRecord) {
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
@@ -269,8 +275,7 @@ mod tests {
     use crate::Resource;
 
     use super::*;
-    use opentelemetry::logs::Logger;
-    use opentelemetry::logs::LoggerProvider as _;
+    use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
@@ -462,17 +467,17 @@ mod tests {
 
         let logger1 = logger_provider.logger("test-logger1");
         let logger2 = logger_provider.logger("test-logger2");
-        logger1.emit(LogRecord::default());
-        logger2.emit(LogRecord::default());
+        logger1.emit(logger1.create_log_record());
+        logger2.emit(logger1.create_log_record());
 
         let logger3 = logger_provider.logger("test-logger3");
         let handle = thread::spawn(move || {
-            logger3.emit(LogRecord::default());
+            logger3.emit(logger3.create_log_record());
         });
         handle.join().expect("thread panicked");
 
         let _ = logger_provider.shutdown();
-        logger1.emit(LogRecord::default());
+        logger1.emit(logger1.create_log_record());
 
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
@@ -495,8 +500,8 @@ mod tests {
         let logger2 = logger_provider.logger("test-logger2");
 
         // Acts
-        logger1.emit(LogRecord::default());
-        logger2.emit(LogRecord::default());
+        logger1.emit(logger1.create_log_record());
+        logger2.emit(logger1.create_log_record());
 
         // explicitly calling shutdown on logger_provider. This will
         // indeed do the shutdown, even if there are loggers still alive.

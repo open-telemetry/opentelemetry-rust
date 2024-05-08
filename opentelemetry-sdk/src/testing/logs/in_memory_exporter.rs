@@ -1,7 +1,8 @@
 use crate::export::logs::{LogData, LogExporter};
+use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
-use opentelemetry::logs::{LogError, LogRecord, LogResult};
+use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry::InstrumentationLibrary;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};

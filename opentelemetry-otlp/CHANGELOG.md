@@ -5,6 +5,8 @@
 ### Fixed
 
 - URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
+- OTLP exporter will not change the URL added through `ExportConfig` [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Default grpc endpoint will not have path based on signal(e.g `/v1/traces`) [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
 
 ### Added
 

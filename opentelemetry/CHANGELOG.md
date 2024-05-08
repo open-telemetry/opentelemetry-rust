@@ -25,6 +25,10 @@
 ### Changed
 
 - Deprecate `versioned_logger()` in favor of `logger_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+- **BREAKING** Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
+    - Relocated `LogRecord` struct to SDK.
+    - Introduced the `LogRecord` trait in the API for populating log records. This trait is implemented by the SDK.
+    This is the breaking change for the authors of Log Appenders. Refer to the [opentelemetry-appender-tracing](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing) for more details.
 
 Before:
 

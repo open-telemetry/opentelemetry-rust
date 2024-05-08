@@ -58,6 +58,7 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10;
 
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
+#[cfg(feature = "grpc-tonic")]
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
@@ -69,7 +70,8 @@ pub(crate) mod tonic;
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
 pub struct ExportConfig {
-    /// The base address of the OTLP collector. If not set, the default address is used.
+    /// The address of the OTLP collector. If it's not provided via builder or environment variables.
+    /// Default address will be used based on the protocol.
     pub endpoint: String,
 
     /// The protocol to use when communicating with the collector.
@@ -84,7 +86,9 @@ impl Default for ExportConfig {
         let protocol = default_protocol();
 
         ExportConfig {
-            endpoint: default_endpoint(protocol),
+            endpoint: "".to_string(),
+            // don't use default_endpoint(protocol) here otherwise we
+            // won't know if user provided a value
             protocol,
             timeout: Duration::from_secs(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
         }
@@ -125,15 +129,6 @@ fn default_protocol() -> Protocol {
         OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Protocol::Grpc,
         OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Protocol::HttpJson,
         _ => Protocol::HttpBinary,
-    }
-}
-
-/// default endpoint for protocol
-fn default_endpoint(protocol: Protocol) -> String {
-    match protocol {
-        Protocol::Grpc => OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string(),
-        Protocol::HttpBinary => OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT.to_string(),
-        Protocol::HttpJson => OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT.to_string(),
     }
 }
 
@@ -183,7 +178,7 @@ impl HasExportConfig for HttpExporterBuilder {
 /// # }
 /// ```
 pub trait WithExportConfig {
-    /// Set the address of the OTLP collector. If not set, the default address is used.
+    /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
     ///
@@ -297,10 +292,7 @@ mod tests {
     fn test_default_http_endpoint() {
         let exporter_builder = crate::new_exporter().http();
 
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            "http://localhost:4318"
-        );
+        assert_eq!(exporter_builder.exporter_config.endpoint, "");
     }
 
     #[cfg(feature = "grpc-tonic")]
@@ -308,10 +300,7 @@ mod tests {
     fn test_default_tonic_endpoint() {
         let exporter_builder = crate::new_exporter().tonic();
 
-        assert_eq!(
-            exporter_builder.exporter_config.endpoint,
-            "http://localhost:4317"
-        );
+        assert_eq!(exporter_builder.exporter_config.endpoint, "");
     }
 
     #[test]
