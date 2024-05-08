@@ -15,10 +15,9 @@ pub trait Logger {
     fn create_log_record(&self) -> Self::LogRecord;
 
     /// Emit a [`LogRecord`]. If there is active current thread's [`Context`],
-    ///  the logger will set the record's [`TraceContext`] to the active trace context,
+    ///  the logger will set the record's `TraceContext` to the active trace context,
     ///
     /// [`Context`]: crate::Context
-    /// [`TraceContext`]: crate::logs::TraceContext
     fn emit(&self, record: Self::LogRecord);
 
     #[cfg(feature = "logs_level_enabled")]
