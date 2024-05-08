@@ -8,8 +8,8 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     InstrumentationLibrary,
 };
-use std::fmt::Debug;
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]

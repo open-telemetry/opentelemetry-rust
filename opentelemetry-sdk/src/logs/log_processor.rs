@@ -14,6 +14,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
+use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -22,7 +23,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use std::borrow::Cow;
 
 /// Delay interval between two consecutive exports.
 const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
@@ -91,7 +91,9 @@ impl LogProcessor for SimpleLogProcessor {
             .exporter
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
-            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)])));
+            .and_then(|mut exporter| {
+                futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)]))
+            });
         if let Err(err) = result {
             global::handle_error(err);
         }
@@ -142,7 +144,9 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, data: &mut LogData) {
-        let result = self.message_sender.try_send(BatchMessage::ExportLog(data.clone()));
+        let result = self
+            .message_sender
+            .try_send(BatchMessage::ExportLog(data.clone()));
 
         if let Err(err) = result {
             global::handle_error(LogError::Other(err.into()));
@@ -497,7 +501,6 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::testing::logs::InMemoryLogsExporterBuilder;
-    use std::borrow::Cow;
     use crate::{
         export::logs::{LogData, LogExporter},
         logs::{
@@ -514,6 +517,7 @@ mod tests {
     };
     use async_trait::async_trait;
     use opentelemetry::{logs::LogResult, KeyValue};
+    use std::borrow::Cow;
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -524,7 +528,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export<'a>(&mut self,  _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+        async fn export<'a>(&mut self, _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
             Ok(())
         }
 
@@ -765,7 +769,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
-        let mut log_data = LogData{
+        let mut log_data = LogData {
             record: Default::default(),
             instrumentation: Default::default(),
         };

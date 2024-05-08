@@ -20,8 +20,9 @@ impl LogExporter for OtlpHttpClient {
             })?;
 
         //TBD :avoid cloning and work only on borrowed logdata
-        let owned_batch = batch.into_iter()
-            .map(|cow_log_data| cow_log_data.into_owned())  // Converts Cow to owned LogData
+        let owned_batch = batch
+            .into_iter()
+            .map(|cow_log_data| cow_log_data.into_owned()) // Converts Cow to owned LogData
             .collect::<Vec<LogData>>();
 
         let (body, content_type) = { self.build_logs_export_body(owned_batch, &self.resource)? };
