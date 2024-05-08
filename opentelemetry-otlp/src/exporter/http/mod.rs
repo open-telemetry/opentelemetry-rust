@@ -1,4 +1,7 @@
-use super::{default_headers, default_protocol, parse_header_string};
+use super::{
+    default_headers, default_protocol, parse_header_string,
+    OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
+};
 use crate::{
     ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
     OTEL_EXPORTER_OTLP_TIMEOUT,
@@ -150,7 +153,7 @@ impl HttpExporterBuilder {
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
     ) -> Result<OtlpHttpClient, crate::Error> {
-        let endpoint = resolve_endpoint(
+        let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
             self.exporter_config.endpoint.as_str(),
@@ -373,10 +376,10 @@ fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, crate::Error> {
 }
 
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
-fn resolve_endpoint(
+fn resolve_http_endpoint(
     signal_endpoint_var: &str,
     signal_endpoint_path: &str,
-    provided_or_default_endpoint: &str,
+    provided_endpoint: &str,
 ) -> Result<Uri, crate::Error> {
     // per signal env var is not modified
     if let Some(endpoint) = env::var(signal_endpoint_var)
@@ -394,8 +397,14 @@ fn resolve_endpoint(
         return Ok(endpoint);
     }
 
-    // if neither works, we use the one provided in pipeline. If user never provides one, we will use the default one
-    build_endpoint_uri(provided_or_default_endpoint, signal_endpoint_path)
+    if provided_endpoint.is_empty() {
+        build_endpoint_uri(
+            OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
+            signal_endpoint_path,
+        )
+    } else {
+        provided_endpoint.parse().map_err(From::from)
+    }
 }
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
@@ -411,16 +420,19 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 #[cfg(test)]
 mod tests {
     use crate::exporter::tests::run_env_test;
-    use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use crate::{
+        new_exporter, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    };
 
-    use super::build_endpoint_uri;
+    use super::{build_endpoint_uri, resolve_http_endpoint};
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
         run_env_test(
             vec![(OTEL_EXPORTER_OTLP_ENDPOINT, "http://example.com")],
             || {
-                let endpoint = super::resolve_endpoint(
+                let endpoint = resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     "http://localhost:4317",
@@ -436,7 +448,7 @@ mod tests {
         run_env_test(
             vec![(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://example.com")],
             || {
-                let endpoint = super::resolve_endpoint(
+                let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     "http://localhost:4317",
@@ -455,7 +467,7 @@ mod tests {
                 (OTEL_EXPORTER_OTLP_ENDPOINT, "http://wrong.com"),
             ],
             || {
-                let endpoint = super::resolve_endpoint(
+                let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     "http://localhost:4317",
@@ -469,10 +481,13 @@ mod tests {
     #[test]
     fn test_use_provided_or_default_when_others_missing() {
         run_env_test(vec![], || {
-            let endpoint =
-                super::resolve_endpoint("NON_EXISTENT_VAR", "/v1/traces", "http://localhost:4317")
-                    .unwrap();
-            assert_eq!(endpoint, "http://localhost:4317/v1/traces");
+            let endpoint = super::resolve_http_endpoint(
+                "NON_EXISTENT_VAR",
+                "/v1/traces",
+                "http://localhost:4317",
+            )
+            .unwrap();
+            assert_eq!(endpoint, "http://localhost:4317/");
         });
     }
 
@@ -501,7 +516,7 @@ mod tests {
                 (OTEL_EXPORTER_OTLP_ENDPOINT, "http://example.com"),
             ],
             || {
-                let endpoint = super::resolve_endpoint(
+                let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     "http://localhost:4317",
@@ -515,7 +530,7 @@ mod tests {
     #[test]
     fn test_all_invalid_urls_falls_back_to_error() {
         run_env_test(vec![], || {
-            let result = super::resolve_endpoint(
+            let result = super::resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 "/v1/traces",
                 "-*/*-/*-//-/-/yet-another-invalid-uri",
@@ -609,5 +624,38 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_http_exporter_endpoint() {
+        // default endpoint should add signal path
+        run_env_test(vec![], || {
+            let exporter = new_exporter().http();
+
+            let url = resolve_http_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces",
+                exporter.exporter_config.endpoint.as_str(),
+            )
+            .unwrap();
+
+            assert_eq!(url, "http://localhost:4318/v1/traces");
+        });
+
+        // if builder endpoint is set, it should not add signal path
+        run_env_test(vec![], || {
+            let exporter = new_exporter()
+                .http()
+                .with_endpoint("http://localhost:4318/v1/tracesbutnotreally");
+
+            let url = resolve_http_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                "/v1/traces",
+                exporter.exporter_config.endpoint.as_str(),
+            )
+            .unwrap();
+
+            assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
+        });
     }
 }
