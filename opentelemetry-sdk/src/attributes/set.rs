@@ -39,47 +39,7 @@ impl PartialOrd for HashKeyValue {
 
 impl Ord for HashKeyValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.0.key.cmp(&other.0.key) {
-            Ordering::Equal => match type_order(&self.0.value).cmp(&type_order(&other.0.value)) {
-                Ordering::Equal => match (&self.0.value, &other.0.value) {
-                    (Value::F64(f), Value::F64(of)) => OrderedFloat(*f).cmp(&OrderedFloat(*of)),
-                    (Value::Array(Array::Bool(b)), Value::Array(Array::Bool(ob))) => b.cmp(ob),
-                    (Value::Array(Array::I64(i)), Value::Array(Array::I64(oi))) => i.cmp(oi),
-                    (Value::Array(Array::String(s)), Value::Array(Array::String(os))) => s.cmp(os),
-                    (Value::Array(Array::F64(f)), Value::Array(Array::F64(of))) => {
-                        match f.len().cmp(&of.len()) {
-                            Ordering::Equal => f
-                                .iter()
-                                .map(|x| OrderedFloat(*x))
-                                .collect::<Vec<_>>()
-                                .cmp(&of.iter().map(|x| OrderedFloat(*x)).collect()),
-                            other => other,
-                        }
-                    }
-                    (Value::Bool(b), Value::Bool(ob)) => b.cmp(ob),
-                    (Value::I64(i), Value::I64(oi)) => i.cmp(oi),
-                    (Value::String(s), Value::String(os)) => s.cmp(os),
-                    _ => Ordering::Equal,
-                },
-                other => other, // 2nd order by value types
-            },
-            other => other, // 1st order by key
-        }
-    }
-}
-
-fn type_order(v: &Value) -> u8 {
-    match v {
-        Value::Bool(_) => 1,
-        Value::I64(_) => 2,
-        Value::F64(_) => 3,
-        Value::String(_) => 4,
-        Value::Array(a) => match a {
-            Array::Bool(_) => 5,
-            Array::I64(_) => 6,
-            Array::F64(_) => 7,
-            Array::String(_) => 8,
-        },
+        self.0.key.cmp(&other.0.key)
     }
 }
 
