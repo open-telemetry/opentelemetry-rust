@@ -115,14 +115,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
 
-    let gauge = meter
+    let _gauge = meter
         .f64_observable_gauge("ex.com.one")
         .with_description("A gauge set to 1.0")
+        .with_callback(|observer| observer.observe(1.0, COMMON_ATTRIBUTES.as_ref()))
         .init();
-
-    meter.register_callback(&[gauge.as_any()], move |observer| {
-        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.as_ref())
-    })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
     histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());

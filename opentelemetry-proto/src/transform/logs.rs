@@ -50,8 +50,8 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry::logs::LogRecord) -> Self {
+    impl From<opentelemetry_sdk::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry_sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -83,7 +83,7 @@ pub mod tonic {
 
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp),
+                observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.map(Into::into),
