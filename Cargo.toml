@@ -27,7 +27,7 @@ futures-util = { version = "0.3", default-features = false }
 hyper = { version = "0.14", default-features = false }
 http = { version = "0.2", default-features = false }
 isahc = { version = "1.4", default-features = false }
-log = "0.4"
+log = "0.4.21"
 once_cell = "1.13"
 ordered-float = "4.0"
 pin-project-lite = "0.2"

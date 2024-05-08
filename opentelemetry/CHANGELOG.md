@@ -6,10 +6,75 @@
 
 - [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add global::meter_provider_shutdown
 - [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640) Add `PropagationError`
+- [#1701](https://github.com/open-telemetry/opentelemetry-rust/pull/1701) `Gauge` no longer requires `otel-unstable` feature flag, as OpenTelemetry specification for `Gauge` instrumentation is stable.
 
 ### Removed
 
 - Remove `urlencoding` crate dependency. [#1613](https://github.com/open-telemetry/opentelemetry-rust/pull/1613)
+- Remove global providers for Logs [$1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691)
+    LoggerProviders are not meant for end users to get loggers from. It is only required for the log bridges.
+    Below global constructs for the logs are removed from API:
+        - opentelemetry::global::logger
+        - opentelemetry::global::set_logger_provider
+        - opentelemetry::global::shutdown_logger_provider
+        - opentelemetry::global::logger_provider
+        - opentelemetry::global::GlobalLoggerProvider
+        - opentelemetry::global::ObjectSafeLoggerProvider 
+    For creating appenders using Logging bridge API, refer to the opentelemetry-tracing-appender [example](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/examples/basic.rs)
+
+### Changed
+
+- Deprecate `versioned_logger()` in favor of `logger_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+- **BREAKING** Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
+    - Relocated `LogRecord` struct to SDK.
+    - Introduced the `LogRecord` trait in the API for populating log records. This trait is implemented by the SDK.
+    This is the breaking change for the authors of Log Appenders. Refer to the [opentelemetry-appender-tracing](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing) for more details.
+
+Before:
+
+```rust
+let logger = provider.versioned_logger(
+    "my-logger-name",
+    Some(env!("CARGO_PKG_VERSION")),
+    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some(vec![KeyValue::new("key", "value")]),
+);
+```
+
+After:
+
+```rust
+let logger = provider
+    .logger_builder("my-logger-name")
+    .with_version(env!("CARGO_PKG_VERSION"))
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_attributes(vec![KeyValue::new("key", "value")])
+    .build();
+```
+
+- Deprecate `versioned_tracer()` in favor of `tracer_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
+
+Before:
+
+```rust
+let tracer = provider.versioned_tracer(
+    "my-tracer-name",
+    Some(env!("CARGO_PKG_VERSION")),
+    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some(vec![KeyValue::new("key", "value")]),
+);
+```
+
+After:
+
+```rust
+let tracer = provider
+    .tracer_builder("my-tracer-name")
+    .with_version(env!("CARGO_PKG_VERSION"))
+    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_attributes(vec![KeyValue::new("key", "value")])
+    .build();
+```
 
 ## v0.22.0
 

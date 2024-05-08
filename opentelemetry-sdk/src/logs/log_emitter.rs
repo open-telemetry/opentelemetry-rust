@@ -1,11 +1,11 @@
-use super::{BatchLogProcessor, Config, LogProcessor, SimpleLogProcessor};
+use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
 };
 use opentelemetry::{
     global::{self},
-    logs::{LogRecord, LogResult, TraceContext},
+    logs::LogResult,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -13,12 +13,25 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
+use std::sync::atomic::AtomicBool;
 use std::{borrow::Cow, sync::Arc};
+
+use once_cell::sync::Lazy;
+
+// a no nop logger provider used as placeholder when the provider is shutdown
+static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
+    inner: Arc::new(LoggerProviderInner {
+        processors: Vec::new(),
+        config: Config::default(),
+    }),
+    is_shutdown: Arc::new(AtomicBool::new(true)),
+});
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
+    is_shutdown: Arc<AtomicBool>,
 }
 
 /// Default logger name if empty string is provided.
@@ -43,15 +56,26 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
             name
         };
 
-        self.library_logger(Arc::new(InstrumentationLibrary::new(
-            component_name,
-            version,
-            schema_url,
-            attributes,
-        )))
+        let mut builder = self.logger_builder(component_name);
+
+        if let Some(v) = version {
+            builder = builder.with_version(v);
+        }
+        if let Some(s) = schema_url {
+            builder = builder.with_schema_url(s);
+        }
+        if let Some(a) = attributes {
+            builder = builder.with_attributes(a);
+        }
+
+        builder.build()
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        // If the provider is shutdown, new logger will refer a no-op logger provider.
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
+        }
         Logger::new(library, self.clone())
     }
 }
@@ -80,22 +104,18 @@ impl LoggerProvider {
             .collect()
     }
 
-    /// Shuts down this `LoggerProvider`, panicking on failure.
-    pub fn shutdown(&mut self) -> Vec<LogResult<()>> {
-        self.try_shutdown()
-            .expect("cannot shutdown LoggerProvider when child Loggers are still active")
-    }
-
-    /// Attempts to shutdown this `LoggerProvider`, succeeding only when
-    /// all cloned `LoggerProvider` values have been dropped.
-    pub fn try_shutdown(&mut self) -> Option<Vec<LogResult<()>>> {
-        Arc::get_mut(&mut self.inner).map(|inner| {
-            inner
-                .processors
-                .iter_mut()
-                .map(|processor| processor.shutdown())
-                .collect()
-        })
+    /// Shuts down this `LoggerProvider`
+    pub fn shutdown(&self) -> Vec<LogResult<()>> {
+        // mark itself as already shutdown
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        // propagate the shutdown signal to processors
+        // it's up to the processor to properly block new logs after shutdown
+        self.inner
+            .processors
+            .iter()
+            .map(|processor| processor.shutdown())
+            .collect()
     }
 }
 
@@ -156,11 +176,16 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        // invoke set_resource on all the processors
+        for processor in &self.processors {
+            processor.set_resource(&self.config.resource);
+        }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 config: self.config,
             }),
+            is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -197,23 +222,28 @@ impl Logger {
 }
 
 impl opentelemetry::logs::Logger for Logger {
+    type LogRecord = LogRecord;
+
+    fn create_log_record(&self) -> Self::LogRecord {
+        LogRecord::default()
+    }
+
     /// Emit a `LogRecord`.
-    fn emit(&self, record: LogRecord) {
+    fn emit(&self, record: Self::LogRecord) {
         let provider = self.provider();
-        let config = provider.config();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
+
         for p in processors {
-            let mut record = record.clone();
+            let mut cloned_record = record.clone();
             if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone())
+                cloned_record.trace_context = Some(trace_context.clone());
             }
             let data = LogData {
-                record,
-                resource: config.resource.clone(),
+                record: cloned_record,
                 instrumentation: self.instrumentation_library().clone(),
             };
             p.emit(data);
@@ -245,12 +275,63 @@ mod tests {
     use crate::Resource;
 
     use super::*;
-    use opentelemetry::global::{logger, set_logger_provider, shutdown_logger_provider};
-    use opentelemetry::logs::Logger;
+    use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
-    use std::sync::Mutex;
+    use std::fmt::{Debug, Formatter};
+    use std::sync::atomic::AtomicU64;
+    use std::sync::{Arc, Mutex};
     use std::thread;
 
+    struct ShutdownTestLogProcessor {
+        is_shutdown: Arc<Mutex<bool>>,
+        counter: Arc<AtomicU64>,
+    }
+
+    impl Debug for ShutdownTestLogProcessor {
+        fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+            todo!()
+        }
+    }
+
+    impl ShutdownTestLogProcessor {
+        pub(crate) fn new(counter: Arc<AtomicU64>) -> Self {
+            ShutdownTestLogProcessor {
+                is_shutdown: Arc::new(Mutex::new(false)),
+                counter,
+            }
+        }
+    }
+
+    impl LogProcessor for ShutdownTestLogProcessor {
+        fn emit(&self, _data: LogData) {
+            self.is_shutdown
+                .lock()
+                .map(|is_shutdown| {
+                    if !*is_shutdown {
+                        self.counter
+                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                })
+                .expect("lock poisoned");
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            self.is_shutdown
+                .lock()
+                .map(|mut is_shutdown| *is_shutdown = true)
+                .expect("lock poisoned");
+            Ok(())
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+    }
     #[test]
     fn test_logger_provider_default_resource() {
         let assert_resource = |provider: &super::LoggerProvider,
@@ -379,79 +460,56 @@ mod tests {
 
     #[test]
     fn shutdown_test() {
+        let counter = Arc::new(AtomicU64::new(0));
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
+            .build();
+
+        let logger1 = logger_provider.logger("test-logger1");
+        let logger2 = logger_provider.logger("test-logger2");
+        logger1.emit(logger1.create_log_record());
+        logger2.emit(logger1.create_log_record());
+
+        let logger3 = logger_provider.logger("test-logger3");
+        let handle = thread::spawn(move || {
+            logger3.emit(logger3.create_log_record());
+        });
+        handle.join().expect("thread panicked");
+
+        let _ = logger_provider.shutdown();
+        logger1.emit(logger1.create_log_record());
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn global_shutdown_test() {
         // cargo test shutdown_test --features=logs
 
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
         let flush_called = Arc::new(Mutex::new(false));
-        let signal_to_end = Arc::new(Mutex::new(false));
-        let signal_to_thread_started = Arc::new(Mutex::new(false));
         let logger_provider = LoggerProvider::builder()
             .with_log_processor(LazyLogProcessor::new(
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))
             .build();
-        set_logger_provider(logger_provider);
+        //set_logger_provider(logger_provider);
+        let logger1 = logger_provider.logger("test-logger1");
+        let logger2 = logger_provider.logger("test-logger2");
 
-        // Act
-        let logger1 = logger("test-logger1");
-        let logger2 = logger("test-logger2");
-        logger1.emit(LogRecord::default());
-        logger2.emit(LogRecord::default());
+        // Acts
+        logger1.emit(logger1.create_log_record());
+        logger2.emit(logger1.create_log_record());
 
-        let signal_to_end_clone = signal_to_end.clone();
-        let signal_to_thread_started_clone = signal_to_thread_started.clone();
-
-        let handle = thread::spawn(move || {
-            let logger3 = logger("test-logger3");
-            loop {
-                // signal the main thread that this thread has started.
-                *signal_to_thread_started_clone.lock().unwrap() = true;
-                logger3.emit(LogRecord::default());
-                if *signal_to_end_clone.lock().unwrap() {
-                    break;
-                }
-            }
-        });
-
-        // wait for the spawned thread to start before calling shutdown This is
-        // very important - if shutdown is called before the spawned thread
-        // obtains its logger, then the logger will be no-op one, and the test
-        // will pass, but it will not be testing the intended scenario.
-        while !*signal_to_thread_started.lock().unwrap() {
-            thread::sleep(std::time::Duration::from_millis(10));
-        }
-
-        // Intentionally *not* calling shutdown/flush on the provider, but
-        // instead relying on shutdown_logger_provider which causes the global
-        // provider to be dropped, leading to the sdk logger provider's drop to
-        // be called, which is expected to call shutdown on processors.
-        shutdown_logger_provider();
+        // explicitly calling shutdown on logger_provider. This will
+        // indeed do the shutdown, even if there are loggers still alive.
+        logger_provider.shutdown();
 
         // Assert
 
-        // shutdown_logger_provider is necessary but not sufficient, as loggers
-        // hold on to the the provider (via inner provider clones).
-        assert!(!*shutdown_called.lock().unwrap());
-
-        // flush is never called by the sdk.
-        assert!(!*flush_called.lock().unwrap());
-
-        // Drop one of the logger. Not enough!
-        drop(logger1);
-        assert!(!*shutdown_called.lock().unwrap());
-
-        // drop logger2, which is the only remaining logger in this thread.
-        // Still not enough!
-        drop(logger2);
-        assert!(!*shutdown_called.lock().unwrap());
-
-        // now signal the spawned thread to end, which causes it to drop its
-        // logger. Since that is the last logger, the provider (inner provider)
-        // is finally dropped, triggering shutdown
-        *signal_to_end.lock().unwrap() = true;
-        handle.join().unwrap();
+        // shutdown is called.
         assert!(*shutdown_called.lock().unwrap());
 
         // flush is never called by the sdk.
@@ -486,7 +544,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> LogResult<()> {
+        fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }

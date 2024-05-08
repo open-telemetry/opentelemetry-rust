@@ -148,7 +148,19 @@ impl MeterProvider for SdkMeterProvider {
             return Meter::new(Arc::new(NoopMeterCore::new()));
         }
 
-        let scope = Scope::new(name, version, schema_url, attributes);
+        let mut builder = Scope::builder(name);
+
+        if let Some(v) = version {
+            builder = builder.with_version(v);
+        }
+        if let Some(s) = schema_url {
+            builder = builder.with_schema_url(s);
+        }
+        if let Some(a) = attributes {
+            builder = builder.with_attributes(a);
+        }
+
+        let scope = builder.build();
 
         if let Ok(mut meters) = self.inner.meters.lock() {
             let meter = meters
@@ -241,6 +253,7 @@ mod tests {
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
     use opentelemetry::global;
+    use opentelemetry::metrics::MeterProvider;
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
 
@@ -420,5 +433,29 @@ mod tests {
         drop(provider);
         // Now the shutdown should be invoked
         assert!(reader.is_shutdown());
+    }
+
+    #[test]
+    fn same_meter_reused_same_scope() {
+        let provider = super::SdkMeterProvider::builder().build();
+        let _meter1 = provider.meter("test");
+        let _meter2 = provider.meter("test");
+        assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
+        let _meter3 =
+            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter4 =
+            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter5 =
+            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+        assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
+
+        // the below are different meters, as meter names are case sensitive
+        let _meter6 =
+            provider.versioned_meter("ABC", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter7 =
+            provider.versioned_meter("Abc", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter8 =
+            provider.versioned_meter("abc", Some("1.0.0"), Some("http://example.com"), None);
+        assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }
 }

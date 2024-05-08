@@ -56,12 +56,10 @@
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
-//!     let tracer = global::tracer_provider().versioned_tracer(
-//!         "my-library-name",
-//!         Some(env!("CARGO_PKG_VERSION")),
-//!         Some("https://opentelemetry.io/schemas/1.17.0"),
-//!         None,
-//!     );
+//!     let tracer = global::tracer_provider().tracer_builder("my-library-name").
+//!         with_version(env!("CARGO_PKG_VERSION")).
+//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
+//!         build();
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...
@@ -85,8 +83,8 @@
 //!
 //! ### Usage in Applications
 //!
-//! Applications configure their meter either by installing a metrics pipeline,
-//! or calling [`set_meter_provider`].
+//! Applications configure their meter by configuring a meter provider,
+//! and calling [`set_meter_provider`] to set it as global meter provider.
 //!
 //! ```
 //! # #[cfg(feature="metrics")]
@@ -95,6 +93,8 @@
 //! use opentelemetry::{global, KeyValue};
 //!
 //! fn init_meter() {
+//!     // Swap this no-op provider with an actual meter provider,
+//!     // exporting to stdout, otlp, prometheus, etc.
 //!     let provider = NoopMeterProvider::new();
 //!
 //!     // Configure the global `MeterProvider` singleton when your app starts
@@ -103,17 +103,22 @@
 //! }
 //!
 //! fn do_something_instrumented() {
-//!     // Then you can get a named tracer instance anywhere in your codebase.
+//!     // You can get a named meter instance anywhere in your codebase.
 //!     let meter = global::meter("my-component");
+//!     // It is recommended to reuse the same counter instance for the
+//!     // lifetime of the application
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
-//!     // record metrics
+//!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //!
 //! // in main or other app start
 //! init_meter();
 //! do_something_instrumented();
+//! // Shutdown ensures any metrics still in memory are given to exporters
+//! // before the program exits.
+//! global::shutdown_meter_provider();
 //! # }
 //! ```
 //!
@@ -124,13 +129,15 @@
 //! # {
 //! use opentelemetry::{global, KeyValue};
 //!
-//! pub fn my_traced_library_function() {
+//! pub fn my_instrumented_library_function() {
 //!     // End users of your library will configure their global meter provider
 //!     // so you can use the global meter without any setup
 //!     let meter = global::meter("my-library-name");
+//!     // It is recommended to reuse the same counter instance for the
+//!     // lifetime of the application
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
-//!     // record metrics
+//!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
 //! }
 //! # }
@@ -140,8 +147,6 @@
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 
 mod error_handler;
-#[cfg(feature = "logs")]
-mod logs;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "trace")]
@@ -150,12 +155,6 @@ mod propagation;
 mod trace;
 
 pub use error_handler::{handle_error, set_error_handler, Error};
-#[cfg(feature = "logs")]
-#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
-pub use logs::{
-    logger, logger_provider, set_logger_provider, shutdown_logger_provider, GlobalLoggerProvider,
-    ObjectSafeLoggerProvider,
-};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::*;

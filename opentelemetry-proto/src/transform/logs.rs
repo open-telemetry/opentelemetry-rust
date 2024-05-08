@@ -7,7 +7,7 @@ pub mod tonic {
             resource::v1::Resource,
             Attributes,
         },
-        transform::common::{to_nanos, tonic::resource_attributes},
+        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
 
@@ -50,8 +50,8 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry::logs::LogRecord> for LogRecord {
-        fn from(log_record: opentelemetry::logs::LogRecord) -> Self {
+    impl From<opentelemetry_sdk::logs::LogRecord> for LogRecord {
+        fn from(log_record: opentelemetry_sdk::logs::LogRecord) -> Self {
             let trace_context = log_record.trace_context.as_ref();
             let severity_number = match log_record.severity_number {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -83,7 +83,7 @@ pub mod tonic {
 
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp),
+                observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.map(Into::into),
@@ -110,18 +110,26 @@ pub mod tonic {
         }
     }
 
-    impl From<opentelemetry_sdk::export::logs::LogData> for ResourceLogs {
-        fn from(log_data: opentelemetry_sdk::export::logs::LogData) -> Self {
+    impl
+        From<(
+            opentelemetry_sdk::export::logs::LogData,
+            &ResourceAttributesWithSchema,
+        )> for ResourceLogs
+    {
+        fn from(
+            data: (
+                opentelemetry_sdk::export::logs::LogData,
+                &ResourceAttributesWithSchema,
+            ),
+        ) -> Self {
+            let (log_data, resource) = data;
+
             ResourceLogs {
                 resource: Some(Resource {
-                    attributes: resource_attributes(&log_data.resource).0,
+                    attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
                 }),
-                schema_url: log_data
-                    .resource
-                    .schema_url()
-                    .map(Into::into)
-                    .unwrap_or_default(),
+                schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
                     schema_url: log_data
                         .instrumentation

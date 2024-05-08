@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add log key-values as attributes [#1628](https://github.com/open-telemetry/opentelemetry-rust/pull/1628)
+
 ## v0.3.0
 
 ## v0.2.0

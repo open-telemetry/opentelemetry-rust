@@ -54,7 +54,7 @@ fn init_metrics() -> Result<(), MetricsError> {
     }
 }
 
-fn init_logs() -> Result<opentelemetry_sdk::logs::Logger, LogError> {
+fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
     let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
@@ -89,14 +89,23 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // By binding the result to an unused variable, the lifetime of the variable
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
-    let _ = init_tracer()?;
-    let _ = init_metrics()?;
+
+    let result = init_tracer();
+    assert!(
+        result.is_ok(),
+        "Init tracer failed with error: {:?}",
+        result.err()
+    );
+
+    let result = init_metrics();
+    assert!(
+        result.is_ok(),
+        "Init metrics failed with error: {:?}",
+        result.err()
+    );
 
     // Initialize logs, which sets the global loggerprovider.
-    let _ = init_logs();
-
-    // Retrieve the global LoggerProvider.
-    let logger_provider = global::logger_provider();
+    let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
@@ -106,14 +115,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let tracer = global::tracer("ex.com/basic");
     let meter = global::meter("ex.com/basic");
 
-    let gauge = meter
+    let _gauge = meter
         .f64_observable_gauge("ex.com.one")
         .with_description("A gauge set to 1.0")
+        .with_callback(|observer| observer.observe(1.0, COMMON_ATTRIBUTES.as_ref()))
         .init();
-
-    meter.register_callback(&[gauge.as_any()], move |observer| {
-        observer.observe_f64(&gauge, 1.0, COMMON_ATTRIBUTES.as_ref())
-    })?;
 
     let histogram = meter.f64_histogram("ex.com.two").init();
     histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
@@ -141,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    global::shutdown_logger_provider();
+    logger_provider.shutdown();
     global::shutdown_meter_provider();
 
     Ok(())
