@@ -19,7 +19,7 @@ impl LogExporter for OtlpHttpClient {
                 _ => Err(LogError::Other("exporter is already shut down".into())),
             })?;
 
-        //TBD :avoid cloning and work only on borrowed logdata
+        //TODO :avoid cloning when logdata is borrowed?
         let owned_batch = batch
             .into_iter()
             .map(|cow_log_data| cow_log_data.into_owned()) // Converts Cow to owned LogData
