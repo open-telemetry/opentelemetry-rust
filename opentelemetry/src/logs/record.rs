@@ -6,7 +6,9 @@ pub trait LogRecord {
     /// Sets the `event_name` of a record
     fn set_event_name<T>(&mut self, _name: T)
     where
-        T: Into<Cow<'static, str>> {}
+        T: Into<Cow<'static, str>>,
+    {
+    }
 
     /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
