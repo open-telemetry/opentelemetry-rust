@@ -178,7 +178,7 @@ impl LogExporter for InMemoryLogsExporter {
     async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for log in batch.into_iter() {
-            logs_guard.push(log.to_owned());
+            logs_guard.push(log.into_owned());
         }
         Ok(())
     }
