@@ -5,7 +5,7 @@ use opentelemetry::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -17,7 +17,7 @@ pub struct LogRecord {
     pub timestamp: Option<SystemTime>,
 
     /// Timestamp for when the record was observed by OpenTelemetry
-    pub observed_timestamp: SystemTime,
+    pub observed_timestamp: Option<SystemTime>,
 
     /// Trace context for logs associated with spans
     pub trace_context: Option<TraceContext>,
@@ -34,21 +34,6 @@ pub struct LogRecord {
     pub attributes: Option<Vec<(Key, AnyValue)>>,
 }
 
-impl Default for LogRecord {
-    fn default() -> Self {
-        LogRecord {
-            event_name: None,
-            timestamp: None,
-            observed_timestamp: SystemTime::now(),
-            trace_context: None,
-            severity_text: None,
-            severity_number: None,
-            body: None,
-            attributes: None,
-        }
-    }
-}
-
 impl opentelemetry::logs::LogRecord for LogRecord {
     fn set_event_name<T>(&mut self, name: T)
     where
@@ -62,7 +47,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     }
 
     fn set_observed_timestamp(&mut self, timestamp: SystemTime) {
-        self.observed_timestamp = timestamp;
+        self.observed_timestamp = Some(timestamp);
     }
 
     fn set_severity_text(&mut self, severity_text: Cow<'static, str>) {
@@ -137,7 +122,7 @@ mod tests {
         let mut log_record = LogRecord::default();
         let now = SystemTime::now();
         log_record.set_observed_timestamp(now);
-        assert_eq!(log_record.observed_timestamp, now);
+        assert_eq!(log_record.observed_timestamp, Some(now));
     }
 
     #[test]
