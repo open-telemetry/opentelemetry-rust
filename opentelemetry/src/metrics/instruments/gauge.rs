@@ -42,7 +42,6 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<u64>>> for Gauge<u64> {
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Self, Self::Error> {
         builder
-            .meter
             .instrument_provider
             .u64_gauge(builder.name, builder.description, builder.unit)
     }
@@ -53,7 +52,6 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<f64>>> for Gauge<f64> {
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Self, Self::Error> {
         builder
-            .meter
             .instrument_provider
             .f64_gauge(builder.name, builder.description, builder.unit)
     }
@@ -64,7 +62,6 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<i64>>> for Gauge<i64> {
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Self, Self::Error> {
         builder
-            .meter
             .instrument_provider
             .i64_gauge(builder.name, builder.description, builder.unit)
     }

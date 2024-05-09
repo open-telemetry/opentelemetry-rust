@@ -6,6 +6,8 @@ use std::borrow::Cow;
 use std::marker;
 use std::sync::Arc;
 
+use super::InstrumentProvider;
+
 pub(super) mod counter;
 pub(super) mod gauge;
 pub(super) mod histogram;
@@ -24,7 +26,7 @@ pub trait AsyncInstrument<T>: Send + Sync {
 
 /// Configuration for building a sync instrument.
 pub struct InstrumentBuilder<'a, T> {
-    meter: &'a Meter,
+    instrument_provider: &'a dyn InstrumentProvider,
     name: Cow<'static, str>,
     description: Option<Cow<'static, str>>,
     unit: Option<Unit>,
@@ -38,7 +40,7 @@ where
     /// Create a new instrument builder
     pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         InstrumentBuilder {
-            meter,
+            instrument_provider: meter.instrument_provider.as_ref(),
             name,
             description: None,
             unit: None,

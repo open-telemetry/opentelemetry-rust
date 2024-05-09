@@ -13,8 +13,8 @@ fn create_counter() -> Counter<u64> {
         .with_reader(ManualReader::builder().build())
         .build();
     let meter = meter_provider.meter("benchmarks");
-    let counter = meter.u64_counter("counter_bench").init();
-    counter
+
+    meter.u64_counter("counter_bench").init()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
