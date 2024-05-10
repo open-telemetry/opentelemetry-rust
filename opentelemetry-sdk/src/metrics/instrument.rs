@@ -260,6 +260,7 @@ pub(crate) struct ResolvedMeasures<T> {
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
     fn add(&self, val: T, attrs: &[KeyValue]) {
+        // println!("ResolvedMeasures::add. Until this we have Slice of KV.");
         for measure in &self.measures {
             measure.call(val, AttributeSet::from(attrs))
         }
