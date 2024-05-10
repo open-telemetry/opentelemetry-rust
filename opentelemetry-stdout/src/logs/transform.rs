@@ -1,10 +1,9 @@
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 use crate::common::{
-    as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, KeyValue, Resource,
-    Scope, Value,
+    as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, AttributeSet,
+    KeyValue, Resource, Scope, Value,
 };
-use opentelemetry_sdk::AttributeSet;
 use serde::Serialize;
 
 /// Transformed logs data that can be serialized.
