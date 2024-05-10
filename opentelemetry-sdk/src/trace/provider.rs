@@ -62,7 +62,7 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &Vec<Box<dyn SpanProcessor>> {
+    pub fn span_processors(&self) -> &[Box<dyn SpanProcessor>] {
         &self.inner.processors
     }
 
