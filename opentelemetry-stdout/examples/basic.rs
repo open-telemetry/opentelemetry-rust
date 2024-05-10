@@ -1,27 +1,29 @@
-//! run with `$ cargo run --example basic --all-features
+//! run with `$ cargo run --example basic
 
-#[cfg(all(feature = "metrics", feature = "trace"))]
-use opentelemetry::{
-    global,
-    trace::{Span, Tracer, TracerProvider as _},
-    KeyValue,
-};
-#[cfg(all(feature = "metrics", feature = "trace"))]
-use opentelemetry_sdk::{
-    metrics::{PeriodicReader, SdkMeterProvider},
-    runtime,
-    trace::TracerProvider,
-};
+use opentelemetry::{global, KeyValue};
 
-#[cfg(all(feature = "metrics", feature = "trace"))]
-fn init_trace() -> TracerProvider {
+#[cfg(feature = "trace")]
+use opentelemetry::trace::{Span, Tracer};
+
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::runtime;
+
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
+
+#[cfg(feature = "trace")]
+use opentelemetry_sdk::trace::TracerProvider;
+
+#[cfg(feature = "trace")]
+fn init_trace() {
     let exporter = opentelemetry_stdout::SpanExporter::default();
-    TracerProvider::builder()
+    let provider = TracerProvider::builder()
         .with_simple_exporter(exporter)
-        .build()
+        .build();
+    global::set_tracer_provider(provider);
 }
 
-#[cfg(all(feature = "metrics", feature = "trace"))]
+#[cfg(feature = "metrics")]
 fn init_metrics() {
     let exporter = opentelemetry_stdout::MetricsExporter::default();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
@@ -29,13 +31,24 @@ fn init_metrics() {
     global::set_meter_provider(provider);
 }
 
-#[tokio::main]
-#[cfg(all(feature = "metrics", feature = "trace"))]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let tracer_provider = init_trace();
-    init_metrics();
+#[cfg(feature = "logs")]
+fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
+    use opentelemetry_appender_tracing::layer;
+    use opentelemetry_sdk::logs::LoggerProvider;
+    use tracing_subscriber::prelude::*;
 
-    let tracer = tracer_provider.tracer("stdout-test");
+    let exporter = opentelemetry_stdout::LogExporter::default();
+    let provider: LoggerProvider = LoggerProvider::builder()
+        .with_simple_exporter(exporter)
+        .build();
+    let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+    tracing_subscriber::registry().with(layer).init();
+    provider
+}
+
+#[cfg(feature = "trace")]
+fn emit_span() {
+    let tracer = global::tracer("stdout-test");
     let mut span = tracer.start("test_span");
     span.set_attribute(KeyValue::new("test_key", "test_value"));
     span.add_event(
@@ -43,14 +56,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![KeyValue::new("test_event_key", "test_event_value")],
     );
     span.end();
+}
 
+#[cfg(feature = "metrics")]
+fn emit_metrics() {
     let meter = global::meter("stdout-test");
-    let c = meter.u64_counter("test_events").init();
+    let c = meter.u64_counter("test_counter").init();
     c.add(1, &[KeyValue::new("test_key", "test_value")]);
+}
 
+#[cfg(feature = "logs")]
+fn emit_log() {
+    use tracing::error;
+    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(feature = "trace")]
+    init_trace();
+
+    #[cfg(feature = "metrics")]
+    init_metrics();
+
+    #[cfg(feature = "logs")]
+    let logger_provider = init_logs();
+
+    #[cfg(feature = "logs")]
+    emit_log();
+
+    println!(
+        "======================================================================================"
+    );
+
+    #[cfg(feature = "trace")]
+    emit_span();
+
+    println!(
+        "======================================================================================"
+    );
+
+    #[cfg(feature = "metrics")]
+    emit_metrics();
+
+    #[cfg(feature = "trace")]
+    global::shutdown_tracer_provider();
+
+    #[cfg(feature = "metrics")]
     global::shutdown_meter_provider();
+
+    #[cfg(feature = "logs")]
+    drop(logger_provider);
 
     Ok(())
 }
-#[cfg(not(all(feature = "metrics", feature = "trace")))]
-fn main() {}
