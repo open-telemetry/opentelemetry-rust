@@ -64,11 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "metrics")]
     emit_metrics();
 
-    #[cfg(feature = "metrics")]
-    global::shutdown_meter_provider();
-
     #[cfg(feature = "trace")]
     global::shutdown_tracer_provider();
+
+    #[cfg(feature = "metrics")]
+    global::shutdown_meter_provider();
 
     Ok(())
 }
