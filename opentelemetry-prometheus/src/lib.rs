@@ -132,9 +132,11 @@ const SCOPE_INFO_KEYS: [&str; 2] = ["otel_scope_name", "otel_scope_version"];
 const COUNTER_SUFFIX: &str = "_total";
 
 mod config;
+mod resource_selector;
 mod utils;
 
 pub use config::ExporterBuilder;
+pub use resource_selector::ResourceSelector;
 
 /// Creates a builder to configure a [PrometheusExporter]
 pub fn exporter() -> ExporterBuilder {
@@ -186,8 +188,10 @@ struct Collector {
     without_counter_suffixes: bool,
     disable_scope_info: bool,
     create_target_info_once: OnceCell<MetricFamily>,
+    resource_labels_once: OnceCell<Vec<LabelPair>>,
     namespace: Option<String>,
     inner: Mutex<CollectorInner>,
+    resource_selector: ResourceSelector,
 }
 
 #[derive(Default)]
@@ -299,9 +303,14 @@ impl prometheus::core::Collector for Collector {
             // Resource should be immutable, we don't need to compute again
             create_info_metric(TARGET_INFO_NAME, TARGET_INFO_DESCRIPTION, &metrics.resource)
         });
+
         if !self.disable_target_info && !metrics.resource.is_empty() {
             res.push(target_info.clone())
         }
+
+        let resource_labels = self
+            .resource_labels_once
+            .get_or_init(|| self.resource_selector.select(&metrics.resource));
 
         for scope_metrics in metrics.scope_metrics {
             let scope_labels = if !self.disable_scope_info {
@@ -326,6 +335,9 @@ impl prometheus::core::Collector for Collector {
                     labels.push(l_version);
                 }
 
+                if !resource_labels.is_empty() {
+                    labels.extend(resource_labels.iter().cloned());
+                }
                 labels
             } else {
                 Vec::new()

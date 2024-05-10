@@ -20,11 +20,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: rustfmt
-          profile: minimal
       - uses: arduino/setup-protoc@v3
       - name: Run integration tests using docker compose
         run: ./scripts/integration_tests.sh

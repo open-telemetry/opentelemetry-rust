@@ -11,7 +11,7 @@ use tonic::transport::Channel;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
 
-use super::{default_headers, parse_header_string};
+use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use crate::exporter::Compression;
 use crate::{
     ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
@@ -149,7 +149,6 @@ impl Default for TonicExporterBuilder {
         TonicExporterBuilder {
             exporter_config: ExportConfig {
                 protocol: crate::Protocol::Grpc,
-                endpoint: crate::exporter::default_endpoint(crate::Protocol::Grpc),
                 ..Default::default()
             },
             tonic_config,
@@ -213,7 +212,6 @@ impl TonicExporterBuilder {
     fn build_channel(
         self,
         signal_endpoint_var: &str,
-        signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
@@ -255,12 +253,24 @@ impl TonicExporterBuilder {
         }
 
         let config = self.exporter_config;
+
+        // resolving endpoint string
+        // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
+        // the path of grpc calls are based on the protobuf service definition
+        // so we won't append one for default grpc endpoints
+        // If users for some reason want to use a custom path, they can use env var or builder to pass it
         let endpoint = match env::var(signal_endpoint_var)
             .ok()
             .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
         {
             Some(val) => val,
-            None => format!("{}{signal_endpoint_path}", config.endpoint),
+            None => {
+                if config.endpoint.is_empty() {
+                    OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
+                } else {
+                    config.endpoint
+                }
+            }
         };
 
         let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
@@ -300,7 +310,6 @@ impl TonicExporterBuilder {
 
         let (channel, interceptor, compression) = self.build_channel(
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-            "/v1/logs",
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
@@ -323,7 +332,6 @@ impl TonicExporterBuilder {
 
         let (channel, interceptor, compression) = self.build_channel(
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            "/v1/metrics",
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
@@ -347,7 +355,6 @@ impl TonicExporterBuilder {
 
         let (channel, interceptor, compression) = self.build_channel(
             crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            "/v1/traces",
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,

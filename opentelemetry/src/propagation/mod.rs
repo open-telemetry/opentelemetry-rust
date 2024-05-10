@@ -20,6 +20,7 @@
 //! [`Context`]: crate::Context
 
 use std::collections::HashMap;
+use thiserror::Error;
 
 pub mod composite;
 pub mod text_map_propagator;
@@ -61,10 +62,40 @@ impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
     }
 }
 
+/// Error when extracting or injecting context data(i.e propagating) across application boundaries.
+#[derive(Error, Debug)]
+#[error("Cannot {} from {}, {}", ops, message, propagator_name)]
+pub struct PropagationError {
+    message: &'static str,
+    // which propagator does this error comes from
+    propagator_name: &'static str,
+    // are we extracting or injecting information across application boundaries
+    ops: &'static str,
+}
+
+impl PropagationError {
+    /// Error happens when extracting information
+    pub fn extract(message: &'static str, propagator_name: &'static str) -> Self {
+        PropagationError {
+            message,
+            propagator_name,
+            ops: "extract",
+        }
+    }
+
+    /// Error happens when extracting information
+    pub fn inject(message: &'static str, propagator_name: &'static str) -> Self {
+        PropagationError {
+            message,
+            propagator_name,
+            ops: "inject",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn hash_map_get() {

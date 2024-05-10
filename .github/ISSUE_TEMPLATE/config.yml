@@ -4,7 +4,7 @@ contact_links:
     about: Please ask questions here.
   - name: Slack
     url: https://cloud-native.slack.com/archives/C03GDP0H023
-    about: Or the `#otel-rust` channel in the CNCF Slack instance. (Not terribly responsive.)
+    about: Or the `#otel-rust` channel in the CNCF Slack instance.
   - name: "⚠️ Report a security vulnerability"
     url: "https://github.com/open-telemetry/opentelemetry-rust/security/advisories/new"
     about: "Report a security vulnerability."

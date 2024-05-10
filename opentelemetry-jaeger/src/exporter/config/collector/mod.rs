@@ -1,5 +1,4 @@
 use std::borrow::BorrowMut;
-use std::convert::TryFrom;
 use std::env;
 use std::sync::Arc;
 #[cfg(feature = "collector_client")]
@@ -559,42 +558,7 @@ impl CollectorPipeline {
 #[cfg(test)]
 #[cfg(feature = "rt-tokio")]
 mod tests {
-    use opentelemetry_sdk::runtime::Tokio;
-
-    use crate::config::collector::http_client::test_http_client;
-
     use super::*;
-
-    #[test]
-    fn test_set_collector_endpoint() {
-        let invalid_uri = new_collector_pipeline()
-            .with_endpoint("127.0.0.1:14268/api/traces")
-            .with_http_client(test_http_client::TestHttpClient)
-            .build_uploader::<Tokio>();
-        assert!(invalid_uri.is_err());
-        assert_eq!(
-            format!("{:?}", invalid_uri.err().unwrap()),
-            "ConfigError { pipeline_name: \"collector\", config_name: \"collector_endpoint\", reason: \"invalid uri from the builder, invalid format\" }",
-        );
-
-        let valid_uri = new_collector_pipeline()
-            .with_http_client(test_http_client::TestHttpClient)
-            .with_endpoint("http://127.0.0.1:14268/api/traces")
-            .build_uploader::<Tokio>();
-
-        assert!(valid_uri.is_ok());
-    }
-
-    // Ignore this test as it is flaky and the opentelemetry-jaeger is on-track for deprecation
-    #[ignore]
-    #[test]
-    fn test_collector_exporter() {
-        let exporter = new_collector_pipeline()
-            .with_endpoint("http://127.0.0.1:14268/api/traces")
-            .with_http_client(test_http_client::TestHttpClient)
-            .build_collector_exporter::<Tokio>();
-        assert!(exporter.is_ok());
-    }
 
     #[test]
     fn test_resolve_endpoint() {

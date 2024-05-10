@@ -222,7 +222,10 @@ mod common;
 #[doc(hidden)]
 pub mod testing;
 
-pub use common::{Array, ExportError, InstrumentationLibrary, Key, KeyValue, StringValue, Value};
+pub use common::{
+    Array, ExportError, InstrumentationLibrary, InstrumentationLibraryBuilder, Key, KeyValue,
+    StringValue, Value,
+};
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

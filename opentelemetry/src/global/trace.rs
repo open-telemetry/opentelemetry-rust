@@ -86,6 +86,10 @@ pub trait ObjectSafeSpan {
     /// filtering decisions made previously depending on the implementation.
     fn update_name(&mut self, new_name: Cow<'static, str>);
 
+    /// Adds a link to this span
+    ///
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>);
+
     /// Finishes the `Span`.
     ///
     /// Implementations MUST ignore all subsequent calls to `end` (there might be
@@ -136,6 +140,10 @@ impl<T: trace::Span> ObjectSafeSpan for T {
 
     fn update_name(&mut self, new_name: Cow<'static, str>) {
         self.update_name(new_name)
+    }
+
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+        self.add_link(span_context, attributes)
     }
 
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
@@ -214,6 +222,12 @@ impl trace::Span for BoxedSpan {
         T: Into<Cow<'static, str>>,
     {
         self.0.update_name(new_name.into())
+    }
+
+    /// Adds a link to this span
+    ///
+    fn add_link(&mut self, span_context: trace::SpanContext, attributes: Vec<KeyValue>) {
+        self.0.add_link(span_context, attributes)
     }
 
     /// Finishes the span with given timestamp.

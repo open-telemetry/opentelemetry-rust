@@ -9,7 +9,7 @@ use futures_util::{
     future::{self, Either},
     pin_mut,
     stream::{self, FusedStream},
-    Stream, StreamExt,
+    StreamExt,
 };
 use opentelemetry::{
     global,
@@ -290,7 +290,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         true
     }
 
-    async fn run(mut self, mut messages: impl Stream<Item = Message> + Unpin + FusedStream) {
+    async fn run(mut self, mut messages: impl Unpin + FusedStream<Item = Message>) {
         while let Some(message) = messages.next().await {
             if !self.process_message(message).await {
                 break;
@@ -428,16 +428,18 @@ mod tests {
         // Act
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
-        let counter = meter.u64_observable_counter("testcounter").init();
-        meter
-            .register_callback(&[counter.as_any()], move |_| {
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
                 sender.send(()).expect("channel should still be open");
             })
-            .expect("callback registration should succeed");
+            .init();
+
+        _ = meter_provider.force_flush();
 
         // Assert
         receiver
-            .recv_timeout(interval * 2)
+            .try_recv()
             .expect("message should be available in channel, indicating a collection occurred");
     }
 

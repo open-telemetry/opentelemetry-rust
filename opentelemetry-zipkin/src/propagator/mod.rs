@@ -306,11 +306,7 @@ impl TextMapPropagator for Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::{
-        propagation::TextMapPropagator,
-        testing::trace::TestSpan,
-        trace::{SpanContext, SpanId, TraceFlags, TraceId},
-    };
+    use opentelemetry::testing::trace::TestSpan;
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";

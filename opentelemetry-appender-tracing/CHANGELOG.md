@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Removed unwanted dependency on opentelemetry-sdk.
+
 ## v0.3.0
 
 ### Added

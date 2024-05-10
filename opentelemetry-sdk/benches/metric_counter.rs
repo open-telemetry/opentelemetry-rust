@@ -13,8 +13,8 @@ fn create_counter() -> Counter<u64> {
         .with_reader(ManualReader::builder().build())
         .build();
     let meter = meter_provider.meter("benchmarks");
-    let counter = meter.u64_counter("counter_bench").init();
-    counter
+
+    meter.u64_counter("counter_bench").init()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -65,6 +65,17 @@ fn counter_add(c: &mut Criterion) {
                     KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
                 ],
             );
+        });
+    });
+
+    c.bench_function("Random_Generator_5", |b| {
+        b.iter(|| {
+            let mut rng = SmallRng::from_entropy();
+            let _i1 = rng.gen_range(0..4);
+            let _i2 = rng.gen_range(0..4);
+            let _i3 = rng.gen_range(0..10);
+            let _i4 = rng.gen_range(0..10);
+            let _i5 = rng.gen_range(0..10);
         });
     });
 }

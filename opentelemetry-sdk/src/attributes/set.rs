@@ -8,8 +8,6 @@ use std::{
 use opentelemetry::{Array, Key, KeyValue, Value};
 use ordered_float::OrderedFloat;
 
-use crate::Resource;
-
 #[derive(Clone, Debug)]
 struct HashKeyValue(KeyValue);
 
@@ -39,47 +37,7 @@ impl PartialOrd for HashKeyValue {
 
 impl Ord for HashKeyValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.0.key.cmp(&other.0.key) {
-            Ordering::Equal => match type_order(&self.0.value).cmp(&type_order(&other.0.value)) {
-                Ordering::Equal => match (&self.0.value, &other.0.value) {
-                    (Value::F64(f), Value::F64(of)) => OrderedFloat(*f).cmp(&OrderedFloat(*of)),
-                    (Value::Array(Array::Bool(b)), Value::Array(Array::Bool(ob))) => b.cmp(ob),
-                    (Value::Array(Array::I64(i)), Value::Array(Array::I64(oi))) => i.cmp(oi),
-                    (Value::Array(Array::String(s)), Value::Array(Array::String(os))) => s.cmp(os),
-                    (Value::Array(Array::F64(f)), Value::Array(Array::F64(of))) => {
-                        match f.len().cmp(&of.len()) {
-                            Ordering::Equal => f
-                                .iter()
-                                .map(|x| OrderedFloat(*x))
-                                .collect::<Vec<_>>()
-                                .cmp(&of.iter().map(|x| OrderedFloat(*x)).collect()),
-                            other => other,
-                        }
-                    }
-                    (Value::Bool(b), Value::Bool(ob)) => b.cmp(ob),
-                    (Value::I64(i), Value::I64(oi)) => i.cmp(oi),
-                    (Value::String(s), Value::String(os)) => s.cmp(os),
-                    _ => Ordering::Equal,
-                },
-                other => other, // 2nd order by value types
-            },
-            other => other, // 1st order by key
-        }
-    }
-}
-
-fn type_order(v: &Value) -> u8 {
-    match v {
-        Value::Bool(_) => 1,
-        Value::I64(_) => 2,
-        Value::F64(_) => 3,
-        Value::String(_) => 4,
-        Value::Array(a) => match a {
-            Array::Bool(_) => 5,
-            Array::I64(_) => 6,
-            Array::F64(_) => 7,
-            Array::String(_) => 8,
-        },
+        self.0.key.cmp(&other.0.key)
     }
 }
 
@@ -127,27 +85,20 @@ impl From<&[KeyValue]> for AttributeSet {
     }
 }
 
-impl From<&Resource> for AttributeSet {
-    fn from(values: &Resource) -> Self {
-        let vec = values
-            .iter()
-            .map(|(key, value)| HashKeyValue(KeyValue::new(key.clone(), value.clone())))
-            .collect::<Vec<_>>();
-
-        AttributeSet::new(vec)
-    }
+fn calculate_hash(values: &[HashKeyValue]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    values.iter().fold(&mut hasher, |mut hasher, item| {
+        item.hash(&mut hasher);
+        hasher
+    });
+    hasher.finish()
 }
 
 impl AttributeSet {
     fn new(mut values: Vec<HashKeyValue>) -> Self {
         values.sort_unstable();
-        let mut hasher = DefaultHasher::new();
-        values.iter().fold(&mut hasher, |mut hasher, item| {
-            item.hash(&mut hasher);
-            hasher
-        });
-
-        AttributeSet(values, hasher.finish())
+        let hash = calculate_hash(&values);
+        AttributeSet(values, hash)
     }
 
     /// Returns the number of elements in the set.
@@ -165,7 +116,10 @@ impl AttributeSet {
     where
         F: Fn(&KeyValue) -> bool,
     {
-        self.0.retain(|kv| f(&kv.0))
+        self.0.retain(|kv| f(&kv.0));
+
+        // Recalculate the hash as elements are changed.
+        self.1 = calculate_hash(&self.0);
     }
 
     /// Iterate over key value pairs in the set
@@ -177,5 +131,54 @@ impl AttributeSet {
 impl Hash for AttributeSet {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    use crate::attributes::set::HashKeyValue;
+    use opentelemetry::KeyValue;
+
+    #[test]
+    fn equality_kv_float() {
+        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
+        let kv2 = HashKeyValue(KeyValue::new("key", 1.0));
+        assert_eq!(kv1, kv2);
+
+        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
+        let kv2 = HashKeyValue(KeyValue::new("key", 1.01));
+        assert_ne!(kv1, kv2);
+
+        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
+        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
+        assert_eq!(kv1, kv2);
+
+        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
+        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
+        assert_eq!(kv1, kv2);
+    }
+
+    #[test]
+    fn hash_kv_float() {
+        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
+        let kv2 = HashKeyValue(KeyValue::new("key", 1.0));
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
+        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
+        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+    }
+
+    fn hash_helper<T: Hash>(item: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        item.hash(&mut hasher);
+        hasher.finish()
     }
 }

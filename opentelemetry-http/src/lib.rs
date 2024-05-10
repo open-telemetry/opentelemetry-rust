@@ -67,7 +67,6 @@ pub trait HttpClient: Debug + Send + Sync {
 #[cfg(feature = "reqwest")]
 mod reqwest {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use std::convert::TryInto;
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
@@ -126,7 +125,7 @@ mod isahc {
     }
 }
 
-#[cfg(any(feature = "hyper", feature = "hyper_tls"))]
+#[cfg(feature = "hyper")]
 pub mod hyper {
     use crate::ResponseExt;
 

@@ -41,8 +41,8 @@ mod json_deserialize {
               "spanId": "EEE19B7EC3C1B174",
               "parentSpanId": "EEE19B7EC3C1B173",
               "name": "I'm a server span",
-              "startTimeUnixNano": 1544712660000000000,
-              "endTimeUnixNano": 1544712661000000000,
+              "startTimeUnixNano": "1544712660000000000",
+              "endTimeUnixNano": "1544712661000000000",
               "kind": 2,
               "attributes": [
                 {
@@ -73,7 +73,7 @@ mod json_deserialize {
     const EVENT_JSON: &str = r#"
     {
         "name": "my_event",
-        "time_unix_nano": 1234567890
+        "time_unix_nano": "1234567890"
     }
     "#;
 

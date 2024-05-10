@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use integration_test_runner::images::Collector;
 use std::fs::File;
 use std::os::unix::fs::PermissionsExt;

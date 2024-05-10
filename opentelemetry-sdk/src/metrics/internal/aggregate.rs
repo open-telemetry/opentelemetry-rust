@@ -93,7 +93,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
     /// Wraps the passed in measure with an attribute filtering function.
     fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
-        let filter = self.filter.as_ref().map(Arc::clone);
+        let filter = self.filter.clone();
         move |n, mut attrs: AttributeSet| {
             if let Some(filter) = &filter {
                 attrs.retain(filter.as_ref());
