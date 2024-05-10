@@ -150,12 +150,12 @@ mod tests {
 
         let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
         let kv2 = HashKeyValue(KeyValue::new("key", 1.01));
-        assert_ne!(kv1, kv2);        
-        
+        assert_ne!(kv1, kv2);
+
         let kv1 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
         let kv2 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
         assert_eq!(kv1, kv2);
-        
+
         let kv1 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
         let kv2 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
         assert_eq!(kv1, kv2);
