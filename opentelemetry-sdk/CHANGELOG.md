@@ -28,6 +28,9 @@
   - After `shutdown`, `LogProcessor` will not process any new logs
 - Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
     - Relocated `LogRecord` struct to SDK, as an implementation for the trait in the API.
+- - **BREAKING** Remove `logs_level_enabled` feature flag as the feature is not part of the specs. 
+           [#1736](https://github.com/open-telemetry/opentelemetry-rust/pull/1736/files)
+
 
 ## v0.22.1
 

@@ -3,6 +3,8 @@
 ## vNext
 
 - Removed unwanted dependency on opentelemetry-sdk.
+- - **BREAKING** Remove `logs_level_enabled` feature flag as the feature is not part of the specs. [#1736](https://github.com/open-telemetry/opentelemetry-rust/pull/1736/files)
+
 
 ## v0.3.0
 
