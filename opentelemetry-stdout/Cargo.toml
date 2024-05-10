@@ -28,7 +28,6 @@ thiserror = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 opentelemetry = { version = "0.22", path = "../opentelemetry", default_features = false }
 opentelemetry_sdk = { version = "0.22", path = "../opentelemetry-sdk", default_features = false }
-opentelemetry-appender-tracing = { version = "0.3.0", path = "../opentelemetry-appender-tracing"}
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 ordered-float = { workspace = true }
@@ -36,6 +35,7 @@ ordered-float = { workspace = true }
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
+opentelemetry-appender-tracing = { version = "0.3.0", path = "../opentelemetry-appender-tracing"}
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 tokio = { workspace = true, features = ["full"] }
