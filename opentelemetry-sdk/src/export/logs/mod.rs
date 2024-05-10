@@ -2,7 +2,6 @@
 use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
-#[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
     logs::{LogError, LogResult},
@@ -17,7 +16,6 @@ pub trait LogExporter: Send + Sync + Debug {
     async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
-    #[cfg(feature = "logs_level_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
