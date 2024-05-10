@@ -10,7 +10,6 @@ use opentelemetry::{
     Context, InstrumentationLibrary,
 };
 
-#[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
 use std::{borrow::Cow, sync::Arc};
@@ -253,7 +252,6 @@ impl opentelemetry::logs::Logger for Logger {
         }
     }
 
-    #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
         let provider = self.provider();
 
@@ -330,7 +328,6 @@ mod tests {
             Ok(())
         }
 
-        #[cfg(feature = "logs_level_enabled")]
         fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
             true
         }
@@ -552,7 +549,6 @@ mod tests {
             Ok(())
         }
 
-        #[cfg(feature = "logs_level_enabled")]
         fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
             true
         }

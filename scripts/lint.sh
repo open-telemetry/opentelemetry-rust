@@ -29,7 +29,7 @@ if rustup component add clippy; then
           -Dwarnings
   done
 
-  cargo_feature opentelemetry "trace,metrics,logs,logs_level_enabled,testing"
+  cargo_feature opentelemetry "trace,metrics,logs,testing"
 
   cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"

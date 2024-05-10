@@ -8,7 +8,6 @@ use futures_util::{
     future::{self, Either},
     {pin_mut, stream, StreamExt as _},
 };
-#[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
     global,
@@ -52,7 +51,6 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
     fn shutdown(&self) -> LogResult<()>;
-    #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 
@@ -119,7 +117,6 @@ impl LogProcessor for SimpleLogProcessor {
         }
     }
 
-    #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
     }
@@ -148,7 +145,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         }
     }
 
-    #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         true
     }
