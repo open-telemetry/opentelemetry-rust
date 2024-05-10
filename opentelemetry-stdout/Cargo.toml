@@ -19,7 +19,7 @@ rust-version = "1.65"
 default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
 metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror", "opentelemetry_sdk/logs_level_enabled"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror"]
 
 [dependencies]
 async-trait = { workspace = true, optional = true }
