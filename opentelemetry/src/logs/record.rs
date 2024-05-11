@@ -26,7 +26,11 @@ pub trait LogRecord {
     fn set_body(&mut self, body: AnyValue);
 
     /// Adds multiple attributes.
-    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
+    fn add_attributes<I, K, V>(&mut self, attributes: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<Key>,
+        V: Into<AnyValue>;
 
     /// Adds a single attribute.
     fn add_attribute<K, V>(&mut self, key: K, value: V)
