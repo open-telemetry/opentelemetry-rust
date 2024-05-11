@@ -44,7 +44,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
-fn init_metrics() -> Result<(), MetricsError> {
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
     let export_config = opentelemetry_otlp::ExportConfig {
         endpoint: "http://localhost:4318/v1/metrics".to_string(),
         ..opentelemetry_otlp::ExportConfig::default()
@@ -57,7 +57,10 @@ fn init_metrics() -> Result<(), MetricsError> {
                 .with_export_config(export_config),
         )
         .build();
-    provider.map(|_| ())
+    match provider {
+        Ok(provider) => Ok(provider),
+        Err(err) => Err(err),
+    }
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("ex.com/lemons");
@@ -87,6 +90,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         "Init metrics failed with error: {:?}",
         result.err()
     );
+
+    let meter_provider = result.unwrap();
 
     // Opentelemetry will not provide a global API to manage the logger provider. Application users must manage the lifecycle of the logger provider on their own. Dropping logger providers will disable log emitting.
     let logger_provider = init_logs().unwrap();
@@ -120,7 +125,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     global::shutdown_tracer_provider();
     logger_provider.shutdown();
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
 
     Ok(())
 }
