@@ -982,14 +982,20 @@ mod tests {
     }
 
     fn find_datapoint_with_key_value<'a, T>(
-        data_points: &'a DataPoint<T>,
+        data_points: &'a Vec<DataPoint<T>>,
         key: &str,
         value: &str,
     ) -> Option<&'a DataPoint<T>> {
-        data_points.iter().find(|&datapoint| datapoint
+        for datapoint in data_points {
+            if datapoint
                 .attributes
                 .iter()
-                .any(|(k, v)| k.as_str() == key && v.as_str() == value))
+                .any(|(k, v)| k.as_str() == key && v.as_str() == value)
+            {
+                return Some(&datapoint);
+            }
+        }
+        None
     }
 
     fn find_scope_metric<'a>(
