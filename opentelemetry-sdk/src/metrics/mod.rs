@@ -992,7 +992,7 @@ mod tests {
                 .iter()
                 .any(|(k, v)| k.as_str() == key && v.as_str() == value)
             {
-                return Some(&datapoint);
+                return Some(datapoint);
             }
         }
         None
