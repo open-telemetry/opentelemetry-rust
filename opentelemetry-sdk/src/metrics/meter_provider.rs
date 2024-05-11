@@ -397,13 +397,13 @@ mod tests {
         let provider = super::SdkMeterProvider::builder()
             .with_reader(reader.clone())
             .build();
-        global::set_meter_provider(provider);
+        global::set_meter_provider(provider.clone());
         assert!(!reader.is_shutdown());
         // create a meter and an instrument
         let meter = global::meter("test");
         let counter = meter.u64_counter("test_counter").init();
         // no need to drop a meter for meter_provider shutdown
-        global::shutdown_meter_provider();
+        provider.shutdown().unwrap();
         assert!(reader.is_shutdown());
         // TODO Fix: the instrument is still available, and can be used.
         // While the reader is shutdown, and no collect is happening
