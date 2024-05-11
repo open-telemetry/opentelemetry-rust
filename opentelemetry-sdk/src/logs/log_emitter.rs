@@ -92,7 +92,7 @@ impl LoggerProvider {
     }
 
     /// Log processors associated with this provider.
-    pub fn log_processors(&self) -> &Vec<Box<dyn LogProcessor>> {
+    pub fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
         &self.inner.processors
     }
 

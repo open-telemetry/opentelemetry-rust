@@ -31,7 +31,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
         .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> Result<(), MetricsError> {
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
@@ -49,7 +49,7 @@ fn init_metrics() -> Result<(), MetricsError> {
         )]))
         .build();
     match provider {
-        Ok(_provider) => Ok(()),
+        Ok(provider) => Ok(provider),
         Err(err) => Err(err),
     }
 }
@@ -103,8 +103,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         "Init metrics failed with error: {:?}",
         result.err()
     );
+    let meter_provider = result.unwrap();
 
-    // Initialize logs, which sets the global loggerprovider.
+    // Initialize logs and save the logger_provider.
     let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
@@ -148,7 +149,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     global::shutdown_tracer_provider();
     logger_provider.shutdown();
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
 
     Ok(())
 }

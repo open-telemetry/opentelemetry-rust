@@ -4,7 +4,7 @@ use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() {
+fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
         // uncomment the below lines to pretty print output.
         //  .with_encoder(|writer, data|
@@ -18,13 +18,14 @@ fn init_meter_provider() {
             "metrics-basic-example",
         )]))
         .build();
-    global::set_meter_provider(provider);
+    global::set_meter_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Initialize the MeterProvider with the stdout Exporter.
-    init_meter_provider();
+    let meter_provider = init_meter_provider();
 
     // Create a meter from the above MeterProvider.
     let meter = global::meter("mylibraryname");
@@ -60,6 +61,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
     Ok(())
 }
