@@ -20,6 +20,8 @@ mod tests {
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
+    use std::collections::HashMap;
+
 
     #[test]
     fn logging_sdk_test() {
@@ -34,10 +36,32 @@ mod tests {
         let mut log_record = logger.create_log_record();
         log_record.set_severity_number(Severity::Error);
         log_record.set_severity_text("Error".into());
+
+        // Adding attributes using a vector with explicitly constructed Key and AnyValue objects.
         log_record.add_attributes(vec![
-            (Key::new("key1"), "value1".into()),
-            (Key::new("key2"), "value2".into()),
+            (Key::new("key1"), AnyValue::from("value1")),
+            (Key::new("key2"), AnyValue::from("value2")),
         ]);
+
+        // Adding attributes using an array with explicitly constructed Key and AnyValue objects.
+        log_record.add_attributes([
+            (Key::new("key3"), AnyValue::from("value3")),
+            (Key::new("key4"), AnyValue::from("value4")),
+        ]);
+
+        // Adding attributes using a vector with tuple auto-conversion to Key and AnyValue.
+        log_record.add_attributes(vec![("key5", "value5"), ("key6", "value6")]);
+
+        // Adding attributes using an array with tuple auto-conversion to Key and AnyValue.
+        log_record.add_attributes([("key7", "value7"), ("key8", "value8")]);
+
+        // Adding Attributes from a HashMap
+        let mut attributes_map = HashMap::new();
+        attributes_map.insert("user_id", "12345");
+        attributes_map.insert("session_id", "abcde");
+
+        log_record.add_attributes(attributes_map);
+
         logger.emit(log_record);
 
         // Assert
@@ -55,7 +79,55 @@ mod tests {
             .attributes
             .clone()
             .expect("Attributes are expected");
-        assert_eq!(attributes.len(), 2);
+        assert_eq!(attributes.len(), 8);
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key1"), AnyValue::String("value1".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key2"), AnyValue::String("value2".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key3"), AnyValue::String("value3".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key4"), AnyValue::String("value4".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key5"), AnyValue::String("value5".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key6"), AnyValue::String("value6".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key5"), AnyValue::String("value7".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key6"), AnyValue::String("value8".into()))));
     }
 
     #[test]
