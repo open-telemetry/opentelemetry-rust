@@ -79,66 +79,12 @@ mod tests {
             .clone()
             .expect("Attributes are expected");
         assert_eq!(attributes.len(), 10);
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key1"), AnyValue::String("value1".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key2"), AnyValue::String("value2".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key3"), AnyValue::String("value3".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key4"), AnyValue::String("value4".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key5"), AnyValue::String("value5".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key6"), AnyValue::String("value6".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key7"), AnyValue::String("value7".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key8"), AnyValue::String("value8".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key9"), AnyValue::String("value9".into()))));
-        assert!(log
-            .record
-            .attributes
-            .clone()
-            .unwrap()
-            .contains(&(Key::new("key10"), AnyValue::String("value10".into()))));
+        for i in 1..=10 {
+            assert!(log.record.attributes.clone().unwrap().contains(&(
+                Key::new(format!("key{}", i)),
+                AnyValue::String(format!("value{}", i).into())
+            )));
+        }
     }
 
     #[test]
