@@ -73,6 +73,9 @@ mod tests {
     };
     use std::borrow::Cow;
 
+    // Run all tests in this mod
+    // cargo test metrics::tests --features=metrics,testing
+
     // Note for all tests in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
@@ -81,28 +84,28 @@ mod tests {
     async fn counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
-        counter_aggregation(Temporality::Cumulative);
+        counter_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
-        counter_aggregation(Temporality::Delta);
+        counter_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
-        updown_counter_aggregation(Temporality::Cumulative);
+        updown_counter_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
-        updown_counter_aggregation(Temporality::Delta);
+        updown_counter_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -889,7 +892,7 @@ mod tests {
         assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
     }
 
-    fn counter_aggregation(temporality: Temporality) {
+    fn counter_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
         let counter = test_context.u64_counter("test", "my_counter", None);
@@ -932,7 +935,7 @@ mod tests {
         assert_eq!(data_point1.value, 3);
     }
 
-    fn updown_counter_aggregation(temporality: Temporality) {
+    fn updown_counter_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
         let counter = test_context.i64_up_down_counter("test", "my_counter", None);
