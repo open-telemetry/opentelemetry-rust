@@ -56,7 +56,7 @@ futures-util = { workspace = true, features = ["std", "alloc"]}
 tokio = { workspace = true, features = ["net", "sync"] }
 bytes = { workspace = true }
 futures-executor = { workspace = true }
-opentelemetry-jaeger-propagator = { version = "0.1", path = "../opentelemetry-jaeger-propagator" } # for doctests
+opentelemetry-jaeger-propagator = { path = "../opentelemetry-jaeger-propagator" } # for doctests
 opentelemetry_sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
 
 [dependencies.web-sys]
