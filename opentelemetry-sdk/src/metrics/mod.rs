@@ -1007,13 +1007,6 @@ mod tests {
             .find(|&scope_metric| scope_metric.scope.name == name)
     }
 
-    struct DeltaTemporalitySelector();
-    impl TemporalitySelector for DeltaTemporalitySelector {
-        fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-            Temporality::Delta
-        }
-    }
-
     struct TestContext {
         exporter: InMemoryMetricsExporter,
         meter_provider: SdkMeterProvider,
