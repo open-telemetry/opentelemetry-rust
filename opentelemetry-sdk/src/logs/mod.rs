@@ -22,7 +22,6 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::collections::HashMap;
 
-
     #[test]
     fn logging_sdk_test() {
         // Arrange
@@ -57,8 +56,8 @@ mod tests {
 
         // Adding Attributes from a HashMap
         let mut attributes_map = HashMap::new();
-        attributes_map.insert("user_id", "12345");
-        attributes_map.insert("session_id", "abcde");
+        attributes_map.insert("key9", "value9");
+        attributes_map.insert("key10", "value10");
 
         log_record.add_attributes(attributes_map);
 
@@ -79,7 +78,7 @@ mod tests {
             .attributes
             .clone()
             .expect("Attributes are expected");
-        assert_eq!(attributes.len(), 8);
+        assert_eq!(attributes.len(), 10);
         assert!(log
             .record
             .attributes
@@ -121,13 +120,25 @@ mod tests {
             .attributes
             .clone()
             .unwrap()
-            .contains(&(Key::new("key5"), AnyValue::String("value7".into()))));
+            .contains(&(Key::new("key7"), AnyValue::String("value7".into()))));
         assert!(log
             .record
             .attributes
             .clone()
             .unwrap()
-            .contains(&(Key::new("key6"), AnyValue::String("value8".into()))));
+            .contains(&(Key::new("key8"), AnyValue::String("value8".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key9"), AnyValue::String("value9".into()))));
+        assert!(log
+            .record
+            .attributes
+            .clone()
+            .unwrap()
+            .contains(&(Key::new("key10"), AnyValue::String("value10".into()))));
     }
 
     #[test]
