@@ -44,7 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Beta)
+//! # Metrics (Alpha)
 //!
 //! Note: the metrics implementation is **still in progress** and **subject to major
 //! changes**.
@@ -91,8 +91,8 @@
 //!
 //! * `logs_level_enabled`: control the log level
 //!
-//! Support for recording and exporting telemetry asynchronously can be added
-//! via the following flags:
+//! Support for recording and exporting telemetry asynchronously and perform
+//! metrics aggregation can be added via the following flags:
 //!
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.

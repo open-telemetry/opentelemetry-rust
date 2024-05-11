@@ -1,4 +1,4 @@
-//! The rust of the OpenTelemetry metrics SDK.
+//! The crust of the OpenTelemetry metrics SDK.
 //!
 //! ## Configuration
 //!
@@ -9,8 +9,9 @@
 //! ### Example
 //!
 //! ```
+//! use opentelemetry::global;
 //! use opentelemetry::{
-//!     metrics::{MeterProvider, Unit},
+//!     metrics::Unit,
 //!     KeyValue,
 //! };
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
@@ -19,10 +20,11 @@
 //! let resource = Resource::default(); // default attributes about the current process
 //!
 //! // Create a meter provider with the desired config
-//! let provider = SdkMeterProvider::builder().with_resource(resource).build();
+//! let meter_provider = SdkMeterProvider::builder().with_resource(resource).build();
+//! global::set_meter_provider(meter_provider.clone());
 //!
 //! // Use the meter provider to create meter instances
-//! let meter = provider.meter("my_app");
+//! let meter = global::meter("my_app");
 //!
 //! // Create instruments scoped to the meter
 //! let counter = meter
@@ -32,6 +34,10 @@
 //!
 //! // use instruments to record measurements
 //! counter.add(10, &[KeyValue::new("rate", "standard")]);
+//!
+//! // shutdown the provider at the end of the application to ensure any metrics not yet
+//! // exported are flushed.
+//! meter_provider.shutdown().unwrap();
 //! ```
 //!
 //! [Resource]: crate::Resource
