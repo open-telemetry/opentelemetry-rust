@@ -982,7 +982,7 @@ mod tests {
     }
 
     fn find_datapoint_with_key_value<'a, T>(
-        data_points: &'a Vec<DataPoint<T>>,
+        data_points: &'a [DataPoint<T>],
         key: &str,
         value: &str,
     ) -> Option<&'a DataPoint<T>> {
