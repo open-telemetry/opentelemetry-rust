@@ -34,6 +34,7 @@
   - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
   - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
 - Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
 
 ## v0.22.1
 
