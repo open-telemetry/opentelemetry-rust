@@ -7,7 +7,15 @@ Starting with [Jaeger v1.38](https://github.com/jaegertracing/jaeger/releases/ta
 
 Please check the [README](https://crates.io/crates/opentelemetry-jaeger) for more information.
 
-## vNext
+## v0.22.0
+
+- **This is the last release of this crate.**
+  Jaeger propagator is part of [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
+  For exporting to Jaeger, use [opentelemetry-otlp](../opentelemetry-otlp/).
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- Update `opentelemetry-semantic-conventions` dependency version to 0.15
 
 ## v0.21.0
 

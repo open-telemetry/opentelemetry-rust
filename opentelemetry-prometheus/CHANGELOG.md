@@ -2,9 +2,16 @@
 
 ## vNext
 
+## v0.16.0
+
 ### Added
 
 - Add `ResourceSelector` to allow attaching resource as attributes to metrics [#1608](https://github.com/open-telemetry/opentelemetry-rust/pull/1608)
+
+### Changed
+
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
 
 ## v0.15.0
 
