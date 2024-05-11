@@ -986,16 +986,10 @@ mod tests {
         key: &str,
         value: &str,
     ) -> Option<&'a DataPoint<T>> {
-        for datapoint in data_points {
-            if datapoint
+        data_points.iter().find(|&datapoint| datapoint
                 .attributes
                 .iter()
-                .any(|(k, v)| k.as_str() == key && v.as_str() == value)
-            {
-                return Some(datapoint);
-            }
-        }
-        None
+                .any(|(k, v)| k.as_str() == key && v.as_str() == value))
     }
 
     fn find_scope_metric<'a>(
