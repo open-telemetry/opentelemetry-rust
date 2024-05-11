@@ -138,7 +138,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    // global::shutdown_meter_provider();
     meter_provider.shutdown()?;
     Ok(())
 }
