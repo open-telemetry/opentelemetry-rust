@@ -1,4 +1,4 @@
-#[cfg(feature = "gen-tonic")]
+#[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::{
         tonic::{
