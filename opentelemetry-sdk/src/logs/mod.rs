@@ -29,12 +29,12 @@ mod tests {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
-            .with_config(
-                Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                    "key",
-                    "logging_sdk_test",
-                )])),
-            )
+            .with_config(Config::default().with_resource(Resource::new(vec![
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])))
             .with_log_processor(SimpleLogProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -95,11 +95,14 @@ mod tests {
         }
 
         // validate Resource
-        let resource = log.resource.clone();
-        assert_eq!(
-            resource.get(Key::from_static_str("key")),
-            Some(Value::String("logging_sdk_test".into()))
-        );
+        let resource = &log.resource;
+        assert_eq!(resource.len(), 4);
+        for i in 1..=4 {
+            assert_eq!(
+                resource.get(Key::new(format!("k{}", i))),
+                Some(Value::String(format!("v{}", i).into()))
+            );
+        }
     }
 
     #[test]
