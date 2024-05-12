@@ -17,8 +17,10 @@ pub use record::{LogRecord, TraceContext};
 mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
+    use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::Value;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::collections::HashMap;
 
@@ -27,6 +29,12 @@ mod tests {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
+            .with_config(
+                Config::default().with_resource(Resource::new(vec![KeyValue::new(
+                    "key",
+                    "logging_sdk_test",
+                )])),
+            )
             .with_log_processor(SimpleLogProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -85,6 +93,13 @@ mod tests {
                 AnyValue::String(format!("value{}", i).into())
             )));
         }
+
+        // validate Resource
+        let resource = log.resource.clone();
+        assert_eq!(
+            resource.get(Key::from_static_str("key")),
+            Some(Value::String("logging_sdk_test".into()))
+        );
     }
 
     #[test]
