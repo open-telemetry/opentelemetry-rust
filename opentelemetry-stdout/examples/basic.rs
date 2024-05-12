@@ -24,11 +24,12 @@ fn init_trace() {
 }
 
 #[cfg(feature = "metrics")]
-fn init_metrics() {
+fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporter::default();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
-    global::set_meter_provider(provider);
+    global::set_meter_provider(provider.clone());
+    provider
 }
 
 #[cfg(feature = "logs")]
@@ -77,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_trace();
 
     #[cfg(feature = "metrics")]
-    init_metrics();
+    let meter_provider = init_metrics();
 
     #[cfg(feature = "logs")]
     let logger_provider = init_logs();
@@ -103,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     global::shutdown_tracer_provider();
 
     #[cfg(feature = "metrics")]
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
 
     #[cfg(feature = "logs")]
     drop(logger_provider);

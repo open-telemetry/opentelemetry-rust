@@ -6,6 +6,7 @@
 
 - Update protobuf definitions to v1.2.0 [#1668](https://github.com/open-telemetry/opentelemetry-rust/pull/1668)
 - Update protobuf definitions to v1.3.1 [#1721](https://github.com/open-telemetry/opentelemetry-rust/pull/1721)
+- Fix the feature flag condition of `opentelemetry-proto/src/transform/logs.rs` [#1746](https://github.com/open-telemetry/opentelemetry-rust/pull/1746)
 - Update `opentelemetry` dependency version to 0.23
 - Update `opentelemetry_sdk` dependency version to 0.23
 
