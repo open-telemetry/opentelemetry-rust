@@ -31,10 +31,7 @@ pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION
 #[cfg(feature = "http-json")]
 /// Default protocol, using http-json.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
-#[cfg(all(
-    feature = "http-proto",
-    not(any(feature = "grpc-tonic", feature = "http-json"))
-))]
+#[cfg(all(feature = "http-proto", not(feature = "http-json")))]
 /// Default protocol, using http-proto.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
 #[cfg(all(
