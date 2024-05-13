@@ -90,10 +90,6 @@ fn build_tonic() {
     builder = builder
         .field_attribute("common.v1.KeyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
 
-    // add custom serializer and deserializer for Value.intValue
-    builder = builder
-        .field_attribute("common.v1.any_value.Value.IntValue11", "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]");
-
     builder
         .out_dir(out_dir.path())
         .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
