@@ -235,7 +235,7 @@ mod tests {
 
         // Act
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-        logger_provider.force_flush();
+        let _ = logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -315,7 +315,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        let _ = logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -399,7 +399,7 @@ mod tests {
 
         // Act
         log::error!("log from log crate");
-        logger_provider.force_flush();
+        let _ = logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -479,7 +479,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        let _ = logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
