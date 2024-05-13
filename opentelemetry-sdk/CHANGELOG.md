@@ -31,6 +31,8 @@
 - **Breaking** [#1729](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
   - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
   - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
+- **Breaking** [#1750](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
+  - Update the return type of `LoggerProvider.shutdown()` from `Vec<LogResult<()>>` to `LogResult<()>`.
 
 ## v0.22.1
 
