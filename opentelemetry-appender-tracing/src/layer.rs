@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    Key, KeyValue,
 };
 use std::borrow::Cow;
 use tracing_core::{Level, Metadata};
@@ -143,6 +143,7 @@ where
             logger: provider
                 .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
                 .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+                
                 .build(),
             _phantom: Default::default(),
         }
@@ -235,7 +236,7 @@ mod tests {
 
         // Act
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-        let _ = logger_provider.force_flush();
+        logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -315,7 +316,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        let _ = logger_provider.force_flush();
+        logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -399,7 +400,7 @@ mod tests {
 
         // Act
         log::error!("log from log crate");
-        let _ = logger_provider.force_flush();
+        logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -479,7 +480,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        let _ = logger_provider.force_flush();
+        logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter

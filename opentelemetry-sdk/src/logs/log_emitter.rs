@@ -100,20 +100,11 @@ impl LoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> LogResult<()> {
-        // propagate force_flush to processors
-        let mut errs = vec![];
-        for processor in &self.inner.processors {
-            if let Err(err) = processor.force_flush() {
-                errs.push(err);
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(LogError::Other(format!("{errs:?}").into()))
-        }
+    pub fn force_flush(&self) -> Vec<LogResult<()>> {
+        self.log_processors()
+            .iter()
+            .map(|processor| processor.force_flush())
+            .collect()
     }
 
     /// Shuts down this `LoggerProvider`
