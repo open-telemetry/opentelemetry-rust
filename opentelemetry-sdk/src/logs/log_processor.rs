@@ -729,7 +729,7 @@ mod tests {
             ])))
             .build();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
-        provider.shutdown();
+        let _ = provider.shutdown();
     }
 
     #[tokio::test(flavor = "multi_thread")]
