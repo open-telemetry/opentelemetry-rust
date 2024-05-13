@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key, KeyValue,
+    Key,
 };
 use std::borrow::Cow;
 use tracing_core::{Level, Metadata};
@@ -143,7 +143,6 @@ where
             logger: provider
                 .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
                 .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-                
                 .build(),
             _phantom: Default::default(),
         }
