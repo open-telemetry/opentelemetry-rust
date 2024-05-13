@@ -3,6 +3,7 @@
 ## vNext
 
 - Removed unwanted dependency on opentelemetry-sdk.
+- Added support to collect attributes from tracing spans.
 
 ## v0.3.0
 
