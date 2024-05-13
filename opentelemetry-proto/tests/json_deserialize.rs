@@ -117,7 +117,7 @@ mod json_deserialize {
             let value: Value = serde_json::from_str(
                 r#"
             {
-              "intValue": 123
+              "intValue": "123"
             }"#,
             )
             .unwrap();
