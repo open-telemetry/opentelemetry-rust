@@ -88,16 +88,17 @@
 //! See the [`metrics`] module docs for more information on creating and
 //! managing instruments.
 //!
-//! 
+//!
 //! //! # Logs
 //!
 //!  The [`logs`] module contains the Logs Bridge API. It is not intended to be
 //!  called by application developers directly. It is provided for logging
 //!  library authors to build log appenders, that bridges existing logging
-//!  systems with OpenTelemetry. OpenTelemetry. Bridges for `log` and `tracing`
-//!  libraries are provided via the `opentelemetry-log` and
-//! `tracing-opentelemetry` crates.
-//! 
+//!  systems with OpenTelemetry. OpenTelemetry. Bridges for
+//!  [`log`](https://crates.io/crates/log) and
+//!  [`tracing`](https://crates.io/crates/tracing) libraries are provided via the
+//!  `opentelemetry-log` and `tracing-opentelemetry` crates.
+//!
 //! ## Crate Feature Flags
 //!
 //! The following core crate feature flags are available:
