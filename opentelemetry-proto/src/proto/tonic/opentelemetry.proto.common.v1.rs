@@ -28,6 +28,13 @@ pub mod any_value {
         #[prost(bool, tag = "2")]
         BoolValue(bool),
         #[prost(int64, tag = "3")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_i64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_i64"
+            )
+        )]
         IntValue(i64),
         #[prost(double, tag = "4")]
         DoubleValue(f64),
