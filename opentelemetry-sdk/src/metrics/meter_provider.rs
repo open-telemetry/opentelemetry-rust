@@ -403,7 +403,12 @@ mod tests {
         let meter = global::meter("test");
         let counter = meter.u64_counter("test_counter").init();
         // no need to drop a meter for meter_provider shutdown
-        provider.shutdown().unwrap();
+        let shutdown_res = provider.shutdown();
+        assert!(shutdown_res.is_ok());
+
+        // shutdown once more should return an error
+        let shutdown_res = provider.shutdown();
+        assert!(shutdown_res.is_err());
         assert!(reader.is_shutdown());
         // TODO Fix: the instrument is still available, and can be used.
         // While the reader is shutdown, and no collect is happening
