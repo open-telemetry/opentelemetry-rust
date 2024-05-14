@@ -79,6 +79,13 @@ pub struct LogRecord {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
     #[prost(fixed64, tag = "1")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// Time when the event was observed by the collection system.
     /// For events that originate in OpenTelemetry (e.g. using OpenTelemetry Logging SDK)
@@ -96,6 +103,13 @@ pub struct LogRecord {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
     #[prost(fixed64, tag = "11")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub observed_time_unix_nano: u64,
     /// Numerical value of the severity, normalized to values described in Log Data Model.
     /// \[Optional\].
