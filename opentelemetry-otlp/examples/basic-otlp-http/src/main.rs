@@ -1,3 +1,4 @@
+use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
@@ -5,7 +6,7 @@ use opentelemetry::{
     trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
     Key, KeyValue,
 };
-use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace as sdktrace;
 use opentelemetry_sdk::{
@@ -14,8 +15,6 @@ use opentelemetry_sdk::{
 };
 
 use std::error::Error;
-use tracing::info;
-use tracing_subscriber::prelude::*;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::new(vec![KeyValue::new(
@@ -49,16 +48,12 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    let export_config = opentelemetry_otlp::ExportConfig {
-        endpoint: "http://localhost:4318/v1/metrics".to_string(),
-        ..opentelemetry_otlp::ExportConfig::default()
-    };
     let provider = opentelemetry_otlp::new_pipeline()
         .metrics(opentelemetry_sdk::runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_export_config(export_config),
+                .with_endpoint("http://localhost:4318/v1/metrics"),
         )
         .with_resource(RESOURCE.clone())
         .build();
@@ -91,8 +86,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // provider on their own. Dropping logger providers will disable log
     // emitting.
     let logger_provider = init_logs().unwrap();
-    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
-    tracing_subscriber::registry().with(layer).init();
+
+    // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
     let tracer = global::tracer_provider()
