@@ -1,4 +1,8 @@
-# OpenTelemetry Rust
+# OpenTelemetry Rust API
+
+![OpenTelemetry — An observability framework for cloud-native software.][splash]
+
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
 This crate contains the [OpenTelemetry](https://opentelemetry.io/) API for Rust.
 
