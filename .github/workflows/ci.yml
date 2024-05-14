@@ -18,7 +18,9 @@ jobs:
         # test only stable version of Rust on Windows and MacOS
         include:
           - rust: stable
-            os: [windows-latest, macos-latest]
+            os: windows-latest
+          - rust: stable
+            os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
