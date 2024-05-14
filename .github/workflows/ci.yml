@@ -15,10 +15,12 @@ jobs:
         # test both stable and beta versions of Rust on ubuntu-latest
         os: [ubuntu-latest]
         rust: [stable, beta]
-        # test only stable version of Rust on Windows
+        # test only stable version of Rust on Windows and MacOS
         include:
           - rust: stable
             os: windows-latest
+          - rust: stable
+            os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
