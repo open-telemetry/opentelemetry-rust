@@ -8,7 +8,7 @@ This crate contains the [OpenTelemetry](https://opentelemetry.io/) Exporter
 implementation for
 [OTLP](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md).
 
-[![Crates.io: opentelemetry-sdk](https://img.shields.io/crates/v/opentelemetry-otlp.svg)](https://crates.io/crates/opentelemetry-otlp)
+[![Crates.io: opentelemetry-otlp](https://img.shields.io/crates/v/opentelemetry-otlp.svg)](https://crates.io/crates/opentelemetry-otlp)
 [![Documentation](https://docs.rs/opentelemetry-otlp/badge.svg)](https://docs.rs/opentelemetry-otlp)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-otlp)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
