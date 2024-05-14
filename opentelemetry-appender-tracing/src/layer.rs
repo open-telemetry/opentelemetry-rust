@@ -212,7 +212,8 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::LoggerProvider;
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
-    use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
+    use opentelemetry_sdk::trace;
+    use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
     use tracing_subscriber::layer::SubscriberExt;
 
@@ -300,7 +301,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOn))
+            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -464,7 +465,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOn))
+            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 

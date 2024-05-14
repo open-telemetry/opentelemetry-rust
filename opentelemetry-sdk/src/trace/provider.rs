@@ -67,7 +67,7 @@ impl TracerProvider {
     }
 
     /// Config associated with this tracer
-    pub fn config(&self) -> &crate::trace::Config {
+    pub(crate) fn config(&self) -> &crate::trace::Config {
         &self.inner.config
     }
 

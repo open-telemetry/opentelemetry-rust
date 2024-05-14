@@ -27,6 +27,10 @@
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
+- Clean up public methods in SDK.
+    - [`TracerProvider::span_processors`] and [`TracerProvider::config`] was removed as it's not part of the spec.
+    - Added `non_exhaustive` annotation to [`trace::Config`]. Marked [`config`] as deprecated since it's only a wrapper for `Config::default`
+    - Removed [`Tracer::tracer_provder`] and [`Tracer::instrument_libraries`] as it's not part of the spec.
 
 - **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
 
@@ -61,13 +65,7 @@
   - After `shutdown`, `LogProcessor` will not process any new logs
 - Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
     - Relocated `LogRecord` struct to SDK, as an implementation for the trait in the API.
-- **Breaking** [#1729](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
-  - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
-  - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
-- Update `opentelemetry` dependency version to 0.23
-- Update `opentelemetry-http` dependency version to 0.12
-- **Breaking** [#1750](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
-  - Update the return type of `LoggerProvider.shutdown()` from `Vec<LogResult<()>>` to `LogResult<()>`.
+
 
 ## v0.22.1
 
