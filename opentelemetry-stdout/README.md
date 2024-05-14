@@ -1,71 +1,51 @@
+# OpenTelemetry Stdout Exporter
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-# OpenTelemetry Stdout
-
-Exporters for applications instrumented with [`OpenTelemetry`].
+This crate contains an [OpenTelemetry](https://opentelemetry.io/) exporter that
+prints telemetry (logs, metrics and traces) to the standard output.
 
 [![Crates.io: opentelemetry-stdout](https://img.shields.io/crates/v/opentelemetry-stdout.svg)](https://crates.io/crates/opentelemetry-stdout)
 [![Documentation](https://docs.rs/opentelemetry-stdout/badge.svg)](https://docs.rs/opentelemetry-stdout)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry-stdout)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
+[![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
 
-[`OpenTelemetry`] is a collection of tools, APIs, and SDKs used to instrument,
-generate, collect, and export telemetry data (metrics, logs, and traces) for
-analysis in order to understand your software's performance and behavior. This
-crate provides exporters that export to stdout or any implementation of
-[`std::io::Write`].
+OpenTelemetry is an Observability framework and toolkit designed to create and
+manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
+vendor- and tool-agnostic, meaning that it can be used with a broad variety of
+Observability backends, including open source tools like [Jaeger] and
+[Prometheus], as well as commercial offerings.
+
+OpenTelemetry is *not* an observability backend like Jaeger, Prometheus, or other
+commercial vendors. OpenTelemetry is focused on the generation, collection,
+management, and export of telemetry. A major goal of OpenTelemetry is that you
+can easily instrument your applications or systems, no matter their language,
+infrastructure, or runtime environment. Crucially, the storage and visualization
+of telemetry is intentionally left to other tools.
 
 *Compiler support: [requires `rustc` 1.64+][msrv]*
 
-[`std::io::Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
-[`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+[Prometheus]: https://prometheus.io
+[Jaeger]: https://www.jaegertracing.io
 [msrv]: #supported-rust-versions
 
-### Quickstart
+### What does this crate contain?
 
-Export telemetry signals to stdout.
+This crate includes exporters that support all three signals - Logs, Metrics,
+and Traces — to standard output. It is intended solely for educational and
+debugging purposes. Please note, this crate is not optimized for performance,
+and the format of the output may change, making it unsuitable for production
+environments
 
-```rust
-use opentelemetry::{
-    metrics::MeterProvider as _,
-    trace::{Span, Tracer, TracerProvider as _},
-    Context, KeyValue,
-};
-use opentelemetry_sdk::{
-    metrics::{MeterProvider, PeriodicReader},
-    runtime,
-    trace::{BatchSpanProcessor, TracerProvider},
-};
+## Getting started
 
-fn init_trace() -> TracerProvider {
-    let exporter = opentelemetry_stdout::SpanExporter::default();
-    let processor = BatchSpanProcessor::builder(exporter, runtime::Tokio).build();
-    TracerProvider::builder()
-        .with_span_processor(processor)
-        .build()
-}
-
-fn init_metrics() -> MeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporter::default();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    MeterProvider::builder().with_reader(reader).build()
-}
-
-let tracer_provider = init_trace();
-let meter_provider = init_metrics();
-```
-
-Recorded traces and metrics will now be sent to stdout:
-
-```
-{"resourceMetrics":{"resource":{"attributes":[{"key":"service.name","value":{"str..
-{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stri..
-```
+See [docs](https://docs.rs/opentelemetry-stdout).
 
 ## Supported Rust Versions
 
