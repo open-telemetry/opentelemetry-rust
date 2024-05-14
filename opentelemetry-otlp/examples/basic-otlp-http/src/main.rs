@@ -31,7 +31,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:4318"),
+                .with_endpoint("http://localhost:4318/v1/logs"),
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    logger_provider.shutdown();
+    logger_provider.shutdown()?;
     meter_provider.shutdown()?;
 
     Ok(())
