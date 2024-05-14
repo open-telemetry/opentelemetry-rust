@@ -7,7 +7,7 @@
 //! order to support open-source telemetry data formats (e.g. Jaeger,
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
-//! Currently, this crate only support sending tracing data or metrics in OTLP
+//! Currently, this crate only support sending telemetry in OTLP
 //! via grpc and http (in binary format). Supports for other format and protocol
 //! will be added in the future. The details of what's currently offering in this
 //! crate can be found in this doc.
@@ -18,7 +18,7 @@
 //! you want to send data to:
 //!
 //! ```shell
-//! $ docker run -p 4317:4317 otel/opentelemetry-collector-dev:latest
+//! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
 //! Then install a new pipeline with the recommended defaults to start exporting
