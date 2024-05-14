@@ -1,4 +1,4 @@
-//! The rust of the OpenTelemetry metrics SDK.
+//! The crust of the OpenTelemetry metrics SDK.
 //!
 //! ## Configuration
 //!
@@ -9,8 +9,9 @@
 //! ### Example
 //!
 //! ```
+//! use opentelemetry::global;
 //! use opentelemetry::{
-//!     metrics::{MeterProvider, Unit},
+//!     metrics::Unit,
 //!     KeyValue,
 //! };
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
@@ -19,10 +20,11 @@
 //! let resource = Resource::default(); // default attributes about the current process
 //!
 //! // Create a meter provider with the desired config
-//! let provider = SdkMeterProvider::builder().with_resource(resource).build();
+//! let meter_provider = SdkMeterProvider::builder().with_resource(resource).build();
+//! global::set_meter_provider(meter_provider.clone());
 //!
 //! // Use the meter provider to create meter instances
-//! let meter = provider.meter("my_app");
+//! let meter = global::meter("my_app");
 //!
 //! // Create instruments scoped to the meter
 //! let counter = meter
@@ -32,6 +34,10 @@
 //!
 //! // use instruments to record measurements
 //! counter.add(10, &[KeyValue::new("rate", "standard")]);
+//!
+//! // shutdown the provider at the end of the application to ensure any metrics not yet
+//! // exported are flushed.
+//! meter_provider.shutdown().unwrap();
 //! ```
 //!
 //! [Resource]: crate::Resource
@@ -60,7 +66,7 @@ pub use view::*;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::ScopeMetrics;
+    use self::data::{DataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
     use crate::metrics::reader::TemporalitySelector;
@@ -73,98 +79,41 @@ mod tests {
     };
     use std::borrow::Cow;
 
+    // Run all tests in this mod
+    // cargo test metrics::tests --features=metrics,testing
+
+    // Note for all tests in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation() {
+    async fn counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter --features=metrics,testing -- --nocapture
-
-        // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-
-        // Act
-        let meter = meter_provider.meter("test");
-        let counter = meter
-            .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
-            .init();
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
-        let sum = metric
-            .data
-            .as_any()
-            .downcast_ref::<data::Sum<u64>>()
-            .expect("Sum aggregation expected for Counter instruments by default");
-
-        // Expecting 2 time-series.
-        assert_eq!(sum.data_points.len(), 2);
-        assert!(sum.is_monotonic, "Counter should produce monotonic.");
-        assert_eq!(
-            sum.temporality,
-            data::Temporality::Cumulative,
-            "Should produce cumulative by default."
-        );
-
-        // find and validate key1=value1 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
-            {
-                data_point1 = Some(datapoint);
-            }
-        }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value1 expected")
-                .value,
-            5
-        );
-
-        // find and validate key1=value2 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
-            {
-                data_point1 = Some(datapoint);
-            }
-        }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value2 expected")
-                .value,
-            3
-        );
+        // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
+        counter_aggregation_helper(Temporality::Cumulative);
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
+        counter_aggregation_helper(Temporality::Delta);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn updown_counter_aggregation_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
+        updown_counter_aggregation_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn updown_counter_aggregation_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
+        updown_counter_aggregation_helper(Temporality::Delta);
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation() {
         // Run this test with stdout enabled to see output.
@@ -248,8 +197,6 @@ mod tests {
         );
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
@@ -301,8 +248,6 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
@@ -392,8 +337,6 @@ mod tests {
         }
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn instrumentation_scope_identity_test() {
         // Arrange
@@ -474,8 +417,6 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
@@ -527,8 +468,6 @@ mod tests {
         );
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     // #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
@@ -605,8 +544,6 @@ mod tests {
         assert_eq!(data_point.value, 300);
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn spatial_aggregation_when_view_drops_attributes_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=metrics,testing
@@ -683,21 +620,16 @@ mod tests {
         assert_eq!(data_point.value, 30);
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_attribute_order() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_attribute_order --features=metrics,testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         // Act
-        let meter = meter_provider.meter("test");
-        let counter = meter.u64_counter("my_counter").init();
         // Add the same set of attributes in different order. (they are expected
         // to be treated as same attributes)
         counter.add(
@@ -748,33 +680,12 @@ mod tests {
                 KeyValue::new("B", "b"),
             ],
         );
+        test_context.flush_metrics();
 
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter");
-        let sum = metric
-            .data
-            .as_any()
-            .downcast_ref::<data::Sum<u64>>()
-            .expect("Sum aggregation expected for Counter instruments by default");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         // Expecting 1 time-series.
-        assert_eq!(
-            sum.data_points.len(),
-            1,
-            "Expected only one data point as attributes are same, but just reordered."
-        );
-        assert_eq!(
-            sum.temporality,
-            data::Temporality::Cumulative,
-            "Should produce cumulative by default."
-        );
+        assert_eq!(sum.data_points.len(), 1);
 
         // validate the sole datapoint
         let data_point1 = &sum.data_points[0];
@@ -783,13 +694,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_cumulative_counter() {
-        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
-        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -806,13 +717,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_delta_counter() {
-        let mut test_context = TestContext::new(Some(Temporality::Delta));
-        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -825,13 +736,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_cumulative_up_down_counter() {
-        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
-        let counter = test_context.i64_up_down_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.i64_up_down_counter("test", "my_counter", Some("my_unit"));
 
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -848,13 +759,13 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_delta_up_down_counter() {
-        let mut test_context = TestContext::new(Some(Temporality::Delta));
-        let counter = test_context.i64_up_down_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.i64_up_down_counter("test", "my_counter", Some("my_unit"));
 
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -867,16 +778,16 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_cumulative_counter_value_added_after_export() {
-        let mut test_context = TestContext::new(Some(Temporality::Cumulative));
-        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -893,16 +804,16 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_delta_counter_value_reset_after_export() {
-        let mut test_context = TestContext::new(Some(Temporality::Delta));
-        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -919,16 +830,16 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn second_delta_export_does_not_give_no_attr_value_if_add_not_called() {
-        let mut test_context = TestContext::new(Some(Temporality::Delta));
-        let counter = test_context.u64_counter("test", "my_counter", "my_unit");
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         counter.add(50, &[KeyValue::new("a", "b")]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", "my_unit");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         let no_attr_data_point = sum.data_points.iter().find(|x| x.attributes.is_empty());
 
@@ -938,8 +849,6 @@ mod tests {
         );
     }
 
-    // "multi_thread" tokio flavor must be used else flush won't
-    // be able to make progress!
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Known bug: https://github.com/open-telemetry/opentelemetry-rust/issues/1598"]
     async fn delta_memory_efficiency_test() {
@@ -947,18 +856,10 @@ mod tests {
         // cargo test delta_memory_efficiency_test --features=metrics,testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporterBuilder::new()
-            .with_temporality_selector(DeltaTemporalitySelector())
-            .build();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
 
         // Act
-        let meter = meter_provider.meter("test");
-        let counter = meter
-            .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
-            .init();
         counter.add(1, &[KeyValue::new("key1", "value1")]);
         counter.add(1, &[KeyValue::new("key1", "value1")]);
         counter.add(1, &[KeyValue::new("key1", "value1")]);
@@ -968,76 +869,135 @@ mod tests {
         counter.add(1, &[KeyValue::new("key1", "value2")]);
         counter.add(1, &[KeyValue::new("key1", "value2")]);
         counter.add(1, &[KeyValue::new("key1", "value2")]);
+        test_context.flush_metrics();
 
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
-        let sum = metric
-            .data
-            .as_any()
-            .downcast_ref::<data::Sum<u64>>()
-            .expect("Sum aggregation expected for Counter instruments by default");
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
-        assert!(sum.is_monotonic, "Counter should produce monotonic.");
-        assert_eq!(
-            sum.temporality,
-            data::Temporality::Delta,
-            "Should produce Delta as configured"
-        );
 
         // find and validate key1=value1 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
-            {
-                data_point1 = Some(datapoint);
-            }
-        }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value1 expected")
-                .value,
-            5
-        );
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 5);
 
         // find and validate key1=value2 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
-            {
-                data_point1 = Some(datapoint);
-            }
-        }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value2 expected")
-                .value,
-            3
-        );
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 3);
 
         // flush again, and validate that nothing is flushed
         // as delta temporality.
-        meter_provider.force_flush().unwrap();
-        let resource_metrics = exporter
+        test_context.flush_metrics();
+
+        let resource_metrics = test_context
+            .exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
         println!("resource_metrics: {:?}", resource_metrics);
         assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
+    }
+
+    fn counter_aggregation_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 2);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                sum.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+        }
+
+        // find and validate key1=value2 datapoint
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 5);
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 3);
+    }
+
+    fn updown_counter_aggregation_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = test_context.i64_up_down_counter("test", "my_counter", None);
+
+        // Act
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", None);
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 2);
+        assert!(
+            !sum.is_monotonic,
+            "UpDownCounter should produce non-monotonic."
+        );
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                sum.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+        }
+
+        // find and validate key1=value2 datapoint
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 5);
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 3);
+    }
+
+    fn find_datapoint_with_key_value<'a, T>(
+        data_points: &'a [DataPoint<T>],
+        key: &str,
+        value: &str,
+    ) -> Option<&'a DataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint
+                .attributes
+                .iter()
+                .any(|(k, v)| k.as_str() == key && v.as_str() == value)
+        })
     }
 
     fn find_scope_metric<'a>(
@@ -1049,13 +1009,6 @@ mod tests {
             .find(|&scope_metric| scope_metric.scope.name == name)
     }
 
-    struct DeltaTemporalitySelector();
-    impl TemporalitySelector for DeltaTemporalitySelector {
-        fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-            Temporality::Delta
-        }
-    }
-
     struct TestContext {
         exporter: InMemoryMetricsExporter,
         meter_provider: SdkMeterProvider,
@@ -1065,7 +1018,7 @@ mod tests {
     }
 
     impl TestContext {
-        fn new(temporality: Option<Temporality>) -> Self {
+        fn new(temporality: Temporality) -> Self {
             struct TestTemporalitySelector(Temporality);
             impl TemporalitySelector for TestTemporalitySelector {
                 fn temporality(&self, _kind: InstrumentKind) -> Temporality {
@@ -1074,9 +1027,7 @@ mod tests {
             }
 
             let mut exporter = InMemoryMetricsExporterBuilder::new();
-            if let Some(temporality) = temporality {
-                exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
-            }
+            exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
 
             let exporter = exporter.build();
             let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
@@ -1093,26 +1044,28 @@ mod tests {
             &self,
             meter_name: &'static str,
             counter_name: &'static str,
-            unit_name: &'static str,
+            unit: Option<&'static str>,
         ) -> Counter<u64> {
-            self.meter_provider
-                .meter(meter_name)
-                .u64_counter(counter_name)
-                .with_unit(Unit::new(unit_name))
-                .init()
+            let meter = self.meter_provider.meter(meter_name);
+            let mut counter_builder = meter.u64_counter(counter_name);
+            if let Some(unit_name) = unit {
+                counter_builder = counter_builder.with_unit(Unit::new(unit_name));
+            }
+            counter_builder.init()
         }
 
         fn i64_up_down_counter(
             &self,
             meter_name: &'static str,
             counter_name: &'static str,
-            unit_name: &'static str,
+            unit: Option<&'static str>,
         ) -> UpDownCounter<i64> {
-            self.meter_provider
-                .meter(meter_name)
-                .i64_up_down_counter(counter_name)
-                .with_unit(Unit::new(unit_name))
-                .init()
+            let meter = self.meter_provider.meter(meter_name);
+            let mut updown_counter_builder = meter.i64_up_down_counter(counter_name);
+            if let Some(unit_name) = unit {
+                updown_counter_builder = updown_counter_builder.with_unit(Unit::new(unit_name));
+            }
+            updown_counter_builder.init()
         }
 
         fn flush_metrics(&self) {
@@ -1122,7 +1075,7 @@ mod tests {
         fn get_aggregation<T: data::Aggregation>(
             &mut self,
             counter_name: &str,
-            unit_name: &str,
+            unit_name: Option<&str>,
         ) -> &T {
             self.resource_metrics = self
                 .exporter
@@ -1145,7 +1098,9 @@ mod tests {
 
             let metric = &resource_metric.scope_metrics[0].metrics[0];
             assert_eq!(metric.name, counter_name);
-            assert_eq!(metric.unit.as_str(), unit_name);
+            if let Some(expected_unit) = unit_name {
+                assert_eq!(metric.unit.as_str(), expected_unit);
+            }
 
             metric
                 .data

@@ -81,29 +81,18 @@
 //! written against this generic API and not constrain users to a specific
 //! implementation choice.
 //!
-//! ### Usage in Applications
+//! ### Usage in Applications and libraries
 //!
-//! Applications configure their meter by configuring a meter provider,
-//! and calling [`set_meter_provider`] to set it as global meter provider.
+//! Applications and libraries can obtain meter from the global meter provider,
+//! and use the meter to create instruments to emit measurements.
 //!
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::metrics::{Meter, noop::NoopMeterProvider};
+//! use opentelemetry::metrics::{Meter};
 //! use opentelemetry::{global, KeyValue};
 //!
-//! fn init_meter() {
-//!     // Swap this no-op provider with an actual meter provider,
-//!     // exporting to stdout, otlp, prometheus, etc.
-//!     let provider = NoopMeterProvider::new();
-//!
-//!     // Configure the global `MeterProvider` singleton when your app starts
-//!     // (there is a no-op default if this is not set by your application)
-//!     global::set_meter_provider(provider)
-//! }
-//!
-//! fn do_something_instrumented() {
-//!     // You can get a named meter instance anywhere in your codebase.
+//!    fn do_something_instrumented() {
 //!     let meter = global::meter("my-component");
 //!     // It is recommended to reuse the same counter instance for the
 //!     // lifetime of the application
@@ -111,34 +100,24 @@
 //!
 //!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
+//!     }
 //! }
-//!
-//! // in main or other app start
-//! init_meter();
-//! do_something_instrumented();
-//! // Shutdown ensures any metrics still in memory are given to exporters
-//! // before the program exits.
-//! global::shutdown_meter_provider();
-//! # }
 //! ```
 //!
-//! ### Usage in Libraries
-//!
+//! ### Usage in Applications
+//! Application owners have the responsibility to set the global meter provider.
+//! The global meter provider can be set using the [`set_meter_provider`] function.
+//! As set_meter_provider takes ownership of the provider, it is recommended to
+//! provide a clone of the provider, if the application needs to use the provider
+//! later to perform operations like shutdown.
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
 //! use opentelemetry::{global, KeyValue};
 //!
-//! pub fn my_instrumented_library_function() {
-//!     // End users of your library will configure their global meter provider
-//!     // so you can use the global meter without any setup
-//!     let meter = global::meter("my-library-name");
-//!     // It is recommended to reuse the same counter instance for the
-//!     // lifetime of the application
-//!     let counter = meter.u64_counter("my_counter").init();
-//!
-//!     // record measurements
-//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
+//! fn main() {
+//!    // Set the global meter provider
+//!    // global::set_meter_provider(my_meter_provider().clone());
 //! }
 //! # }
 //! ```
