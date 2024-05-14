@@ -72,7 +72,7 @@ tls-webkpi-roots = ["tls", "tonic/tls-webpki-roots"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
-# http json
+# http json. This does not work today due to known issue. See https://github.com/open-telemetry/opentelemetry-rust/issues/1763.
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
