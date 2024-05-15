@@ -15,7 +15,7 @@ packages=(
     "opentelemetry-appender-log"
     "opentelemetry-appender-tracing"
 
-    # Add more packages as needed, in the right order
+    # Add more packages as needed, in the right order. A package should only be published after all it's dependencies have been published
 )
 
 # Set the current directory to one level above the scripts directory
