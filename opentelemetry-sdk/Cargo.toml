@@ -12,11 +12,13 @@ rust-version = "1.65"
 [dependencies]
 opentelemetry = { version = "0.22", path = "../opentelemetry/" }
 opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
+ahash = { version = "0.8", optional = true }
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 futures-channel = "0.3"
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
+hashbrown = { version = "0.14", optional = true }
 once_cell = { workspace = true }
 ordered-float = { workspace = true }
 percent-encoding = { version = "2.0", optional = true }
@@ -54,6 +56,9 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
+# Enable use_hashbrown to improve hashing performance in Metrics aggregation.
+# This feature should be used carefully, especially when the key/value pairs in measurement attributes are derived from external or untrusted sources.
+use_hashbrown = ["hashbrown", "ahash"]
 
 [[bench]]
 name = "context"
