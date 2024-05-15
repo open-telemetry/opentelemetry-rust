@@ -1095,8 +1095,14 @@ mod tests {
                 "no metrics were exported"
             );
 
-            assert!(self.resource_metrics.len() == 1, "Expected single resource metrics.");
-            let resource_metric = self.resource_metrics.get(0).expect("This should contain exactly one resource metric, as validated above.");
+            assert!(
+                self.resource_metrics.len() == 1,
+                "Expected single resource metrics."
+            );
+            let resource_metric = self
+                .resource_metrics
+                .get(0)
+                .expect("This should contain exactly one resource metric, as validated above.");
 
             assert!(
                 !resource_metric.scope_metrics.is_empty(),
