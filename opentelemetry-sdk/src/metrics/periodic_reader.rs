@@ -132,6 +132,7 @@ where
             let ticker = self
                 .runtime
                 .interval(self.interval)
+                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| Message::Export);
 
             let messages = Box::pin(stream::select(message_receiver, ticker));
@@ -267,17 +268,20 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
+                println!("Export called");
                 if let Err(err) = self.collect_and_export().await {
                     global::handle_error(err)
                 }
             }
             Message::Flush(ch) => {
+                println!("Flush called");
                 let res = self.collect_and_export().await;
                 if ch.send(res).is_err() {
                     global::handle_error(MetricsError::Other("flush channel closed".into()))
                 }
             }
             Message::Shutdown(ch) => {
+                println!("Shutdown called");
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if ch.send(res).is_err() {

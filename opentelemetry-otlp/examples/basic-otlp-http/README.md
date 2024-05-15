@@ -32,12 +32,24 @@ docker-compose down
 If you don't want to use `docker-compose`, you can manually run the `otel/opentelemetry-collector` container
 and inspect the logs to see traces being transferred.
 
+On Unix based systems use:
+
 ```shell
 # From the current directory, run `opentelemetry-collector`
-$ docker run --rm -it -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+```
 
-# Run the app which exports logs, metrics and traces via OTLP to the collector.
-$ cargo run
+On Windows use:
+
+```shell
+# From the current directory, run `opentelemetry-collector`
+docker run --rm -it -p 4317:4317 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+```
+
+Run the app which exports logs, metrics and traces via OTLP to the collector
+
+```shell
+cargo run
 ```
 
 ## View results
