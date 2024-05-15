@@ -53,6 +53,9 @@ fn build_tonic() {
         "resource.v1.Resource",
         "trace.v1.Span.Event",
         "trace.v1.Status",
+        "logs.v1.LogRecord",
+        "logs.v1.ScopeLogs",
+        "logs.v1.ResourceLogs",
     ] {
         builder = builder.type_attribute(
             path,
