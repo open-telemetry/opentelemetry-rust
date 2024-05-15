@@ -9,6 +9,9 @@
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
 - [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
   Fix metrics aggregation bug when using Views to drop attributes.
+- [#1766](https://github.com/open-telemetry/opentelemetry-rust/pull/1766)
+  Fix Metrics PeriodicReader to trigger first collect/export at the first interval
+  instead of doing it right away.
 - [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider,
   which shuts down metricreaders, thereby allowing metrics still in memory to be flushed out.
 - **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
