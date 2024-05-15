@@ -1,7 +1,7 @@
-use std::f32::consts::E;
+// use std::f32::consts::E;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap},
     sync::{RwLock, Mutex,},
     time::SystemTime,
 };
