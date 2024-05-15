@@ -19,6 +19,7 @@
             },
             "logRecords": [
               {
+                "timeUnixNano": "0",
                 "observedTimeUnixNano": "1715670958332465664",
                 "severityNumber": 9,
                 "severityText": "INFO",
@@ -26,9 +27,7 @@
                   "stringValue": "hello from banana. My price is 2.99."
                 },
                 "traceId": "",
-                "spanId": "",
-                "timeUnixNano": "2323232232",
-                "attributes": []
+                "spanId": ""
               }
             ]
           }

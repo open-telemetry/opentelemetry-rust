@@ -99,6 +99,7 @@ impl LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     async fn export(&mut self, batch: Vec<LogData>) -> opentelemetry::logs::LogResult<()> {
+        println!("=============> To export : {:?}", batch);
         self.client.export(batch).await
     }
 

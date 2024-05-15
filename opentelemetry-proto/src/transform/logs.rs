@@ -80,7 +80,10 @@ pub mod tonic {
                 Some(Severity::Fatal4) => SeverityNumber::Fatal4,
                 None => SeverityNumber::Unspecified,
             };
-
+            println!(
+                "================> log_record.timestamp: {:?}, log_record.observed_timestamp: {:?}",
+                log_record.timestamp.map(to_nanos).unwrap_or_default(), to_nanos(log_record.observed_timestamp.unwrap())
+            );
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
