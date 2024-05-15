@@ -24,23 +24,25 @@
 //! Then install a new pipeline with the recommended defaults to start exporting
 //! telemetry. You will have to build a OTLP exporter first.
 //!
-//! Tracing and metrics pipelines can be started with `new_pipeline().tracing()` and
-//! `new_pipeline().metrics()` respectively.
+//! Exporting pipelines can be started with `new_pipeline().tracing()` and
+//! `new_pipeline().metrics()`, and `new_pipeline().logging()` respectively for
+//! traces, metrics and logs.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
+//! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::new_exporter().tonic();
 //!     // Then pass it into pipeline builder
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let _ = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
 //!         .with_exporter(otlp_exporter)
 //!         .install_simple()?;
-//!
+//!     let tracer = global::tracer("my_tracer");
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
