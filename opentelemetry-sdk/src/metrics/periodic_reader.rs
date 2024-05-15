@@ -132,6 +132,7 @@ where
             let ticker = self
                 .runtime
                 .interval(self.interval)
+                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| Message::Export);
 
             let messages = Box::pin(stream::select(message_receiver, ticker));
