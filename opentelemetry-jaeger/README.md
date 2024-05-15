@@ -14,7 +14,7 @@ The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a
 To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to
 [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
 
-The 0.22.0 is the the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
+The 0.22.0 is the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
 SDK will not work with the exporter.
 
 If you have any questions please comment on the [Jaeger Deprecation Issue][deprecation-issue].
