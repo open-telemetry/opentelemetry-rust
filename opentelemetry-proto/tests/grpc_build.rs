@@ -68,6 +68,8 @@ fn build_tonic() {
         "trace.v1.Span.trace_id",
         "trace.v1.Span.span_id",
         "trace.v1.Span.parent_span_id",
+        "logs.v1.LogRecord.span_id",
+        "logs.v1.LogRecord.trace_id",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
@@ -81,6 +83,8 @@ fn build_tonic() {
         "trace.v1.Span.start_time_unix_nano",
         "trace.v1.Span.end_time_unix_nano",
         "trace.v1.Span.Event.time_unix_nano",
+        "logs.v1.LogRecord.time_unix_nano",
+        "logs.v1.LogRecord.observed_time_unix_nano",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
