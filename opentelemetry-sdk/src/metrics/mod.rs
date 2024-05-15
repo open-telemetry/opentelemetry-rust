@@ -1101,7 +1101,7 @@ mod tests {
             );
             let resource_metric = self
                 .resource_metrics
-                .get(0)
+                .first()
                 .expect("This should contain exactly one resource metric, as validated above.");
 
             assert!(
