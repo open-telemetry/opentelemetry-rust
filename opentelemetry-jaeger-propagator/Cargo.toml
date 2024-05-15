@@ -25,7 +25,7 @@ opentelemetry = { version = "0.23", default-features = false, features = [
 ], path = "../opentelemetry" }
 
 [dev-dependencies]
-opentelemetry_sdk = { features = ["testing"], path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { features = ["testing"], path = "../opentelemetry-sdk" }
 
 [features]
 default = []

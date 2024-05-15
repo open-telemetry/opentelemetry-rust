@@ -33,7 +33,7 @@ hyper-tls = { version = "0.5.0", default-features = false, optional = true }
 isahc = { workspace = true, optional = true }
 js-sys = { version = "0.3", optional = true }
 opentelemetry = { version = "0.23", default-features = false, features = ["trace"], path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.23", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { version = "0.23", default-features = false, features = ["trace"], path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.12", path = "../opentelemetry-http", optional = true }
 opentelemetry-semantic-conventions = { version = "0.15", path = "../opentelemetry-semantic-conventions" }
 pin-project-lite = { workspace = true, optional = true }
@@ -57,7 +57,7 @@ tokio = { workspace = true, features = ["net", "sync"] }
 bytes = { workspace = true }
 futures-executor = { workspace = true }
 opentelemetry-jaeger-propagator = { path = "../opentelemetry-jaeger-propagator" } # for doctests
-opentelemetry_sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { features = ["trace", "testing", "rt-tokio"], path = "../opentelemetry-sdk" }
 
 [dependencies.web-sys]
 version = "0.3.4"

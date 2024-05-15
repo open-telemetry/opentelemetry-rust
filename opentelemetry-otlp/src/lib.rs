@@ -62,7 +62,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry_sdk = { version = "*", features = ["async-std"] }
+//! opentelemetry-sdk = { version = "*", features = ["async-std"] }
 //! opentelemetry-otlp = { version = "*", features = ["grpc-tonic"] }
 //! ```
 //!

@@ -19,7 +19,7 @@ doc = false
 hyper = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
+opentelemetry-sdk = { path = "../../opentelemetry-sdk" }
 opentelemetry-http = { path = "../../opentelemetry-http" }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["trace"] }
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }

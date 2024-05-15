@@ -21,4 +21,4 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 opentelemetry = { default-features = false, path = "../opentelemetry" } # for doctests
-opentelemetry_sdk = { features = ["trace"], path = "../opentelemetry-sdk" } # for doctests
+opentelemetry-sdk = { features = ["trace"], path = "../opentelemetry-sdk" } # for doctests
