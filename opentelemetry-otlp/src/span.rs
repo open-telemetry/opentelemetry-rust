@@ -13,7 +13,6 @@ use opentelemetry_sdk::{
     self as sdk,
     export::trace::{ExportResult, SpanData},
 };
-use opentelemetry_semantic_conventions::SCHEMA_URL;
 use sdk::runtime::RuntimeChannel;
 
 #[cfg(feature = "grpc-tonic")]
@@ -143,7 +142,6 @@ fn build_simple_with_exporter(
     let tracer = provider
         .tracer_builder("opentelemetry-otlp")
         .with_version(env!("CARGO_PKG_VERSION"))
-        .with_schema_url(SCHEMA_URL)
         .build();
     let _ = global::set_tracer_provider(provider);
     tracer
@@ -168,7 +166,6 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     let tracer = provider
         .tracer_builder("opentelemetry-otlp")
         .with_version(env!("CARGO_PKG_VERSION"))
-        .with_schema_url(SCHEMA_URL)
         .build();
     let _ = global::set_tracer_provider(provider);
     tracer
