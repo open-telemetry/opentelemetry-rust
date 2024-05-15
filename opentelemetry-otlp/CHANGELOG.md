@@ -7,12 +7,9 @@
 - URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
 - OTLP exporter will not change the URL added through `ExportConfig` [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
 - Default grpc endpoint will not have path based on signal(e.g `/v1/traces`) [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Fix feature flags for `OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT` [#1746](https://github.com/open-telemetry/opentelemetry-rust/pull/1746)
 
 ### Added
-
-- Aded `http/json` support for all signals ([#1585])
-
-[#1585]: https://github.com/open-telemetry/opentelemetry-rust/pull/1585
 
 - Added `DeltaTemporalitySelector` ([#1568])
 - Add `webkpi-roots` features to `reqwest` and `tonic` backends
