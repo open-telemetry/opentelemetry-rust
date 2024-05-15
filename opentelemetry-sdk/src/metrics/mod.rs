@@ -784,6 +784,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
         let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
@@ -810,6 +811,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
         let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
@@ -836,6 +838,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
         let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        test_context.reset_metrics();
 
         counter.add(50, &[KeyValue::new("a", "b")]);
         test_context.flush_metrics();
@@ -886,6 +889,7 @@ mod tests {
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
 
+        test_context.exporter.reset();
         // flush again, and validate that nothing is flushed
         // as delta temporality.
         test_context.flush_metrics();
@@ -1072,6 +1076,10 @@ mod tests {
             self.meter_provider.force_flush().unwrap();
         }
 
+        fn reset_metrics(&self) {
+            self.exporter.reset();
+        }
+
         fn get_aggregation<T: data::Aggregation>(
             &mut self,
             counter_name: &str,
@@ -1087,8 +1095,14 @@ mod tests {
                 "no metrics were exported"
             );
 
-            // Get the latest resource metric in case of multiple flushes/exports
-            let resource_metric = self.resource_metrics.last().unwrap();
+            assert!(
+                self.resource_metrics.len() == 1,
+                "Expected single resource metrics."
+            );
+            let resource_metric = self
+                .resource_metrics
+                .first()
+                .expect("This should contain exactly one resource metric, as validated above.");
 
             assert!(
                 !resource_metric.scope_metrics.is_empty(),
