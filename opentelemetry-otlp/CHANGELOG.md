@@ -26,7 +26,6 @@
 - Update `opentelemetry_sdk` dependency version to 0.23
 - Update `opentelemetry-http` dependency version to 0.12
 - Update `opentelemetry-proto` dependency version to 0.6
-- Update `opentelemetry-semantic-conventions` dependency version to 0.15
 
 ## v0.15.0
 
