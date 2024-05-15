@@ -40,6 +40,8 @@ jobs:
     - name: "Set rustup profile"
       run: rustup set profile minimal
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
   lint:
@@ -52,6 +54,8 @@ jobs:
       with:
         components: rustfmt
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions-rs/cargo@v1
       with:
         command: fmt
@@ -88,6 +92,8 @@ jobs:
       with:
         components: rustfmt
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Build
       run: |
         cd ${{ matrix.example }}
@@ -126,6 +132,8 @@ jobs:
         with:
           components: rustfmt
       - uses: arduino/setup-protoc@v3
+        with:
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: doc
         run: cargo doc --no-deps --all-features
         env:
@@ -144,6 +152,8 @@ jobs:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
       - uses: arduino/setup-protoc@v3
+        with:
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: cargo generate-lockfile
