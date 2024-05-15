@@ -2,15 +2,15 @@
 
 This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
 and traces to exports them to the [OpenTelemetry
-Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP. 
-The Collector then sends the data to the appropriate backend, in this case 
-Debug Exporter. The Debug Exporter exports data to console.
+Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP over gRPC.
+The Collector then sends the data to the appropriate backend, in this case,
+the logging Exporter, which displays data to console.
 
 ## Usage
 
 ### `docker-compose`
 
-By default runs against the `otel/opentelemetry-collector-dev:latest` image, and uses the `tonic`'s
+By default runs against the `otel/opentelemetry-collector:latest` image, and uses the `tonic`'s
 `grpc` example as the transport.
 
 ```shell
@@ -21,7 +21,7 @@ In another terminal run the application `cargo run`
 
 The docker-compose terminal will display logs, traces, metrics.
 
-Tear it down:
+Press Ctrl+C to stop the collector, and then tear it down:
 
 ```shell
 docker-compose down
@@ -32,12 +32,24 @@ docker-compose down
 If you don't want to use `docker-compose`, you can manually run the `otel/opentelemetry-collector` container
 and inspect the logs to see traces being transferred.
 
+On Unix based systems use:
+
 ```shell
 # From the current directory, run `opentelemetry-collector`
-$ docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+```
 
-# Run the app which exports logs, metrics and traces via OTLP to the collector.
-$ cargo run
+On Windows use:
+
+```shell
+# From the current directory, run `opentelemetry-collector`
+docker run --rm -it -p 4317:4317 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+```
+
+Run the app which exports logs, metrics and traces via OTLP to the collector
+
+```shell
+cargo run
 ```
 
 ## View results
