@@ -62,25 +62,96 @@ Project versioning information and stability guarantees can be found
 ## Getting Started
 
 ```rust
-use opentelemetry::{
-    global,
-    trace::{Tracer, TracerProvider as _},
-};
+use opentelemetry::trace::{Span, Tracer};
+use opentelemetry::{global, KeyValue};
+use opentelemetry_appender_tracing::layer;
+use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::runtime;
 use opentelemetry_sdk::trace::TracerProvider;
+use tracing_subscriber::prelude::*;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new trace pipeline that prints to stdout
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+    let exporter = opentelemetry_stdout::SpanExporterBuilder::default()
+        .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
-    let tracer = provider.tracer("readme_example");
+    let tracer_provider = TracerProvider::builder()
+        .with_simple_exporter(exporter)
+        .build();
 
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
+    // Set the global trace provider, so that `tracer`s can be created from
+    // anywhere in the code using `global::tracer("hello-opentelemetry")`.
+    global::set_tracer_provider(tracer_provider);
 
-    // Shutdown trace pipeline
+    // Obtain a tracer instance
+    let tracer = global::tracer("hello-opentelemetry");
+
+    // Emit spans using the tracer
+    let mut span = tracer.start("hello-span");
+    span.set_attribute(KeyValue::new("key", "value"));
+    span.end();
+
+    // Create a new metrics pipeline that prints to stdout
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+        .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+        .build();
+    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+    // Set the global meter provider, so that `meter`s can be created from
+    // anywhere in the code using `global::meter("hello-opentelemetry")`. A
+    // clone of meter_provider is stored in global state, so that the
+    // meter_provider can be used to do things like force_flush, shutdown etc.
+    // later.
+    global::set_meter_provider(meter_provider.clone());
+
+    // Obtain a meter instance
+    let meter = global::meter("hello-opentelemetry");
+
+    // Create a counter instrument. The instrument must be created once and
+    // reused for higher performance.
+    let counter = meter.u64_counter("hello-counter").init();
+
+    // Emit measurements.
+    counter.add(10, &[KeyValue::new("key", "value")]);
+    counter.add(100, &[KeyValue::new("key", "value")]);
+
+    // Create a logs pipeline that prints to stdout.
+    let exporter = opentelemetry_stdout::LogExporterBuilder::default()
+        .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+        .build();
+    let logger_provider: LoggerProvider = LoggerProvider::builder()
+        .with_simple_exporter(exporter)
+        .build();
+
+    // Setup `tracing` appender, so logs emitted using `tracing` are bridged to
+    // OpenTelemetry logs.
+    let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+    // Initialize tracing subscriber with the OpenTelemetryTracingBridge as a
+    // layer.
+    tracing_subscriber::registry().with(layer).init();
+
+    // Emit logs using tracing macros OpenTelemetry does not have own logging API
+    // for end users. It is recommended to use `tracing` instead.
+    use tracing::error;
+    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+
+    // Shutdown the trace pipeline to ensure that ended spans still in memory
+    // are exported.
     global::shutdown_tracer_provider();
+
+    // Shutdown the metrics pipeline to ensure that any metrics still in memory
+    // are flushed and exported.
+    meter_provider.shutdown()?;
+
+    // Shutdown the logs pipeline to ensure that logs still in memory are
+    // exported.
+    logger_provider.shutdown()?;
+
+    Ok(())
 }
 ```
 
@@ -89,9 +160,14 @@ The example above requires the following packages:
 ```toml
 # Cargo.toml
 [dependencies]
-opentelemetry = "0.22"
-opentelemetry_sdk = "0.22"
-opentelemetry-stdout = { version = "0.3", features = ["trace"] }
+opentelemetry = { version="0.23", features = ["trace", "logs", "metrics"]}
+opentelemetry_sdk = { version="0.23", features = ["rt-tokio", "metrics"]}
+opentelemetry-stdout = { version = "0.4", features = ["trace", "logs", "metrics"]}
+opentelemetry-appender-tracing = { version = "0.4"}
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3" }
+tokio = { version = "1", features = ["full"]}
+serde_json = "1.0.117"
 ```
 
 See the [examples](./examples) directory for different integration patterns.
