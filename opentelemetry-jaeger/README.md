@@ -14,7 +14,7 @@ The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a
 To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to
 [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
 
-The plan is to have 0.22.0 be the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
+The 0.22.0 is the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
 SDK will not work with the exporter.
 
 If you have any questions please comment on the [Jaeger Deprecation Issue][deprecation-issue].
@@ -42,7 +42,7 @@ Jaeger `agent` or `collector` endpoint for processing and visualization.
 [jaeger-deprecation]: https://opentelemetry.io/blog/2022/jaeger-native-otlp/
 [exporting-otlp]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger
 [Jaeger 1.35.0]: https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0
-[deprecation-issue]: https://github.com/open-telemetry/opentelemetry-rust/pull/995
+[deprecation-issue]: https://github.com/open-telemetry/opentelemetry-rust/issues/995
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
 
