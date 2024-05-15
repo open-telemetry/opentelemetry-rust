@@ -17,6 +17,7 @@ ignore:
   - "opentelemetry-jaeger/src/exporter/thrift" # auto generated files
   - "opentelemetry-otlp/src/proto" # auto generated files
   - "opentelemetry-proto/src/proto" # auto generated files
+  - "opentelemetry-stdout" # no need for tests
   # examples below
   - "examples"
   - "opentelemetry-jaeger/examples"
