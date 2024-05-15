@@ -2,7 +2,10 @@
 
 ## vNext
 
+## v0.12.0
+
 - Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
+- Update `opentelemetry` dependency version to 0.23
 
 ## v0.11.1
 
