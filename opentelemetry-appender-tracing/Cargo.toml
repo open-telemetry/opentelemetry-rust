@@ -29,7 +29,7 @@ criterion = "0.5.1"
 
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
-logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
+logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 default = ["logs_level_enabled"]
 
 
