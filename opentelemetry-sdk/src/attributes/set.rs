@@ -1,63 +1,8 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
-use std::{
-    cmp::Ordering,
-    hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 
-use opentelemetry::{Array, Key, KeyValue, Value};
-use ordered_float::OrderedFloat;
-
-#[derive(Clone, Debug)]
-struct HashKeyValue(KeyValue);
-
-impl Hash for HashKeyValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.key.hash(state);
-        match &self.0.value {
-            Value::F64(f) => OrderedFloat(*f).hash(state),
-            Value::Array(a) => match a {
-                Array::Bool(b) => b.hash(state),
-                Array::I64(i) => i.hash(state),
-                Array::F64(f) => f.iter().for_each(|f| OrderedFloat(*f).hash(state)),
-                Array::String(s) => s.hash(state),
-            },
-            Value::Bool(b) => b.hash(state),
-            Value::I64(i) => i.hash(state),
-            Value::String(s) => s.hash(state),
-        };
-    }
-}
-
-impl PartialOrd for HashKeyValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for HashKeyValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.key.cmp(&other.0.key)
-    }
-}
-
-impl PartialEq for HashKeyValue {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.key == other.0.key
-            && match (&self.0.value, &other.0.value) {
-                (Value::F64(f), Value::F64(of)) => OrderedFloat(*f).eq(&OrderedFloat(*of)),
-                (Value::Array(Array::F64(f)), Value::Array(Array::F64(of))) => {
-                    f.len() == of.len()
-                        && f.iter()
-                            .zip(of.iter())
-                            .all(|(f, of)| OrderedFloat(*f).eq(&OrderedFloat(*of)))
-                }
-                (non_float, other_non_float) => non_float.eq(other_non_float),
-            }
-    }
-}
-
-impl Eq for HashKeyValue {}
+use opentelemetry::{Key, KeyValue, Value};
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
@@ -131,54 +76,5 @@ impl AttributeSet {
 impl Hash for AttributeSet {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.1)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::hash::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    use crate::attributes::set::HashKeyValue;
-    use opentelemetry::KeyValue;
-
-    #[test]
-    fn equality_kv_float() {
-        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
-        let kv2 = HashKeyValue(KeyValue::new("key", 1.0));
-        assert_eq!(kv1, kv2);
-
-        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
-        let kv2 = HashKeyValue(KeyValue::new("key", 1.01));
-        assert_ne!(kv1, kv2);
-
-        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
-        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
-        assert_eq!(kv1, kv2);
-
-        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
-        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
-        assert_eq!(kv1, kv2);
-    }
-
-    #[test]
-    fn hash_kv_float() {
-        let kv1 = HashKeyValue(KeyValue::new("key", 1.0));
-        let kv2 = HashKeyValue(KeyValue::new("key", 1.0));
-        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
-
-        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
-        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::NAN));
-        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
-
-        let kv1 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
-        let kv2 = HashKeyValue(KeyValue::new("key", std::f64::INFINITY));
-        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
-    }
-
-    fn hash_helper<T: Hash>(item: &T) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        item.hash(&mut hasher);
-        hasher.finish()
     }
 }
