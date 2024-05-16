@@ -72,6 +72,7 @@ impl LogExporter for TonicLogsClient {
                 .map(Into::into)
                 .collect()
         };
+
         client
             .export(Request::from_parts(
                 metadata,
@@ -80,6 +81,7 @@ impl LogExporter for TonicLogsClient {
             ))
             .await
             .map_err(crate::Error::from)?;
+
         Ok(())
     }
 
