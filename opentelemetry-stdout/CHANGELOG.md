@@ -9,12 +9,12 @@
 - The default feature now includes logs, metrics and trace.
 - Update `opentelemetry` dependency version to 0.23
 - Update `opentelemetry_sdk` dependency version to 0.23
+- TraceExporter fixed to print InstrumentationScope's attributes.
 
 ## v0.3.0
 
 ### Changed
 
-- TraceExporter fixed to print InstrumentationScope's attributes.
 - Fix StatusCode in stdout exporter [#1454](https://github.com/open-telemetry/opentelemetry-rust/pull/1454)
 - Add missing event timestamps [#1391](https://github.com/open-telemetry/opentelemetry-rust/pull/1391)
 - Adjusted `chrono` features to reduce number of transitive dependencies. [#1569](https://github.com/open-telemetry/opentelemetry-rust/pull/1569)
