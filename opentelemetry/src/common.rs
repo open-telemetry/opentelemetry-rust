@@ -725,7 +725,14 @@ mod tests {
         assert!(kv1 < kv2);
 
         let float_vals = [
-            0.0, 1.0, -1.0, std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN, std::f64::MIN, std::f64::MAX,
+            0.0,
+            1.0,
+            -1.0,
+            std::f64::INFINITY,
+            std::f64::NEG_INFINITY,
+            std::f64::NAN,
+            std::f64::MIN,
+            std::f64::MAX,
         ];
 
         for v in float_vals {
