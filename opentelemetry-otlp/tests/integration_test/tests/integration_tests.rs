@@ -57,7 +57,6 @@ async fn integration_tests() {
 
 async fn trace_integration_tests() {
     let test_suites = [TestSuite::new("traces.json")];
-
     let mut collector_image = Collector::default();
     for test in test_suites.as_ref() {
         let _ = test.create_temporary_result_file();

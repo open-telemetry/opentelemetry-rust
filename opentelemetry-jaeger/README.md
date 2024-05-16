@@ -14,7 +14,7 @@ The opentelemetry-jaeger crate previously contained both a Jaeger exporter and a
 To prepare for the deprecation of the Jaeger exporter, the Jaeger propagator implementation has been migrated to
 [opentelemetry-jaeger-propagator](../opentelemetry-jaeger-propagator/).
 
-The plan is to have 0.22.0 be the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
+The 0.22.0 is the last release of the Jaeger exporter. This means that future versions of the OpenTelemetry
 SDK will not work with the exporter.
 
 If you have any questions please comment on the [Jaeger Deprecation Issue][deprecation-issue].
@@ -35,14 +35,14 @@ analysis in order to understand your software's performance and behavior. This
 crate provides a trace pipeline and exporter for sending span information to a
 Jaeger `agent` or `collector` endpoint for processing and visualization.
 
-*Compiler support: [requires `rustc` 1.64+][msrv]*
+*Compiler support: [requires `rustc` 1.65+][msrv]*
 
 [`Jaeger`]: https://www.jaegertracing.io/
 [jaeger-otlp]: https://medium.com/jaegertracing/introducing-native-support-for-opentelemetry-in-jaeger-eb661be8183c
 [jaeger-deprecation]: https://opentelemetry.io/blog/2022/jaeger-native-otlp/
 [exporting-otlp]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-jaeger
 [Jaeger 1.35.0]: https://github.com/jaegertracing/jaeger/releases/tag/v1.35.0
-[deprecation-issue]: https://github.com/open-telemetry/opentelemetry-rust/pull/995
+[deprecation-issue]: https://github.com/open-telemetry/opentelemetry-rust/issues/995
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 [msrv]: #supported-rust-versions
 
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.64. The current OpenTelemetry version is not guaranteed to build
+version is 1.65. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

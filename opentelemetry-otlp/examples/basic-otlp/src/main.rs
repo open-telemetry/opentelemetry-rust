@@ -114,7 +114,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
     }
-    counter.add(1, &[KeyValue::new("test_key", "test_value")]);
 
     tracer.in_span("Main operation", |cx| {
         let span = cx.span();
