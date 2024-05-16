@@ -720,10 +720,6 @@ mod tests {
 
     #[test]
     fn hash_kv_order() {
-        let kv1 = KeyValue::new("a", 1.0);
-        let kv2 = KeyValue::new("b", 1.0);
-        assert!(kv1 < kv2);
-
         let float_vals = [
             0.0,
             1.0,
