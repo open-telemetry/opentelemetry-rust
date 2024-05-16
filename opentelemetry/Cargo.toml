@@ -42,6 +42,7 @@ otel_unstable = []
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs_level_enabled"]} # for documentation tests
 criterion = { version = "0.3" }
+rand = { workspace = true }
 
 [[bench]]
 name = "metrics"

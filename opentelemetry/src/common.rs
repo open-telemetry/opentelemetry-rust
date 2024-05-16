@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::{fmt, hash};
 
@@ -422,6 +424,55 @@ impl KeyValue {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct F64Hasheable(f64);
+
+impl PartialEq for F64Hasheable {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for F64Hasheable {}
+
+impl Hash for F64Hasheable {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
+impl Hash for KeyValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
+        match &self.value {
+            Value::F64(f) => F64Hasheable(*f).hash(state),
+            Value::Array(a) => match a {
+                Array::Bool(b) => b.hash(state),
+                Array::I64(i) => i.hash(state),
+                Array::F64(f) => f.iter().for_each(|f| F64Hasheable(*f).hash(state)),
+                Array::String(s) => s.hash(state),
+            },
+            Value::Bool(b) => b.hash(state),
+            Value::I64(i) => i.hash(state),
+            Value::String(s) => s.hash(state),
+        };
+    }
+}
+
+impl PartialOrd for KeyValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for KeyValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl Eq for KeyValue {}
+
 /// Marker trait for errors returned by exporters
 pub trait ExportError: std::error::Error + Send + Sync + 'static {
     /// The name of exporter that returned this error
@@ -592,5 +643,76 @@ impl InstrumentationLibraryBuilder {
             schema_url: self.schema_url,
             attributes: self.attributes.unwrap_or_default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::Rng;
+
+    use crate::KeyValue;
+    use std::hash::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    #[test]
+    fn equality_kv_float() {
+        let kv1 = KeyValue::new("key", 1.0);
+        let kv2 = KeyValue::new("key", 1.0);
+        assert_eq!(kv1, kv2);
+
+        let kv1 = KeyValue::new("key", 1.0);
+        let kv2 = KeyValue::new("key", 1.01);
+        assert_ne!(kv1, kv2);
+
+        let kv1 = KeyValue::new("key", std::f64::NAN);
+        let kv2 = KeyValue::new("key", std::f64::NAN);
+        assert_ne!(kv1, kv2, "NAN is not equal to itself");
+
+        let kv1 = KeyValue::new("key", std::f64::INFINITY);
+        let kv2 = KeyValue::new("key", std::f64::INFINITY);
+        assert_eq!(kv1, kv2);
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..100 {
+            let random_value = rng.gen::<f64>();
+            let kv1 = KeyValue::new("key", random_value);
+            let kv2 = KeyValue::new("key", random_value);
+            assert_eq!(kv1, kv2);
+        }
+    }
+
+    #[test]
+    fn hash_kv_float() {
+        let kv1 = KeyValue::new("key", 1.0);
+        let kv2 = KeyValue::new("key", 1.0);
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let kv1 = KeyValue::new("key", 1.001);
+        let kv2 = KeyValue::new("key", 1.001);
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let kv1 = KeyValue::new("key", std::f64::NAN);
+        let kv2 = KeyValue::new("key", std::f64::NAN);
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let kv1 = KeyValue::new("key", std::f64::INFINITY);
+        let kv2 = KeyValue::new("key", std::f64::INFINITY);
+        assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..100 {
+            let random_value = rng.gen::<f64>();
+            let kv1 = KeyValue::new("key", random_value);
+            let kv2 = KeyValue::new("key", random_value);
+            assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+        }
+    }
+
+    fn hash_helper<T: Hash>(item: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        item.hash(&mut hasher);
+        hasher.finish()
     }
 }
