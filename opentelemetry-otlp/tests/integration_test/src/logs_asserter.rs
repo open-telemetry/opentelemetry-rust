@@ -1,6 +1,4 @@
-use opentelemetry_proto::tonic::logs::v1::{LogsData, ResourceLogs};
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Formatter};
+use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
 
 // Given two ResourceLogs, assert that they are equal except for the timestamps
@@ -49,13 +47,54 @@ impl LogsAsserter {
                 expected_logs.extend(expected_scope_logs.log_records.clone());
             }
         }
-        assert_eq!(results_logs, expected_logs);
+
+        for (result_log, expected_log) in results_logs.iter().zip(expected_logs.iter()) {
+            assert_eq!(
+                LogRecordWrapper(result_log.clone()),
+                LogRecordWrapper(expected_log.clone())
+            );
+        }
+    }
+}
+
+pub struct LogRecordWrapper(pub LogRecord);
+
+impl PartialEq for LogRecordWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        let LogRecordWrapper(ref a) = *self;
+        let LogRecordWrapper(ref b) = *other;
+
+        assert_eq!(
+            a.severity_number, b.severity_number,
+            "severity_number does not match"
+        );
+        assert_eq!(
+            a.severity_text, b.severity_text,
+            "severity_text does not match"
+        );
+        assert_eq!(a.body, b.body, "body does not match");
+        assert_eq!(a.attributes, b.attributes, "attributes do not match");
+        assert_eq!(
+            a.dropped_attributes_count, b.dropped_attributes_count,
+            "dropped_attributes_count does not match"
+        );
+        assert_eq!(a.flags, b.flags, "flags do not match");
+        assert_eq!(a.trace_id, b.trace_id, "trace_id does not match");
+        assert_eq!(a.span_id, b.span_id, "span_id does not match");
+
+        true
+    }
+}
+
+impl std::fmt::Debug for LogRecordWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let LogRecordWrapper(ref inner) = *self;
+        inner.fmt(f)
     }
 }
 
 // read a file contains ResourceSpans in json format
 pub fn read_logs_from_json(file: File) -> Vec<ResourceLogs> {
-    println!("Reading logs from file {:?}", file);
     let reader = std::io::BufReader::new(file);
 
     let log_data: LogsData = serde_json::from_reader(reader).unwrap();

@@ -5,7 +5,6 @@ use std::fs::File;
 use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 use testcontainers::clients::Cli;
-use testcontainers::core::ExecCommand;
 use testcontainers::core::Port;
 use testcontainers::RunnableImage;
 
@@ -52,8 +51,7 @@ impl TestSuite {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore] // skip when running unit test
 async fn integration_tests() {
-    //env_logger::init();
-    //trace_integration_tests().await;
+    trace_integration_tests().await;
     logs_integration_tests().await;
 }
 
@@ -135,7 +133,6 @@ async fn logs_integration_tests() {
     // ideally we should use volume mount but otel collector file exporter doesn't handle permission too well
     // bind mount mitigate the issue by set up the permission correctly on host system
     tokio::time::sleep(Duration::from_secs(5)).await;
-    println!("waited for 5 minutes");
     logs::assert_logs_results(
         test_suites[0].result_file_path().as_str(),
         test_suites[0].expected_file_path().as_str(),

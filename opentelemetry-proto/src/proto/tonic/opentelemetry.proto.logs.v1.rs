@@ -27,6 +27,7 @@ pub struct LogsData {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
@@ -49,6 +50,7 @@ pub struct ResourceLogs {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeLogs {
@@ -72,6 +74,7 @@ pub struct ScopeLogs {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
@@ -123,6 +126,13 @@ pub struct LogRecord {
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
     #[prost(message, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_value",
+            deserialize_with = "crate::proto::serializers::deserialize_from_value"
+        )
+    )]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one

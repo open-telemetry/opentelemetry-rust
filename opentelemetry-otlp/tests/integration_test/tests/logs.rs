@@ -3,11 +3,7 @@
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
 use opentelemetry::logs::LogError;
-use opentelemetry::{
-    logs::LogRecord,
-    trace::{TraceContextExt, Tracer},
-    Key, KeyValue,
-};
+use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
 use std::error::Error;
@@ -34,26 +30,29 @@ pub async fn logs() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     log::set_max_level(Level::Info.to_level_filter());
 
     info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
-    logger_provider.shutdown();
+    let _ = logger_provider.shutdown();
     Ok(())
 }
 
 pub fn assert_logs_results(result: &str, expected: &str) {
-    println!(" result : {} expected {}", result, expected);
     let left = read_logs_from_json(File::open(expected).unwrap());
     let right = read_logs_from_json(File::open(result).unwrap());
 
     LogsAsserter::new(left, right).assert();
 
-    // we cannot read result json file because the timestamp was represents as string instead of u64.
-    // need to fix it on json file exporter
-
     assert!(File::open(result).unwrap().metadata().unwrap().size() > 0)
+}
+
+#[test]
+#[should_panic(expected = "assertion `left == right` failed: body does not match")]
+pub fn test_assert_logs_eq_failure() {
+    let left = read_logs_from_json(File::open("./expected/logs.json").unwrap());
+    let right = read_logs_from_json(File::open("./expected/failed_logs.json").unwrap());
+    LogsAsserter::new(right, left).assert();
 }
 
 #[test]
 pub fn test_assert_logs_eq() {
     let logs = read_logs_from_json(File::open("./expected/logs.json").unwrap());
-
     LogsAsserter::new(logs.clone(), logs).assert();
 }

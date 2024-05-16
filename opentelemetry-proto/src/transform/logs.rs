@@ -82,7 +82,8 @@ pub mod tonic {
             };
             println!(
                 "================> log_record.timestamp: {:?}, log_record.observed_timestamp: {:?}",
-                log_record.timestamp.map(to_nanos).unwrap_or_default(), to_nanos(log_record.observed_timestamp.unwrap())
+                log_record.timestamp.map(to_nanos).unwrap_or_default(),
+                to_nanos(log_record.observed_timestamp.unwrap())
             );
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
