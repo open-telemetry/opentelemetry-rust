@@ -64,7 +64,7 @@ impl Eq for HashKeyValue {}
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct AttributeSet(Vec<HashKeyValue>, u64);
+pub struct AttributeSet(Vec<KeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
@@ -74,7 +74,7 @@ impl From<&[KeyValue]> for AttributeSet {
             .rev()
             .filter_map(|kv| {
                 if seen_keys.insert(kv.key.clone()) {
-                    Some(HashKeyValue(kv.clone()))
+                    Some(kv.clone())
                 } else {
                     None
                 }
@@ -85,7 +85,7 @@ impl From<&[KeyValue]> for AttributeSet {
     }
 }
 
-fn calculate_hash(values: &[HashKeyValue]) -> u64 {
+fn calculate_hash(values: &[KeyValue]) -> u64 {
     let mut hasher = DefaultHasher::new();
     values.iter().fold(&mut hasher, |mut hasher, item| {
         item.hash(&mut hasher);
@@ -95,7 +95,7 @@ fn calculate_hash(values: &[HashKeyValue]) -> u64 {
 }
 
 impl AttributeSet {
-    fn new(mut values: Vec<HashKeyValue>) -> Self {
+    fn new(mut values: Vec<KeyValue>) -> Self {
         values.sort_unstable();
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
@@ -116,7 +116,7 @@ impl AttributeSet {
     where
         F: Fn(&KeyValue) -> bool,
     {
-        self.0.retain(|kv| f(&kv.0));
+        self.0.retain(|kv| f(&kv));
 
         // Recalculate the hash as elements are changed.
         self.1 = calculate_hash(&self.0);
@@ -124,7 +124,7 @@ impl AttributeSet {
 
     /// Iterate over key value pairs in the set
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
+        self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 }
 

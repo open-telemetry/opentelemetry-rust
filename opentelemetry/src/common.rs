@@ -425,17 +425,17 @@ impl KeyValue {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct F64Hasheable(f64);
+struct F64Hashable(f64);
 
-impl PartialEq for F64Hasheable {
+impl PartialEq for F64Hashable {
     fn eq(&self, other: &Self) -> bool {
         self.0.to_bits() == other.0.to_bits()
     }
 }
 
-impl Eq for F64Hasheable {}
+impl Eq for F64Hashable {}
 
-impl Hash for F64Hasheable {
+impl Hash for F64Hashable {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.to_bits().hash(state);
     }
@@ -445,11 +445,11 @@ impl Hash for KeyValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
         match &self.value {
-            Value::F64(f) => F64Hasheable(*f).hash(state),
+            Value::F64(f) => F64Hashable(*f).hash(state),
             Value::Array(a) => match a {
                 Array::Bool(b) => b.hash(state),
                 Array::I64(i) => i.hash(state),
-                Array::F64(f) => f.iter().for_each(|f| F64Hasheable(*f).hash(state)),
+                Array::F64(f) => f.iter().for_each(|f| F64Hashable(*f).hash(state)),
                 Array::String(s) => s.hash(state),
             },
             Value::Bool(b) => b.hash(state),
