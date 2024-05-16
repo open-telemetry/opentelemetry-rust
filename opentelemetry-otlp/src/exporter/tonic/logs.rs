@@ -53,7 +53,6 @@ impl TonicLogsClient {
 #[async_trait]
 impl LogExporter for TonicLogsClient {
     async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
-        println!("=============> exporting logs");
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = inner
@@ -73,7 +72,6 @@ impl LogExporter for TonicLogsClient {
                 .map(Into::into)
                 .collect()
         };
-        println!("======> invoking export");
         client
             .export(Request::from_parts(
                 metadata,
@@ -82,9 +80,6 @@ impl LogExporter for TonicLogsClient {
             ))
             .await
             .map_err(crate::Error::from)?;
-
-        println!("=============> logs exported");
-
         Ok(())
     }
 
