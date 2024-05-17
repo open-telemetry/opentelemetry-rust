@@ -29,7 +29,7 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 async-trait = { workspace = true }
 once_cell = { workspace = true }
 opentelemetry = { version = "0.23", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.23", path = "../opentelemetry-sdk", features = ["trace"] }
+opentelemetry-sdk = { version = "0.23", path = "../opentelemetry-sdk", features = ["trace"] }
 opentelemetry-http = { version = "0.12", path = "../opentelemetry-http" }
 opentelemetry-semantic-conventions = { version = "0.15", path = "../opentelemetry-semantic-conventions" }
 serde_json = { workspace = true }
@@ -44,5 +44,5 @@ futures-core = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 hyper = { workspace = true }
-opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
 temp-env = { workspace = true }

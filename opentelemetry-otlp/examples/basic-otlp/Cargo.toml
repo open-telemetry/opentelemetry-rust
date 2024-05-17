@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry", features = ["metrics", "logs"] }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "logs"] }
+opentelemetry-sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "logs"] }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic", "metrics", "logs"] }
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 tokio = { version = "1.0", features = ["full"] }

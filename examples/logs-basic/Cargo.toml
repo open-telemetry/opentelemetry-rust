@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["logs"] }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["logs"] }
+opentelemetry-sdk = { path = "../../opentelemetry-sdk", features = ["logs"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["logs"]}
 opentelemetry-appender-log = { path = "../../opentelemetry-appender-log", default-features = false}
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }

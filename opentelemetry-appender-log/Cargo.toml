@@ -21,7 +21,7 @@ with-serde = ["log/kv_serde", "serde"]
 default = ["logs_level_enabled"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
+opentelemetry-sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }

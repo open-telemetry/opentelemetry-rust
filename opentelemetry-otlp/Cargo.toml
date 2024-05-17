@@ -29,7 +29,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 async-trait = { workspace = true }
 futures-core = { workspace = true }
 opentelemetry = { version = "0.23", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.23", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { version = "0.23", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.12", path = "../opentelemetry-http", optional = true }
 opentelemetry-proto = { version = "0.6", path = "../opentelemetry-proto", default-features = false }
 
@@ -46,7 +46,7 @@ serde_json = { workspace = true, optional = true }
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
 # need tokio runtime to run smoke tests.
-opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry-sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }

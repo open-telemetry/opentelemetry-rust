@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
+opentelemetry-sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["tonic"] }
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }
 tokio = { workspace = true, features = ["full"] }

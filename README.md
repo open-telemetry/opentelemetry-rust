@@ -90,7 +90,7 @@ The example above requires the following packages:
 # Cargo.toml
 [dependencies]
 opentelemetry = "0.22"
-opentelemetry_sdk = "0.22"
+opentelemetry-sdk = "0.22"
 opentelemetry-stdout = { version = "0.3", features = ["trace"] }
 ```
 
