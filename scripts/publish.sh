@@ -9,7 +9,6 @@ packages=(
     "opentelemetry-proto"
     "opentelemetry-otlp"
     "opentelemetry-stdout"
-    "opentelemetry-jaeger"
     "opentelemetry-zipkin"
     "opentelemetry-prometheus"
     "opentelemetry-appender-log"
