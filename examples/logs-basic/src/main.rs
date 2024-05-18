@@ -3,6 +3,7 @@ use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_sdk::logs::{Config, LoggerProvider};
 use opentelemetry_sdk::Resource;
+use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 
 fn main() {
     // Setup LoggerProvider with a stdout exporter
@@ -14,7 +15,7 @@ fn main() {
     let logger_provider = LoggerProvider::builder()
         .with_config(
             Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
+                SERVICE_NAME,
                 "logs-basic-example",
             )])),
         )

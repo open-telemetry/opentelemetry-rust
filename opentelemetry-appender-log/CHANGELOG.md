@@ -2,6 +2,13 @@
 
 ## vNext
 
+## v0.4.0
+
+- Add log key-values as attributes [#1628](https://github.com/open-telemetry/opentelemetry-rust/pull/1628)
+- Update `opentelemetry` dependency version to 0.23
+
+## v0.3.0
+
 ## v0.2.0
 
 ### Changed

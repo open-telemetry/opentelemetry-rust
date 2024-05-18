@@ -35,7 +35,9 @@ impl TonicMetricsClient {
     ) -> Self {
         let mut client = MetricsServiceClient::new(channel);
         if let Some(compression) = compression {
-            client = client.send_compressed(compression);
+            client = client
+                .send_compressed(compression)
+                .accept_compressed(compression);
         }
 
         TonicMetricsClient {

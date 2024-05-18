@@ -1,8 +1,8 @@
 //! # No-op OpenTelemetry Metrics Implementation
 //!
-//! This implementation is returned as the global Meter if no `Meter`
-//! has been set. It is also useful for testing purposes as it is intended
-//! to have minimal resource utilization and runtime impact.
+//! This implementation is returned as the global Meter if no `MeterProvider`
+//! has been set. It is expected to have minimal resource utilization and
+//! runtime impact.
 use crate::{
     metrics::{
         AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,

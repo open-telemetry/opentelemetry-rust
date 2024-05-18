@@ -1,6 +1,6 @@
 //! Implements the [`SDK`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.64+][msrv]*
+//! *Compiler support: [requires `rustc` 1.65+][msrv]*
 //!
 //! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
@@ -44,7 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Beta)
+//! # Metrics (Alpha)
 //!
 //! Note: the metrics implementation is **still in progress** and **subject to major
 //! changes**.
@@ -91,8 +91,8 @@
 //!
 //! * `logs_level_enabled`: control the log level
 //!
-//! Support for recording and exporting telemetry asynchronously can be added
-//! via the following flags:
+//! Support for recording and exporting telemetry asynchronously and perform
+//! metrics aggregation can be added via the following flags:
 //!
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
@@ -137,6 +137,8 @@ pub mod runtime;
 #[cfg(any(feature = "testing", test))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub mod testing;
+
+#[allow(deprecated)]
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;

@@ -1,6 +1,5 @@
-use core::fmt;
-
 use async_trait::async_trait;
+use core::fmt;
 use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
@@ -12,6 +11,9 @@ use super::BoxInterceptor;
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
+    #[allow(dead_code)]
+    // <allow dead> would be removed once we support set_resource for metrics and traces.
+    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -33,7 +35,9 @@ impl TonicLogsClient {
     ) -> Self {
         let mut client = LogsServiceClient::new(channel);
         if let Some(compression) = compression {
-            client = client.send_compressed(compression);
+            client = client
+                .send_compressed(compression)
+                .accept_compressed(compression);
         }
 
         TonicLogsClient {
@@ -41,6 +45,7 @@ impl TonicLogsClient {
                 client,
                 interceptor,
             }),
+            resource: Default::default(),
         }
     }
 }
@@ -60,13 +65,19 @@ impl LogExporter for TonicLogsClient {
             None => return Err(LogError::Other("exporter is already shut down".into())),
         };
 
+        let resource_logs = {
+            batch
+                .into_iter()
+                .map(|log_data| (log_data, &self.resource))
+                .map(Into::into)
+                .collect()
+        };
+
         client
             .export(Request::from_parts(
                 metadata,
                 extensions,
-                ExportLogsServiceRequest {
-                    resource_logs: batch.into_iter().map(Into::into).collect(),
-                },
+                ExportLogsServiceRequest { resource_logs },
             ))
             .await
             .map_err(crate::Error::from)?;
@@ -76,5 +87,9 @@ impl LogExporter for TonicLogsClient {
 
     fn shutdown(&mut self) {
         let _ = self.inner.take();
+    }
+
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+        self.resource = resource.into();
     }
 }

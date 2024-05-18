@@ -19,7 +19,13 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
-pub use id_generator::{aws::XrayIdGenerator, IdGenerator, RandomIdGenerator};
+
+#[deprecated(
+    since = "0.21.3",
+    note = "XrayId Generator has been migrated to the opentelemetry-aws crate"
+)]
+pub use id_generator::aws::XrayIdGenerator;
+pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{Builder, TracerProvider};
 pub use sampler::{Sampler, ShouldSample};
@@ -46,7 +52,7 @@ mod tests {
     };
     use opentelemetry::testing::trace::TestSpan;
     use opentelemetry::trace::{
-        SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceState,
+        SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
     };
     use opentelemetry::{
         trace::{
@@ -57,7 +63,7 @@ mod tests {
     };
 
     #[test]
-    fn in_span() {
+    fn tracer_in_span() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
@@ -66,9 +72,13 @@ mod tests {
 
         // Act
         let tracer = provider.tracer("test_tracer");
-        tracer.in_span("span_name", |_cx| {});
-
-        provider.force_flush();
+        tracer.in_span("span_name", |cx| {
+            let span = cx.span();
+            assert!(span.is_recording());
+            span.update_name("span_name_updated");
+            span.set_attribute(KeyValue::new("attribute1", "value1"));
+            span.add_event("test-event".to_string(), vec![]);
+        });
 
         // Assert
         let exported_spans = exporter
@@ -76,8 +86,14 @@ mod tests {
             .expect("Spans are expected to be exported.");
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
-        assert_eq!(span.name, "span_name");
+        assert_eq!(span.name, "span_name_updated");
         assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.attributes.len(), 1);
+        assert_eq!(span.events.len(), 1);
+        assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert!(!span.span_context.is_remote());
+        assert_eq!(span.status, Status::Unset);
     }
 
     #[test]
@@ -91,9 +107,13 @@ mod tests {
         // Act
         let tracer = provider.tracer("test_tracer");
         let mut span = tracer.start("span_name");
-        span.set_attribute(KeyValue::new("key1", "value1"));
-        drop(span);
-        provider.force_flush();
+        span.set_attribute(KeyValue::new("attribute1", "value1"));
+        span.add_event("test-event".to_string(), vec![]);
+        span.set_status(Status::error("cancelled"));
+        span.end();
+
+        // After span end, further operations should not have any effect
+        span.update_name("span_name_updated");
 
         // Assert
         let exported_spans = exporter
@@ -103,6 +123,49 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.attributes.len(), 1);
+        assert_eq!(span.events.len(), 1);
+        assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert!(!span.span_context.is_remote());
+        let status_expected = Status::error("cancelled");
+        assert_eq!(span.status, status_expected);
+    }
+
+    #[test]
+    fn tracer_span_builder() {
+        // Arrange
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = TracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .build();
+
+        // Act
+        let tracer = provider.tracer("test_tracer");
+        let mut span = tracer
+            .span_builder("span_name")
+            .with_kind(SpanKind::Server)
+            .start(&tracer);
+        span.set_attribute(KeyValue::new("attribute1", "value1"));
+        span.add_event("test-event".to_string(), vec![]);
+        span.set_status(Status::Ok);
+        drop(span);
+
+        // Assert
+        let exported_spans = exporter
+            .get_finished_spans()
+            .expect("Spans are expected to be exported.");
+        assert_eq!(exported_spans.len(), 1);
+        let span = &exported_spans[0];
+        assert_eq!(span.name, "span_name");
+        assert_eq!(span.span_kind, SpanKind::Server);
+        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.attributes.len(), 1);
+        assert_eq!(span.events.len(), 1);
+        assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert!(!span.span_context.is_remote());
+        assert_eq!(span.status, Status::Ok);
     }
 
     #[test]
@@ -118,22 +181,18 @@ mod tests {
 
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
-            links.push(Link::new(
-                SpanContext::new(
-                    TraceId::from_u128(12),
-                    SpanId::from_u64(12),
-                    TraceFlags::default(),
-                    false,
-                    Default::default(),
-                ),
-                Vec::new(),
-            ))
+            links.push(Link::with_context(SpanContext::new(
+                TraceId::from_u128(12),
+                SpanId::from_u64(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            )))
         }
 
         let span_builder = SpanBuilder::from_name("span_name").with_links(links);
         let mut span = tracer.build(span_builder);
         span.end();
-        provider.force_flush();
 
         // Assert
         let exported_spans = exporter
@@ -169,7 +228,6 @@ mod tests {
         span.add_event("test event again, after span builder", Vec::new());
         span.add_event("test event once again, after span builder", Vec::new());
         span.end();
-        provider.force_flush();
 
         // Assert
         let exported_spans = exporter
@@ -186,7 +244,7 @@ mod tests {
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOff))
+            .with_config(Config::default().with_sampler(Sampler::AlwaysOff))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -239,7 +297,7 @@ mod tests {
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(config().with_sampler(TestRecordOnlySampler::default()))
+            .with_config(Config::default().with_sampler(TestRecordOnlySampler::default()))
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -268,5 +326,42 @@ mod tests {
             ]
         );
         assert_eq!(span.span_context().trace_state().get("foo"), Some("bar"));
+    }
+
+    #[test]
+    fn tracer_attributes() {
+        let provider = TracerProvider::builder().build();
+        let tracer = provider
+            .tracer_builder("test_tracer")
+            .with_attributes(vec![KeyValue::new("test_k", "test_v")])
+            .build();
+        let instrumentation_library = tracer.instrumentation_library();
+        let attributes = &instrumentation_library.attributes;
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key, "test_k".into());
+        assert_eq!(attributes[0].value, "test_v".into());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn versioned_tracer_options() {
+        let provider = TracerProvider::builder().build();
+        let tracer = provider.versioned_tracer(
+            "test_tracer",
+            Some(String::from("v1.2.3")),
+            Some(String::from("https://opentelemetry.io/schema/1.0.0")),
+            Some(vec![(KeyValue::new("test_k", "test_v"))]),
+        );
+        let instrumentation_library = tracer.instrumentation_library();
+        let attributes = &instrumentation_library.attributes;
+        assert_eq!(instrumentation_library.name, "test_tracer");
+        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
+        assert_eq!(
+            instrumentation_library.schema_url,
+            Some("https://opentelemetry.io/schema/1.0.0".into())
+        );
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key, "test_k".into());
+        assert_eq!(attributes[0].value, "test_v".into());
     }
 }

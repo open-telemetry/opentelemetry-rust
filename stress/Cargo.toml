@@ -19,12 +19,17 @@ name = "traces"
 path = "src/traces.rs"
 doc = false
 
+[[bin]] # Bin to run the stress tests to show the cost of random number generation
+name = "random"
+path = "src/random.rs"
+doc = false
+
 [dependencies]
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"
-opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace"] }
+opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace", "logs_level_enabled"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace", "logs_level_enabled"] }
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
 rand = { version = "0.8.4", features = ["small_rng"] }
 tracing = { workspace = true, features = ["std"]}

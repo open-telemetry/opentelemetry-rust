@@ -234,7 +234,7 @@ impl From<opentelemetry_sdk::Scope> for Scope {
         Scope {
             name: value.name,
             version: value.version,
-            attributes: Vec::new(),
+            attributes: value.attributes.into_iter().map(Into::into).collect(),
             dropped_attributes_count: 0,
         }
     }

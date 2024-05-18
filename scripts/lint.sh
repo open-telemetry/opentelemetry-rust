@@ -10,9 +10,23 @@ cargo_feature() {
 }
 
 if rustup component add clippy; then
-  cargo clippy --all-targets --all-features -- \
-    `# Exit with a nonzero code if there are clippy warnings` \
-    -Dwarnings
+ crates=( "opentelemetry"
+                "opentelemetry-http"
+                "opentelemetry-jaeger-propagator"
+                "opentelemetry-appender-log"
+                "opentelemetry-appender-tracing"
+                "opentelemetry-otlp"
+                "opentelemetry-prometheus"
+                "opentelemetry-proto"
+                "opentelemetry-sdk"
+                "opentelemetry-semantic-conventions"
+                "opentelemetry-stdout"
+                "opentelemetry-zipkin")
+  for crate in "${crates[@]}"; do
+      cargo clippy --manifest-path=$crate/Cargo.toml --all-targets --all-features -- \
+          `# Exit with a nonzero code if there are clippy warnings` \
+          -Dwarnings
+  done
 
   cargo_feature opentelemetry "trace,metrics,logs,logs_level_enabled,testing"
 
@@ -24,16 +38,6 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-otlp "http-proto, reqwest-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
   cargo_feature opentelemetry-otlp "metrics"
-
-  cargo_feature opentelemetry-jaeger "isahc_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_blocking_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_collector_client"
-  cargo_feature opentelemetry-jaeger "hyper_collector_client"
-  cargo_feature opentelemetry-jaeger "hyper_tls_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client"
-  cargo_feature opentelemetry-jaeger "wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client, wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "default"
 
   cargo_feature opentelemetry-jaeger-propagator "default"
 

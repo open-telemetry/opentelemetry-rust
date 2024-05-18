@@ -13,13 +13,12 @@ use opentelemetry_sdk::{
     self as sdk,
     export::trace::{ExportResult, SpanData},
 };
-use opentelemetry_semantic_conventions::SCHEMA_URL;
 use sdk::runtime::RuntimeChannel;
 
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::exporter::http::HttpExporterBuilder;
 
 use crate::{NoExporterConfig, OtlpPipeline};
@@ -140,12 +139,10 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(SCHEMA_URL),
-        None,
-    );
+    let tracer = provider
+        .tracer_builder("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .build();
     let _ = global::set_tracer_provider(provider);
     tracer
 }
@@ -166,12 +163,10 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.versioned_tracer(
-        "opentelemetry-otlp",
-        Some(env!("CARGO_PKG_VERSION")),
-        Some(SCHEMA_URL),
-        None,
-    );
+    let tracer = provider
+        .tracer_builder("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .build();
     let _ = global::set_tracer_provider(provider);
     tracer
 }
@@ -187,7 +182,7 @@ pub enum SpanExporterBuilder {
     #[cfg(feature = "grpc-tonic")]
     Tonic(TonicExporterBuilder),
     /// Http span exporter builder
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     Http(HttpExporterBuilder),
 }
 
@@ -197,7 +192,7 @@ impl SpanExporterBuilder {
         match self {
             #[cfg(feature = "grpc-tonic")]
             SpanExporterBuilder::Tonic(builder) => builder.build_span_exporter(),
-            #[cfg(feature = "http-proto")]
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
             SpanExporterBuilder::Http(builder) => builder.build_span_exporter(),
         }
     }
@@ -210,7 +205,7 @@ impl From<TonicExporterBuilder> for SpanExporterBuilder {
     }
 }
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl From<HttpExporterBuilder> for SpanExporterBuilder {
     fn from(exporter: HttpExporterBuilder) -> Self {
         SpanExporterBuilder::Http(exporter)

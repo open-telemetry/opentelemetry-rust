@@ -2,17 +2,68 @@
 
 ## vNext
 
+## v0.23.0
+
+- Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
+  dependency on crossbeam-channel.
+  [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
+- [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
+  Fix metrics aggregation bug when using Views to drop attributes.
+- [#1766](https://github.com/open-telemetry/opentelemetry-rust/pull/1766)
+  Fix Metrics PeriodicReader to trigger first collect/export at the first interval
+  instead of doing it right away.
+- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider,
+  which shuts down metricreaders, thereby allowing metrics still in memory to be flushed out.
+- **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
+  `ProcessResourceDetector` resource detectors, use the
+  [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
+- [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Improves performance by sending 
+  Resource information to processors (and exporters) once, instead of sending with every log. If you are an author
+  of Processor, Exporter, the following are *BREAKING* changes.
+    - Implement `set_resource` method in your custom LogProcessor, which invokes exporter's `set_resource`.
+    - Implement `set_resource` method in your custom LogExporter. This method should save the resource object
+      in original or serialized format, to be merged with every log event during export.
+    - `LogData` doesn't have the resource attributes. The `LogExporter::export()` method needs to merge it 
+      with the earlier preserved resource before export.
+- Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
+- Improves `shutdown` behavior of `LoggerProvider` and `LogProcessor` [#1643](https://github.com/open-telemetry/opentelemetry-rust/pull/1643).
+  - `shutdown` can be called by any clone of the `LoggerProvider` without the need of waiting on all `Logger` drops. Thus, `try_shutdown` has been removed. 
+  - `shutdown` methods in `LoggerProvider` and `LogProcessor` now takes a immutable reference
+  - After `shutdown`, `LoggerProvider` will return noop `Logger`
+  - After `shutdown`, `LogProcessor` will not process any new logs
+- Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
+    - Relocated `LogRecord` struct to SDK, as an implementation for the trait in the API.
+- **Breaking** [#1729](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
+  - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
+  - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- **Breaking** [#1750](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
+  - Update the return type of `LoggerProvider.shutdown()` from `Vec<LogResult<()>>` to `LogResult<()>`.
+
+## v0.22.1
+
+### Fixed
+
+- [#1576](https://github.com/open-telemetry/opentelemetry-rust/pull/1576)
+  Fix Span kind is always set to "internal".
+
+## v0.22.0
+
+### Deprecated
+
+- XrayIdGenerator in the opentelemetry-sdk has been deprecated and moved to version 0.10.0 of the opentelemetry-aws crate.
+
 ### Added
 
 - [#1410](https://github.com/open-telemetry/opentelemetry-rust/pull/1410) Add experimental synchronous gauge
 - [#1471](https://github.com/open-telemetry/opentelemetry-rust/pull/1471) Configure batch log record processor via [`OTEL_BLRP_*`](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/sdk-environment-variables.md#batch-logrecord-processor) environment variables and via `OtlpLogPipeline::with_batch_config`
 - [#1503](https://github.com/open-telemetry/opentelemetry-rust/pull/1503) Make the documentation for In-Memory exporters visible.
 
-- [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526) 
+- [#1526](https://github.com/open-telemetry/opentelemetry-rust/pull/1526)
 Performance Improvement : Creating Spans and LogRecords are now faster, by avoiding expensive cloning of `Resource` for every Span/LogRecord.
 
 ### Changed
-
 - **Breaking**
 [#1313](https://github.com/open-telemetry/opentelemetry-rust/pull/1313)
 [#1350](https://github.com/open-telemetry/opentelemetry-rust/pull/1350)
@@ -44,15 +95,17 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 | OTEL_BSP_SCHEDULE_DELAY_MILLIS  | OTEL_BSP_SCHEDULE_DELAY   |
 | OTEL_BSP_EXPORT_TIMEOUT_MILLIS  | OTEL_BSP_EXPORT_TIMEOUT   |
 
-- **Breaking** [1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455) Make the LoggerProvider Owned
+- **Breaking** [#1455](https://github.com/open-telemetry/opentelemetry-rust/pull/1455) Make the LoggerProvider Owned
   - `Logger` now takes an Owned Logger instead of a `Weak<LoggerProviderInner>`
   - `LoggerProviderInner` is no longer `pub (crate)`
   - `Logger.provider()` now returns `&LoggerProvider` instead of an `Option<LoggerProvider>`
 
-- [1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements 
+- [#1519](https://github.com/open-telemetry/opentelemetry-rust/pull/1519) Performance improvements
     when calling `Counter::add()` and `UpDownCounter::add()` with an empty set of attributes
     (e.g. `counter.Add(5, &[])`)
-    
+
+- **Breaking** Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
+
 ### Fixed
 
 - [#1481](https://github.com/open-telemetry/opentelemetry-rust/pull/1481) Fix error message caused by race condition when using PeriodicReader
@@ -61,47 +114,46 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Fixed
 
-- Fix delta aggregation metric reuse. (#1434)
-- Fix `max_scale` validation of exponential histogram configuration. (#1452)
+- Fix delta aggregation metric reuse. [#1434](https://github.com/open-telemetry/opentelemetry-rust/pull/1434)
+- Fix `max_scale` validation of exponential histogram configuration. [#1452](https://github.com/open-telemetry/opentelemetry-rust/pull/1452)
 
 ## v0.21.1
 
 ### Fixed
 
-- Fix metric export corruption if gauges have not received a last value. (#1363)
-- Return consistent `Meter` for a given scope from `MeterProvider`. (#1351)
+- Fix metric export corruption if gauges have not received a last value. [#1363](https://github.com/open-telemetry/opentelemetry-rust/pull/1363)
+- Return consistent `Meter` for a given scope from `MeterProvider`. [#1351](https://github.com/open-telemetry/opentelemetry-rust/pull/1351)
 
 ## v0.21.0
 
 ### Added
 
-- Log warning if two instruments have the same name with different (#1266)
+- Log warning if two instruments have the same name with different [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
   casing
-- Log warning if view is created with empty criteria (#1266)
-- Add exponential histogram support (#1267)
-- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` (#1197)
+- Log warning if view is created with empty criteria [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add exponential histogram support [#1267](https://github.com/open-telemetry/opentelemetry-rust/pull/1267)
+- Add `opentelemetry::sdk::logs::config()` for parity with `opentelemetry::sdk::trace::config()` [#1197](https://github.com/open-telemetry/opentelemetry-rust/pull/1197)
 
 ### Changed
 
-- Renamed `MeterProvider` and `Meter` to `SdkMeterProvider` and `SdkMeter` respectively to avoid name collision with public API types. [#1328](https://github.com/open-telemetry/opentelemetry-rust/pull/1328)
 - Bump MSRV to 1.65 [#1318](https://github.com/open-telemetry/opentelemetry-rust/pull/1318)
 - Default Resource (the one used when no other Resource is explicitly provided) now includes `TelemetryResourceDetector`,
   populating "telemetry.sdk.*" attributes.
-  [#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1193).
+  [#1194](https://github.com/open-telemetry/opentelemetry-rust/pull/1194).
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
-- Add unit/doc tests for MeterProvider #1220
+- Add unit/doc tests for MeterProvider [#1220](https://github.com/open-telemetry/opentelemetry-rust/pull/1220)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
 - Add in memory span exporter [#1216](https://github.com/open-telemetry/opentelemetry-rust/pull/1216)
 - Add in memory log exporter [#1231](https://github.com/open-telemetry/opentelemetry-rust/pull/1231)
 - Add `Sync` bound to the `SpanExporter` and `LogExporter` traits [#1240](https://github.com/open-telemetry/opentelemetry-rust/pull/1240)
-- Move `MetricsProducer` config to builders to match other config (#1266)
-- Return error earlier if readers are shut down (#1266)
-- Add `/` to valid characters for instrument names (#1269)
-- Increase instrument name maximum length from 63 to 255 (#1269)
+- Move `MetricsProducer` config to builders to match other config [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Return error earlier if readers are shut down [#1266](https://github.com/open-telemetry/opentelemetry-rust/pull/1266)
+- Add `/` to valid characters for instrument names [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
+- Increase instrument name maximum length from 63 to 255 [#1269](https://github.com/open-telemetry/opentelemetry-rust/pull/1269)
 - Updated crate documentation and examples.
   [#1256](https://github.com/open-telemetry/opentelemetry-rust/issues/1256)
-- Replace regex with glob (#1301)
+- Replace regex with glob [#1301](https://github.com/open-telemetry/opentelemetry-rust/pull/1301)
 - **Breaking**
   [#1293](https://github.com/open-telemetry/opentelemetry-rust/issues/1293)
   makes few breaking changes with respect to how Span attributes are stored to
@@ -133,7 +185,7 @@ Performance Improvement : Creating Spans and LogRecords are now faster, by avoid
 
 ### Fixed
 
-- Fix metric instrument name validation to include `_` #1030
+- Fix metric instrument name validation to include `_` [#1274](https://github.com/open-telemetry/opentelemetry-rust/pull/1274)
 
 ## v0.20.0
 

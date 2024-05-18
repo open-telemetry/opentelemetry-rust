@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use integration_test_runner::asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
@@ -56,12 +58,12 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     Ok(())
 }
 
-pub fn assert_traces_results(result: &str, _: &str) {
-    // let left = read_spans_from_json(File::open(expected).unwrap());
-    // let right = read_spans_from_json(File::open(result).unwrap());
+pub fn assert_traces_results(result: &str, expected: &str) {
+    let left = read_spans_from_json(File::open(expected).unwrap());
+    let right = read_spans_from_json(File::open(result).unwrap());
 
-    // TraceAsserter::new(left, right).assert();
-    //
+    TraceAsserter::new(left, right).assert();
+
     // we cannot read result json file because the timestamp was represents as string instead of u64.
     // need to fix it on json file exporter
 

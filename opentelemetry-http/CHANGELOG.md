@@ -2,6 +2,19 @@
 
 ## vNext
 
+## v0.12.0
+
+- Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
+- Update `opentelemetry` dependency version to 0.23
+
+## v0.11.1
+
+- Add feature flag enabling users to configure `reqwest` usage to use rustls via
+  `reqwest/rustls-tls` feature flag
+  [1638](https://github.com/open-telemetry/opentelemetry-rust/pull/1638).
+
+## v0.11.0
+
 ### Changed
 
 - **Breaking** Remove built-in support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)

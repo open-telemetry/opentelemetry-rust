@@ -449,12 +449,10 @@ pub struct InstrumentationLibrary {
     /// # Examples
     ///
     /// ```
-    /// let library = opentelemetry::InstrumentationLibrary::new(
-    ///     "my-crate",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schemas/1.17.0"),
-    ///     None,
-    /// );
+    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate").
+    ///     with_version(env!("CARGO_PKG_VERSION")).
+    ///     with_schema_url("https://opentelemetry.io/schemas/1.17.0").
+    ///     build();
     /// ```
     pub version: Option<Cow<'static, str>>,
 
@@ -487,7 +485,10 @@ impl hash::Hash for InstrumentationLibrary {
 }
 
 impl InstrumentationLibrary {
+    /// Deprecated, use [`InstrumentationLibrary::builder()`]
+    ///
     /// Create an new instrumentation library.
+    #[deprecated(since = "0.23.0", note = "Please use builder() instead")]
     pub fn new(
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
@@ -499,6 +500,97 @@ impl InstrumentationLibrary {
             version: version.map(Into::into),
             schema_url: schema_url.map(Into::into),
             attributes: attributes.unwrap_or_default(),
+        }
+    }
+
+    /// Create a new builder to create an [InstrumentationLibrary]
+    pub fn builder<T: Into<Cow<'static, str>>>(name: T) -> InstrumentationLibraryBuilder {
+        InstrumentationLibraryBuilder {
+            name: name.into(),
+            version: None,
+            schema_url: None,
+            attributes: None,
+        }
+    }
+}
+
+/// Configuration options for [InstrumentationLibrary].
+///
+/// An instrumentation library is a library or crate providing instrumentation.
+/// It should be named to follow any naming conventions of the instrumented
+/// library (e.g. 'middleware' for a web framework).
+///
+/// Apart from the name, all other fields are optional.
+///
+/// See the [instrumentation libraries] spec for more information.
+///
+/// [instrumentation libraries]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/overview.md#instrumentation-libraries
+#[derive(Debug)]
+pub struct InstrumentationLibraryBuilder {
+    name: Cow<'static, str>,
+
+    version: Option<Cow<'static, str>>,
+
+    schema_url: Option<Cow<'static, str>>,
+
+    attributes: Option<Vec<KeyValue>>,
+}
+
+impl InstrumentationLibraryBuilder {
+    /// Configure the version for the instrumentation library
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    ///     .with_version("v0.1.0")
+    ///     .build();
+    /// ```
+    pub fn with_version(mut self, version: impl Into<Cow<'static, str>>) -> Self {
+        self.version = Some(version.into());
+        self
+    }
+
+    /// Configure the Schema URL for the instrumentation library
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    ///     .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+    ///     .build();
+    /// ```
+    pub fn with_schema_url(mut self, schema_url: impl Into<Cow<'static, str>>) -> Self {
+        self.schema_url = Some(schema_url.into());
+        self
+    }
+
+    /// Configure the attributes for the instrumentation library
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    ///     .with_attributes(vec![KeyValue::new("k", "v")])
+    ///     .build();
+    /// ```
+    pub fn with_attributes<I>(mut self, attributes: I) -> Self
+    where
+        I: IntoIterator<Item = KeyValue>,
+    {
+        self.attributes = Some(attributes.into_iter().collect());
+        self
+    }
+
+    /// Create a new [InstrumentationLibrary] from this configuration
+    pub fn build(self) -> InstrumentationLibrary {
+        InstrumentationLibrary {
+            name: self.name,
+            version: self.version,
+            schema_url: self.schema_url,
+            attributes: self.attributes.unwrap_or_default(),
         }
     }
 }

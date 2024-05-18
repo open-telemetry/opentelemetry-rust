@@ -1,6 +1,7 @@
 //! # OpenTelemetry Logs Bridge API
-///  This API is not intended to be called by application developers directly. It
-///  is provided for logging library authors to build log appenders.
+///  This API is not intended to be called by application developers directly.
+///  It is provided for logging library authors to build log appenders, that
+///  bridges existing logging systems with OpenTelemetry.
 use crate::ExportError;
 
 use std::{sync::PoisonError, time::Duration};
@@ -12,7 +13,7 @@ mod record;
 
 pub use logger::{Logger, LoggerProvider};
 pub use noop::NoopLoggerProvider;
-pub use record::{AnyValue, LogRecord, LogRecordBuilder, Severity, TraceContext};
+pub use record::{AnyValue, LogRecord, Severity};
 
 /// Describe the result of operations in log SDK.
 pub type LogResult<T> = Result<T, LogError>;

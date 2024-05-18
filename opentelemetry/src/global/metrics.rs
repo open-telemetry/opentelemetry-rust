@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-/// The global `Meter` provider singleton.
+/// The global `MeterProvider` singleton.
 static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
     RwLock::new(GlobalMeterProvider::new(
         metrics::noop::NoopMeterProvider::new(),
@@ -111,7 +111,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
-/// This is a more convenient way of expressing `global::meter_provider().versioned_meter(name, None, None, None)`.
+/// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
 pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
     meter_provider().meter(name.into())
 }

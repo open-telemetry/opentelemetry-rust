@@ -7,7 +7,7 @@
 //! order to support open-source telemetry data formats (e.g. Jaeger,
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
-//! Currently, this crate only support sending tracing data or metrics in OTLP
+//! Currently, this crate only support sending telemetry in OTLP
 //! via grpc and http (in binary format). Supports for other format and protocol
 //! will be added in the future. The details of what's currently offering in this
 //! crate can be found in this doc.
@@ -18,29 +18,31 @@
 //! you want to send data to:
 //!
 //! ```shell
-//! $ docker run -p 4317:4317 otel/opentelemetry-collector-dev:latest
+//! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
 //! Then install a new pipeline with the recommended defaults to start exporting
 //! telemetry. You will have to build a OTLP exporter first.
 //!
-//! Tracing and metrics pipelines can be started with `new_pipeline().tracing()` and
-//! `new_pipeline().metrics()` respectively.
+//! Exporting pipelines can be started with `new_pipeline().tracing()` and
+//! `new_pipeline().metrics()`, and `new_pipeline().logging()` respectively for
+//! traces, metrics and logs.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
+//! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::new_exporter().tonic();
 //!     // Then pass it into pipeline builder
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let _ = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
 //!         .with_exporter(otlp_exporter)
 //!         .install_simple()?;
-//!
+//!     let tracer = global::tracer("my_tracer");
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
@@ -97,13 +99,15 @@
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
+//! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
 //!
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
-//! * `reqwest-rustls`: Use reqwest with TLS.
+//! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
+//! * `reqwest-rustls-webkpi-roots`: Use reqwest with TLS with Mozilla's trust roots via `webkpi-roots` crate.
 //!
 //! # Kitchen Sink Full Configuration
 //!
@@ -247,7 +251,7 @@ pub use crate::exporter::{
 
 use opentelemetry_sdk::export::ExportError;
 
-#[cfg(feature = "http-proto")]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub use crate::exporter::http::HttpExporterBuilder;
 
 #[cfg(feature = "grpc-tonic")]
@@ -278,7 +282,7 @@ impl OtlpExporterPipeline {
     /// and build the exporter.
     ///
     /// This exporter can be used in both `tracing` and `metrics` pipeline.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     pub fn http(self) -> HttpExporterBuilder {
         HttpExporterBuilder::default()
     }
@@ -314,7 +318,7 @@ pub enum Error {
     Transport(#[from] tonic::transport::Error),
 
     /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     #[error("invalid URI {0}")]
     InvalidUri(#[from] http::uri::InvalidUri),
 
@@ -329,29 +333,32 @@ pub enum Error {
     },
 
     /// Http requests failed because no http client is provided.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[error(
         "no http client, you must select one from features or provide your own implementation"
     )]
     NoHttpClient,
 
     /// Http requests failed.
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[error("http request failed with {0}")]
     RequestFailed(#[from] opentelemetry_http::HttpError),
 
     /// The provided value is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     #[error("http header value error {0}")]
     InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
 
     /// The provided name is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto"))]
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     #[error("http header name error {0}")]
     InvalidHeaderName(#[from] http::header::InvalidHeaderName),
 
     /// Prost encode failed
-    #[cfg(feature = "http-proto")]
+    #[cfg(any(
+        feature = "http-proto",
+        all(feature = "http-json", not(feature = "trace"))
+    ))]
     #[error("prost encoding error {0}")]
     EncodeError(#[from] prost::EncodeError),
 
@@ -393,10 +400,10 @@ impl ExportError for Error {
 pub enum Protocol {
     /// GRPC protocol
     Grpc,
-    // TODO add support for other protocols
-    // HttpJson,
     /// HTTP protocol with binary protobuf
     HttpBinary,
+    /// HTTP protocol with JSON payload
+    HttpJson,
 }
 
 #[derive(Debug, Default)]

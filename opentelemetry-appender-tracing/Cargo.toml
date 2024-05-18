@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-tracing"
-version = "0.2.0"
+version = "0.4.0"
 edition = "2021"
 description = "An OpenTelemetry log appender for the tracing crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing"
@@ -13,8 +13,7 @@ rust-version = "1.65"
 [dependencies]
 log = { workspace = true, optional = true }
 once_cell = { workspace = true }
-opentelemetry = { version = "0.21", path = "../opentelemetry", features = ["logs"] }
-opentelemetry_sdk = { version = "0.21", path = "../opentelemetry-sdk", features = ["logs"] }
+opentelemetry = { version = "0.23", path = "../opentelemetry", features = ["logs"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { version = "0.2", optional = true }
@@ -25,8 +24,16 @@ log = { workspace = true }
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testing"]  }
 tracing-log = "0.2"
+async-trait = "0.1"
+criterion = "0.5.1"
 
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
-logs_level_enabled = ["opentelemetry/logs_level_enabled", "opentelemetry_sdk/logs_level_enabled"]
+logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 default = ["logs_level_enabled"]
+
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs_level_enabled"]

@@ -190,7 +190,6 @@ impl opentelemetry::trace::Tracer for Tracer {
             .span_id
             .take()
             .unwrap_or_else(|| config.id_generator.new_span_id());
-        let span_kind = builder.span_kind.take().unwrap_or(SpanKind::Internal);
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
@@ -219,7 +218,7 @@ impl opentelemetry::trace::Tracer for Tracer {
                 Some(parent_cx),
                 trace_id,
                 &builder.name,
-                &span_kind,
+                builder.span_kind.as_ref().unwrap_or(&SpanKind::Internal),
                 builder.attributes.as_ref().unwrap_or(&Vec::new()),
                 builder.links.as_deref().unwrap_or(&[]),
             )

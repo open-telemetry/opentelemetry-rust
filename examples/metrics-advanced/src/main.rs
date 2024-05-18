@@ -1,13 +1,14 @@
+use opentelemetry::global;
 use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
-use opentelemetry::{metrics::MeterProvider as _, KeyValue};
+use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{
     Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream,
 };
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() -> SdkMeterProvider {
+fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
@@ -50,7 +51,7 @@ fn init_meter_provider() -> SdkMeterProvider {
         //   Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    SdkMeterProvider::builder()
+    let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
@@ -59,13 +60,15 @@ fn init_meter_provider() -> SdkMeterProvider {
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
-        .build()
+        .build();
+    global::set_meter_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let meter_provider = init_meter_provider();
-    let meter = meter_provider.meter("mylibraryname");
+    let meter = global::meter("mylibraryname");
 
     // Example 1 - Rename metric using View.
     // This instrument will be renamed to "my_histogram_renamed",

@@ -51,12 +51,10 @@
 //!     let tracer_provider = global::tracer_provider();
 //!
 //!     // Get a tracer for this library
-//!     let tracer = tracer_provider.versioned_tracer(
-//!         "my_name",
-//!         Some(env!("CARGO_PKG_VERSION")),
-//!         Some("https://opentelemetry.io/schemas/1.17.0"),
-//!         None
-//!     );
+//!     let tracer = tracer_provider.tracer_builder("my_name").
+//!         with_version(env!("CARGO_PKG_VERSION")).
+//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
+//!         build();
 //!
 //!     // Create spans
 //!     let mut span = tracer.start("doing_work");
@@ -302,11 +300,24 @@ pub struct Link {
 }
 
 impl Link {
-    /// Create a new link.
-    pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
+    /// Create new `Link`
+    pub fn new(
+        span_context: SpanContext,
+        attributes: Vec<KeyValue>,
+        dropped_attributes_count: u32,
+    ) -> Self {
         Link {
             span_context,
             attributes,
+            dropped_attributes_count,
+        }
+    }
+
+    /// Create new `Link` with given context
+    pub fn with_context(span_context: SpanContext) -> Self {
+        Link {
+            span_context,
+            attributes: Vec::new(),
             dropped_attributes_count: 0,
         }
     }

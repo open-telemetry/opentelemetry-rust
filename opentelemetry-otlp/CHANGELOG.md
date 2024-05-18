@@ -2,25 +2,55 @@
 
 ## vNext
 
+## v0.16.0
+
+### Fixed
+
+- URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
+- OTLP exporter will not change the URL added through `ExportConfig` [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Default grpc endpoint will not have path based on signal(e.g `/v1/traces`) [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Fix feature flags for `OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT` [#1746](https://github.com/open-telemetry/opentelemetry-rust/pull/1746)
+
+### Added
+
+- Added `DeltaTemporalitySelector` ([#1568])
+- Add `webkpi-roots` features to `reqwest` and `tonic` backends
+
+[#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
+
+### Changed
+ - **Breaking** Remove global provider for Logs [#1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691/)
+      - The method OtlpLogPipeline::install_simple() and OtlpLogPipeline::install_batch() now return `LoggerProvider` instead of
+      `Logger`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples for how to initialize OTLP Log Exporter to use with OpenTelemetryLogBridge and OpenTelemetryTracingBridge respectively.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- Update `opentelemetry-proto` dependency version to 0.6
+
+## v0.15.0
+
+### Added
+
+- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
+- Allow specifying OTLP Tonic metadata from env variable [#1377](https://github.com/open-telemetry/opentelemetry-rust/pull/1377)
+
+### Changed
+- Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
+
 ### Fixed
 - Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
 
-### Changed
-- Update to tonic 0.11 and prost 0.12 (#1536)
-
 ### Removed
 - **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
-- Remove support for grpcio transport (#1534)
+- **Breaking** Remove support for grpcio transport [#1534](https://github.com/open-telemetry/opentelemetry-rust/pull/1534)
 
 ## v0.14.0
 
 ### Added
 
-- Add `build_{signal}_exporter` methods to client builders (#1187)
-- Add `grpcio` metrics exporter (#1202)
-- Allow specifying OTLP HTTP headers from env variable (#1290)
-- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
-- Allow specifying OTLP Tonic metadata from env variable (#1377)
+- Add `build_{signal}_exporter` methods to client builders [#1187](https://github.com/open-telemetry/opentelemetry-rust/pull/1187)
+- Add `grpcio` metrics exporter [#1202](https://github.com/open-telemetry/opentelemetry-rust/pull/1202)
+- Allow specifying OTLP HTTP headers from env variable [#1290](https://github.com/open-telemetry/opentelemetry-rust/pull/1290)
 
 ### Changed
 
@@ -28,7 +58,7 @@
 - Bump MSRV to 1.64 [#1203](https://github.com/open-telemetry/opentelemetry-rust/pull/1203)
 - Changed dependency from `opentelemetry_api` to `opentelemetry` as the latter
   is now the API crate. [#1226](https://github.com/open-telemetry/opentelemetry-rust/pull/1226)
-- Make `NoExporterBuilder` a compiling time error [#1271](https://github.com/open-telemetry/opentelemetry-rust/pull/1271)
+- Make `NoExporterBuilder` a compiling time error [#1272](https://github.com/open-telemetry/opentelemetry-rust/pull/1272)
 
 ## v0.13.0
 
