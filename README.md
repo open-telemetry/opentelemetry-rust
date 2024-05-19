@@ -192,8 +192,6 @@ you're more than welcome to participate!
 
 ## Approvers and Maintainers
 
-For GitHub groups see the [code owners](CODEOWNERS) file.
-
 ### Maintainers
 
 * [Cijo Thomas](https://github.com/cijothomas)
