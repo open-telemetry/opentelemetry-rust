@@ -31,7 +31,7 @@ thiserror = { workspace = true }
 js-sys = "0.3.63"
 
 [features]
-default = ["trace"]
+default = ["trace", "metrics", "logs"]
 trace = ["pin-project-lite"]
 metrics = []
 testing = ["trace", "metrics"]

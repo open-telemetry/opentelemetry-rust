@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+
 ## v0.23.0
 
 ### Added
