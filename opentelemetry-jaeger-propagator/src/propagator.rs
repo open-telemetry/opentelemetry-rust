@@ -15,6 +15,9 @@ const DEPRECATED_PARENT_SPAN: &str = "0";
 const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
 /// `Propagator` implements the [Jaeger propagation format].
+/// See [module level documentation](self#Examples) for examples.
+///  
+/// [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 #[derive(Clone, Debug)]
 pub struct Propagator {
     baggage_prefix: &'static str,
