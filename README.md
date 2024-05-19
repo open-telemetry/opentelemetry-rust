@@ -159,7 +159,7 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.64. The current OpenTelemetry version is not guaranteed to build
+version is 1.65. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
@@ -191,8 +191,6 @@ developer, just starting your journey, or simply curious about the work we do,
 you're more than welcome to participate!
 
 ## Approvers and Maintainers
-
-For GitHub groups see the [code owners](CODEOWNERS) file.
 
 ### Maintainers
 

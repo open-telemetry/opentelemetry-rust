@@ -17,3 +17,5 @@ $ cargo run
 # View spans
 $ firefox http://localhost:16686/
 ```
+
+![Jaeger UI](jaeger.png)

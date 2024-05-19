@@ -2,11 +2,15 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+
+## v0.23.0
+
 ### Added
 
-- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add global::meter_provider_shutdown
 - [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640) Add `PropagationError`
-- [#1701](https://github.com/open-telemetry/opentelemetry-rust/pull/1701) `Gauge` no longer requires `otel-unstable` feature flag, as OpenTelemetry specification for `Gauge` instrumentation is stable.
+- [#1701](https://github.com/open-telemetry/opentelemetry-rust/pull/1701) `Gauge` no longer requires `otel-unstable` feature flag, as OpenTelemetry specification for `Gauge` instrument is stable.
 
 ### Removed
 

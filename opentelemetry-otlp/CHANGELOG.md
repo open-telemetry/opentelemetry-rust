@@ -2,17 +2,19 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+
+## v0.16.0
+
 ### Fixed
 
 - URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
 - OTLP exporter will not change the URL added through `ExportConfig` [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
 - Default grpc endpoint will not have path based on signal(e.g `/v1/traces`) [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Fix feature flags for `OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT` [#1746](https://github.com/open-telemetry/opentelemetry-rust/pull/1746)
 
 ### Added
-
-- Aded `http/json` support for all signals ([#1585])
-
-[#1585]: https://github.com/open-telemetry/opentelemetry-rust/pull/1585
 
 - Added `DeltaTemporalitySelector` ([#1568])
 - Add `webkpi-roots` features to `reqwest` and `tonic` backends
@@ -23,6 +25,10 @@
  - **Breaking** Remove global provider for Logs [#1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691/)
       - The method OtlpLogPipeline::install_simple() and OtlpLogPipeline::install_batch() now return `LoggerProvider` instead of
       `Logger`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples for how to initialize OTLP Log Exporter to use with OpenTelemetryLogBridge and OpenTelemetryTracingBridge respectively.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- Update `opentelemetry-proto` dependency version to 0.6
 
 ## v0.15.0
 

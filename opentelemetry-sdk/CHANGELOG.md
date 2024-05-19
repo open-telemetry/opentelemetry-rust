@@ -2,11 +2,19 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+
+## v0.23.0
+
 - Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
   dependency on crossbeam-channel.
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
 - [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
   Fix metrics aggregation bug when using Views to drop attributes.
+- [#1766](https://github.com/open-telemetry/opentelemetry-rust/pull/1766)
+  Fix Metrics PeriodicReader to trigger first collect/export at the first interval
+  instead of doing it right away.
 - [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider,
   which shuts down metricreaders, thereby allowing metrics still in memory to be flushed out.
 - **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
@@ -31,6 +39,10 @@
 - **Breaking** [#1729](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
   - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
   - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- **Breaking** [#1750](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
+  - Update the return type of `LoggerProvider.shutdown()` from `Vec<LogResult<()>>` to `LogResult<()>`.
 
 ## v0.22.1
 

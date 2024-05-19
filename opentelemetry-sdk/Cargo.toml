@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.22.1"
+version = "0.23.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -10,8 +10,8 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-opentelemetry = { version = "0.22", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.11", path = "../opentelemetry-http", optional = true }
+opentelemetry = { version = "0.23", path = "../opentelemetry/" }
+opentelemetry-http = { version = "0.12", path = "../opentelemetry-http", optional = true }
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 futures-channel = "0.3"
@@ -44,7 +44,7 @@ temp-env = { workspace = true }
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
-default = ["trace"]
+default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "rand", "async-trait", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
 logs = ["opentelemetry/logs", "async-trait", "serde_json"]

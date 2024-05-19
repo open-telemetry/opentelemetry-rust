@@ -86,7 +86,7 @@
                     {
                       "key": "bogons",
                       "value": {
-                        "intValue": 100
+                        "intValue": "100"
                       }
                     }
                   ]

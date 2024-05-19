@@ -15,10 +15,12 @@ jobs:
         # test both stable and beta versions of Rust on ubuntu-latest
         os: [ubuntu-latest]
         rust: [stable, beta]
-        # test only stable version of Rust on Windows
+        # test only stable version of Rust on Windows and MacOS
         include:
           - rust: stable
             os: windows-latest
+          - rust: stable
+            os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
     - name: Free disk space
@@ -38,6 +40,8 @@ jobs:
     - name: "Set rustup profile"
       run: rustup set profile minimal
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
   lint:
@@ -50,6 +54,8 @@ jobs:
       with:
         components: rustfmt
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions-rs/cargo@v1
       with:
         command: fmt
@@ -86,6 +92,8 @@ jobs:
       with:
         components: rustfmt
     - uses: arduino/setup-protoc@v3
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Build
       run: |
         cd ${{ matrix.example }}
@@ -105,7 +113,6 @@ jobs:
     - name: Run tests
       run: cargo --version &&
         cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
-        cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --features rt-tokio &&
         cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
@@ -124,6 +131,8 @@ jobs:
         with:
           components: rustfmt
       - uses: arduino/setup-protoc@v3
+        with:
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: doc
         run: cargo doc --no-deps --all-features
         env:
@@ -142,6 +151,8 @@ jobs:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
       - uses: arduino/setup-protoc@v3
+        with:
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: cargo generate-lockfile
@@ -151,5 +162,7 @@ jobs:
         run: cargo llvm-cov --locked --all-features --workspace --lcov --output-path lcov.info
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           fail_ci_if_error: true
