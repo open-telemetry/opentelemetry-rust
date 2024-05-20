@@ -155,7 +155,7 @@ impl Drop for LoggerProviderInner {
 /// Builder for provider attributes.
 pub struct Builder {
     processors: Vec<Box<dyn LogProcessor>>,
-    resource: Resource,
+    resource: Option<Resource>,
 }
 
 impl Builder {
@@ -188,21 +188,22 @@ impl Builder {
     /// The `Resource` to be associated with this Provider.
     pub fn with_resource(self, resource: Resource) -> Self {
         Builder {
-            resource: resource,
+            resource: Some(resource),
             ..self
         }
     }
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        let resource = self.resource.unwrap_or_default();
         // invoke set_resource on all the processors
         for processor in &self.processors {
-            processor.set_resource(&self.resource);
+            processor.set_resource(&resource);
         }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                resource: self.resource,
+                resource: resource,
             }),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
