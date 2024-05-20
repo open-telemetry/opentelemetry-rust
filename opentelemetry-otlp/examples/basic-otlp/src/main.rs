@@ -85,6 +85,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         result.err()
     );
     let meter_provider = result.unwrap();
+    global::set_meter_provider(meter_provider.clone());
 
     // Initialize logs and save the logger_provider.
     let logger_provider = init_logs().unwrap();
