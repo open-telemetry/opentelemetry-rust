@@ -138,7 +138,7 @@ jobs:
         env:
           CARGO_INCREMENTAL: '0'
           RUSTDOCFLAGS: -Dwarnings
-  semver:
+  semver: # This job uses the latest published crate as baseline for comparison.
     runs-on: ubuntu-latest
     name: semver
     steps:
