@@ -14,7 +14,7 @@ use std::fmt::Debug;
 
 use opentelemetry::logs::LogError;
 
-use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel};
+use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel, Resource};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -35,7 +35,7 @@ impl OtlpPipeline {
     /// Create a OTLP logging pipeline.
     pub fn logging(self) -> OtlpLogPipeline<NoExporterConfig> {
         OtlpLogPipeline {
-            log_config: None,
+            resource: None,
             exporter_builder: NoExporterConfig(()),
             batch_config: None,
         }
@@ -111,15 +111,17 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 #[derive(Debug)]
 pub struct OtlpLogPipeline<EB> {
     exporter_builder: EB,
-    log_config: Option<opentelemetry_sdk::logs::Config>,
+    resource: Option<Resource>,
     batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 }
 
 impl<EB> OtlpLogPipeline<EB> {
-    /// Set the log provider configuration.
-    pub fn with_log_config(mut self, log_config: opentelemetry_sdk::logs::Config) -> Self {
-        self.log_config = Some(log_config);
-        self
+    /// Set the Resource associated with log provider.
+    pub fn with_resource(self, resource: Resource) -> Self {
+        OtlpLogPipeline {
+            resource: Some(resource),
+            ..self
+        }
     }
 
     /// Set the batch log processor configuration, and it will override the env vars.
@@ -137,7 +139,7 @@ impl OtlpLogPipeline<NoExporterConfig> {
     ) -> OtlpLogPipeline<LogExporterBuilder> {
         OtlpLogPipeline {
             exporter_builder: pipeline.into(),
-            log_config: self.log_config,
+            resource: self.resource,
             batch_config: self.batch_config,
         }
     }
@@ -152,7 +154,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
     pub fn install_simple(self) -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder.build_log_exporter()?,
-            self.log_config,
+            self.resource,
         ))
     }
 
@@ -168,7 +170,7 @@ impl OtlpLogPipeline<LogExporterBuilder> {
     ) -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder.build_log_exporter()?,
-            self.log_config,
+            self.resource,
             runtime,
             self.batch_config,
         ))
@@ -177,20 +179,21 @@ impl OtlpLogPipeline<LogExporterBuilder> {
 
 fn build_simple_with_exporter(
     exporter: LogExporter,
-    log_config: Option<opentelemetry_sdk::logs::Config>,
+    resource: Option<Resource>,
 ) -> opentelemetry_sdk::logs::LoggerProvider {
     let mut provider_builder =
         opentelemetry_sdk::logs::LoggerProvider::builder().with_simple_exporter(exporter);
-    if let Some(config) = log_config {
-        provider_builder = provider_builder.with_config(config);
+    if let Some(resource) = resource {
+        provider_builder = provider_builder.with_resource(resource);
     }
-    // logger would be created in the tracing appender
+    // logger would be created in the appenders like
+    // opentelemetry-appender-tracing, opentelemetry-appender-log etc.
     provider_builder.build()
 }
 
 fn build_batch_with_exporter<R: RuntimeChannel>(
     exporter: LogExporter,
-    log_config: Option<opentelemetry_sdk::logs::Config>,
+    resource: Option<Resource>,
     runtime: R,
     batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 ) -> opentelemetry_sdk::logs::LoggerProvider {
@@ -200,8 +203,8 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
         .build();
     provider_builder = provider_builder.with_log_processor(batch_processor);
 
-    if let Some(config) = log_config {
-        provider_builder = provider_builder.with_config(config);
+    if let Some(resource) = resource {
+        provider_builder = provider_builder.with_resource(resource);
     }
     // logger would be created in the tracing appender
     provider_builder.build()

@@ -26,7 +26,7 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError> {
     opentelemetry_otlp::new_pipeline()
         .logging()
-        .with_log_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
