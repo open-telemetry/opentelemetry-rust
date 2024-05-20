@@ -26,8 +26,8 @@ async-trait = { workspace = true, optional = true }
 chrono = { version = "0.4.34", default-features = false, features = ["now"] }
 thiserror = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
-opentelemetry = { version = "0.23", path = "../opentelemetry", default_features = false }
-opentelemetry_sdk = { version = "0.23", path = "../opentelemetry-sdk", default_features = false }
+opentelemetry = { version = "0.23", path = "../opentelemetry", default-features = false }
+opentelemetry_sdk = { version = "0.23", path = "../opentelemetry-sdk", default-features = false }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 ordered-float = { workspace = true }
