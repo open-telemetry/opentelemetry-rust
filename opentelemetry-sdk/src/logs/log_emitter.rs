@@ -203,7 +203,7 @@ impl Builder {
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                resource: resource,
+                resource,
             }),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
