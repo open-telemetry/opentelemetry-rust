@@ -42,7 +42,7 @@ A draft PR can be created, but before releasing consider the following:
 5. [Publish](#publishing-crates) to crates.io using the version as of the release commit
 6. Post to [#otel-rust](https://cloud-native.slack.com/archives/C03GDP0H023) on CNCF Slack.
 
-[Publish.sh](./scripts/publish.sh) may be used to automate steps 3 and 5.
+[Publish.sh](./publish.sh) may be used to automate steps 3 and 5.
 
 ## Tagging Convention
 

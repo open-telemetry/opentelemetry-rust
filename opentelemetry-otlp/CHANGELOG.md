@@ -4,6 +4,9 @@
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
+- `OtlpMetricPipeline.build()` no longer invoke the
+  `global::set_meter_provider`. User who setup the pipeline must do it
+  themselves using `global::set_meter_provider(meter_provider.clone());`.
 
 ## v0.16.0
 
