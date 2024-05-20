@@ -61,7 +61,7 @@ impl AttributeSet {
     where
         F: Fn(&KeyValue) -> bool,
     {
-        self.0.retain(|kv| f(&kv));
+        self.0.retain(|kv| f(kv));
 
         // Recalculate the hash as elements are changed.
         self.1 = calculate_hash(&self.0);
