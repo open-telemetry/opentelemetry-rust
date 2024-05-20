@@ -339,7 +339,7 @@ mod tests {
                 .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = Histogram {
                 data_points: vec![HistogramDataPoint {
-                    attributes: AttributeSet::from(&[KeyValue::new("a2", 2)][..]),
+                    attributes: vec![KeyValue::new("a1", 1)],
                     start_time: SystemTime::now(),
                     time: SystemTime::now(),
                     count: 2,
@@ -365,10 +365,7 @@ mod tests {
             assert!(new_agg.is_none());
             assert_eq!(a.temporality, temporality);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(
-                a.data_points[0].attributes,
-                AttributeSet::from(&new_attributes[..])
-            );
+            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
             assert_eq!(a.data_points[0].count, 1);
             assert_eq!(a.data_points[0].bounds, vec![1.0]);
             assert_eq!(a.data_points[0].bucket_counts, vec![0, 1]);

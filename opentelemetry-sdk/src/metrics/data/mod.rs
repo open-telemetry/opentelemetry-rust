@@ -143,7 +143,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
 #[derive(Debug)]
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// The time when the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
