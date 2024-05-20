@@ -10,7 +10,7 @@ use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace as sdktrace;
 use opentelemetry_sdk::{
-    logs::{self as sdklogs, Config},
+    logs::{self as sdklogs},
     Resource,
 };
 
