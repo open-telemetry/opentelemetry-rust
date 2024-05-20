@@ -284,7 +284,7 @@ impl<T: Into<DataValue> + Copy> From<&data::Histogram<T>> for Histogram {
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct HistogramDataPoint {
-    attributes: AttributeSet,
+    attributes: Vec<KeyValue>,
     #[serde(serialize_with = "as_unix_nano")]
     start_time_unix_nano: SystemTime,
     #[serde(serialize_with = "as_unix_nano")]
@@ -306,7 +306,7 @@ struct HistogramDataPoint {
 impl<T: Into<DataValue> + Copy> From<&data::HistogramDataPoint<T>> for HistogramDataPoint {
     fn from(value: &data::HistogramDataPoint<T>) -> Self {
         HistogramDataPoint {
-            attributes: AttributeSet::from(&value.attributes),
+            attributes: value.attributes.iter().map(Into::into).collect(),
             start_time_unix_nano: value.start_time,
             time_unix_nano: value.time,
             start_time: value.start_time,
