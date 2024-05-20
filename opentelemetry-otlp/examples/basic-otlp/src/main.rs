@@ -29,7 +29,7 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .tonic()
                 .with_endpoint("http://localhost:4317"),
         )
-        .with_trace_config(sdktrace::config().with_resource(RESOURCE.clone()))
+        .with_trace_config(sdktrace::config().with_resource(RESOURCE.clone()).with_sampler(sampler::AlwaysOn))
         .install_batch(runtime::Tokio)
 }
 
