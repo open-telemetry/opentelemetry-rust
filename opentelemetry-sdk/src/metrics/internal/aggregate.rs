@@ -226,7 +226,7 @@ mod tests {
         let (measure, agg) = AggregateBuilder::<u64>::new(None, None).last_value();
         let mut a = Gauge {
             data_points: vec![DataPoint {
-                attributes: AttributeSet::from(&[KeyValue::new("a", 1)][..]),
+                attributes: vec![KeyValue::new("a", 1)],
                 start_time: Some(SystemTime::now()),
                 time: Some(SystemTime::now()),
                 value: 1u64,
@@ -241,10 +241,7 @@ mod tests {
         assert_eq!(count, 1);
         assert!(new_agg.is_none());
         assert_eq!(a.data_points.len(), 1);
-        assert_eq!(
-            a.data_points[0].attributes,
-            AttributeSet::from(&new_attributes[..])
-        );
+        assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
         assert_eq!(a.data_points[0].value, 2);
     }
 
@@ -256,14 +253,14 @@ mod tests {
             let mut a = Sum {
                 data_points: vec![
                     DataPoint {
-                        attributes: AttributeSet::from(&[KeyValue::new("a1", 1)][..]),
+                        attributes: vec![KeyValue::new("a1", 1)],
                         start_time: Some(SystemTime::now()),
                         time: Some(SystemTime::now()),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     DataPoint {
-                        attributes: AttributeSet::from(&[KeyValue::new("a2", 2)][..]),
+                        attributes: vec![KeyValue::new("a2", 1)],
                         start_time: Some(SystemTime::now()),
                         time: Some(SystemTime::now()),
                         value: 2u64,
@@ -287,10 +284,7 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(
-                a.data_points[0].attributes,
-                AttributeSet::from(&new_attributes[..])
-            );
+            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
             assert_eq!(a.data_points[0].value, 3);
         }
     }
@@ -302,14 +296,14 @@ mod tests {
             let mut a = Sum {
                 data_points: vec![
                     DataPoint {
-                        attributes: AttributeSet::from(&[KeyValue::new("a1", 1)][..]),
+                        attributes: vec![KeyValue::new("a1", 1)],
                         start_time: Some(SystemTime::now()),
                         time: Some(SystemTime::now()),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     DataPoint {
-                        attributes: AttributeSet::from(&[KeyValue::new("a2", 2)][..]),
+                        attributes: vec![KeyValue::new("a2", 1)],
                         start_time: Some(SystemTime::now()),
                         time: Some(SystemTime::now()),
                         value: 2u64,
@@ -333,10 +327,7 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(
-                a.data_points[0].attributes,
-                AttributeSet::from(&new_attributes[..])
-            );
+            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
             assert_eq!(a.data_points[0].value, 3);
         }
     }

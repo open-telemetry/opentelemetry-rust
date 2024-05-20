@@ -97,7 +97,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
 pub struct DataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// The time when the time series was started.
     pub start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
