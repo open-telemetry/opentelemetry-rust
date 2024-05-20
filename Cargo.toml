@@ -7,8 +7,8 @@ members = [
     "examples/*",
     "stress",
 ]
-# Any deleted crates with remaining README
-exclude = []
+# Crates temporarily excluded from the workspace
+exclude = ["opentelemetry-prometheus"]
 resolver = "2"
 
 [profile.bench]
