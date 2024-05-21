@@ -20,7 +20,7 @@
 //!     .with_registry(registry.clone())
 //!     .build()?;
 //!
-//! // set up a meter meter to create instruments
+//! // set up a meter to create instruments
 //! let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 //! let meter = provider.meter("my-app");
 //!
