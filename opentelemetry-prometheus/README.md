@@ -4,7 +4,10 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-[`Prometheus`] integration for applications instrumented with [`OpenTelemetry`].
+[`Prometheus`] integration for applications instrumented with [`OpenTelemetry`]. 
+
+**The development of prometheus exporter has halt until the Opentelemetry metrics API and SDK reaches 1.0. Current 
+implementation is based on Opentelemetry API and SDK 0.23**.
 
 [![Crates.io: opentelemetry-prometheus](https://img.shields.io/crates/v/opentelemetry-prometheus.svg)](https://crates.io/crates/opentelemetry-prometheus)
 [![Documentation](https://docs.rs/opentelemetry-prometheus/badge.svg)](https://docs.rs/opentelemetry-prometheus)
