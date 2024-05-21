@@ -19,8 +19,7 @@
 //! - [`TelemetryResourceDetector`] - detect telemetry SDK's information.
 //!
 //! The OS and Process resource detectors are packaged separately in the
-//! `opentelemetry-resource-detector`
-//! [crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
+//! [`opentelemetry-resource-detector` crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
 mod env;
 mod telemetry;
 
