@@ -5,7 +5,7 @@ use opentelemetry::KeyValue;
 
 use crate::{
     metrics::data::{Aggregation, Gauge, Temporality},
-    AttributeSet,
+    metrics::AttributeSet,
 };
 
 use super::{

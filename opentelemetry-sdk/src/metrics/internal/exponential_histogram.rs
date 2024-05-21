@@ -5,7 +5,7 @@ use opentelemetry::{metrics::MetricsError, KeyValue};
 
 use crate::{
     metrics::data::{self, Aggregation, Temporality},
-    AttributeSet,
+    metrics::AttributeSet,
 };
 
 use super::Number;
