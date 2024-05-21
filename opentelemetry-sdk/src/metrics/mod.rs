@@ -166,7 +166,7 @@ mod tests {
             if datapoint
                 .attributes
                 .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value1")
+                .any(|kv| kv.key.as_str() == "key1" && kv.value.as_str() == "value1")
             {
                 data_point1 = Some(datapoint);
             }
@@ -184,7 +184,7 @@ mod tests {
             if datapoint
                 .attributes
                 .iter()
-                .any(|(k, v)| k.as_str() == "key1" && v.as_str() == "value2")
+                .any(|kv| kv.key.as_str() == "key1" && kv.value.as_str() == "value2")
             {
                 data_point1 = Some(datapoint);
             }
@@ -1000,7 +1000,7 @@ mod tests {
             datapoint
                 .attributes
                 .iter()
-                .any(|(k, v)| k.as_str() == key && v.as_str() == value)
+                .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
         })
     }
 
