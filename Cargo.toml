@@ -7,8 +7,6 @@ members = [
     "examples/*",
     "stress",
 ]
-# Any deleted crates with remaining README
-exclude = []
 resolver = "2"
 
 [profile.bench]
