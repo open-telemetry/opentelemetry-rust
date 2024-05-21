@@ -6,8 +6,8 @@ use std::{
     time::SystemTime,
 };
 
-use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::AttributeSet;
 use opentelemetry::KeyValue;
 use opentelemetry::{global, metrics::MetricsError};
 

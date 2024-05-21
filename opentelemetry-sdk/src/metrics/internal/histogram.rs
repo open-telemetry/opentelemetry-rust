@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, Temporality};
-use crate::{attributes::AttributeSet, metrics::data::HistogramDataPoint};
+use crate::{metrics::data::HistogramDataPoint, metrics::AttributeSet};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, metrics::MetricsError};
 
