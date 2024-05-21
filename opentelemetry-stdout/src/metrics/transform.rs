@@ -1,4 +1,4 @@
-use crate::common::{AttributeSet, KeyValue, Resource, Scope};
+use crate::common::{KeyValue, Resource, Scope};
 use opentelemetry::{global, metrics::MetricsError};
 use opentelemetry_sdk::metrics::data;
 use serde::{Serialize, Serializer};
@@ -341,7 +341,7 @@ impl<T: Into<DataValue> + Copy> From<&data::ExponentialHistogram<T>> for Exponen
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ExponentialHistogramDataPoint {
-    attributes: AttributeSet,
+    attributes: Vec<KeyValue>,
     #[serde(serialize_with = "as_unix_nano")]
     start_time_unix_nano: SystemTime,
     #[serde(serialize_with = "as_unix_nano")]
@@ -368,7 +368,7 @@ impl<T: Into<DataValue> + Copy> From<&data::ExponentialHistogramDataPoint<T>>
 {
     fn from(value: &data::ExponentialHistogramDataPoint<T>) -> Self {
         ExponentialHistogramDataPoint {
-            attributes: AttributeSet::from(&value.attributes),
+            attributes: value.attributes.iter().map(Into::into).collect(),
             start_time_unix_nano: value.start_time,
             time_unix_nano: value.time,
             start_time: value.start_time,
