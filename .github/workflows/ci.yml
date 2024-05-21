@@ -71,11 +71,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-02-07
+          toolchain: nightly-2024-04-16
           components: rustfmt
       - name: external-type-check
         run: |
-          cargo install cargo-check-external-types
+          cargo install cargo-check-external-types --git https://github.com/awslabs/cargo-check-external-types.git --rev 98d6e533ab92540ab12a4ca35acd244dacb04a9f
           cd ${{ matrix.example }}
           cargo check-external-types --config allowed-external-types.toml
   non-default-examples:

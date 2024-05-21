@@ -297,7 +297,7 @@ mod tests {
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
     use std::thread;
 
     struct ShutdownTestLogProcessor {

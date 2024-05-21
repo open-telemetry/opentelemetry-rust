@@ -7,6 +7,7 @@
 - `OtlpMetricPipeline.build()` no longer invoke the
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
+- **Breaking** Update to `http` v1 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
 
 ## v0.16.0
 

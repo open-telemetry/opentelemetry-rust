@@ -33,6 +33,5 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "log
 opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
 rand = { version = "0.8.4", features = ["small_rng"] }
 tracing = { workspace = true, features = ["std"]}
-tracing-core = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 num-format = "0.4.4"

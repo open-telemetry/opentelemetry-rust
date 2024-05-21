@@ -6,7 +6,6 @@ publish = false
 
 
 [dependencies]
-once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry", features = ["metrics", "logs"] }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "logs", "testing"] }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic", "metrics", "logs"] }

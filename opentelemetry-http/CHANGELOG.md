@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Update to `http` v1 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
+- Remove `ishac` support [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
+
 ## v0.12.0
 
 - Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.

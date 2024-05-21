@@ -99,53 +99,29 @@ mod reqwest {
     }
 }
 
-#[cfg(feature = "isahc")]
-mod isahc {
-    use crate::ResponseExt;
-
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use isahc::AsyncReadResponseExt;
-    use std::convert::TryInto as _;
-
-    #[async_trait]
-    impl HttpClient for isahc::HttpClient {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let mut response = self.send_async(request).await?;
-            let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
-            response.copy_to(&mut bytes).await?;
-
-            let headers = std::mem::take(response.headers_mut());
-            let mut http_response = Response::builder()
-                .status(response.status().as_u16())
-                .body(bytes.into())?;
-            *http_response.headers_mut() = headers;
-
-            Ok(http_response.error_for_status()?)
-        }
-    }
-}
-
 #[cfg(feature = "hyper")]
 pub mod hyper {
     use crate::ResponseExt;
 
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
-    use hyper::client::connect::Connect;
-    use hyper::Client;
+    use http_body_util::BodyExt;
+    use hyper::body::Body;
+    use hyper_util::client::legacy::{connect::Connect, Client};
+    use std::error::Error;
     use std::fmt::Debug;
     use std::time::Duration;
     use tokio::time;
 
     #[derive(Debug, Clone)]
-    pub struct HyperClient<C> {
-        inner: Client<C>,
+    pub struct HyperClient<C, B> {
+        inner: Client<C, B>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
 
-    impl<C> HyperClient<C> {
-        pub fn new_with_timeout(inner: Client<C>, timeout: Duration) -> Self {
+    impl<C, B> HyperClient<C, B> {
+        pub fn new_with_timeout(inner: Client<C, B>, timeout: Duration) -> Self {
             Self {
                 inner,
                 timeout,
@@ -154,7 +130,7 @@ pub mod hyper {
         }
 
         pub fn new_with_timeout_and_authorization_header(
-            inner: Client<C>,
+            inner: Client<C, B>,
             timeout: Duration,
             authorization: HeaderValue,
         ) -> Self {
@@ -167,13 +143,16 @@ pub mod hyper {
     }
 
     #[async_trait]
-    impl<C> HttpClient for HyperClient<C>
+    impl<C, B> HttpClient for HyperClient<C, B>
     where
         C: Connect + Send + Sync + Clone + Debug + 'static,
+        B: From<Vec<u8>> + Body + Send + Sync + Debug + Unpin + 'static,
+        <B as Body>::Data: Send,
+        <B as Body>::Error: Into<Box<dyn Error + Send + Sync>>,
     {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
-            let mut request = Request::from_parts(parts, body.into());
+            let mut request = Request::from_parts(parts, B::from(body));
             if let Some(ref authorization) = self.authorization {
                 request
                     .headers_mut()
@@ -181,9 +160,10 @@ pub mod hyper {
             }
             let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
             let headers = std::mem::take(response.headers_mut());
+
             let mut http_response = Response::builder()
                 .status(response.status())
-                .body(hyper::body::to_bytes(response.into_body()).await?)?;
+                .body(response.into_body().collect().await?.to_bytes())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response.error_for_status()?)

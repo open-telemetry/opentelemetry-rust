@@ -291,7 +291,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         true
     }
 
-    async fn run(mut self, mut messages: impl Unpin + FusedStream<Item = Message>) {
+    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) {
         while let Some(message) = messages.next().await {
             if !self.process_message(message).await {
                 break;

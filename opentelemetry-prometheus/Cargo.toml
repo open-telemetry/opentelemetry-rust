@@ -28,7 +28,9 @@ protobuf = "2.14"
 
 [dev-dependencies]
 opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions" }
+http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 
 [features]

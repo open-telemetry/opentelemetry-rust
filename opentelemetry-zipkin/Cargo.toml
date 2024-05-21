@@ -36,13 +36,14 @@ serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.18"
 http = { workspace = true }
-reqwest = { workspace = true, optional = true}
+reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
 futures-core = { workspace = true }
 
 [dev-dependencies]
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
-hyper = { workspace = true }
+http-body-util = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
 opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
 temp-env = { workspace = true }

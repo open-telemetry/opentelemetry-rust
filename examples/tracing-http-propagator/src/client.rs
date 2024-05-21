@@ -1,10 +1,11 @@
-use hyper::{body::Body, Client};
+use http_body_util::Full;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use opentelemetry::{
     global,
     trace::{SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
 };
-use opentelemetry_http::HeaderInjector;
+use opentelemetry_http::{Bytes, HeaderInjector};
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
 use opentelemetry_stdout::SpanExporter;
 
@@ -24,7 +25,7 @@ async fn send_request(
     body_content: &str,
     span_name: &str,
 ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let client = Client::new();
+    let client = Client::builder(TokioExecutor::new()).build_http();
     let tracer = global::tracer("example/client");
     let span = tracer
         .span_builder(String::from(span_name))
@@ -37,7 +38,7 @@ async fn send_request(
         propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut().unwrap()))
     });
     let res = client
-        .request(req.body(Body::from(String::from(body_content)))?)
+        .request(req.body(Full::new(Bytes::from(body_content.to_string())))?)
         .await?;
 
     cx.span().add_event(

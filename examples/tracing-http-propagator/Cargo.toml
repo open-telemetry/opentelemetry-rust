@@ -16,7 +16,9 @@ path = "src/client.rs"
 doc = false
 
 [dependencies]
+http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
