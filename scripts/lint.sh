@@ -16,7 +16,7 @@ if rustup component add clippy; then
                 "opentelemetry-appender-log"
                 "opentelemetry-appender-tracing"
                 "opentelemetry-otlp"
-                "opentelemetry-prometheus"
+                # "opentelemetry-prometheus" - temporarily exlude Prometheus from CI.
                 "opentelemetry-proto"
                 "opentelemetry-sdk"
                 "opentelemetry-semantic-conventions"

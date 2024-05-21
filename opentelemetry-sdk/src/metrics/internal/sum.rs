@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::vec;
 use std::{
     collections::{hash_map::Entry, HashMap},
     sync::Mutex,
@@ -7,6 +8,7 @@ use std::{
 
 use crate::attributes::AttributeSet;
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use opentelemetry::KeyValue;
 use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
@@ -131,7 +133,7 @@ impl<T: Number<T>> Sum<T> {
             .swap(false, Ordering::AcqRel)
         {
             s_data.data_points.push(DataPoint {
-                attributes: AttributeSet::default(),
+                attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_value.get_and_reset_value(),
@@ -141,7 +143,10 @@ impl<T: Number<T>> Sum<T> {
 
         for (attrs, value) in values.drain() {
             s_data.data_points.push(DataPoint {
-                attributes: attrs,
+                attributes: attrs
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value,
@@ -201,7 +206,7 @@ impl<T: Number<T>> Sum<T> {
             .load(Ordering::Acquire)
         {
             s_data.data_points.push(DataPoint {
-                attributes: AttributeSet::default(),
+                attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_value.get_value(),
@@ -215,7 +220,10 @@ impl<T: Number<T>> Sum<T> {
         // overload the system.
         for (attrs, value) in values.iter() {
             s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
+                attributes: attrs
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: *value,
@@ -297,7 +305,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             .swap(false, Ordering::AcqRel)
         {
             s_data.data_points.push(DataPoint {
-                attributes: AttributeSet::default(),
+                attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_value.get_and_reset_value(),
@@ -312,7 +320,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 new_reported.insert(attrs.clone(), value);
             }
             s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
+                attributes: attrs
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: delta,
@@ -379,7 +390,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             .load(Ordering::Acquire)
         {
             s_data.data_points.push(DataPoint {
-                attributes: AttributeSet::default(),
+                attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_value.get_value(),
@@ -394,7 +405,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 new_reported.insert(attrs.clone(), *value);
             }
             s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
+                attributes: attrs
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: delta,
