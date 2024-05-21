@@ -1,5 +1,4 @@
 //! Export telemetry signals to stdout.
-//! 
 //! <div class="warning">This exporter is designed for debugging and learning purposes. It is not
 //! recommended for use in production environments. The output format might not be
 //! exhaustive and is subject to change at any time.
