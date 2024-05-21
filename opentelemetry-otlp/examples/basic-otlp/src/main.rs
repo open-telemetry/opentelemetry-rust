@@ -2,8 +2,8 @@ use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry::global;
 use opentelemetry::logs::LogError;
-use opentelemetry::metrics::MetricsError;
-use opentelemetry::trace::TraceError;
+use opentelemetry::metrics::{MetricsError, Unit};
+use opentelemetry::trace::{TraceError, TracerProvider};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
@@ -14,6 +14,13 @@ use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 
+static RESOURCE: Lazy<Resource> = Lazy::new(|| {
+    Resource::new(vec![KeyValue::new(
+        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+        "basic-otlp-example",
+    )])
+});
+
 fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
@@ -22,16 +29,11 @@ fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
                 .tonic()
                 .with_endpoint("http://localhost:4317"),
         )
-        .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "basic-otlp-tracing-example",
-            )])),
-        )
+        .with_trace_config(sdktrace::config().with_resource(RESOURCE.clone()))
         .install_batch(runtime::Tokio)
 }
 
-fn init_metrics() -> Result<(), MetricsError> {
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
     let export_config = ExportConfig {
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
@@ -43,27 +45,18 @@ fn init_metrics() -> Result<(), MetricsError> {
                 .tonic()
                 .with_export_config(export_config),
         )
-        .with_resource(Resource::new(vec![KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            "basic-otlp-metrics-example",
-        )]))
+        .with_resource(RESOURCE.clone())
         .build();
     match provider {
-        Ok(_provider) => Ok(()),
+        Ok(provider) => Ok(provider),
         Err(err) => Err(err),
     }
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
-    let service_name = env!("CARGO_BIN_NAME");
     opentelemetry_otlp::new_pipeline()
         .logging()
-        .with_log_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                service_name,
-            )])),
-        )
+        .with_log_config(Config::default().with_resource(RESOURCE.clone()))
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
@@ -71,18 +64,6 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
         )
         .install_batch(runtime::Tokio)
 }
-
-const LEMONS_KEY: Key = Key::from_static_str("lemons");
-const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
-
-static COMMON_ATTRIBUTES: Lazy<[KeyValue; 4]> = Lazy::new(|| {
-    [
-        LEMONS_KEY.i64(10),
-        KeyValue::new("A", "1"),
-        KeyValue::new("B", "2"),
-        KeyValue::new("C", "3"),
-    ]
-});
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
@@ -103,8 +84,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         "Init metrics failed with error: {:?}",
         result.err()
     );
+    let meter_provider = result.unwrap();
+    global::set_meter_provider(meter_provider.clone());
 
-    // Initialize logs, which sets the global loggerprovider.
+    // Initialize logs and save the logger_provider.
     let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
@@ -112,43 +95,49 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
     log::set_max_level(Level::Info.to_level_filter());
 
-    let tracer = global::tracer("ex.com/basic");
-    let meter = global::meter("ex.com/basic");
+    let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
+    let tracer = global::tracer_provider()
+        .tracer_builder("basic")
+        .with_attributes(common_scope_attributes.clone())
+        .build();
+    let meter = global::meter_with_version(
+        "basic",
+        Some("v1.0"),
+        Some("schema_url"),
+        Some(common_scope_attributes.clone()),
+    );
 
-    let _gauge = meter
-        .f64_observable_gauge("ex.com.one")
-        .with_description("A gauge set to 1.0")
-        .with_callback(|observer| observer.observe(1.0, COMMON_ATTRIBUTES.as_ref()))
+    let counter = meter
+        .u64_counter("test_counter")
+        .with_description("a simple counter for demo purposes.")
+        .with_unit(Unit::new("my_unit"))
         .init();
+    for _ in 0..10 {
+        counter.add(1, &[KeyValue::new("test_key", "test_value")]);
+    }
 
-    let histogram = meter.f64_histogram("ex.com.two").init();
-    histogram.record(5.5, COMMON_ATTRIBUTES.as_ref());
-
-    tracer.in_span("operation", |cx| {
+    tracer.in_span("Main operation", |cx| {
         let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
             vec![Key::new("bogons").i64(100)],
         );
-        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
+        span.set_attribute(KeyValue::new("another.key", "yes"));
 
         info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
-            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
-
+            span.set_attribute(KeyValue::new("another.key", "yes"));
             span.add_event("Sub span event", vec![]);
-
-            histogram.record(1.3, &[]);
         });
     });
 
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    logger_provider.shutdown();
-    global::shutdown_meter_provider();
+    logger_provider.shutdown()?;
+    meter_provider.shutdown()?;
 
     Ok(())
 }

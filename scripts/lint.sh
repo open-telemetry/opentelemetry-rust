@@ -12,12 +12,11 @@ cargo_feature() {
 if rustup component add clippy; then
  crates=( "opentelemetry"
                 "opentelemetry-http"
-                "opentelemetry-jaeger"
                 "opentelemetry-jaeger-propagator"
                 "opentelemetry-appender-log"
                 "opentelemetry-appender-tracing"
                 "opentelemetry-otlp"
-                "opentelemetry-prometheus"
+                # "opentelemetry-prometheus" - temporarily exlude Prometheus from CI.
                 "opentelemetry-proto"
                 "opentelemetry-sdk"
                 "opentelemetry-semantic-conventions"
@@ -39,16 +38,6 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-otlp "http-proto, reqwest-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
   cargo_feature opentelemetry-otlp "metrics"
-
-  cargo_feature opentelemetry-jaeger "isahc_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_blocking_collector_client"
-  cargo_feature opentelemetry-jaeger "reqwest_collector_client"
-  cargo_feature opentelemetry-jaeger "hyper_collector_client"
-  cargo_feature opentelemetry-jaeger "hyper_tls_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client"
-  cargo_feature opentelemetry-jaeger "wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "collector_client, wasm_collector_client"
-  cargo_feature opentelemetry-jaeger "default"
 
   cargo_feature opentelemetry-jaeger-propagator "default"
 

@@ -219,7 +219,7 @@ impl Span {
             data.end_time = opentelemetry::time::now();
         }
 
-        match provider.span_processors().as_slice() {
+        match provider.span_processors() {
             [] => {}
             [processor] => {
                 processor.on_end(build_export_data(

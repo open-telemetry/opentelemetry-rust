@@ -2,11 +2,15 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+
+## v0.23.0
+
 ### Added
 
-- [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add global::meter_provider_shutdown
 - [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640) Add `PropagationError`
-- [#1701](https://github.com/open-telemetry/opentelemetry-rust/pull/1701) `Gauge` no longer requires `otel-unstable` feature flag, as OpenTelemetry specification for `Gauge` instrumentation is stable.
+- [#1701](https://github.com/open-telemetry/opentelemetry-rust/pull/1701) `Gauge` no longer requires `otel-unstable` feature flag, as OpenTelemetry specification for `Gauge` instrument is stable.
 
 ### Removed
 
@@ -24,11 +28,12 @@
 
 ### Changed
 
-- Deprecate `versioned_logger()` in favor of `logger_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
 - **BREAKING** Moving LogRecord implementation to the SDK. [1702](https://github.com/open-telemetry/opentelemetry-rust/pull/1702).
     - Relocated `LogRecord` struct to SDK.
     - Introduced the `LogRecord` trait in the API for populating log records. This trait is implemented by the SDK.
     This is the breaking change for the authors of Log Appenders. Refer to the [opentelemetry-appender-tracing](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing) for more details.
+
+- Deprecate `versioned_logger()` in favor of `logger_builder()` [1567](https://github.com/open-telemetry/opentelemetry-rust/pull/1567).
 
 Before:
 

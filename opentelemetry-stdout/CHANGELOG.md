@@ -2,6 +2,15 @@
 
 ## vNext
 
+## v0.4.0
+
+### Changed
+
+- The default feature now includes logs, metrics and trace.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
+- TraceExporter fixed to print InstrumentationScope's attributes.
+
 ## v0.3.0
 
 ### Changed

@@ -41,6 +41,12 @@ pub struct NoopLogRecord;
 impl LogRecord for NoopLogRecord {
     // Implement the LogRecord trait methods with empty bodies.
     #[inline]
+    fn set_event_name<T>(&mut self, _name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+    }
+    #[inline]
     fn set_timestamp(&mut self, _timestamp: SystemTime) {}
     #[inline]
     fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
@@ -51,7 +57,13 @@ impl LogRecord for NoopLogRecord {
     #[inline]
     fn set_body(&mut self, _body: AnyValue) {}
     #[inline]
-    fn add_attributes(&mut self, _attributes: Vec<(Key, AnyValue)>) {}
+    fn add_attributes<I, K, V>(&mut self, _attributes: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+    }
     #[inline]
     fn add_attribute<K, V>(&mut self, _key: K, _value: V)
     where

@@ -4,8 +4,8 @@ use crate::{
     runtime::RuntimeChannel,
 };
 use opentelemetry::{
-    global::{self},
-    logs::LogResult,
+    global,
+    logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -13,8 +13,11 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::sync::atomic::AtomicBool;
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    sync::{atomic::Ordering, Arc},
+};
+use std::{sync::atomic::AtomicBool, time::SystemTime};
 
 use once_cell::sync::Lazy;
 
@@ -92,7 +95,7 @@ impl LoggerProvider {
     }
 
     /// Log processors associated with this provider.
-    pub fn log_processors(&self) -> &Vec<Box<dyn LogProcessor>> {
+    pub fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
         &self.inner.processors
     }
 
@@ -105,17 +108,29 @@ impl LoggerProvider {
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> Vec<LogResult<()>> {
-        // mark itself as already shutdown
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        // propagate the shutdown signal to processors
-        // it's up to the processor to properly block new logs after shutdown
-        self.inner
-            .processors
-            .iter()
-            .map(|processor| processor.shutdown())
-            .collect()
+    pub fn shutdown(&self) -> LogResult<()> {
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // propagate the shutdown signal to processors
+            // it's up to the processor to properly block new logs after shutdown
+            let mut errs = vec![];
+            for processor in &self.inner.processors {
+                if let Err(err) = processor.shutdown() {
+                    errs.push(err);
+                }
+            }
+
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                Err(LogError::Other(format!("{errs:?}").into()))
+            }
+        } else {
+            Err(LogError::Other("logger provider already shut down".into()))
+        }
     }
 }
 
@@ -240,6 +255,9 @@ impl opentelemetry::logs::Logger for Logger {
         if let Some(ref trace_context) = trace_context {
             log_record.trace_context = Some(trace_context.clone());
         }
+        if log_record.observed_timestamp.is_none() {
+            log_record.observed_timestamp = Some(SystemTime::now());
+        }
 
         let mut data = LogData {
             record: log_record,
@@ -247,7 +265,6 @@ impl opentelemetry::logs::Logger for Logger {
         };
 
         for p in processors {
-            //let mut cloned_record = record.clone();
             p.emit(&mut data);
         }
     }
@@ -485,6 +502,25 @@ mod tests {
     }
 
     #[test]
+    fn shutdown_idempotent_test() {
+        let counter = Arc::new(AtomicU64::new(0));
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
+            .build();
+
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_ok());
+
+        // Subsequent shutdowns should return an error.
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_err());
+
+        // Subsequent shutdowns should return an error.
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_err());
+    }
+
+    #[test]
     fn global_shutdown_test() {
         // cargo test shutdown_test --features=logs
 
@@ -507,7 +543,7 @@ mod tests {
 
         // explicitly calling shutdown on logger_provider. This will
         // indeed do the shutdown, even if there are loggers still alive.
-        logger_provider.shutdown();
+        let _ = logger_provider.shutdown();
 
         // Assert
 

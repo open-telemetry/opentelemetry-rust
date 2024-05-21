@@ -5,11 +5,14 @@ use opentelemetry::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
 pub struct LogRecord {
+    /// Event name. Optional as not all the logging API support it.
+    pub event_name: Option<Cow<'static, str>>,
+
     /// Record timestamp
     pub timestamp: Option<SystemTime>,
 
@@ -32,6 +35,13 @@ pub struct LogRecord {
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
+    fn set_event_name<T>(&mut self, name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.event_name = Some(name.into());
+    }
+
     fn set_timestamp(&mut self, timestamp: SystemTime) {
         self.timestamp = Some(timestamp);
     }
@@ -52,8 +62,15 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.body = Some(body);
     }
 
-    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>) {
-        self.attributes = Some(attributes);
+    fn add_attributes<I, K, V>(&mut self, attributes: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+        for (key, value) in attributes.into_iter() {
+            self.add_attribute(key, value);
+        }
     }
 
     fn add_attribute<K, V>(&mut self, key: K, value: V)

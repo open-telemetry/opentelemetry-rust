@@ -11,17 +11,17 @@ receivers:
       http:
 
 exporters:
-  debug:
-    verbosity: detailed
+  logging:
+    loglevel: debug
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [logging]
     metrics:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [logging]
     logs:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [logging]

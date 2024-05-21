@@ -3,6 +3,13 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// SDK implemented trait for managing log records
 pub trait LogRecord {
+    /// Sets the `event_name` of a record
+    fn set_event_name<T>(&mut self, _name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+    }
+
     /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
 
@@ -19,7 +26,11 @@ pub trait LogRecord {
     fn set_body(&mut self, body: AnyValue);
 
     /// Adds multiple attributes.
-    fn add_attributes(&mut self, attributes: Vec<(Key, AnyValue)>);
+    fn add_attributes<I, K, V>(&mut self, attributes: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<Key>,
+        V: Into<AnyValue>;
 
     /// Adds a single attribute.
     fn add_attribute<K, V>(&mut self, key: K, value: V)

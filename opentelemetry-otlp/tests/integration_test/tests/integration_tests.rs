@@ -52,6 +52,11 @@ impl TestSuite {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore] // skip when running unit test
 async fn integration_tests() {
+    // Uncomment to see logs from testcontainers
+    // env_logger::init();
+    // Run locally using the below command
+    // cargo test -- --ignored --nocapture
+
     let test_suites = [TestSuite::new("traces.json")];
 
     let mut collector_image = Collector::default();
