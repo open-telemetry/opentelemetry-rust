@@ -217,7 +217,7 @@ mod tests {
         DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
         Histogram, HistogramDataPoint, Sum,
     };
-    use std::time::SystemTime;
+    use std::{time::SystemTime, vec};
 
     use super::*;
 
@@ -382,7 +382,7 @@ mod tests {
                 .exponential_bucket_histogram(4, 20, true, true);
             let mut a = ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
-                    attributes: AttributeSet::from(&[KeyValue::new("a2", 2)][..]),
+                    attributes: vec![KeyValue::new("a1", 1)],
                     start_time: SystemTime::now(),
                     time: SystemTime::now(),
                     count: 2,
@@ -417,10 +417,7 @@ mod tests {
             assert!(new_agg.is_none());
             assert_eq!(a.temporality, temporality);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(
-                a.data_points[0].attributes,
-                AttributeSet::from(&new_attributes[..])
-            );
+            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
             assert_eq!(a.data_points[0].count, 1);
             assert_eq!(a.data_points[0].min, Some(3));
             assert_eq!(a.data_points[0].max, Some(3));
