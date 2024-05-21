@@ -1,3 +1,8 @@
+//! run with `$ cargo bench --bench log --features=logs -- --exact <test_name>` to run specific test for logs
+//! So to run test named "full-log-with-attributes/with-context" you would run `$ cargo bench --bench log --features=logs -- --exact full-log-with-attributes/with-context`
+//! To run all tests for logs you would run `$ cargo bench --bench log --features=logs`
+//!
+
 use std::collections::HashMap;
 use std::time::SystemTime;
 

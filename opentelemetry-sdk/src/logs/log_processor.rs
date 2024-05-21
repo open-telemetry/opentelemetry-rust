@@ -46,6 +46,15 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
+    ///
+    /// This method receives a mutable reference to `LogData`. If the processor
+    /// needs to handle the export asynchronously, it should clone the data to
+    /// ensure it can be safely processed without lifetime issues. Any changes
+    /// made to the log data in this method will be reflected in the next log
+    /// processor in the chain.
+    ///
+    /// # Parameters
+    /// - `data`: A mutable reference to `LogData` representing the log record.
     fn emit(&self, data: &mut LogData);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
