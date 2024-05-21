@@ -11,7 +11,7 @@ const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
 
 /// EnvResourceDetector extract resource from environment variable
-/// OTEL_RESOURCE_ATTRIBUTES. See [OpenTelemetry Resource
+/// `OTEL_RESOURCE_ATTRIBUTES`. See [OpenTelemetry Resource
 /// Spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#specifying-resource-information-via-an-environment-variable)
 /// for details.
 #[derive(Debug)]
