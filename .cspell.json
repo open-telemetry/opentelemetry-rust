@@ -52,6 +52,7 @@
         "reqwest",
         "runtimes",
         "rustc",
+        "shoppingcart",
         "Tescher",
         "tracerprovider",
         "Zhongyang",
