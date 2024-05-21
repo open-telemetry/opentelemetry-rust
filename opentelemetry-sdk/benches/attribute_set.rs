@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::AttributeSet;
+use opentelemetry_sdk::metrics::AttributeSet;
 
 // Run this benchmark with:
 // cargo bench --bench attribute_set --features=metrics

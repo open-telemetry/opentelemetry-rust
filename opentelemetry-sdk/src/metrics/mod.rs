@@ -130,7 +130,7 @@ impl Eq for HashKeyValue {}
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct AttributeSet(Vec<HashKeyValue>, u64);
+pub struct AttributeSet(Vec<HashKeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
@@ -168,12 +168,12 @@ impl AttributeSet {
     }
 
     /// Returns `true` if the set contains no elements.
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Retains only the attributes specified by the predicate.
-    pub(crate) fn retain<F>(&mut self, f: F)
+    pub fn retain<F>(&mut self, f: F)
     where
         F: Fn(&KeyValue) -> bool,
     {
@@ -184,7 +184,7 @@ impl AttributeSet {
     }
 
     /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.0.key, &kv.0.value))
     }
 }
