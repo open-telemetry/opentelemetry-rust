@@ -516,9 +516,14 @@ mod tests {
         Resource,
     };
     use async_trait::async_trait;
+    use opentelemetry::logs::AnyValue;
+    #[cfg(feature = "logs_level_enabled")]
+    use opentelemetry::logs::Severity;
+    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::borrow::Cow;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -786,5 +791,111 @@ mod tests {
         processor.emit(&mut log_data);
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+    }
+
+    #[derive(Debug)]
+    struct FirstProcessor {
+        pub(crate) logs: Arc<Mutex<Vec<LogData>>>,
+    }
+
+    impl LogProcessor for FirstProcessor {
+        fn emit(&self, data: &mut LogData) {
+            data.record.attributes.get_or_insert(vec![]).push((
+                Key::from_static_str("processed_by"),
+                AnyValue::String("FirstProcessor".into()),
+            ));
+            println!(
+                "Data attributes after modification {:?}",
+                data.record.attributes
+            );
+            self.logs.lock().unwrap().push(data.clone()); //clone as the LogProcessor is storing the data.
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct SecondProcessor {
+        pub(crate) logs: Arc<Mutex<Vec<LogData>>>,
+    }
+
+    impl LogProcessor for SecondProcessor {
+        fn emit(&self, data: &mut LogData) {
+            println!("Data attributes: {:?}", data.record.attributes.as_ref());
+            assert!(data.record.attributes.as_ref().map_or(false, |attrs| {
+                attrs.iter().any(|(key, value)| {
+                    key.as_str() == "processed_by"
+                        && value == &AnyValue::String("FirstProcessor".into())
+                })
+            }));
+            self.logs.lock().unwrap().push(data.clone());
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
+    #[test]
+    fn test_log_data_modification_by_multiple_processors() {
+        let first_processor_logs = Arc::new(Mutex::new(Vec::new()));
+        let second_processor_logs = Arc::new(Mutex::new(Vec::new()));
+
+        let first_processor = FirstProcessor {
+            logs: Arc::clone(&first_processor_logs),
+        };
+        let second_processor = SecondProcessor {
+            logs: Arc::clone(&second_processor_logs),
+        };
+
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(first_processor)
+            .with_log_processor(second_processor)
+            .build();
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.body = Some(AnyValue::String("Test log".into()));
+
+        logger.emit(log_record);
+
+        assert_eq!(first_processor_logs.lock().unwrap().len(), 1);
+        assert_eq!(second_processor_logs.lock().unwrap().len(), 1);
+
+        let first_log = &first_processor_logs.lock().unwrap()[0];
+        let second_log = &second_processor_logs.lock().unwrap()[0];
+
+        assert!(first_log.record.attributes.iter().any(|attrs| {
+            attrs.iter().any(|(key, value)| {
+                key.as_str() == "processed_by"
+                    && value == &AnyValue::String("FirstProcessor".into())
+            })
+        }));
+
+        assert!(second_log.record.attributes.iter().any(|attrs| {
+            attrs.iter().any(|(key, value)| {
+                key.as_str() == "processed_by"
+                    && value == &AnyValue::String("FirstProcessor".into())
+            })
+        }));
     }
 }
