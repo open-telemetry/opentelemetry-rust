@@ -45,7 +45,8 @@ fn main() {
 
 fn test_counter() {
     let len = ATTRIBUTE_VALUES.len();
-    let rands = CURRENT_RNG.with_borrow_mut(|rng| {
+    let rands = CURRENT_RNG.with(|rng| {
+        let mut rng = rng.borrow_mut();
         [
             rng.gen_range(0..len),
             rng.gen_range(0..len),

@@ -25,7 +25,8 @@ fn main() {
 }
 
 fn test_random_generation() {
-    let _i1 = CURRENT_RNG.with_borrow_mut(|rng| {
+    let _i1 = CURRENT_RNG.with(|rng| {
+        let mut rng = rng.borrow_mut();
         [
             rng.gen_range(0..10),
             rng.gen_range(0..10),
