@@ -336,8 +336,8 @@ mod tests {
     use rand::Rng;
 
     use crate::KeyValue;
+    use std::collections::hash_map::DefaultHasher;
     use std::f64;
-    use std::hash::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
     #[test]
