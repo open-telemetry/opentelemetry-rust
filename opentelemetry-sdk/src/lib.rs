@@ -120,7 +120,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "logs")]
@@ -146,7 +145,6 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

@@ -18,7 +18,8 @@
 //! - [`EnvResourceDetector`] - detect resource from environmental variables.
 //! - [`TelemetryResourceDetector`] - detect telemetry SDK's information.
 //!
-//! The OS and Process resource detectors are now packaged separately in the `opentelemetry-resource-detector` [crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
+//! The OS and Process resource detectors are packaged separately in the
+//! [`opentelemetry-resource-detector` crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
 mod env;
 mod telemetry;
 
@@ -208,7 +209,7 @@ impl Resource {
         self.inner.attrs.is_empty()
     }
 
-    /// Gets an iterator over the attributes of this resource, sorted by key.
+    /// Gets an iterator over the attributes of this resource.
     pub fn iter(&self) -> Iter<'_> {
         Iter(self.inner.attrs.iter())
     }
