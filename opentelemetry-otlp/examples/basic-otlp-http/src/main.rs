@@ -94,7 +94,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // add a tracing filter to filter the events generated from the crates used by opentelemetry-otlp
     // Below filter level means:
-    // Below filter level means:
     // - Logs at `info` level and above are allowed by default.
     // - Only `error` level logs from `hyper`, `tonic`, and `reqwest` crates are allowed.
     let filter = EnvFilter::new("info")
