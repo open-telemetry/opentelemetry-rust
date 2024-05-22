@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         );
         span.set_attribute(KeyValue::new("another.key", "yes"));
 
-        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
+        info!(name: "my-event-inside-span", target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
@@ -151,7 +151,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
+    info!(name: "my-event", target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
     logger_provider.shutdown()?;
