@@ -21,7 +21,7 @@ body:
     id: api-version
     attributes:
       label: API Version
-      description: What version of the OpenTelemetry API are you using?
+      description: What version of the `opentelemetry` crate are you using?
       placeholder: 0.x, 1.x, etc.
     validations:
       required: true
@@ -29,19 +29,19 @@ body:
     id: sdk-version
     attributes:
       label: SDK Version
-      description: What version of the OpenTelemetry SDK are you using?
+      description: What version of the `opentelemetry_sdk` crate are you using?
       placeholder: 0.x, 1.x, etc.
     validations:
       required: true
   - type: dropdown
     id: browsers
     attributes:
-      label: What Exporters are you seeing the problem on?
+      label: What Exporter(s) are you seeing the problem on?
       multiple: true
       options:
         - OTLP
         - Zipkin
-        - Jaeger (Deprecated)
+        - Prometheus
         - N/A
   - type: textarea
     id: logs
