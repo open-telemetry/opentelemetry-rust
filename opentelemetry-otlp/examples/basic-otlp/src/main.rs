@@ -12,7 +12,6 @@ use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
-use tokio;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
@@ -95,12 +94,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+
     // add a tracing filter to filter the events generated from the crates used by opentelemetry-otlp
     // Below filter level means:
     // Below filter level means:
     // - Logs at `info` level and above are allowed by default.
     // - Only `error` level logs from `hyper`, `tonic`, and `reqwest` crates are allowed.
-
     let filter = EnvFilter::new("info")
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
