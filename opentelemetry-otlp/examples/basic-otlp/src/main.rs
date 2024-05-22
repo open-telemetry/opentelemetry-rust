@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // Add a tracing filter to manage events from crates used by opentelemetry-otlp.
+    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
     // The filter levels are set as follows:
     // - Allow `info` level and above by default.
     // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
