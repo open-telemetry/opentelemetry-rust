@@ -3,7 +3,7 @@
     OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
-    953 B/sec
+    1.25 B/sec
 */
 
 use rand::{
@@ -25,7 +25,5 @@ fn main() {
 }
 
 fn test_random_generation() {
-    let _i1 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-    let _i2 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-    let _i3 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+    let _i1 = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..10), rng.gen_range(0..10), rng.gen_range(0..10)]);
 }

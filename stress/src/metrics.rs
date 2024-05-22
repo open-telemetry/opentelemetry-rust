@@ -45,9 +45,10 @@ fn main() {
 
 fn test_counter() {
     let len = ATTRIBUTE_VALUES.len();
-    let index_first_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..len));
-    let index_second_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..len));
-    let index_third_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..len));
+    let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..len), rng.gen_range(0..len), rng.gen_range(0..len)]);
+    let index_first_attribute = rands[0];
+    let index_second_attribute = rands[1];
+    let index_third_attribute = rands[2];
 
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
     COUNTER.add(

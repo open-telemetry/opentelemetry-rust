@@ -9,7 +9,7 @@
     | Counter_Add_Sorted             | 586 ns      |
     | Counter_Add_Unsorted           | 592 ns      |
     | Random_Generator_5             | 377 ns      |
-    | ThreadLocal_Random_Generator_5 |  43 ns      |
+    | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -54,10 +54,11 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("Counter_Add_Sorted", |b| {
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
-            let index_first_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let index_second_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let index_third_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-            let index_forth_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4), rng.gen_range(0..4), rng.gen_range(0..10), rng.gen_range(0..10)]);
+            let index_first_attribute = rands[0];
+            let index_second_attribute = rands[1];
+            let index_third_attribute = rands[2];
+            let index_forth_attribute = rands[3];
             counter.add(
                 1,
                 &[
@@ -73,10 +74,11 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("Counter_Add_Unsorted", |b| {
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
-            let index_first_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let index_second_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let index_third_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-            let index_forth_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4), rng.gen_range(0..4), rng.gen_range(0..10), rng.gen_range(0..10)]);
+            let index_first_attribute = rands[0];
+            let index_second_attribute = rands[1];
+            let index_third_attribute = rands[2];
+            let index_forth_attribute = rands[3];
             counter.add(
                 1,
                 &[
@@ -102,11 +104,7 @@ fn counter_add(c: &mut Criterion) {
 
     c.bench_function("ThreadLocal_Random_Generator_5", |b| {
         b.iter(|| {
-            let _i1 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let _i2 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
-            let _i3 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-            let _i4 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
-            let _i5 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let _i1 = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4),rng.gen_range(0..4),rng.gen_range(0..10), rng.gen_range(0..10), rng.gen_range(0..10)]);
         });
     });
 }
