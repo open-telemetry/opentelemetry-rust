@@ -1,10 +1,33 @@
+/*
+    The benchmark results:
+    criterion = "0.5.1"
+    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    RAM: 64.0 GB
+    | Test                           | Average time|
+    |--------------------------------|-------------|
+    | Counter_Add_Sorted             | 586 ns      |
+    | Counter_Add_Unsorted           | 592 ns      |
+    | Random_Generator_5             | 377 ns      |
+    | ThreadLocal_Random_Generator_5 |  43 ns      |
+*/
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{
+    rngs::{self, SmallRng},
+    Rng, SeedableRng,
+};
+use std::cell::RefCell;
+
+thread_local! {
+    /// Store random number generator for each thread
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+}
 
 // Run this benchmark with:
 // cargo bench --bench metric_counter --features=metrics
@@ -30,12 +53,11 @@ fn counter_add(c: &mut Criterion) {
     let counter = create_counter();
     c.bench_function("Counter_Add_Sorted", |b| {
         b.iter(|| {
-            let mut rng = SmallRng::from_entropy();
             // 4*4*10*10 = 1600 time series.
-            let index_first_attribute = rng.gen_range(0..4);
-            let index_second_attribute = rng.gen_range(0..4);
-            let index_third_attribute = rng.gen_range(0..10);
-            let index_forth_attribute = rng.gen_range(0..10);
+            let index_first_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let index_second_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let index_third_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let index_forth_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
             counter.add(
                 1,
                 &[
@@ -50,12 +72,11 @@ fn counter_add(c: &mut Criterion) {
 
     c.bench_function("Counter_Add_Unsorted", |b| {
         b.iter(|| {
-            let mut rng = SmallRng::from_entropy();
             // 4*4*10*10 = 1600 time series.
-            let index_first_attribute = rng.gen_range(0..4);
-            let index_second_attribute = rng.gen_range(0..4);
-            let index_third_attribute = rng.gen_range(0..10);
-            let index_forth_attribute = rng.gen_range(0..10);
+            let index_first_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let index_second_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let index_third_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let index_forth_attribute = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
             counter.add(
                 1,
                 &[
@@ -76,6 +97,16 @@ fn counter_add(c: &mut Criterion) {
             let _i3 = rng.gen_range(0..10);
             let _i4 = rng.gen_range(0..10);
             let _i5 = rng.gen_range(0..10);
+        });
+    });
+
+    c.bench_function("ThreadLocal_Random_Generator_5", |b| {
+        b.iter(|| {
+            let _i1 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let _i2 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..4));
+            let _i3 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let _i4 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
+            let _i5 = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..10));
         });
     });
 }
