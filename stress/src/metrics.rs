@@ -45,7 +45,14 @@ fn main() {
 
 fn test_counter() {
     let len = ATTRIBUTE_VALUES.len();
-    let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..len), rng.gen_range(0..len), rng.gen_range(0..len)]);
+    let rands = CURRENT_RNG.with(|rng| {
+        let mut rng = rng.borrow_mut();
+        [
+            rng.gen_range(0..len),
+            rng.gen_range(0..len),
+            rng.gen_range(0..len),
+        ]
+    });
     let index_first_attribute = rands[0];
     let index_second_attribute = rands[1];
     let index_third_attribute = rands[2];
