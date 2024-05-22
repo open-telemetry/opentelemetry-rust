@@ -92,13 +92,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Initialize logs and save the logger_provider.
     let logger_provider = init_logs().unwrap();
 
-    // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
+    // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // add a tracing filter to filter the events generated from the crates used by opentelemetry-otlp
-    // Below filter level means:
-    // - Logs at `info` level and above are allowed by default.
-    // - Only `error` level logs from `hyper`, `tonic`, and `reqwest` crates are allowed.
+    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
+    // The filter levels are set as follows:
+    // - Allow `info` level and above by default.
+    // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
+    // This ensures events generated from these crates within the OTLP Exporter are not looped back,
+    // thus preventing infinite event generation.
+    // Note: This will also drop events from these crates used outside the OTLP Exporter.
+    // For more details, see: https://github.com/open-telemetry/opentelemetry-rust/issues/761
     let filter = EnvFilter::new("info")
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
@@ -138,7 +142,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         );
         span.set_attribute(KeyValue::new("another.key", "yes"));
 
-        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
+        info!(name: "my-event-inside-span", target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
@@ -147,7 +151,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
+    info!(name: "my-event", target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
     logger_provider.shutdown()?;
