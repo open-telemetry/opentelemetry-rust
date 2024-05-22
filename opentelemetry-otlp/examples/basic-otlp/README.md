@@ -59,208 +59,133 @@ You should be able to see something similar below with different time and ID in 
 ### Span
 
 ```text
-2023-09-08T21:50:35.884Z        info    ResourceSpans #0
+2024-05-22T20:25:42.892Z    info    TracesExporter  {"kind": "exporter", "data_type": "traces", "name": "logging", "resource spans": 2, "spans": 2}
+2024-05-22T20:25:42.892Z    info    ResourceSpans #0
 Resource SchemaURL:
 Resource attributes:
-     -> service.name: Str(basic-otlp-tracing-example)
+     -> service.name: Str(basic-otlp-example)
 ScopeSpans #0
 ScopeSpans SchemaURL:
-InstrumentationScope ex.com/basic
+InstrumentationScope basic
+InstrumentationScope attributes:
+     -> scope-key: Str(scope-value)
 Span #0
-    Trace ID       : f8e7ea4dcab43689cea14f708309d682
-    Parent ID      : 8b560e2e7238eab5
-    ID             : 9e36b48dc07b32fe
+    Trace ID       : f3f6a43579f63734fe866d34d9aa0b88
+    Parent ID      : b66eacd1fcc728d3
+    ID             : af01696ea60b9229
     Name           : Sub operation...
     Kind           : Internal
-    Start time     : 2023-09-08 21:50:35.872800345 +0000 UTC
-    End time       : 2023-09-08 21:50:35.87282574 +0000 UTC
+    Start time     : 2024-05-22 20:25:42.877134 +0000 UTC
+    End time       : 2024-05-22 20:25:42.8771425 +0000 UTC
     Status code    : Unset
     Status message :
 Attributes:
-     -> lemons: Str(five)
+     -> another.key: Str(yes)
 Events:
 SpanEvent #0
      -> Name: Sub span event
-     -> Timestamp: 2023-09-08 21:50:35.872808684 +0000 UTC
+     -> Timestamp: 2024-05-22 20:25:42.8771371 +0000 UTC
      -> DroppedAttributesCount: 0
 ResourceSpans #1
 Resource SchemaURL:
 Resource attributes:
-     -> service.name: Str(basic-otlp-tracing-example)
+     -> service.name: Str(basic-otlp-example)
 ScopeSpans #0
 ScopeSpans SchemaURL:
-InstrumentationScope ex.com/basic
+InstrumentationScope basic
+InstrumentationScope attributes:
+     -> scope-key: Str(scope-value)
 Span #0
-    Trace ID       : f8e7ea4dcab43689cea14f708309d682
+    Trace ID       : f3f6a43579f63734fe866d34d9aa0b88
     Parent ID      :
-    ID             : 8b560e2e7238eab5
-    Name           : operation
+    ID             : b66eacd1fcc728d3
+    Name           : Main operation
     Kind           : Internal
-    Start time     : 2023-09-08 21:50:35.872735497 +0000 UTC
-    End time       : 2023-09-08 21:50:35.872832026 +0000 UTC
+    Start time     : 2024-05-22 20:25:42.8770371 +0000 UTC
+    End time       : 2024-05-22 20:25:42.8771505 +0000 UTC
     Status code    : Unset
     Status message :
 Attributes:
-     -> ex.com/another: Str(yes)
+     -> another.key: Str(yes)
 Events:
 SpanEvent #0
      -> Name: Nice operation!
-     -> Timestamp: 2023-09-08 21:50:35.872750123 +0000 UTC
+     -> Timestamp: 2024-05-22 20:25:42.8770471 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes::
           -> bogons: Int(100)
-        {"kind": "exporter", "data_type": "traces", "name": "logging"}
+    {"kind": "exporter", "data_type": "traces", "name": "logging"}
 ```
 
 ### Metric
 
 ```text
-2023-09-08T19:14:12.522Z        info    ResourceMetrics #0
+2024-05-22T20:25:42.908Z    info    MetricsExporter {"kind": "exporter", "data_type": "metrics", "name": "logging", "resource metrics": 1, "metrics": 1, "data points": 1}
+2024-05-22T20:25:42.908Z    info    ResourceMetrics #0
 Resource SchemaURL:
 Resource attributes:
-     -> service.name: Str(basic-otlp-metrics-example)
+     -> service.name: Str(basic-otlp-example)
 ScopeMetrics #0
-ScopeMetrics SchemaURL:
-InstrumentationScope ex.com/basic
+ScopeMetrics SchemaURL: schema_url
+InstrumentationScope basic v1.0
+InstrumentationScope attributes:
+     -> scope-key: Str(scope-value)
 Metric #0
 Descriptor:
-     -> Name: ex.com.one
-     -> Description: A gauge set to 1.0
-     -> Unit:
-     -> DataType: Gauge
+     -> Name: test_counter
+     -> Description: a simple counter for demo purposes.
+     -> Unit: my_unit
+     -> DataType: Sum
+     -> IsMonotonic: true
+     -> AggregationTemporality: Cumulative
 NumberDataPoints #0
 Data point attributes:
-     -> A: Str(1)
-     -> B: Str(2)
-     -> C: Str(3)
-     -> lemons: Int(10)
-StartTimestamp: 1970-01-01 00:00:00 +0000 UTC
-Timestamp: 2023-09-08 19:14:12.468030127 +0000 UTC
-Value: 1.000000
-Metric #1
-Descriptor:
-     -> Name: ex.com.two
-     -> Description:
-     -> Unit:
-     -> DataType: Histogram
-     -> AggregationTemporality: Cumulative
-HistogramDataPoints #0
-Data point attributes:
-     -> A: Str(1)
-     -> B: Str(2)
-     -> C: Str(3)
-     -> lemons: Int(10)
-StartTimestamp: 2023-09-08 19:14:12.466896812 +0000 UTC
-Timestamp: 2023-09-08 19:14:12.468052807 +0000 UTC
-Count: 1
-Sum: 5.500000
-Min: 5.500000
-Max: 5.500000
-ExplicitBounds #0: 0.000000
-ExplicitBounds #1: 5.000000
-ExplicitBounds #2: 10.000000
-ExplicitBounds #3: 25.000000
-ExplicitBounds #4: 50.000000
-ExplicitBounds #5: 75.000000
-ExplicitBounds #6: 100.000000
-ExplicitBounds #7: 250.000000
-ExplicitBounds #8: 500.000000
-ExplicitBounds #9: 750.000000
-ExplicitBounds #10: 1000.000000
-ExplicitBounds #11: 2500.000000
-ExplicitBounds #12: 5000.000000
-ExplicitBounds #13: 7500.000000
-ExplicitBounds #14: 10000.000000
-Buckets #0, Count: 0
-Buckets #1, Count: 0
-Buckets #2, Count: 1
-Buckets #3, Count: 0
-Buckets #4, Count: 0
-Buckets #5, Count: 0
-Buckets #6, Count: 0
-Buckets #7, Count: 0
-Buckets #8, Count: 0
-Buckets #9, Count: 0
-Buckets #10, Count: 0
-Buckets #11, Count: 0
-Buckets #12, Count: 0
-Buckets #13, Count: 0
-Buckets #14, Count: 0
-Buckets #15, Count: 0
-HistogramDataPoints #1
-StartTimestamp: 2023-09-08 19:14:12.466896812 +0000 UTC
-Timestamp: 2023-09-08 19:14:12.468052807 +0000 UTC
-Count: 1
-Sum: 1.300000
-Min: 1.300000
-Max: 1.300000
-ExplicitBounds #0: 0.000000
-ExplicitBounds #1: 5.000000
-ExplicitBounds #2: 10.000000
-ExplicitBounds #3: 25.000000
-ExplicitBounds #4: 50.000000
-ExplicitBounds #5: 75.000000
-ExplicitBounds #6: 100.000000
-ExplicitBounds #7: 250.000000
-ExplicitBounds #8: 500.000000
-ExplicitBounds #9: 750.000000
-ExplicitBounds #10: 1000.000000
-ExplicitBounds #11: 2500.000000
-ExplicitBounds #12: 5000.000000
-ExplicitBounds #13: 7500.000000
-ExplicitBounds #14: 10000.000000
-Buckets #0, Count: 0
-Buckets #1, Count: 1
-Buckets #2, Count: 0
-Buckets #3, Count: 0
-Buckets #4, Count: 0
-Buckets #5, Count: 0
-Buckets #6, Count: 0
-Buckets #7, Count: 0
-Buckets #8, Count: 0
-Buckets #9, Count: 0
-Buckets #10, Count: 0
-Buckets #11, Count: 0
-Buckets #12, Count: 0
-Buckets #13, Count: 0
-Buckets #14, Count: 0
-Buckets #15, Count: 0
-        {"kind": "exporter", "data_type": "metrics", "name": "logging"}
+     -> test_key: Str(test_value)
+StartTimestamp: 2024-05-22 20:25:42.8767804 +0000 UTC
+Timestamp: 2024-05-22 20:25:42.8937799 +0000 UTC
+Value: 10
+    {"kind": "exporter", "data_type": "metrics", "name": "logging"}
 ```
 
 ### Logs
 
 ```text
-2023-09-08T21:50:35.884Z        info    ResourceLog #0
+2024-05-22T20:25:42.914Z    info    LogsExporter    {"kind": "exporter", "data_type": "logs", "name": "logging", "resource logs": 2, "log records": 2}
+2024-05-22T20:25:42.914Z    info    ResourceLog #0
 Resource SchemaURL:
 Resource attributes:
-     -> service.name: Str(basic-otlp-logging-example)
+     -> service.name: Str(basic-otlp-example)
 ScopeLogs #0
 ScopeLogs SchemaURL:
-InstrumentationScope opentelemetry-log-appender 0.1.0
+InstrumentationScope opentelemetry-appender-tracing 0.4.0
 LogRecord #0
-ObservedTimestamp: 2023-09-08 21:50:35.872759168 +0000 UTC
+ObservedTimestamp: 2024-05-22 20:25:42.8771025 +0000 UTC
 Timestamp: 1970-01-01 00:00:00 +0000 UTC
 SeverityText: INFO
 SeverityNumber: Info(9)
 Body: Str(hello from banana. My price is 2.99. I am also inside a Span!)
-Trace ID: f8e7ea4dcab43689cea14f708309d682
-Span ID: 8b560e2e7238eab5
+Attributes:
+     -> name: Str(my-event-inside-span)
+Trace ID: f3f6a43579f63734fe866d34d9aa0b88
+Span ID: b66eacd1fcc728d3
 Flags: 1
 ResourceLog #1
 Resource SchemaURL:
 Resource attributes:
-     -> service.name: Str(basic-otlp-logging-example)
+     -> service.name: Str(basic-otlp-example)
 ScopeLogs #0
 ScopeLogs SchemaURL:
-InstrumentationScope opentelemetry-log-appender 0.1.0
+InstrumentationScope opentelemetry-appender-tracing 0.4.0
 LogRecord #0
-ObservedTimestamp: 2023-09-08 21:50:35.872833713 +0000 UTC
+ObservedTimestamp: 2024-05-22 20:25:42.8771591 +0000 UTC
 Timestamp: 1970-01-01 00:00:00 +0000 UTC
 SeverityText: INFO
 SeverityNumber: Info(9)
 Body: Str(hello from apple. My price is 1.99)
+Attributes:
+     -> name: Str(my-event)
 Trace ID:
 Span ID:
 Flags: 0
+    {"kind": "exporter", "data_type": "logs", "name": "logging"}
 ```
