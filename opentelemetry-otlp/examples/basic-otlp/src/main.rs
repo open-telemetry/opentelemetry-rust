@@ -1,4 +1,3 @@
-use log::{info, Level};
 use once_cell::sync::Lazy;
 use opentelemetry::global;
 use opentelemetry::logs::LogError;
@@ -8,11 +7,14 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
-use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
 use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
+use tracing::info;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::new(vec![KeyValue::new(
@@ -91,9 +93,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let logger_provider = init_logs().unwrap();
 
     // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
-    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
-    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
-    log::set_max_level(Level::Info.to_level_filter());
+    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+
+    // add a tracing filter to filter the events generated from the crates used by opentelemetry-otlp
+    // Below filter level means:
+    // - Logs at `info` level and above are allowed by default.
+    // - Only `error` level logs from `hyper`, `tonic`, and `reqwest` crates are allowed.
+    let filter = EnvFilter::new("info")
+        .add_directive("hyper=error".parse().unwrap())
+        .add_directive("tonic=error".parse().unwrap())
+        .add_directive("reqwest=error".parse().unwrap());
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(layer)
+        .init();
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
     let tracer = global::tracer_provider()
