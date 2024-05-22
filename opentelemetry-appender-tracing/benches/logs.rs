@@ -1,7 +1,7 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.2 LTS (5.10.102.1-microsoft-standard-WSL2)
+    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                        | Average time|
@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled           | 561 ns       |
+    | ot_layer_enabled            | 588 ns      |
 */
 
 use async_trait::async_trait;
