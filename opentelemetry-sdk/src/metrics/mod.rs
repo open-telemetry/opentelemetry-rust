@@ -162,6 +162,35 @@ mod tests {
     // be able to make progress!
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_overflow_delta() {
+        // Arrange
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Record measurements with A:0, A:1,.......A:1999, which just fits in the 2000 limit
+        for v in 0..2000 {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // All of the below will now go into overflow.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        // Expecting 2001 metric points. (2000 + 1 overflow)
+        assert_eq!(sum.data_points.len(), 2001);
+
+        let data_point =
+            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                .expect("overflow point expected");
+        assert_eq!(data_point.value, 300);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
