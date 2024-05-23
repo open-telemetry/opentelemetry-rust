@@ -13,7 +13,7 @@ use std::fmt::Debug;
 /// `LogExporter` defines the interface that log exporters should implement.
 #[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
-    /// Exports a batch of reference to `LogData`.
+    /// Exports a batch of [`LogData`].
     async fn export<'a>(&mut self, batch: &'a [&'a LogData]) -> LogResult<()>;
 
     /// Shuts down the exporter.
