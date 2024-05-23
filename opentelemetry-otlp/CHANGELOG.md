@@ -7,6 +7,11 @@
 - `OtlpMetricPipeline.build()` no longer invoke the
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
+- Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.
+Instead of using
+`.with_config(Config::default().with_resource(RESOURCE::default()))` users must
+now use `.with_resource(RESOURCE::default())` to configure Resource when using
+`OtlpLogPipeline`.
 
 ## v0.16.0
 

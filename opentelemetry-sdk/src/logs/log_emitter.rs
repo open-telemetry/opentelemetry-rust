@@ -1,7 +1,8 @@
-use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
+use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
+    Resource,
 };
 use opentelemetry::{
     global,
@@ -25,7 +26,7 @@ use once_cell::sync::Lazy;
 static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
-        config: Config::default(),
+        resource: Resource::empty(),
     }),
     is_shutdown: Arc::new(AtomicBool::new(true)),
 });
@@ -89,9 +90,9 @@ impl LoggerProvider {
         Builder::default()
     }
 
-    /// Config associated with this provider.
-    pub fn config(&self) -> &Config {
-        &self.inner.config
+    /// Resource associated with this provider.
+    pub fn resource(&self) -> &Resource {
+        &self.inner.resource
     }
 
     /// Log processors associated with this provider.
@@ -137,7 +138,7 @@ impl LoggerProvider {
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
-    config: Config,
+    resource: Resource,
 }
 
 impl Drop for LoggerProviderInner {
@@ -154,7 +155,7 @@ impl Drop for LoggerProviderInner {
 /// Builder for provider attributes.
 pub struct Builder {
     processors: Vec<Box<dyn LogProcessor>>,
-    config: Config,
+    resource: Option<Resource>,
 }
 
 impl Builder {
@@ -184,21 +185,25 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `Config` that this provider should use.
-    pub fn with_config(self, config: Config) -> Self {
-        Builder { config, ..self }
+    /// The `Resource` to be associated with this Provider.
+    pub fn with_resource(self, resource: Resource) -> Self {
+        Builder {
+            resource: Some(resource),
+            ..self
+        }
     }
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        let resource = self.resource.unwrap_or_default();
         // invoke set_resource on all the processors
         for processor in &self.processors {
-            processor.set_resource(&self.config.resource);
+            processor.set_resource(&resource);
         }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                config: self.config,
+                resource,
             }),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
@@ -357,8 +362,7 @@ mod tests {
                                expect: Option<&'static str>| {
             assert_eq!(
                 provider
-                    .config()
-                    .resource
+                    .resource()
                     .get(Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
@@ -366,18 +370,15 @@ mod tests {
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider
-                    .config()
-                    .resource
-                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
@@ -395,15 +396,13 @@ mod tests {
 
         // If user provided a resource, use that.
         let custom_config_provider = super::LoggerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
-                    SERVICE_NAME,
-                    "test_service",
-                )])),
-            })
+            .with_resource(Resource::new(vec![KeyValue::new(
+                SERVICE_NAME,
+                "test_service",
+            )]))
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
-        assert_eq!(custom_config_provider.config().resource.len(), 1);
+        assert_eq!(custom_config_provider.resource().len(), 1);
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         temp_env::with_var(
@@ -419,7 +418,7 @@ mod tests {
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
                 assert_telemetry_resource(&env_resource_provider);
-                assert_eq!(env_resource_provider.config().resource.len(), 6);
+                assert_eq!(env_resource_provider.resource().len(), 6);
             },
         );
 
@@ -429,12 +428,10 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::LoggerProvider::builder()
-                    .with_config(Config {
-                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
-                            KeyValue::new("my-custom-key", "my-custom-value"),
-                            KeyValue::new("my-custom-key2", "my-custom-value2"),
-                        ]))),
-                    })
+                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
+                        KeyValue::new("my-custom-key", "my-custom-value"),
+                        KeyValue::new("my-custom-key2", "my-custom-value2"),
+                    ])))
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -457,23 +454,15 @@ mod tests {
                     Some("value2"),
                 );
                 assert_telemetry_resource(&user_provided_resource_config_provider);
-                assert_eq!(
-                    user_provided_resource_config_provider
-                        .config()
-                        .resource
-                        .len(),
-                    7
-                );
+                assert_eq!(user_provided_resource_config_provider.resource().len(), 7);
             },
         );
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::LoggerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::empty()),
-            })
+            .with_resource(Resource::empty())
             .build();
-        assert_eq!(no_service_name.config().resource.len(), 0);
+        assert_eq!(no_service_name.resource().len(), 0);
     }
 
     #[test]

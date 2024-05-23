@@ -9,7 +9,6 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
-use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -58,7 +57,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
     opentelemetry_otlp::new_pipeline()
         .logging()
-        .with_log_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()

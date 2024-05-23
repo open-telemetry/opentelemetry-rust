@@ -19,7 +19,7 @@ use opentelemetry::logs::LogResult;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::{Config, LogProcessor, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -125,12 +125,10 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(Box::new(exporter));
     let provider = LoggerProvider::builder()
-        .with_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "benchmark",
-            )])),
-        )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "benchmark",
+        )]))
         .with_log_processor(processor)
         .build();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);

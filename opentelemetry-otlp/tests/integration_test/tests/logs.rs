@@ -14,12 +14,10 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
     opentelemetry_otlp::new_pipeline()
         .logging()
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .with_log_config(
-            sdklogs::config().with_resource(Resource::new(vec![KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "logs-integration-test",
-            )])),
-        )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            "logs-integration-test",
+        )]))
         .install_batch(runtime::Tokio)
 }
 

@@ -4,6 +4,11 @@
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
+- Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
+  method. Instead of using
+  `.with_config(Config::default().with_resource(RESOURCE::default()))` users
+  must now use `.with_resource(RESOURCE::default())` to configure Resource on
+  logger provider.
 - Removed dependency on `ordered-float`.
 
 ## v0.23.0

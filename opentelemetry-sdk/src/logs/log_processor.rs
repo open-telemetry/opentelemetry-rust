@@ -503,8 +503,7 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, Config, LogProcessor, LoggerProvider,
-            SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
@@ -699,12 +698,12 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
         let _ = LoggerProvider::builder()
             .with_log_processor(processor)
-            .with_config(Config::default().with_resource(Resource::new(vec![
+            .with_resource(Resource::new(vec![
                 KeyValue::new("k1", "v1"),
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
-            ])))
+            ]))
             .build();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
     }
@@ -721,12 +720,12 @@ mod tests {
         );
         let provider = LoggerProvider::builder()
             .with_log_processor(processor)
-            .with_config(Config::default().with_resource(Resource::new(vec![
+            .with_resource(Resource::new(vec![
                 KeyValue::new("k1", "v1"),
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
-            ])))
+            ]))
             .build();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
         let _ = provider.shutdown();
