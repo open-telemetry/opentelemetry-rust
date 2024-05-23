@@ -52,7 +52,7 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export<'a>(&mut self, batch: &'a [&'a LogData]) -> LogResult<()> {
+    async fn export<'a>(&mut self, batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         // clone if batch is borrowed
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
@@ -69,8 +69,8 @@ impl LogExporter for TonicLogsClient {
         // TODO: Avoid cloning when logdata is borrowed?
         let resource_logs = {
             batch
-                .iter()
-                .map(|&log_data| (log_data.clone()))
+                .into_iter()
+                .map(|log_data_cow| (log_data_cow.into_owned()))
                 .map(|log_data| (log_data, &self.resource))
                 .map(Into::into)
                 .collect()
