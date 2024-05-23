@@ -14,7 +14,6 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
-use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -100,9 +99,7 @@ impl LogProcessor for SimpleLogProcessor {
             .exporter
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
-            .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)]))
-            });
+            .and_then(|mut exporter| futures_executor::block_on(exporter.export(&[data])));
         if let Err(err) = result {
             global::handle_error(err);
         }
@@ -215,14 +212,15 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 match message {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
-                        logs.push(Cow::Owned(log));
+                        logs.push(log);
 
                         if logs.len() == config.max_export_batch_size {
+                            let log_refs: Vec<&LogData> = logs.iter().collect();
                             let result = export_with_timeout(
                                 config.max_export_timeout,
                                 exporter.as_mut(),
                                 &timeout_runtime,
-                                logs.split_off(0),
+                                &log_refs,
                             )
                             .await;
 
@@ -233,11 +231,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // Log batch interval time reached or a force flush has been invoked, export current spans.
                     BatchMessage::Flush(res_channel) => {
+                        let log_refs: Vec<&LogData> = logs.iter().collect();
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            logs.split_off(0),
+                            &log_refs,
                         )
                         .await;
 
@@ -254,11 +253,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown(ch) => {
+                        let log_refs: Vec<&LogData> = logs.iter().collect();
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            logs.split_off(0),
+                            &log_refs,
                         )
                         .await;
 
@@ -303,7 +303,7 @@ async fn export_with_timeout<'a, R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<Cow<'a, LogData>>,
+    batch: &'a [&'a LogData],
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -531,7 +531,6 @@ mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -542,7 +541,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export<'a>(&mut self, _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+        async fn export<'a>(&mut self, _batch: &'a [&'a LogData]) -> LogResult<()> {
             Ok(())
         }
 
