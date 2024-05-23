@@ -37,7 +37,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+fn init_tracer() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
