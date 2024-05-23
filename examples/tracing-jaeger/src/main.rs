@@ -29,7 +29,8 @@ fn init_tracer() -> Result<opentelemetry_sdk::trace::TracerProvider, TraceError>
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _tracer_provider = init_tracer().expect("Failed to initialize tracer provider.");
+    let tracer_provider = init_tracer().expect("Failed to initialize tracer provider.");
+    global::set_tracer_provider(tracer_provider.clone());
 
     let tracer = global::tracer("tracing-jaeger");
     tracer.in_span("main-operation", |cx| {

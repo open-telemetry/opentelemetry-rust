@@ -12,6 +12,7 @@ Instead of using
 `.with_config(Config::default().with_resource(RESOURCE::default()))` users must
 now use `.with_resource(RESOURCE::default())` to configure Resource when using
 `OtlpLogPipeline`.
+- The methods `OtlpTracePipeline::install_simple()` and `OtlpTracePipeline::install_batch()` now return `TracerProvider` instead of `Tracer`.
 
 ## v0.16.0
 
