@@ -2,8 +2,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::vec;
 use std::{
-    collections::{HashMap},
-    sync::{RwLock, Mutex,},
+    collections::HashMap,
+    sync::{Mutex, RwLock},
     time::SystemTime,
 };
 
@@ -50,15 +50,13 @@ impl<T: Number<T>> ValueMap<T> {
             if let Some(value_to_update) = values.get(&attrs) {
                 value_to_update.add(measurement);
                 return;
-            }
-            else {
+            } else {
                 drop(values);
                 if let Ok(mut values) = self.values.write() {
                     if let Some(value_to_update) = values.get(&attrs) {
                         value_to_update.add(measurement);
                         return;
-                    }
-                    else {
+                    } else {
                         if is_under_cardinality_limit(values.len()) {
                             let new_value = T::new_atomic_tracker();
                             new_value.add(measurement);
@@ -70,7 +68,6 @@ impl<T: Number<T>> ValueMap<T> {
                                 .or_insert_with(T::new_atomic_tracker);
                             global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                         }
-                    
                     }
                 }
             }
