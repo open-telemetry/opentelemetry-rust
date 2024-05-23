@@ -52,7 +52,7 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&mut self, batch: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = inner
@@ -65,9 +65,11 @@ impl LogExporter for TonicLogsClient {
             None => return Err(LogError::Other("exporter is already shut down".into())),
         };
 
+        // TODO: Avoid cloning here.
         let resource_logs = {
             batch
                 .into_iter()
+                .map(|log_data_cow| (log_data_cow.into_owned()))
                 .map(|log_data| (log_data, &self.resource))
                 .map(Into::into)
                 .collect()

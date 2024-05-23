@@ -14,6 +14,7 @@ use opentelemetry::{
     global,
     logs::{LogError, LogResult},
 };
+use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -45,7 +46,16 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// [`Logger`]: crate::logs::Logger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
-    fn emit(&self, data: LogData);
+    ///
+    /// This method receives a mutable reference to `LogData`. If the processor
+    /// needs to handle the export asynchronously, it should clone the data to
+    /// ensure it can be safely processed without lifetime issues. Any changes
+    /// made to the log data in this method will be reflected in the next log
+    /// processor in the chain.
+    ///
+    /// # Parameters
+    /// - `data`: A mutable reference to `LogData` representing the log record.
+    fn emit(&self, data: &mut LogData);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -80,7 +90,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, data: LogData) {
+    fn emit(&self, data: &mut LogData) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return;
@@ -90,7 +100,9 @@ impl LogProcessor for SimpleLogProcessor {
             .exporter
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
-            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![data])));
+            .and_then(|mut exporter| {
+                futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)]))
+            });
         if let Err(err) = result {
             global::handle_error(err);
         }
@@ -140,8 +152,10 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, data: LogData) {
-        let result = self.message_sender.try_send(BatchMessage::ExportLog(data));
+    fn emit(&self, data: &mut LogData) {
+        let result = self
+            .message_sender
+            .try_send(BatchMessage::ExportLog(data.clone()));
 
         if let Err(err) = result {
             global::handle_error(LogError::Other(err.into()));
@@ -201,7 +215,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 match message {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
-                        logs.push(log);
+                        logs.push(Cow::Owned(log));
 
                         if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(
@@ -285,11 +299,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     }
 }
 
-async fn export_with_timeout<R, E>(
+async fn export_with_timeout<'a, R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<LogData>,
+    batch: Vec<Cow<'a, LogData>>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -510,8 +524,14 @@ mod tests {
         Resource,
     };
     use async_trait::async_trait;
+    use opentelemetry::logs::AnyValue;
+    #[cfg(feature = "logs_level_enabled")]
+    use opentelemetry::logs::Severity;
+    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    use std::sync::Arc;
+    use std::borrow::Cow;
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -521,7 +541,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+        async fn export<'a>(&mut self, _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
             Ok(())
         }
 
@@ -743,17 +763,15 @@ mod tests {
             BatchConfig::default(),
             runtime::Tokio,
         );
-        processor.emit(LogData {
+        let mut log_data = LogData {
             record: Default::default(),
             instrumentation: Default::default(),
-        });
+        };
+        processor.emit(&mut log_data);
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
-        processor.emit(LogData {
-            record: Default::default(),
-            instrumentation: Default::default(),
-        });
+        processor.emit(&mut log_data);
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 
@@ -764,10 +782,12 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
-        processor.emit(LogData {
+        let mut log_data = LogData {
             record: Default::default(),
             instrumentation: Default::default(),
-        });
+        };
+
+        processor.emit(&mut log_data);
 
         processor.shutdown().unwrap();
 
@@ -776,11 +796,125 @@ mod tests {
             .load(std::sync::atomic::Ordering::Relaxed);
         assert!(is_shutdown);
 
-        processor.emit(LogData {
-            record: Default::default(),
-            instrumentation: Default::default(),
-        });
+        processor.emit(&mut log_data);
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+    }
+
+    #[derive(Debug)]
+    struct FirstProcessor {
+        pub(crate) logs: Arc<Mutex<Vec<LogData>>>,
+    }
+
+    impl LogProcessor for FirstProcessor {
+        fn emit(&self, data: &mut LogData) {
+            // add attribute
+            data.record.attributes.get_or_insert(vec![]).push((
+                Key::from_static_str("processed_by"),
+                AnyValue::String("FirstProcessor".into()),
+            ));
+            // update body
+            data.record.body = Some("Updated by FirstProcessor".into());
+
+            self.logs.lock().unwrap().push(data.clone()); //clone as the LogProcessor is storing the data.
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct SecondProcessor {
+        pub(crate) logs: Arc<Mutex<Vec<LogData>>>,
+    }
+
+    impl LogProcessor for SecondProcessor {
+        fn emit(&self, data: &mut LogData) {
+            assert!(data.record.attributes.as_ref().map_or(false, |attrs| {
+                attrs.iter().any(|(key, value)| {
+                    key.as_str() == "processed_by"
+                        && value == &AnyValue::String("FirstProcessor".into())
+                })
+            }));
+            assert!(
+                data.record.body.clone().unwrap()
+                    == AnyValue::String("Updated by FirstProcessor".into())
+            );
+            self.logs.lock().unwrap().push(data.clone());
+        }
+
+        #[cfg(feature = "logs_level_enabled")]
+        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+            true
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
+    #[test]
+    fn test_log_data_modification_by_multiple_processors() {
+        let first_processor_logs = Arc::new(Mutex::new(Vec::new()));
+        let second_processor_logs = Arc::new(Mutex::new(Vec::new()));
+
+        let first_processor = FirstProcessor {
+            logs: Arc::clone(&first_processor_logs),
+        };
+        let second_processor = SecondProcessor {
+            logs: Arc::clone(&second_processor_logs),
+        };
+
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(first_processor)
+            .with_log_processor(second_processor)
+            .build();
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.body = Some(AnyValue::String("Test log".into()));
+
+        logger.emit(log_record);
+
+        assert_eq!(first_processor_logs.lock().unwrap().len(), 1);
+        assert_eq!(second_processor_logs.lock().unwrap().len(), 1);
+
+        let first_log = &first_processor_logs.lock().unwrap()[0];
+        let second_log = &second_processor_logs.lock().unwrap()[0];
+
+        assert!(first_log.record.attributes.iter().any(|attrs| {
+            attrs.iter().any(|(key, value)| {
+                key.as_str() == "processed_by"
+                    && value == &AnyValue::String("FirstProcessor".into())
+            })
+        }));
+
+        assert!(second_log.record.attributes.iter().any(|attrs| {
+            attrs.iter().any(|(key, value)| {
+                key.as_str() == "processed_by"
+                    && value == &AnyValue::String("FirstProcessor".into())
+            })
+        }));
+        assert!(
+            first_log.record.body.clone().unwrap()
+                == AnyValue::String("Updated by FirstProcessor".into())
+        );
+        assert!(
+            second_log.record.body.clone().unwrap()
+                == AnyValue::String("Updated by FirstProcessor".into())
+        );
     }
 }
