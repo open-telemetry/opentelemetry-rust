@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, Temporality};
-use crate::{attributes::AttributeSet, metrics::data::HistogramDataPoint};
+use crate::{metrics::data::HistogramDataPoint, metrics::AttributeSet};
+use opentelemetry::KeyValue;
 use opentelemetry::{global, metrics::MetricsError};
 
 use super::{
@@ -165,7 +166,10 @@ impl<T: Number<T>> Histogram<T> {
 
         for (a, b) in values.drain() {
             h.data_points.push(HistogramDataPoint {
-                attributes: a,
+                attributes: a
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: start,
                 time: t,
                 count: b.count,
@@ -236,7 +240,10 @@ impl<T: Number<T>> Histogram<T> {
         // overload the system.
         for (a, b) in values.iter() {
             h.data_points.push(HistogramDataPoint {
-                attributes: a.clone(),
+                attributes: a
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: start,
                 time: t,
                 count: b.count,

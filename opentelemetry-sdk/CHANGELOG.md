@@ -4,6 +4,7 @@
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
+- Removed dependency on `ordered-float`.
 
 ## v0.23.0
 

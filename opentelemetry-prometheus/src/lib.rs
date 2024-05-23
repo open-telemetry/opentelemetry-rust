@@ -1,5 +1,8 @@
 //! An OpenTelemetry exporter for [Prometheus] metrics.
 //!
+//! <div class="warning"> The development of prometheus exporter has halt until the Opentelemetry metrics API and SDK reaches 1.0. Current
+//! implementation is based on Opentelemetry API and SDK 0.23.</div>
+//!
 //! [Prometheus]: https://prometheus.io
 //!
 //! ```
@@ -17,7 +20,7 @@
 //!     .with_registry(registry.clone())
 //!     .build()?;
 //!
-//! // set up a meter meter to create instruments
+//! // set up a meter to create instruments
 //! let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 //! let meter = provider.meter("my-app");
 //!

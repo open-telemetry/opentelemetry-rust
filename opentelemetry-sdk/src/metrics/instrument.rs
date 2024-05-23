@@ -9,8 +9,8 @@ use opentelemetry::{
 };
 
 use crate::{
-    attributes::AttributeSet,
     instrumentation::Scope,
+    metrics::AttributeSet,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
 

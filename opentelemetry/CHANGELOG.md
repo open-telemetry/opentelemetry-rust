@@ -4,6 +4,9 @@
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
+- When "metrics" feature is enabled, `KeyValue` implements `PartialEq`, `Eq`,
+  `PartialOrder`, `Order`, `Hash`. This is meant to be used for metrics
+  aggregation purposes only.
 
 ## v0.23.0
 

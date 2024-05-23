@@ -4,8 +4,8 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{attributes::AttributeSet, metrics::data::DataPoint};
-use opentelemetry::{global, metrics::MetricsError};
+use crate::{metrics::data::DataPoint, metrics::AttributeSet};
+use opentelemetry::{global, metrics::MetricsError, KeyValue};
 
 use super::{
     aggregate::{is_under_cardinality_limit, STREAM_OVERFLOW_ATTRIBUTE_SET},
@@ -66,7 +66,10 @@ impl<T: Number<T>> LastValue<T> {
 
         for (attrs, value) in values.drain() {
             dest.push(DataPoint {
-                attributes: attrs,
+                attributes: attrs
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 time: Some(value.timestamp),
                 value: value.value,
                 start_time: None,
