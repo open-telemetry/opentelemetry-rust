@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 588 ns      |
+    | ot_layer_enabled            | 446 ns      |
 */
 
 use async_trait::async_trait;
@@ -19,7 +19,7 @@ use opentelemetry::logs::LogResult;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::{Config, LogProcessor, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -33,7 +33,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
@@ -54,7 +54,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: LogData) {
+    fn emit(&self, _: &mut LogData) {
         // no-op
     }
 
@@ -125,12 +125,10 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(Box::new(exporter));
     let provider = LoggerProvider::builder()
-        .with_config(
-            Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "benchmark",
-            )])),
-        )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "service.name",
+            "benchmark",
+        )]))
         .with_log_processor(processor)
         .build();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);

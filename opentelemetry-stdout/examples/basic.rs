@@ -1,5 +1,6 @@
 //! run with `$ cargo run --example basic
 
+use once_cell::sync::Lazy;
 use opentelemetry::{global, KeyValue};
 
 #[cfg(feature = "trace")]
@@ -11,14 +12,24 @@ use opentelemetry_sdk::runtime;
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
+use opentelemetry_sdk::trace::Config;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_sdk::Resource;
+
+static RESOURCE: Lazy<Resource> = Lazy::new(|| {
+    Resource::default().merge(&Resource::new(vec![KeyValue::new(
+        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+        "basic-stdout-example",
+    )]))
+});
 
 #[cfg(feature = "trace")]
 fn init_trace() {
     let exporter = opentelemetry_stdout::SpanExporter::default();
     let provider = TracerProvider::builder()
         .with_simple_exporter(exporter)
+        .with_config(Config::default().with_resource(RESOURCE.clone()))
         .build();
     global::set_tracer_provider(provider);
 }
@@ -27,7 +38,10 @@ fn init_trace() {
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporter::default();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-    let provider = SdkMeterProvider::builder().with_reader(reader).build();
+    let provider = SdkMeterProvider::builder()
+        .with_reader(reader)
+        .with_resource(RESOURCE.clone())
+        .build();
     global::set_meter_provider(provider.clone());
     provider
 }
@@ -41,6 +55,7 @@ fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: LoggerProvider = LoggerProvider::builder()
         .with_simple_exporter(exporter)
+        .with_resource(RESOURCE.clone())
         .build();
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();

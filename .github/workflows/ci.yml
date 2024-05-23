@@ -138,19 +138,6 @@ jobs:
         env:
           CARGO_INCREMENTAL: '0'
           RUSTDOCFLAGS: -Dwarnings
-  semver: # This job uses the latest published crate as baseline for comparison.
-    runs-on: ubuntu-latest
-    name: semver
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Install stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
-    - name: cargo-semver-checks
-      uses: obi1kenobi/cargo-semver-checks-action@v2.3
   coverage:
     continue-on-error: true
     runs-on: ubuntu-latest

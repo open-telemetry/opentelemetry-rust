@@ -1,3 +1,8 @@
+//! run with `$ cargo bench --bench log --features=logs -- --exact <test_name>` to run specific test for logs
+//! So to run test named "full-log-with-attributes/with-context" you would run `$ cargo bench --bench log --features=logs -- --exact full-log-with-attributes/with-context`
+//! To run all tests for logs you would run `$ cargo bench --bench log --features=logs`
+//!
+
 use std::collections::HashMap;
 use std::time::SystemTime;
 
@@ -19,7 +24,7 @@ struct VoidExporter;
 
 #[async_trait]
 impl LogExporter for VoidExporter {
-    async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 }
