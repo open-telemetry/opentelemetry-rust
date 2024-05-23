@@ -8,10 +8,13 @@ exporters:
   logging:
     loglevel: debug
   file:
-    path: /testresults/traces.json
+    path: /testresults/result.json
 
 service:
   pipelines:
     traces:
+      receivers: [otlp]
+      exporters: [file]
+    logs:
       receivers: [otlp]
       exporters: [file]

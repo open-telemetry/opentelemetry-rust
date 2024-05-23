@@ -126,6 +126,13 @@ pub struct LogRecord {
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
     #[prost(message, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_value",
+            deserialize_with = "crate::proto::serializers::deserialize_from_value"
+        )
+    )]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
