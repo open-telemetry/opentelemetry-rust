@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 588 ns      |
+    | ot_layer_enabled            | 446 ns      |
 */
 
 use async_trait::async_trait;
@@ -33,7 +33,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
@@ -54,7 +54,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: LogData) {
+    fn emit(&self, _: &mut LogData) {
         // no-op
     }
 
