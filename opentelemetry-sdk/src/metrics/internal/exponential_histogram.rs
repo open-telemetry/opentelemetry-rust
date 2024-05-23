@@ -1,11 +1,11 @@
 use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
-use opentelemetry::metrics::MetricsError;
+use opentelemetry::{metrics::MetricsError, KeyValue};
 
 use crate::{
     metrics::data::{self, Aggregation, Temporality},
-    AttributeSet,
+    metrics::AttributeSet,
 };
 
 use super::Number;
@@ -396,7 +396,10 @@ impl<T: Number<T>> ExpoHistogram<T> {
 
         for (a, b) in values.drain() {
             h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a,
+                attributes: a
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: start,
                 time: t,
                 count: b.count,
@@ -474,7 +477,10 @@ impl<T: Number<T>> ExpoHistogram<T> {
         // overload the system.
         for (a, b) in values.iter() {
             h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a.clone(),
+                attributes: a
+                    .iter()
+                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 start_time: start,
                 time: t,
                 count: b.count,
@@ -1260,7 +1266,7 @@ mod tests {
                 want: data::ExponentialHistogram {
                     temporality: Temporality::Delta,
                     data_points: vec![data::ExponentialHistogramDataPoint {
-                        attributes: AttributeSet::default(),
+                        attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
@@ -1303,7 +1309,7 @@ mod tests {
                 want: data::ExponentialHistogram {
                     temporality: Temporality::Cumulative,
                     data_points: vec![data::ExponentialHistogramDataPoint {
-                        attributes: AttributeSet::default(),
+                        attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
@@ -1349,7 +1355,7 @@ mod tests {
                 want: data::ExponentialHistogram {
                     temporality: Temporality::Delta,
                     data_points: vec![data::ExponentialHistogramDataPoint {
-                        attributes: AttributeSet::default(),
+                        attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
@@ -1404,7 +1410,7 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 6, 2],
                         },
-                        attributes: AttributeSet::default(),
+                        attributes: vec![],
                         start_time: SystemTime::now(),
                         time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {

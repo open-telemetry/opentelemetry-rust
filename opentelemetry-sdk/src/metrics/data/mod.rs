@@ -4,7 +4,7 @@ use std::{any, borrow::Cow, fmt, time::SystemTime};
 
 use opentelemetry::{metrics::Unit, KeyValue};
 
-use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
+use crate::{instrumentation::Scope, Resource};
 
 pub use self::temporality::Temporality;
 
@@ -210,7 +210,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 #[derive(Debug)]
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// When the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.

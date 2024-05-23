@@ -4,6 +4,7 @@
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
+- Removed dependency on `ordered-float`.
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
   Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking

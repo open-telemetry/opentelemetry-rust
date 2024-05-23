@@ -12,5 +12,7 @@ opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic", "metrics", "logs"] }
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry-appender-log = { path = "../../../opentelemetry-appender-log", default-features = false}
-log = { workspace = true }
+opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
+tracing = { workspace = true, features = ["std"]}
+tracing-core = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std"] }
