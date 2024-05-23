@@ -59,7 +59,6 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
                 Key::new("code.namespace"),
                 AnyValue::from(module_path.to_owned()),
             );
-            s
         }
 
         if let Some(filepath) = meta.file() {
