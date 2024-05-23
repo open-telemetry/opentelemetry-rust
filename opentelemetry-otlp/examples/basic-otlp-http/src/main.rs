@@ -74,6 +74,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         result.err()
     );
 
+    let tracer_provider = result.unwrap();
+    global::set_tracer_provider(tracer_provider.clone());
+
     let result = init_metrics();
     assert!(
         result.is_ok(),
