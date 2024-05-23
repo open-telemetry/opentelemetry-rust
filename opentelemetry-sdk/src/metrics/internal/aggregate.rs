@@ -27,7 +27,7 @@ pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
     size < STREAM_CARDINALITY_LIMIT as usize - 1
 }
 
-/// Receives measurements to  be aggregated.
+/// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: AttributeSet);
 }
@@ -151,7 +151,6 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
     /// Builds a sum aggregate function input and output.
     pub(crate) fn sum(&self, monotonic: bool) -> (impl Measure<T>, impl ComputeAggregation) {
-        println!("sum agg");
         let s = Arc::new(Sum::new(monotonic));
         let agg_sum = Arc::clone(&s);
         let t = self.temporality;
