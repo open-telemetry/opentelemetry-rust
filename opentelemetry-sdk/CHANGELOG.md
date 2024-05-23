@@ -9,6 +9,7 @@
   `.with_config(Config::default().with_resource(RESOURCE::default()))` users
   must now use `.with_resource(RESOURCE::default())` to configure Resource on
   logger provider.
+- Removed dependency on `ordered-float`.
 
 ## v0.23.0
 

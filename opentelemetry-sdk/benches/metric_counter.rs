@@ -54,7 +54,15 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("Counter_Add_Sorted", |b| {
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
-            let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4), rng.gen_range(0..4), rng.gen_range(0..10), rng.gen_range(0..10)]);
+            let rands = CURRENT_RNG.with(|rng| {
+                let mut rng = rng.borrow_mut();
+                [
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..10),
+                    rng.gen_range(0..10),
+                ]
+            });
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
@@ -74,7 +82,15 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("Counter_Add_Unsorted", |b| {
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
-            let rands = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4), rng.gen_range(0..4), rng.gen_range(0..10), rng.gen_range(0..10)]);
+            let rands = CURRENT_RNG.with(|rng| {
+                let mut rng = rng.borrow_mut();
+                [
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..10),
+                    rng.gen_range(0..10),
+                ]
+            });
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
@@ -104,7 +120,16 @@ fn counter_add(c: &mut Criterion) {
 
     c.bench_function("ThreadLocal_Random_Generator_5", |b| {
         b.iter(|| {
-            let _i1 = CURRENT_RNG.with_borrow_mut(|rng| [rng.gen_range(0..4),rng.gen_range(0..4),rng.gen_range(0..10), rng.gen_range(0..10), rng.gen_range(0..10)]);
+            let __i1 = CURRENT_RNG.with(|rng| {
+                let mut rng = rng.borrow_mut();
+                [
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..10),
+                    rng.gen_range(0..10),
+                    rng.gen_range(0..10),
+                ]
+            });
         });
     });
 }
