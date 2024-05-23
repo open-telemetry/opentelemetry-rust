@@ -809,14 +809,14 @@ mod tests {
 
     impl LogProcessor for FirstProcessor {
         fn emit(&self, data: &mut LogData) {
+            // add attribute
             data.record.attributes.get_or_insert(vec![]).push((
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
             ));
-            println!(
-                "Data attributes after modification {:?}",
-                data.record.attributes
-            );
+            // update body
+            data.record.body = Some("Updated by FirstProcessor".into());
+
             self.logs.lock().unwrap().push(data.clone()); //clone as the LogProcessor is storing the data.
         }
 
@@ -841,13 +841,16 @@ mod tests {
 
     impl LogProcessor for SecondProcessor {
         fn emit(&self, data: &mut LogData) {
-            println!("Data attributes: {:?}", data.record.attributes.as_ref());
             assert!(data.record.attributes.as_ref().map_or(false, |attrs| {
                 attrs.iter().any(|(key, value)| {
                     key.as_str() == "processed_by"
                         && value == &AnyValue::String("FirstProcessor".into())
                 })
             }));
+            assert!(
+                data.record.body.clone().unwrap()
+                    == AnyValue::String("Updated by FirstProcessor".into())
+            );
             self.logs.lock().unwrap().push(data.clone());
         }
 
@@ -906,5 +909,13 @@ mod tests {
                     && value == &AnyValue::String("FirstProcessor".into())
             })
         }));
+        assert!(
+            first_log.record.body.clone().unwrap()
+                == AnyValue::String("Updated by FirstProcessor".into())
+        );
+        assert!(
+            second_log.record.body.clone().unwrap()
+                == AnyValue::String("Updated by FirstProcessor".into())
+        );
     }
 }
