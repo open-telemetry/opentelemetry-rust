@@ -7,7 +7,7 @@ use opentelemetry::{
         noop::{NoopAsyncInstrument, NoopRegistration},
         AsyncInstrument, Callback, CallbackRegistration, Counter, Gauge, Histogram,
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
-        ObservableUpDownCounter, Observer as ApiObserver, Result, Unit, UpDownCounter,
+        ObservableUpDownCounter, Observer as ApiObserver, Result, UpDownCounter,
     },
     KeyValue,
 };
@@ -84,50 +84,40 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Counter<u64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Counter,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Counter::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Counter, name, description, unit)
+            .map(|i| Counter::new(Arc::new(i)))
     }
 
     fn f64_counter(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Counter<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Counter,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Counter::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Counter, name, description, unit)
+            .map(|i| Counter::new(Arc::new(i)))
     }
 
     fn u64_observable_counter(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -155,16 +145,16 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableCounter,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -191,50 +181,40 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<UpDownCounter<i64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.i64_resolver);
-        p.lookup(
-            InstrumentKind::UpDownCounter,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| UpDownCounter::new(Arc::new(i)))
+        p.lookup(InstrumentKind::UpDownCounter, name, description, unit)
+            .map(|i| UpDownCounter::new(Arc::new(i)))
     }
 
     fn f64_up_down_counter(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<UpDownCounter<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::UpDownCounter,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| UpDownCounter::new(Arc::new(i)))
+        p.lookup(InstrumentKind::UpDownCounter, name, description, unit)
+            .map(|i| UpDownCounter::new(Arc::new(i)))
     }
 
     fn i64_observable_up_down_counter(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -264,16 +244,16 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableUpDownCounter,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -303,67 +283,52 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<u64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Gauge, name, description, unit)
+            .map(|i| Gauge::new(Arc::new(i)))
     }
 
     fn f64_gauge(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Gauge, name, description, unit)
+            .map(|i| Gauge::new(Arc::new(i)))
     }
 
     fn i64_gauge(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<i64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.i64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Gauge, name, description, unit)
+            .map(|i| Gauge::new(Arc::new(i)))
     }
 
     fn u64_observable_gauge(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -391,16 +356,16 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.i64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -428,16 +393,16 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
         callbacks: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
         let ms = p.measures(
             InstrumentKind::ObservableGauge,
             name.clone(),
             description.clone(),
-            unit.clone().unwrap_or_default(),
+            unit.clone(),
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -465,34 +430,24 @@ impl InstrumentProvider for SdkMeter {
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Histogram<f64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Histogram,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Histogram::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Histogram, name, description, unit)
+            .map(|i| Histogram::new(Arc::new(i)))
     }
 
     fn u64_histogram(
         &self,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Histogram<u64>> {
-        validate_instrument_config(name.as_ref(), unit.as_ref(), self.validation_policy)?;
+        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Histogram,
-            name,
-            description,
-            unit.unwrap_or_default(),
-        )
-        .map(|i| Histogram::new(Arc::new(i)))
+        p.lookup(InstrumentKind::Histogram, name, description, unit)
+            .map(|i| Histogram::new(Arc::new(i)))
     }
 
     fn register_callback(
@@ -563,7 +518,7 @@ enum InstrumentValidationPolicy {
 
 fn validate_instrument_config(
     name: &str,
-    unit: Option<&Unit>,
+    unit: &Option<Cow<'static, str>>,
     policy: InstrumentValidationPolicy,
 ) -> Result<()> {
     match validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit)) {
@@ -605,14 +560,14 @@ fn validate_instrument_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_instrument_unit(unit: Option<&Unit>) -> Result<()> {
+fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> Result<()> {
     if let Some(unit) = unit {
-        if unit.as_str().len() > INSTRUMENT_UNIT_NAME_MAX_LENGTH {
+        if unit.len() > INSTRUMENT_UNIT_NAME_MAX_LENGTH {
             return Err(MetricsError::InvalidInstrumentConfiguration(
                 INSTRUMENT_UNIT_LENGTH,
             ));
         }
-        if unit.as_str().contains(|c: char| !c.is_ascii()) {
+        if unit.contains(|c: char| !c.is_ascii()) {
             return Err(MetricsError::InvalidInstrumentConfiguration(
                 INSTRUMENT_UNIT_INVALID_CHAR,
             ));
@@ -731,7 +686,7 @@ where
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Unit,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit)?;
         Ok(ResolvedMeasures {
@@ -744,12 +699,12 @@ where
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
-        unit: Unit,
+        unit: Option<Cow<'static, str>>,
     ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),
-            unit,
+            unit: unit.unwrap_or_default(),
             kind: Some(kind),
             scope: self.meter.scope.clone(),
         };
@@ -762,7 +717,7 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use opentelemetry::metrics::{InstrumentProvider, MeterProvider, MetricsError, Unit};
+    use opentelemetry::metrics::{InstrumentProvider, MeterProvider, MetricsError};
 
     use super::{
         InstrumentValidationPolicy, SdkMeter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
@@ -895,7 +850,7 @@ mod tests {
                     ));
                 }
             };
-            let unit = Some(Unit::new(unit));
+            let unit = Some(unit.into());
             assert(
                 meter
                     .u64_counter("test".into(), None, unit.clone())
