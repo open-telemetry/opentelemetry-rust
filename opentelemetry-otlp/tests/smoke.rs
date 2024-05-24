@@ -1,4 +1,5 @@
 use futures_util::StreamExt;
+use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::WithExportConfig;
@@ -76,14 +77,15 @@ async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn smoke_tracer() {
+    use opentelemetry::trace::TracerProvider;
     println!("Starting server setup...");
     let (addr, mut req_rx) = setup().await;
 
     {
-        println!("Installing tracer...");
+        println!("Installing tracer provider...");
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert("x-header-key", "header-value".parse().unwrap());
-        let tracer = opentelemetry_otlp::new_pipeline()
+        let tracer_provider = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(
                 #[cfg(feature = "gzip-tonic")]
@@ -100,6 +102,10 @@ async fn smoke_tracer() {
             )
             .install_batch(opentelemetry_sdk::runtime::Tokio)
             .expect("failed to install");
+
+        global::set_tracer_provider(tracer_provider.clone());
+
+        let tracer = global::tracer_provider().tracer_builder("smoke").build();
 
         println!("Sending span...");
         let mut span = tracer
