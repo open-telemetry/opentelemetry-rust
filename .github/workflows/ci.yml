@@ -110,7 +110,7 @@ jobs:
     - uses: dtolnay/rust-toolchain@1.65.0
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: bash ./scripts/patch_dependencies.sh
-    - name: Check MSRV for opentelemetry
+    - name: Check MSRV for all crates
       run: bash ./scripts/msrv.sh
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
