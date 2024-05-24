@@ -10,10 +10,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::{
-//!     metrics::Unit,
-//!     KeyValue,
-//! };
+//! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
@@ -29,7 +26,7 @@
 //! // Create instruments scoped to the meter
 //! let counter = meter
 //!     .u64_counter("power_consumption")
-//!     .with_unit(Unit::new("kWh"))
+//!     .with_unit("kWh")
 //!     .init();
 //!
 //! // use instruments to record measurements
@@ -148,18 +145,45 @@ mod tests {
     use crate::metrics::reader::TemporalitySelector;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
-    use opentelemetry::metrics::{Counter, UpDownCounter};
-    use opentelemetry::{
-        metrics::{MeterProvider as _, Unit},
-        KeyValue,
-    };
+    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use std::borrow::Cow;
+    use std::sync::{Arc, Mutex};
 
     // Run all tests in this mod
     // cargo test metrics::tests --features=metrics,testing
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_overflow_delta() {
+        // Arrange
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Record measurements with A:0, A:1,.......A:1999, which just fits in the 2000 limit
+        for v in 0..2000 {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // All of the below will now go into overflow.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        // Expecting 2001 metric points. (2000 + 1 overflow)
+        assert_eq!(sum.data_points.len(), 2001);
+
+        let data_point =
+            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                .expect("overflow point expected");
+        assert_eq!(data_point.value, 300);
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_cumulative() {
@@ -190,86 +214,94 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation() {
+    async fn observable_counter_aggregation_cumulative_non_zero_increment() {
         // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation --features=metrics,testing -- --nocapture
+        // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4);
+    }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation_delta_non_zero_increment() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_delta_non_zero_increment --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation_cumulative_zero_increment() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_cumulative_zero_increment --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "Aggregation bug! https://github.com/open-telemetry/opentelemetry-rust/issues/1517"]
+    async fn observable_counter_aggregation_delta_zero_increment() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_delta_zero_increment --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4);
+    }
+
+    fn observable_counter_aggregation_helper(
+        temporality: Temporality,
+        start: u64,
+        increment: u64,
+        length: u64,
+    ) {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-
-        // Act
-        let meter = meter_provider.meter("test");
-        let _counter = meter
+        let mut test_context = TestContext::new(temporality);
+        // The Observable counter reports values[0], values[1],....values[n] on each flush.
+        let values: Vec<u64> = (0..length).map(|i| start + i * increment).collect();
+        println!("Testing with observable values: {:?}", values);
+        let values = Arc::new(values);
+        let values_clone = values.clone();
+        let i = Arc::new(Mutex::new(0));
+        let _observable_counter = test_context
+            .meter()
             .u64_observable_counter("my_observable_counter")
-            .with_unit(Unit::new("my_unit"))
-            .with_callback(|observer| {
-                observer.observe(100, &[KeyValue::new("key1", "value1")]);
-                observer.observe(200, &[KeyValue::new("key1", "value2")]);
+            .with_unit("my_unit")
+            .with_callback(move |observer| {
+                let mut index = i.lock().unwrap();
+                if *index < values.len() {
+                    observer.observe(values[*index], &[KeyValue::new("key1", "value1")]);
+                    *index += 1;
+                }
             })
             .init();
 
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_observable_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
-        let sum = metric
-            .data
-            .as_any()
-            .downcast_ref::<data::Sum<u64>>()
-            .expect("Sum aggregation expected for ObservableCounter instruments by default");
-
-        // Expecting 2 time-series.
-        assert_eq!(sum.data_points.len(), 2);
-        assert!(sum.is_monotonic, "Counter should produce monotonic.");
-        assert_eq!(
-            sum.temporality,
-            data::Temporality::Cumulative,
-            "Should produce cumulative by default."
-        );
-
-        // find and validate key1=value1 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == "key1" && kv.value.as_str() == "value1")
-            {
-                data_point1 = Some(datapoint);
+        for (iter, v) in values_clone.iter().enumerate() {
+            test_context.flush_metrics();
+            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_observable_counter", None);
+            assert_eq!(sum.data_points.len(), 1);
+            assert!(sum.is_monotonic, "Counter should produce monotonic.");
+            if let Temporality::Cumulative = temporality {
+                assert_eq!(
+                    sum.temporality,
+                    Temporality::Cumulative,
+                    "Should produce cumulative"
+                );
+            } else {
+                assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
             }
-        }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value1 expected")
-                .value,
-            100
-        );
 
-        // find and validate key1=value2 datapoint
-        let mut data_point1 = None;
-        for datapoint in &sum.data_points {
-            if datapoint
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == "key1" && kv.value.as_str() == "value2")
-            {
-                data_point1 = Some(datapoint);
+            // find and validate key1=value1 datapoint
+            let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+            if let Temporality::Cumulative = temporality {
+                // Cumulative counter should have the value as is.
+                assert_eq!(data_point.value, *v);
+            } else {
+                // Delta counter should have the increment value.
+                // Except for the first value which should be the start value.
+                if iter == 0 {
+                    assert_eq!(data_point.value, start);
+                } else {
+                    assert_eq!(data_point.value, increment);
+                }
             }
+
+            test_context.reset_metrics();
         }
-        assert_eq!(
-            data_point1
-                .expect("datapoint with key1=value2 expected")
-                .value,
-            200
-        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -283,13 +315,13 @@ mod tests {
         let meter = meter_provider.meter("test");
         let counter = meter
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter_duplicated = meter
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -309,7 +341,7 @@ mod tests {
         );
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
+        assert_eq!(metric.unit, "my_unit");
         let sum = metric
             .data
             .as_any()
@@ -335,13 +367,13 @@ mod tests {
         let meter2 = meter_provider.meter("test.meter2");
         let counter1 = meter1
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter2 = meter2
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -374,7 +406,7 @@ mod tests {
         if let Some(scope1) = scope1 {
             let metric1 = &scope1.metrics[0];
             assert_eq!(metric1.name, "my_counter");
-            assert_eq!(metric1.unit.as_str(), "my_unit");
+            assert_eq!(metric1.unit, "my_unit");
             assert_eq!(metric1.description, "my_description");
             let sum1 = metric1
                 .data
@@ -394,7 +426,7 @@ mod tests {
         if let Some(scope2) = scope2 {
             let metric2 = &scope2.metrics[0];
             assert_eq!(metric2.name, "my_counter");
-            assert_eq!(metric2.unit.as_str(), "my_unit");
+            assert_eq!(metric2.unit, "my_unit");
             assert_eq!(metric2.description, "my_description");
             let sum2 = metric2
                 .data
@@ -436,13 +468,13 @@ mod tests {
         );
         let counter1 = meter1
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter2 = meter2
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -477,7 +509,7 @@ mod tests {
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
+        assert_eq!(metric.unit, "my_unit");
         assert_eq!(metric.description, "my_description");
         let sum = metric
             .data
@@ -507,7 +539,7 @@ mod tests {
                 record_min_max: false,
             })
             .name("test_histogram_renamed")
-            .unit(Unit::new("test_unit_renamed"));
+            .unit("test_unit_renamed");
 
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
@@ -520,7 +552,7 @@ mod tests {
         let meter = meter_provider.meter("test");
         let histogram = meter
             .f64_histogram("test_histogram")
-            .with_unit(Unit::new("test_unit"))
+            .with_unit("test_unit")
             .init();
 
         histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
@@ -537,14 +569,12 @@ mod tests {
             "View rename should be ignored and original name retained."
         );
         assert_eq!(
-            metric.unit.as_str(),
-            "test_unit",
+            metric.unit, "test_unit",
             "View rename of unit should be ignored and original unit retained."
         );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    // #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
 
@@ -1128,7 +1158,7 @@ mod tests {
             let meter = self.meter_provider.meter(meter_name);
             let mut counter_builder = meter.u64_counter(counter_name);
             if let Some(unit_name) = unit {
-                counter_builder = counter_builder.with_unit(Unit::new(unit_name));
+                counter_builder = counter_builder.with_unit(unit_name);
             }
             counter_builder.init()
         }
@@ -1142,9 +1172,13 @@ mod tests {
             let meter = self.meter_provider.meter(meter_name);
             let mut updown_counter_builder = meter.i64_up_down_counter(counter_name);
             if let Some(unit_name) = unit {
-                updown_counter_builder = updown_counter_builder.with_unit(Unit::new(unit_name));
+                updown_counter_builder = updown_counter_builder.with_unit(unit_name);
             }
             updown_counter_builder.init()
+        }
+
+        fn meter(&self) -> Meter {
+            self.meter_provider.meter("test")
         }
 
         fn flush_metrics(&self) {
@@ -1188,7 +1222,7 @@ mod tests {
             let metric = &resource_metric.scope_metrics[0].metrics[0];
             assert_eq!(metric.name, counter_name);
             if let Some(expected_unit) = unit_name {
-                assert_eq!(metric.unit.as_str(), expected_unit);
+                assert_eq!(metric.unit, expected_unit);
             }
 
             metric

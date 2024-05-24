@@ -2,7 +2,7 @@
 
 use std::{any, borrow::Cow, fmt, time::SystemTime};
 
-use opentelemetry::{metrics::Unit, KeyValue};
+use opentelemetry::KeyValue;
 
 use crate::{instrumentation::Scope, Resource};
 
@@ -38,7 +38,7 @@ pub struct Metric {
     /// The description of the instrument, which can be used in documentation.
     pub description: Cow<'static, str>,
     /// The unit in which the instrument reports.
-    pub unit: Unit,
+    pub unit: Cow<'static, str>,
     /// The aggregated data from an instrument.
     pub data: Box<dyn Aggregation>,
 }

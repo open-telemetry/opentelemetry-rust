@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{CallbackRegistration, MetricsError, Result, Unit},
+    metrics::{CallbackRegistration, MetricsError, Result},
     KeyValue,
 };
 
@@ -192,7 +192,7 @@ impl SdkProducer for Pipeline {
 struct InstrumentSync {
     name: Cow<'static, str>,
     description: Cow<'static, str>,
-    unit: Unit,
+    unit: Cow<'static, str>,
     comp_agg: Box<dyn internal::ComputeAggregation>,
 }
 

@@ -151,9 +151,9 @@ impl OtlpLogPipeline<NoExporterConfig> {
 impl OtlpLogPipeline<LogExporterBuilder> {
     /// Install the configured log exporter.
     ///
-    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
+    /// Returns a [`LoggerProvider`].
     ///
-    /// [`Logger`]: opentelemetry_sdk::logs::Logger
+    /// [`LoggerProvider`]: opentelemetry_sdk::logs::LoggerProvider
     pub fn install_simple(self) -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder.build_log_exporter()?,
@@ -164,9 +164,9 @@ impl OtlpLogPipeline<LogExporterBuilder> {
     /// Install the configured log exporter and a batch log processor using the
     /// specified runtime.
     ///
-    /// Returns a [`Logger`] with the name `opentelemetry-otlp` and the current crate version.
+    /// Returns a [`LoggerProvider`].
     ///
-    /// [`Logger`]: opentelemetry_sdk::logs::Logger
+    /// [`LoggerProvider`]: opentelemetry_sdk::logs::LoggerProvider
     pub fn install_batch<R: RuntimeChannel>(
         self,
         runtime: R,

@@ -19,7 +19,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
-    rngs::{self, SmallRng},
+    rngs::{self},
     Rng, SeedableRng,
 };
 use std::cell::RefCell;
@@ -66,14 +66,14 @@ fn counter_add(c: &mut Criterion) {
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
-            let index_forth_attribute = rands[3];
+            let index_fourth_attribute = rands[3];
             counter.add(
                 1,
                 &[
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
-                    KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
+                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
                 ],
             );
         });
@@ -94,27 +94,48 @@ fn counter_add(c: &mut Criterion) {
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
-            let index_forth_attribute = rands[3];
+            let index_fourth_attribute = rands[3];
             counter.add(
                 1,
                 &[
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
-                    KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
+                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
                 ],
             );
         });
     });
 
-    c.bench_function("Random_Generator_5", |b| {
+    // Cause overflow.
+    for v in 0..2001 {
+        counter.add(100, &[KeyValue::new("A", v.to_string())]);
+    }
+    c.bench_function("Counter_Overflow", |b| {
         b.iter(|| {
-            let mut rng = SmallRng::from_entropy();
-            let _i1 = rng.gen_range(0..4);
-            let _i2 = rng.gen_range(0..4);
-            let _i3 = rng.gen_range(0..10);
-            let _i4 = rng.gen_range(0..10);
-            let _i5 = rng.gen_range(0..10);
+            // 4*4*10*10 = 1600 time series.
+            let rands = CURRENT_RNG.with(|rng| {
+                let mut rng = rng.borrow_mut();
+                [
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..4),
+                    rng.gen_range(0..10),
+                    rng.gen_range(0..10),
+                ]
+            });
+            let index_first_attribute = rands[0];
+            let index_second_attribute = rands[1];
+            let index_third_attribute = rands[2];
+            let index_fourth_attribute = rands[3];
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("attribute1", attribute_values[index_first_attribute]),
+                    KeyValue::new("attribute2", attribute_values[index_second_attribute]),
+                    KeyValue::new("attribute3", attribute_values[index_third_attribute]),
+                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
+                ],
+            );
         });
     });
 
