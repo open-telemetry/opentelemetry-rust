@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::trace::{Span, SpanKind, Tracer, TracerProvider};
+use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -102,9 +102,9 @@ async fn smoke_tracer() {
             .install_batch(opentelemetry_sdk::runtime::Tokio)
             .expect("failed to install");
 
-        global::set_tracer_provider(tracer_provider.clone());
+        global::set_tracer_provider(tracer_provider);
 
-        let tracer = global::tracer_provider().tracer_builder("smoke").build();
+        let tracer = global::tracer("smoke");
 
         println!("Sending span...");
         let mut span = tracer

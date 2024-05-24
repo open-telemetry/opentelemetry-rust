@@ -125,7 +125,6 @@
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
-//! use opentelemetry::trace::TracerProvider;
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
@@ -158,8 +157,8 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-//!         global::set_tracer_provider(tracer_provider.clone());
-//!         let tracer = global::tracer_provider().tracer_builder("opentelemetry-otlp").build();
+//!         global::set_tracer_provider(tracer_provider);
+//!         let tracer = global::tracer("tracer-name");
 //!         # tracer
 //!     # };
 //!
