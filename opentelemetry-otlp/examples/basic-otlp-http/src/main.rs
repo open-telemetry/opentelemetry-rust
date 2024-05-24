@@ -37,7 +37,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
-fn init_tracer() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
@@ -67,7 +67,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let result = init_tracer();
+    let result = init_tracer_provider();
     assert!(
         result.is_ok(),
         "Init tracer failed with error: {:?}",
