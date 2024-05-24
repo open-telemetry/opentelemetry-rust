@@ -138,7 +138,7 @@ impl Propagator {
     /// First bit controls whether to sample
     /// Second bit controls whether it's a debug trace
     /// Third bit is not used.
-    /// Forth bit is firehose flag, which is not supported in OT now.
+    /// Fourth bit is firehose flag, which is not supported in OT now.
     fn extract_trace_flags(&self, flag: &str) -> Result<TraceFlags, ()> {
         if flag.len() > 2 {
             return Err(());
