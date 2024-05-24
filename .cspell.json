@@ -43,6 +43,8 @@
         "Lalit",
         "LIBCLANG",
         "msrv",
+        "mykey",
+        "myvalue",
         "Ochtman",
         "opentelemetry",
         "OTLP",
@@ -55,6 +57,7 @@
         "shoppingcart",
         "Tescher",
         "tracerprovider",
+        "updown",
         "Zhongyang",
         "zipkin"
     ],
