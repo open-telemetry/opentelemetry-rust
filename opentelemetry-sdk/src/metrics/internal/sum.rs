@@ -55,14 +55,12 @@ impl<T: Number<T>> ValueMap<T> {
                 Entry::Vacant(vacant_entry) => {
                     if is_under_cardinality_limit(size) {
                         vacant_entry.insert(measurement);
+                    } else if let Some(val) = values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET) {
+                        *val += measurement;
+                        return;
                     } else {
-                        if let Some(val) = values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET) {
-                            *val += measurement;
-                            return;
-                        } else {
-                            values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), measurement);
-                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Further overflows to same metric until next collect will not be logged.".into()));
-                        }
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), measurement);
+                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Further overflows to same metric until next collect will not be logged.".into()));
                     }
                 }
             }
