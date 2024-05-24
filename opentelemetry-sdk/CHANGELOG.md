@@ -11,7 +11,8 @@
   logger provider.
 - Removed dependency on `ordered-float`.
 - Removed `XrayIdGenerator`, which was marked deprecated since 0.21.3. Use
-  `opentelemetry-aws`, version 0.10.0 or newer.
+  [`opentelemetry-aws`](https://crates.io/crates/opentelemetry-aws), version
+  0.10.0 or newer.
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
   Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
