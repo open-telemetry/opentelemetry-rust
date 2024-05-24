@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    metrics::{MetricsError},
+    metrics::MetricsError,
     trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
     Key, KeyValue,
 };
