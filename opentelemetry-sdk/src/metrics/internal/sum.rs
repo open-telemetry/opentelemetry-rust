@@ -61,35 +61,20 @@ impl<T: Number<T>> ValueMap<T> {
                             let new_value = T::new_atomic_tracker();
                             new_value.add(measurement);
                             values.insert(attrs, new_value);
+                        } else if let Some(overflow_value) =
+                            values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET)
+                        {
+                            overflow_value.add(measurement);
+                            return;
                         } else {
-                            values
-                                .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
-                                .and_modify(|val| val.add(measurement))
-                                .or_insert_with(T::new_atomic_tracker);
-                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
+                            let new_value = T::new_atomic_tracker();
+                            new_value.add(measurement);
+                            values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), new_value);
+                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                         }
                     }
                 }
             }
-
-            // let size = values.len();
-            // match values.entry(attrs) {
-            //     Entry::Occupied(mut occupied_entry) => {
-            //         let sum = occupied_entry.get_mut();
-            //         *sum += measurement;
-            //     }
-            //     Entry::Vacant(vacant_entry) => {
-            //         if is_under_cardinality_limit(size) {
-            //             vacant_entry.insert(measurement);
-            //         } else {
-            //             values
-            //                 .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
-            //                 .and_modify(|val| *val += measurement)
-            //                 .or_insert(measurement);
-            //             global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
-            //         }
-            //     }
-            // }
         }
     }
 }
