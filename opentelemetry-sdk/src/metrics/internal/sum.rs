@@ -60,7 +60,7 @@ impl<T: Number<T>> ValueMap<T> {
                         return;
                     } else {
                         values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), measurement);
-                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Further overflows to same metric until next collect will not be logged.".into()));
+                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                     }
                 }
             }
