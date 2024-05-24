@@ -137,8 +137,11 @@
 //!     map.insert("x-host", "example.com".parse().unwrap());
 //!     map.insert("x-number", "123".parse().unwrap());
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
+//! 
+//!     use opentelemetry::global;
+//!     use opentelemetry::trace::TracerProvider;
 //!
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let tracer_provider = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
 //!         .with_exporter(
 //!             opentelemetry_otlp::new_exporter()
@@ -157,6 +160,8 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+//!         global::set_tracer_provider(tracer_provider.clone());
+//!         let tracer = global::tracer_provider().tracer_builder("opentelemetry-otlp").build();
 //!         # tracer
 //!     # };
 //!
