@@ -9,6 +9,11 @@ name = "metrics"
 path = "src/metrics.rs"
 doc = false
 
+[[bin]] # Bin to run the metrics overflow stress tests
+name = "metrics_overflow"
+path = "src/metrics_overflow.rs"
+doc = false
+
 [[bin]] # Bin to run the logs stress tests
 name = "logs"
 path = "src/logs.rs"
