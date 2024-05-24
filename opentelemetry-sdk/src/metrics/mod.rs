@@ -10,10 +10,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::{
-//!     metrics::Unit,
-//!     KeyValue,
-//! };
+//! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
