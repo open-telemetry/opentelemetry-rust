@@ -26,7 +26,7 @@
 //! // Create instruments scoped to the meter
 //! let counter = meter
 //!     .u64_counter("power_consumption")
-//!     .with_unit(Unit::new("kWh"))
+//!     .with_unit("kWh")
 //!     .init();
 //!
 //! // use instruments to record measurements
