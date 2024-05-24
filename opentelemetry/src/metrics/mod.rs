@@ -57,32 +57,6 @@ impl<T> From<PoisonError<T>> for MetricsError {
     }
 }
 
-/// Units denote underlying data units tracked by `Meter`s.
-#[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
-pub struct Unit(Cow<'static, str>);
-
-impl Unit {
-    /// Create a new `Unit` from an `Into<String>`
-    pub fn new<S>(value: S) -> Self
-    where
-        S: Into<Cow<'static, str>>,
-    {
-        Unit(value.into())
-    }
-
-    /// View unit as &str
-    pub fn as_str(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl AsRef<str> for Unit {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
 struct F64Hashable(f64);
 
 impl PartialEq for F64Hashable {
@@ -139,7 +113,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Counter<u64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -149,7 +123,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Counter<f64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -159,7 +133,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<u64>>,
     ) -> Result<ObservableCounter<u64>> {
         Ok(ObservableCounter::new(Arc::new(
@@ -172,7 +146,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableCounter<f64>> {
         Ok(ObservableCounter::new(Arc::new(
@@ -185,7 +159,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<UpDownCounter<i64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -197,7 +171,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<UpDownCounter<f64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -209,7 +183,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<i64>>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
@@ -222,7 +196,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
@@ -235,7 +209,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<u64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -245,7 +219,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<f64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -255,7 +229,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Gauge<i64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -265,7 +239,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<u64>>,
     ) -> Result<ObservableGauge<u64>> {
         Ok(ObservableGauge::new(Arc::new(
@@ -278,7 +252,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<i64>>,
     ) -> Result<ObservableGauge<i64>> {
         Ok(ObservableGauge::new(Arc::new(
@@ -291,7 +265,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
         _callback: Vec<Callback<f64>>,
     ) -> Result<ObservableGauge<f64>> {
         Ok(ObservableGauge::new(Arc::new(
@@ -304,7 +278,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Histogram<f64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
@@ -314,7 +288,7 @@ pub trait InstrumentProvider {
         &self,
         _name: Cow<'static, str>,
         _description: Option<Cow<'static, str>>,
-        _unit: Option<Unit>,
+        _unit: Option<Cow<'static, str>>,
     ) -> Result<Histogram<u64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
