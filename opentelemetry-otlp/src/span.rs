@@ -154,7 +154,6 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
     }
-    
     provider_builder.build()
 }
 
