@@ -67,7 +67,7 @@ struct Metric {
     #[serde(skip_serializing_if = "str::is_empty")]
     description: Cow<'static, str>,
     #[serde(skip_serializing_if = "str::is_empty")]
-    unit:  Cow<'static, str>,
+    unit: Cow<'static, str>,
     #[serde(flatten)]
     data: Option<MetricData>,
 }

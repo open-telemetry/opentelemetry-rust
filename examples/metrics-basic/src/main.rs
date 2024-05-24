@@ -1,5 +1,4 @@
 use opentelemetry::global;
-use opentelemetry::metrics::Unit;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
@@ -47,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_counter = meter
         .u64_observable_counter("my_observable_counter")
         .with_description("My observable counter example description")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 100,
@@ -75,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_up_down_counter = meter
         .i64_observable_up_down_counter("my_observable_updown_counter")
         .with_description("My observable updown counter example description")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 100,
@@ -108,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let gauge = meter
         .f64_gauge("my_gauge")
         .with_description("A gauge set to 1.0")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .init();
 
     gauge.record(
@@ -123,7 +122,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_gauge = meter
         .f64_observable_gauge("my_observable_gauge")
         .with_description("An observable gauge set to 1.0")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 1.0,
