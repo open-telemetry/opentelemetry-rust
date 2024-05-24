@@ -307,12 +307,16 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
+        resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
     ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
-        let req = ExportTraceServiceRequest {
-            resource_spans: spans.into_iter().map(Into::into).collect(),
-        };
+        let resource_spans = spans
+            .into_iter()
+            .map(|log_event| (log_event, resource).into())
+            .collect::<Vec<_>>();
+
+        let req = ExportTraceServiceRequest { resource_spans };
         match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {

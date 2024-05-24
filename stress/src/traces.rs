@@ -45,6 +45,8 @@ impl SpanProcessor for NoOpSpanProcessor {
     fn shutdown(&mut self) -> TraceResult<()> {
         Ok(())
     }
+
+    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {}
 }
 
 fn main() {

@@ -231,6 +231,8 @@ impl trace::SpanExporter for Exporter {
             self.local_endpoint.clone(),
         ))
     }
+
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 /// Wrap type for errors from opentelemetry zipkin

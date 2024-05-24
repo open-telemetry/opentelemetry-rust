@@ -12,6 +12,9 @@ use super::BoxInterceptor;
 
 pub(crate) struct TonicTracesClient {
     inner: Option<ClientInner>,
+    #[allow(dead_code)]
+    // <allow dead> would be removed once we support set_resource for metrics.
+    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -43,6 +46,7 @@ impl TonicTracesClient {
                 client,
                 interceptor,
             }),
+            resource: Default::default(),
         }
     }
 }
@@ -66,14 +70,21 @@ impl SpanExporter for TonicTracesClient {
             }
         };
 
+        // TODO: Avoid cloning here.
+        let resource_spans = {
+            batch
+                .into_iter()
+                .map(|log_data| (log_data, &self.resource))
+                .map(Into::into)
+                .collect()
+        };
+
         Box::pin(async move {
             client
                 .export(Request::from_parts(
                     metadata,
                     extensions,
-                    ExportTraceServiceRequest {
-                        resource_spans: batch.into_iter().map(Into::into).collect(),
-                    },
+                    ExportTraceServiceRequest { resource_spans },
                 ))
                 .await
                 .map_err(crate::Error::from)?;
@@ -84,5 +95,9 @@ impl SpanExporter for TonicTracesClient {
 
     fn shutdown(&mut self) {
         let _ = self.inner.take();
+    }
+
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+        self.resource = resource.into();
     }
 }
