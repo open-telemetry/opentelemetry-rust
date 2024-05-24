@@ -24,7 +24,7 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
-    size < STREAM_CARDINALITY_LIMIT as usize - 1
+    size < STREAM_CARDINALITY_LIMIT as usize
 }
 
 /// Receives measurements to be aggregated.
