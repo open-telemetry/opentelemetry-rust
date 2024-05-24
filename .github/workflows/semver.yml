@@ -1,0 +1,22 @@
+name: Semver compliance
+env:
+  CI: true
+on:
+  pull_request:
+    types: [ labeled, synchronize, opened, reopened ]
+
+jobs:
+  semver-compliance: # This job uses the latest published crate as baseline for comparison.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event.label.name == 'semver-check' || contains(github.event.pull_request.labels.*.name, 'semver-check') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: cargo-semver-checks
+        uses: obi1kenobi/cargo-semver-checks-action@v2.3
