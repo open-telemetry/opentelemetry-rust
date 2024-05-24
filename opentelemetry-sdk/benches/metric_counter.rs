@@ -19,7 +19,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
-    rngs::{self, SmallRng},
+    rngs::{self},
     Rng, SeedableRng,
 };
 use std::cell::RefCell;
