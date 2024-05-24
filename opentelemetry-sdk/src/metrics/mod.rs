@@ -275,8 +275,7 @@ mod tests {
             })
             .init();
 
-        let mut iter = 0;
-        for v in values_clone.iter() {
+        for (iter, v) in values_clone.iter().enumerate() {
             test_context.flush_metrics();
             let sum = test_context.get_aggregation::<data::Sum<u64>>("my_observable_counter", None);
             assert_eq!(sum.data_points.len(), 1);
@@ -307,7 +306,6 @@ mod tests {
                 }
             }
 
-            iter += 1;
             test_context.reset_metrics();
         }
     }
