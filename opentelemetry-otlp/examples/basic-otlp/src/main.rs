@@ -22,7 +22,7 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     )])
 });
 
-fn init_tracer() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
 
-    let result = init_tracer();
+    let result = init_tracer_provider();
     assert!(
         result.is_ok(),
         "Init tracer failed with error: {:?}",
