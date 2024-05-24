@@ -7,6 +7,9 @@
 - When "metrics" feature is enabled, `KeyValue` implements `PartialEq`, `Eq`,
   `PartialOrder`, `Order`, `Hash`. This is meant to be used for metrics
   aggregation purposes only.
+- Removed `Unit` struct for specifying Instrument units. Unit is treated as an
+  opaque string. Migration: Replace `.with_unit(Unit::new("myunit"))` with
+  `.with_unit("myunit")`.
 
 ## v0.23.0
 

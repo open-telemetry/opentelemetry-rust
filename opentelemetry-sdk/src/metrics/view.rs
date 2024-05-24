@@ -160,7 +160,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
                 } else {
                     i.description.clone()
                 },
-                unit: if !mask.unit.as_str().is_empty() {
+                unit: if !mask.unit.is_empty() {
                     mask.unit.clone()
                 } else {
                     i.unit.clone()
