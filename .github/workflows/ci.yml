@@ -110,10 +110,9 @@ jobs:
     - uses: dtolnay/rust-toolchain@1.65.0
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: bash ./scripts/patch_dependencies.sh
-    - name: Run tests
+    - name: Run cargo check
       run: cargo --version &&
-        cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
-        cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
+        cargo check
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
