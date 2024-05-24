@@ -55,6 +55,7 @@
         "runtimes",
         "rustc",
         "shoppingcart",
+        "struct",
         "Tescher",
         "tracerprovider",
         "updown",

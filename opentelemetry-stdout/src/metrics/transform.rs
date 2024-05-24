@@ -77,7 +77,7 @@ impl From<data::Metric> for Metric {
         Metric {
             name: value.name,
             description: value.description,
-            unit: value.unit.into(),
+            unit: value.unit,
             data: map_data(value.data.as_any()),
         }
     }
