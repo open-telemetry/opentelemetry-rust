@@ -145,7 +145,7 @@ mod tests {
     use crate::metrics::reader::TemporalitySelector;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
-    use opentelemetry::metrics::{Counter, UpDownCounter};
+    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
@@ -252,7 +252,7 @@ mod tests {
         let mut test_context = TestContext::new(temporality);
         // The Observable counter reports values[0], values[1],....values[n] on each flush.
         let values: Vec<u64> = (0..length).map(|i| start + i * increment).collect();
-        println!("values: {:?}", values);
+        println!("Testing with observable values: {:?}", values);
         let values = Arc::new(values);
         let values_clone = values.clone();
         let i = Arc::new(Mutex::new(0));
@@ -260,9 +260,12 @@ mod tests {
             .meter()
             .u64_observable_counter("my_observable_counter")
             .with_unit("my_unit")
-            .with_callback(|observer| {
-                observer.observe(100, &[KeyValue::new("key1", "value1")]);
-                observer.observe(200, &[KeyValue::new("key1", "value2")]);
+            .with_callback(move |observer| {
+                let mut index = i.lock().unwrap();
+                if *index < values.len() {
+                    observer.observe(values[*index], &[KeyValue::new("key1", "value1")]);
+                    *index += 1;
+                }
             })
             .init();
 
