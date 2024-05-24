@@ -56,22 +56,20 @@ impl<T: Number<T>> ValueMap<T> {
                     if let Some(value_to_update) = values.get(&attrs) {
                         value_to_update.add(measurement);
                         return;
+                    } else if is_under_cardinality_limit(values.len()) {
+                        let new_value = T::new_atomic_tracker();
+                        new_value.add(measurement);
+                        values.insert(attrs, new_value);
+                    } else if let Some(overflow_value) =
+                        values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET)
+                    {
+                        overflow_value.add(measurement);
+                        return;
                     } else {
-                        if is_under_cardinality_limit(values.len()) {
-                            let new_value = T::new_atomic_tracker();
-                            new_value.add(measurement);
-                            values.insert(attrs, new_value);
-                        } else if let Some(overflow_value) =
-                            values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET)
-                        {
-                            overflow_value.add(measurement);
-                            return;
-                        } else {
-                            let new_value = T::new_atomic_tracker();
-                            new_value.add(measurement);
-                            values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), new_value);
-                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
-                        }
+                        let new_value = T::new_atomic_tracker();
+                        new_value.add(measurement);
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), new_value);
+                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                     }
                 }
             }
