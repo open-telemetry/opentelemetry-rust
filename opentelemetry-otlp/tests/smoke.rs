@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::trace::{Span, SpanKind, Tracer};
+use opentelemetry::trace::{Span, SpanKind, Tracer, TracerProvider};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
@@ -77,7 +77,6 @@ async fn setup() -> (SocketAddr, mpsc::Receiver<ExportTraceServiceRequest>) {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn smoke_tracer() {
-    use opentelemetry::trace::TracerProvider;
     println!("Starting server setup...");
     let (addr, mut req_rx) = setup().await;
 

@@ -120,11 +120,12 @@
 //! on the choice of exporters.
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
+//! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
+//! use opentelemetry::trace::TracerProvider;
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
@@ -137,9 +138,6 @@
 //!     map.insert("x-host", "example.com".parse().unwrap());
 //!     map.insert("x-number", "123".parse().unwrap());
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
-//! 
-//!     use opentelemetry::global;
-//!     use opentelemetry::trace::TracerProvider;
 //!
 //!     let tracer_provider = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
