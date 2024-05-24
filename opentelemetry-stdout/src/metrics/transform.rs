@@ -61,28 +61,13 @@ impl From<data::ScopeMetrics> for ScopeMetrics {
 }
 
 #[derive(Serialize, Debug, Clone)]
-struct Unit(Cow<'static, str>);
-
-impl Unit {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl From<opentelemetry::metrics::Unit> for Unit {
-    fn from(unit: opentelemetry::metrics::Unit) -> Self {
-        Unit(unit.as_str().to_string().into())
-    }
-}
-
-#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Metric {
     name: Cow<'static, str>,
     #[serde(skip_serializing_if = "str::is_empty")]
     description: Cow<'static, str>,
-    #[serde(skip_serializing_if = "Unit::is_empty")]
-    unit: Unit,
+    #[serde(skip_serializing_if = "str::is_empty")]
+    unit: Cow<'static, str>,
     #[serde(flatten)]
     data: Option<MetricData>,
 }
@@ -92,7 +77,7 @@ impl From<data::Metric> for Metric {
         Metric {
             name: value.name,
             description: value.description,
-            unit: value.unit.into(),
+            unit: value.unit,
             data: map_data(value.data.as_any()),
         }
     }
