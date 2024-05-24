@@ -35,6 +35,7 @@
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::resource::Resource;
 use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
 use futures_channel::oneshot;
@@ -50,7 +51,7 @@ use opentelemetry::{
     Context,
 };
 use std::cmp::min;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
 /// Delay interval between two consecutive exports.
@@ -92,6 +93,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
     fn shutdown(&mut self) -> TraceResult<()>;
+    /// Set the resource for the log processor.
+    fn set_resource(&mut self, _resource: &Resource);
 }
 
 /// A [SpanProcessor] that passes finished spans to the configured
@@ -145,6 +148,12 @@ impl SpanProcessor for SimpleSpanProcessor {
             Err(TraceError::Other(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
             ))
+        }
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.set_resource(resource);
         }
     }
 }
@@ -259,6 +268,13 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             .map_err(|err| TraceError::Other(err.into()))
             .and_then(|identity| identity)
     }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
+    }
 }
 
 /// Messages sent between application thread and batch span processor's work thread.
@@ -275,6 +291,8 @@ enum BatchMessage {
     Flush(Option<oneshot::Sender<ExportResult>>),
     /// Shut down the worker thread, push all spans in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
 }
 
 struct BatchSpanProcessorInternal<R> {
@@ -375,8 +393,11 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                 self.exporter.shutdown();
                 return false;
             }
+            // propagate the resource
+            BatchMessage::SetResource(resource) => {
+                self.exporter.set_resource(&resource);
+            }
         }
-
         true
     }
 
@@ -669,6 +690,7 @@ mod tests {
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+    use crate::resource::Resource;
     use crate::runtime;
     use crate::testing::trace::{
         new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
@@ -710,7 +732,6 @@ mod tests {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            resource: Default::default(),
             instrumentation_lib: Default::default(),
         };
         processor.on_end(unsampled);
@@ -928,6 +949,8 @@ mod tests {
             use futures_util::FutureExt;
             Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
         }
+
+        fn set_resource(&mut self, _resource: &Resource) {}
     }
 
     #[test]

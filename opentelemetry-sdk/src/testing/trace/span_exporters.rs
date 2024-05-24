@@ -3,7 +3,8 @@ use crate::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::{Config, SpanEvents, SpanLinks},
+    resource::Resource,
+    trace::{SpanEvents, SpanLinks},
     InstrumentationLibrary,
 };
 use futures_util::future::BoxFuture;
@@ -14,7 +15,6 @@ use opentelemetry::trace::{
 use std::fmt::{Display, Formatter};
 
 pub fn new_test_export_span_data() -> SpanData {
-    let config = Config::default();
     SpanData {
         span_context: SpanContext::new(
             TraceId::from_u128(1),
@@ -33,7 +33,6 @@ pub fn new_test_export_span_data() -> SpanData {
         events: SpanEvents::default(),
         links: SpanLinks::default(),
         status: Status::Unset,
-        resource: config.resource,
         instrumentation_lib: InstrumentationLibrary::default(),
     }
 }
@@ -61,6 +60,8 @@ impl SpanExporter for TokioSpanExporter {
     fn shutdown(&mut self) {
         self.tx_shutdown.send(()).unwrap();
     }
+
+    fn set_resource(&mut self, _resource: &crate::Resource) {}
 }
 
 pub fn new_tokio_test_exporter() -> (
@@ -121,4 +122,7 @@ impl SpanExporter for NoopSpanExporter {
     fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         Box::pin(std::future::ready(Ok(())))
     }
+
+    /// Set the resource for the exporter.
+    fn set_resource(&mut self, _resource: &Resource) {}
 }

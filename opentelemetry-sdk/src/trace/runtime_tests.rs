@@ -2,6 +2,7 @@
 // need to run those tests one by one as the GlobalTracerProvider is a shared object between
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 use crate::export::trace::{ExportResult, SpanExporter};
+use crate::resource::Resource;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
@@ -28,6 +29,8 @@ impl SpanExporter for SpanCountExporter {
         self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
         Box::pin(async { Ok(()) })
     }
+
+    fn set_resource(&mut self, _: &Resource) {}
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
