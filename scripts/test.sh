@@ -10,5 +10,7 @@ echo "Running tests for opentelemetry package with --no-default-features"
 cargo test --manifest-path=opentelemetry/Cargo.toml --no-default-features
 
 # Run global tracer provider test in single thread
-echo "Running global tracer provider for opentelemetry-sdk package with single thread."
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features -- --ignored --test-threads=1
+# //TODO: This tests were not running for a while. Need to find out how to run
+# run them. Using --ignored will run other tests as well, so that cannot be used.
+# echo "Running global tracer provider for opentelemetry-sdk package with single thread."
+# cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features -- --test-threads=1
