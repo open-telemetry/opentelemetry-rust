@@ -20,11 +20,6 @@ mod tracer;
 pub use config::{config, Config};
 pub use events::SpanEvents;
 
-#[deprecated(
-    since = "0.21.3",
-    note = "XrayId Generator has been migrated to the opentelemetry-aws crate"
-)]
-pub use id_generator::aws::XrayIdGenerator;
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{Builder, TracerProvider};
