@@ -1,5 +1,4 @@
 use opentelemetry::global;
-use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{
@@ -15,7 +14,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
             Some(
                 Stream::new()
                     .name("my_histogram_renamed")
-                    .unit(Unit::new("milliseconds")),
+                    .unit("milliseconds"),
             )
         } else {
             None
@@ -76,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // using view.
     let histogram = meter
         .f64_histogram("my_histogram")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("My histogram example description")
         .init();
 
@@ -114,7 +113,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // use a custom set of boundaries, and min/max values will not be recorded.
     let histogram2 = meter
         .f64_histogram("my_second_histogram")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("My histogram example description")
         .init();
 

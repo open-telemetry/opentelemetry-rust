@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    metrics::{MetricsError, Unit},
+    metrics::MetricsError,
     trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
     Key, KeyValue,
 };
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let counter = meter
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
-        .with_unit(Unit::new("my_unit"))
+        .with_unit("my_unit")
         .init();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);

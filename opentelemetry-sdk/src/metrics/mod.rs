@@ -10,10 +10,7 @@
 //!
 //! ```
 //! use opentelemetry::global;
-//! use opentelemetry::{
-//!     metrics::Unit,
-//!     KeyValue,
-//! };
+//! use opentelemetry::KeyValue;
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
@@ -29,7 +26,7 @@
 //! // Create instruments scoped to the meter
 //! let counter = meter
 //!     .u64_counter("power_consumption")
-//!     .with_unit(Unit::new("kWh"))
+//!     .with_unit("kWh")
 //!     .init();
 //!
 //! // use instruments to record measurements
@@ -148,11 +145,8 @@ mod tests {
     use crate::metrics::reader::TemporalitySelector;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
-    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
-    use opentelemetry::{
-        metrics::{MeterProvider as _, Unit},
-        KeyValue,
-    };
+    use opentelemetry::metrics::{Counter, UpDownCounter};
+    use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
 
@@ -265,13 +259,10 @@ mod tests {
         let _observable_counter = test_context
             .meter()
             .u64_observable_counter("my_observable_counter")
-            .with_unit(Unit::new("my_unit"))
-            .with_callback(move |observer| {
-                let mut index = i.lock().unwrap();
-                if *index < values.len() {
-                    observer.observe(values[*index], &[KeyValue::new("key1", "value1")]);
-                    *index += 1;
-                }
+            .with_unit("my_unit")
+            .with_callback(|observer| {
+                observer.observe(100, &[KeyValue::new("key1", "value1")]);
+                observer.observe(200, &[KeyValue::new("key1", "value2")]);
             })
             .init();
 
@@ -321,13 +312,13 @@ mod tests {
         let meter = meter_provider.meter("test");
         let counter = meter
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter_duplicated = meter
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -347,7 +338,7 @@ mod tests {
         );
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
+        assert_eq!(metric.unit, "my_unit");
         let sum = metric
             .data
             .as_any()
@@ -373,13 +364,13 @@ mod tests {
         let meter2 = meter_provider.meter("test.meter2");
         let counter1 = meter1
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter2 = meter2
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -412,7 +403,7 @@ mod tests {
         if let Some(scope1) = scope1 {
             let metric1 = &scope1.metrics[0];
             assert_eq!(metric1.name, "my_counter");
-            assert_eq!(metric1.unit.as_str(), "my_unit");
+            assert_eq!(metric1.unit, "my_unit");
             assert_eq!(metric1.description, "my_description");
             let sum1 = metric1
                 .data
@@ -432,7 +423,7 @@ mod tests {
         if let Some(scope2) = scope2 {
             let metric2 = &scope2.metrics[0];
             assert_eq!(metric2.name, "my_counter");
-            assert_eq!(metric2.unit.as_str(), "my_unit");
+            assert_eq!(metric2.unit, "my_unit");
             assert_eq!(metric2.description, "my_description");
             let sum2 = metric2
                 .data
@@ -474,13 +465,13 @@ mod tests {
         );
         let counter1 = meter1
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
         let counter2 = meter2
             .u64_counter("my_counter")
-            .with_unit(Unit::new("my_unit"))
+            .with_unit("my_unit")
             .with_description("my_description")
             .init();
 
@@ -515,7 +506,7 @@ mod tests {
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit.as_str(), "my_unit");
+        assert_eq!(metric.unit, "my_unit");
         assert_eq!(metric.description, "my_description");
         let sum = metric
             .data
@@ -545,7 +536,7 @@ mod tests {
                 record_min_max: false,
             })
             .name("test_histogram_renamed")
-            .unit(Unit::new("test_unit_renamed"));
+            .unit("test_unit_renamed");
 
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
@@ -558,7 +549,7 @@ mod tests {
         let meter = meter_provider.meter("test");
         let histogram = meter
             .f64_histogram("test_histogram")
-            .with_unit(Unit::new("test_unit"))
+            .with_unit("test_unit")
             .init();
 
         histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
@@ -575,8 +566,7 @@ mod tests {
             "View rename should be ignored and original name retained."
         );
         assert_eq!(
-            metric.unit.as_str(),
-            "test_unit",
+            metric.unit, "test_unit",
             "View rename of unit should be ignored and original unit retained."
         );
     }
@@ -1165,7 +1155,7 @@ mod tests {
             let meter = self.meter_provider.meter(meter_name);
             let mut counter_builder = meter.u64_counter(counter_name);
             if let Some(unit_name) = unit {
-                counter_builder = counter_builder.with_unit(Unit::new(unit_name));
+                counter_builder = counter_builder.with_unit(unit_name);
             }
             counter_builder.init()
         }
@@ -1179,7 +1169,7 @@ mod tests {
             let meter = self.meter_provider.meter(meter_name);
             let mut updown_counter_builder = meter.i64_up_down_counter(counter_name);
             if let Some(unit_name) = unit {
-                updown_counter_builder = updown_counter_builder.with_unit(Unit::new(unit_name));
+                updown_counter_builder = updown_counter_builder.with_unit(unit_name);
             }
             updown_counter_builder.init()
         }
@@ -1229,7 +1219,7 @@ mod tests {
             let metric = &resource_metric.scope_metrics[0].metrics[0];
             assert_eq!(metric.name, counter_name);
             if let Some(expected_unit) = unit_name {
-                assert_eq!(metric.unit.as_str(), expected_unit);
+                assert_eq!(metric.unit, expected_unit);
             }
 
             metric

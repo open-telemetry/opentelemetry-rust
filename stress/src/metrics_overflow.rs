@@ -12,8 +12,11 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
-use std::borrow::Cow;
+use rand::{
+    rngs::{self},
+    Rng, SeedableRng,
+};
+use std::{borrow::Cow, cell::RefCell};
 
 mod throughput;
 
@@ -21,23 +24,26 @@ lazy_static! {
     static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    static ref ATTRIBUTE_VALUES: [&'static str; 10] = [
-        "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
-        "value10"
-    ];
     static ref COUNTER: Counter<u64> = PROVIDER
         .meter(<&str as Into<Cow<'static, str>>>::into("test"))
         .u64_counter("hello")
         .init();
 }
 
+thread_local! {
+    /// Store random number generator for each thread
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+}
+
 fn main() {
-    for v in 0..2001 {
-        COUNTER.add(100, &[KeyValue::new("A", v.to_string())]);
-    }
     throughput::test_throughput(test_counter);
 }
 
 fn test_counter() {
-    COUNTER.add(1, &[KeyValue::new("A", "2001")]);
+    // The main goal of this test is to ensure that OTel SDK is not growing its
+    // memory usage indefinitely even when user code misbehaves by producing
+    // unbounded metric points (unique time series).
+    // It also checks that SDK's internal logging is also done in a bounded way.
+    let rand = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..100000000));
+    COUNTER.add(1, &[KeyValue::new("A", rand)]);
 }
