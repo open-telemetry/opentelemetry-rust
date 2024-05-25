@@ -63,14 +63,14 @@ fn gauge_record(c: &mut Criterion) {
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
-            let index_forth_attribute = rands[3];
+            let index_fourth_attribute = rands[3];
             gauge.record(
                 1,
                 &[
                     KeyValue::new("attribute1", attribute_values[index_first_attribute]),
                     KeyValue::new("attribute2", attribute_values[index_second_attribute]),
                     KeyValue::new("attribute3", attribute_values[index_third_attribute]),
-                    KeyValue::new("attribute4", attribute_values[index_forth_attribute]),
+                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
                 ],
             );
         });

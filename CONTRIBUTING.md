@@ -37,6 +37,11 @@ You can provide the protocol compiler protoc path programmatically (only works w
 export PROTOC=$(which protoc)
 ```
 
+It is recommended to use "3.15" or newer of protoc, as some of the proto
+definitions include "optional" fields, that are not supported in older versions,
+resulting in errors as shown
+[here](https://github.com/open-telemetry/opentelemetry-proto/issues/451).
+
 Prerequisites to build the protocol compiler protoc from source
 
 - [protoc](https://github.com/protocolbuffers/protobuf)

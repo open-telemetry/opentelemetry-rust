@@ -10,7 +10,7 @@ use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 
 use std::error::Error;
 
-fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
+fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
@@ -29,7 +29,8 @@ fn init_tracer() -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _tracer = init_tracer().expect("Failed to initialize tracer.");
+    let tracer_provider = init_tracer_provider().expect("Failed to initialize tracer provider.");
+    global::set_tracer_provider(tracer_provider.clone());
 
     let tracer = global::tracer("tracing-jaeger");
     tracer.in_span("main-operation", |cx| {
