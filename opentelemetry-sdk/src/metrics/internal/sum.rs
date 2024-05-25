@@ -53,6 +53,8 @@ impl<T: Number<T>> ValueMap<T> {
             } else {
                 drop(values);
                 if let Ok(mut values) = self.values.write() {
+                    // Recheck after acquiring write lock, in case another
+                    // thread has added the value.
                     if let Some(value_to_update) = values.get(&attrs) {
                         value_to_update.add(measurement);
                         return;
