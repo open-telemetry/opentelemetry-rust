@@ -160,7 +160,7 @@ impl<T: Number<T>> Sum<T> {
                     .collect(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: value.get_and_reset_value(),
+                value: value.get_value(),
                 exemplars: vec![],
             });
         }
@@ -328,7 +328,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         for (attrs, value) in values.drain() {
             let delta = value.get_value() - *reported.get(&attrs).unwrap_or(&default);
             if delta != default {
-                new_reported.insert(attrs.clone(), value.get_and_reset_value());
+                new_reported.insert(attrs.clone(), value.get_value());
             }
             s_data.data_points.push(DataPoint {
                 attributes: attrs
@@ -411,9 +411,9 @@ impl<T: Number<T>> PrecomputedSum<T> {
 
         let default = T::default();
         for (attrs, value) in values.iter() {
-            let delta = value.get_value();
+            let delta = value.get_value() - *reported.get(attrs).unwrap_or(&default);
             if delta != default {
-                new_reported.insert(attrs.clone(), value.get_and_reset_value());
+                new_reported.insert(attrs.clone(), value.get_value());
             }
             s_data.data_points.push(DataPoint {
                 attributes: attrs
