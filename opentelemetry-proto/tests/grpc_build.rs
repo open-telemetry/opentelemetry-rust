@@ -18,7 +18,7 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR, false);
+    let before_build = build_content_map(TONIC_OUT_DIR, true);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
