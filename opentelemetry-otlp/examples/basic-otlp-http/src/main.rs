@@ -3,7 +3,7 @@ use opentelemetry::{
     global,
     metrics::MetricsError,
     trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
-    Key, KeyValue,
+    KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
