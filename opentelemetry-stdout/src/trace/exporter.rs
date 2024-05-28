@@ -1,12 +1,13 @@
 use core::fmt;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry_proto::tonic::trace::v1::ResourceSpans;
 use opentelemetry_sdk::export::{self, trace::ExportResult};
 use std::io::{stdout, Write};
 
-use crate::trace::transform::SpanData;
+use opentelemetry_sdk::export::trace::SpanData;
 
-type Encoder = Box<dyn Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + Sync>;
+type Encoder = Box<dyn Fn(&mut dyn Write, Vec<SpanData>) -> TraceResult<()> + Send + Sync>;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct SpanExporter {
@@ -36,7 +37,7 @@ impl Default for SpanExporter {
 impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         let res = if let Some(writer) = &mut self.writer {
-            (self.encoder)(writer, crate::trace::SpanData::from(batch)).and_then(|_| {
+            (self.encoder)(writer, batch).and_then(|_| {
                 writer
                     .write_all(b"\n")
                     .map_err(|err| TraceError::Other(Box::new(err)))
@@ -97,7 +98,7 @@ impl SpanExporterBuilder {
     /// ```
     pub fn with_encoder(
         mut self,
-        writer: impl Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + Sync + 'static,
+        writer: impl Fn(&mut dyn Write, Vec<SpanData>) -> TraceResult<()> + Send + Sync + 'static,
     ) -> Self {
         self.encoder = Some(Box::new(writer));
         self
@@ -109,10 +110,12 @@ impl SpanExporterBuilder {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
             encoder: self.encoder.unwrap_or_else(|| {
                 Box::new(|writer, spans| {
-                    serde_json::to_writer(writer, &spans)
+                    let resource_spans:Vec<ResourceSpans> = spans.into_iter().map(ResourceSpans::from).collect();
+                    serde_json::to_writer(writer, &resource_spans)
                         .map_err(|err| TraceError::Other(Box::new(err)))
                 })
             }),
         }
     }
 }
+

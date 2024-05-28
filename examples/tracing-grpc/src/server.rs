@@ -17,10 +17,7 @@ fn init_tracer() {
     let provider = TracerProvider::builder()
         .with_batch_exporter(
             SpanExporterBuilder::default()
-                .with_encoder(|writer, data| {
-                    serde_json::to_writer_pretty(writer, &data).unwrap();
-                    Ok(())
-                })
+                .with_encoder(opentelemetry_stdout::pretty)
                 .build(),
             Tokio,
         )

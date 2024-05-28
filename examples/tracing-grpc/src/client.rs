@@ -6,6 +6,7 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_stdout::SpanExporterBuilder;
 
+use opentelemetry::trace::FutureExt;
 use opentelemetry::{
     trace::{SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
@@ -17,10 +18,7 @@ fn init_tracer() {
     let provider = TracerProvider::builder()
         .with_batch_exporter(
             SpanExporterBuilder::default()
-                .with_encoder(|writer, data| {
-                    serde_json::to_writer_pretty(writer, &data).unwrap();
-                    Ok(())
-                })
+                .with_encoder(opentelemetry_stdout::pretty)
                 .build(),
             Tokio,
         )
