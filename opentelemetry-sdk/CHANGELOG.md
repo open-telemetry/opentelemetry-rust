@@ -26,6 +26,8 @@
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
 
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
+
 ## v0.23.0
 
 - Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
