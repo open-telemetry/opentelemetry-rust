@@ -93,7 +93,7 @@ impl SpanExporterBuilder {
     /// let exporter = SpanExporterBuilder::default()
     ///     // Can be any function that can write formatted data
     ///     // serde ecosystem crates for example provide such functions
-    ///     .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
+    ///     .with_encoder(opentelemetry_stdout::pretty)
     ///     .build();
     /// ```
     pub fn with_encoder(
