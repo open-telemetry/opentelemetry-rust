@@ -6,7 +6,7 @@ publish = false
 
 [[bin]] # Bin to run the metrics stress tests for Counter
 name = "metrics"
-path = "src/metrics.rs"
+path = "src/metrics_counter.rs"
 doc = false
 
 [[bin]] # Bin to run the metrics stress tests for Histogram
