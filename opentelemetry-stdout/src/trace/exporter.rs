@@ -110,7 +110,8 @@ impl SpanExporterBuilder {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
             encoder: self.encoder.unwrap_or_else(|| {
                 Box::new(|writer, spans| {
-                    let resource_spans:Vec<ResourceSpans> = spans.into_iter().map(ResourceSpans::from).collect();
+                    let resource_spans: Vec<ResourceSpans> =
+                        spans.into_iter().map(ResourceSpans::from).collect();
                     serde_json::to_writer(writer, &resource_spans)
                         .map_err(|err| TraceError::Other(Box::new(err)))
                 })
@@ -118,4 +119,3 @@ impl SpanExporterBuilder {
         }
     }
 }
-
