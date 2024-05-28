@@ -4,7 +4,7 @@ use opentelemetry_sdk::export::trace::SpanData;
 use std::io::Write;
 
 /// serializes spans to stdout using pretty-printed JSON.
-/// 
+///
 /// ```rust
 /// use opentelemetry_stdout::SpanExporterBuilder;
 ///

@@ -6,7 +6,6 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_stdout::SpanExporterBuilder;
 
-use opentelemetry::trace::FutureExt;
 use opentelemetry::{
     trace::{SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
