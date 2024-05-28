@@ -414,11 +414,10 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
 
 ///  Returns a String which uses the platform specific new line feed character.
 fn get_platform_specific_string(input: String) -> String {
-    if cfg!(windows) {
-        input.replace('\n', "\r\n")
-    } else {
-        input
+    if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
+        return input.replace('\n', "\r\n");
     }
+    input
 }
 
 #[test]
