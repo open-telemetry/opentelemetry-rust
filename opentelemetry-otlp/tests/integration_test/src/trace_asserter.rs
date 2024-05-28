@@ -1,4 +1,3 @@
-use opentelemetry::trace::SpanId;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, Span, TracesData};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
@@ -53,7 +52,6 @@ impl TraceAsserter {
 
         let results_span_forest = SpanForest::from_spans(results_spans);
         let expected_span_forest = SpanForest::from_spans(expected_spans);
-        results_span_forest.print_tree();
         assert_eq!(results_span_forest, expected_span_forest);
     }
 }
@@ -144,12 +142,6 @@ impl SpanForest {
             })
             .collect()
     }
-
-    fn print_tree(&self) {
-        for (_, root_span) in self.get_root_spans().iter().enumerate() {
-            root_span.draw_tree("".to_string(), root_span.children.is_empty());
-        }
-    }
 }
 
 impl PartialEq for SpanForest {
@@ -184,28 +176,6 @@ impl SpanTreeNode {
     fn add_child(&mut self, child: Span) {
         self.children.push(SpanTreeNode::new(child));
     }
-
-    fn draw_tree(&self, prefix: String, last: bool) {
-        println!(
-            "{}{}{}",
-            prefix,
-            if last { "└─ " } else { "├─ " },
-            self.span.name,
-        );
-        let new_prefix = format!("{}{}", prefix, if last { "   " } else { "│  " });
-        let children_count = self.children.len();
-        for (i, child) in self.children.iter().enumerate() {
-            child.draw_tree(new_prefix.clone(), i == children_count - 1);
-        }
-    }
-}
-
-fn vec_to_u64(vec: Vec<u8>) -> Option<u64> {
-    if vec.len() != 8 {
-        return None;
-    }
-    let array: [u8; 8] = vec.try_into().ok()?;
-    Some(u64::from_le_bytes(array))
 }
 
 impl PartialEq for SpanTreeNode {
