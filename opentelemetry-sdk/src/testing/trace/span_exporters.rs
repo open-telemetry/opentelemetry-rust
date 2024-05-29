@@ -60,8 +60,6 @@ impl SpanExporter for TokioSpanExporter {
     fn shutdown(&mut self) {
         self.tx_shutdown.send(()).unwrap();
     }
-
-    fn set_resource(&mut self, _resource: &crate::Resource) {}
 }
 
 pub fn new_tokio_test_exporter() -> (
@@ -122,7 +120,4 @@ impl SpanExporter for NoopSpanExporter {
     fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         Box::pin(std::future::ready(Ok(())))
     }
-
-    /// Set the resource for the exporter.
-    fn set_resource(&mut self, _resource: &Resource) {}
 }

@@ -29,8 +29,6 @@ impl SpanExporter for SpanCountExporter {
         self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
         Box::pin(async { Ok(()) })
     }
-
-    fn set_resource(&mut self, _: &Resource) {}
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]

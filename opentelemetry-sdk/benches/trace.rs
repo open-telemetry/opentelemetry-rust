@@ -63,8 +63,6 @@ impl SpanExporter for VoidExporter {
     fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         Box::pin(futures_util::future::ready(Ok(())))
     }
-
-    fn set_resource(&mut self, _resource: &opentelemetry_sdk::Resource) {}
 }
 
 fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {

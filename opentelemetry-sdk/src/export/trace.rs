@@ -65,7 +65,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     }
 
     /// Set the resource for the exporter.
-    fn set_resource(&mut self, _resource: &Resource);
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used

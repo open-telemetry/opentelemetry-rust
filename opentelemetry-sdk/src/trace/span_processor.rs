@@ -94,7 +94,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// opportunity for processors to do any cleanup required.
     fn shutdown(&self) -> TraceResult<()>;
     /// Set the resource for the log processor.
-    fn set_resource(&mut self, _resource: &Resource);
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 /// A [SpanProcessor] that passes finished spans to the configured
@@ -949,8 +949,6 @@ mod tests {
             use futures_util::FutureExt;
             Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
         }
-
-        fn set_resource(&mut self, _resource: &Resource) {}
     }
 
     #[test]
