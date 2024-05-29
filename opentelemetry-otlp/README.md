@@ -30,7 +30,7 @@ can easily instrument your applications or systems, no matter their language,
 infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
-*Compiler support: [requires `rustc` 1.65+][msrv]*
+*Compiler support: [requires `rustc` 1.70+][msrv]*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
@@ -43,7 +43,7 @@ See [docs](https://docs.rs/opentelemetry-otlp).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.65. The current OpenTelemetry version is not guaranteed to build
+version is 1.70. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
