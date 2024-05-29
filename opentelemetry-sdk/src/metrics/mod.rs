@@ -229,6 +229,13 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test gauge_aggregation --features=metrics,testing -- --nocapture
+        gauge_aggregation_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_cumulative_non_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
@@ -1125,6 +1132,65 @@ mod tests {
             assert_eq!(data_point1.min.unwrap(), *values_kv2.iter().min().unwrap());
             assert_eq!(data_point1.max.unwrap(), *values_kv2.iter().max().unwrap());
         }
+    }
+
+    fn gauge_aggregation_helper() {
+        // Arrange
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().i64_gauge("my_gauge").init();
+
+        // Act
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(2, &[KeyValue::new("key1", "value1")]);
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(3, &[KeyValue::new("key1", "value1")]);
+        gauge.record(4, &[KeyValue::new("key1", "value1")]);
+
+        gauge.record(11, &[KeyValue::new("key1", "value2")]);
+        gauge.record(13, &[KeyValue::new("key1", "value2")]);
+        gauge.record(6, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let gauge_data_point = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        // Expecting 2 time-series.
+        assert_eq!(gauge_data_point.data_points.len(), 2);
+
+        // find and validate key1=value2 datapoint
+        let data_point1 =
+            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 4);
+
+        let data_point1 =
+            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
+                .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 6);
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(2, &[KeyValue::new("key1", "value1")]);
+        gauge.record(11, &[KeyValue::new("key1", "value1")]);
+        gauge.record(3, &[KeyValue::new("key1", "value1")]);
+        gauge.record(41, &[KeyValue::new("key1", "value1")]);
+
+        gauge.record(34, &[KeyValue::new("key1", "value2")]);
+        gauge.record(12, &[KeyValue::new("key1", "value2")]);
+        gauge.record(54, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        assert_eq!(sum.data_points.len(), 2);
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 41);
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 54);
     }
 
     fn counter_aggregation_helper(temporality: Temporality) {
