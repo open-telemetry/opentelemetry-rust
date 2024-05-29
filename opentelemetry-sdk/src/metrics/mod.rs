@@ -229,6 +229,13 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test gauge_aggregation --features=metrics,testing -- --nocapture
+        gauge_aggregation_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_cumulative_non_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
@@ -1046,18 +1053,19 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let histogram = test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        let histogram_data =
+            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
         // Expecting 2 time-series.
-        assert_eq!(histogram.data_points.len(), 2);
+        assert_eq!(histogram_data.data_points.len(), 2);
         if let Temporality::Cumulative = temporality {
             assert_eq!(
-                histogram.temporality,
+                histogram_data.temporality,
                 Temporality::Cumulative,
                 "Should produce cumulative"
             );
         } else {
             assert_eq!(
-                histogram.temporality,
+                histogram_data.temporality,
                 Temporality::Delta,
                 "Should produce delta"
             );
@@ -1065,7 +1073,7 @@ mod tests {
 
         // find and validate key1=value2 datapoint
         let data_point1 =
-            find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value1")
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
                 .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.count, values_kv1.len() as u64);
         assert_eq!(data_point1.sum, values_kv1.iter().sum::<u64>());
@@ -1073,12 +1081,116 @@ mod tests {
         assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
 
         let data_point2 =
-            find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value2")
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value2")
                 .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point2.count, values_kv2.len() as u64);
         assert_eq!(data_point2.sum, values_kv2.iter().sum::<u64>());
         assert_eq!(data_point2.min.unwrap(), *values_kv2.iter().min().unwrap());
         assert_eq!(data_point2.max.unwrap(), *values_kv2.iter().max().unwrap());
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+        for value in values_kv1.iter() {
+            histogram.record(*value, &[KeyValue::new("key1", "value1")]);
+        }
+
+        for value in values_kv2.iter() {
+            histogram.record(*value, &[KeyValue::new("key1", "value2")]);
+        }
+
+        test_context.flush_metrics();
+
+        let histogram_data =
+            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        assert_eq!(histogram_data.data_points.len(), 2);
+        let data_point1 =
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.count, 2 * (values_kv1.len() as u64));
+            assert_eq!(data_point1.sum, 2 * (values_kv1.iter().sum::<u64>()));
+            assert_eq!(data_point1.min.unwrap(), *values_kv1.iter().min().unwrap());
+            assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
+        } else {
+            assert_eq!(data_point1.count, values_kv1.len() as u64);
+            assert_eq!(data_point1.sum, values_kv1.iter().sum::<u64>());
+            assert_eq!(data_point1.min.unwrap(), *values_kv1.iter().min().unwrap());
+            assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
+        }
+
+        let data_point1 =
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value2")
+                .expect("datapoint with key1=value1 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.count, 2 * (values_kv2.len() as u64));
+            assert_eq!(data_point1.sum, 2 * (values_kv2.iter().sum::<u64>()));
+            assert_eq!(data_point1.min.unwrap(), *values_kv2.iter().min().unwrap());
+            assert_eq!(data_point1.max.unwrap(), *values_kv2.iter().max().unwrap());
+        } else {
+            assert_eq!(data_point1.count, values_kv2.len() as u64);
+            assert_eq!(data_point1.sum, values_kv2.iter().sum::<u64>());
+            assert_eq!(data_point1.min.unwrap(), *values_kv2.iter().min().unwrap());
+            assert_eq!(data_point1.max.unwrap(), *values_kv2.iter().max().unwrap());
+        }
+    }
+
+    fn gauge_aggregation_helper() {
+        // Arrange
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().i64_gauge("my_gauge").init();
+
+        // Act
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(2, &[KeyValue::new("key1", "value1")]);
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(3, &[KeyValue::new("key1", "value1")]);
+        gauge.record(4, &[KeyValue::new("key1", "value1")]);
+
+        gauge.record(11, &[KeyValue::new("key1", "value2")]);
+        gauge.record(13, &[KeyValue::new("key1", "value2")]);
+        gauge.record(6, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let gauge_data_point = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        // Expecting 2 time-series.
+        assert_eq!(gauge_data_point.data_points.len(), 2);
+
+        // find and validate key1=value2 datapoint
+        let data_point1 =
+            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 4);
+
+        let data_point1 =
+            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
+                .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 6);
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+        gauge.record(1, &[KeyValue::new("key1", "value1")]);
+        gauge.record(2, &[KeyValue::new("key1", "value1")]);
+        gauge.record(11, &[KeyValue::new("key1", "value1")]);
+        gauge.record(3, &[KeyValue::new("key1", "value1")]);
+        gauge.record(41, &[KeyValue::new("key1", "value1")]);
+
+        gauge.record(34, &[KeyValue::new("key1", "value2")]);
+        gauge.record(12, &[KeyValue::new("key1", "value2")]);
+        gauge.record(54, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        assert_eq!(sum.data_points.len(), 2);
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 41);
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point1.value, 54);
     }
 
     fn counter_aggregation_helper(temporality: Temporality) {
@@ -1122,12 +1234,44 @@ mod tests {
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        assert_eq!(sum.data_points.len(), 2);
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.value, 10);
+        } else {
+            assert_eq!(data_point1.value, 5);
+        }
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.value, 6);
+        } else {
+            assert_eq!(data_point1.value, 3);
+        }
     }
 
     fn updown_counter_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let counter = test_context.i64_up_down_counter("test", "my_counter", None);
+        let counter = test_context.i64_up_down_counter("test", "my_updown_counter", None);
 
         // Act
         counter.add(1, &[KeyValue::new("key1", "value1")]);
@@ -1143,7 +1287,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
         assert!(
@@ -1168,6 +1312,38 @@ mod tests {
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[KeyValue::new("key1", "value1")]);
+
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[KeyValue::new("key1", "value2")]);
+
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
+        assert_eq!(sum.data_points.len(), 2);
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.value, 10);
+        } else {
+            assert_eq!(data_point1.value, 5);
+        }
+
+        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        if temporality == Temporality::Cumulative {
+            assert_eq!(data_point1.value, 6);
+        } else {
+            assert_eq!(data_point1.value, 3);
+        }
     }
 
     fn find_datapoint_with_key_value<'a, T>(
