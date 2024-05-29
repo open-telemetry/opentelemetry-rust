@@ -16,7 +16,7 @@ use rand::{
     rngs::{self},
     Rng, SeedableRng,
 };
-use std::{borrow::Cow, cell::RefCell};
+use std::cell::RefCell;
 
 mod throughput;
 
@@ -29,7 +29,7 @@ lazy_static! {
         "value10"
     ];
     static ref HISTOGRAM: Histogram<u64> = PROVIDER
-        .meter(<&str as Into<Cow<'static, str>>>::into("test"))
+        .meter("test")
         .u64_histogram("hello")
         .init();
 }

@@ -16,7 +16,7 @@ use rand::{
     rngs::{self},
     Rng, SeedableRng,
 };
-use std::{borrow::Cow, cell::RefCell};
+use std::cell::RefCell;
 
 mod throughput;
 
@@ -25,7 +25,7 @@ lazy_static! {
         .with_reader(ManualReader::builder().build())
         .build();
     static ref COUNTER: Counter<u64> = PROVIDER
-        .meter(<&str as Into<Cow<'static, str>>>::into("test"))
+        .meter("test")
         .u64_counter("hello")
         .init();
 }
