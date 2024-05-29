@@ -217,14 +217,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
+        // cargo test updown_counter_aggregation_cumulative --features=metrics,testing -- --nocapture
         updown_counter_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
+        // cargo test updown_counter_aggregation_delta --features=metrics,testing -- --nocapture
         updown_counter_aggregation_helper(Temporality::Delta);
     }
 
@@ -232,7 +232,10 @@ mod tests {
     async fn gauge_aggregation() {
         // Run this test with stdout enabled to see output.
         // cargo test gauge_aggregation --features=metrics,testing -- --nocapture
-        gauge_aggregation_helper();
+
+        // Gauge should use last value aggregation regardless of the aggregation temporality used.
+        gauge_aggregation_helper(Temporality::Delta);
+        gauge_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -1134,9 +1137,9 @@ mod tests {
         }
     }
 
-    fn gauge_aggregation_helper() {
+    fn gauge_aggregation_helper(temporality: Temporality) {
         // Arrange
-        let mut test_context = TestContext::new(Temporality::Delta);
+        let mut test_context = TestContext::new(temporality);
         let gauge = test_context.meter().i64_gauge("my_gauge").init();
 
         // Act
@@ -1274,15 +1277,15 @@ mod tests {
         let counter = test_context.i64_up_down_counter("test", "my_updown_counter", None);
 
         // Act
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        counter.add(-1, &[KeyValue::new("key1", "value1")]);
+        counter.add(-5, &[KeyValue::new("key1", "value1")]);
+        counter.add(0, &[KeyValue::new("key1", "value1")]);
         counter.add(1, &[KeyValue::new("key1", "value1")]);
 
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(10, &[KeyValue::new("key1", "value2")]);
+        counter.add(0, &[KeyValue::new("key1", "value2")]);
+        counter.add(-3, &[KeyValue::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1311,19 +1314,19 @@ mod tests {
 
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
-        assert_eq!(data_point1.value, 3);
+        assert_eq!(data_point1.value, 7);
 
         // Reset and report more measurements
         test_context.reset_metrics();
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        counter.add(-1, &[KeyValue::new("key1", "value1")]);
+        counter.add(-5, &[KeyValue::new("key1", "value1")]);
+        counter.add(0, &[KeyValue::new("key1", "value1")]);
         counter.add(1, &[KeyValue::new("key1", "value1")]);
 
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(10, &[KeyValue::new("key1", "value2")]);
+        counter.add(0, &[KeyValue::new("key1", "value2")]);
+        counter.add(-3, &[KeyValue::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1340,9 +1343,9 @@ mod tests {
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         if temporality == Temporality::Cumulative {
-            assert_eq!(data_point1.value, 6);
+            assert_eq!(data_point1.value, 14);
         } else {
-            assert_eq!(data_point1.value, 3);
+            assert_eq!(data_point1.value, 7);
         }
     }
 
