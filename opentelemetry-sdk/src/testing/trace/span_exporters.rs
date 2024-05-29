@@ -3,7 +3,6 @@ use crate::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    resource::Resource,
     trace::{SpanEvents, SpanLinks},
     InstrumentationLibrary,
 };
