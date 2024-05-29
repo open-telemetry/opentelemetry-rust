@@ -42,7 +42,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&self) -> TraceResult<()> {
         Ok(())
     }
 }
