@@ -14,7 +14,7 @@
   [`opentelemetry-aws`](https://crates.io/crates/opentelemetry-aws), version
   0.10.0 or newer.
 - Performance Improvement - Counter/UpDownCounter instruments internally use
-  `RwLock` instead of `Muex` to reduce contention.
+  `RwLock` instead of `Mutex` to reduce contention.
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
   Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
