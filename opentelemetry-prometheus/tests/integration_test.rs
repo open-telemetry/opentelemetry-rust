@@ -406,6 +406,7 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
 
+    let expected = get_platform_specific_string(expected);
     let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
 
     assert_eq!(output_string, expected, "{name}");
@@ -413,11 +414,10 @@ fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'
 
 ///  Returns a String which uses the platform specific new line feed character.
 fn get_platform_specific_string(input: String) -> String {
-    if cfg!(windows) {
-        input.replace('\n', "\r\n")
-    } else {
-        input
+    if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
+        return input.replace('\n', "\r\n");
     }
+    input
 }
 
 #[test]
@@ -812,6 +812,7 @@ fn duplicate_metrics() {
             .expected_files
             .into_iter()
             .map(|f| fs::read_to_string(Path::new("./tests/data").join(f)).expect(f))
+            .map(get_platform_specific_string)
             .collect();
         gather_and_compare_multi(registry, possible_matches, tc.name);
     }
