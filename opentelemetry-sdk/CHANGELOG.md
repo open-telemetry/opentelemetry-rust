@@ -13,6 +13,8 @@
 - Removed `XrayIdGenerator`, which was marked deprecated since 0.21.3. Use
   [`opentelemetry-aws`](https://crates.io/crates/opentelemetry-aws), version
   0.10.0 or newer.
+- Performance Improvement - Counter/UpDownCounter instruments internally use
+  `RwLock` instead of `Mutex` to reduce contention.
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
   Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
@@ -25,6 +27,8 @@
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
+
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
 
 ## v0.23.0
 

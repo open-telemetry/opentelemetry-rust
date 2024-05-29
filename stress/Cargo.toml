@@ -4,9 +4,14 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-[[bin]] # Bin to run the metrics stress tests
+[[bin]] # Bin to run the metrics stress tests for Counter
 name = "metrics"
-path = "src/metrics.rs"
+path = "src/metrics_counter.rs"
+doc = false
+
+[[bin]] # Bin to run the metrics stress tests for Histogram
+name = "metrics_histogram"
+path = "src/metrics_histogram.rs"
 doc = false
 
 [[bin]] # Bin to run the metrics overflow stress tests
@@ -41,3 +46,7 @@ tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 num-format = "0.4.4"
+sysinfo = { version = "0.30.12", optional = true }
+
+[features]
+stats = ["sysinfo"]
