@@ -38,15 +38,13 @@ impl Default for SpanExporter {
 impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         let res = if let Some(writer) = &mut self.writer {
-            (self.encoder)(
-                writer,
-                crate::trace::SpanData::from((batch, &self.resource)),
+            (self.encoder)(writer, crate::trace::SpanData::new(batch, &self.resource)).and_then(
+                |_| {
+                    writer
+                        .write_all(b"\n")
+                        .map_err(|err| TraceError::Other(Box::new(err)))
+                },
             )
-            .and_then(|_| {
-                writer
-                    .write_all(b"\n")
-                    .map_err(|err| TraceError::Other(Box::new(err)))
-            })
         } else {
             Err("exporter is shut down".into())
         };

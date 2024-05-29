@@ -147,7 +147,9 @@ impl SpanExporter for InMemorySpanExporter {
     }
 
     fn set_resource(&mut self, resource: &Resource) {
-        let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
-        *res_guard = resource.clone();
+        self.resource
+            .lock()
+            .map(|mut res_guard| *res_guard = resource.clone())
+            .expect("Resource lock poisoned");
     }
 }

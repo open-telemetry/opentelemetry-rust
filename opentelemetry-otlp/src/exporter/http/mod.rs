@@ -309,11 +309,13 @@ impl OtlpHttpClient {
         spans: Vec<SpanData>,
         resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
     ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
-        use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+        use opentelemetry_proto::tonic::{
+            collector::trace::v1::ExportTraceServiceRequest, trace::v1::ResourceSpans,
+        };
 
         let resource_spans = spans
             .into_iter()
-            .map(|log_event| (log_event, resource).into())
+            .map(|span| ResourceSpans::new(span, resource))
             .collect::<Vec<_>>();
 
         let req = ExportTraceServiceRequest { resource_spans };

@@ -45,8 +45,8 @@ pub mod tonic {
         }
     }
 
-    impl From<(SpanData, &ResourceAttributesWithSchema)> for ResourceSpans {
-        fn from((source_span, resource): (SpanData, &ResourceAttributesWithSchema)) -> Self {
+    impl ResourceSpans {
+        pub fn new(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
