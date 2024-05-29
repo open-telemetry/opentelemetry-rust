@@ -76,7 +76,6 @@ impl Span {
     /// overhead.
     pub fn exported_data(&self) -> Option<crate::export::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-        //let resource = self.tracer.provider()?.config().resource.clone();
 
         self.data
             .as_ref()

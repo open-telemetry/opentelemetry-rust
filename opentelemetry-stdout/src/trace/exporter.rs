@@ -117,7 +117,7 @@ impl SpanExporterBuilder {
     pub fn build(self) -> SpanExporter {
         SpanExporter {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
-            resource: Resource::default(),
+            resource: Resource::empty(),
             encoder: self.encoder.unwrap_or_else(|| {
                 Box::new(|writer, spans| {
                     serde_json::to_writer(writer, &spans)

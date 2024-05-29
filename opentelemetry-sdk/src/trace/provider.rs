@@ -272,10 +272,6 @@ mod tests {
         fn shutdown(&self) -> TraceResult<()> {
             self.force_flush()
         }
-
-        fn set_resource(&mut self, _: &Resource) {
-            unimplemented!()
-        }
     }
 
     #[test]
