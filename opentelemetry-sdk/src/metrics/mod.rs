@@ -139,7 +139,7 @@ impl Hash for AttributeSet {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{DataPoint, ScopeMetrics};
+    use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
     use crate::metrics::reader::TemporalitySelector;
@@ -147,6 +147,7 @@ mod tests {
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
+    use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
 
@@ -197,6 +198,20 @@ mod tests {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
         counter_aggregation_helper(Temporality::Delta);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_cumulative --features=metrics,testing -- --nocapture
+        histogram_aggregation_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_delta --features=metrics,testing -- --nocapture
+        histogram_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -1007,6 +1022,65 @@ mod tests {
         assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
     }
 
+    fn histogram_aggregation_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let histogram = test_context.meter().u64_histogram("my_histogram").init();
+
+        // Act
+        let mut rand = rngs::SmallRng::from_entropy();
+        let values_kv1 = (0..50)
+            .map(|_| rand.gen_range(0..100))
+            .collect::<Vec<u64>>();
+        for value in values_kv1.iter() {
+            histogram.record(*value, &[KeyValue::new("key1", "value1")]);
+        }
+
+        let values_kv2 = (0..30)
+            .map(|_| rand.gen_range(0..100))
+            .collect::<Vec<u64>>();
+        for value in values_kv2.iter() {
+            histogram.record(*value, &[KeyValue::new("key1", "value2")]);
+        }
+
+        test_context.flush_metrics();
+
+        // Assert
+        let histogram = test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        // Expecting 2 time-series.
+        assert_eq!(histogram.data_points.len(), 2);
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                histogram.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(
+                histogram.temporality,
+                Temporality::Delta,
+                "Should produce delta"
+            );
+        }
+
+        // find and validate key1=value2 datapoint
+        let data_point1 =
+            find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.count, values_kv1.len() as u64);
+        assert_eq!(data_point1.sum, values_kv1.iter().sum::<u64>());
+        assert_eq!(data_point1.min.unwrap(), *values_kv1.iter().min().unwrap());
+        assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
+
+        let data_point2 =
+            find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value2")
+                .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point2.count, values_kv2.len() as u64);
+        assert_eq!(data_point2.sum, values_kv2.iter().sum::<u64>());
+        assert_eq!(data_point2.min.unwrap(), *values_kv2.iter().min().unwrap());
+        assert_eq!(data_point2.max.unwrap(), *values_kv2.iter().max().unwrap());
+    }
+
     fn counter_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
@@ -1101,6 +1175,19 @@ mod tests {
         key: &str,
         value: &str,
     ) -> Option<&'a DataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
+        })
+    }
+
+    fn find_histogram_datapoint_with_key_value<'a, T>(
+        data_points: &'a [HistogramDataPoint<T>],
+        key: &str,
+        value: &str,
+    ) -> Option<&'a HistogramDataPoint<T>> {
         data_points.iter().find(|&datapoint| {
             datapoint
                 .attributes
