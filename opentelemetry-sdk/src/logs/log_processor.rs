@@ -224,7 +224,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 &timeout_runtime,
                                 logs.split_off(0),
                             )
-                            .await;
+                                .await;
 
                             if let Err(err) = result {
                                 global::handle_error(err);
@@ -239,7 +239,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             &timeout_runtime,
                             logs.split_off(0),
                         )
-                        .await;
+                            .await;
 
                         if let Some(channel) = res_channel {
                             if let Err(result) = channel.send(result) {
@@ -260,7 +260,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             &timeout_runtime,
                             logs.split_off(0),
                         )
-                        .await;
+                            .await;
 
                         exporter.shutdown();
 
@@ -288,8 +288,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
     /// Create a new batch processor builder
     pub fn builder<E>(exporter: E, runtime: R) -> BatchLogProcessorBuilder<E, R>
-    where
-        E: LogExporter,
+        where
+            E: LogExporter,
     {
         BatchLogProcessorBuilder {
             exporter,
@@ -305,9 +305,9 @@ async fn export_with_timeout<'a, R, E>(
     runtime: &R,
     batch: Vec<Cow<'a, LogData>>,
 ) -> ExportResult
-where
-    R: RuntimeChannel,
-    E: LogExporter + ?Sized,
+    where
+        R: RuntimeChannel,
+        E: LogExporter + ?Sized,
 {
     if batch.is_empty() {
         return Ok(());
@@ -375,7 +375,7 @@ impl Default for BatchConfigBuilder {
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
         }
-        .init_from_env_vars()
+            .init_from_env_vars()
     }
 }
 
@@ -473,9 +473,9 @@ pub struct BatchLogProcessorBuilder<E, R> {
 }
 
 impl<E, R> BatchLogProcessorBuilder<E, R>
-where
-    E: LogExporter + 'static,
-    R: RuntimeChannel,
+    where
+        E: LogExporter + 'static,
+        R: RuntimeChannel,
 {
     /// Set the BatchConfig for [`BatchLogProcessorBuilder`]
     pub fn with_batch_config(self, config: BatchConfig) -> Self {
@@ -536,7 +536,7 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct MockLogExporter {
-        resource: Arc<Option<Resource>>,
+        resource: Arc<Mutex<Option<Resource>>>,
     }
 
     #[async_trait]
@@ -548,15 +548,19 @@ mod tests {
         fn shutdown(&mut self) {}
 
         fn set_resource(&mut self, resource: &Resource) {
-            let res = Arc::make_mut(&mut self.resource);
-            *res = Some(resource.clone());
+            self.resource
+                .lock()
+                .map(|mut res_opt| {
+                    res_opt.replace(resource.clone());
+                })
+                .expect("mock log exporter shouldn't error when setting resource");
         }
     }
 
     // Implementation specific to the MockLogExporter, not part of the LogExporter trait
     impl MockLogExporter {
         fn get_resource(&self) -> Option<Resource> {
-            (*self.resource).clone()
+            (*self.resource).lock().unwrap().clone()
         }
     }
 
@@ -713,7 +717,7 @@ mod tests {
     #[test]
     fn test_set_resource_simple_processor() {
         let exporter = MockLogExporter {
-            resource: Arc::new(Some(Resource::default())),
+            resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
         let _ = LoggerProvider::builder()
@@ -723,15 +727,16 @@ mod tests {
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
+                KeyValue::new("k5", "v5"),
             ]))
             .build();
-        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_set_resource_batch_processor() {
         let exporter = MockLogExporter {
-            resource: Arc::new(Some(Resource::default())),
+            resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
@@ -745,9 +750,10 @@ mod tests {
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
+                KeyValue::new("k5", "v5"),
             ]))
             .build();
-        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
 
