@@ -218,11 +218,16 @@ impl Builder {
             }
         }
 
+        // Create a new vector to hold the modified processors
+        let mut processors = self.processors;
+
+        // Set the resource for each processor
+        for p in &mut processors {
+            p.set_resource(config.resource.as_ref());
+        }
+
         TracerProvider {
-            inner: Arc::new(TracerProviderInner {
-                processors: self.processors,
-                config,
-            }),
+            inner: Arc::new(TracerProviderInner { processors, config }),
         }
     }
 }

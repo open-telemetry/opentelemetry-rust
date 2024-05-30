@@ -21,7 +21,7 @@ impl SpanExporter for OtlpHttpClient {
             Err(err) => return Box::pin(std::future::ready(Err(err))),
         };
 
-        let (body, content_type) = match self.build_trace_export_body(batch) {
+        let (body, content_type) = match self.build_trace_export_body(batch, &self.resource) {
             Ok(body) => body,
             Err(e) => return Box::pin(std::future::ready(Err(e))),
         };
@@ -65,5 +65,9 @@ impl SpanExporter for OtlpHttpClient {
 
     fn shutdown(&mut self) {
         let _ = self.client.lock().map(|mut c| c.take());
+    }
+
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+        self.resource = resource.into();
     }
 }
