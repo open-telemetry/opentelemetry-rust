@@ -18,7 +18,7 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR, false);
+    let before_build = build_content_map(TONIC_OUT_DIR, true);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
@@ -130,13 +130,12 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
         .collect()
 }
 
-///  Returns a String with the platform specific new line feed character.
+///  Returns a String which uses the platform specific new line feed character.
 fn get_platform_specific_string(input: String) -> String {
-    if cfg!(windows) {
-        input.replace('\n', "\r\n")
-    } else {
-        input
+    if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
+        return input.replace('\n', "\r\n");
     }
+    input
 }
 
 fn ensure_files_are_same(

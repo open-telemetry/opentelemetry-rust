@@ -3,12 +3,12 @@
     OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
-    3M /sec
+    4.6M /sec
 */
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{Counter, MeterProvider as _},
+    metrics::{Histogram, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
@@ -16,7 +16,7 @@ use rand::{
     rngs::{self},
     Rng, SeedableRng,
 };
-use std::{borrow::Cow, cell::RefCell};
+use std::cell::RefCell;
 
 mod throughput;
 
@@ -28,10 +28,7 @@ lazy_static! {
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
         "value10"
     ];
-    static ref COUNTER: Counter<u64> = PROVIDER
-        .meter(<&str as Into<Cow<'static, str>>>::into("test"))
-        .u64_counter("hello")
-        .init();
+    static ref HISTOGRAM: Histogram<u64> = PROVIDER.meter("test").u64_histogram("hello").init();
 }
 
 thread_local! {
@@ -58,7 +55,7 @@ fn test_counter() {
     let index_third_attribute = rands[2];
 
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
-    COUNTER.add(
+    HISTOGRAM.record(
         1,
         &[
             KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
