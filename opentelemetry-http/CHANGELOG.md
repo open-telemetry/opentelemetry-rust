@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** Correct the misspelling of "webkpi" to "webpki" in features [#1842](https://github.com/open-telemetry/opentelemetry-rust/pull/1842)
+
 ## v0.12.0
 
 - Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
