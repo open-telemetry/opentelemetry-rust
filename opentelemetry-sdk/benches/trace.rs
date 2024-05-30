@@ -70,7 +70,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
 
     group.bench_function("always-sample", |b| {
         let provider = sdktrace::TracerProvider::builder()
-            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
+            .with_config(sdktrace::Config::default().with_sampler(sdktrace::Sampler::AlwaysOn))
             .with_simple_exporter(VoidExporter)
             .build();
         let always_sample = provider.tracer("always-sample");
@@ -80,7 +80,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
 
     group.bench_function("never-sample", |b| {
         let provider = sdktrace::TracerProvider::builder()
-            .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff))
+            .with_config(sdktrace::Config::default().with_sampler(sdktrace::Sampler::AlwaysOff))
             .with_simple_exporter(VoidExporter)
             .build();
         let never_sample = provider.tracer("never-sample");

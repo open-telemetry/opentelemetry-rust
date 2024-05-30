@@ -17,7 +17,8 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
-use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
+use opentelemetry_sdk::trace;
+use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
 struct VoidExporter;
@@ -51,7 +52,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOn))
+            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
             .build();
         let tracer = tracer_provider.tracer("bench-tracer");
 

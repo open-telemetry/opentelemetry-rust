@@ -54,7 +54,7 @@ fn span_builder_benchmark_group(c: &mut Criterion) {
 
 fn not_sampled_provider() -> (sdktrace::TracerProvider, sdktrace::Tracer) {
     let provider = sdktrace::TracerProvider::builder()
-        .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff))
+        .with_config(sdktrace::Config::default().with_sampler(sdktrace::Sampler::AlwaysOff))
         .with_simple_exporter(NoopExporter)
         .build();
     let tracer = provider.tracer("not-sampled");
