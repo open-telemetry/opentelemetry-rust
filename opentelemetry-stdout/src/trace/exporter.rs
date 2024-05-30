@@ -5,6 +5,7 @@ use opentelemetry_sdk::export::{self, trace::ExportResult};
 use std::io::{stdout, Write};
 
 use crate::trace::transform::SpanData;
+use opentelemetry_sdk::resource::Resource;
 
 type Encoder = Box<dyn Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + Sync>;
 
@@ -12,6 +13,7 @@ type Encoder = Box<dyn Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + 
 pub struct SpanExporter {
     writer: Option<Box<dyn Write + Send + Sync>>,
     encoder: Encoder,
+    resource: Resource,
 }
 
 impl fmt::Debug for SpanExporter {
@@ -36,11 +38,13 @@ impl Default for SpanExporter {
 impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         let res = if let Some(writer) = &mut self.writer {
-            (self.encoder)(writer, crate::trace::SpanData::from(batch)).and_then(|_| {
-                writer
-                    .write_all(b"\n")
-                    .map_err(|err| TraceError::Other(Box::new(err)))
-            })
+            (self.encoder)(writer, crate::trace::SpanData::new(batch, &self.resource)).and_then(
+                |_| {
+                    writer
+                        .write_all(b"\n")
+                        .map_err(|err| TraceError::Other(Box::new(err)))
+                },
+            )
         } else {
             Err("exporter is shut down".into())
         };
@@ -50,6 +54,10 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
 
     fn shutdown(&mut self) {
         self.writer.take();
+    }
+
+    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
+        self.resource = res.clone();
     }
 }
 
@@ -107,6 +115,7 @@ impl SpanExporterBuilder {
     pub fn build(self) -> SpanExporter {
         SpanExporter {
             writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
+            resource: Resource::empty(),
             encoder: self.encoder.unwrap_or_else(|| {
                 Box::new(|writer, spans| {
                     serde_json::to_writer(writer, &spans)

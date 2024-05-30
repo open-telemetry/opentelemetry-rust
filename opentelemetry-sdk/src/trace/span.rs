@@ -9,7 +9,6 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
-use crate::Resource;
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
@@ -77,11 +76,10 @@ impl Span {
     /// overhead.
     pub fn exported_data(&self) -> Option<crate::export::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-        let resource = self.tracer.provider()?.config().resource.clone();
 
         self.data
             .as_ref()
-            .map(|data| build_export_data(data.clone(), span_context, resource, tracer))
+            .map(|data| build_export_data(data.clone(), span_context, tracer))
     }
 }
 
@@ -225,17 +223,14 @@ impl Span {
                 processor.on_end(build_export_data(
                     data,
                     self.span_context.clone(),
-                    provider.config().resource.clone(),
                     &self.tracer,
                 ));
             }
             processors => {
-                let config = provider.config();
                 for processor in processors {
                     processor.on_end(build_export_data(
                         data.clone(),
                         self.span_context.clone(),
-                        config.resource.clone(),
                         &self.tracer,
                     ));
                 }
@@ -254,7 +249,6 @@ impl Drop for Span {
 fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
-    resource: Cow<'static, Resource>,
     tracer: &crate::trace::Tracer,
 ) -> crate::export::trace::SpanData {
     crate::export::trace::SpanData {
@@ -269,7 +263,6 @@ fn build_export_data(
         events: data.events,
         links: data.links,
         status: data.status,
-        resource,
         instrumentation_lib: tracer.instrumentation_library().clone(),
     }
 }
