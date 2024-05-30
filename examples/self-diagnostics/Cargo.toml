@@ -6,14 +6,15 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-opentelemetry = { path = "../../opentelemetry", features = ["metrics", "otel_unstable"] }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
-opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
+opentelemetry = { path = "../../opentelemetry" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"]}
+opentelemetry-stdout = { path = "../../opentelemetry-stdout"}
+opentelemetry-appender-tracing = { path = "../../opentelemetry-appender-tracing"}
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
-tracing-subscriber = { version = "0.3.18", features = ["fmt"]}
+tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", "std"]}
 
 [features]
 default = ["otel_unstable"]
