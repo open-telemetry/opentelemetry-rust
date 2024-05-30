@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", "std"]}
+opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["http-proto", "reqwest-client", "logs"] }
 
 [features]
 default = ["otel_unstable"]
