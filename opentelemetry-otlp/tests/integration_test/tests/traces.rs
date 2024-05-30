@@ -18,7 +18,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .tracing()
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+            sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                 "basic-otlp-tracing-example",
             )])),

@@ -27,6 +27,10 @@
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
+- Clean up public methods in SDK.
+    - [`TracerProvider::span_processors`] and [`TracerProvider::config`] was removed as it's not part of the spec.
+    - Added `non_exhaustive` annotation to [`trace::Config`]. Marked [`config`] as deprecated since it's only a wrapper for `Config::default`
+    - Removed [`Tracer::tracer_provder`] and [`Tracer::instrument_libraries`] as it's not part of the spec.
 
 - **Breaking** [#1830](https://github.com/open-telemetry/opentelemetry-rust/pull/1830/files) [Traces SDK] Improves 
   performance by sending Resource information to processors (and exporters) once, instead of sending with every log. If you are an author

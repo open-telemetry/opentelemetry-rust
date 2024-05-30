@@ -62,12 +62,12 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &[Box<dyn SpanProcessor>] {
+    pub(crate) fn span_processors(&self) -> &[Box<dyn SpanProcessor>] {
         &self.inner.processors
     }
 
     /// Config associated with this tracer
-    pub fn config(&self) -> &crate::trace::Config {
+    pub(crate) fn config(&self) -> &crate::trace::Config {
         &self.inner.config
     }
 
