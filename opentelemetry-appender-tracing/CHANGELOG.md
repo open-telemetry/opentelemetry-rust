@@ -7,7 +7,6 @@
 ## v0.4.0
 
 - Removed unwanted dependency on opentelemetry-sdk.
-
 - Update `opentelemetry` dependency version to 0.23
 
 ## v0.3.0
