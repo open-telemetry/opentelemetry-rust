@@ -3,14 +3,14 @@ use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync:
 use opentelemetry::{
     metrics::{
         AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
-        SyncUpDownCounter, Unit,
+        SyncUpDownCounter,
     },
     Key, KeyValue,
 };
 
 use crate::{
-    attributes::AttributeSet,
     instrumentation::Scope,
+    metrics::AttributeSet,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
 
@@ -69,7 +69,7 @@ pub struct Instrument {
     /// The functional group of the instrument.
     pub kind: Option<InstrumentKind>,
     /// Unit is the unit of measurement recorded by the instrument.
-    pub unit: Unit,
+    pub unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
     pub scope: Scope,
 }
@@ -93,8 +93,8 @@ impl Instrument {
     }
 
     /// Set the instrument unit.
-    pub fn unit(mut self, unit: Unit) -> Self {
-        self.unit = unit;
+    pub fn unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
+        self.unit = unit.into();
         self
     }
 
@@ -109,7 +109,7 @@ impl Instrument {
         self.name == ""
             && self.description == ""
             && self.kind.is_none()
-            && self.unit.as_str() == ""
+            && self.unit == ""
             && self.scope == Scope::default()
     }
 
@@ -134,7 +134,7 @@ impl Instrument {
     }
 
     pub(crate) fn matches_unit(&self, other: &Instrument) -> bool {
-        self.unit.as_str() == "" || self.unit == other.unit
+        self.unit.is_empty() || self.unit.as_ref() == other.unit.as_ref()
     }
 
     pub(crate) fn matches_scope(&self, other: &Instrument) -> bool {
@@ -171,7 +171,7 @@ pub struct Stream {
     /// Describes the purpose of the data.
     pub description: Cow<'static, str>,
     /// the unit of measurement recorded.
-    pub unit: Unit,
+    pub unit: Cow<'static, str>,
     /// Aggregation the stream uses for an instrument.
     pub aggregation: Option<Aggregation>,
     /// An allow-list of attribute keys that will be preserved for the stream.
@@ -201,8 +201,8 @@ impl Stream {
     }
 
     /// Set the stream unit.
-    pub fn unit(mut self, unit: Unit) -> Self {
-        self.unit = unit;
+    pub fn unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
+        self.unit = unit.into();
         self
     }
 
@@ -233,7 +233,7 @@ pub(crate) struct InstrumentId {
     /// Defines the functional group of the instrument.
     pub(crate) kind: InstrumentKind,
     /// The unit of measurement recorded.
-    pub(crate) unit: Unit,
+    pub(crate) unit: Cow<'static, str>,
     /// Number is the underlying data type of the instrument.
     pub(crate) number: Cow<'static, str>,
 }
@@ -306,7 +306,7 @@ pub(crate) struct IdInner {
     /// The functional group of the instrument.
     kind: InstrumentKind,
     /// The unit of measurement recorded by the instrument.
-    pub(crate) unit: Unit,
+    pub(crate) unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
     scope: Scope,
 }
@@ -337,7 +337,7 @@ impl<T> Observable<T> {
         kind: InstrumentKind,
         name: Cow<'static, str>,
         description: Cow<'static, str>,
-        unit: Unit,
+        unit: Cow<'static, str>,
         measures: Vec<Arc<dyn Measure<T>>>,
     ) -> Self {
         Self {

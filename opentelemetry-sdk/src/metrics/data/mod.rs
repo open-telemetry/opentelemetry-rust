@@ -2,9 +2,9 @@
 
 use std::{any, borrow::Cow, fmt, time::SystemTime};
 
-use opentelemetry::{metrics::Unit, KeyValue};
+use opentelemetry::KeyValue;
 
-use crate::{attributes::AttributeSet, instrumentation::Scope, Resource};
+use crate::{instrumentation::Scope, Resource};
 
 pub use self::temporality::Temporality;
 
@@ -38,7 +38,7 @@ pub struct Metric {
     /// The description of the instrument, which can be used in documentation.
     pub description: Cow<'static, str>,
     /// The unit in which the instrument reports.
-    pub unit: Unit,
+    pub unit: Cow<'static, str>,
     /// The aggregated data from an instrument.
     pub data: Box<dyn Aggregation>,
 }
@@ -97,7 +97,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
 pub struct DataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// The time when the time series was started.
     pub start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
@@ -143,7 +143,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
 #[derive(Debug)]
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// The time when the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
@@ -210,7 +210,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 #[derive(Debug)]
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: AttributeSet,
+    pub attributes: Vec<KeyValue>,
     /// When the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.

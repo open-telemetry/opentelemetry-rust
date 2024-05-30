@@ -1,11 +1,10 @@
 use opentelemetry::global;
-use opentelemetry::metrics::Unit;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() {
+fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
         // uncomment the below lines to pretty print output.
         //  .with_encoder(|writer, data|
@@ -19,13 +18,14 @@ fn init_meter_provider() {
             "metrics-basic-example",
         )]))
         .build();
-    global::set_meter_provider(provider);
+    global::set_meter_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Initialize the MeterProvider with the stdout Exporter.
-    init_meter_provider();
+    let meter_provider = init_meter_provider();
 
     // Create a meter from the above MeterProvider.
     let meter = global::meter("mylibraryname");
@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_counter = meter
         .u64_observable_counter("my_observable_counter")
         .with_description("My observable counter example description")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 100,
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_up_down_counter = meter
         .i64_observable_up_down_counter("my_observable_updown_counter")
         .with_description("My observable updown counter example description")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 100,
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let gauge = meter
         .f64_gauge("my_gauge")
         .with_description("A gauge set to 1.0")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .init();
 
     gauge.record(
@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let _observable_gauge = meter
         .f64_observable_gauge("my_observable_gauge")
         .with_description("An observable gauge set to 1.0")
-        .with_unit(Unit::new("myunit"))
+        .with_unit("myunit")
         .with_callback(|observer| {
             observer.observe(
                 1.0,
@@ -137,6 +137,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
     Ok(())
 }

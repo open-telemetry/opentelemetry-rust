@@ -1,6 +1,6 @@
 //! Implements the [`SDK`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.64+][msrv]*
+//! *Compiler support: [requires `rustc` 1.65+][msrv]*
 //!
 //! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
@@ -44,7 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Beta)
+//! # Metrics (Alpha)
 //!
 //! Note: the metrics implementation is **still in progress** and **subject to major
 //! changes**.
@@ -87,8 +87,9 @@
 //!
 //! * `jaeger_remote_sampler`: Enables the [Jaeger remote sampler](https://www.jaegertracing.io/docs/1.53/sampling/).
 //!
-//! Support for recording and exporting telemetry asynchronously can be added
-//! via the following flags:
+//!
+//! Support for recording and exporting telemetry asynchronously and perform
+//! metrics aggregation can be added via the following flags:
 //!
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
@@ -116,7 +117,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub(crate) mod attributes;
 pub mod export;
 mod instrumentation;
 #[cfg(feature = "logs")]
@@ -142,7 +142,6 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use attributes::*;
 pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

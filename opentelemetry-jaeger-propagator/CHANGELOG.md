@@ -2,9 +2,12 @@
 
 ## vNext
 
+## v0.2.0
+
 ### Changed
 
 - Propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
+- Update `opentelemetry` dependency version to 0.23
 
 ## v0.1.0
 

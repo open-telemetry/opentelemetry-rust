@@ -15,6 +15,9 @@ const DEPRECATED_PARENT_SPAN: &str = "0";
 const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
 /// `Propagator` implements the [Jaeger propagation format].
+/// See [module level documentation](self#Examples) for examples.
+///  
+/// [jaeger propagation format]: https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format
 #[derive(Clone, Debug)]
 pub struct Propagator {
     baggage_prefix: &'static str,
@@ -135,7 +138,7 @@ impl Propagator {
     /// First bit controls whether to sample
     /// Second bit controls whether it's a debug trace
     /// Third bit is not used.
-    /// Forth bit is firehose flag, which is not supported in OT now.
+    /// Fourth bit is firehose flag, which is not supported in OT now.
     fn extract_trace_flags(&self, flag: &str) -> Result<TraceFlags, ()> {
         if flag.len() > 2 {
             return Err(());

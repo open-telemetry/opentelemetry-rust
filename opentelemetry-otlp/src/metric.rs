@@ -1,12 +1,12 @@
 //! OTEL metric exporter
 //!
-//! Defines a [MetricsExporter] to send metric data to backend via OTEL protocol.
+//! Defines a [MetricsExporter] to send metric data to backend via OTLP protocol.
 //!
 
 use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry::{global, metrics::Result};
+use opentelemetry::metrics::Result;
 
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -240,9 +240,6 @@ where
         }
 
         let provider = provider.build();
-
-        global::set_meter_provider(provider.clone());
-
         Ok(provider)
     }
 }

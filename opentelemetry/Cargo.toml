@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.22.0"
+version = "0.23.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -31,7 +31,7 @@ thiserror = { workspace = true }
 js-sys = "0.3.63"
 
 [features]
-default = ["trace"]
+default = ["trace", "metrics", "logs"]
 trace = ["pin-project-lite"]
 metrics = []
 testing = ["trace", "metrics"]
@@ -41,6 +41,7 @@ otel_unstable = []
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features=["logs", "trace", "metrics"]} # for documentation tests
 criterion = { version = "0.3" }
+rand = { workspace = true }
 
 [[bench]]
 name = "metrics"

@@ -18,7 +18,7 @@ const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR, false);
+    let before_build = build_content_map(TONIC_OUT_DIR, true);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
@@ -53,6 +53,9 @@ fn build_tonic() {
         "resource.v1.Resource",
         "trace.v1.Span.Event",
         "trace.v1.Status",
+        "logs.v1.LogRecord",
+        "logs.v1.ScopeLogs",
+        "logs.v1.ResourceLogs",
     ] {
         builder = builder.type_attribute(
             path,
@@ -68,6 +71,8 @@ fn build_tonic() {
         "trace.v1.Span.trace_id",
         "trace.v1.Span.span_id",
         "trace.v1.Span.parent_span_id",
+        "logs.v1.LogRecord.span_id",
+        "logs.v1.LogRecord.trace_id",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
@@ -81,14 +86,18 @@ fn build_tonic() {
         "trace.v1.Span.start_time_unix_nano",
         "trace.v1.Span.end_time_unix_nano",
         "trace.v1.Span.Event.time_unix_nano",
+        "logs.v1.LogRecord.time_unix_nano",
+        "logs.v1.LogRecord.observed_time_unix_nano",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
 
     // add custom serializer and deserializer for AnyValue
-    builder = builder
-        .field_attribute("common.v1.KeyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+    for path in ["common.v1.KeyValue.value", "logs.v1.LogRecord.body"] {
+        builder = builder
+        .field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+    }
 
     builder
         .out_dir(out_dir.path())
@@ -121,13 +130,12 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
         .collect()
 }
 
-///  Returns a String with the platform specific new line feed character.
+///  Returns a String which uses the platform specific new line feed character.
 fn get_platform_specific_string(input: String) -> String {
-    if cfg!(windows) {
-        input.replace('\n', "\r\n")
-    } else {
-        input
+    if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
+        return input.replace('\n', "\r\n");
     }
+    input
 }
 
 fn ensure_files_are_same(

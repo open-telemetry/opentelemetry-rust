@@ -36,3 +36,11 @@ Throughput: 3,905,200 iterations/sec
 Throughput: 4,106,600 iterations/sec
 Throughput: 5,075,400 iterations/sec
 ```
+
+## Feature flags
+
+"stats" - Prints memory and CPU usage. Has slight impact on throughput.
+
+```sh
+cargo run --release --bin metrics --feature=stats
+```

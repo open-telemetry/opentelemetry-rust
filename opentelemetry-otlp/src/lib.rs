@@ -7,7 +7,7 @@
 //! order to support open-source telemetry data formats (e.g. Jaeger,
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
-//! Currently, this crate only support sending tracing data or metrics in OTLP
+//! Currently, this crate only support sending telemetry in OTLP
 //! via grpc and http (in binary format). Supports for other format and protocol
 //! will be added in the future. The details of what's currently offering in this
 //! crate can be found in this doc.
@@ -18,29 +18,31 @@
 //! you want to send data to:
 //!
 //! ```shell
-//! $ docker run -p 4317:4317 otel/opentelemetry-collector-dev:latest
+//! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
 //! Then install a new pipeline with the recommended defaults to start exporting
 //! telemetry. You will have to build a OTLP exporter first.
 //!
-//! Tracing and metrics pipelines can be started with `new_pipeline().tracing()` and
-//! `new_pipeline().metrics()` respectively.
+//! Exporting pipelines can be started with `new_pipeline().tracing()` and
+//! `new_pipeline().metrics()`, and `new_pipeline().logging()` respectively for
+//! traces, metrics and logs.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
+//! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::new_exporter().tonic();
 //!     // Then pass it into pipeline builder
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let _ = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
 //!         .with_exporter(otlp_exporter)
 //!         .install_simple()?;
-//!
+//!     let tracer = global::tracer("my_tracer");
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
@@ -102,7 +104,6 @@
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format.
-//! * `http-json`: Use http as transport layer, JSON as body format.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
@@ -119,7 +120,7 @@
 //! on the choice of exporters.
 //!
 //! ```no_run
-//! use opentelemetry::{KeyValue, trace::Tracer};
+//! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};
@@ -137,7 +138,7 @@
 //!     map.insert("x-number", "123".parse().unwrap());
 //!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
 //!
-//!     let tracer = opentelemetry_otlp::new_pipeline()
+//!     let tracer_provider = opentelemetry_otlp::new_pipeline()
 //!         .tracing()
 //!         .with_exporter(
 //!             opentelemetry_otlp::new_exporter()
@@ -156,6 +157,8 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+//!         global::set_tracer_provider(tracer_provider);
+//!         let tracer = global::tracer("tracer-name");
 //!         # tracer
 //!     # };
 //!

@@ -2,11 +2,47 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+- Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
+  method. Instead of using
+  `.with_config(Config::default().with_resource(RESOURCE::default()))` users
+  must now use `.with_resource(RESOURCE::default())` to configure Resource on
+  logger provider.
+- Removed dependency on `ordered-float`.
+- Removed `XrayIdGenerator`, which was marked deprecated since 0.21.3. Use
+  [`opentelemetry-aws`](https://crates.io/crates/opentelemetry-aws), version
+  0.10.0 or newer.
+- Performance Improvement - Counter/UpDownCounter instruments internally use
+  `RwLock` instead of `Mutex` to reduce contention.
+
+- **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
+  Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
+  change for LogProcessor developers. If the processor needs to invoke the exporter
+  asynchronously, it should clone the data to ensure it can be safely processed without
+  lifetime issues. Any changes made to the log data before cloning in this method will be
+  reflected in the next log processor in the chain, as well as to the exporter.
+- **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
+ Update `LogExporter::export() method to accept a batch of log data, which can be either a
+ reference or owned`LogData`. If the exporter needs to process the log data
+ asynchronously, it should clone the log data to ensure it can be safely processed without
+ lifetime issues.
+
+- **BREAKING** Remove `logs_level_enabled` feature flag as the feature is not part of the specs. 
+           [#1736](https://github.com/open-telemetry/opentelemetry-rust/pull/1736/files)
+
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
+
+## v0.23.0
+
 - Fix SimpleSpanProcessor to be consistent with log counterpart. Also removed
   dependency on crossbeam-channel.
   [1612](https://github.com/open-telemetry/opentelemetry-rust/pull/1612/files)
 - [#1422](https://github.com/open-telemetry/opentelemetry-rust/pull/1422)
   Fix metrics aggregation bug when using Views to drop attributes.
+- [#1766](https://github.com/open-telemetry/opentelemetry-rust/pull/1766)
+  Fix Metrics PeriodicReader to trigger first collect/export at the first interval
+  instead of doing it right away.
 - [#1623](https://github.com/open-telemetry/opentelemetry-rust/pull/1623) Add Drop implementation for SdkMeterProvider,
   which shuts down metricreaders, thereby allowing metrics still in memory to be flushed out.
 - **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
@@ -31,9 +67,10 @@
 - **Breaking** [#1729](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
   - Update the return type of `TracerProvider.span_processors()` from `&Vec<Box<dyn SpanProcessor>>` to `&[Box<dyn SpanProcessor>]`.
   - Update the return type of `LoggerProvider.log_processors()` from `&Vec<Box<dyn LogProcessor>>` to `&[Box<dyn LogProcessor>]`.
-- **BREAKING** Remove `logs_level_enabled` feature flag as the feature is not part of the specs. 
-           [#1736](https://github.com/open-telemetry/opentelemetry-rust/pull/1736/files)
-
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- **Breaking** [#1750](https://github.com/open-telemetry/opentelemetry-rust/pull/1729)
+  - Update the return type of `LoggerProvider.shutdown()` from `Vec<LogResult<()>>` to `LogResult<()>`.
 
 ## v0.22.1
 

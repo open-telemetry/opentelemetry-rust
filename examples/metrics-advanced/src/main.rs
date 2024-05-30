@@ -1,5 +1,4 @@
 use opentelemetry::global;
-use opentelemetry::metrics::Unit;
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{
@@ -8,14 +7,14 @@ use opentelemetry_sdk::metrics::{
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
 
-fn init_meter_provider() {
+fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
             Some(
                 Stream::new()
                     .name("my_histogram_renamed")
-                    .unit(Unit::new("milliseconds")),
+                    .unit("milliseconds"),
             )
         } else {
             None
@@ -61,12 +60,13 @@ fn init_meter_provider() {
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
         .build();
-    global::set_meter_provider(provider);
+    global::set_meter_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    init_meter_provider();
+    let meter_provider = init_meter_provider();
     let meter = global::meter("mylibraryname");
 
     // Example 1 - Rename metric using View.
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // using view.
     let histogram = meter
         .f64_histogram("my_histogram")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("My histogram example description")
         .init();
 
@@ -113,7 +113,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // use a custom set of boundaries, and min/max values will not be recorded.
     let histogram2 = meter
         .f64_histogram("my_second_histogram")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("My histogram example description")
         .init();
 
@@ -153,6 +153,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    global::shutdown_meter_provider();
+    meter_provider.shutdown()?;
     Ok(())
 }

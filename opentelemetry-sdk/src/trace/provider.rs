@@ -264,7 +264,7 @@ mod tests {
             }
         }
 
-        fn shutdown(&mut self) -> TraceResult<()> {
+        fn shutdown(&self) -> TraceResult<()> {
             self.force_flush()
         }
     }

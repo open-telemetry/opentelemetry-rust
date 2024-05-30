@@ -1,18 +1,22 @@
-use super::{BatchLogProcessor, Config, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
+use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{
     export::logs::{LogData, LogExporter},
     runtime::RuntimeChannel,
+    Resource,
 };
 use opentelemetry::{
-    global::{self},
-    logs::LogResult,
+    global,
+    logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
 
 use opentelemetry::logs::Severity;
 
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    sync::{atomic::Ordering, Arc},
+};
 use std::{sync::atomic::AtomicBool, time::SystemTime};
 
 use once_cell::sync::Lazy;
@@ -21,7 +25,7 @@ use once_cell::sync::Lazy;
 static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
-        config: Config::default(),
+        resource: Resource::empty(),
     }),
     is_shutdown: Arc::new(AtomicBool::new(true)),
 });
@@ -85,9 +89,9 @@ impl LoggerProvider {
         Builder::default()
     }
 
-    /// Config associated with this provider.
-    pub fn config(&self) -> &Config {
-        &self.inner.config
+    /// Resource associated with this provider.
+    pub fn resource(&self) -> &Resource {
+        &self.inner.resource
     }
 
     /// Log processors associated with this provider.
@@ -104,24 +108,36 @@ impl LoggerProvider {
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> Vec<LogResult<()>> {
-        // mark itself as already shutdown
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        // propagate the shutdown signal to processors
-        // it's up to the processor to properly block new logs after shutdown
-        self.inner
-            .processors
-            .iter()
-            .map(|processor| processor.shutdown())
-            .collect()
+    pub fn shutdown(&self) -> LogResult<()> {
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // propagate the shutdown signal to processors
+            // it's up to the processor to properly block new logs after shutdown
+            let mut errs = vec![];
+            for processor in &self.inner.processors {
+                if let Err(err) = processor.shutdown() {
+                    errs.push(err);
+                }
+            }
+
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                Err(LogError::Other(format!("{errs:?}").into()))
+            }
+        } else {
+            Err(LogError::Other("logger provider already shut down".into()))
+        }
     }
 }
 
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
-    config: Config,
+    resource: Resource,
 }
 
 impl Drop for LoggerProviderInner {
@@ -138,7 +154,7 @@ impl Drop for LoggerProviderInner {
 /// Builder for provider attributes.
 pub struct Builder {
     processors: Vec<Box<dyn LogProcessor>>,
-    config: Config,
+    resource: Option<Resource>,
 }
 
 impl Builder {
@@ -168,21 +184,25 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `Config` that this provider should use.
-    pub fn with_config(self, config: Config) -> Self {
-        Builder { config, ..self }
+    /// The `Resource` to be associated with this Provider.
+    pub fn with_resource(self, resource: Resource) -> Self {
+        Builder {
+            resource: Some(resource),
+            ..self
+        }
     }
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
+        let resource = self.resource.unwrap_or_default();
         // invoke set_resource on all the processors
         for processor in &self.processors {
-            processor.set_resource(&self.config.resource);
+            processor.set_resource(&resource);
         }
         LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                config: self.config,
+                resource,
             }),
             is_shutdown: Arc::new(AtomicBool::new(false)),
         }
@@ -235,20 +255,21 @@ impl opentelemetry::logs::Logger for Logger {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
+        let mut log_record = record;
+        if let Some(ref trace_context) = trace_context {
+            log_record.trace_context = Some(trace_context.clone());
+        }
+        if log_record.observed_timestamp.is_none() {
+            log_record.observed_timestamp = Some(SystemTime::now());
+        }
+
+        let mut data = LogData {
+            record: log_record,
+            instrumentation: self.instrumentation_library().clone(),
+        };
 
         for p in processors {
-            let mut cloned_record = record.clone();
-            if let Some(ref trace_context) = trace_context {
-                cloned_record.trace_context = Some(trace_context.clone());
-            }
-            if cloned_record.observed_timestamp.is_none() {
-                cloned_record.observed_timestamp = Some(SystemTime::now());
-            }
-            let data = LogData {
-                record: cloned_record,
-                instrumentation: self.instrumentation_library().clone(),
-            };
-            p.emit(data);
+            p.emit(&mut data);
         }
     }
 
@@ -304,7 +325,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: LogData) {
+        fn emit(&self, _data: &mut LogData) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -339,8 +360,7 @@ mod tests {
                                expect: Option<&'static str>| {
             assert_eq!(
                 provider
-                    .config()
-                    .resource
+                    .resource()
                     .get(Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
@@ -348,18 +368,15 @@ mod tests {
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider
-                    .config()
-                    .resource
-                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
@@ -377,15 +394,13 @@ mod tests {
 
         // If user provided a resource, use that.
         let custom_config_provider = super::LoggerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
-                    SERVICE_NAME,
-                    "test_service",
-                )])),
-            })
+            .with_resource(Resource::new(vec![KeyValue::new(
+                SERVICE_NAME,
+                "test_service",
+            )]))
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
-        assert_eq!(custom_config_provider.config().resource.len(), 1);
+        assert_eq!(custom_config_provider.resource().len(), 1);
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         temp_env::with_var(
@@ -401,7 +416,7 @@ mod tests {
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
                 assert_telemetry_resource(&env_resource_provider);
-                assert_eq!(env_resource_provider.config().resource.len(), 6);
+                assert_eq!(env_resource_provider.resource().len(), 6);
             },
         );
 
@@ -411,12 +426,10 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::LoggerProvider::builder()
-                    .with_config(Config {
-                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
-                            KeyValue::new("my-custom-key", "my-custom-value"),
-                            KeyValue::new("my-custom-key2", "my-custom-value2"),
-                        ]))),
-                    })
+                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
+                        KeyValue::new("my-custom-key", "my-custom-value"),
+                        KeyValue::new("my-custom-key2", "my-custom-value2"),
+                    ])))
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -439,23 +452,15 @@ mod tests {
                     Some("value2"),
                 );
                 assert_telemetry_resource(&user_provided_resource_config_provider);
-                assert_eq!(
-                    user_provided_resource_config_provider
-                        .config()
-                        .resource
-                        .len(),
-                    7
-                );
+                assert_eq!(user_provided_resource_config_provider.resource().len(), 7);
             },
         );
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::LoggerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::empty()),
-            })
+            .with_resource(Resource::empty())
             .build();
-        assert_eq!(no_service_name.config().resource.len(), 0);
+        assert_eq!(no_service_name.resource().len(), 0);
     }
 
     #[test]
@@ -483,6 +488,25 @@ mod tests {
     }
 
     #[test]
+    fn shutdown_idempotent_test() {
+        let counter = Arc::new(AtomicU64::new(0));
+        let logger_provider = LoggerProvider::builder()
+            .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
+            .build();
+
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_ok());
+
+        // Subsequent shutdowns should return an error.
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_err());
+
+        // Subsequent shutdowns should return an error.
+        let shutdown_res = logger_provider.shutdown();
+        assert!(shutdown_res.is_err());
+    }
+
+    #[test]
     fn global_shutdown_test() {
         // cargo test shutdown_test --features=logs
 
@@ -505,7 +529,7 @@ mod tests {
 
         // explicitly calling shutdown on logger_provider. This will
         // indeed do the shutdown, even if there are loggers still alive.
-        logger_provider.shutdown();
+        let _ = logger_provider.shutdown();
 
         // Assert
 
@@ -535,7 +559,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: LogData) {
+        fn emit(&self, _data: &mut LogData) {
             // nothing to do.
         }
 

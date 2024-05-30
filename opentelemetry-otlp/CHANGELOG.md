@@ -2,17 +2,31 @@
 
 ## vNext
 
+- Add "metrics", "logs" to default features. With this, default feature list is
+  "trace", "metrics" and "logs".
+- `OtlpMetricPipeline.build()` no longer invoke the
+  `global::set_meter_provider`. User who setup the pipeline must do it
+  themselves using `global::set_meter_provider(meter_provider.clone());`.
+- Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.
+Instead of using
+`.with_config(Config::default().with_resource(RESOURCE::default()))` users must
+now use `.with_resource(RESOURCE::default())` to configure Resource when using
+`OtlpLogPipeline`.
+- **Breaking** The methods `OtlpTracePipeline::install_simple()` and `OtlpTracePipeline::install_batch()` would now return `TracerProvider` instead of `Tracer`.
+  These methods would also no longer set the global tracer provider. It would now be the responsibility of users to set it by calling `global::set_tracer_provider(tracer_provider.clone());`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples on how to initialize OTLP Trace Exporter.
+- Bump MSRV to 1.70 [#1840](https://github.com/open-telemetry/opentelemetry-rust/pull/1840)
+
+
+## v0.16.0
+
 ### Fixed
 
 - URL encoded values in `OTEL_EXPORTER_OTLP_HEADERS` are now correctly decoded. [#1578](https://github.com/open-telemetry/opentelemetry-rust/pull/1578)
 - OTLP exporter will not change the URL added through `ExportConfig` [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
 - Default grpc endpoint will not have path based on signal(e.g `/v1/traces`) [#1706](https://github.com/open-telemetry/opentelemetry-rust/pull/1706)
+- Fix feature flags for `OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT` [#1746](https://github.com/open-telemetry/opentelemetry-rust/pull/1746)
 
 ### Added
-
-- Aded `http/json` support for all signals ([#1585])
-
-[#1585]: https://github.com/open-telemetry/opentelemetry-rust/pull/1585
 
 - Added `DeltaTemporalitySelector` ([#1568])
 - Add `webkpi-roots` features to `reqwest` and `tonic` backends
@@ -23,6 +37,10 @@
  - **Breaking** Remove global provider for Logs [#1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691/)
       - The method OtlpLogPipeline::install_simple() and OtlpLogPipeline::install_batch() now return `LoggerProvider` instead of
       `Logger`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples for how to initialize OTLP Log Exporter to use with OpenTelemetryLogBridge and OpenTelemetryTracingBridge respectively.
+- Update `opentelemetry` dependency version to 0.23
+- Update `opentelemetry_sdk` dependency version to 0.23
+- Update `opentelemetry-http` dependency version to 0.12
+- Update `opentelemetry-proto` dependency version to 0.6
 
 ## v0.15.0
 

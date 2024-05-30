@@ -1,11 +1,9 @@
 //! # OpenTelemetry Log SDK
 
-mod config;
 mod log_emitter;
 mod log_processor;
 mod record;
 
-pub use config::{config, Config};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
@@ -17,15 +15,25 @@ pub use record::{LogRecord, TraceContext};
 mod tests {
     use super::*;
     use crate::testing::logs::InMemoryLogsExporter;
+    use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
+    use std::borrow::Borrow;
+    use std::collections::HashMap;
 
     #[test]
     fn logging_sdk_test() {
         // Arrange
+        let resource = Resource::new(vec![
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+            KeyValue::new("k4", "v4"),
+        ]);
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
+            .with_resource(resource.clone())
             .with_log_processor(SimpleLogProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -34,10 +42,32 @@ mod tests {
         let mut log_record = logger.create_log_record();
         log_record.set_severity_number(Severity::Error);
         log_record.set_severity_text("Error".into());
+
+        // Adding attributes using a vector with explicitly constructed Key and AnyValue objects.
         log_record.add_attributes(vec![
-            (Key::new("key1"), "value1".into()),
-            (Key::new("key2"), "value2".into()),
+            (Key::new("key1"), AnyValue::from("value1")),
+            (Key::new("key2"), AnyValue::from("value2")),
         ]);
+
+        // Adding attributes using an array with explicitly constructed Key and AnyValue objects.
+        log_record.add_attributes([
+            (Key::new("key3"), AnyValue::from("value3")),
+            (Key::new("key4"), AnyValue::from("value4")),
+        ]);
+
+        // Adding attributes using a vector with tuple auto-conversion to Key and AnyValue.
+        log_record.add_attributes(vec![("key5", "value5"), ("key6", "value6")]);
+
+        // Adding attributes using an array with tuple auto-conversion to Key and AnyValue.
+        log_record.add_attributes([("key7", "value7"), ("key8", "value8")]);
+
+        // Adding Attributes from a HashMap
+        let mut attributes_map = HashMap::new();
+        attributes_map.insert("key9", "value9");
+        attributes_map.insert("key10", "value10");
+
+        log_record.add_attributes(attributes_map);
+
         logger.emit(log_record);
 
         // Assert
@@ -55,7 +85,16 @@ mod tests {
             .attributes
             .clone()
             .expect("Attributes are expected");
-        assert_eq!(attributes.len(), 2);
+        assert_eq!(attributes.len(), 10);
+        for i in 1..=10 {
+            assert!(log.record.attributes.clone().unwrap().contains(&(
+                Key::new(format!("key{}", i)),
+                AnyValue::String(format!("value{}", i).into())
+            )));
+        }
+
+        // validate Resource
+        assert_eq!(&resource, log.resource.borrow());
     }
 
     #[test]

@@ -5,15 +5,11 @@
 use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::{
-    global,
-    trace::{TraceError, TracerProvider},
-};
+use opentelemetry::trace::TraceError;
 use opentelemetry_sdk::{
     self as sdk,
     export::trace::{ExportResult, SpanData},
 };
-use opentelemetry_semantic_conventions::SCHEMA_URL;
 use sdk::runtime::RuntimeChannel;
 
 #[cfg(feature = "grpc-tonic")]
@@ -100,10 +96,10 @@ impl OtlpTracePipeline<NoExporterConfig> {
 impl OtlpTracePipeline<SpanExporterBuilder> {
     /// Install the configured span exporter.
     ///
-    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    /// Returns a [`TracerProvider`].
     ///
-    /// [`Tracer`]: opentelemetry::trace::Tracer
-    pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
+    /// [`TracerProvider`]: opentelemetry::trace::TracerProvider
+    pub fn install_simple(self) -> Result<sdk::trace::TracerProvider, TraceError> {
         Ok(build_simple_with_exporter(
             self.exporter_builder.build_span_exporter()?,
             self.trace_config,
@@ -113,15 +109,15 @@ impl OtlpTracePipeline<SpanExporterBuilder> {
     /// Install the configured span exporter and a batch span processor using the
     /// specified runtime.
     ///
-    /// Returns a [`Tracer`] with the name `opentelemetry-otlp` and current crate version.
+    /// Returns a [`TracerProvider`].
     ///
     /// `install_batch` will panic if not called within a tokio runtime
     ///
-    /// [`Tracer`]: opentelemetry::trace::Tracer
+    /// [`TracerProvider`]: opentelemetry::trace::TracerProvider
     pub fn install_batch<R: RuntimeChannel>(
         self,
         runtime: R,
-    ) -> Result<sdk::trace::Tracer, TraceError> {
+    ) -> Result<sdk::trace::TracerProvider, TraceError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder.build_span_exporter()?,
             self.trace_config,
@@ -134,19 +130,13 @@ impl OtlpTracePipeline<SpanExporterBuilder> {
 fn build_simple_with_exporter(
     exporter: SpanExporter,
     trace_config: Option<sdk::trace::Config>,
-) -> sdk::trace::Tracer {
+) -> sdk::trace::TracerProvider {
     let mut provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
     }
-    let provider = provider_builder.build();
-    let tracer = provider
-        .tracer_builder("opentelemetry-otlp")
-        .with_version(env!("CARGO_PKG_VERSION"))
-        .with_schema_url(SCHEMA_URL)
-        .build();
-    let _ = global::set_tracer_provider(provider);
-    tracer
+
+    provider_builder.build()
 }
 
 fn build_batch_with_exporter<R: RuntimeChannel>(
@@ -154,7 +144,7 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     trace_config: Option<sdk::trace::Config>,
     runtime: R,
     batch_config: Option<sdk::trace::BatchConfig>,
-) -> sdk::trace::Tracer {
+) -> sdk::trace::TracerProvider {
     let mut provider_builder = sdk::trace::TracerProvider::builder();
     let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
         .with_batch_config(batch_config.unwrap_or_default())
@@ -164,14 +154,7 @@ fn build_batch_with_exporter<R: RuntimeChannel>(
     if let Some(config) = trace_config {
         provider_builder = provider_builder.with_config(config);
     }
-    let provider = provider_builder.build();
-    let tracer = provider
-        .tracer_builder("opentelemetry-otlp")
-        .with_version(env!("CARGO_PKG_VERSION"))
-        .with_schema_url(SCHEMA_URL)
-        .build();
-    let _ = global::set_tracer_provider(provider);
-    tracer
+    provider_builder.build()
 }
 
 /// OTLP span exporter builder.

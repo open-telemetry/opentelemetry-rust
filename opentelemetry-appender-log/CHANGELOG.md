@@ -2,8 +2,13 @@
 
 ## vNext
 
-- Add log key-values as attributes [#1628](https://github.com/open-telemetry/opentelemetry-rust/pull/1628)
 - **BREAKING** Remove `logs_level_enabled` feature flag as the feature is not part of the specs. [#1736](https://github.com/open-telemetry/opentelemetry-rust/pull/1736/files)
+
+## v0.4.0
+
+- Add log key-values as attributes [#1628](https://github.com/open-telemetry/opentelemetry-rust/pull/1628)
+
+- Update `opentelemetry` dependency version to 0.23
 
 ## v0.3.0
 
