@@ -213,4 +213,8 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         self.0.export(batch)
     }
+
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+        self.0.set_resource(resource);
+    }
 }

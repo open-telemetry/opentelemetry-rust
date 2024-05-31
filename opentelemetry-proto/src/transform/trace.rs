@@ -4,7 +4,7 @@ pub mod tonic {
     use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
     use crate::transform::common::{
         to_nanos,
-        tonic::{resource_attributes, Attributes},
+        tonic::{Attributes, ResourceAttributesWithSchema},
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
@@ -45,19 +45,15 @@ pub mod tonic {
         }
     }
 
-    impl From<SpanData> for ResourceSpans {
-        fn from(source_span: SpanData) -> Self {
+    impl ResourceSpans {
+        pub fn new(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
-                    attributes: resource_attributes(&source_span.resource).0,
+                    attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
                 }),
-                schema_url: source_span
-                    .resource
-                    .schema_url()
-                    .map(|url| url.to_string())
-                    .unwrap_or_default(),
+                schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_spans: vec![ScopeSpans {
                     schema_url: source_span
                         .instrumentation_lib

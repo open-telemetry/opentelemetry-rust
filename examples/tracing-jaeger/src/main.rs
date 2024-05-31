@@ -19,7 +19,7 @@ fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::TracerProvider, Tr
                 .with_endpoint("http://localhost:4317"),
         )
         .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+            sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 SERVICE_NAME,
                 "tracing-jaeger",
             )])),

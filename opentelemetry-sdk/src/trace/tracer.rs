@@ -55,12 +55,12 @@ impl Tracer {
     }
 
     /// TracerProvider associated with this tracer.
-    pub fn provider(&self) -> Option<TracerProvider> {
+    pub(crate) fn provider(&self) -> Option<TracerProvider> {
         self.provider.upgrade().map(TracerProvider::new)
     }
 
     /// Instrumentation library information of this tracer.
-    pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
+    pub(crate) fn instrumentation_library(&self) -> &InstrumentationLibrary {
         &self.instrumentation_lib
     }
 

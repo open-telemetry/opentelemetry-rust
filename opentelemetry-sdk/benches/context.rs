@@ -10,7 +10,8 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     export::trace::{ExportResult, SpanData, SpanExporter},
-    trace::{config, Sampler, TracerProvider},
+    trace,
+    trace::{Sampler, TracerProvider},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -126,7 +127,9 @@ impl Display for Environment {
 
 fn parent_sampled_tracer(inner_sampler: Sampler) -> (TracerProvider, BoxedTracer) {
     let provider = TracerProvider::builder()
-        .with_config(config().with_sampler(Sampler::ParentBased(Box::new(inner_sampler))))
+        .with_config(
+            trace::Config::default().with_sampler(Sampler::ParentBased(Box::new(inner_sampler))),
+        )
         .with_simple_exporter(NoopExporter)
         .build();
     let tracer = provider.tracer(module_path!());
