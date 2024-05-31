@@ -20,7 +20,7 @@ mod throughput;
 
 lazy_static! {
     static ref PROVIDER: sdktrace::TracerProvider = sdktrace::TracerProvider::builder()
-        .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
+        .with_config(sdktrace::Config::default().with_sampler(sdktrace::Sampler::AlwaysOn))
         .with_span_processor(NoOpSpanProcessor {})
         .build();
     static ref TRACER: sdktrace::Tracer = PROVIDER.tracer("stress");

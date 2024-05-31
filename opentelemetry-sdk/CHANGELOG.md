@@ -27,8 +27,23 @@
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
+- Clean up public methods in SDK.
+    - [`TracerProvider::span_processors`] and [`TracerProvider::config`] was removed as it's not part of the spec.
+    - Added `non_exhaustive` annotation to [`trace::Config`]. Marked [`config`] as deprecated since it's only a wrapper for `Config::default`
+    - Removed [`Tracer::tracer_provder`] and [`Tracer::instrument_libraries`] as it's not part of the spec.
 
-- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
+- **Breaking** [#1830](https://github.com/open-telemetry/opentelemetry-rust/pull/1830/files) [Traces SDK] Improves 
+  performance by sending Resource information to processors (and exporters) once, instead of sending with every log. If you are an author
+  of Processor, Exporter, the following are *BREAKING* changes.
+    - Implement `set_resource` method in your custom SpanProcessor, which invokes exporter's `set_resource`.
+    - Implement `set_resource` method in your custom SpanExporter. This method should save the resource object
+      in original or serialized format, to be merged with every span event during export.
+    - `SpanData` doesn't have the resource attributes. The `SpanExporter::export()` method needs to merge it 
+      with the earlier preserved resource before export.
+
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans.
+
+- **Breaking** [1850] (https://github.com/open-telemetry/opentelemetry-rust/pull/1850) `LoggerProvider::log_processors()` and `LoggerProvider::resource()` are not public methods anymore. They are only used within the `opentelemetry-sdk` crate.
 
 ## v0.23.0
 
