@@ -511,7 +511,7 @@ mod tests {
 
     #[test]
     fn global_shutdown_test() {
-        // cargo test global_shutdown_test
+        // cargo test global_shutdown_test --features=testing
 
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
