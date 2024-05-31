@@ -1121,14 +1121,7 @@ pub const HTTP_USER_AGENT: &str = "http.user_agent";
 /// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
 pub const IOS_STATE: &str = "ios.state";
 
-/// Deprecated, use `messaging.client.id` instead.
-///
-/// # Examples
-///
-/// - `client-5`
 /// - `myhost@8742@s8083jm`
-pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";
-
 /// Deprecated, use `messaging.destination.partition.id` instead.
 ///
 /// # Examples
