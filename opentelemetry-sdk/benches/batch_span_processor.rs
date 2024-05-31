@@ -8,8 +8,6 @@ use opentelemetry_sdk::testing::trace::NoopSpanExporter;
 use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
 };
-use opentelemetry_sdk::Resource;
-use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::runtime::Runtime;
@@ -34,7 +32,6 @@ fn get_span_data() -> Vec<SpanData> {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            resource: Cow::Owned(Resource::empty()),
             instrumentation_lib: Default::default(),
         })
         .collect::<Vec<SpanData>>()

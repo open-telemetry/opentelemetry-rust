@@ -12,7 +12,7 @@ use super::BoxInterceptor;
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
     #[allow(dead_code)]
-    // <allow dead> would be removed once we support set_resource for metrics and traces.
+    // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 

@@ -10,12 +10,14 @@ use std::env;
 use std::str::FromStr;
 
 /// Default trace configuration
+#[deprecated(since = "0.23.0", note = "Use Config::default() instead")]
 pub fn config() -> Config {
     Config::default()
 }
 
 /// Tracer configuration
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Config {
     /// The sampler that the sdk should use
     pub sampler: Box<dyn ShouldSample>,
