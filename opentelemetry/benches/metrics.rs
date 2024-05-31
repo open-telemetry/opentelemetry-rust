@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{global, metrics::Counter, KeyValue};
 
 // Run this benchmark with:
-// cargo bench --bench metrics --features=metrics
+// cargo bench --bench metrics
 
 fn create_counter() -> Counter<u64> {
     let meter = global::meter("benchmarks");
