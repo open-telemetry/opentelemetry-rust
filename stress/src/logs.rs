@@ -1,3 +1,11 @@
+/*
+    Stress test results:
+    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    RAM: 64.0 GB
+    53 M/sec
+*/
+
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
@@ -9,7 +17,7 @@ mod throughput;
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: opentelemetry_sdk::export::logs::LogData) {}
+    fn emit(&self, _data: &mut opentelemetry_sdk::export::logs::LogData) {}
 
     fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())

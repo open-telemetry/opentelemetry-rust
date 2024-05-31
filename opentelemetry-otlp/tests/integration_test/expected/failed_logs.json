@@ -1,0 +1,36 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "logs-integration-test"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {
+            "name": "opentelemetry-log-appender",
+            "version": "0.3.0"
+          },
+          "logRecords": [
+            {
+              "observedTimeUnixNano": "1715753202587469939",
+              "severityNumber": 9,
+              "severityText": "INFO",
+              "body": {
+                "stringValue": "hello from apple. My price is 2.99."
+              },
+              "traceId": "",
+              "spanId": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

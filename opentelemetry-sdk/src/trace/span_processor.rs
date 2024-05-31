@@ -35,6 +35,7 @@
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
 use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::resource::Resource;
 use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
 use futures_channel::oneshot;
@@ -50,7 +51,7 @@ use opentelemetry::{
     Context,
 };
 use std::cmp::min;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
 /// Delay interval between two consecutive exports.
@@ -91,7 +92,9 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn force_flush(&self) -> TraceResult<()>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
-    fn shutdown(&mut self) -> TraceResult<()>;
+    fn shutdown(&self) -> TraceResult<()>;
+    /// Set the resource for the log processor.
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 /// A [SpanProcessor] that passes finished spans to the configured
@@ -137,7 +140,7 @@ impl SpanProcessor for SimpleSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&self) -> TraceResult<()> {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -145,6 +148,12 @@ impl SpanProcessor for SimpleSpanProcessor {
             Err(TraceError::Other(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
             ))
+        }
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.set_resource(resource);
         }
     }
 }
@@ -249,7 +258,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             .and_then(|identity| identity)
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -258,6 +267,13 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         futures_executor::block_on(res_receiver)
             .map_err(|err| TraceError::Other(err.into()))
             .and_then(|identity| identity)
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
     }
 }
 
@@ -275,6 +291,8 @@ enum BatchMessage {
     Flush(Option<oneshot::Sender<ExportResult>>),
     /// Shut down the worker thread, push all spans in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
 }
 
 struct BatchSpanProcessorInternal<R> {
@@ -375,8 +393,11 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                 self.exporter.shutdown();
                 return false;
             }
+            // propagate the resource
+            BatchMessage::SetResource(resource) => {
+                self.exporter.set_resource(&resource);
+            }
         }
-
         true
     }
 
@@ -687,7 +708,7 @@ mod tests {
     #[test]
     fn simple_span_processor_on_end_calls_export() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let span_data = new_test_export_span_data();
         processor.on_end(span_data.clone());
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
@@ -710,7 +731,6 @@ mod tests {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            resource: Default::default(),
             instrumentation_lib: Default::default(),
         };
         processor.on_end(unsampled);
@@ -720,7 +740,7 @@ mod tests {
     #[test]
     fn simple_span_processor_shutdown_calls_shutdown() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let mut processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let span_data = new_test_export_span_data();
         processor.on_end(span_data.clone());
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
@@ -876,7 +896,7 @@ mod tests {
             scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
             ..Default::default()
         };
-        let mut processor =
+        let processor =
             BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
         let handle = tokio::spawn(async move {
             loop {
@@ -976,7 +996,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: async_std::task::sleep,
         };
-        let mut processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::AsyncStd);
+        let processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::AsyncStd);
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         if time_out {
@@ -1000,7 +1020,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
-        let mut processor =
+        let processor =
             BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());

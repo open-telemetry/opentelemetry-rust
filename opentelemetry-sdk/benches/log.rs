@@ -1,3 +1,8 @@
+//! run with `$ cargo bench --bench log --features=logs -- --exact <test_name>` to run specific test for logs
+//! So to run test named "full-log-with-attributes/with-context" you would run `$ cargo bench --bench log --features=logs -- --exact full-log-with-attributes/with-context`
+//! To run all tests for logs you would run `$ cargo bench --bench log --features=logs`
+//!
+
 use std::collections::HashMap;
 use std::time::SystemTime;
 
@@ -12,14 +17,15 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
-use opentelemetry_sdk::trace::{config, Sampler, TracerProvider};
+use opentelemetry_sdk::trace;
+use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
 struct VoidExporter;
 
 #[async_trait]
 impl LogExporter for VoidExporter {
-    async fn export(&mut self, _batch: Vec<LogData>) -> LogResult<()> {
+    async fn export<'a>(&mut self, _batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
     }
 }
@@ -46,7 +52,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(config().with_sampler(Sampler::AlwaysOn))
+            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
             .build();
         let tracer = tracer_provider.tracer("bench-tracer");
 

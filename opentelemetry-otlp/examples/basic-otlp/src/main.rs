@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use opentelemetry::global;
 use opentelemetry::logs::LogError;
-use opentelemetry::metrics::{MetricsError, Unit};
+use opentelemetry::metrics::MetricsError;
 use opentelemetry::trace::{TraceError, TracerProvider};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
@@ -9,7 +9,6 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
-use opentelemetry_sdk::logs::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -23,7 +22,7 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     )])
 });
 
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
@@ -58,7 +57,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
     opentelemetry_otlp::new_pipeline()
         .logging()
-        .with_log_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
@@ -73,12 +72,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
 
-    let result = init_tracer();
+    let result = init_tracer_provider();
     assert!(
         result.is_ok(),
         "Init tracer failed with error: {:?}",
         result.err()
     );
+    let tracer_provider = result.unwrap();
+    global::set_tracer_provider(tracer_provider.clone());
 
     let result = init_metrics();
     assert!(
@@ -92,13 +93,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Initialize logs and save the logger_provider.
     let logger_provider = init_logs().unwrap();
 
-    // Create a new OpenTelemetryLogBridge using the above LoggerProvider.
+    // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // add a tracing filter to filter the events generated from the crates used by opentelemetry-otlp
-    // Below filter level means:
-    // - Logs at `info` level and above are allowed by default.
-    // - Only `error` level logs from `hyper`, `tonic`, and `reqwest` crates are allowed.
+    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
+    // The filter levels are set as follows:
+    // - Allow `info` level and above by default.
+    // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
+    // This ensures events generated from these crates within the OTLP Exporter are not looped back,
+    // thus preventing infinite event generation.
+    // Note: This will also drop events from these crates used outside the OTLP Exporter.
+    // For more details, see: https://github.com/open-telemetry/opentelemetry-rust/issues/761
     let filter = EnvFilter::new("info")
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
@@ -124,7 +129,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let counter = meter
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
-        .with_unit(Unit::new("my_unit"))
+        .with_unit("my_unit")
         .init();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
@@ -138,7 +143,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         );
         span.set_attribute(KeyValue::new("another.key", "yes"));
 
-        info!(target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
+        info!(name: "my-event-inside-span", target: "my-target", "hello from {}. My price is {}. I am also inside a Span!", "banana", 2.99);
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
@@ -147,11 +152,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
+    info!(name: "my-event", target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    logger_provider.shutdown()?;
     meter_provider.shutdown()?;
+    logger_provider.shutdown()?;
 
     Ok(())
 }

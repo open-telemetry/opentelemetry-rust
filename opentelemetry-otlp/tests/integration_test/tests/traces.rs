@@ -1,6 +1,6 @@
 #![cfg(unix)]
 
-use integration_test_runner::asserter::{read_spans_from_json, TraceAsserter};
+use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
@@ -13,12 +13,12 @@ use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
-fn init_tracer() -> Result<sdktrace::Tracer, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+            sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                 "basic-otlp-tracing-example",
             )])),
@@ -30,10 +30,8 @@ const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // By binding the result to an unused variable, the lifetime of the variable
-    // matches the containing block, reporting traces and metrics during the whole
-    // execution.
-    let _ = init_tracer()?;
+    let tracer_provider = init_tracer_provider().expect("Failed to initialize tracer provider.");
+    global::set_tracer_provider(tracer_provider.clone());
 
     let tracer = global::tracer("ex.com/basic");
 

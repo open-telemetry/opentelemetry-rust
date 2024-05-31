@@ -62,12 +62,12 @@ impl TracerProvider {
     }
 
     /// Span processors associated with this provider
-    pub fn span_processors(&self) -> &[Box<dyn SpanProcessor>] {
+    pub(crate) fn span_processors(&self) -> &[Box<dyn SpanProcessor>] {
         &self.inner.processors
     }
 
     /// Config associated with this tracer
-    pub fn config(&self) -> &crate::trace::Config {
+    pub(crate) fn config(&self) -> &crate::trace::Config {
         &self.inner.config
     }
 
@@ -218,11 +218,16 @@ impl Builder {
             }
         }
 
+        // Create a new vector to hold the modified processors
+        let mut processors = self.processors;
+
+        // Set the resource for each processor
+        for p in &mut processors {
+            p.set_resource(config.resource.as_ref());
+        }
+
         TracerProvider {
-            inner: Arc::new(TracerProviderInner {
-                processors: self.processors,
-                config,
-            }),
+            inner: Arc::new(TracerProviderInner { processors, config }),
         }
     }
 }
@@ -264,7 +269,7 @@ mod tests {
             }
         }
 
-        fn shutdown(&mut self) -> TraceResult<()> {
+        fn shutdown(&self) -> TraceResult<()> {
             self.force_flush()
         }
     }

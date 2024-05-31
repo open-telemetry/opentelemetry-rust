@@ -1,3 +1,11 @@
+/*
+    Stress test results:
+    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    RAM: 64.0 GB
+    9 M/sec
+*/
+
 use lazy_static::lazy_static;
 use opentelemetry::{
     trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider as _},
@@ -12,7 +20,7 @@ mod throughput;
 
 lazy_static! {
     static ref PROVIDER: sdktrace::TracerProvider = sdktrace::TracerProvider::builder()
-        .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
+        .with_config(sdktrace::Config::default().with_sampler(sdktrace::Sampler::AlwaysOn))
         .with_span_processor(NoOpSpanProcessor {})
         .build();
     static ref TRACER: sdktrace::Tracer = PROVIDER.tracer("stress");
@@ -34,7 +42,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&self) -> TraceResult<()> {
         Ok(())
     }
 }

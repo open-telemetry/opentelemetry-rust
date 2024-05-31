@@ -7,6 +7,15 @@
 - `OtlpMetricPipeline.build()` no longer invoke the
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
+- Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.
+Instead of using
+`.with_config(Config::default().with_resource(RESOURCE::default()))` users must
+now use `.with_resource(RESOURCE::default())` to configure Resource when using
+`OtlpLogPipeline`.
+- **Breaking** The methods `OtlpTracePipeline::install_simple()` and `OtlpTracePipeline::install_batch()` would now return `TracerProvider` instead of `Tracer`.
+  These methods would also no longer set the global tracer provider. It would now be the responsibility of users to set it by calling `global::set_tracer_provider(tracer_provider.clone());`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples on how to initialize OTLP Trace Exporter.
+- **Breaking** Correct the misspelling of "webkpi" to "webpki" in features [#1842](https://github.com/open-telemetry/opentelemetry-rust/pull/1842)
+- Bump MSRV to 1.70 [#1840](https://github.com/open-telemetry/opentelemetry-rust/pull/1840)
 
 ## v0.16.0
 

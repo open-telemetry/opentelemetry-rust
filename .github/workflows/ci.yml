@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-02-07
+          toolchain: nightly-2024-05-01
           components: rustfmt
       - name: external-type-check
         run: |
@@ -110,10 +110,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@1.65.0
     - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
       run: bash ./scripts/patch_dependencies.sh
-    - name: Run tests
-      run: cargo --version &&
-        cargo test --manifest-path=opentelemetry/Cargo.toml --features trace,metrics,testing &&
-        cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml
+    - name: Check MSRV for all crates
+      run: bash ./scripts/msrv.sh
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
@@ -138,19 +136,6 @@ jobs:
         env:
           CARGO_INCREMENTAL: '0'
           RUSTDOCFLAGS: -Dwarnings
-  semver: # This job uses the latest published crate as baseline for comparison.
-    runs-on: ubuntu-latest
-    name: semver
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Install stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
-    - name: cargo-semver-checks
-      uses: obi1kenobi/cargo-semver-checks-action@v2.3
   coverage:
     continue-on-error: true
     runs-on: ubuntu-latest

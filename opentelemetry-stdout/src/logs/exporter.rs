@@ -6,6 +6,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::export::logs::{ExportResult, LogData};
 use opentelemetry_sdk::Resource;
+use std::borrow::Cow;
 use std::io::{stdout, Write};
 
 type Encoder =
@@ -44,9 +45,13 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<LogData>) -> ExportResult {
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> ExportResult {
         if let Some(writer) = &mut self.writer {
-            let log_data = crate::logs::transform::LogData::from((batch, &self.resource));
+            // TODO - Avoid cloning logdata if it is borrowed.
+            let log_data = crate::logs::transform::LogData::from((
+                batch.into_iter().map(Cow::into_owned).collect(),
+                &self.resource,
+            ));
             let result = (self.encoder)(writer, log_data) as LogResult<()>;
             result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
         } else {
