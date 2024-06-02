@@ -224,7 +224,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 &timeout_runtime,
                                 logs.split_off(0),
                             )
-                                .await;
+                            .await;
 
                             if let Err(err) = result {
                                 global::handle_error(err);
@@ -239,7 +239,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             &timeout_runtime,
                             logs.split_off(0),
                         )
-                            .await;
+                        .await;
 
                         if let Some(channel) = res_channel {
                             if let Err(result) = channel.send(result) {
@@ -260,7 +260,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             &timeout_runtime,
                             logs.split_off(0),
                         )
-                            .await;
+                        .await;
 
                         exporter.shutdown();
 
@@ -288,8 +288,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
     /// Create a new batch processor builder
     pub fn builder<E>(exporter: E, runtime: R) -> BatchLogProcessorBuilder<E, R>
-        where
-            E: LogExporter,
+    where
+        E: LogExporter,
     {
         BatchLogProcessorBuilder {
             exporter,
@@ -305,9 +305,9 @@ async fn export_with_timeout<'a, R, E>(
     runtime: &R,
     batch: Vec<Cow<'a, LogData>>,
 ) -> ExportResult
-    where
-        R: RuntimeChannel,
-        E: LogExporter + ?Sized,
+where
+    R: RuntimeChannel,
+    E: LogExporter + ?Sized,
 {
     if batch.is_empty() {
         return Ok(());
@@ -375,7 +375,7 @@ impl Default for BatchConfigBuilder {
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
         }
-            .init_from_env_vars()
+        .init_from_env_vars()
     }
 }
 
@@ -473,9 +473,9 @@ pub struct BatchLogProcessorBuilder<E, R> {
 }
 
 impl<E, R> BatchLogProcessorBuilder<E, R>
-    where
-        E: LogExporter + 'static,
-        R: RuntimeChannel,
+where
+    E: LogExporter + 'static,
+    R: RuntimeChannel,
 {
     /// Set the BatchConfig for [`BatchLogProcessorBuilder`]
     pub fn with_batch_config(self, config: BatchConfig) -> Self {
@@ -753,6 +753,7 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
+        tokio::time::sleep(Duration::from_secs(2)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
