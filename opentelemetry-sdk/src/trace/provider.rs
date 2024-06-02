@@ -9,17 +9,36 @@
 //! not duplicate this data to avoid that different [`Tracer`] instances
 //! of the [`TracerProvider`] have different versions of these data.
 use crate::runtime::RuntimeChannel;
-use crate::trace::{BatchSpanProcessor, SimpleSpanProcessor, Tracer};
+use crate::trace::{
+    BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
+};
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
+use opentelemetry::trace::TraceError;
 use opentelemetry::{global, trace::TraceResult};
 use std::borrow::Cow;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// Default tracer name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
+
+// a no nop logger provider used as placeholder when the provider is shutdown
+static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider {
+    inner: Arc::new(TracerProviderInner {
+        processors: Vec::new(),
+        config: Config {
+            // cannot use default here as the default resource is not empty
+            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+            id_generator: Box::<RandomIdGenerator>::default(),
+            span_limits: SpanLimits::default(),
+            resource: Cow::Owned(Resource::empty()),
+        },
+    }),
+    is_shutdown: Arc::new(AtomicBool::new(true)),
+});
 
 /// TracerProvider inner type
 #[derive(Debug)]
@@ -39,9 +58,14 @@ impl Drop for TracerProviderInner {
 }
 
 /// Creator and registry of named [`Tracer`] instances.
+///
+/// `TracerProvider` is lightweight container holding pointers to `SpanProcessor` and other components.
+/// Cloning and dropping them will not stop the span processing. To stop span processing, users
+/// must either call `shutdown` method explicitly, or drop every clone of `TracerProvider`.
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
     inner: Arc<TracerProviderInner>,
+    is_shutdown: Arc<AtomicBool>,
 }
 
 impl Default for TracerProvider {
@@ -52,8 +76,11 @@ impl Default for TracerProvider {
 
 impl TracerProvider {
     /// Build a new tracer provider
-    pub(crate) fn new(inner: Arc<TracerProviderInner>) -> Self {
-        TracerProvider { inner }
+    pub(crate) fn new(inner: TracerProviderInner) -> Self {
+        TracerProvider {
+            inner: Arc::new(inner),
+            is_shutdown: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     /// Create a new [`TracerProvider`] builder.
@@ -69,6 +96,12 @@ impl TracerProvider {
     /// Config associated with this tracer
     pub(crate) fn config(&self) -> &crate::trace::Config {
         &self.inner.config
+    }
+
+    /// true if the provider has been shutdown
+    /// Don't start span or export spans when provider is shutdown
+    pub(crate) fn is_shutdown(&self) -> bool {
+        self.is_shutdown.load(Ordering::Relaxed)
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -114,11 +147,41 @@ impl TracerProvider {
             .map(|processor| processor.force_flush())
             .collect()
     }
+
+    /// Shuts down the current `TracerProvider`.
+    ///
+    /// Note that shut down doesn't means the TracerProvider has dropped
+    pub fn shutdown(&self) -> TraceResult<()> {
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // propagate the shutdown signal to processors
+            // it's up to the processor to properly block new logs after shutdown
+            let mut errs = vec![];
+            for processor in &self.inner.processors {
+                if let Err(err) = processor.shutdown() {
+                    errs.push(err);
+                }
+            }
+
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                Err(TraceError::Other(format!("{errs:?}").into()))
+            }
+        } else {
+            Err(TraceError::Other(
+                "tracer provider already shut down".into(),
+            ))
+        }
+    }
 }
 
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
-    type Tracer = crate::trace::Tracer;
+    type Tracer = Tracer;
 
     /// Create a new versioned `Tracer` instance.
     fn versioned_tracer(
@@ -152,7 +215,10 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
     }
 
     fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
-        Tracer::new(library, Arc::downgrade(&self.inner))
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            return Tracer::new(library, NOOP_TRACER_PROVIDER.clone());
+        }
+        Tracer::new(library, self.clone())
     }
 }
 
@@ -226,9 +292,7 @@ impl Builder {
             p.set_resource(config.resource.as_ref());
         }
 
-        TracerProvider {
-            inner: Arc::new(TracerProviderInner { processors, config }),
-        }
+        TracerProvider::new(TracerProviderInner { processors, config })
     }
 }
 
@@ -245,7 +309,6 @@ mod tests {
     use opentelemetry::{Context, Key, KeyValue, Value};
     use std::borrow::Cow;
     use std::env;
-    use std::sync::Arc;
 
     #[derive(Debug)]
     struct TestSpanProcessor {
@@ -276,13 +339,13 @@ mod tests {
 
     #[test]
     fn test_force_flush() {
-        let tracer_provider = super::TracerProvider::new(Arc::from(TracerProviderInner {
+        let tracer_provider = super::TracerProvider::new(TracerProviderInner {
             processors: vec![
                 Box::from(TestSpanProcessor { success: true }),
                 Box::from(TestSpanProcessor { success: false }),
             ],
             config: Default::default(),
-        }));
+        });
 
         let results = tracer_provider.force_flush();
         assert_eq!(results.len(), 2);
