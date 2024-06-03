@@ -683,7 +683,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
-    // cargo test trace::span_processor::tests:: --features=trace,testing
+    // cargo test trace::span_processor::tests:: --features=testing
     use super::{
         BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT,
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
