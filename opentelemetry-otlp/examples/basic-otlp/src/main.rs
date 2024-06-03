@@ -9,6 +9,7 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -55,15 +56,15 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter = opentelemetry_otlp::new_exporter()
+        .tonic()
+        .with_endpoint("http://localhost:4317")
+        .build_log_exporter()?;
+    let provider: LoggerProvider = LoggerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(RESOURCE.clone())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .install_batch(runtime::Tokio)
+        .build();
+    Ok(provider)
 }
 
 #[tokio::main]
