@@ -61,7 +61,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap();
-    
+
     // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
     // The filter levels are set as follows:
     // - Allow `info` level and above by default.
