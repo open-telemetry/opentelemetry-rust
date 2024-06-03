@@ -41,7 +41,9 @@
     - `SpanData` doesn't have the resource attributes. The `SpanExporter::export()` method needs to merge it 
       with the earlier preserved resource before export.
 
-- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans.
+
+- [1857](https://github.com/open-telemetry/opentelemetry-rust/pull/1857) Fixed an issue in the `collect_and_export()` method of the periodic exporter where errors during export were dropped, ensuring proper error handling and reporting. 
 
 ## v0.23.0
 
