@@ -41,7 +41,9 @@
     - `SpanData` doesn't have the resource attributes. The `SpanExporter::export()` method needs to merge it 
       with the earlier preserved resource before export.
 
-- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans. 
+- **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans.
+
+- **Breaking** [1850] (https://github.com/open-telemetry/opentelemetry-rust/pull/1850) `LoggerProvider::log_processors()` and `LoggerProvider::resource()` are not public methods anymore. They are only used within the `opentelemetry-sdk` crate.
 
 ## v0.23.0
 

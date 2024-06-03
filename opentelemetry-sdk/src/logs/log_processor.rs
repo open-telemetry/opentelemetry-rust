@@ -536,7 +536,7 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct MockLogExporter {
-        resource: Arc<Option<Resource>>,
+        resource: Arc<Mutex<Option<Resource>>>,
     }
 
     #[async_trait]
@@ -548,15 +548,19 @@ mod tests {
         fn shutdown(&mut self) {}
 
         fn set_resource(&mut self, resource: &Resource) {
-            let res = Arc::make_mut(&mut self.resource);
-            *res = Some(resource.clone());
+            self.resource
+                .lock()
+                .map(|mut res_opt| {
+                    res_opt.replace(resource.clone());
+                })
+                .expect("mock log exporter shouldn't error when setting resource");
         }
     }
 
     // Implementation specific to the MockLogExporter, not part of the LogExporter trait
     impl MockLogExporter {
         fn get_resource(&self) -> Option<Resource> {
-            (*self.resource).clone()
+            (*self.resource).lock().unwrap().clone()
         }
     }
 
@@ -713,7 +717,7 @@ mod tests {
     #[test]
     fn test_set_resource_simple_processor() {
         let exporter = MockLogExporter {
-            resource: Arc::new(Some(Resource::default())),
+            resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
         let _ = LoggerProvider::builder()
@@ -723,15 +727,16 @@ mod tests {
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
+                KeyValue::new("k5", "v5"),
             ]))
             .build();
-        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_set_resource_batch_processor() {
         let exporter = MockLogExporter {
-            resource: Arc::new(Some(Resource::default())),
+            resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
@@ -745,9 +750,11 @@ mod tests {
                 KeyValue::new("k2", "v3"),
                 KeyValue::new("k3", "v3"),
                 KeyValue::new("k4", "v4"),
+                KeyValue::new("k5", "v5"),
             ]))
             .build();
-        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 4);
+        tokio::time::sleep(Duration::from_secs(2)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
+        assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
 

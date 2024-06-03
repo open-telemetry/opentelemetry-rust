@@ -90,14 +90,12 @@ impl LoggerProvider {
         Builder::default()
     }
 
-    /// Resource associated with this provider.
-    pub fn resource(&self) -> &Resource {
-        &self.inner.resource
+    pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
+        &self.inner.processors
     }
 
-    /// Log processors associated with this provider.
-    pub fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
-        &self.inner.processors
+    pub(crate) fn resource(&self) -> &Resource {
+        &self.inner.resource
     }
 
     /// Force flush all remaining logs in log processors and return results.
@@ -196,17 +194,20 @@ impl Builder {
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
         let resource = self.resource.unwrap_or_default();
-        // invoke set_resource on all the processors
-        for processor in &self.processors {
-            processor.set_resource(&resource);
-        }
-        LoggerProvider {
+
+        let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 resource,
             }),
             is_shutdown: Arc::new(AtomicBool::new(false)),
+        };
+
+        // invoke set_resource on all the processors
+        for processor in logger_provider.log_processors() {
+            processor.set_resource(logger_provider.resource());
         }
+        logger_provider
     }
 }
 
@@ -511,7 +512,7 @@ mod tests {
 
     #[test]
     fn global_shutdown_test() {
-        // cargo test shutdown_test --features=logs
+        // cargo test global_shutdown_test --features=testing
 
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
