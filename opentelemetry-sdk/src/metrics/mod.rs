@@ -153,7 +153,7 @@ mod tests {
     use std::thread;
 
     // Run all tests in this mod
-    // cargo test metrics::tests --features=metrics,testing
+    // cargo test metrics::tests --features=testing
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
@@ -190,49 +190,49 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_cumulative --features=metrics,testing -- --nocapture
+        // cargo test counter_aggregation_cumulative --features=testing -- --nocapture
         counter_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_delta --features=metrics,testing -- --nocapture
+        // cargo test counter_aggregation_delta --features=testing -- --nocapture
         counter_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
-        // cargo test histogram_aggregation_cumulative --features=metrics,testing -- --nocapture
+        // cargo test histogram_aggregation_cumulative --features=testing -- --nocapture
         histogram_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_delta() {
         // Run this test with stdout enabled to see output.
-        // cargo test histogram_aggregation_delta --features=metrics,testing -- --nocapture
+        // cargo test histogram_aggregation_delta --features=testing -- --nocapture
         histogram_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
-        // cargo test updown_counter_aggregation_cumulative --features=metrics,testing -- --nocapture
+        // cargo test updown_counter_aggregation_cumulative --features=testing -- --nocapture
         updown_counter_aggregation_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
-        // cargo test updown_counter_aggregation_delta --features=metrics,testing -- --nocapture
+        // cargo test updown_counter_aggregation_delta --features=testing -- --nocapture
         updown_counter_aggregation_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn gauge_aggregation() {
         // Run this test with stdout enabled to see output.
-        // cargo test gauge_aggregation --features=metrics,testing -- --nocapture
+        // cargo test gauge_aggregation --features=testing -- --nocapture
 
         // Gauge should use last value aggregation regardless of the aggregation temporality used.
         gauge_aggregation_helper(Temporality::Delta);
@@ -553,7 +553,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
-        // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=metrics,testing -- --nocapture
+        // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
@@ -602,7 +602,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
-        // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=metrics,testing
+        // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
@@ -677,7 +677,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn spatial_aggregation_when_view_drops_attributes_counter() {
-        // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=metrics,testing
+        // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
@@ -754,7 +754,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_attribute_order() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order --features=metrics,testing -- --nocapture
+        // cargo test counter_aggregation_attribute_order --features=testing -- --nocapture
 
         // Arrange
         let mut test_context = TestContext::new(Temporality::Delta);
@@ -987,7 +987,7 @@ mod tests {
     #[ignore = "Known bug: https://github.com/open-telemetry/opentelemetry-rust/issues/1598"]
     async fn delta_memory_efficiency_test() {
         // Run this test with stdout enabled to see output.
-        // cargo test delta_memory_efficiency_test --features=metrics,testing -- --nocapture
+        // cargo test delta_memory_efficiency_test --features=testing -- --nocapture
 
         // Arrange
         let mut test_context = TestContext::new(Temporality::Delta);
@@ -1036,7 +1036,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_multithreaded() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_multithreaded --features=metrics,testing -- --nocapture
+        // cargo test counter_multithreaded --features=testing -- --nocapture
 
         counter_multithreaded_aggregation_helper(Temporality::Delta);
         counter_multithreaded_aggregation_helper(Temporality::Cumulative);
