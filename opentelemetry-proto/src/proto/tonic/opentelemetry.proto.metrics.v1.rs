@@ -181,6 +181,7 @@ pub struct Metric {
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
     #[prost(oneof = "metric::Data", tags = "5, 7, 9, 10, 11")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub data: ::core::option::Option<metric::Data>,
 }
 /// Nested message and enum types in `Metric`.
@@ -325,6 +326,7 @@ pub struct NumberDataPoint {
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
     #[prost(oneof = "number_data_point::Value", tags = "4, 6")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub value: ::core::option::Option<number_data_point::Value>,
 }
 /// Nested message and enum types in `NumberDataPoint`.
@@ -674,6 +676,7 @@ pub struct Exemplar {
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
     #[prost(oneof = "exemplar::Value", tags = "3, 6")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub value: ::core::option::Option<exemplar::Value>,
 }
 /// Nested message and enum types in `Exemplar`.
