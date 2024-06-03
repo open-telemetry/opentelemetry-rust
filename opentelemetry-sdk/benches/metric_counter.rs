@@ -30,7 +30,7 @@ thread_local! {
 }
 
 // Run this benchmark with:
-// cargo bench --bench metric_counter --features=metrics
+// cargo bench --bench metric_counter
 fn create_counter() -> Counter<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())

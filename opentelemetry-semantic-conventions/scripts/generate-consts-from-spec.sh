@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.25.0
+SPEC_VERSION=1.26.0
 SEMCOVGEN_VERSION=0.24.0
 
 cd "$CRATE_DIR"
@@ -52,5 +52,15 @@ fi
 
 # handle doc generation failures
 "${SED[@]}" 's/\[2\]\.$//' src/resource.rs src/trace.rs # remove trailing [2] from few of the doc comments
+
+# Remove the messaging.client_id definition along with its comments from the generated files
+#   - semconv "messaging.client_id" is deprecated
+#   - semconv "messaging.client.id" is to be used instead
+#   - Now because we use:
+#      	pub const {{attribute.fqn | to_const_name}}: &str = "{{attribute.fqn}}";
+#     to generate the consts, where to_const_name replaces '.' with '_', we need to remove the old definition
+#	  to avoid conflicts with the new one. Refer - https://github.com/open-telemetry/semantic-conventions/issues/1031
+"${SED[@]}" '/\/\/\/ Deprecated, use `messaging.client.id` instead\./{N;N;N;N;d;}' src/trace.rs src/resource.rs
+"${SED[@]}" '/pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";/{N;d;}' src/trace.rs src/resource.rs
 
 cargo fmt
