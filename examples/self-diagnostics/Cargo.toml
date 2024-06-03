@@ -16,6 +16,9 @@ tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", "std"]}
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["http-proto", "reqwest-client", "logs"] }
+once_cell ={ version = "1.19.0"}
+ctrlc = "3.4"
+
 
 [features]
 default = ["otel_unstable"]
