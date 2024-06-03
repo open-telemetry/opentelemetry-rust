@@ -94,9 +94,20 @@ fn build_tonic() {
     }
 
     // add custom serializer and deserializer for AnyValue
-    for path in ["common.v1.KeyValue.value", "logs.v1.LogRecord.body"] {
+    for path in ["logs.v1.LogRecord.body"] {
         builder = builder
         .field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+    }
+
+    // flatten
+    for path in [
+        "common.v1.AnyValue.value",
+        "metrics.v1.Metric.data",
+        "metrics.v1.NumberDataPoint.value",
+        "metrics.v1.Exemplar.value",
+    ] {
+        builder =
+            builder.field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten))]");
     }
 
     builder
