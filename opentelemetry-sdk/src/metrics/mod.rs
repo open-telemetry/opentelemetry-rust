@@ -1590,10 +1590,7 @@ mod tests {
                 "no metrics were exported"
             );
 
-            assert!(
-                self.resource_metrics.len() == invocation_count,
-                "Expected single resource metrics."
-            );
+            assert_eq!(self.resource_metrics.len(), invocation_count, "Expected collect to be called {} times", invocation_count);
 
             let result = self
                 .resource_metrics
@@ -1601,7 +1598,7 @@ mod tests {
                 .map(|resource_metric| {
                     assert!(
                         !resource_metric.scope_metrics.is_empty(),
-                        "No scope metrics in latest export"
+                        "An export with no scope metrics occurred"
                     );
 
                     assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
