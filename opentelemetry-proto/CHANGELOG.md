@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Bump MSRV to 1.70 [](https://github.com/open-telemetry/opentelemetry-rust/pull/)
+
 ## v0.6.0
 
 - Update protobuf definitions to v1.3.1 [#1721](https://github.com/open-telemetry/opentelemetry-rust/pull/1721)
