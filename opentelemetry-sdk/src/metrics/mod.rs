@@ -1055,13 +1055,13 @@ mod tests {
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
-                    
+
                     // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
                     if i % 2 == 0 {
                         test_context.flush_metrics();
-                        sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
+                        thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
                     }
-                    
+
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                 });
@@ -1072,37 +1072,40 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let sums = test_context.get_from_multiple_aggregations::<data::Sum<u64>>("my_counter", None, 6);
+        let sums =
+            test_context.get_from_multiple_aggregations::<data::Sum<u64>>("my_counter", None, 6);
 
-        let values = sums.iter().map(|sum| {
-            assert_eq!(sum.data_points.len(), 1); // Expecting 1 time-series.
-            assert!(sum.is_monotonic, "Counter should produce monotonic.");
-            assert_eq!(sum.temporality, temporality);
+        let values = sums
+            .iter()
+            .map(|sum| {
+                assert_eq!(sum.data_points.len(), 1); // Expecting 1 time-series.
+                assert!(sum.is_monotonic, "Counter should produce monotonic.");
+                assert_eq!(sum.temporality, temporality);
 
-            if let Temporality::Cumulative = temporality {
-                assert_eq!(
-                    sum.temporality,
-                    Temporality::Cumulative,
-                    "Should produce cumulative"
-                );
-            } else {
-                assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
-            }
+                if let Temporality::Cumulative = temporality {
+                    assert_eq!(
+                        sum.temporality,
+                        Temporality::Cumulative,
+                        "Should produce cumulative"
+                    );
+                } else {
+                    assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+                }
 
-            // find and validate key1=value1 datapoint
-            let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
-            .expect("datapoint with key1=value1 expected");
+                // find and validate key1=value1 datapoint
+                let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+                    .expect("datapoint with key1=value1 expected");
 
-            data_point.value
-        }).collect::<Vec<_>>();
+                data_point.value
+            })
+            .collect::<Vec<_>>();
 
         let total_sum: u64 = if temporality == Temporality::Delta {
             values.iter().sum()
-        }
-        else {
+        } else {
             *values.last().unwrap()
         };
-        
+
         assert_eq!(total_sum, 50); // Each of the 10 update threads record measurements summing up to 5.
     }
 
@@ -1571,7 +1574,7 @@ mod tests {
                 .downcast_ref::<T>()
                 .expect("Failed to cast aggregation to expected type")
         }
-    
+
         fn get_from_multiple_aggregations<T: data::Aggregation>(
             &mut self,
             counter_name: &str,
@@ -1593,27 +1596,34 @@ mod tests {
                 "Expected single resource metrics."
             );
 
-            let result = self.resource_metrics.iter().map(|resource_metric| {
-                assert!(
-                    !resource_metric.scope_metrics.is_empty(),
-                    "No scope metrics in latest export"
-                );
+            let result = self
+                .resource_metrics
+                .iter()
+                .map(|resource_metric| {
+                    assert!(
+                        !resource_metric.scope_metrics.is_empty(),
+                        "No scope metrics in latest export"
+                    );
 
-                assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
+                    assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
 
-                let metric = &resource_metric.scope_metrics[0].metrics[0];
-                assert_eq!(metric.name, counter_name);
+                    let metric = &resource_metric.scope_metrics[0].metrics[0];
+                    assert_eq!(metric.name, counter_name);
 
-                if let Some(expected_unit) = unit_name {
-                    assert_eq!(metric.unit, expected_unit);
-                }
+                    if let Some(expected_unit) = unit_name {
+                        assert_eq!(metric.unit, expected_unit);
+                    }
 
-                let aggregation = metric.data.as_any().downcast_ref::<T>().expect("Failed to cast aggregation to expected type");
-                aggregation
-            }).collect::<Vec<_>>();
+                    let aggregation = metric
+                        .data
+                        .as_any()
+                        .downcast_ref::<T>()
+                        .expect("Failed to cast aggregation to expected type");
+                    aggregation
+                })
+                .collect::<Vec<_>>();
 
             result
         }
-    
     }
 }
