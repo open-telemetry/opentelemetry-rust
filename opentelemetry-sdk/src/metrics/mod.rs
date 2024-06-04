@@ -1081,16 +1081,6 @@ mod tests {
                 assert!(sum.is_monotonic, "Counter should produce monotonic.");
                 assert_eq!(sum.temporality, temporality);
 
-                if let Temporality::Cumulative = temporality {
-                    assert_eq!(
-                        sum.temporality,
-                        Temporality::Cumulative,
-                        "Should produce cumulative"
-                    );
-                } else {
-                    assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
-                }
-
                 // find and validate key1=value1 datapoint
                 let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
                     .expect("datapoint with key1=value1 expected");
@@ -1590,7 +1580,12 @@ mod tests {
                 "no metrics were exported"
             );
 
-            assert_eq!(self.resource_metrics.len(), invocation_count, "Expected collect to be called {} times", invocation_count);
+            assert_eq!(
+                self.resource_metrics.len(),
+                invocation_count,
+                "Expected collect to be called {} times",
+                invocation_count
+            );
 
             let result = self
                 .resource_metrics
