@@ -53,10 +53,6 @@ echo
 # Check MSRV for the packages
 for package in $packages; do
   package=$(echo "$package" | tr -d '\r\n') # Remove any newline and carriage return characters
-  echo "Processing pacakge:"$package":" 
-  echo "Running MSRV check for $package with Rust $installed_version"
-  echo "Current working directory: $(pwd)"
   echo "Command: rustup run \"$installed_version\" cargo check --manifest-path=\"$package\" --all-features"
-    echo "Package length: ${#package}"
   rustup run "$installed_version" cargo check --manifest-path=$package --all-features
 done
