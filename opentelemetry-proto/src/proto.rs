@@ -53,7 +53,6 @@ pub(crate) mod serializers {
         // If value is None, it will be serialized as such
         match value {
             Some(any_value) => match &any_value.value {
-                //Some(Value::IntValue(i)) => serialize_i64_to_string(i, serializer),
                 Some(value) => value.serialize(serializer),
                 None => serializer.serialize_none(),
             },
