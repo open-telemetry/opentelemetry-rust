@@ -26,70 +26,13 @@
 //!     .build();
 //! ```
 
-/// Identifies the class / type of event.
-///
-/// Event names are subject to the same rules as [attribute names](https://github.com/open-telemetry/opentelemetry-specification/tree/v1.31.0/specification/common/attribute-naming.md). Notably, event names are namespaced to avoid collisions and provide a clean separation of semantics for events in separate domains like browser, mobile, and kubernetes.
+/// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).
 ///
 /// # Examples
 ///
-/// - `browser.mouse.click`
-/// - `device.app.lifecycle`
-pub const EVENT_NAME: &str = "event.name";
-
-/// A unique identifier for the Log Record.
-///
-/// If an id is provided, other log records with the same id will be considered duplicates and can be removed safely. This means, that two distinguishable log records MUST have different values.
-/// The id MAY be an [Universally Unique Lexicographically Sortable Identifier (ULID)](https://github.com/ulid/spec), but other identifiers (e.g. UUID) may be used as needed.
-///
-/// # Examples
-///
-/// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
-pub const LOG_RECORD_UID: &str = "log.record.uid";
-
-/// The stream associated with the log. See below for a list of well-known values.
-pub const LOG_IOSTREAM: &str = "log.iostream";
-
-/// The basename of the file.
-///
-/// # Examples
-///
-/// - `audit.log`
-pub const LOG_FILE_NAME: &str = "log.file.name";
-
-/// The basename of the file, with symlinks resolved.
-///
-/// # Examples
-///
-/// - `uuid.log`
-pub const LOG_FILE_NAME_RESOLVED: &str = "log.file.name_resolved";
-
-/// The full path to the file.
-///
-/// # Examples
-///
-/// - `/var/log/mysql/audit.log`
-pub const LOG_FILE_PATH: &str = "log.file.path";
-
-/// The full path to the file, with symlinks resolved.
-///
-/// # Examples
-///
-/// - `/var/lib/docker/uuid.log`
-pub const LOG_FILE_PATH_RESOLVED: &str = "log.file.path_resolved";
-
-/// The name of the connection pool; unique within the instrumented application. In case the connection pool implementation doesn&#39;t provide a name, instrumentation should use a combination of `server.address` and `server.port` attributes formatted as `server.address:server.port`.
-///
-/// # Examples
-///
-/// - `myDataSource`
-pub const POOL_NAME: &str = "pool.name";
-
-/// The state of a connection in the pool.
-///
-/// # Examples
-///
-/// - `idle`
-pub const STATE: &str = "state";
+/// - `33`
+/// - `32`
+pub const ANDROID_OS_API_LEVEL: &str = "android.os.api_level";
 
 /// Rate-limiting result, shows whether the lease was acquired or contains a rejection reason.
 ///
@@ -105,6 +48,14 @@ pub const ASPNETCORE_RATE_LIMITING_RESULT: &str = "aspnetcore.rate_limiting.resu
 ///
 /// - `Contoso.MyHandler`
 pub const ASPNETCORE_DIAGNOSTICS_HANDLER_TYPE: &str = "aspnetcore.diagnostics.handler.type";
+
+/// ASP.NET Core exception middleware handling result.
+///
+/// # Examples
+///
+/// - `handled`
+/// - `unhandled`
+pub const ASPNETCORE_DIAGNOSTICS_EXCEPTION_RESULT: &str = "aspnetcore.diagnostics.exception.result";
 
 /// Rate limiting policy name.
 ///
@@ -129,154 +80,21 @@ pub const ASPNETCORE_REQUEST_IS_UNHANDLED: &str = "aspnetcore.request.is_unhandl
 /// - `True`
 pub const ASPNETCORE_ROUTING_IS_FALLBACK: &str = "aspnetcore.routing.is_fallback";
 
-/// SignalR HTTP connection closure status.
+/// Match result - success or failure.
 ///
 /// # Examples
 ///
-/// - `app_shutdown`
-/// - `timeout`
-pub const SIGNALR_CONNECTION_STATUS: &str = "signalr.connection.status";
+/// - `success`
+/// - `failure`
+pub const ASPNETCORE_ROUTING_MATCH_STATUS: &str = "aspnetcore.routing.match_status";
 
-/// [SignalR transport type](https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md).
+/// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
 ///
 /// # Examples
 ///
-/// - `web_sockets`
-/// - `long_polling`
-pub const SIGNALR_TRANSPORT: &str = "signalr.transport";
-
-/// Name of the buffer pool.
-///
-/// Pool names are generally obtained via [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()).
-///
-/// # Examples
-///
-/// - `mapped`
-/// - `direct`
-pub const JVM_BUFFER_POOL_NAME: &str = "jvm.buffer.pool.name";
-
-/// Name of the memory pool.
-///
-/// Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
-///
-/// # Examples
-///
-/// - `G1 Old Gen`
-/// - `G1 Eden space`
-/// - `G1 Survivor Space`
-pub const JVM_MEMORY_POOL_NAME: &str = "jvm.memory.pool.name";
-
-/// The type of memory.
-///
-/// # Examples
-///
-/// - `heap`
-/// - `non_heap`
-pub const JVM_MEMORY_TYPE: &str = "jvm.memory.type";
-
-/// The CPU state for this data point. A process SHOULD be characterized _either_ by data points with no `state` labels, _or only_ data points with `state` labels.
-pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
-
-/// The device identifier.
-///
-/// # Examples
-///
-/// - `(identifier)`
-pub const SYSTEM_DEVICE: &str = "system.device";
-
-/// The logical CPU number [0..n-1].
-///
-/// # Examples
-///
-/// - `1`
-pub const SYSTEM_CPU_LOGICAL_NUMBER: &str = "system.cpu.logical_number";
-
-/// The CPU state for this data point. A system&#39;s CPU SHOULD be characterized *either* by data points with no `state` labels, *or only* data points with `state` labels.
-///
-/// # Examples
-///
-/// - `idle`
-/// - `interrupt`
-pub const SYSTEM_CPU_STATE: &str = "system.cpu.state";
-
-/// The memory state.
-///
-/// # Examples
-///
-/// - `free`
-/// - `cached`
-pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
-
-/// The paging access direction.
-///
-/// # Examples
-///
-/// - `in`
-pub const SYSTEM_PAGING_DIRECTION: &str = "system.paging.direction";
-
-/// The memory paging state.
-///
-/// # Examples
-///
-/// - `free`
-pub const SYSTEM_PAGING_STATE: &str = "system.paging.state";
-
-/// The memory paging type.
-///
-/// # Examples
-///
-/// - `minor`
-pub const SYSTEM_PAGING_TYPE: &str = "system.paging.type";
-
-/// The filesystem mode.
-///
-/// # Examples
-///
-/// - `rw, ro`
-pub const SYSTEM_FILESYSTEM_MODE: &str = "system.filesystem.mode";
-
-/// The filesystem mount path.
-///
-/// # Examples
-///
-/// - `/mnt/data`
-pub const SYSTEM_FILESYSTEM_MOUNTPOINT: &str = "system.filesystem.mountpoint";
-
-/// The filesystem state.
-///
-/// # Examples
-///
-/// - `used`
-pub const SYSTEM_FILESYSTEM_STATE: &str = "system.filesystem.state";
-
-/// The filesystem type.
-///
-/// # Examples
-///
-/// - `ext4`
-pub const SYSTEM_FILESYSTEM_TYPE: &str = "system.filesystem.type";
-
-/// A stateless protocol MUST NOT set this attribute.
-///
-/// # Examples
-///
-/// - `close_wait`
-pub const SYSTEM_NETWORK_STATE: &str = "system.network.state";
-
-/// The process state, e.g., [Linux Process State Codes](https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES).
-///
-/// # Examples
-///
-/// - `running`
-pub const SYSTEM_PROCESS_STATUS: &str = "system.process.status";
-
-/// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).
-///
-/// # Examples
-///
-/// - `33`
-/// - `32`
-pub const ANDROID_OS_API_LEVEL: &str = "android.os.api_level";
+/// - `79b9da39-b7ae-508a-a6bc-864b2829c622`
+/// - `C9ER4AJX75574TDJ`
+pub const AWS_REQUEST_ID: &str = "aws.request_id";
 
 /// The JSON-serialized value of each item in the `AttributeDefinitions` request field.
 ///
@@ -432,6 +250,193 @@ pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 ///
 /// - `100`
 pub const AWS_DYNAMODB_TOTAL_SEGMENTS: &str = "aws.dynamodb.total_segments";
+
+/// The ID of a running ECS task. The ID MUST be extracted from `task.arn`.
+///
+/// # Examples
+///
+/// - `10838bed-421f-43ef-870a-f43feacbbb5b`
+/// - `23ebb8ac-c18f-46c6-8bbe-d55d0e37cfbd`
+pub const AWS_ECS_TASK_ID: &str = "aws.ecs.task.id";
+
+/// The ARN of an [ECS cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).
+///
+/// # Examples
+///
+/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
+pub const AWS_ECS_CLUSTER_ARN: &str = "aws.ecs.cluster.arn";
+
+/// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
+///
+/// # Examples
+///
+/// - `arn:aws:ecs:us-west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9`
+pub const AWS_ECS_CONTAINER_ARN: &str = "aws.ecs.container.arn";
+
+/// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task.
+pub const AWS_ECS_LAUNCHTYPE: &str = "aws.ecs.launchtype";
+
+/// The ARN of a running [ECS task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html#ecs-resource-ids).
+///
+/// # Examples
+///
+/// - `arn:aws:ecs:us-west-1:123456789123:task/10838bed-421f-43ef-870a-f43feacbbb5b`
+/// - `arn:aws:ecs:us-west-1:123456789123:task/my-cluster/task-id/23ebb8ac-c18f-46c6-8bbe-d55d0e37cfbd`
+pub const AWS_ECS_TASK_ARN: &str = "aws.ecs.task.arn";
+
+/// The family name of the [ECS task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) used to create the ECS task.
+///
+/// # Examples
+///
+/// - `opentelemetry-family`
+pub const AWS_ECS_TASK_FAMILY: &str = "aws.ecs.task.family";
+
+/// The revision for the task definition used to create the ECS task.
+///
+/// # Examples
+///
+/// - `8`
+/// - `26`
+pub const AWS_ECS_TASK_REVISION: &str = "aws.ecs.task.revision";
+
+/// The ARN of an EKS cluster.
+///
+/// # Examples
+///
+/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
+pub const AWS_EKS_CLUSTER_ARN: &str = "aws.eks.cluster.arn";
+
+/// The Amazon Resource Name(s) (ARN) of the AWS log group(s).
+///
+/// See the [log group ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format).
+///
+/// # Examples
+///
+/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*`
+pub const AWS_LOG_GROUP_ARNS: &str = "aws.log.group.arns";
+
+/// The name(s) of the AWS log group(s) an application is writing to.
+///
+/// Multiple log groups must be supported for cases like multi-container applications, where a single application has sidecar containers, and each write to their own log group.
+///
+/// # Examples
+///
+/// - `/aws/lambda/my-function`
+/// - `opentelemetry-service`
+pub const AWS_LOG_GROUP_NAMES: &str = "aws.log.group.names";
+
+/// The ARN(s) of the AWS log stream(s).
+///
+/// See the [log stream ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format). One log group can contain several log streams, so these ARNs necessarily identify both a log group and a log stream.
+///
+/// # Examples
+///
+/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
+pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
+
+/// The name(s) of the AWS log stream(s) an application is writing to.
+///
+/// # Examples
+///
+/// - `logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
+pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
+
+/// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
+///
+/// This may be different from `cloud.resource_id` if an alias is involved.
+///
+/// # Examples
+///
+/// - `arn:aws:lambda:us-east-1:123456:function:myfunction:myalias`
+pub const AWS_LAMBDA_INVOKED_ARN: &str = "aws.lambda.invoked_arn";
+
+/// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
+///
+/// The `bucket` attribute is applicable to all S3 operations that reference a bucket, i.e. that require the bucket name as a mandatory parameter.
+/// This applies to almost all S3 operations except `list-buckets`.
+///
+/// # Examples
+///
+/// - `some-bucket-name`
+pub const AWS_S3_BUCKET: &str = "aws.s3.bucket";
+
+/// The source object (in the form `bucket`/`key`) for the copy operation.
+///
+/// The `copy_source` attribute applies to S3 copy operations and corresponds to the `--copy-source` parameter
+/// of the [copy-object operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html).
+/// This applies in particular to the following operations:
+///
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `someFile.yml`
+pub const AWS_S3_COPY_SOURCE: &str = "aws.s3.copy_source";
+
+/// The delete request container that specifies the objects to be deleted.
+///
+/// The `delete` attribute is only applicable to the [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html) operation.
+/// The `delete` attribute corresponds to the `--delete` parameter of the
+/// [delete-objects operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-objects.html).
+///
+/// # Examples
+///
+/// - `Objects=[{Key=string,VersionId=string},{Key=string,VersionId=string}],Quiet=boolean`
+pub const AWS_S3_DELETE: &str = "aws.s3.delete";
+
+/// The S3 object key the request refers to. Corresponds to the `--key` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
+///
+/// The `key` attribute is applicable to all object-related S3 operations, i.e. that require the object key as a mandatory parameter.
+/// This applies in particular to the following operations:
+///
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)
+/// - [get-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/get-object.html)
+/// - [head-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/head-object.html)
+/// - [put-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html)
+/// - [restore-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/restore-object.html)
+/// - [select-object-content](https://docs.aws.amazon.com/cli/latest/reference/s3api/select-object-content.html)
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [create-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/create-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `someFile.yml`
+pub const AWS_S3_KEY: &str = "aws.s3.key";
+
+/// The part number of the part being uploaded in a multipart-upload operation. This is a positive integer between 1 and 10,000.
+///
+/// The `part_number` attribute is only applicable to the [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// and [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html) operations.
+/// The `part_number` attribute corresponds to the `--part-number` parameter of the
+/// [upload-part operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html).
+///
+/// # Examples
+///
+/// - `3456`
+pub const AWS_S3_PART_NUMBER: &str = "aws.s3.part_number";
+
+/// Upload ID that identifies the multipart upload.
+///
+/// The `upload_id` attribute applies to S3 multipart-upload operations and corresponds to the `--upload-id` parameter
+/// of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) multipart operations.
+/// This applies in particular to the following operations:
+///
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
+///
+/// # Examples
+///
+/// - `dfRtDYWFbkRONycy.Yxwh66Yjlx.cph0gtNBtJ`
+pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 
 /// Array of brand name and version separated by a space.
 ///
@@ -678,7 +683,7 @@ pub const CONTAINER_ID: &str = "container.id";
 ///
 /// Docker defines a sha256 of the image id; `container.image.id` corresponds to the `Image` field from the Docker container inspect [API](https://docs.docker.com/engine/api/v1.43/#tag/Container/operation/ContainerInspect) endpoint.
 /// K8s defines a link to the container registry repository with digest `&#34;imageID&#34;: &#34;registry.azurecr.io /namespace/service/dockerfile@sha256:bdeabd40c3a8a492eaf9e8e44d0ebbb84bac7ee25ac0cf8a7159d25f62555625&#34;`.
-/// The ID is assinged by the container runtime and can vary in different environments. Consider using `oci.manifest.digest` if it is important to identify the same image in different environments/runtimes.
+/// The ID is assigned by the container runtime and can vary in different environments. Consider using `oci.manifest.digest` if it is important to identify the same image in different environments/runtimes.
 ///
 /// # Examples
 ///
@@ -726,6 +731,67 @@ pub const CONTAINER_NAME: &str = "container.name";
 /// - `rkt`
 pub const CONTAINER_RUNTIME: &str = "container.runtime";
 
+/// The name of the connection pool; unique within the instrumented application. In case the connection pool implementation doesn&#39;t provide a name, instrumentation should use a combination of `server.address` and `server.port` attributes formatted as `server.address:server.port`.
+///
+/// # Examples
+///
+/// - `myDataSource`
+pub const DB_CLIENT_CONNECTIONS_POOL_NAME: &str = "db.client.connections.pool.name";
+
+/// The state of a connection in the pool.
+///
+/// # Examples
+///
+/// - `idle`
+pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
+
+/// The name of a collection (table, container) within the database.
+///
+/// If the collection name is parsed from the query, it SHOULD match the value provided in the query and may be qualified with the schema and database name.
+/// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
+///
+/// # Examples
+///
+/// - `public.users`
+/// - `customers`
+pub const DB_COLLECTION_NAME: &str = "db.collection.name";
+
+/// The name of the database, fully qualified within the server address and port.
+///
+/// If a database system has multiple namespace components, they SHOULD be concatenated (potentially using database system specific conventions) from most general to most specific namespace component, and more specific namespaces SHOULD NOT be captured without the more general namespaces, to ensure that &#34;startswith&#34; queries for the more general namespaces will be valid.
+/// Semantic conventions for individual database systems SHOULD document what `db.namespace` means in the context of that system.
+/// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
+///
+/// # Examples
+///
+/// - `customers`
+/// - `test.users`
+pub const DB_NAMESPACE: &str = "db.namespace";
+
+/// The name of the operation or command being executed.
+///
+/// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
+///
+/// # Examples
+///
+/// - `findAndModify`
+/// - `HMSET`
+/// - `SELECT`
+pub const DB_OPERATION_NAME: &str = "db.operation.name";
+
+/// The database query being executed.
+///
+/// # Examples
+///
+/// - `SELECT * FROM wuser_table where username = ?`
+/// - `SET mykey "WuValue"`
+pub const DB_QUERY_TEXT: &str = "db.query.text";
+
+/// The database management system (DBMS) product as identified by the client instrumentation.
+///
+/// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system` is set to `postgresql` based on the instrumentation&#39;s best knowledge.
+pub const DB_SYSTEM: &str = "db.system";
+
 /// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level";
 
@@ -762,15 +828,6 @@ pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
     "db.cassandra.speculative_execution_count";
 
-/// The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
-///
-/// This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-///
-/// # Examples
-///
-/// - `mytable`
-pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
-
 /// Unique Cosmos client instance id.
 ///
 /// # Examples
@@ -780,13 +837,6 @@ pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 
 /// Cosmos client connection mode.
 pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
-
-/// Cosmos DB container name.
-///
-/// # Examples
-///
-/// - `anystring`
-pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
 /// CosmosDB Operation Type.
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
@@ -825,88 +875,12 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 /// - `e9106fc68e3044f0b1475b04bf4ffd5f`
 pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 
-/// An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+/// Represents the human-readable identifier of the node/instance to which a request was routed.
 ///
 /// # Examples
 ///
-/// - `mysql-e26b99z.example.com`
-pub const DB_INSTANCE_ID: &str = "db.instance.id";
-
-/// The MongoDB collection being accessed within the database stated in `db.name`.
-///
-/// # Examples
-///
-/// - `customers`
-/// - `products`
-pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
-
-/// The Microsoft SQL Server [instance name](https://docs.microsoft.com/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
-///
-/// If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).
-///
-/// # Examples
-///
-/// - `MSSQLSERVER`
-pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
-
-/// This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-///
-/// In some SQL databases, the database name to be used is called &#34;schema name&#34;. In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-///
-/// # Examples
-///
-/// - `customers`
-/// - `main`
-pub const DB_NAME: &str = "db.name";
-
-/// The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-///
-/// When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-///
-/// # Examples
-///
-/// - `findAndModify`
-/// - `HMSET`
-/// - `SELECT`
-pub const DB_OPERATION: &str = "db.operation";
-
-/// The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.
-///
-/// # Examples
-///
-/// - `0`
-/// - `1`
-/// - `15`
-pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
-
-/// The name of the primary table that the operation is acting upon, including the database name (if applicable).
-///
-/// It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-///
-/// # Examples
-///
-/// - `public.users`
-/// - `customers`
-pub const DB_SQL_TABLE: &str = "db.sql.table";
-
-/// The database statement being executed.
-///
-/// # Examples
-///
-/// - `SELECT * FROM wuser_table`
-/// - `SET mykey "WuValue"`
-pub const DB_STATEMENT: &str = "db.statement";
-
-/// An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
-pub const DB_SYSTEM: &str = "db.system";
-
-/// Username for accessing the database.
-///
-/// # Examples
-///
-/// - `readonly_user`
-/// - `reporting_user`
-pub const DB_USER: &str = "db.user";
+/// - `instance-0000000001`
+pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 
 /// Name of the [deployment environment](https://wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
 ///
@@ -924,6 +898,18 @@ pub const DB_USER: &str = "db.user";
 /// - `production`
 pub const DEPLOYMENT_ENVIRONMENT: &str = "deployment.environment";
 
+/// Deprecated use the `device.app.lifecycle` event definition including `android.state` as a payload field instead.
+///
+/// The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
+pub const ANDROID_STATE: &str = "android.state";
+
+/// Deprecated, use `db.collection.name` instead.
+///
+/// # Examples
+///
+/// - `mytable`
+pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
+
 /// Deprecated, use `server.address`, `server.port` attributes instead.
 ///
 /// # Examples
@@ -931,12 +917,19 @@ pub const DEPLOYMENT_ENVIRONMENT: &str = "deployment.environment";
 /// - `Server=(localdb)\v11.0;Integrated Security=true;`
 pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 
-/// Deprecated, use `db.instance.id` instead.
+/// Deprecated, use `db.collection.name` instead.
 ///
 /// # Examples
 ///
-/// - `instance-0000000001`
-pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
+/// - `mytable`
+pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
+
+/// Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.
+///
+/// # Examples
+///
+/// - `mysql-e26b99z.example.com`
+pub const DB_INSTANCE_ID: &str = "db.instance.id";
 
 /// Removed, no replacement at this time.
 ///
@@ -946,8 +939,99 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 /// - `com.microsoft.sqlserver.jdbc.SQLServerDriver`
 pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 
+/// Deprecated, use `db.collection.name` instead.
+///
+/// # Examples
+///
+/// - `mytable`
+pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
+
+/// Deprecated, SQL Server instance is now populated as a part of `db.namespace` attribute.
+///
+/// # Examples
+///
+/// - `MSSQLSERVER`
+pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
+
+/// Deprecated, use `db.namespace` instead.
+///
+/// # Examples
+///
+/// - `customers`
+/// - `main`
+pub const DB_NAME: &str = "db.name";
+
+/// Deprecated, use `db.operation.name` instead.
+///
+/// # Examples
+///
+/// - `findAndModify`
+/// - `HMSET`
+/// - `SELECT`
+pub const DB_OPERATION: &str = "db.operation";
+
+/// Deprecated, use `db.namespace` instead.
+///
+/// # Examples
+///
+/// - `0`
+/// - `1`
+/// - `15`
+pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
+
+/// Deprecated, use `db.collection.name` instead.
+///
+/// # Examples
+///
+/// - `mytable`
+pub const DB_SQL_TABLE: &str = "db.sql.table";
+
+/// The database statement being executed.
+///
+/// # Examples
+///
+/// - `SELECT * FROM wuser_table`
+/// - `SET mykey "WuValue"`
+pub const DB_STATEMENT: &str = "db.statement";
+
+/// Deprecated, no replacement at this time.
+///
+/// # Examples
+///
+/// - `readonly_user`
+/// - `reporting_user`
+pub const DB_USER: &str = "db.user";
+
+/// Deprecated, use `db.client.connections.pool.name` instead.
+///
+/// # Examples
+///
+/// - `myDataSource`
+pub const POOL_NAME: &str = "pool.name";
+
+/// Deprecated, use `db.client.connections.state` instead.
+///
+/// # Examples
+///
+/// - `idle`
+pub const STATE: &str = "state";
+
+/// Deprecated, use `client.address` instead.
+///
+/// # Examples
+///
+/// - `83.164.160.102`
+pub const HTTP_CLIENT_IP: &str = "http.client_ip";
+
 /// Deprecated, use `network.protocol.name` instead.
 pub const HTTP_FLAVOR: &str = "http.flavor";
+
+/// Deprecated, use one of `server.address`, `client.address` or `http.request.header.host` instead, depending on the usage.
+///
+/// # Examples
+///
+/// - `www.example.org`
+pub const HTTP_HOST: &str = "http.host";
 
 /// Deprecated, use `http.request.method` instead.
 ///
@@ -965,12 +1049,28 @@ pub const HTTP_METHOD: &str = "http.method";
 /// - `3495`
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
+/// Deprecated, use `http.request.body.size` instead.
+///
+/// # Examples
+///
+/// - `5493`
+pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
+    "http.request_content_length_uncompressed";
+
 /// Deprecated, use `http.response.header.content-length` instead.
 ///
 /// # Examples
 ///
 /// - `3495`
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
+
+/// Deprecated, use `http.response.body.size` instead.
+///
+/// # Examples
+///
+/// - `5493`
+pub const HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED: &str =
+    "http.response_content_length_uncompressed";
 
 /// Deprecated, use `url.scheme` instead.
 ///
@@ -979,6 +1079,13 @@ pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 /// - `http`
 /// - `https`
 pub const HTTP_SCHEME: &str = "http.scheme";
+
+/// Deprecated, use `server.address` instead.
+///
+/// # Examples
+///
+/// - `example.com`
+pub const HTTP_SERVER_NAME: &str = "http.server_name";
 
 /// Deprecated, use `http.response.status_code` instead.
 ///
@@ -1009,12 +1116,34 @@ pub const HTTP_URL: &str = "http.url";
 /// - `Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1`
 pub const HTTP_USER_AGENT: &str = "http.user_agent";
 
-/// &#34;Deprecated, use `messaging.destination.partition.id` instead.&#34;.
+/// Deprecated use the `device.app.lifecycle` event definition including `ios.state` as a payload field instead.
+///
+/// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
+pub const IOS_STATE: &str = "ios.state";
+
+/// - `myhost@8742@s8083jm`
+/// Deprecated, use `messaging.destination.partition.id` instead.
 ///
 /// # Examples
 ///
 /// - `2`
 pub const MESSAGING_KAFKA_DESTINATION_PARTITION: &str = "messaging.kafka.destination.partition";
+
+/// Deprecated, use `messaging.operation.type` instead.
+///
+/// # Examples
+///
+/// - `publish`
+/// - `create`
+/// - `process`
+pub const MESSAGING_OPERATION: &str = "messaging.operation";
+
+/// Deprecated, use `network.local.address`.
+///
+/// # Examples
+///
+/// - `192.168.0.1`
+pub const NET_HOST_IP: &str = "net.host.ip";
 
 /// Deprecated, use `server.address`.
 ///
@@ -1029,6 +1158,13 @@ pub const NET_HOST_NAME: &str = "net.host.name";
 ///
 /// - `8080`
 pub const NET_HOST_PORT: &str = "net.host.port";
+
+/// Deprecated, use `network.peer.address`.
+///
+/// # Examples
+///
+/// - `127.0.0.1`
+pub const NET_PEER_IP: &str = "net.peer.ip";
 
 /// Deprecated, use `server.address` on client spans and `client.address` on server spans.
 ///
@@ -1100,6 +1236,32 @@ pub const NET_SOCK_PEER_PORT: &str = "net.sock.peer.port";
 
 /// Deprecated, use `network.transport`.
 pub const NET_TRANSPORT: &str = "net.transport";
+
+/// None.
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
+
+/// None.
+///
+/// # Examples
+///
+/// - `1.0.0`
+pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
+
+/// Deprecated, use `rpc.message.compressed_size` instead.
+pub const MESSAGE_COMPRESSED_SIZE: &str = "message.compressed_size";
+
+/// Deprecated, use `rpc.message.id` instead.
+pub const MESSAGE_ID: &str = "message.id";
+
+/// Deprecated, use `rpc.message.type` instead.
+pub const MESSAGE_TYPE: &str = "message.type";
+
+/// Deprecated, use `rpc.message.uncompressed_size` instead.
+pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 
 /// Deprecated, use `system.process.status` instead.
 ///
@@ -1206,7 +1368,11 @@ pub const ENDUSER_SCOPE: &str = "enduser.scope";
 
 /// Describes a class of error the operation ended with.
 ///
-/// The `error.type` SHOULD be predictable and SHOULD have low cardinality.
+/// The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
+///
+/// When `error.type` is set to a type (e.g., an exception type), its
+/// canonical class name identifying the type within the artifact SHOULD be used.
+///
 /// Instrumentations SHOULD document the list of errors they report.
 ///
 /// The cardinality of `error.type` within one instrumentation library SHOULD be low.
@@ -1230,6 +1396,16 @@ pub const ENDUSER_SCOPE: &str = "enduser.scope";
 /// - `500`
 pub const ERROR_TYPE: &str = "error.type";
 
+/// Identifies the class / type of event.
+///
+/// Event names are subject to the same rules as [attribute names](https://github.com/open-telemetry/opentelemetry-specification/tree/v1.33.0/specification/common/attribute-naming.md). Notably, event names are namespaced to avoid collisions and provide a clean separation of semantics for events in separate domains like browser, mobile, and kubernetes.
+///
+/// # Examples
+///
+/// - `browser.mouse.click`
+/// - `device.app.lifecycle`
+pub const EVENT_NAME: &str = "event.name";
+
 /// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
 ///
 /// An exception is considered to have escaped (or left) the scope of a span,
@@ -1242,7 +1418,7 @@ pub const ERROR_TYPE: &str = "error.type";
 /// whether it will escape the scope of a span.
 /// However, it is trivial to know that an exception
 /// will escape, if one checks for an active exception just before ending the span,
-/// as done in the [example for recording span exceptions](#recording-an-exception).
+/// as done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).
 ///
 /// It follows that an exception may still escape the scope of the span
 /// even if the `exception.escaped` attribute was not set or set to false,
@@ -1510,6 +1686,142 @@ pub const GCP_GCE_INSTANCE_HOSTNAME: &str = "gcp.gce.instance.hostname";
 /// - `my-vm-name`
 pub const GCP_GCE_INSTANCE_NAME: &str = "gcp.gce.instance.name";
 
+/// The full response received from the LLM.
+///
+/// It&#39;s RECOMMENDED to format completions as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+///
+/// # Examples
+///
+/// - `[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]`
+pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
+
+/// The full prompt sent to an LLM.
+///
+/// It&#39;s RECOMMENDED to format prompts as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+///
+/// # Examples
+///
+/// - `[{'role': 'user', 'content': 'What is the capital of France?'}]`
+pub const GEN_AI_PROMPT: &str = "gen_ai.prompt";
+
+/// The maximum number of tokens the LLM generates for a request.
+///
+/// # Examples
+///
+/// - `100`
+pub const GEN_AI_REQUEST_MAX_TOKENS: &str = "gen_ai.request.max_tokens";
+
+/// The name of the LLM a request is being made to.
+///
+/// # Examples
+///
+/// - `gpt-4`
+pub const GEN_AI_REQUEST_MODEL: &str = "gen_ai.request.model";
+
+/// The temperature setting for the LLM request.
+///
+/// # Examples
+///
+/// - `0.0`
+pub const GEN_AI_REQUEST_TEMPERATURE: &str = "gen_ai.request.temperature";
+
+/// The top_p sampling setting for the LLM request.
+///
+/// # Examples
+///
+/// - `1.0`
+pub const GEN_AI_REQUEST_TOP_P: &str = "gen_ai.request.top_p";
+
+/// Array of reasons the model stopped generating tokens, corresponding to each generation received.
+///
+/// # Examples
+///
+/// - `stop`
+pub const GEN_AI_RESPONSE_FINISH_REASONS: &str = "gen_ai.response.finish_reasons";
+
+/// The unique identifier for the completion.
+///
+/// # Examples
+///
+/// - `chatcmpl-123`
+pub const GEN_AI_RESPONSE_ID: &str = "gen_ai.response.id";
+
+/// The name of the LLM a response was generated from.
+///
+/// # Examples
+///
+/// - `gpt-4-0613`
+pub const GEN_AI_RESPONSE_MODEL: &str = "gen_ai.response.model";
+
+/// The Generative AI product as identified by the client instrumentation.
+///
+/// The actual GenAI product may differ from the one identified by the client. For example, when using OpenAI client libraries to communicate with Mistral, the `gen_ai.system` is set to `openai` based on the instrumentation&#39;s best knowledge.
+///
+/// # Examples
+///
+/// - `openai`
+pub const GEN_AI_SYSTEM: &str = "gen_ai.system";
+
+/// The number of tokens used in the LLM response (completion).
+///
+/// # Examples
+///
+/// - `180`
+pub const GEN_AI_USAGE_COMPLETION_TOKENS: &str = "gen_ai.usage.completion_tokens";
+
+/// The number of tokens used in the LLM prompt.
+///
+/// # Examples
+///
+/// - `100`
+pub const GEN_AI_USAGE_PROMPT_TOKENS: &str = "gen_ai.usage.prompt_tokens";
+
+/// The GraphQL document being executed.
+///
+/// The value may be sanitized to exclude sensitive information.
+///
+/// # Examples
+///
+/// - `query findBookById { bookById(id: ?) { name } }`
+pub const GRAPHQL_DOCUMENT: &str = "graphql.document";
+
+/// The name of the operation being executed.
+///
+/// # Examples
+///
+/// - `findBookById`
+pub const GRAPHQL_OPERATION_NAME: &str = "graphql.operation.name";
+
+/// The type of the operation being executed.
+///
+/// # Examples
+///
+/// - `query`
+/// - `mutation`
+/// - `subscription`
+pub const GRAPHQL_OPERATION_TYPE: &str = "graphql.operation.type";
+
+/// Unique identifier for the application.
+///
+/// # Examples
+///
+/// - `2daa2797-e42b-4624-9322-ec3f968df4da`
+pub const HEROKU_APP_ID: &str = "heroku.app.id";
+
+/// Commit hash for the current release.
+///
+/// # Examples
+///
+/// - `e6134959463efd8966b20e75b913cafe3f5ec`
+pub const HEROKU_RELEASE_COMMIT: &str = "heroku.release.commit";
+
+/// Time and date the release was created.
+///
+/// # Examples
+///
+/// - `2022-10-23T18:00:42Z`
+pub const HEROKU_RELEASE_CREATION_TIMESTAMP: &str = "heroku.release.creation_timestamp";
+
 /// The CPU architecture the host system is running on.
 pub const HOST_ARCH: &str = "host.arch";
 
@@ -1719,6 +2031,66 @@ pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 /// - `{controller}/{action}/{id?}`
 pub const HTTP_ROUTE: &str = "http.route";
 
+/// Name of the buffer pool.
+///
+/// Pool names are generally obtained via [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()).
+///
+/// # Examples
+///
+/// - `mapped`
+/// - `direct`
+pub const JVM_BUFFER_POOL_NAME: &str = "jvm.buffer.pool.name";
+
+/// Name of the garbage collector action.
+///
+/// Garbage collector action is generally obtained via [GarbageCollectionNotificationInfo#getGcAction()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).
+///
+/// # Examples
+///
+/// - `end of minor GC`
+/// - `end of major GC`
+pub const JVM_GC_ACTION: &str = "jvm.gc.action";
+
+/// Name of the garbage collector.
+///
+/// Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
+///
+/// # Examples
+///
+/// - `G1 Young Generation`
+/// - `G1 Old Generation`
+pub const JVM_GC_NAME: &str = "jvm.gc.name";
+
+/// Name of the memory pool.
+///
+/// Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+///
+/// # Examples
+///
+/// - `G1 Old Gen`
+/// - `G1 Eden space`
+/// - `G1 Survivor Space`
+pub const JVM_MEMORY_POOL_NAME: &str = "jvm.memory.pool.name";
+
+/// The type of memory.
+///
+/// # Examples
+///
+/// - `heap`
+/// - `non_heap`
+pub const JVM_MEMORY_TYPE: &str = "jvm.memory.type";
+
+/// Whether the thread is daemon or not.
+pub const JVM_THREAD_DAEMON: &str = "jvm.thread.daemon";
+
+/// State of the thread.
+///
+/// # Examples
+///
+/// - `runnable`
+/// - `blocked`
+pub const JVM_THREAD_STATE: &str = "jvm.thread.state";
+
 /// The name of the cluster.
 ///
 /// # Examples
@@ -1764,12 +2136,16 @@ pub const K8S_CLUSTER_UID: &str = "k8s.cluster.uid";
 pub const K8S_CONTAINER_NAME: &str = "k8s.container.name";
 
 /// Number of times the container was restarted. This attribute can be used to identify a particular container (running or stopped) within a container spec.
+pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
+
+/// Last terminated reason of the Container.
 ///
 /// # Examples
 ///
-/// - `0`
-/// - `2`
-pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
+/// - `Evicted`
+/// - `Error`
+pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
+    "k8s.container.status.last_terminated_reason";
 
 /// The name of the CronJob.
 ///
@@ -1890,6 +2266,47 @@ pub const K8S_STATEFULSET_NAME: &str = "k8s.statefulset.name";
 /// - `275ecb36-5aa8-4c2a-9c47-d8bb681b9aff`
 pub const K8S_STATEFULSET_UID: &str = "k8s.statefulset.uid";
 
+/// The stream associated with the log. See below for a list of well-known values.
+pub const LOG_IOSTREAM: &str = "log.iostream";
+
+/// The basename of the file.
+///
+/// # Examples
+///
+/// - `audit.log`
+pub const LOG_FILE_NAME: &str = "log.file.name";
+
+/// The basename of the file, with symlinks resolved.
+///
+/// # Examples
+///
+/// - `uuid.log`
+pub const LOG_FILE_NAME_RESOLVED: &str = "log.file.name_resolved";
+
+/// The full path to the file.
+///
+/// # Examples
+///
+/// - `/var/log/mysql/audit.log`
+pub const LOG_FILE_PATH: &str = "log.file.path";
+
+/// The full path to the file, with symlinks resolved.
+///
+/// # Examples
+///
+/// - `/var/lib/docker/uuid.log`
+pub const LOG_FILE_PATH_RESOLVED: &str = "log.file.path_resolved";
+
+/// A unique identifier for the Log Record.
+///
+/// If an id is provided, other log records with the same id will be considered duplicates and can be removed safely. This means, that two distinguishable log records MUST have different values.
+/// The id MAY be an [Universally Unique Lexicographically Sortable Identifier (ULID)](https://github.com/ulid/spec), but other identifiers (e.g. UUID) may be used as needed.
+///
+/// # Examples
+///
+/// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
+pub const LOG_RECORD_UID: &str = "log.record.uid";
+
 /// The number of messages sent, received, or processed in the scope of the batching operation.
 ///
 /// Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.
@@ -1907,7 +2324,7 @@ pub const MESSAGING_BATCH_MESSAGE_COUNT: &str = "messaging.batch.message_count";
 ///
 /// - `client-5`
 /// - `myhost@8742@s8083jm`
-pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";
+pub const MESSAGING_CLIENT_ID: &str = "messaging.client.id";
 
 /// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).
 pub const MESSAGING_DESTINATION_ANONYMOUS: &str = "messaging.destination.anonymous";
@@ -1956,55 +2373,6 @@ pub const MESSAGING_DESTINATION_PUBLISH_ANONYMOUS: &str = "messaging.destination
 /// - `MyTopic`
 pub const MESSAGING_DESTINATION_PUBLISH_NAME: &str = "messaging.destination_publish.name";
 
-/// The name of the consumer group the event consumer is associated with.
-///
-/// # Examples
-///
-/// - `indexer`
-pub const MESSAGING_EVENTHUBS_CONSUMER_GROUP: &str = "messaging.eventhubs.consumer.group";
-
-/// The UTC epoch seconds at which the message has been accepted and stored in the entity.
-///
-/// # Examples
-///
-/// - `1701393730`
-pub const MESSAGING_EVENTHUBS_MESSAGE_ENQUEUED_TIME: &str =
-    "messaging.eventhubs.message.enqueued_time";
-
-/// The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.
-///
-/// # Examples
-///
-/// - `ordering_key`
-pub const MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY: &str =
-    "messaging.gcp_pubsub.message.ordering_key";
-
-/// Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.
-///
-/// # Examples
-///
-/// - `my-group`
-pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group";
-
-/// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
-///
-/// If the key type is not string, it&#39;s string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don&#39;t include its value.
-///
-/// # Examples
-///
-/// - `myKey`
-pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
-
-/// The offset of a record in the corresponding Kafka partition.
-///
-/// # Examples
-///
-/// - `42`
-pub const MESSAGING_KAFKA_MESSAGE_OFFSET: &str = "messaging.kafka.message.offset";
-
-/// A boolean that is true if the message is a tombstone.
-pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: &str = "messaging.kafka.message.tombstone";
-
 /// The size of the message body in bytes.
 ///
 /// This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed
@@ -2039,10 +2407,50 @@ pub const MESSAGING_MESSAGE_ENVELOPE_SIZE: &str = "messaging.message.envelope.si
 /// - `452a7c7c7c7048c2f887f61572b18fc2`
 pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 
-/// A string identifying the kind of messaging operation.
+/// The system-specific name of the messaging operation.
+///
+/// # Examples
+///
+/// - `ack`
+/// - `nack`
+/// - `send`
+pub const MESSAGING_OPERATION_NAME: &str = "messaging.operation.name";
+
+/// A string identifying the type of the messaging operation.
 ///
 /// If a custom value is used, it MUST be of low cardinality.
-pub const MESSAGING_OPERATION: &str = "messaging.operation";
+pub const MESSAGING_OPERATION_TYPE: &str = "messaging.operation.type";
+
+/// The messaging system as identified by the client instrumentation.
+///
+/// The actual messaging system may differ from the one known by the client. For example, when using Kafka client libraries to communicate with Azure Event Hubs, the `messaging.system` is set to `kafka` based on the instrumentation&#39;s best knowledge.
+pub const MESSAGING_SYSTEM: &str = "messaging.system";
+
+/// Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.
+///
+/// # Examples
+///
+/// - `my-group`
+pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group";
+
+/// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
+///
+/// If the key type is not string, it&#39;s string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don&#39;t include its value.
+///
+/// # Examples
+///
+/// - `myKey`
+pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
+
+/// The offset of a record in the corresponding Kafka partition.
+///
+/// # Examples
+///
+/// - `42`
+pub const MESSAGING_KAFKA_MESSAGE_OFFSET: &str = "messaging.kafka.message.offset";
+
+/// A boolean that is true if the message is a tombstone.
+pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: &str = "messaging.kafka.message.tombstone";
 
 /// RabbitMQ message routing key.
 ///
@@ -2117,6 +2525,37 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: &str = "messaging.rocketmq.message.ty
 /// - `myNamespace`
 pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 
+/// The ack deadline in seconds set for the modify ack deadline request.
+///
+/// # Examples
+///
+/// - `10`
+pub const MESSAGING_GCP_PUBSUB_MESSAGE_ACK_DEADLINE: &str =
+    "messaging.gcp_pubsub.message.ack_deadline";
+
+/// The ack id for a given message.
+///
+/// # Examples
+///
+/// - `ack_id`
+pub const MESSAGING_GCP_PUBSUB_MESSAGE_ACK_ID: &str = "messaging.gcp_pubsub.message.ack_id";
+
+/// The delivery attempt for a given message.
+///
+/// # Examples
+///
+/// - `2`
+pub const MESSAGING_GCP_PUBSUB_MESSAGE_DELIVERY_ATTEMPT: &str =
+    "messaging.gcp_pubsub.message.delivery_attempt";
+
+/// The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.
+///
+/// # Examples
+///
+/// - `ordering_key`
+pub const MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY: &str =
+    "messaging.gcp_pubsub.message.ordering_key";
+
 /// The name of the subscription in the topic messages are received from.
 ///
 /// # Examples
@@ -2144,8 +2583,20 @@ pub const MESSAGING_SERVICEBUS_MESSAGE_DELIVERY_COUNT: &str =
 pub const MESSAGING_SERVICEBUS_MESSAGE_ENQUEUED_TIME: &str =
     "messaging.servicebus.message.enqueued_time";
 
-/// An identifier for the messaging system being used. See below for a list of well-known identifiers.
-pub const MESSAGING_SYSTEM: &str = "messaging.system";
+/// The name of the consumer group the event consumer is associated with.
+///
+/// # Examples
+///
+/// - `indexer`
+pub const MESSAGING_EVENTHUBS_CONSUMER_GROUP: &str = "messaging.eventhubs.consumer.group";
+
+/// The UTC epoch seconds at which the message has been accepted and stored in the entity.
+///
+/// # Examples
+///
+/// - `1701393730`
+pub const MESSAGING_EVENTHUBS_MESSAGE_ENQUEUED_TIME: &str =
+    "messaging.eventhubs.message.enqueued_time";
 
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
 ///
@@ -2281,6 +2732,11 @@ pub const NETWORK_TYPE: &str = "network.type";
 /// - `sha256:e4ca62c0d62f3e886e684806dfe9d4e0cda60d54986898173c1083856cfda0f4`
 pub const OCI_MANIFEST_DIGEST: &str = "oci.manifest.digest";
 
+/// Parent-child Reference type.
+///
+/// The causal relationship between a child Span and a parent Span.
+pub const OPENTRACING_REF_TYPE: &str = "opentracing.ref_type";
+
 /// Unique identifier for a particular build or compilation of the operating system.
 ///
 /// # Examples
@@ -2318,6 +2774,37 @@ pub const OS_TYPE: &str = "os.type";
 /// - `18.04.1`
 pub const OS_VERSION: &str = "os.version";
 
+/// Name of the code, either &#34;OK&#34; or &#34;ERROR&#34;. MUST NOT be set if the status code is UNSET.
+pub const OTEL_STATUS_CODE: &str = "otel.status_code";
+
+/// Description of the Status if it has a value, otherwise not set.
+///
+/// # Examples
+///
+/// - `resource not found`
+pub const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
+
+/// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
+///
+/// # Examples
+///
+/// - `io.opentelemetry.contrib.mongodb`
+pub const OTEL_SCOPE_NAME: &str = "otel.scope.name";
+
+/// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
+///
+/// # Examples
+///
+/// - `1.0.0`
+pub const OTEL_SCOPE_VERSION: &str = "otel.scope.version";
+
+/// The [`service.name`](/docs/resource/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
+///
+/// # Examples
+///
+/// - `AuthTokenCache`
+pub const PEER_SERVICE: &str = "peer.service";
+
 /// The command used to launch the process (i.e. the command name). On Linux based systems, can be set to the zeroth string in `proc/[pid]/cmdline`. On Windows, can be set to the first parameter extracted from `GetCommandLineW`.
 ///
 /// # Examples
@@ -2340,6 +2827,16 @@ pub const PROCESS_COMMAND_ARGS: &str = "process.command_args";
 /// - `C:\cmd\otecol --config="my directory\config.yaml"`
 pub const PROCESS_COMMAND_LINE: &str = "process.command_line";
 
+/// Specifies whether the context switches for this data point were voluntary or involuntary.
+pub const PROCESS_CONTEXT_SWITCH_TYPE: &str = "process.context_switch_type";
+
+/// The date and time the process was created, in ISO 8601 format.
+///
+/// # Examples
+///
+/// - `2023-11-21T09:25:34.853Z`
+pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
+
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
 ///
 /// # Examples
@@ -2354,12 +2851,39 @@ pub const PROCESS_EXECUTABLE_NAME: &str = "process.executable.name";
 /// - `/usr/bin/cmd/otelcol`
 pub const PROCESS_EXECUTABLE_PATH: &str = "process.executable.path";
 
+/// The exit code of the process.
+///
+/// # Examples
+///
+/// - `127`
+pub const PROCESS_EXIT_CODE: &str = "process.exit.code";
+
+/// The date and time the process exited, in ISO 8601 format.
+///
+/// # Examples
+///
+/// - `2023-11-21T09:26:12.315Z`
+pub const PROCESS_EXIT_TIME: &str = "process.exit.time";
+
+/// The PID of the process&#39;s group leader. This is also the process group ID (PGID) of the process.
+///
+/// # Examples
+///
+/// - `23`
+pub const PROCESS_GROUP_LEADER_PID: &str = "process.group_leader.pid";
+
+/// Whether the process is connected to an interactive shell.
+pub const PROCESS_INTERACTIVE: &str = "process.interactive";
+
 /// The username of the user that owns the process.
 ///
 /// # Examples
 ///
 /// - `root`
 pub const PROCESS_OWNER: &str = "process.owner";
+
+/// The type of page fault for this data point. Type `major` is for major/hard page faults, and `minor` is for minor/soft page faults.
+pub const PROCESS_PAGING_FAULT_TYPE: &str = "process.paging.fault_type";
 
 /// Parent Process identifier (PPID).
 ///
@@ -2374,6 +2898,20 @@ pub const PROCESS_PARENT_PID: &str = "process.parent_pid";
 ///
 /// - `1234`
 pub const PROCESS_PID: &str = "process.pid";
+
+/// The real user ID (RUID) of the process.
+///
+/// # Examples
+///
+/// - `1000`
+pub const PROCESS_REAL_USER_ID: &str = "process.real_user.id";
+
+/// The username of the real user of the process.
+///
+/// # Examples
+///
+/// - `operator`
+pub const PROCESS_REAL_USER_NAME: &str = "process.real_user.name";
 
 /// An additional description about the runtime of the process, for example a specific vendor customization of the runtime environment.
 ///
@@ -2395,6 +2933,53 @@ pub const PROCESS_RUNTIME_NAME: &str = "process.runtime.name";
 ///
 /// - `14.0.2`
 pub const PROCESS_RUNTIME_VERSION: &str = "process.runtime.version";
+
+/// The saved user ID (SUID) of the process.
+///
+/// # Examples
+///
+/// - `1002`
+pub const PROCESS_SAVED_USER_ID: &str = "process.saved_user.id";
+
+/// The username of the saved user.
+///
+/// # Examples
+///
+/// - `operator`
+pub const PROCESS_SAVED_USER_NAME: &str = "process.saved_user.name";
+
+/// The PID of the process&#39;s session leader. This is also the session ID (SID) of the process.
+///
+/// # Examples
+///
+/// - `14`
+pub const PROCESS_SESSION_LEADER_PID: &str = "process.session_leader.pid";
+
+/// The effective user ID (EUID) of the process.
+///
+/// # Examples
+///
+/// - `1001`
+pub const PROCESS_USER_ID: &str = "process.user.id";
+
+/// The username of the effective user of the process.
+///
+/// # Examples
+///
+/// - `root`
+pub const PROCESS_USER_NAME: &str = "process.user.name";
+
+/// Virtual process identifier.
+///
+/// The process ID within a PID namespace. This is not necessarily unique across all processes on the host but it is unique within the process namespace that the process exists within.
+///
+/// # Examples
+///
+/// - `12`
+pub const PROCESS_VPID: &str = "process.vpid";
+
+/// The CPU state of the process.
+pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 
 /// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
 pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
@@ -2434,6 +3019,20 @@ pub const RPC_JSONRPC_REQUEST_ID: &str = "rpc.jsonrpc.request_id";
 /// - `2.0`
 /// - `1.0`
 pub const RPC_JSONRPC_VERSION: &str = "rpc.jsonrpc.version";
+
+/// Compressed size of the message in bytes.
+pub const RPC_MESSAGE_COMPRESSED_SIZE: &str = "rpc.message.compressed_size";
+
+/// MUST be calculated as two different counters starting from `1` one for sent messages and one for received message.
+///
+/// This way we guarantee that the values will be consistent between different implementations.
+pub const RPC_MESSAGE_ID: &str = "rpc.message.id";
+
+/// Whether this is a received or sent message.
+pub const RPC_MESSAGE_TYPE: &str = "rpc.message.type";
+
+/// Uncompressed size of the message in bytes.
+pub const RPC_MESSAGE_UNCOMPRESSED_SIZE: &str = "rpc.message.uncompressed_size";
 
 /// The name of the (logical) method being called, must be equal to the $method part in the span name.
 ///
@@ -2514,7 +3113,7 @@ pub const SERVICE_INSTANCE_ID: &str = "service.instance.id";
 
 /// Logical name of the service.
 ///
-/// MUST be the same for all instances of horizontally scaled services. If the value was not specified, SDKs MUST fallback to `unknown_service:` concatenated with [`process.executable.name`](process.md#process), e.g. `unknown_service:bash`. If `process.executable.name` is not available, the value MUST be set to `unknown_service`.
+/// MUST be the same for all instances of horizontally scaled services. If the value was not specified, SDKs MUST fallback to `unknown_service:` concatenated with [`process.executable.name`](process.md), e.g. `unknown_service:bash`. If `process.executable.name` is not available, the value MUST be set to `unknown_service`.
 ///
 /// # Examples
 ///
@@ -2552,6 +3151,22 @@ pub const SESSION_ID: &str = "session.id";
 /// - `00112233-4455-6677-8899-aabbccddeeff`
 pub const SESSION_PREVIOUS_ID: &str = "session.previous_id";
 
+/// SignalR HTTP connection closure status.
+///
+/// # Examples
+///
+/// - `app_shutdown`
+/// - `timeout`
+pub const SIGNALR_CONNECTION_STATUS: &str = "signalr.connection.status";
+
+/// [SignalR transport type](https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md).
+///
+/// # Examples
+///
+/// - `web_sockets`
+/// - `long_polling`
+pub const SIGNALR_TRANSPORT: &str = "signalr.transport";
+
 /// Source address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
 ///
 /// When observed from the destination side, and when communicating through an intermediary, `source.address` SHOULD represent the source address behind any intermediaries, for example proxies, if it&#39;s available.
@@ -2570,6 +3185,99 @@ pub const SOURCE_ADDRESS: &str = "source.address";
 /// - `3389`
 /// - `2888`
 pub const SOURCE_PORT: &str = "source.port";
+
+/// The device identifier.
+///
+/// # Examples
+///
+/// - `(identifier)`
+pub const SYSTEM_DEVICE: &str = "system.device";
+
+/// The logical CPU number [0..n-1].
+///
+/// # Examples
+///
+/// - `1`
+pub const SYSTEM_CPU_LOGICAL_NUMBER: &str = "system.cpu.logical_number";
+
+/// The state of the CPU.
+///
+/// # Examples
+///
+/// - `idle`
+/// - `interrupt`
+pub const SYSTEM_CPU_STATE: &str = "system.cpu.state";
+
+/// The memory state.
+///
+/// # Examples
+///
+/// - `free`
+/// - `cached`
+pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
+
+/// The paging access direction.
+///
+/// # Examples
+///
+/// - `in`
+pub const SYSTEM_PAGING_DIRECTION: &str = "system.paging.direction";
+
+/// The memory paging state.
+///
+/// # Examples
+///
+/// - `free`
+pub const SYSTEM_PAGING_STATE: &str = "system.paging.state";
+
+/// The memory paging type.
+///
+/// # Examples
+///
+/// - `minor`
+pub const SYSTEM_PAGING_TYPE: &str = "system.paging.type";
+
+/// The filesystem mode.
+///
+/// # Examples
+///
+/// - `rw, ro`
+pub const SYSTEM_FILESYSTEM_MODE: &str = "system.filesystem.mode";
+
+/// The filesystem mount path.
+///
+/// # Examples
+///
+/// - `/mnt/data`
+pub const SYSTEM_FILESYSTEM_MOUNTPOINT: &str = "system.filesystem.mountpoint";
+
+/// The filesystem state.
+///
+/// # Examples
+///
+/// - `used`
+pub const SYSTEM_FILESYSTEM_STATE: &str = "system.filesystem.state";
+
+/// The filesystem type.
+///
+/// # Examples
+///
+/// - `ext4`
+pub const SYSTEM_FILESYSTEM_TYPE: &str = "system.filesystem.type";
+
+/// A stateless protocol MUST NOT set this attribute.
+///
+/// # Examples
+///
+/// - `close_wait`
+pub const SYSTEM_NETWORK_STATE: &str = "system.network.state";
+
+/// The process state, e.g., [Linux Process State Codes](https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES).
+///
+/// # Examples
+///
+/// - `running`
+pub const SYSTEM_PROCESS_STATUS: &str = "system.process.status";
 
 /// The language of the telemetry SDK.
 pub const TELEMETRY_SDK_LANGUAGE: &str = "telemetry.sdk.language";
@@ -2937,6 +3645,15 @@ pub const URL_SCHEME: &str = "url.scheme";
 /// - `sub2.sub1`
 pub const URL_SUBDOMAIN: &str = "url.subdomain";
 
+/// The low-cardinality template of an [absolute path reference](https://www.rfc-editor.org/rfc/rfc3986#section-4.2).
+///
+/// # Examples
+///
+/// - `/users/{id}`
+/// - `/users/:id`
+/// - `/users?id={id}`
+pub const URL_TEMPLATE: &str = "url.template";
+
 /// The effective top level domain (eTLD), also known as the domain suffix, is the last part of the domain name. For example, the top level domain for example.com is `com`.
 ///
 /// This value can be determined precisely with the [public suffix list](http://publicsuffix.org).
@@ -2976,116 +3693,12 @@ pub const USER_AGENT_ORIGINAL: &str = "user_agent.original";
 /// - `1.0.0`
 pub const USER_AGENT_VERSION: &str = "user_agent.version";
 
-/// The ID of a running ECS task. The ID MUST be extracted from `task.arn`.
+/// Additional description of the web engine (e.g. detailed version and edition information).
 ///
 /// # Examples
 ///
-/// - `10838bed-421f-43ef-870a-f43feacbbb5b`
-/// - `23ebb8ac-c18f-46c6-8bbe-d55d0e37cfbd`
-pub const AWS_ECS_TASK_ID: &str = "aws.ecs.task.id";
-
-/// The ARN of an [ECS cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).
-///
-/// # Examples
-///
-/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
-pub const AWS_ECS_CLUSTER_ARN: &str = "aws.ecs.cluster.arn";
-
-/// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
-///
-/// # Examples
-///
-/// - `arn:aws:ecs:us-west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9`
-pub const AWS_ECS_CONTAINER_ARN: &str = "aws.ecs.container.arn";
-
-/// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task.
-pub const AWS_ECS_LAUNCHTYPE: &str = "aws.ecs.launchtype";
-
-/// The ARN of a running [ECS task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html#ecs-resource-ids).
-///
-/// # Examples
-///
-/// - `arn:aws:ecs:us-west-1:123456789123:task/10838bed-421f-43ef-870a-f43feacbbb5b`
-/// - `arn:aws:ecs:us-west-1:123456789123:task/my-cluster/task-id/23ebb8ac-c18f-46c6-8bbe-d55d0e37cfbd`
-pub const AWS_ECS_TASK_ARN: &str = "aws.ecs.task.arn";
-
-/// The family name of the [ECS task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) used to create the ECS task.
-///
-/// # Examples
-///
-/// - `opentelemetry-family`
-pub const AWS_ECS_TASK_FAMILY: &str = "aws.ecs.task.family";
-
-/// The revision for the task definition used to create the ECS task.
-///
-/// # Examples
-///
-/// - `8`
-/// - `26`
-pub const AWS_ECS_TASK_REVISION: &str = "aws.ecs.task.revision";
-
-/// The ARN of an EKS cluster.
-///
-/// # Examples
-///
-/// - `arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster`
-pub const AWS_EKS_CLUSTER_ARN: &str = "aws.eks.cluster.arn";
-
-/// The Amazon Resource Name(s) (ARN) of the AWS log group(s).
-///
-/// See the [log group ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format).
-///
-/// # Examples
-///
-/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*`
-pub const AWS_LOG_GROUP_ARNS: &str = "aws.log.group.arns";
-
-/// The name(s) of the AWS log group(s) an application is writing to.
-///
-/// Multiple log groups must be supported for cases like multi-container applications, where a single application has sidecar containers, and each write to their own log group.
-///
-/// # Examples
-///
-/// - `/aws/lambda/my-function`
-/// - `opentelemetry-service`
-pub const AWS_LOG_GROUP_NAMES: &str = "aws.log.group.names";
-
-/// The ARN(s) of the AWS log stream(s).
-///
-/// See the [log stream ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format). One log group can contain several log streams, so these ARNs necessarily identify both a log group and a log stream.
-///
-/// # Examples
-///
-/// - `arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
-pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
-
-/// The name(s) of the AWS log stream(s) an application is writing to.
-///
-/// # Examples
-///
-/// - `logs/main/10838bed-421f-43ef-870a-f43feacbbb5b`
-pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
-
-/// Unique identifier for the application.
-///
-/// # Examples
-///
-/// - `2daa2797-e42b-4624-9322-ec3f968df4da`
-pub const HEROKU_APP_ID: &str = "heroku.app.id";
-
-/// Commit hash for the current release.
-///
-/// # Examples
-///
-/// - `e6134959463efd8966b20e75b913cafe3f5ec`
-pub const HEROKU_RELEASE_COMMIT: &str = "heroku.release.commit";
-
-/// Time and date the release was created.
-///
-/// # Examples
-///
-/// - `2022-10-23T18:00:42Z`
-pub const HEROKU_RELEASE_CREATION_TIMESTAMP: &str = "heroku.release.creation_timestamp";
+/// - `WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final`
+pub const WEBENGINE_DESCRIPTION: &str = "webengine.description";
 
 /// The name of the web engine.
 ///
@@ -3094,44 +3707,9 @@ pub const HEROKU_RELEASE_CREATION_TIMESTAMP: &str = "heroku.release.creation_tim
 /// - `WildFly`
 pub const WEBENGINE_NAME: &str = "webengine.name";
 
-/// Additional description of the web engine (e.g. detailed version and edition information).
-///
-/// # Examples
-///
-/// - `WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final`
-pub const WEBENGINE_DESCRIPTION: &str = "webengine.description";
-
 /// The version of the web engine.
 ///
 /// # Examples
 ///
 /// - `21.0.0`
 pub const WEBENGINE_VERSION: &str = "webengine.version";
-
-/// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
-///
-/// # Examples
-///
-/// - `io.opentelemetry.contrib.mongodb`
-pub const OTEL_SCOPE_NAME: &str = "otel.scope.name";
-
-/// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
-///
-/// # Examples
-///
-/// - `1.0.0`
-pub const OTEL_SCOPE_VERSION: &str = "otel.scope.version";
-
-/// None.
-///
-/// # Examples
-///
-/// - `io.opentelemetry.contrib.mongodb`
-pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
-
-/// None.
-///
-/// # Examples
-///
-/// - `1.0.0`
-pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
