@@ -1049,7 +1049,6 @@ mod tests {
         let counter = Arc::new(test_context.u64_counter("test", "my_counter", None));
 
         for i in 0..10 {
-            println!("For loop: {}", i);
             thread::scope(|s| {
                 s.spawn(|| {
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
