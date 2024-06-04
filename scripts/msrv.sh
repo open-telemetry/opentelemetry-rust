@@ -38,7 +38,7 @@ installed_version=$(rustup toolchain list | grep "$RUST_VERSION" | awk '{print $
 
 # Read the configuration file and get the packages for the specified version
 if [ -f "$CONFIG_FILE" ]; then
-  packages=$(jq -r --arg version "$RUST_VERSION" '.[$version] | .[]' "$CONFIG_FILE")
+  packages=$(jq -r --arg version "$RUST_VERSION" '.[$version] | .[]' "$CONFIG_FILE" | tr '\n' ' ')
   if [ -z "$packages" ]; then
     echo "No packages found for Rust version $RUST_VERSION in the configuration file."
     exit 1
