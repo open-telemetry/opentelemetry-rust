@@ -109,7 +109,7 @@ jobs:
       with:
         submodules: true
     - name: Set up Rust ${{ matrix.rust }}
-      uses: dtolnay/rust-toolchain@v1
+    - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
     - name: Patch dependencies versions

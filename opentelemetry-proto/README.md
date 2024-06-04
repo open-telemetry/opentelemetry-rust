@@ -7,6 +7,4 @@ This crate contains generated files from [opentelemetry-proto](https://github.co
 repository and transformation between types from generated files and types defined in [opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry).
 
 
-*Compiler support: [requires `rustc` 1.70+][msrv]*
-
-[msrv]: #supported-rust-versions
+*Compiler support: [requires `rustc` 1.70+]
