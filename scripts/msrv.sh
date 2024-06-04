@@ -13,6 +13,8 @@ RUST_VERSION=$1
 # Determine the directory containing the script
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
+echo "Current working directory: $(pwd)"
+
 # Path to the configuration file
 CONFIG_FILE="$SCRIPT_DIR/msrv_config.json"
 
@@ -50,6 +52,8 @@ echo "checking packages: "$packages
 echo
 # Check MSRV for the packages
 for package in $packages; do
-  echo "Running msrv check for $package with Rust $installed_version"
+  echo "Running MSRV check for $package with Rust $installed_version"
+  echo "Current working directory: $(pwd)"
+  echo "Command: rustup run \"$installed_version\" cargo check --manifest-path=\"$package\" --all-features"
   rustup run "$installed_version" cargo check --manifest-path=$package --all-features
 done
