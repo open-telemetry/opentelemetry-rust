@@ -13,13 +13,13 @@ RUST_VERSION=$1
 # Determine the directory containing the script
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
-echo "Current working directory: $(pwd)"
-
 # Path to the configuration file
 CONFIG_FILE="$SCRIPT_DIR/msrv_config.json"
 
 # Change to the root directory of the repository
 cd "$SCRIPT_DIR/.."
+
+echo "Current working directory: $(pwd)"
 
 # function to check if specified toolchain is installed
 check_rust_toolchain_installed() {
@@ -48,8 +48,6 @@ else
   exit 1
 fi
 
-echo "checking packages: "$packages
-echo
 # Check MSRV for the packages
 for package in $packages; do
   package=$(echo "$package" | tr -d '\r\n') # Remove any newline and carriage return characters
