@@ -7,7 +7,7 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::trace as sdktrace;
+use opentelemetry_sdk::trace::{self as sdktrace, Config};
 use opentelemetry_sdk::{
     logs::{self as sdklogs},
     Resource,
@@ -45,7 +45,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
                 .http()
                 .with_endpoint("http://localhost:4318/v1/traces"),
         )
-        .with_trace_config(sdktrace::config().with_resource(RESOURCE.clone()))
+        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 

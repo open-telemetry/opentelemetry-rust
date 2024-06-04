@@ -9,6 +9,7 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -30,7 +31,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
                 .tonic()
                 .with_endpoint("http://localhost:4317"),
         )
-        .with_trace_config(sdktrace::config().with_resource(RESOURCE.clone()))
+        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
         .install_batch(runtime::Tokio)
 }
 
