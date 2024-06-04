@@ -150,7 +150,7 @@ mod tests {
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
-    use std::thread::{self, sleep};
+    use std::thread;
     use std::time::Duration;
 
     // Run all tests in this mod
