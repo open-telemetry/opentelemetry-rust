@@ -113,7 +113,7 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
     - name: Patch dependencies versions
-      - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
+      run: bash ./scripts/patch_dependencies.sh
     - name: Check MSRV for all crates
       run: bash ./scripts/msrv.sh ${{ matrix.rust }}
   cargo-deny:
