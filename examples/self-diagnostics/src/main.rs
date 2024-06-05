@@ -37,7 +37,6 @@ static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorSt
 fn custom_error_handler(err: OtelError) {
     if GLOBAL_ERROR_STATE.mark_as_seen(&err) {
         // log error not already seen
-        println!("Logging error: {:?}", err);
         match err {
             OtelError::Metric(err) => error!("OpenTelemetry metrics error occurred: {}", err),
             OtelError::Trace(err) => error!("OpenTelemetry trace error occurred: {}", err),

@@ -19,7 +19,3 @@ opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["http-prot
 once_cell ={ version = "1.19.0"}
 ctrlc = "3.4"
 
-
-[features]
-default = ["otel_unstable"]
-otel_unstable = ["opentelemetry/otel_unstable"]
