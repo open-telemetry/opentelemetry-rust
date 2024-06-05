@@ -22,6 +22,8 @@ jobs:
           - rust: stable
             os: macos-latest
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=lld -D warnings"
     steps:
     - name: Free disk space
       if: ${{ matrix.os == 'ubuntu-latest'}}
