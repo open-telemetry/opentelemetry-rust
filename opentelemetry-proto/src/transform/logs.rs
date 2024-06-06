@@ -137,7 +137,7 @@ pub mod tonic {
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some(log_data.instrumentation.into()),
+                    scope: Some((log_data.instrumentation, log_data.record.target.clone()).into()),
                     log_records: vec![log_data.record.into()],
                 }],
             }

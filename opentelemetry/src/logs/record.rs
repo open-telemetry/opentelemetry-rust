@@ -10,6 +10,11 @@ pub trait LogRecord {
     {
     }
 
+    /// Sets the `target` of a record
+    fn set_target<T>(&mut self, _target: T)
+    where
+        T: Into<Cow<'static, str>>;
+
     /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
 

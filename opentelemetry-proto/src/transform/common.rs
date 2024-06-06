@@ -42,10 +42,23 @@ pub mod tonic {
     #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
-    impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
+    impl
+        From<(
+            opentelemetry_sdk::InstrumentationLibrary,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                opentelemetry_sdk::InstrumentationLibrary,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
+            let (library, target) = data;
             InstrumentationScope {
-                name: library.name.into_owned(),
+                name: target
+                    .map(|t| t.replace("::", "."))
+                    .unwrap_or_else(|| library.name.into_owned()),
                 version: library.version.map(Cow::into_owned).unwrap_or_default(),
                 attributes: Attributes::from(library.attributes).0,
                 ..Default::default()
@@ -53,10 +66,23 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: &opentelemetry_sdk::InstrumentationLibrary) -> Self {
+    impl
+        From<(
+            &opentelemetry_sdk::InstrumentationLibrary,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                &opentelemetry_sdk::InstrumentationLibrary,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
+            let (library, target) = data;
             InstrumentationScope {
-                name: library.name.to_string(),
+                name: target
+                    .map(|t| t.replace("::", "."))
+                    .unwrap_or_else(|| library.name.to_string()),
                 version: library
                     .version
                     .as_ref()
