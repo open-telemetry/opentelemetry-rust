@@ -1,4 +1,5 @@
 use num_format::{Locale, ToFormattedString};
+use std::env;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -26,7 +27,21 @@ where
         STOP.store(true, Ordering::SeqCst);
     })
     .expect("Error setting Ctrl-C handler");
-    let num_threads = num_cpus::get();
+
+    let args: Vec<String> = env::args().collect();
+
+    let mut num_threads = num_cpus::get();
+    if args.len() == 2 {
+        let arg = args[1].parse::<i32>().unwrap();
+
+        if arg > 0 && arg <= num_threads as i32 {
+            num_threads = arg as usize;
+        } else {
+            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to {}.", arg, num_threads);
+            std::process::exit(1);
+        }
+    }
+
     println!("Number of threads: {}", num_threads);
     let mut handles = Vec::with_capacity(num_threads);
     let func_arc = Arc::new(func);
