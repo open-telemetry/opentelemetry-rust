@@ -2,32 +2,55 @@
 
 set -eu
 
-echo "Running msrv check for opentelemetry package"
-cargo check --manifest-path=opentelemetry/Cargo.toml --all-features
+# Check if a version is specified as parameter
+if [ $# -eq 0 ]; then
+  echo "No Rust version specified. Usage: $0 <rust-version>"
+  exit 1
+fi
 
-echo "Running msrv check for opentelemetry-sdk package"
-cargo check --manifest-path=opentelemetry-sdk/Cargo.toml --all-features
+RUST_VERSION=$1
 
-echo "Running msrv check for opentelemetry-stdout package"
-cargo check --manifest-path=opentelemetry-stdout/Cargo.toml --all-features
+# Determine the directory containing the script
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
-# TODO: Ignoring as this is failing with the following error:
-# error: package `prost-derive v0.12.6` cannot be built because it requires rustc 1.70 or newer, while the currently active rustc version is 1.65.0
-#echo "Running msrv check for opentelemetry-otlp package"
-# cargo check --manifest-path=opentelemetry-otlp/Cargo.toml --all-features
+# Path to the configuration file
+CONFIG_FILE="$SCRIPT_DIR/msrv_config.json"
 
-echo "Running msrv check for opentelemetry-http package"
-cargo check --manifest-path=opentelemetry-http/Cargo.toml --all-features
+# Change to the root directory of the repository
+cd "$SCRIPT_DIR/.."
 
-echo "Running msrv check for opentelemetry-jaeger-propagator package"
-cargo check --manifest-path=opentelemetry-jaeger-propagator/Cargo.toml --all-features
+echo "Current working directory: $(pwd)"
 
-echo "Running msrv check for opentelemetry-zipkin package"
-cargo check --manifest-path=opentelemetry-zipkin/Cargo.toml --all-features
+# function to check if specified toolchain is installed
+check_rust_toolchain_installed() {
+  local version=$1
+  if ! rustup toolchain list | grep -q "$version"; then
+    echo "Rust toolchain $version is not installed. Please install it using 'rustup toolchain install $version'."
+    exit 1
+  fi
+}
 
-echo "Running msrv check for opentelemetry-appender-log package"
-cargo check --manifest-path=opentelemetry-appender-log/Cargo.toml --all-features
+# check if specified toolchain is installed
+check_rust_toolchain_installed "$RUST_VERSION"
 
-echo "Running msrv check for opentelemetry-appender-tracing package"
-cargo check --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features
+# Extract the exact installed rust version string
+installed_version=$(rustup toolchain list | grep "$RUST_VERSION" | awk '{print $1}')
 
+# Read the configuration file and get the packages for the specified version
+if [ -f "$CONFIG_FILE" ]; then
+  packages=$(jq -r --arg version "$RUST_VERSION" '.[$version] | .[]' "$CONFIG_FILE" | tr '\n' ' ')
+  if [ -z "$packages" ]; then
+    echo "No packages found for Rust version $RUST_VERSION in the configuration file."
+    exit 1
+  fi
+else
+  echo "Configuration file $CONFIG_FILE not found."
+  exit 1
+fi
+
+# Check MSRV for the packages
+for package in $packages; do
+  package=$(echo "$package" | tr -d '\r\n') # Remove any newline and carriage return characters
+  echo "Command: rustup run \"$installed_version\" cargo check --manifest-path=\"$package\" --all-features"
+  rustup run "$installed_version" cargo check --manifest-path=$package --all-features
+done
