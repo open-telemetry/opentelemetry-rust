@@ -101,17 +101,21 @@ jobs:
   msrv:
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-latest ]
+        os: [windows-latest, ubuntu-latest]
+        rust: [1.65.0, 1.70.0]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: dtolnay/rust-toolchain@1.65.0
-    - name: Patch dependencies versions # some dependencies bump MSRV without major version bump
-      run: bash ./scripts/patch_dependencies.sh
-    - name: Check MSRV for all crates
-      run: bash ./scripts/msrv.sh
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Set up Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - name: Patch dependencies versions
+        run: bash ./scripts/patch_dependencies.sh
+      - name: Check MSRV for all crates
+        run: bash ./scripts/msrv.sh ${{ matrix.rust }}
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
