@@ -158,7 +158,7 @@ impl TracerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new logs after shutdown
+            // it's up to the processor to properly block new spans after shutdown
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
