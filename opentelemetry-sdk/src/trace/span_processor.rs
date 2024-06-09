@@ -92,6 +92,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn force_flush(&self) -> TraceResult<()>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
+    ///
+    /// Implementation should make sure shutdown can be called multiple times.
     fn shutdown(&self) -> TraceResult<()>;
     /// Set the resource for the log processor.
     fn set_resource(&mut self, _resource: &Resource) {}
@@ -691,8 +693,10 @@ mod tests {
     };
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
+    use crate::runtime::Tokio;
     use crate::testing::trace::{
         new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
+        NoopSpanExporter,
     };
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -918,6 +922,23 @@ mod tests {
                 .is_ok(),
             "timed out in 5 seconds. force_flush may not export any data when called"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_batch_span_processor_multiple_shutdown() {
+        let processor = BatchSpanProcessor::new(
+            Box::new(NoopSpanExporter::new()),
+            BatchConfig::default(),
+            Tokio,
+        );
+
+        let shutdown = |processor: &BatchSpanProcessor<Tokio>| {
+            let result = processor.shutdown();
+            assert!(result.is_ok());
+        };
+
+        shutdown(&processor);
+        shutdown(&processor);
     }
 
     struct BlockingExporter<D> {

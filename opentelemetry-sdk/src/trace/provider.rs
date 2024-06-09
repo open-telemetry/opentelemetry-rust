@@ -305,23 +305,59 @@ mod tests {
     use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
-    use opentelemetry::trace::{TraceError, TraceResult};
+    use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
     use std::borrow::Cow;
     use std::env;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::sync::Arc;
+
+    // fields below is wrapped with Arc so we can assert it
+    #[derive(Default, Debug)]
+    struct AssertInfo {
+        started_span: AtomicU32,
+        is_shutdown: AtomicBool,
+    }
+
+    #[derive(Default, Debug, Clone)]
+    struct SharedAssertInfo(Arc<AssertInfo>);
+
+    impl SharedAssertInfo {
+        fn started_span_count(&self, count: u32) -> bool {
+            return self.0.started_span.load(Ordering::SeqCst) == count;
+        }
+    }
 
     #[derive(Debug)]
     struct TestSpanProcessor {
         success: bool,
+        assert_info: SharedAssertInfo,
+    }
+
+    impl TestSpanProcessor {
+        fn new(success: bool) -> TestSpanProcessor {
+            TestSpanProcessor {
+                success,
+                assert_info: SharedAssertInfo::default(),
+            }
+        }
+
+        // get handle to assert info
+        fn assert_info(&self) -> SharedAssertInfo {
+            self.assert_info.clone()
+        }
     }
 
     impl SpanProcessor for TestSpanProcessor {
         fn on_start(&self, _span: &mut Span, _cx: &Context) {
-            unimplemented!()
+            self.assert_info
+                .0
+                .started_span
+                .fetch_add(1, Ordering::SeqCst);
         }
 
         fn on_end(&self, _span: SpanData) {
-            unimplemented!()
+            // ignore
         }
 
         fn force_flush(&self) -> TraceResult<()> {
@@ -333,7 +369,17 @@ mod tests {
         }
 
         fn shutdown(&self) -> TraceResult<()> {
-            self.force_flush()
+            if self.assert_info.0.is_shutdown.load(Ordering::SeqCst) {
+                return Ok(());
+            } else {
+                let _ = self.assert_info.0.is_shutdown.compare_exchange(
+                    false,
+                    true,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
+                self.force_flush()
+            }
         }
     }
 
@@ -341,8 +387,8 @@ mod tests {
     fn test_force_flush() {
         let tracer_provider = super::TracerProvider::new(TracerProviderInner {
             processors: vec![
-                Box::from(TestSpanProcessor { success: true }),
-                Box::from(TestSpanProcessor { success: false }),
+                Box::from(TestSpanProcessor::new(true)),
+                Box::from(TestSpanProcessor::new(false)),
             ],
             config: Default::default(),
         });
@@ -479,5 +525,43 @@ mod tests {
             .build();
 
         assert_eq!(no_service_name.config().resource.len(), 0)
+    }
+
+    #[test]
+    fn test_shutdown_noops() {
+        let processor = TestSpanProcessor::new(false);
+        let assert_handle = processor.assert_info();
+        let tracer_provider = super::TracerProvider::new(TracerProviderInner {
+            processors: vec![Box::from(processor)],
+            config: Default::default(),
+        });
+
+        let test_tracer_1 = tracer_provider.tracer("test1");
+        let _ = test_tracer_1.start("test");
+
+        assert!(assert_handle.started_span_count(1));
+
+        let _ = test_tracer_1.start("test");
+
+        assert!(assert_handle.started_span_count(2));
+
+        let shutdown = |tracer_provider: super::TracerProvider| {
+            let _ = tracer_provider.shutdown(); // shutdown once
+        };
+
+        // assert tracer provider can be shutdown using on a cloned version
+        shutdown(tracer_provider.clone());
+
+        // after shutdown we should get noop tracer
+        let noop_tracer = tracer_provider.tracer("noop");
+        // noop tracer cannot start anything
+        let _ = noop_tracer.start("test");
+        assert!(assert_handle.started_span_count(2));
+        // noop tracer's tracer provider should be shutdown
+        assert!(noop_tracer.provider().is_shutdown.load(Ordering::SeqCst));
+
+        // existing tracer becomes noops after shutdown
+        let _ = test_tracer_1.start("test");
+        assert!(assert_handle.started_span_count(2));
     }
 }
