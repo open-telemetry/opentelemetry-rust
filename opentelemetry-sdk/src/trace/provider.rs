@@ -25,7 +25,7 @@ use std::sync::Arc;
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
 
-// a no nop logger provider used as placeholder when the provider is shutdown
+// a no nop tracer provider used as placeholder when the provider is shutdown
 static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider {
     inner: Arc::new(TracerProviderInner {
         processors: Vec::new(),
