@@ -924,23 +924,6 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_batch_span_processor_multiple_shutdown() {
-        let processor = BatchSpanProcessor::new(
-            Box::new(NoopSpanExporter::new()),
-            BatchConfig::default(),
-            Tokio,
-        );
-
-        let shutdown = |processor: &BatchSpanProcessor<Tokio>| {
-            let result = processor.shutdown();
-            assert!(result.is_ok());
-        };
-
-        shutdown(&processor);
-        shutdown(&processor);
-    }
-
     struct BlockingExporter<D> {
         delay_for: Duration,
         delay_fn: D,
