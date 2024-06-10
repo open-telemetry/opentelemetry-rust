@@ -30,23 +30,23 @@ where
     })
     .expect("Error setting Ctrl-C handler");
 
-    let args: Vec<String> = env::args().collect();
-
     let mut num_threads = num_cpus::get();
-    if args.len() >= 2 {
-        let arg = args[1].parse::<usize>();
+    let mut args_iter = env::args();
+
+    if let Some(arg_str) = args_iter.nth(1) {
+        let arg = arg_str.parse::<usize>();
 
         if !arg.is_ok() {
-            eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", args[1]);
+            eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", arg_str);
             std::process::exit(1);
         }
 
         let arg_num = arg.unwrap();
 
-        if arg_num > 0 && arg_num <= num_threads as i32 {
+        if arg_num > 0 && arg_num <= num_threads {
             num_threads = arg_num as usize;
         } else {
-            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to {}.", arg_num, num_threads);
+            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({}).", arg_num, num_threads);
             std::process::exit(1);
         }
     }
