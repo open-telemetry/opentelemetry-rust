@@ -2,7 +2,7 @@
 pub mod tonic {
     use crate::{
         tonic::{
-            common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
+            common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList, InstrumentationScope},
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
             Attributes,
@@ -10,6 +10,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
+    use std::collections::HashMap;
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
@@ -141,6 +142,43 @@ pub mod tonic {
                     log_records: vec![log_data.record.into()],
                 }],
             }
+        }
+    }
+
+    pub fn group_logs_by_resource_and_scope<'a>(logs: Vec<opentelemetry_sdk::export::logs::LogData>, resource: &ResourceAttributesWithSchema) -> Vec<ResourceLogs> {
+        // no need of explicit grouping by resource, as all the logs belong to single resource.
+        let scope_map = logs.iter().fold(
+            HashMap::new(),
+            |mut scope_map: HashMap<InstrumentationScopeKey, (&'a [opentelemetry_proto::tonic::common::v1::KeyValue], Vec<&LogData>)>, log| {
+                let instrumentation = &log.instrumentation;
+                let scope_key = InstrumentationScopeKey::from(instrumentation);
+                let entry = scope_map.entry(scope_key).or_insert_with(|| (instrumentation.attributes.as_slice(), Vec::new()));
+                entry.1.push(log);
+                scope_map
+            },
+        );
+    
+        let scope_logs = scope_map.into_iter().map(|(scope_key, (attributes, log_records))| {
+            ScopeLogs {
+                scope: Some(InstrumentationScope {
+                    name: scope_key.name.to_string(),
+                    version: scope_key.version.unwrap_or_default().to_string(),
+                    schema_url: scope_key.schema_url.unwrap_or_default().to_string(),
+                    attributes: attributes.to_vec(),
+                    dropped_attributes_count: 0, // Assuming no dropped attributes
+                }),
+                log_records: log_records.into_iter().map(|log| log.clone().into()).collect(),
+                ..Default::default()
+            }
+        }).collect();
+    
+        ResourceLogs {
+            resource: Some(opentelemetry_proto::tonic::resource::v1::Resource {
+                attributes: resource.attributes.0.clone(),
+                dropped_attributes_count: 0,
+            }),
+            scope_logs,
+            schema_url: resource.schema_url.clone().unwrap_or_default(),
         }
     }
 }

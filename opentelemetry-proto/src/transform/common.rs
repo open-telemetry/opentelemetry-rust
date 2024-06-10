@@ -138,4 +138,21 @@ pub mod tonic {
             .collect::<Vec<_>>()
             .into()
     }
+
+    #[derive(Hash, Eq, PartialEq)]
+    pub(crate) struct InstrumentationScopeKey<'a> {
+        name: &'a str,
+        version: Option<&'a str>,
+        schema_url: Option<&'a str>,
+    }
+    
+    impl<'a> From<&'a opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScopeKey<'a> {
+        fn from(library: &'a opentelemetry_sdk::InstrumentationLibrary) -> Self {
+            InstrumentationScopeKey {
+                name: library.name.as_ref(),
+                version: library.version.as_deref(),
+                schema_url: library.schema_url.as_deref(),
+            }
+        }
+    }
 }
