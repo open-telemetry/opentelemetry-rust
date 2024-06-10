@@ -77,7 +77,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
         }
         Logger::new(library, self.clone())
