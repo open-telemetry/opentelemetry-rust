@@ -5,8 +5,6 @@ receivers:
       http:
 
 exporters:
-  logging:
-    loglevel: debug
   file:
     path: /testresults/result.json
 
