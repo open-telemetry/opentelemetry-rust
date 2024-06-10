@@ -204,11 +204,11 @@ impl Span {
             None => return,
         };
 
+        let provider = self.tracer.provider();
         // skip if provider has been shut down
-        let provider = match self.tracer.provider() {
-            Some(provider) => provider,
-            None => return,
-        };
+        if provider.is_shutdown() {
+            return;
+        }
 
         // ensure end time is set via explicit end or implicitly on drop
         if let Some(timestamp) = timestamp {
@@ -719,7 +719,7 @@ mod tests {
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());
 
-        drop(provider);
+        provider.shutdown().expect("shutdown panicked");
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
