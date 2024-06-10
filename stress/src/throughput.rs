@@ -33,13 +33,20 @@ where
     let args: Vec<String> = env::args().collect();
 
     let mut num_threads = num_cpus::get();
-    if args.len() == 2 {
-        let arg = args[1].parse::<i32>().unwrap();
+    if args.len() >= 2 {
+        let arg = args[1].parse::<i32>();
 
-        if arg > 0 && arg <= num_threads as i32 {
-            num_threads = arg as usize;
+        if !arg.is_ok() {
+            eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", args[1]);
+            std::process::exit(1);
+        }
+
+        let arg_num = arg.unwrap();
+
+        if arg_num > 0 && arg_num <= num_threads as i32 {
+            num_threads = arg_num as usize;
         } else {
-            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to {}.", arg, num_threads);
+            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to {}.", arg_num, num_threads);
             std::process::exit(1);
         }
     }
