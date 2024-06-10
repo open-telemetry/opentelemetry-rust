@@ -34,7 +34,7 @@ where
 
     let mut num_threads = num_cpus::get();
     if args.len() >= 2 {
-        let arg = args[1].parse::<i32>();
+        let arg = args[1].parse::<usize>();
 
         if !arg.is_ok() {
             eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", args[1]);
