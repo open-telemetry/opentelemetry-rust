@@ -92,6 +92,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     fn force_flush(&self) -> TraceResult<()>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
+    ///
+    /// Implementation should make sure shutdown can be called multiple times.
     fn shutdown(&self) -> TraceResult<()>;
     /// Set the resource for the log processor.
     fn set_resource(&mut self, _resource: &Resource) {}
