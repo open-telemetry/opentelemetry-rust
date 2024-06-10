@@ -324,7 +324,7 @@ mod tests {
 
     impl SharedAssertInfo {
         fn started_span_count(&self, count: u32) -> bool {
-            return self.0.started_span.load(Ordering::SeqCst) == count;
+            self.0.started_span.load(Ordering::SeqCst) == count
         }
     }
 
@@ -370,7 +370,7 @@ mod tests {
 
         fn shutdown(&self) -> TraceResult<()> {
             if self.assert_info.0.is_shutdown.load(Ordering::SeqCst) {
-                return Ok(());
+                Ok(())
             } else {
                 let _ = self.assert_info.0.is_shutdown.compare_exchange(
                     false,

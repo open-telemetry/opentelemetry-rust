@@ -693,10 +693,8 @@ mod tests {
     };
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
-    use crate::runtime::Tokio;
     use crate::testing::trace::{
         new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
-        NoopSpanExporter,
     };
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
