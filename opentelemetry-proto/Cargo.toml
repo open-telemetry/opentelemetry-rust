@@ -29,7 +29,7 @@ path = "tests/json_deserialize.rs"
 
 
 [features]
-default = []
+default = ["full"]
 
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde"]
 

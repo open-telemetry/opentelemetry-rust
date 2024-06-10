@@ -9,7 +9,8 @@ use crate::{
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
-
+#[cfg(feature = "logs")]
+use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::export::logs::LogData;
 #[cfg(feature = "trace")]
@@ -333,13 +334,9 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: Vec<LogData>,
-        resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
     ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-        let resource_logs = logs
-            .into_iter()
-            .map(|log_event| (log_event, resource).into())
-            .collect::<Vec<_>>();
+        let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
 
         match self.protocol {
