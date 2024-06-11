@@ -11,6 +11,8 @@ use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+#[cfg(feature = "trace")]
+use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::export::logs::LogData;
 #[cfg(feature = "trace")]
@@ -308,16 +310,9 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
-        resource: &opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
     ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
-        use opentelemetry_proto::tonic::{
-            collector::trace::v1::ExportTraceServiceRequest, trace::v1::ResourceSpans,
-        };
-
-        let resource_spans = spans
-            .into_iter()
-            .map(|span| ResourceSpans::new(span, resource))
-            .collect::<Vec<_>>();
+        use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+        let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
 
         let req = ExportTraceServiceRequest { resource_spans };
         match self.protocol {
