@@ -29,7 +29,7 @@ path = "tests/json_deserialize.rs"
 
 
 [features]
-default = []
+default = ["full"]
 
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde"]
 
@@ -42,6 +42,7 @@ trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 zpages = ["trace"]
+testing = ["opentelemetry/testing"]
 
 # add ons
 with-schemars = ["schemars"]
@@ -57,7 +58,9 @@ serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
+opentelemetry = { version = "0.23", features = ["testing"], path = "../opentelemetry" }
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"
 serde_json = "1.0"
+
