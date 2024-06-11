@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     rx.recv().expect("Could not receive from channel.");
     println!("Got Ctrl-C, Doing shutdown and existing.");
 
-    // Metrics are exported by default every 1 seconds when using stdout exporter,
+    // MeterProvider is configured with an OTLP Exporter to export metrics every 1 second,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 1 sec interval.
     meter_provider.shutdown()?;
