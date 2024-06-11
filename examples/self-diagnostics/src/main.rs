@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let counter = meter.u64_counter("my_counter").init();
 
     // Record measurements with unique key-value pairs to exceed the cardinality limit
-    // and trigger error message
+    // of 2000 and trigger error message
     for i in 0..3000 {
         counter.add(
             10,

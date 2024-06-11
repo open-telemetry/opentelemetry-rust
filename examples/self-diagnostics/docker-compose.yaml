@@ -9,7 +9,3 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
       - "4318:4318"   # OTLP HTTP receiver
-
-
-
-
