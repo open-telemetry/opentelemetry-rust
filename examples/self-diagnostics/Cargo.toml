@@ -17,4 +17,3 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", 
 opentelemetry-otlp = { path = "../../opentelemetry-otlp", features = ["http-proto", "reqwest-client", "logs"] }
 once_cell ={ version = "1.19.0"}
 ctrlc = "3.4"
-

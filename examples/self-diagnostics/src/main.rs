@@ -140,11 +140,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 1 sec interval.
     meter_provider.shutdown()?;
-    // shutdown again to trigger error message.
-    meter_provider.shutdown()?;
-    // shutdown logger provider
-    let _ = logger_provider.shutdown();
-    // shutdown again to trigger error message.
     let _ = logger_provider.shutdown();
     Ok(())
 }
