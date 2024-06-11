@@ -85,6 +85,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     );
 
     let meter_provider = result.unwrap();
+    global::set_meter_provider(meter_provider.clone());
 
     // Opentelemetry will not provide a global API to manage the logger
     // provider. Application users must manage the lifecycle of the logger
