@@ -232,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn test_group_spans_by_resource_and_scope_single_span() {
+    fn test_group_spans_by_resource_and_scope_single_scope() {
         let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
         let span_data = create_test_span_data("lib1");
 
@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn test_group_spans_by_resource_and_scope_multiple_span() {
+    fn test_group_spans_by_resource_and_scope_multiple_scopes() {
         let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
         let span_data1 = create_test_span_data("lib1");
         let span_data2 = create_test_span_data("lib1");
