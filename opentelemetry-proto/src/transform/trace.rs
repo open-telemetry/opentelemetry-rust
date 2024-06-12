@@ -232,7 +232,52 @@ mod tests {
     }
 
     #[test]
-    fn test_group_spans_by_resource_and_scope() {
+    fn test_group_spans_by_resource_and_scope_single_span() {
+        let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
+        let span_data = create_test_span_data("lib1");
+
+        let spans = vec![span_data.clone()];
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+
+        let grouped_spans =
+            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
+
+        assert_eq!(grouped_spans.len(), 1);
+
+        let resource_spans = &grouped_spans[0];
+        assert_eq!(
+            resource_spans.resource.as_ref().unwrap().attributes.len(),
+            1
+        );
+        assert_eq!(
+            resource_spans.resource.as_ref().unwrap().attributes[0].key,
+            "resource_key"
+        );
+        assert_eq!(
+            resource_spans.resource.as_ref().unwrap().attributes[0]
+                .value
+                .clone()
+                .unwrap()
+                .value
+                .unwrap(),
+            Value::StringValue("resource_value".to_string())
+        );
+
+        let scope_spans = &resource_spans.scope_spans;
+        assert_eq!(scope_spans.len(), 1);
+
+        let scope_span = &scope_spans[0];
+        assert_eq!(scope_span.scope.as_ref().unwrap().name, "lib1");
+        assert_eq!(scope_span.spans.len(), 1);
+
+        assert_eq!(
+            scope_span.spans[0].trace_id,
+            span_data.span_context.trace_id().to_bytes().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_group_spans_by_resource_and_scope_multiple_span() {
         let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
         let span_data1 = create_test_span_data("lib1");
         let span_data2 = create_test_span_data("lib1");
@@ -268,21 +313,37 @@ mod tests {
         let scope_spans = &resource_spans.scope_spans;
         assert_eq!(scope_spans.len(), 2);
 
-        let scope_span1 = &scope_spans[0];
-        let scope_span2 = &scope_spans[1];
+        // Check the scope spans for both lib1 and lib2
+        let mut lib1_scope_span = None;
+        let mut lib2_scope_span = None;
 
-        assert_eq!(scope_span1.scope.as_ref().unwrap().name, "lib1");
-        assert_eq!(scope_span2.scope.as_ref().unwrap().name, "lib2");
+        for scope_span in scope_spans {
+            match scope_span.scope.as_ref().unwrap().name.as_str() {
+                "lib1" => lib1_scope_span = Some(scope_span),
+                "lib2" => lib2_scope_span = Some(scope_span),
+                _ => {}
+            }
+        }
 
-        assert_eq!(scope_span1.spans.len(), 2);
-        assert_eq!(scope_span2.spans.len(), 1);
+        let lib1_scope_span = lib1_scope_span.expect("lib1 scope span not found");
+        let lib2_scope_span = lib2_scope_span.expect("lib2 scope span not found");
+
+        assert_eq!(lib1_scope_span.scope.as_ref().unwrap().name, "lib1");
+        assert_eq!(lib2_scope_span.scope.as_ref().unwrap().name, "lib2");
+
+        assert_eq!(lib1_scope_span.spans.len(), 2);
+        assert_eq!(lib2_scope_span.spans.len(), 1);
 
         assert_eq!(
-            scope_span1.spans[0].trace_id,
+            lib1_scope_span.spans[0].trace_id,
             span_data1.span_context.trace_id().to_bytes().to_vec()
         );
         assert_eq!(
-            scope_span2.spans[0].trace_id,
+            lib1_scope_span.spans[1].trace_id,
+            span_data2.span_context.trace_id().to_bytes().to_vec()
+        );
+        assert_eq!(
+            lib2_scope_span.spans[0].trace_id,
             span_data3.span_context.trace_id().to_bytes().to_vec()
         );
     }
