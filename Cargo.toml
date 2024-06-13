@@ -19,6 +19,7 @@ debug = 1
 async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
+criterion = "0.5"
 futures-core = "0.3"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false }
