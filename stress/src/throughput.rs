@@ -43,7 +43,10 @@ where
 
         let arg_num = arg.unwrap();
 
-        if arg_num > 0 && arg_num <= num_threads {
+        if arg_num > 0 {
+            if arg_num > num_cpus::get() {
+                println!("Specified {} threads which is larger than the number of logical cores ({})!", arg_num, num_threads);
+            }
             num_threads = arg_num as usize;
         } else {
             eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({}).", arg_num, num_threads);
