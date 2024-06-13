@@ -88,15 +88,25 @@ pub fn test_assert_span_eq() {
 
 #[test]
 pub fn test_serde() {
-    let spans = read_spans_from_json(File::open("./expected/traces.json").expect("Failed to read traces.json"));
-    let json = serde_json::to_string_pretty(&TracesData { resource_spans: spans }).expect("Failed to serialize spans to json");
+    let spans = read_spans_from_json(
+        File::open("./expected/traces.json").expect("Failed to read traces.json"),
+    );
+    let json = serde_json::to_string_pretty(&TracesData {
+        resource_spans: spans,
+    })
+    .expect("Failed to serialize spans to json");
 
     // Write to file.
     let mut file = File::create("./expected/serialized_traces.json").unwrap();
     file.write_all(json.as_bytes()).unwrap();
 
-    let left = read_spans_from_json(File::open("./expected/traces.json").expect("Failed to read traces.json"));
-    let right = read_spans_from_json(File::open("./expected/serialized_traces.json").expect("Failed to read serialized_traces.json"));
+    let left = read_spans_from_json(
+        File::open("./expected/traces.json").expect("Failed to read traces.json"),
+    );
+    let right = read_spans_from_json(
+        File::open("./expected/serialized_traces.json")
+            .expect("Failed to read serialized_traces.json"),
+    );
 
     TraceAsserter::new(left, right).assert();
 }
