@@ -34,7 +34,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { workspace = true, features = ["html_reports"] }
 temp-env = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
