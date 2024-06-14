@@ -25,7 +25,7 @@ jobs:
             os: otel-linux-arm64
           - rust: stable
             os: otel-linux-arm64-8-cores
-          - rust stable
+          - rust: stable
             os: actuated-arm64-4cpu-16gb
     runs-on: ${{ matrix.os }}
     steps:
