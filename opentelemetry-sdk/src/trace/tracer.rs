@@ -9,7 +9,7 @@
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
 use crate::{
     trace::{
-        provider::{TracerProvider, TracerProviderInner},
+        provider::TracerProvider,
         span::{Span, SpanData},
         SpanLimits, SpanLinks,
     },
@@ -20,7 +20,7 @@ use opentelemetry::{
     Context, KeyValue,
 };
 use std::fmt;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use super::SpanEvents;
 
@@ -28,7 +28,7 @@ use super::SpanEvents;
 #[derive(Clone)]
 pub struct Tracer {
     instrumentation_lib: Arc<InstrumentationLibrary>,
-    provider: Weak<TracerProviderInner>,
+    provider: TracerProvider,
 }
 
 impl fmt::Debug for Tracer {
@@ -46,7 +46,7 @@ impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(
         instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: Weak<TracerProviderInner>,
+        provider: TracerProvider,
     ) -> Self {
         Tracer {
             instrumentation_lib,
@@ -55,8 +55,8 @@ impl Tracer {
     }
 
     /// TracerProvider associated with this tracer.
-    pub(crate) fn provider(&self) -> Option<TracerProvider> {
-        self.provider.upgrade().map(TracerProvider::new)
+    pub(crate) fn provider(&self) -> &TracerProvider {
+        &self.provider
     }
 
     /// Instrumentation library information of this tracer.
@@ -175,7 +175,8 @@ impl opentelemetry::trace::Tracer for Tracer {
     /// spans in the trace.
     fn build_with_context(&self, mut builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
         let provider = self.provider();
-        if provider.is_none() {
+        // no point start a span if the tracer provider has already being shutdown
+        if provider.is_shutdown() {
             return Span::new(
                 SpanContext::empty_context(),
                 None,
@@ -184,7 +185,6 @@ impl opentelemetry::trace::Tracer for Tracer {
             );
         }
 
-        let provider = provider.unwrap();
         let config = provider.config();
         let span_id = builder
             .span_id
