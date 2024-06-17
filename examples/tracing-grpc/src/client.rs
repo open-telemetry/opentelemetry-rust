@@ -75,10 +75,8 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
             status_code.to_string()
         }
     };
-    cx.span().add_event(
-        "Got response!",
-        vec![KeyValue::new("status", status)],
-    );
+    cx.span()
+        .add_event("Got response!", vec![KeyValue::new("status", status)]);
 
     Ok(())
 }
