@@ -50,9 +50,9 @@ pub mod hello_world {
 async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let tracer = global::tracer("example/client");
     let span = tracer
-        .span_builder(String::from("Greeter/client"))
+        .span_builder("Greeter/client")
         .with_kind(SpanKind::Client)
-        .with_attributes(vec![KeyValue::new("component", "grpc")])
+        .with_attributes([KeyValue::new("component", "grpc")])
         .start(&tracer);
     let cx = Context::current_with_span(span);
     let mut client = GreeterClient::connect("http://[::1]:50051").await?;
