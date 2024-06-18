@@ -1,20 +1,20 @@
-use std::marker;
-use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
+use std::{marker, sync::Arc, sync::atomic::AtomicU64};
 
 use once_cell::sync::Lazy;
 use opentelemetry::KeyValue;
 
-use super::exponential_histogram::ExpoHistogram;
-use super::histogram::Histogram;
-use super::last_value::LastValue;
-use super::sum::PrecomputedSum;
-use super::sum::Sum;
-use super::Number;
-use crate::metrics::data::Aggregation;
-use crate::metrics::data::Gauge;
-use crate::metrics::data::Temporality;
-use crate::metrics::AttributeSet;
+use crate::{
+    metrics::data::{Aggregation, Gauge, Temporality},
+    metrics::AttributeSet,
+};
+
+use super::{
+    exponential_histogram::ExpoHistogram,
+    histogram::Histogram,
+    last_value::LastValue,
+    sum::{PrecomputedSum, Sum},
+    Number,
+};
 
 static STREAM_CARDINALITY_LIMIT: AtomicU64 = AtomicU64::new(2000);
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
@@ -218,17 +218,13 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
-    use std::vec;
+    use crate::metrics::data::{
+        DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
+        Histogram, HistogramDataPoint, Sum,
+    };
+    use std::{time::SystemTime, vec};
 
     use super::*;
-    use crate::metrics::data::DataPoint;
-    use crate::metrics::data::ExponentialBucket;
-    use crate::metrics::data::ExponentialHistogram;
-    use crate::metrics::data::ExponentialHistogramDataPoint;
-    use crate::metrics::data::Histogram;
-    use crate::metrics::data::HistogramDataPoint;
-    use crate::metrics::data::Sum;
 
     #[test]
     fn last_value_aggregation() {
