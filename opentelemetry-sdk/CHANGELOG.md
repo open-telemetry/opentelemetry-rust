@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Implement function to set cardinality limits for metrics streams using `set_stream_cardinality_limit` function.
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
