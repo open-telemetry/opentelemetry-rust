@@ -52,20 +52,23 @@ pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
 
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::hash::Hasher;
+
 pub use aggregation::*;
 pub use instrument::*;
+pub use internal::set_stream_cardinality_limit;
 pub use manual_reader::*;
 pub use meter::*;
 pub use meter_provider::*;
+use opentelemetry::Key;
+use opentelemetry::KeyValue;
+use opentelemetry::Value;
 pub use periodic_reader::*;
 pub use pipeline::Pipeline;
 pub use view::*;
-
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
-
-use opentelemetry::{Key, KeyValue, Value};
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
@@ -139,19 +142,31 @@ impl Hash for AttributeSet {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
-    use super::*;
-    use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::metrics::reader::TemporalitySelector;
-    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
-    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
-    use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-    use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+    use std::sync::Mutex;
     use std::thread;
     use std::time::Duration;
+
+    use opentelemetry::metrics::Counter;
+    use opentelemetry::metrics::Meter;
+    use opentelemetry::metrics::MeterProvider as _;
+    use opentelemetry::metrics::UpDownCounter;
+    use opentelemetry::KeyValue;
+    use rand::rngs;
+    use rand::Rng;
+    use rand::SeedableRng;
+
+    use self::data::DataPoint;
+    use self::data::HistogramDataPoint;
+    use self::data::ScopeMetrics;
+    use super::*;
+    use crate::metrics::data::ResourceMetrics;
+    use crate::metrics::data::Temporality;
+    use crate::metrics::reader::TemporalitySelector;
+    use crate::runtime;
+    use crate::testing::metrics::InMemoryMetricsExporter;
+    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
 
     // Run all tests in this mod
     // cargo test metrics::tests --features=testing

@@ -5,12 +5,20 @@ mod last_value;
 mod sum;
 
 use core::fmt;
-use std::ops::{Add, AddAssign, Sub};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::ops::Add;
+use std::ops::AddAssign;
+use std::ops::Sub;
+use std::sync::atomic::AtomicI64;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
-pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
-pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+pub use aggregate::set_stream_cardinality_limit;
+pub(crate) use aggregate::AggregateBuilder;
+pub(crate) use aggregate::ComputeAggregation;
+pub(crate) use aggregate::Measure;
+pub(crate) use exponential_histogram::EXPO_MAX_SCALE;
+pub(crate) use exponential_histogram::EXPO_MIN_SCALE;
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
 /// different types have different backing atomic mechanisms

@@ -1,22 +1,22 @@
-use std::{marker, sync::Arc};
+use std::marker;
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 use opentelemetry::KeyValue;
 
-use crate::{
-    metrics::data::{Aggregation, Gauge, Temporality},
-    metrics::AttributeSet,
-};
+use super::exponential_histogram::ExpoHistogram;
+use super::histogram::Histogram;
+use super::last_value::LastValue;
+use super::sum::PrecomputedSum;
+use super::sum::Sum;
+use super::Number;
+use crate::metrics::data::Aggregation;
+use crate::metrics::data::Gauge;
+use crate::metrics::data::Temporality;
+use crate::metrics::AttributeSet;
 
-use super::{
-    exponential_histogram::ExpoHistogram,
-    histogram::Histogram,
-    last_value::LastValue,
-    sum::{PrecomputedSum, Sum},
-    Number,
-};
-
-const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+static STREAM_CARDINALITY_LIMIT: AtomicU64 = AtomicU64::new(2000);
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
     let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
     AttributeSet::from(&key_values[..])
@@ -24,7 +24,12 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
-    size < STREAM_CARDINALITY_LIMIT as usize
+    size < STREAM_CARDINALITY_LIMIT.load(std::sync::atomic::Ordering::Relaxed) as usize
+}
+
+/// Set cardinality limit for metric streams
+pub fn set_stream_cardinality_limit(size: u64) {
+    STREAM_CARDINALITY_LIMIT.store(size, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Receives measurements to be aggregated.
@@ -213,13 +218,17 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::metrics::data::{
-        DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
-        Histogram, HistogramDataPoint, Sum,
-    };
-    use std::{time::SystemTime, vec};
+    use std::time::SystemTime;
+    use std::vec;
 
     use super::*;
+    use crate::metrics::data::DataPoint;
+    use crate::metrics::data::ExponentialBucket;
+    use crate::metrics::data::ExponentialHistogram;
+    use crate::metrics::data::ExponentialHistogramDataPoint;
+    use crate::metrics::data::Histogram;
+    use crate::metrics::data::HistogramDataPoint;
+    use crate::metrics::data::Sum;
 
     #[test]
     fn last_value_aggregation() {
