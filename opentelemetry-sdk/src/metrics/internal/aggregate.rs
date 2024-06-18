@@ -1,4 +1,4 @@
-use std::{marker, sync::Arc, sync::atomic::AtomicU64};
+use std::{marker, sync::atomic::AtomicU64, sync::Arc};
 
 use once_cell::sync::Lazy;
 use opentelemetry::KeyValue;
