@@ -216,6 +216,6 @@ fn span_eq(left: &Span, right: &Span) -> bool {
 pub fn read_spans_from_json(file: File) -> Vec<ResourceSpans> {
     let reader = std::io::BufReader::new(file);
 
-    let trace_data: TracesData = serde_json::from_reader(reader).unwrap();
+    let trace_data: TracesData = serde_json::from_reader(reader).expect("Failed to read json file");
     trace_data.resource_spans
 }
