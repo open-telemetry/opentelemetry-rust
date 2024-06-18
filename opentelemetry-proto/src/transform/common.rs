@@ -57,6 +57,7 @@ pub mod tonic {
             let (library, target) = data;
             InstrumentationScope {
                 name: target
+                    .map(|t| t.to_string())
                     .unwrap_or_else(|| library.name.into_owned()),
                 version: library.version.map(Cow::into_owned).unwrap_or_default(),
                 attributes: Attributes::from(library.attributes).0,
@@ -80,7 +81,7 @@ pub mod tonic {
             let (library, target) = data;
             InstrumentationScope {
                 name: target
-                    .map(|t| t.replace("::", "."))
+                    .map(|t| t.to_string())
                     .unwrap_or_else(|| library.name.to_string()),
                 version: library
                     .version
