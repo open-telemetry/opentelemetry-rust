@@ -62,5 +62,4 @@ opentelemetry = { version = "0.23", features = ["testing"], path = "../opentelem
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"
-serde_json = "1.0"
-
+serde_json = { workspace = true }

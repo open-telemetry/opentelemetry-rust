@@ -8,9 +8,11 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_proto::tonic::trace::v1::TracesData;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use std::fs::File;
+use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
@@ -82,4 +84,29 @@ pub fn test_assert_span_eq() {
     let spans = read_spans_from_json(File::open("./expected/traces.json").unwrap());
 
     TraceAsserter::new(spans.clone(), spans).assert();
+}
+
+#[test]
+pub fn test_serde() {
+    let spans = read_spans_from_json(
+        File::open("./expected/traces.json").expect("Failed to read traces.json"),
+    );
+    let json = serde_json::to_string_pretty(&TracesData {
+        resource_spans: spans,
+    })
+    .expect("Failed to serialize spans to json");
+
+    // Write to file.
+    let mut file = File::create("./expected/serialized_traces.json").unwrap();
+    file.write_all(json.as_bytes()).unwrap();
+
+    let left = read_spans_from_json(
+        File::open("./expected/traces.json").expect("Failed to read traces.json"),
+    );
+    let right = read_spans_from_json(
+        File::open("./expected/serialized_traces.json")
+            .expect("Failed to read serialized_traces.json"),
+    );
+
+    TraceAsserter::new(left, right).assert();
 }

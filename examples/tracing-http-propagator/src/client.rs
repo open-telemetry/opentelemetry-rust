@@ -41,7 +41,7 @@ async fn send_request(
         .await?;
 
     cx.span().add_event(
-        "Got response!".to_string(),
+        "Got response!",
         vec![KeyValue::new("status", res.status().to_string())],
     );
 
