@@ -18,7 +18,7 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 - Bump MSRV to 1.70 [#1840](https://github.com/open-telemetry/opentelemetry-rust/pull/1840)
 - Group batch of `LogRecord` and `Span` by their resource and instrumentation scope before exporting, for better efficiency [#1873](https://github.com/open-telemetry/opentelemetry-rust/pull/1873).
      - This optimization reduces redundancy and improves the efficiency of log export. 
-     - The OTLP compliant Collector or Agents would be able to succesfuuly parse these events.
+     - The OTLP compliant Collector or Agents would be able to successfully parse these events.
 
 ## v0.16.0
 
