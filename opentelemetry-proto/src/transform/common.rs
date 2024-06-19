@@ -55,13 +55,20 @@ pub mod tonic {
             ),
         ) -> Self {
             let (library, target) = data;
-            InstrumentationScope {
-                name: target
-                    .map(|t| t.to_string())
-                    .unwrap_or_else(|| library.name.into_owned()),
-                version: library.version.map(Cow::into_owned).unwrap_or_default(),
-                attributes: Attributes::from(library.attributes).0,
-                ..Default::default()
+            if let Some(t) = target {
+                InstrumentationScope {
+                    name: t.to_string(),
+                    version: String::new(),
+                    attributes: vec![],
+                    ..Default::default()
+                }
+            } else {
+                InstrumentationScope {
+                    name: library.name.into_owned(),
+                    version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes).0,
+                    ..Default::default()
+                }
             }
         }
     }
@@ -79,17 +86,24 @@ pub mod tonic {
             ),
         ) -> Self {
             let (library, target) = data;
-            InstrumentationScope {
-                name: target
-                    .map(|t| t.to_string())
-                    .unwrap_or_else(|| library.name.to_string()),
-                version: library
-                    .version
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-                attributes: Attributes::from(library.attributes.clone()).0,
-                ..Default::default()
+            if let Some(t) = target {
+                InstrumentationScope {
+                    name: t.to_string(),
+                    version: String::new(),
+                    attributes: vec![],
+                    ..Default::default()
+                }
+            } else {
+                InstrumentationScope {
+                    name: library.name.to_string(),
+                    version: library
+                        .version
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes.clone()).0,
+                    ..Default::default()
+                }
             }
         }
     }
