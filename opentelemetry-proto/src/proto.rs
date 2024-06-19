@@ -46,14 +46,26 @@ pub(crate) mod serializers {
 
     // AnyValue <-> KeyValue conversion
     pub fn serialize_to_value<S>(value: &Option<AnyValue>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
-        // Serialize any_value::Value using its own implementation
-        // If value is None, it will be serialized as such
         match value {
             Some(any_value) => match &any_value.value {
-                Some(Value::IntValue(i)) => serialize_i64_to_string(i, serializer),
+                Some(Value::IntValue(i)) => {
+                    // Attempt to create a struct to wrap the intValue
+                    let mut state = match serializer.serialize_struct("Value", 1) {
+                        Ok(s) => s,
+                        Err(e) => return Err(e), // Handle the error or return it
+                    };
+    
+                    // Attempt to serialize the intValue field
+                    if let Err(e) = state.serialize_field("intValue", &i.to_string()) {
+                        return Err(e); // Handle the error or return it
+                    }
+    
+                    // Finalize the struct serialization
+                    state.end()
+                },
                 Some(value) => value.serialize(serializer),
                 None => serializer.serialize_none(),
             },
