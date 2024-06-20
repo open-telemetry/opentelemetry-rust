@@ -13,6 +13,9 @@ pub struct LogRecord {
     /// Event name. Optional as not all the logging API support it.
     pub event_name: Option<Cow<'static, str>>,
 
+    /// Target of the log record
+    pub target: Option<Cow<'static, str>>,
+
     /// Record timestamp
     pub timestamp: Option<SystemTime>,
 
@@ -40,6 +43,14 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         T: Into<Cow<'static, str>>,
     {
         self.event_name = Some(name.into());
+    }
+
+    // Sets the `target` of a record
+    fn set_target<T>(&mut self, _target: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.target = Some(_target.into());
     }
 
     fn set_timestamp(&mut self, timestamp: SystemTime) {
@@ -115,6 +126,20 @@ mod tests {
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
     use std::borrow::Cow;
     use std::time::SystemTime;
+
+    #[test]
+    fn test_set_eventname() {
+        let mut log_record = LogRecord::default();
+        log_record.set_event_name("test_event");
+        assert_eq!(log_record.event_name, Some(Cow::Borrowed("test_event")));
+    }
+
+    #[test]
+    fn test_set_target() {
+        let mut log_record = LogRecord::default();
+        log_record.set_target("foo::bar");
+        assert_eq!(log_record.target, Some(Cow::Borrowed("foo::bar")));
+    }
 
     #[test]
     fn test_set_timestamp() {
