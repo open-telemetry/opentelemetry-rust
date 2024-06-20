@@ -1,0 +1,19 @@
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Test chrome
+        run: wasm-pack test --headless --chrome --manifest-path=opentelemetry/Cargo.toml --all-features -- --ignored --test-threads=1
+      - name: Test firefox
+        run: wasm-pack test --headless --firefox
+# Run global tracer provider test in single thread
+#cargo test --manifest-path=opentelemetry/Cargo.toml --all-features -- --ignored --test-threads=1
+#
+#cargo test --manifest-path=opentelemetry/Cargo.toml --all-features
+#cargo test --manifest-path=opentelemetry-jaeger/Cargo.toml --all-features -- --test-threads=1
+#cargo test --manifest-path=opentelemetry-zipkin/Cargo.toml --all-features
