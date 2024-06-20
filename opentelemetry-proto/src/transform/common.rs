@@ -42,28 +42,68 @@ pub mod tonic {
     #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
-    impl From<opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: opentelemetry_sdk::InstrumentationLibrary) -> Self {
-            InstrumentationScope {
-                name: library.name.into_owned(),
-                version: library.version.map(Cow::into_owned).unwrap_or_default(),
-                attributes: Attributes::from(library.attributes).0,
-                ..Default::default()
+    impl
+        From<(
+            opentelemetry_sdk::InstrumentationLibrary,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                opentelemetry_sdk::InstrumentationLibrary,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
+            let (library, target) = data;
+            if let Some(t) = target {
+                InstrumentationScope {
+                    name: t.to_string(),
+                    version: String::new(),
+                    attributes: vec![],
+                    ..Default::default()
+                }
+            } else {
+                InstrumentationScope {
+                    name: library.name.into_owned(),
+                    version: library.version.map(Cow::into_owned).unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes).0,
+                    ..Default::default()
+                }
             }
         }
     }
 
-    impl From<&opentelemetry_sdk::InstrumentationLibrary> for InstrumentationScope {
-        fn from(library: &opentelemetry_sdk::InstrumentationLibrary) -> Self {
-            InstrumentationScope {
-                name: library.name.to_string(),
-                version: library
-                    .version
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-                attributes: Attributes::from(library.attributes.clone()).0,
-                ..Default::default()
+    impl
+        From<(
+            &opentelemetry_sdk::InstrumentationLibrary,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                &opentelemetry_sdk::InstrumentationLibrary,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
+            let (library, target) = data;
+            if let Some(t) = target {
+                InstrumentationScope {
+                    name: t.to_string(),
+                    version: String::new(),
+                    attributes: vec![],
+                    ..Default::default()
+                }
+            } else {
+                InstrumentationScope {
+                    name: library.name.to_string(),
+                    version: library
+                        .version
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes.clone()).0,
+                    ..Default::default()
+                }
             }
         }
     }

@@ -106,7 +106,7 @@ pub mod tonic {
                         .as_ref()
                         .map(ToString::to_string)
                         .unwrap_or_default(),
-                    scope: Some(source_span.instrumentation_lib.into()),
+                    scope: Some((source_span.instrumentation_lib, None).into()),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),

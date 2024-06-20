@@ -18,6 +18,7 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 - Bump MSRV to 1.70 [#1840](https://github.com/open-telemetry/opentelemetry-rust/pull/1840)
 - Fixing the OTLP HTTP/JSON exporter. [#1882](https://github.com/open-telemetry/opentelemetry-rust/pull/1882) - The exporter was broken in the
   previous release.
+- **Breaking** [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) The OTLP logs exporter now overrides the [InstrumentationScope::name](https://github.com/open-telemetry/opentelemetry-proto/blob/b3060d2104df364136d75a35779e6bd48bac449a/opentelemetry/proto/common/v1/common.proto#L73) field with the `target` from `LogRecord`, if target is populated.
 - Group batch of `LogRecord` and `Span` by their resource and instrumentation scope before exporting, for better efficiency [#1873](https://github.com/open-telemetry/opentelemetry-rust/pull/1873).
      - This optimization reduces redundancy and improves the efficiency of log export. 
      - The OTLP compliant Collector or Agents would be able to successfully parse these events.

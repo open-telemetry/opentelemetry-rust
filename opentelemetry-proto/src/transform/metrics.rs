@@ -131,7 +131,7 @@ pub mod tonic {
     impl From<&SdkScopeMetrics> for TonicScopeMetrics {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
-                scope: Some((&sm.scope).into()),
+                scope: Some((&sm.scope, None).into()),
                 metrics: sm.metrics.iter().map(Into::into).collect(),
                 schema_url: sm
                     .scope
