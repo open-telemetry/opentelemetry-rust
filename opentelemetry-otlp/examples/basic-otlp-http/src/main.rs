@@ -50,7 +50,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    let provider = opentelemetry_otlp::new_pipeline()
+    opentelemetry_otlp::new_pipeline()
         .metrics(opentelemetry_sdk::runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
@@ -58,11 +58,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
                 .with_endpoint("http://localhost:4318/v1/metrics"),
         )
         .with_resource(RESOURCE.clone())
-        .build();
-    match provider {
-        Ok(provider) => Ok(provider),
-        Err(err) => Err(err),
-    }
+        .build()
 }
 
 #[tokio::main]
@@ -85,6 +81,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     );
 
     let meter_provider = result.unwrap();
+    global::set_meter_provider(meter_provider.clone());
 
     // Opentelemetry will not provide a global API to manage the logger
     // provider. Application users must manage the lifecycle of the logger

@@ -19,6 +19,7 @@ debug = 1
 async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
+criterion = "0.5"
 futures-core = "0.3"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false }
@@ -45,4 +46,4 @@ tokio-stream = "0.1.1"
 tracing = { version = "0.1", default-features = false }
 tracing-core = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
-url = { version = "2.2", default-features = false }
+url = { version = "=2.5.0", default-features = false } #pinning the version supporting rustc 1.65
