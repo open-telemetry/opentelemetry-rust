@@ -2,6 +2,9 @@
 
 ## vNext
 
+- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Utilize the `LogRecord::set_target()` method to pass the tracing target to the SDK.
+  Exporters might use the target to override the instrumentation scope, which previously contained "opentelemetry-appender-tracing".
+
 ## v0.4.0
 
 - Removed unwanted dependency on opentelemetry-sdk.

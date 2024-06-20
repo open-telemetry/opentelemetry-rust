@@ -10,6 +10,14 @@ pub trait LogRecord {
     {
     }
 
+    /// Sets the `target` of a record.
+    /// Currently, both `opentelemetry-appender-tracing` and `opentelemetry-appender-log` create a single logger
+    /// with a scope that doesn't accurately reflect the component emitting the logs.
+    /// Exporters MAY use this field to override the `instrumentation_scope.name`.
+    fn set_target<T>(&mut self, _target: T)
+    where
+        T: Into<Cow<'static, str>>;
+
     /// Sets the time when the event occurred measured by the origin clock, i.e. the time at the source.
     fn set_timestamp(&mut self, timestamp: SystemTime);
 
