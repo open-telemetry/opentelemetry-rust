@@ -45,7 +45,10 @@ where
 
         if arg_num > 0 {
             if arg_num > num_cpus::get() {
-                println!("Specified {} threads which is larger than the number of logical cores ({})!", arg_num, num_threads);
+                println!(
+                    "Specified {} threads which is larger than the number of logical cores ({})!",
+                    arg_num, num_threads
+                );
             }
             num_threads = arg_num as usize;
         } else {
