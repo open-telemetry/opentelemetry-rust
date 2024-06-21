@@ -11,6 +11,9 @@
   opaque string. Migration: Replace `.with_unit(Unit::new("myunit"))` with
   `.with_unit("myunit")`.
 
+- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Introduced the `LogRecord::set_target()` method in the log bridge API. 
+This method allows appenders to set the target/component emitting the logs.
+
 ## v0.23.0
 
 ### Added
