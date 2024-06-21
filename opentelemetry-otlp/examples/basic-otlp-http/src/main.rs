@@ -32,7 +32,8 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:4318/v1/logs"),
+                .with_protocol(opentelemetry_otlp::Protocol::HttpJson)
+                .with_endpoint("http://dp-ramji-work.fyre.ibm.com:4318/v1/logs"),
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
@@ -43,7 +44,8 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:4318/v1/traces"),
+                .with_protocol(opentelemetry_otlp::Protocol::HttpBinary)
+                .with_endpoint("http://dp-ramji-work.fyre.ibm.com:4318/v1/traces"),
         )
         .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
         .install_batch(opentelemetry_sdk::runtime::Tokio)
@@ -55,7 +57,8 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_endpoint("http://localhost:4318/v1/metrics"),
+                .with_protocol(opentelemetry_otlp::Protocol::HttpBinary)
+                .with_endpoint("http://dp-ramji-work.fyre.ibm.com:4318/v1/metrics"),
         )
         .with_resource(RESOURCE.clone())
         .build()
