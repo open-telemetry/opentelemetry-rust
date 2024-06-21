@@ -2,7 +2,10 @@
 pub mod tonic {
     use crate::{
         tonic::{
-            common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
+            common::v1::{
+                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
+                KeyValueList,
+            },
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
             Attributes,
@@ -10,6 +13,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
+    use std::borrow::Cow;
     use std::collections::HashMap;
 
     impl From<LogsAnyValue> for AnyValue {
@@ -149,26 +153,33 @@ pub mod tonic {
         logs: Vec<opentelemetry_sdk::export::logs::LogData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
-        // no need of explicit grouping by resource, as all the logs belong to single resource.
+        // Group logs by target or instrumentation name
         let scope_map = logs.iter().fold(
             HashMap::new(),
             |mut scope_map: HashMap<
-                &opentelemetry_sdk::InstrumentationLibrary,
+                Cow<'static, str>,
                 Vec<&opentelemetry_sdk::export::logs::LogData>,
             >,
              log| {
-                let instrumentation = &log.instrumentation;
-                scope_map.entry(instrumentation).or_default().push(log);
+                let key = log
+                    .record
+                    .target
+                    .clone()
+                    .unwrap_or_else(|| log.instrumentation.name.clone());
+                scope_map.entry(key).or_default().push(log);
                 scope_map
             },
         );
 
         let scope_logs = scope_map
             .into_iter()
-            .map(|(instrumentation, log_records)| ScopeLogs {
-                scope: Some(instrumentation.into()),
+            .map(|(key, log_data)| ScopeLogs {
+                scope: Some(InstrumentationScope::from((
+                    &log_data.first().unwrap().instrumentation,
+                    Some(key),
+                ))),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
-                log_records: log_records
+                log_records: log_data
                     .into_iter()
                     .map(|log_data| log_data.record.clone().into())
                     .collect(),

@@ -170,7 +170,7 @@ pub mod tonic {
         let scope_spans = scope_map
             .into_iter()
             .map(|(instrumentation, span_records)| ScopeSpans {
-                scope: Some(instrumentation.into()),
+                scope: Some((instrumentation, None).into()),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 spans: span_records
                     .into_iter()

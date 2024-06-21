@@ -4,7 +4,7 @@
 
 - Bump MSRV to 1.70 [1864](https://github.com/open-telemetry/opentelemetry-rust/pull/1874)
 - **BREAKING** Group log and Span batch by their resource and instrumentation scope before exporting [#1873](https://github.com/open-telemetry/opentelemetry-rust/pull/1873).
-   - Introduced `group_logs_by_resource_and_scope()` and `group_spans_by_resource_and_scope()` methods to group logs and spans by the resource and scope respectively.
+   - **BREAKING** Introduced `group_logs_by_resource_and_scope()` and `group_spans_by_resource_and_scope()` methods to group logs and spans by the resource and scope respectively.
    - This is a breaking change for exporters consuming the OTLP format. Refer to the OTLP Log and Span exporter in the opentelemetry-otlp crate for the required changes.
 
 ## v0.6.0
