@@ -8,7 +8,7 @@
     |--------------------------------|-------------|
     | Counter_Add_Sorted             | 586 ns      |
     | Counter_Add_Unsorted           | 592 ns      |
-    | Random_Generator_5             | 377 ns      |
+    | Counter_Overflow               | 600 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 

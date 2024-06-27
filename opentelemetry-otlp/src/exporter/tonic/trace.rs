@@ -5,9 +5,10 @@ use opentelemetry::trace::TraceError;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
-use opentelemetry_proto::tonic::trace::v1::ResourceSpans;
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
+
+use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 
 use super::BoxInterceptor;
 
@@ -71,13 +72,7 @@ impl SpanExporter for TonicTracesClient {
             }
         };
 
-        // TODO: Avoid cloning here.
-        let resource_spans = {
-            batch
-                .into_iter()
-                .map(|log_data| ResourceSpans::new(log_data, &self.resource))
-                .collect()
-        };
+        let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
 
         Box::pin(async move {
             client
