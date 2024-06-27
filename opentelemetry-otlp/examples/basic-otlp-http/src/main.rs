@@ -32,7 +32,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .http()
-                .with_protocol(opentelemetry_otlp::Protocol::HttpJson)
+                .with_protocol(opentelemetry_otlp::Protocol::HttpBinary)
                 .with_endpoint("http://dp-ramji-work.fyre.ibm.com:4318/v1/logs"),
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
