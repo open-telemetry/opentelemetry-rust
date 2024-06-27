@@ -42,5 +42,5 @@ Throughput: 5,075,400 iterations/sec
 "stats" - Prints memory and CPU usage. Has slight impact on throughput.
 
 ```sh
-cargo run --release --bin metrics --feature=stats
+cargo run --release --bin metrics --features=stats
 ```
