@@ -126,7 +126,7 @@ where
 
     handles.push(handle_main_thread);
 
-    for thread_index in 0..num_threads - 1 {
+    for thread_index in 0..num_threads {
         let worker_stats_shared = Arc::clone(&worker_stats_shared);
         let func_arc_clone = Arc::clone(&func_arc);
         let handle = thread::spawn(move || loop {
