@@ -771,7 +771,6 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
-        tokio::time::sleep(Duration::from_secs(2)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
