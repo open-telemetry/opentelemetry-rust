@@ -289,7 +289,9 @@ impl Builder {
 
         // Set the resource for each processor
         for p in &mut processors {
-            p.set_resource(config.resource.as_ref());
+            if let Err(err) = p.set_resource(config.resource.as_ref()) {
+                global::handle_error(err);
+            }
         }
 
         TracerProvider::new(TracerProviderInner { processors, config })

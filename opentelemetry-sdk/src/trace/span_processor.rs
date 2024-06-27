@@ -96,7 +96,9 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// Implementation should make sure shutdown can be called multiple times.
     fn shutdown(&self) -> TraceResult<()>;
     /// Set the resource for the log processor.
-    fn set_resource(&mut self, _resource: &Resource) {}
+    fn set_resource(&mut self, _resource: &Resource) -> TraceResult<()> {
+        Ok(())
+    }
 }
 
 /// A [SpanProcessor] that passes finished spans to the configured
@@ -153,9 +155,10 @@ impl SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.set_resource(resource);
+    fn set_resource(&mut self, resource: &Resource) -> ExportResult {
+        match self.exporter.lock() {
+            Ok(mut exporter) => exporter.set_resource(resource),
+            Err(_) => Err(TraceError::Other("SimpleSpanProcessor mutex poison".into())),
         }
     }
 }
@@ -271,11 +274,16 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             .and_then(|identity| identity)
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
+    fn set_resource(&mut self, resource: &Resource) -> ExportResult {
+        let (res_sender, res_receiver) = oneshot::channel();
         let resource = Arc::new(resource.clone());
-        let _ = self
-            .message_sender
-            .try_send(BatchMessage::SetResource(resource));
+        self.message_sender
+            .try_send(BatchMessage::SetResource(resource, res_sender))
+            .map_err(|err| TraceError::Other(err.into()))?;
+
+        futures_executor::block_on(res_receiver)
+            .map_err(|err| TraceError::Other(err.into()))
+            .and_then(|identity| identity)
     }
 }
 
@@ -294,7 +302,7 @@ enum BatchMessage {
     /// Shut down the worker thread, push all spans in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
     /// Set the resource for the exporter.
-    SetResource(Arc<Resource>),
+    SetResource(Arc<Resource>, oneshot::Sender<ExportResult>),
 }
 
 struct BatchSpanProcessorInternal<R> {
@@ -396,8 +404,14 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                 return false;
             }
             // propagate the resource
-            BatchMessage::SetResource(resource) => {
-                self.exporter.set_resource(&resource);
+            BatchMessage::SetResource(resource, res_sender) => {
+                let result = self.exporter.set_resource(&resource);
+                if let Err(result) = res_sender.send(result) {
+                    global::handle_error(TraceError::from(format!(
+                        "failed to send set resource result: {:?}",
+                        result
+                    )));
+                }
             }
         }
         true

@@ -67,7 +67,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
 
     /// Set the resource for the log processor.
-    fn set_resource(&self, _resource: &Resource) {}
+    fn set_resource(&self, _resource: &Resource) -> LogResult<()> {
+        Ok(())
+    }
 }
 
 /// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
@@ -125,9 +127,13 @@ impl LogProcessor for SimpleLogProcessor {
         }
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&self, resource: &Resource) -> LogResult<()> {
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.set_resource(resource);
+            exporter.set_resource(resource)
+        } else {
+            Err(LogError::Other(
+                "simple logprocessor mutex poison during set_resource".into(),
+            ))
         }
     }
 
@@ -189,11 +195,16 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&self, resource: &Resource) -> LogResult<()> {
+        let (res_sender, res_receiver) = oneshot::channel();
         let resource = Arc::new(resource.clone());
-        let _ = self
-            .message_sender
-            .try_send(BatchMessage::SetResource(resource));
+        self.message_sender
+            .try_send(BatchMessage::SetResource(resource, res_sender))
+            .map_err(|err| LogError::Other(err.into()))?;
+
+        futures_executor::block_on(res_receiver)
+            .map_err(|err| LogError::Other(err.into()))
+            .and_then(std::convert::identity)
     }
 }
 
@@ -275,8 +286,14 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
 
                     // propagate the resource
-                    BatchMessage::SetResource(resource) => {
-                        exporter.set_resource(&resource);
+                    BatchMessage::SetResource(resource, res_sender) => {
+                        let result = exporter.set_resource(&resource);
+                        if let Err(result) = res_sender.send(result) {
+                            global::handle_error(LogError::from(format!(
+                                "failed to send set resource result: {:?}",
+                                result
+                            )));
+                        }
                     }
                 }
             }
@@ -500,7 +517,7 @@ enum BatchMessage {
     /// Shut down the worker thread, push all logs in buffer to the backend.
     Shutdown(oneshot::Sender<ExportResult>),
     /// Set the resource for the exporter.
-    SetResource(Arc<Resource>),
+    SetResource(Arc<Resource>, oneshot::Sender<LogResult<()>>),
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
@@ -527,7 +544,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     #[cfg(feature = "logs_level_enabled")]
     use opentelemetry::logs::Severity;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{LogError, Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::borrow::Cow;
@@ -547,13 +564,14 @@ mod tests {
 
         fn shutdown(&mut self) {}
 
-        fn set_resource(&mut self, resource: &Resource) {
-            self.resource
-                .lock()
-                .map(|mut res_opt| {
+        fn set_resource(&mut self, resource: &Resource) -> LogResult<()> {
+            match self.resource.lock() {
+                Ok(mut res_opt) => {
                     res_opt.replace(resource.clone());
-                })
-                .expect("mock log exporter shouldn't error when setting resource");
+                    Ok(())
+                }
+                Err(_) => Err(LogError::Other("mock log exporter mutex poison".into())),
+            }
         }
     }
 

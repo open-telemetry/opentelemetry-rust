@@ -189,8 +189,9 @@ impl LogExporter for InMemoryLogsExporter {
         }
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
-        let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
+    fn set_resource(&mut self, resource: &Resource) -> LogResult<()> {
+        let mut res_guard = self.resource.lock().map_err(LogError::from)?;
         *res_guard = resource.clone();
+        Ok(())
     }
 }
