@@ -27,7 +27,17 @@ pub trait LogExporter: Send + Sync + Debug {
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
     async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
-    /// Shuts down the exporter.
+    /// Shuts down the exporter. Called when SDK is shut down. This is an
+    /// opportunity for exporter to do any cleanup required.
+    ///
+    /// This function should be called only once for each `LogExporter`
+    /// instance. After the call to `shutdown`, subsequent calls to `export` are
+    /// not allowed and should return an error.
+    ///
+    /// This function should not block indefinitely (e.g. if it attempts to
+    /// flush the data and the destination is unavailable). SDK authors
+    /// can decide if they want to make the shutdown timeout
+    /// configurable.
     fn shutdown(&mut self) {}
     #[cfg(feature = "logs_level_enabled")]
     /// Chek if logs are enabled.
