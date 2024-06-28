@@ -1,33 +1,26 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opentelemetry::{logs::AnyValue, Key, KeyValue, Value};
+use opentelemetry::{logs::AnyValue, Value};
 
 // Run this benchmark with:
-// cargo bench --bench logrecord_types
+// cargo bench --bench anyvalue
 // Results:
-// CreateOTelKeyValue 2-3 ns
-// CreateOTelKeyAnyValue 15 ns
-// CreateTupleKeyValue < 1 ns
+// CreateOTelValue 1-2 ns
+// CreateOTelAnyValue 15 ns
 
 fn criterion_benchmark(c: &mut Criterion) {
     attributes_creation(c);
 }
 
 fn attributes_creation(c: &mut Criterion) {
-    c.bench_function("CreateOTelKeyValue", |b| {
+    c.bench_function("CreateOTelValue", |b| {
         b.iter(|| {
             let _v = black_box(Value::String("value1".into()));
         });
     });
 
-    c.bench_function("CreateOTelKeyAnyValue", |b| {
+    c.bench_function("CreateOTelAnyValue", |b| {
         b.iter(|| {
             let _v = black_box(AnyValue::String("value1".into()));
-        });
-    });
-
-    c.bench_function("CreateTupleKeyValue", |b| {
-        b.iter(|| {
-            let _v1 = black_box(("attribute1", "value1"));
         });
     });
 }

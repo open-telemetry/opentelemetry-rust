@@ -54,5 +54,5 @@ name = "attributes"
 harness = false
 
 [[bench]]
-name = "logrecord_types"
+name = "anyvalue"
 harness = false
