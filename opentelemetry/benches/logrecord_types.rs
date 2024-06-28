@@ -15,15 +15,13 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn attributes_creation(c: &mut Criterion) {
     c.bench_function("CreateOTelKeyValue", |b| {
         b.iter(|| {
-            let _k1 = black_box(Key::new("attribute1"));
-            let _v2 = black_box(Value::String("value1".into()));
+            let _v = black_box(Value::String("value1".into()));
         });
     });
 
     c.bench_function("CreateOTelKeyAnyValue", |b| {
-        b.iter(|| {            
-            let _k= black_box(Key::new("attribute1"));
-            let _v1 = black_box(AnyValue::String("value1".into()));
+        b.iter(|| {
+            let _v = black_box(AnyValue::String("value1".into()));
         });
     });
 
