@@ -1,9 +1,9 @@
 # Basic OTLP exporter Example
 
 This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
-and traces to exports them to the [OpenTelemetry
+and traces to export them to the [OpenTelemetry
 Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP
-over HTTP/protobuf. The Collector then sends the data to the appropriate
+using different protocols such as HTTP/json and HTTP/protobuf. The Collector then sends the data to the appropriate
 backend, in this case, the logging Exporter, which displays data to console.
 
 ## Usage
