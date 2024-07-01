@@ -25,7 +25,7 @@ impl LogExporter for OtlpHttpClient {
             .map(|cow_log_data| cow_log_data.into_owned()) // Converts Cow to owned LogData
             .collect::<Vec<LogData>>();
 
-        let (body, content_type) = { self.build_logs_export_body(owned_batch, &self.resource)? };
+        let (body, content_type) = { self.build_logs_export_body(owned_batch)? };
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)

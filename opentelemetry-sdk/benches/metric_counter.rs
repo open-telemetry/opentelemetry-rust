@@ -8,7 +8,7 @@
     |--------------------------------|-------------|
     | Counter_Add_Sorted             | 586 ns      |
     | Counter_Add_Unsorted           | 592 ns      |
-    | Random_Generator_5             | 377 ns      |
+    | Counter_Overflow               | 600 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 
@@ -18,6 +18,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
+use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
     Rng, SeedableRng,
@@ -155,6 +156,16 @@ fn counter_add(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
-
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
+#[cfg(target_os = "windows")]
+criterion_group! {
+    name = benches;
+    config = Criterion::default();
+    targets = criterion_benchmark
+}
 criterion_main!(benches);

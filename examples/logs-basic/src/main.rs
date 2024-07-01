@@ -13,7 +13,7 @@ fn main() {
         //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let logger_provider = LoggerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
+        .with_resource(Resource::new([KeyValue::new(
             SERVICE_NAME,
             "logs-basic-example",
         )]))

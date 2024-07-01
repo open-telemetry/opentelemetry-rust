@@ -2,7 +2,10 @@
 pub mod tonic {
     use crate::{
         tonic::{
-            common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
+            common::v1::{
+                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
+                KeyValueList,
+            },
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
             Attributes,
@@ -10,6 +13,8 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
+    use std::borrow::Cow;
+    use std::collections::HashMap;
 
     impl From<LogsAnyValue> for AnyValue {
         fn from(value: LogsAnyValue) -> Self {
@@ -137,10 +142,129 @@ pub mod tonic {
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some(log_data.instrumentation.into()),
+                    scope: Some((log_data.instrumentation, log_data.record.target.clone()).into()),
                     log_records: vec![log_data.record.into()],
                 }],
             }
         }
+    }
+
+    pub fn group_logs_by_resource_and_scope(
+        logs: Vec<opentelemetry_sdk::export::logs::LogData>,
+        resource: &ResourceAttributesWithSchema,
+    ) -> Vec<ResourceLogs> {
+        // Group logs by target or instrumentation name
+        let scope_map = logs.iter().fold(
+            HashMap::new(),
+            |mut scope_map: HashMap<
+                Cow<'static, str>,
+                Vec<&opentelemetry_sdk::export::logs::LogData>,
+            >,
+             log| {
+                let key = log
+                    .record
+                    .target
+                    .clone()
+                    .unwrap_or_else(|| log.instrumentation.name.clone());
+                scope_map.entry(key).or_default().push(log);
+                scope_map
+            },
+        );
+
+        let scope_logs = scope_map
+            .into_iter()
+            .map(|(key, log_data)| ScopeLogs {
+                scope: Some(InstrumentationScope::from((
+                    &log_data.first().unwrap().instrumentation,
+                    Some(key),
+                ))),
+                schema_url: resource.schema_url.clone().unwrap_or_default(),
+                log_records: log_data
+                    .into_iter()
+                    .map(|log_data| log_data.record.clone().into())
+                    .collect(),
+            })
+            .collect();
+
+        vec![ResourceLogs {
+            resource: Some(Resource {
+                attributes: resource.attributes.0.clone(),
+                dropped_attributes_count: 0,
+            }),
+            scope_logs,
+            schema_url: resource.schema_url.clone().unwrap_or_default(),
+        }]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::transform::common::tonic::ResourceAttributesWithSchema;
+    use opentelemetry::logs::LogRecord as _;
+    use opentelemetry_sdk::export::logs::LogData;
+    use opentelemetry_sdk::{logs::LogRecord, Resource};
+    use std::time::SystemTime;
+
+    fn create_test_log_data(instrumentation_name: &str, _message: &str) -> LogData {
+        let mut logrecord = LogRecord::default();
+        logrecord.set_timestamp(SystemTime::now());
+        logrecord.set_observed_timestamp(SystemTime::now());
+        LogData {
+            instrumentation: opentelemetry_sdk::InstrumentationLibrary::builder(
+                instrumentation_name.to_string(),
+            )
+            .build(),
+            record: logrecord,
+        }
+    }
+
+    #[test]
+    fn test_group_logs_by_resource_and_scope_single_scope() {
+        let resource = Resource::default();
+        let log1 = create_test_log_data("test-lib", "Log 1");
+        let log2 = create_test_log_data("test-lib", "Log 2");
+
+        let logs = vec![log1, log2];
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(logs, &resource);
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 1);
+
+        let scope_logs = &resource_logs.scope_logs[0];
+        assert_eq!(scope_logs.log_records.len(), 2);
+    }
+
+    #[test]
+    fn test_group_logs_by_resource_and_scope_multiple_scopes() {
+        let resource = Resource::default();
+        let log1 = create_test_log_data("lib1", "Log 1");
+        let log2 = create_test_log_data("lib2", "Log 2");
+
+        let logs = vec![log1, log2];
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(logs, &resource);
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 2);
+
+        let scope_logs_1 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib1")
+            .unwrap();
+        let scope_logs_2 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib2")
+            .unwrap();
+
+        assert_eq!(scope_logs_1.log_records.len(), 1);
+        assert_eq!(scope_logs_2.log_records.len(), 1);
     }
 }

@@ -14,7 +14,7 @@
   [`opentelemetry-aws`](https://crates.io/crates/opentelemetry-aws), version
   0.10.0 or newer.
 - Performance Improvement - Counter/UpDownCounter instruments internally use
-  `RwLock` instead of `Mutex` to reduce contention.
+  `RwLock` instead of `Mutex` to reduce contention
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
   Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
@@ -46,6 +46,34 @@
 - **Breaking** [1850] (https://github.com/open-telemetry/opentelemetry-rust/pull/1850) `LoggerProvider::log_processors()` and `LoggerProvider::resource()` are not public methods anymore. They are only used within the `opentelemetry-sdk` crate.
 
 - [1857](https://github.com/open-telemetry/opentelemetry-rust/pull/1857) Fixed an issue in Metrics SDK which prevented export errors from being send to global error handler. With the fix, errors occurring during export like OTLP Endpoint unresponsive shows up in stderr by default.
+
+- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Added a `target` field to `LogRecord` structure, populated by `opentelemetry-appender-tracing` and `opentelemetry-appender-log` appenders.
+```rust
+async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+```
+where `LogRecord` within `LogData` now includes:
+```rust
+LogData {
+  LogRecord {
+    event_name,
+    target,  // newly added
+    timestamp,
+    observed_timestamp,
+    trace_context,
+    trace_context,
+    severity_number,
+    body,
+    attributes
+  }
+  Instrumentation {
+    name,
+    version,
+    schema_url,
+    version
+  }
+}
+```
+The `LogRecord::target` field contains the actual target/component emitting the logs, while the `Instrumentation::name` contains the name of the OpenTelemetry appender.
 
 ## v0.23.0
 
