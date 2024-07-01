@@ -52,3 +52,7 @@ required-features = ["metrics"]
 [[bench]]
 name = "attributes"
 harness = false
+
+[[bench]]
+name = "anyvalue"
+harness = false
