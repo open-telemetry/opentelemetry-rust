@@ -75,8 +75,8 @@ impl Baggage {
     ///
     /// assert_eq!(cc.get("my-name"), Some(&Value::from("my-value")))
     /// ```
-    pub fn get<T: Into<Key>>(&self, key: T) -> Option<&Value> {
-        self.inner.get(&key.into()).map(|(value, _metadata)| value)
+    pub fn get<K: AsRef<str>>(&self, key: K) -> Option<&Value> {
+        self.inner.get(key.as_ref()).map(|(value, _metadata)| value)
     }
 
     /// Returns a reference to the value and metadata associated with a given name
@@ -91,8 +91,8 @@ impl Baggage {
     /// // By default, the metadata is empty
     /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::from("my-value"), BaggageMetadata::from(""))))
     /// ```
-    pub fn get_with_metadata<T: Into<Key>>(&self, key: T) -> Option<&(Value, BaggageMetadata)> {
-        self.inner.get(&key.into())
+    pub fn get_with_metadata<K: AsRef<str>>(&self, key: K) -> Option<&(Value, BaggageMetadata)> {
+        self.inner.get(key.as_ref())
     }
 
     /// Inserts a name/value pair into the baggage.
