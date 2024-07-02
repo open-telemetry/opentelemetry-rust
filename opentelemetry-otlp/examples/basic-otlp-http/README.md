@@ -52,6 +52,14 @@ Run the app which exports logs, metrics and traces via OTLP to the collector
 cargo run
 ```
 
+
+By default the app will use a `reqwest` client to send. A hyper 0.14 client can be used with the `hyper` feature enabled
+
+```shell
+cargo run --no-default-features --features=hyper
+```
+
+
 ## View results
 
 You should be able to see something similar below with different time and ID in the same console that docker runs.
