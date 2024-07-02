@@ -91,7 +91,8 @@ impl LogExporter for TonicLogsClient {
         let _ = self.inner.take();
     }
 
-    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) -> LogResult<()> {
         self.resource = resource.into();
+        Ok(())
     }
 }

@@ -205,7 +205,9 @@ impl Builder {
 
         // invoke set_resource on all the processors
         for processor in logger_provider.log_processors() {
-            processor.set_resource(logger_provider.resource());
+            if let Err(err) = processor.set_resource(logger_provider.resource()) {
+                global::handle_error(err);
+            }
         }
         logger_provider
     }
