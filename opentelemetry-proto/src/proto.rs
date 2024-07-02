@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 /// provide serde support for proto traceIds and spanIds.
 /// Those are hex encoded strings in the jsons but they are byte arrays in the proto.
 /// See https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding for more details
@@ -74,76 +76,95 @@ pub(crate) mod serializers {
     }
 
     pub fn deserialize_from_value<'de, D>(deserializer: D) -> Result<Option<AnyValue>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct ValueVisitor;
+    where
+        D: Deserializer<'de>,
+    {
+        struct ValueVisitor;
 
-    impl<'de> de::Visitor<'de> for ValueVisitor {
-        type Value = AnyValue;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a JSON object for AnyValue")
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrInt {
+            Int(i64),
+            String(String),
         }
 
-        fn visit_map<V>(self, mut map: V) -> Result<AnyValue, V::Error>
-        where
-            V: de::MapAccess<'de>,
-        {
-            let mut value: Option<any_value::Value> = None;
-
-            while let Some(key) = map.next_key::<String>()? {
-                let key_str = key.as_str();
-                match key_str {
-                    "stringValue" => {
-                        let s = map.next_value()?;
-                        value = Some(any_value::Value::StringValue(s));
-                    },
-                    "boolValue" => {
-                        let b = map.next_value()?;
-                        value = Some(any_value::Value::BoolValue(b));
-                    },
-                    "intValue" => {
-                        let value_str = map.next_value::<String>()?;
-                        let int_value = value_str.parse::<i64>()
-                            .map_err(de::Error::custom)?;
-                        value = Some(any_value::Value::IntValue(int_value));
-                    },
-                    "doubleValue" => {
-                        let d = map.next_value()?;
-                        value = Some(any_value::Value::DoubleValue(d));
-                    },
-                    "arrayValue" => {
-                        let a = map.next_value()?;
-                        value = Some(any_value::Value::ArrayValue(a));
-                    },
-                    "kvlistValue" => {
-                        let kv = map.next_value()?;
-                        value = Some(any_value::Value::KvlistValue(kv));
-                    },
-                    "bytesValue" => {
-                        let bytes = map.next_value()?;
-                        value = Some(any_value::Value::BytesValue(bytes));
-                    },
-                    _ => {
-                        //skip unknown keys, and handle error later.
-                        continue
-                    }
+        impl StringOrInt {
+            fn get_int<'de, V>(&self) -> Result<i64, V::Error>
+            where
+                V: de::MapAccess<'de>,
+            {
+                match self {
+                    Self::Int(val) => Ok(*val),
+                    Self::String(val) => Ok(val.parse::<i64>().map_err(de::Error::custom)?),
                 }
             }
+        }
 
-            if let Some(v) = value {
-                Ok(AnyValue { value: Some(v) })
-            } else {
-                Err(de::Error::custom("Invalid data for AnyValue, no known keys found"))
+        impl<'de> de::Visitor<'de> for ValueVisitor {
+            type Value = AnyValue;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a JSON object for AnyValue")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<AnyValue, V::Error>
+            where
+                V: de::MapAccess<'de>,
+            {
+                let mut value: Option<any_value::Value> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    let key_str = key.as_str();
+                    match key_str {
+                        "stringValue" => {
+                            let s = map.next_value()?;
+                            value = Some(any_value::Value::StringValue(s));
+                        }
+                        "boolValue" => {
+                            let b = map.next_value()?;
+                            value = Some(any_value::Value::BoolValue(b));
+                        }
+                        "intValue" => {
+                            let int_value = map.next_value::<StringOrInt>()?.get_int::<V>()?;
+                            value = Some(any_value::Value::IntValue(int_value));
+                        }
+                        "doubleValue" => {
+                            let d = map.next_value()?;
+                            value = Some(any_value::Value::DoubleValue(d));
+                        }
+                        "arrayValue" => {
+                            let a = map.next_value()?;
+                            value = Some(any_value::Value::ArrayValue(a));
+                        }
+                        "kvlistValue" => {
+                            let kv = map.next_value()?;
+                            value = Some(any_value::Value::KvlistValue(kv));
+                        }
+                        "bytesValue" => {
+                            let bytes = map.next_value()?;
+                            value = Some(any_value::Value::BytesValue(bytes));
+                        }
+                        _ => {
+                            //skip unknown keys, and handle error later.
+                            continue;
+                        }
+                    }
+                }
+
+                if let Some(v) = value {
+                    Ok(AnyValue { value: Some(v) })
+                } else {
+                    Err(de::Error::custom(
+                        "Invalid data for AnyValue, no known keys found",
+                    ))
+                }
             }
         }
+
+        let value = deserializer.deserialize_map(ValueVisitor)?;
+        Ok(Some(value))
     }
 
-    let value = deserializer.deserialize_map(ValueVisitor)?;
-    Ok(Some(value))
-}
-    
     pub fn serialize_u64_to_string<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
