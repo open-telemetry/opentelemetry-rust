@@ -67,10 +67,11 @@ fn counter_add(c: &mut Criterion) {
                     KeyValue::new("attribute3", values.2),
                     KeyValue::new("attribute4", values.3),
                 ];
-                
+
                 counter.add(1, kv);
             },
-            BatchSize::SmallInput);
+            BatchSize::SmallInput,
+        );
     });
 }
 
