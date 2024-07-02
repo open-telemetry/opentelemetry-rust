@@ -54,6 +54,7 @@ pub(crate) mod view;
 
 pub use aggregation::*;
 pub use instrument::*;
+pub use internal::set_stream_cardinality_limit;
 pub use manual_reader::*;
 pub use meter::*;
 pub use meter_provider::*;

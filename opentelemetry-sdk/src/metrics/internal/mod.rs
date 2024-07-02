@@ -9,6 +9,8 @@ use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Mutex;
 
+pub use aggregate::set_stream_cardinality_limit;
+
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 
