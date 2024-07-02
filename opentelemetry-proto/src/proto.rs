@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 /// provide serde support for proto traceIds and spanIds.
 /// Those are hex encoded strings in the jsons but they are byte arrays in the proto.
 /// See https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding for more details
@@ -59,15 +57,15 @@ pub(crate) mod serializers {
                         Ok(s) => s,
                         Err(e) => return Err(e), // Handle the error or return it
                     };
-    
+
                     // Attempt to serialize the intValue field
                     if let Err(e) = state.serialize_field("intValue", &i.to_string()) {
                         return Err(e); // Handle the error or return it
                     }
-    
+
                     // Finalize the struct serialization
                     state.end()
-                },
+                }
                 Some(value) => value.serialize(serializer),
                 None => serializer.serialize_none(),
             },
@@ -188,7 +186,7 @@ pub(crate) mod serializers {
         let s = value.to_string();
         serializer.serialize_str(&s)
     }
-    
+
     pub fn deserialize_string_to_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
     where
         D: Deserializer<'de>,
