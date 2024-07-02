@@ -260,7 +260,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         pin_mut!(timeout);
 
         match future::select(export, timeout).await {
-            Either::Left((res, _)) => res, // return the result.
+            Either::Left((res, _)) => res, // return the status of export.
             Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
         }
     }
