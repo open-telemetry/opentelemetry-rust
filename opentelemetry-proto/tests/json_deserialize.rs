@@ -146,6 +146,36 @@ mod json_deserialize {
             keyvalue.value.unwrap().value.unwrap(),
             Value::StringValue("my.service".to_string())
         );
+
+        let keyvalue: KeyValue = serde_json::from_str(
+            r#"
+{
+            "key": "service.name",
+            "value": {
+              "intValue": "303"
+            }
+          }
+        "#,
+        )
+        .unwrap();
+
+        assert_eq!(keyvalue.key, "service.name".to_string());
+        assert_eq!(keyvalue.value.unwrap().value.unwrap(), Value::IntValue(303));
+
+        let keyvalue: KeyValue = serde_json::from_str(
+            r#"
+{
+            "key": "service.name",
+            "value": {
+              "intValue": 303
+            }
+          }
+        "#,
+        )
+        .unwrap();
+
+        assert_eq!(keyvalue.key, "service.name".to_string());
+        assert_eq!(keyvalue.value.unwrap().value.unwrap(), Value::IntValue(303));
     }
 
     #[test]
