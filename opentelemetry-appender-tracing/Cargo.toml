@@ -27,6 +27,9 @@ tracing-log = "0.2"
 async-trait = { workspace = true }
 criterion = { workspace = true }
 
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]

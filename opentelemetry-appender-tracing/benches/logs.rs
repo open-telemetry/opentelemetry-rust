@@ -21,6 +21,7 @@ use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use opentelemetry_sdk::Resource;
+use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
@@ -173,5 +174,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     benchmark_with_noop_layer(c, false, "noop_layer_disabled");
 }
 
-criterion_group!(benches, criterion_benchmark);
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_benchmark
+}
+#[cfg(target_os = "windows")]
+criterion_group! {
+    name = benches;
+    config = Criterion::default();
+    targets = criterion_benchmark
+}
 criterion_main!(benches);
