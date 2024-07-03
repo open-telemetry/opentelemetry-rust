@@ -3,6 +3,7 @@ use opentelemetry::{
     Key,
 };
 use std::borrow::Cow;
+use std::fmt::Write;
 use tracing_core::{Level, Metadata};
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
@@ -86,10 +87,16 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
             return;
         }
         if field.name() == "message" {
-            self.log_record.set_body(format!("{:?}", value).into());
+            let mut body = String::new();
+            write!(&mut body, "{:?}", value).unwrap();
+            self.log_record.set_body(body.into());
         } else {
-            self.log_record
-                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+            let mut value_string = String::new();
+            write!(&mut value_string, "{:?}", value).unwrap();
+            self.log_record.add_attribute(
+                Key::new(field.name()),
+                AnyValue::from(format!("{value_string:?}")),
+            );
         }
     }
 
@@ -98,8 +105,10 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
         if is_duplicated_metadata(field.name()) {
             return;
         }
+        // Create a String with the exact capacity required
+        let owned_string = String::from(value);
         self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
+            .add_attribute(Key::new(field.name()), AnyValue::from(owned_string));
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
