@@ -50,7 +50,7 @@ impl Default for LogRecord {
             severity_text: None,
             severity_number: None,
             body: None,
-            attributes: Vec::with_capacity(PREALLOCATED_ATTRIBUTE_CAPACITY), // Pre-allocate for perf optimization. This may change in future.
+            attributes: Some(Vec::with_capacity(PREALLOCATED_ATTRIBUTE_CAPACITY)), // Pre-allocate for perf optimization. This may change in future.
         }
     }
 }
