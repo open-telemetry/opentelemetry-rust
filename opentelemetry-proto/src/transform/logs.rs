@@ -50,7 +50,8 @@ pub mod tonic {
                         })
                         .collect(),
                 }),
-                LogsAnyValue::Bytes(v) => Value::BytesValue(v),
+
+                LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
             }
         }
     }
