@@ -5,9 +5,7 @@ use opentelemetry::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -37,22 +35,6 @@ pub struct LogRecord {
 
     /// Additional attributes associated with this record
     pub attributes: Option<Vec<(Key, AnyValue)>>,
-}
-
-impl Default for LogRecord {
-    fn default() -> Self {
-        LogRecord {
-            event_name: None,
-            target: None,
-            timestamp: None,
-            observed_timestamp: None,
-            trace_context: None,
-            severity_text: None,
-            severity_number: None,
-            body: None,
-            attributes: Some(Vec::with_capacity(PREALLOCATED_ATTRIBUTE_CAPACITY)), // Pre-allocate for perf optimization. This may change in future.
-        }
-    }
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
