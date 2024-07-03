@@ -40,6 +40,7 @@ pub struct LoggerProvider {
 
 /// Default logger name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
+const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
@@ -248,7 +249,11 @@ impl opentelemetry::logs::Logger for Logger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::default()
+        // Reserve attributes memory for perf optimization. This may change in future.
+        LogRecord {
+            attributes: Some(Vec::with_capacity(PREALLOCATED_ATTRIBUTE_CAPACITY)),
+            ..Default::default()
+        }
     }
 
     /// Emit a `LogRecord`.
