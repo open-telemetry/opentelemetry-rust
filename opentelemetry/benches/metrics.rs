@@ -4,15 +4,16 @@
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
-    | Test                           | Average time|
-    |--------------------------------|-------------|
-    | NoAttributes                   | 1.1616 ns   |
-    | AddWithInlineStaticAttributes  | 13.296 ns   |
-    | AddWithStaticArray             | 1.1612 ns   |
-    | AddWithDynamicAttributes       | 110.40 ns   |
+    | Test                                                | Average time|
+    |-----------------------------------------------------|-------------|
+    | NoAttributes                                        | 1.1616 ns   |
+    | AddWithInlineStaticAttributes                       | 13.296 ns   |
+    | AddWithStaticArray                                  | 1.1612 ns   |
+    | AddWithDynamicAttributes                            | 110.40 ns   |
+    | AddWithDynamicAttributes_WithStringAllocation       | 77.338 ns   |
 */
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use opentelemetry::{global, metrics::Counter, KeyValue};
 
 // Run this benchmark with:
@@ -86,6 +87,19 @@ fn counter_add(c: &mut Criterion) {
             },
             BatchSize::SmallInput,
         );
+    });
+
+    c.bench_function("AddWithDynamicAttributes_WithStringAllocation", |b| {
+        b.iter(|| {
+            let kv = &[
+                KeyValue::new("attribute1", black_box("value1".to_string())),
+                KeyValue::new("attribute2", black_box("value2".to_string())),
+                KeyValue::new("attribute3", black_box("value3".to_string())),
+                KeyValue::new("attribute4", black_box("value4".to_string())),
+            ];
+
+            counter.add(1, kv);
+        });
     });
 }
 
