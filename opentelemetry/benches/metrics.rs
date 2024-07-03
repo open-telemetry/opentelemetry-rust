@@ -68,7 +68,7 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("AddWithDynamicAttributes", |b| {
         b.iter_batched(
             || {
-                let value1 = "value1".to_string(); // Repeat character six times to match the length of value strings used in other benchmarks
+                let value1 = "value1".to_string();
                 let value2 = "value2".to_string();
                 let value3 = "value3".to_string();
                 let value4 = "value4".to_string();
