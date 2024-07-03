@@ -1,4 +1,18 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+/*
+    Benchmark Results:
+    criterion = "0.5.1"
+    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
+    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
+    RAM: 64.0 GB
+    | Test                           | Average time|
+    |--------------------------------|-------------|
+    | NoAttributes                   | 1.1616 ns   |
+    | AddWithInlineStaticAttributes  | 13.296 ns   |
+    | AddWithStaticArray             | 1.1612 ns   |
+    | AddWithDynamicAttributes       | 110.40 ns   |
+*/
+
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use opentelemetry::{global, metrics::Counter, KeyValue};
 
 // Run this benchmark with:
@@ -17,21 +31,21 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn counter_add(c: &mut Criterion) {
     let counter = create_counter();
 
-    c.bench_function("Counter_NoAttributes", |b| {
+    c.bench_function("NoAttributes", |b| {
         b.iter(|| {
             counter.add(1, &[]);
         });
     });
 
-    c.bench_function("Counter_AddWithInlineStaticAttributes", |b| {
+    c.bench_function("AddWithInlineStaticAttributes", |b| {
         b.iter(|| {
             counter.add(
                 1,
                 &[
-                    black_box(KeyValue::new("attribute1", "value1")),
-                    black_box(KeyValue::new("attribute2", "value2")),
-                    black_box(KeyValue::new("attribute3", "value3")),
-                    black_box(KeyValue::new("attribute4", "value4")),
+                    KeyValue::new("attribute1", "value1"),
+                    KeyValue::new("attribute2", "value2"),
+                    KeyValue::new("attribute3", "value3"),
+                    KeyValue::new("attribute4", "value4"),
                 ],
             );
         });
@@ -44,19 +58,19 @@ fn counter_add(c: &mut Criterion) {
         KeyValue::new("attribute4", "value4"),
     ];
 
-    c.bench_function("Counter_AddWithStaticArray", |b| {
+    c.bench_function("AddWithStaticArray", |b| {
         b.iter(|| {
             counter.add(1, &kv);
         });
     });
 
-    c.bench_function("Counter_AddWithDynamicAttributes", |b| {
+    c.bench_function("AddWithDynamicAttributes", |b| {
         b.iter_batched(
             || {
-                let value1 = black_box("a".repeat(6)); // Repeat character six times to match the length of value strings used in other benchmarks
-                let value2 = black_box("b".repeat(6));
-                let value3 = black_box("c".repeat(6));
-                let value4 = black_box("d".repeat(6));
+                let value1 = "a".repeat(6); // Repeat character six times to match the length of value strings used in other benchmarks
+                let value2 = "b".repeat(6);
+                let value3 = "c".repeat(6);
+                let value4 = "d".repeat(6);
 
                 (value1, value2, value3, value4)
             },
