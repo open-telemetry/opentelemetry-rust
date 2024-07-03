@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 270 ns      |
+    | ot_layer_enabled            | 305 ns      |
 */
 
 use async_trait::async_trait;
