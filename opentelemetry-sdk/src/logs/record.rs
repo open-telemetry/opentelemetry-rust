@@ -5,7 +5,7 @@ use opentelemetry::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
