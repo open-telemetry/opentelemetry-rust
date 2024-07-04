@@ -88,6 +88,10 @@ fn build_tonic() {
         "trace.v1.Span.Event.time_unix_nano",
         "logs.v1.LogRecord.time_unix_nano",
         "logs.v1.LogRecord.observed_time_unix_nano",
+        "metrics.v1.HistogramDataPoint.start_time_unix_nano",
+        "metrics.v1.HistogramDataPoint.time_unix_nano",
+        "metrics.v1.NumberDataPoint.start_time_unix_nano",
+        "metrics.v1.NumberDataPoint.time_unix_nano",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
@@ -97,6 +101,12 @@ fn build_tonic() {
     for path in ["common.v1.KeyValue.value", "logs.v1.LogRecord.body"] {
         builder = builder
         .field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+    }
+
+    // flatten
+    for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
+        builder =
+            builder.field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten))]");
     }
 
     builder
