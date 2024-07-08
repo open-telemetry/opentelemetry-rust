@@ -16,11 +16,23 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn attributes_creation(c: &mut Criterion) {
     c.bench_function("CreateOTelValueString", |b| {
         b.iter(|| {
-            let _v = black_box(Value::String("value1".into()));
+            let _v = black_box(Value::String(String::from("value1").into()));
         });
     });
 
     c.bench_function("CreateOTelAnyValueString", |b| {
+        b.iter(|| {
+            let _v = black_box(AnyValue::String(String::from("value1").into()));
+        });
+    });
+
+    c.bench_function("CreateOTelValueStaticStr", |b| {
+        b.iter(|| {
+            let _v = black_box(Value::String("value1".into()));
+        });
+    });
+
+    c.bench_function("CreateOTelAnyValueStaticStr", |b| {
         b.iter(|| {
             let _v = black_box(AnyValue::String("value1".into()));
         });
