@@ -6,17 +6,17 @@ use opentelemetry::{
     Key, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_otlp::Protocol;
 use opentelemetry_otlp::{HttpExporterBuilder, WithExportConfig};
 use opentelemetry_sdk::trace::{self as sdktrace, Config};
 use opentelemetry_sdk::{
     logs::{self as sdklogs},
     Resource,
 };
+use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
-
-use std::error::Error;
 
 #[cfg(feature = "hyper")]
 mod hyper;
@@ -39,14 +39,22 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
     opentelemetry_otlp::new_pipeline()
         .logging()
         .with_resource(RESOURCE.clone())
-        .with_exporter(http_exporter().with_endpoint("http://localhost:4318/v1/logs"))
+        .with_exporter(
+            http_exporter()
+                .with_protocol(Protocol::HttpBinary)
+                .with_endpoint("http://localhost:4318/v1/logs"),
+        )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_exporter(http_exporter().with_endpoint("http://localhost:4318/v1/traces"))
+        .with_exporter(
+            http_exporter()
+                .with_protocol(Protocol::HttpBinary)
+                .with_endpoint("http://localhost:4318/v1/traces"),
+        )
         .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
         .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
@@ -54,7 +62,11 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
     opentelemetry_otlp::new_pipeline()
         .metrics(opentelemetry_sdk::runtime::Tokio)
-        .with_exporter(http_exporter().with_endpoint("http://localhost:4318/v1/metrics"))
+        .with_exporter(
+            http_exporter()
+                .with_protocol(Protocol::HttpBinary)
+                .with_endpoint("http://localhost:4318/v1/metrics"),
+        )
         .with_resource(RESOURCE.clone())
         .build()
 }
