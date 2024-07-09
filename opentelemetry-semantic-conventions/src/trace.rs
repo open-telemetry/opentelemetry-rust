@@ -13,7 +13,7 @@
 //!
 //! ## Usage
 //!
-//! ```
+//! ```rust
 //! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};
 //! use opentelemetry_semantic_conventions as semconv;

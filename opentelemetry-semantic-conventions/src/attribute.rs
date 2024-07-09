@@ -7,12 +7,6 @@
 //! # Semantic Attributes
 //!
 //! The entire set of semantic attributes (or [conventions](https://opentelemetry.io/docs/concepts/semantic-conventions/)) defined by the project. The resource, metric, and trace modules reference these attributes.
-//!
-//! ## Usage
-//!
-//! ```rust
-//! // TODO: Add example
-//! ```
 /// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).
 ///
 /// # Examples

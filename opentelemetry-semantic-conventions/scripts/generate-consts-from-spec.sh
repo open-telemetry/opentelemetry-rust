@@ -25,17 +25,6 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only attribute_group,span,event,scope \
-  -f /source code \
-	--template /templates/semantic_attributes.rs.j2 \
-	--output /output/trace.rs \
-	--parameters conventions=trace
-
-docker run --rm \
-	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
-	-v "${CRATE_DIR}/scripts/templates:/templates" \
-	-v "${CRATE_DIR}/src:/output" \
-	otel/semconvgen:$SEMCOVGEN_VERSION \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/attribute.rs \
@@ -46,7 +35,18 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only attribute_group,resource \
+  --only span,event,attribute_group,scope \
+  -f /source code \
+	--template /templates/semantic_attributes.rs.j2 \
+	--output /output/trace.rs \
+	--parameters conventions=trace
+
+docker run --rm \
+	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
+	-v "${CRATE_DIR}/scripts/templates:/templates" \
+	-v "${CRATE_DIR}/src:/output" \
+	otel/semconvgen:$SEMCOVGEN_VERSION \
+  --only resource,attribute_group \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/resource.rs \
@@ -57,7 +57,7 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --yaml-root /source code \
+  -f /source code \
 	--template /templates/semantic_metrics.rs.j2 \
 	--output /output/metric.rs
 
@@ -79,7 +79,5 @@ fi
 #      	pub const {{attribute.fqn | to_const_name}}: &str = "{{attribute.fqn}}";
 #     to generate the consts, where to_const_name replaces '.' with '_', we need to remove the old definition
 #	  to avoid conflicts with the new one. Refer - https://github.com/open-telemetry/semantic-conventions/issues/1031
-# "${SED[@]}" '/\/\/\/ Deprecated, use `messaging.client.id` instead\./{N;N;N;N;d;}' src/attribute.rs
-# "${SED[@]}" '/pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";/{N;d;}' src/attribute.rs
 
 cargo fmt
