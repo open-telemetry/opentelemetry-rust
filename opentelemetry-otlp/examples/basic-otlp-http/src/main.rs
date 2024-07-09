@@ -41,7 +41,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
         .with_resource(RESOURCE.clone())
         .with_exporter(
             http_exporter()
-                .with_protocol(Protocol::HttpBinary)
+                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
                 .with_endpoint("http://localhost:4318/v1/logs"),
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
@@ -52,7 +52,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .tracing()
         .with_exporter(
             http_exporter()
-                .with_protocol(Protocol::HttpBinary)
+                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
                 .with_endpoint("http://localhost:4318/v1/traces"),
         )
         .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
@@ -64,7 +64,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .metrics(opentelemetry_sdk::runtime::Tokio)
         .with_exporter(
             http_exporter()
-                .with_protocol(Protocol::HttpBinary)
+                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
                 .with_endpoint("http://localhost:4318/v1/metrics"),
         )
         .with_resource(RESOURCE.clone())
