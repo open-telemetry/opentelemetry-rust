@@ -335,7 +335,7 @@ pub mod number_data_point {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "4")]
         AsDouble(f64),
@@ -624,7 +624,7 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
         /// \[0.0, 1.0\].
@@ -685,7 +685,7 @@ pub mod exemplar {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "3")]
         AsDouble(f64),
