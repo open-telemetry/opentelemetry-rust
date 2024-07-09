@@ -29,6 +29,7 @@
 // we shouldn't manually change it. Thus skip format and lint check.
 #[rustfmt::skip]
 #[allow(warnings)]
+#[allow(ambiguous_associated_items)] // TODO: Remove this allow as soon as <https://github.com/tokio-rs/prost/issues/1097> is resolved and released.
 #[doc(hidden)]
 mod proto;
 
