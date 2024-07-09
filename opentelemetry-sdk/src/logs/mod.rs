@@ -14,11 +14,13 @@ pub use record::{LogRecord, TraceContext};
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
+    use crate::logs::record::PREALLOCATED_ATTRIBUTE_CAPACITY;
     use crate::testing::logs::InMemoryLogsExporter;
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
+    use smallvec::SmallVec;
     use std::borrow::Borrow;
     use std::collections::HashMap;
 
@@ -80,7 +82,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
         assert_eq!(log.instrumentation.name, "test-logger");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
-        let attributes: Vec<(Key, AnyValue)> = log
+        let attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> = log
             .record
             .attributes
             .clone()

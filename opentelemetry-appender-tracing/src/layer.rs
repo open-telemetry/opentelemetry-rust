@@ -3,7 +3,6 @@ use opentelemetry::{
     Key,
 };
 use std::borrow::Cow;
-use std::fmt::Write;
 use tracing_core::{Level, Metadata};
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
@@ -40,12 +39,9 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     fn new(log_record: &'a mut LR) -> Self {
         EventVisitor { log_record }
     }
-    fn visit_metadata(&mut self, meta: &Metadata) {
-        self.log_record
-            .add_attribute(Key::new("name"), AnyValue::from(meta.name()));
-
+    fn visit_metadata(&mut self, _meta: &Metadata) {
         #[cfg(feature = "experimental_metadata_attributes")]
-        self.visit_experimental_metadata(meta);
+        self.visit_experimental_metadata(_meta);
     }
 
     #[cfg(feature = "experimental_metadata_attributes")]
@@ -87,16 +83,10 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
             return;
         }
         if field.name() == "message" {
-            let mut body = String::new();
-            write!(&mut body, "{:?}", value).unwrap();
-            self.log_record.set_body(body.into());
+            self.log_record.set_body(format!("{:?}", value).into());
         } else {
-            let mut value_string = String::new();
-            write!(&mut value_string, "{:?}", value).unwrap();
-            self.log_record.add_attribute(
-                Key::new(field.name()),
-                AnyValue::from(format!("{value_string:?}")),
-            );
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
         }
     }
 
@@ -105,10 +95,8 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
         if is_duplicated_metadata(field.name()) {
             return;
         }
-        // Create a String with the exact capacity required
-        let owned_string = String::from(value);
         self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(owned_string));
+            .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
@@ -177,11 +165,11 @@ where
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         let meta = event.metadata();
 
-        //let mut log_record: LogRecord = LogRecord::default();
         let mut log_record = self.logger.create_log_record();
         log_record.set_severity_number(severity_of_level(meta.level()));
         log_record.set_severity_text(meta.level().to_string().into());
         log_record.set_target(meta.target().to_string());
+        log_record.set_event_name(meta.name());
 
         let mut visitor = EventVisitor::new(&mut log_record);
         visitor.visit_metadata(meta);
@@ -224,8 +212,11 @@ mod tests {
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
+    use smallvec::SmallVec;
     use tracing::error;
     use tracing_subscriber::layer::SubscriberExt;
+
+    const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
     // cargo test --features=testing
     #[test]
@@ -264,7 +255,7 @@ mod tests {
         assert!(log.record.trace_context.is_none());
 
         // Validate attributes
-        let attributes: Vec<(Key, AnyValue)> = log
+        let attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> = log
             .record
             .attributes
             .clone()
@@ -361,7 +352,7 @@ mod tests {
         );
 
         // validate attributes.
-        let attributes: Vec<(Key, AnyValue)> = log
+        let attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> = log
             .record
             .attributes
             .clone()
@@ -428,7 +419,7 @@ mod tests {
         assert!(log.record.trace_context.is_none());
 
         // Validate attributes
-        let attributes: Vec<(Key, AnyValue)> = log
+        let attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> = log
             .record
             .attributes
             .clone()
@@ -525,7 +516,7 @@ mod tests {
         );
 
         // validate attributes.
-        let attributes: Vec<(Key, AnyValue)> = log
+        let attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> = log
             .record
             .attributes
             .clone()

@@ -3,7 +3,13 @@ use opentelemetry::{
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
     Key,
 };
+use smallvec::{smallvec, SmallVec};
 use std::{borrow::Cow, time::SystemTime};
+
+// According to a Go-specific study mentioned on https://go.dev/blog/slog,
+// up to 5 attributes is the most common case. We have chosen 8 as the default
+// capacity for attributes to avoid reallocation in common scenarios.
+pub(crate) const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
 #[derive(Debug, Default, Clone)]
 #[non_exhaustive]
@@ -34,7 +40,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<Vec<(Key, AnyValue)>>,
+    pub attributes: Option<SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]>>,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
@@ -91,8 +97,6 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     {
         if let Some(ref mut attrs) = self.attributes {
             attrs.push((key.into(), value.into()));
-        } else {
-            self.attributes = Some(vec![(key.into(), value.into())]);
         }
     }
 }
@@ -186,16 +190,17 @@ mod tests {
         let mut log_record = LogRecord::default();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
-        assert_eq!(log_record.attributes, Some(attributes));
+        let expected_attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> =
+            smallvec![(Key::new("key"), AnyValue::String("value".into()))];
+        assert_eq!(log_record.attributes, Some(expected_attributes));
     }
 
     #[test]
     fn test_set_attribute() {
         let mut log_record = LogRecord::default();
         log_record.add_attribute("key", "value");
-        assert_eq!(
-            log_record.attributes,
-            Some(vec![(Key::new("key"), AnyValue::String("value".into()))])
-        );
+        let expected_attributes: SmallVec<[(Key, AnyValue); PREALLOCATED_ATTRIBUTE_CAPACITY]> =
+            smallvec![(Key::new("key"), AnyValue::String("value".into()))];
+        assert_eq!(log_record.attributes, Some(expected_attributes));
     }
 }

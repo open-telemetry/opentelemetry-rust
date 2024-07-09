@@ -139,9 +139,9 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
-                    book_id = "12345",
-                    book_title = "Rust Programming Adventures",
+                    // name = "CheckoutFailed",
+                    //book_id =12345,
+                    // book_title = "Rust Programming Adventures",
                     "Unable to process checkout."
                 );
             });

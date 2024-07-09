@@ -530,6 +530,7 @@ mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
+    use smallvec::smallvec;
     use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
@@ -816,7 +817,7 @@ mod tests {
     impl LogProcessor for FirstProcessor {
         fn emit(&self, data: &mut LogData) {
             // add attribute
-            data.record.attributes.get_or_insert(vec![]).push((
+            data.record.attributes.get_or_insert(smallvec![]).push((
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
             ));
