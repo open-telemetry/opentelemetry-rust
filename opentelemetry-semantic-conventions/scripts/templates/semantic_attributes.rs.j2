@@ -8,7 +8,6 @@
 
 {%- for attribute in attributes %}
 {%- set x=attribute.__setattr__("fqn_const_name", (attribute.fqn | to_const_name)) %}
-{%- set x=attribute.__setattr__("stability_string", (attribute.stability | string())) %}
 {%- endfor %}
 
 {%- for name, attrs in (attributes | groupby('fqn_const_name')) %}
