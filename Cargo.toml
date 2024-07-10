@@ -19,6 +19,7 @@ debug = 1
 async-std = "1.10"
 async-trait = "0.1"
 bytes = "1"
+cc = "=1.0.105" # pinning version supporting rustc 1.65
 criterion = "0.5"
 futures-core = "0.3"
 futures-executor = "0.3"
