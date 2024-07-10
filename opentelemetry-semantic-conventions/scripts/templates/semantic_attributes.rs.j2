@@ -11,8 +11,6 @@
 {%- set x=attribute.__setattr__("stability_string", (attribute.stability | string())) %}
 {%- endfor %}
 
-{%- set attributes = (attributes | unique(True, 'fqn_const_name')) | list %}
-
 {%- for name, attrs in (attributes | groupby('fqn_const_name')) %}
 {%- set attribute = attrs | selectattr('stability_string', '!=', 'StabilityLevel.DEPRECATED') | first %}
 {%- set attribute = attribute if attribute else attrs.first() %}
