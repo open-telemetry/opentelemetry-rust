@@ -99,32 +99,6 @@ mod reqwest {
     }
 }
 
-#[cfg(feature = "isahc")]
-mod isahc {
-    use crate::ResponseExt;
-
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use isahc::AsyncReadResponseExt;
-    use std::convert::TryInto as _;
-
-    #[async_trait]
-    impl HttpClient for isahc::HttpClient {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let mut response = self.send_async(request).await?;
-            let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
-            response.copy_to(&mut bytes).await?;
-
-            let headers = std::mem::take(response.headers_mut());
-            let mut http_response = Response::builder()
-                .status(response.status().as_u16())
-                .body(bytes.into())?;
-            *http_response.headers_mut() = headers;
-
-            Ok(http_response.error_for_status()?)
-        }
-    }
-}
-
 #[cfg(feature = "hyper")]
 pub mod hyper {
     use crate::ResponseExt;
