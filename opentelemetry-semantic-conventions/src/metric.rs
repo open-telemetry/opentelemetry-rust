@@ -197,7 +197,6 @@ pub const CONTAINER_DISK_IO: &str = "container.disk.io";
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
 /// ## Description
 /// Network bytes for the container.
@@ -894,7 +893,6 @@ pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{class}` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CLASS_COUNT: &str = "jvm.class.count";
 /// ## Description
 /// Number of classes loaded since JVM start.
@@ -904,7 +902,6 @@ pub const JVM_CLASS_COUNT: &str = "jvm.class.count";
 /// | Instrument: | `counter` |
 /// | Unit: | `{class}` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CLASS_LOADED: &str = "jvm.class.loaded";
 /// ## Description
 /// Number of classes unloaded since JVM start.
@@ -914,7 +911,6 @@ pub const JVM_CLASS_LOADED: &str = "jvm.class.loaded";
 /// | Instrument: | `counter` |
 /// | Unit: | `{class}` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CLASS_UNLOADED: &str = "jvm.class.unloaded";
 /// ## Description
 /// Number of processors available to the Java virtual machine.
@@ -924,7 +920,6 @@ pub const JVM_CLASS_UNLOADED: &str = "jvm.class.unloaded";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CPU_COUNT: &str = "jvm.cpu.count";
 /// ## Description
 /// Recent CPU utilization for the process as reported by the JVM.
@@ -936,7 +931,6 @@ pub const JVM_CPU_COUNT: &str = "jvm.cpu.count";
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CPU_RECENT_UTILIZATION: &str = "jvm.cpu.recent_utilization";
 /// ## Description
 /// CPU time used by the process as reported by the JVM.
@@ -946,7 +940,6 @@ pub const JVM_CPU_RECENT_UTILIZATION: &str = "jvm.cpu.recent_utilization";
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
 /// | Status: | `Stable`  |
-///
 pub const JVM_CPU_TIME: &str = "jvm.cpu.time";
 /// ## Description
 /// Duration of JVM garbage collection actions.
@@ -1048,7 +1041,6 @@ pub const JVM_MEMORY_USED_AFTER_LAST_GC: &str = "jvm.memory.used_after_last_gc";
 /// | Instrument: | `gauge` |
 /// | Unit: | `{run_queue_item}` |
 /// | Status: | `Experimental`  |
-///
 pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 /// ## Description
 /// Recent CPU utilization for the whole system as reported by the JVM.
@@ -1060,7 +1052,6 @@ pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
 /// | Status: | `Experimental`  |
-///
 pub const JVM_SYSTEM_CPU_UTILIZATION: &str = "jvm.system.cpu.utilization";
 /// ## Description
 /// Number of executing platform threads.
@@ -1424,7 +1415,6 @@ pub const PROCESS_DISK_IO: &str = "process.disk.io";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const PROCESS_MEMORY_USAGE: &str = "process.memory.usage";
 /// ## Description
 /// The amount of committed virtual memory.
@@ -1434,7 +1424,6 @@ pub const PROCESS_MEMORY_USAGE: &str = "process.memory.usage";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const PROCESS_MEMORY_VIRTUAL: &str = "process.memory.virtual";
 /// ## Description
 /// Network bytes transferred.
@@ -1458,7 +1447,6 @@ pub const PROCESS_NETWORK_IO: &str = "process.network.io";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{count}` |
 /// | Status: | `Experimental`  |
-///
 pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descriptor.count";
 /// ## Description
 /// Number of page faults the process has made.
@@ -1482,7 +1470,6 @@ pub const PROCESS_PAGING_FAULTS: &str = "process.paging.faults";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{thread}` |
 /// | Status: | `Experimental`  |
-///
 pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
 /// ## Description
 /// Measures the duration of outbound RPC.
@@ -1497,7 +1484,6 @@ pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 /// ## Description
 /// Measures the size of RPC request messages (uncompressed).
@@ -1509,7 +1495,6 @@ pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 /// ## Description
 /// Measures the number of messages received per RPC.
@@ -1523,7 +1508,6 @@ pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 /// ## Description
 /// Measures the size of RPC response messages (uncompressed).
@@ -1535,7 +1519,6 @@ pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 /// ## Description
 /// Measures the number of messages sent per RPC.
@@ -1549,7 +1532,6 @@ pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 /// ## Description
 /// Measures the duration of inbound RPC.
@@ -1564,7 +1546,6 @@ pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 /// ## Description
 /// Measures the size of RPC request messages (uncompressed).
@@ -1576,7 +1557,6 @@ pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 /// ## Description
 /// Measures the number of messages received per RPC.
@@ -1590,7 +1570,6 @@ pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 /// ## Description
 /// Measures the size of RPC response messages (uncompressed).
@@ -1602,7 +1581,6 @@ pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 /// ## Description
 /// Measures the number of messages sent per RPC.
@@ -1616,7 +1594,6 @@ pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Experimental`  |
-///
 pub const RPC_SERVER_RESPONSES_PER_RPC: &str = "rpc.server.responses_per_rpc";
 /// ## Description
 /// Number of connections that are currently active on the server.
@@ -1674,7 +1651,6 @@ pub const SYSTEM_CPU_FREQUENCY: &str = "system.cpu.frequency";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_CPU_LOGICAL_COUNT: &str = "system.cpu.logical.count";
 /// ## Description
 /// Reports the number of actual physical processor cores on the hardware.
@@ -1684,7 +1660,6 @@ pub const SYSTEM_CPU_LOGICAL_COUNT: &str = "system.cpu.logical.count";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 /// ## Description
 /// Seconds each logical CPU spent on each mode.
@@ -1852,7 +1827,6 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
 /// ## Description
 /// Total memory available in the system.
@@ -1864,7 +1838,6 @@ pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 /// ## Description
 /// Shared memory used (mostly by tmpfs).
@@ -1877,7 +1850,6 @@ pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_MEMORY_SHARED: &str = "system.memory.shared";
 /// ## Description
 /// Reports memory in use by state.
@@ -2077,5 +2049,4 @@ pub const SYSTEM_PROCESS_COUNT: &str = "system.process.count";
 /// | Instrument: | `counter` |
 /// | Unit: | `{process}` |
 /// | Status: | `Experimental`  |
-///
 pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
