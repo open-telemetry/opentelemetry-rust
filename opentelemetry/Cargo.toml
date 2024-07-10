@@ -30,11 +30,6 @@ thiserror = { workspace = true }
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
 
-# This cfg can't ever be enabled but cargo will respect it anyway.
-# Meaning we can use this to pin unused transitive dependencies.
-[target.'cfg(any())'.dependencies]
-cc = { workspace = true }
-
 [features]
 default = ["trace", "metrics", "logs"]
 trace = ["pin-project-lite"]
