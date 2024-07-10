@@ -14,18 +14,16 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::global;
-//! use opentelemetry::KeyValue;
+//! use opentelemetry::{global, KeyValue};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
-//! // Assuming an already initialized `MeterProvider`
+//! // Assumes we already have an initialized `MeterProvider`
 //! // See: https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/metrics-basic/src/main.rs
-//! // for an example on how to initialize a `MeterProvider`
+//! // for an example
 //! let meter = global::meter("mylibraryname");
-//! let meter = provider.get("example-meter");
 //! let histogram = meter
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
-//!     .with_unit(Unit::new("By"))
+//!     .with_unit("By")
 //!     .with_description("Duration of HTTP server requests.")
 //!     .init();
 //! ```
@@ -931,7 +929,7 @@ pub const JVM_CPU_COUNT: &str = "jvm.cpu.count";
 /// ## Description
 /// Recent CPU utilization for the process as reported by the JVM.
 ///
-/// The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
+/// The value range is \[0.0,1.0\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1043,7 +1041,7 @@ pub const JVM_MEMORY_USED_AFTER_LAST_GC: &str = "jvm.memory.used_after_last_gc";
 /// ## Description
 /// Average CPU load of the whole system for the last minute as reported by the JVM.
 ///
-/// The value range is [0,n], where n is the number of CPU cores - or a negative number if the value is not available. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/OperatingSystemMXBean.html#getSystemLoadAverage()).
+/// The value range is \[0,n\], where n is the number of CPU cores - or a negative number if the value is not available. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/OperatingSystemMXBean.html#getSystemLoadAverage()).
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1055,7 +1053,7 @@ pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 /// ## Description
 /// Recent CPU utilization for the whole system as reported by the JVM.
 ///
-/// The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getCpuLoad()).
+/// The value range is \[0.0,1.0\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getCpuLoad()).
 /// ## Metadata
 /// | | |
 /// |:-|:-

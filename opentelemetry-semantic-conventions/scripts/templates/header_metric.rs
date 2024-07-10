@@ -8,18 +8,16 @@
 //! ## Usage
 //!
 //! ```rust
-//! use opentelemetry::global;
-//! use opentelemetry::KeyValue;
+//! use opentelemetry::{global, KeyValue};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
-//! // Assuming an already initialized `MeterProvider`
+//! // Assumes we already have an initialized `MeterProvider`
 //! // See: https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/metrics-basic/src/main.rs
-//! // for an example on how to initialize a `MeterProvider`
+//! // for an example
 //! let meter = global::meter("mylibraryname");
-//! let meter = provider.get("example-meter");
 //! let histogram = meter
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
-//!     .with_unit(Unit::new("By"))
+//!     .with_unit("By")
 //!     .with_description("Duration of HTTP server requests.")
 //!     .init();
 //! ```

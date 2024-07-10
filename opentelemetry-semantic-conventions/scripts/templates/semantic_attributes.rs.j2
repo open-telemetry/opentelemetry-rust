@@ -15,6 +15,7 @@
 
 {%- for name, attrs in (attributes | groupby('fqn_const_name')) %}
 {%- set attribute = attrs | selectattr('stability_string', '!=', 'StabilityLevel.DEPRECATED') | first %}
+{%- set attribute = attribute if attribute else attrs.first() %}
 {%- if conventions != 'attribute' %}
 pub use crate::attribute::{{ attribute.fqn_const_name }};
 {%- else %}

@@ -21,8 +21,8 @@
 /// | Instrument: | `{{ metric.instrument }}` |
 /// | Unit: | `{{ metric.unit }}` |
 /// | Status: | `{{ ((metric.stability | string()).split('.')[1].replace('_', ' ')) | capitalize }}`  |
-///
 {%- if metric.attributes %}
+///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
