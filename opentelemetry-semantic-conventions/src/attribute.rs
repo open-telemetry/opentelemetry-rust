@@ -667,6 +667,7 @@ pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
 /// # Examples
 ///
 /// - `mytable`
+#[deprecated]
 pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
 /// The name of the connection pool; unique within the instrumented application. In case the connection pool implementation doesn&#39;t provide a name, instrumentation should use a combination of `server.address` and `server.port` attributes formatted as `server.address:server.port`.
 ///
@@ -695,6 +696,7 @@ pub const DB_COLLECTION_NAME: &str = "db.collection.name";
 /// # Examples
 ///
 /// - `Server=(localdb)\v11.0;Integrated Security=true;`
+#[deprecated]
 pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 /// Unique Cosmos client instance id.
 ///
@@ -709,6 +711,7 @@ pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 /// # Examples
 ///
 /// - `mytable`
+#[deprecated]
 pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 /// CosmosDB Operation Type.
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
@@ -752,6 +755,7 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 /// # Examples
 ///
 /// - `mysql-e26b99z.example.com`
+#[deprecated]
 pub const DB_INSTANCE_ID: &str = "db.instance.id";
 /// Removed, no replacement at this time.
 ///
@@ -759,18 +763,21 @@ pub const DB_INSTANCE_ID: &str = "db.instance.id";
 ///
 /// - `org.postgresql.Driver`
 /// - `com.microsoft.sqlserver.jdbc.SQLServerDriver`
+#[deprecated]
 pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 /// Deprecated, use `db.collection.name` instead.
 ///
 /// # Examples
 ///
 /// - `mytable`
+#[deprecated]
 pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 /// Deprecated, SQL Server instance is now populated as a part of `db.namespace` attribute.
 ///
 /// # Examples
 ///
 /// - `MSSQLSERVER`
+#[deprecated]
 pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 /// Deprecated, use `db.namespace` instead.
 ///
@@ -778,6 +785,7 @@ pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 ///
 /// - `customers`
 /// - `main`
+#[deprecated]
 pub const DB_NAME: &str = "db.name";
 /// The name of the database, fully qualified within the server address and port.
 ///
@@ -797,6 +805,7 @@ pub const DB_NAMESPACE: &str = "db.namespace";
 /// - `findAndModify`
 /// - `HMSET`
 /// - `SELECT`
+#[deprecated]
 pub const DB_OPERATION: &str = "db.operation";
 /// The name of the operation or command being executed.
 ///
@@ -822,12 +831,14 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 /// - `0`
 /// - `1`
 /// - `15`
+#[deprecated]
 pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
 /// Deprecated, use `db.collection.name` instead.
 ///
 /// # Examples
 ///
 /// - `mytable`
+#[deprecated]
 pub const DB_SQL_TABLE: &str = "db.sql.table";
 /// The database statement being executed.
 ///
@@ -835,6 +846,7 @@ pub const DB_SQL_TABLE: &str = "db.sql.table";
 ///
 /// - `SELECT * FROM wuser_table`
 /// - `SET mykey "WuValue"`
+#[deprecated]
 pub const DB_STATEMENT: &str = "db.statement";
 /// The database management system (DBMS) product as identified by the client instrumentation.
 ///
@@ -846,6 +858,7 @@ pub const DB_SYSTEM: &str = "db.system";
 ///
 /// - `readonly_user`
 /// - `reporting_user`
+#[deprecated]
 pub const DB_USER: &str = "db.user";
 /// Name of the [deployment environment](https://wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
 ///
@@ -1436,6 +1449,7 @@ pub const HOST_TYPE: &str = "host.type";
 /// # Examples
 ///
 /// - `83.164.160.102`
+#[deprecated]
 pub const HTTP_CLIENT_IP: &str = "http.client_ip";
 /// State of the HTTP connection in the HTTP connection pool.
 ///
@@ -1445,12 +1459,14 @@ pub const HTTP_CLIENT_IP: &str = "http.client_ip";
 /// - `idle`
 pub const HTTP_CONNECTION_STATE: &str = "http.connection.state";
 /// Deprecated, use `network.protocol.name` instead.
+#[deprecated]
 pub const HTTP_FLAVOR: &str = "http.flavor";
 /// Deprecated, use one of `server.address`, `client.address` or `http.request.header.host` instead, depending on the usage.
 ///
 /// # Examples
 ///
 /// - `www.example.org`
+#[deprecated]
 pub const HTTP_HOST: &str = "http.host";
 /// Deprecated, use `http.request.method` instead.
 ///
@@ -1459,6 +1475,7 @@ pub const HTTP_HOST: &str = "http.host";
 /// - `GET`
 /// - `POST`
 /// - `HEAD`
+#[deprecated]
 pub const HTTP_METHOD: &str = "http.method";
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
@@ -1471,12 +1488,14 @@ pub const HTTP_REQUEST_BODY_SIZE: &str = "http.request.body.size";
 /// # Examples
 ///
 /// - `3495`
+#[deprecated]
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 /// Deprecated, use `http.request.body.size` instead.
 ///
 /// # Examples
 ///
 /// - `5493`
+#[deprecated]
 pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.request_content_length_uncompressed";
 /// HTTP request method.
@@ -1535,12 +1554,14 @@ pub const HTTP_RESPONSE_BODY_SIZE: &str = "http.response.body.size";
 /// # Examples
 ///
 /// - `3495`
+#[deprecated]
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 /// Deprecated, use `http.response.body.size` instead.
 ///
 /// # Examples
 ///
 /// - `5493`
+#[deprecated]
 pub const HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.response_content_length_uncompressed";
 /// The total size of the response in bytes. This should be the total number of bytes sent over the wire, including the status line (HTTP/1.1), framing (HTTP/2 and HTTP/3), headers, and response body and trailers if any.
@@ -1571,30 +1592,35 @@ pub const HTTP_ROUTE: &str = "http.route";
 ///
 /// - `http`
 /// - `https`
+#[deprecated]
 pub const HTTP_SCHEME: &str = "http.scheme";
 /// Deprecated, use `server.address` instead.
 ///
 /// # Examples
 ///
 /// - `example.com`
+#[deprecated]
 pub const HTTP_SERVER_NAME: &str = "http.server_name";
 /// Deprecated, use `http.response.status_code` instead.
 ///
 /// # Examples
 ///
 /// - `200`
+#[deprecated]
 pub const HTTP_STATUS_CODE: &str = "http.status_code";
 /// Deprecated, use `url.path` and `url.query` instead.
 ///
 /// # Examples
 ///
 /// - `/search?q=OpenTelemetry#SemConv`
+#[deprecated]
 pub const HTTP_TARGET: &str = "http.target";
 /// Deprecated, use `url.full` instead.
 ///
 /// # Examples
 ///
 /// - `https://www.foo.bar/search?q=OpenTelemetry#SemConv`
+#[deprecated]
 pub const HTTP_URL: &str = "http.url";
 /// Deprecated, use `user_agent.original` instead.
 ///
@@ -1602,10 +1628,12 @@ pub const HTTP_URL: &str = "http.url";
 ///
 /// - `CERN-LineMode/2.15 libwww/2.17b3`
 /// - `Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1`
+#[deprecated]
 pub const HTTP_USER_AGENT: &str = "http.user_agent";
 /// Deprecated use the `device.app.lifecycle` event definition including `ios.state` as a payload field instead.
 ///
 /// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
+#[deprecated]
 pub const IOS_STATE: &str = "ios.state";
 /// Name of the buffer pool.
 ///
@@ -1849,12 +1877,16 @@ pub const LOG_IOSTREAM: &str = "log.iostream";
 /// - `01ARZ3NDEKTSV4RRFFQ69G5FAV`
 pub const LOG_RECORD_UID: &str = "log.record.uid";
 /// Deprecated, use `rpc.message.compressed_size` instead.
+#[deprecated]
 pub const MESSAGE_COMPRESSED_SIZE: &str = "message.compressed_size";
 /// Deprecated, use `rpc.message.id` instead.
+#[deprecated]
 pub const MESSAGE_ID: &str = "message.id";
 /// Deprecated, use `rpc.message.type` instead.
+#[deprecated]
 pub const MESSAGE_TYPE: &str = "message.type";
 /// Deprecated, use `rpc.message.uncompressed_size` instead.
+#[deprecated]
 pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 /// The number of messages sent, received, or processed in the scope of the batching operation.
 ///
@@ -1866,13 +1898,13 @@ pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 /// - `1`
 /// - `2`
 pub const MESSAGING_BATCH_MESSAGE_COUNT: &str = "messaging.batch.message_count";
-/// Deprecated, use `messaging.client.id` instead.
+/// A unique identifier for the client that consumes or produces a message.
 ///
 /// # Examples
 ///
 /// - `client-5`
 /// - `myhost@8742@s8083jm`
-pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";
+pub const MESSAGING_CLIENT_ID: &str = "messaging.client.id";
 /// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).
 pub const MESSAGING_DESTINATION_ANONYMOUS: &str = "messaging.destination.anonymous";
 /// The message destination name.
@@ -1964,6 +1996,7 @@ pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group
 /// # Examples
 ///
 /// - `2`
+#[deprecated]
 pub const MESSAGING_KAFKA_DESTINATION_PARTITION: &str = "messaging.kafka.destination.partition";
 /// Message keys in Kafka are used for grouping alike messages to ensure they&#39;re processed on the same partition. They differ from `messaging.message.id` in that they&#39;re not unique. If the key is `null`, the attribute MUST NOT be set.
 ///
@@ -2018,6 +2051,7 @@ pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 /// - `publish`
 /// - `create`
 /// - `process`
+#[deprecated]
 pub const MESSAGING_OPERATION: &str = "messaging.operation";
 /// The system-specific name of the messaging operation.
 ///
@@ -2125,36 +2159,42 @@ pub const MESSAGING_SYSTEM: &str = "messaging.system";
 /// # Examples
 ///
 /// - `192.168.0.1`
+#[deprecated]
 pub const NET_HOST_IP: &str = "net.host.ip";
 /// Deprecated, use `server.address`.
 ///
 /// # Examples
 ///
 /// - `example.com`
+#[deprecated]
 pub const NET_HOST_NAME: &str = "net.host.name";
 /// Deprecated, use `server.port`.
 ///
 /// # Examples
 ///
 /// - `8080`
+#[deprecated]
 pub const NET_HOST_PORT: &str = "net.host.port";
 /// Deprecated, use `network.peer.address`.
 ///
 /// # Examples
 ///
 /// - `127.0.0.1`
+#[deprecated]
 pub const NET_PEER_IP: &str = "net.peer.ip";
 /// Deprecated, use `server.address` on client spans and `client.address` on server spans.
 ///
 /// # Examples
 ///
 /// - `example.com`
+#[deprecated]
 pub const NET_PEER_NAME: &str = "net.peer.name";
 /// Deprecated, use `server.port` on client spans and `client.port` on server spans.
 ///
 /// # Examples
 ///
 /// - `8080`
+#[deprecated]
 pub const NET_PEER_PORT: &str = "net.peer.port";
 /// Deprecated, use `network.protocol.name`.
 ///
@@ -2163,46 +2203,55 @@ pub const NET_PEER_PORT: &str = "net.peer.port";
 /// - `amqp`
 /// - `http`
 /// - `mqtt`
+#[deprecated]
 pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 /// Deprecated, use `network.protocol.version`.
 ///
 /// # Examples
 ///
 /// - `3.1.1`
+#[deprecated]
 pub const NET_PROTOCOL_VERSION: &str = "net.protocol.version";
 /// Deprecated, use `network.transport` and `network.type`.
+#[deprecated]
 pub const NET_SOCK_FAMILY: &str = "net.sock.family";
 /// Deprecated, use `network.local.address`.
 ///
 /// # Examples
 ///
 /// - `/var/my.sock`
+#[deprecated]
 pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 /// Deprecated, use `network.local.port`.
 ///
 /// # Examples
 ///
 /// - `8080`
+#[deprecated]
 pub const NET_SOCK_HOST_PORT: &str = "net.sock.host.port";
 /// Deprecated, use `network.peer.address`.
 ///
 /// # Examples
 ///
 /// - `192.168.0.1`
+#[deprecated]
 pub const NET_SOCK_PEER_ADDR: &str = "net.sock.peer.addr";
 /// Deprecated, no replacement at this time.
 ///
 /// # Examples
 ///
 /// - `/var/my.sock`
+#[deprecated]
 pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 /// Deprecated, use `network.peer.port`.
 ///
 /// # Examples
 ///
 /// - `65531`
+#[deprecated]
 pub const NET_SOCK_PEER_PORT: &str = "net.sock.peer.port";
 /// Deprecated, use `network.transport`.
+#[deprecated]
 pub const NET_TRANSPORT: &str = "net.transport";
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
 ///
@@ -2367,12 +2416,14 @@ pub const OS_VERSION: &str = "os.version";
 /// # Examples
 ///
 /// - `io.opentelemetry.contrib.mongodb`
+#[deprecated]
 pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
 /// None.
 ///
 /// # Examples
 ///
 /// - `1.0.0`
+#[deprecated]
 pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
 /// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
 ///
@@ -2405,6 +2456,7 @@ pub const PEER_SERVICE: &str = "peer.service";
 /// # Examples
 ///
 /// - `myDataSource`
+#[deprecated]
 pub const POOL_NAME: &str = "pool.name";
 /// The command used to launch the process (i.e. the command name). On Linux based systems, can be set to the zeroth string in `proc/[pid]/cmdline`. On Windows, can be set to the first parameter extracted from `GetCommandLineW`.
 ///
@@ -2740,6 +2792,7 @@ pub const SOURCE_PORT: &str = "source.port";
 /// # Examples
 ///
 /// - `idle`
+#[deprecated]
 pub const STATE: &str = "state";
 /// The logical CPU number [0..n-1].
 ///
@@ -2826,6 +2879,7 @@ pub const SYSTEM_PROCESS_STATUS: &str = "system.process.status";
 /// # Examples
 ///
 /// - `running`
+#[deprecated]
 pub const SYSTEM_PROCESSES_STATUS: &str = "system.processes.status";
 /// The name of the auto instrumentation agent or distribution, if used.
 ///

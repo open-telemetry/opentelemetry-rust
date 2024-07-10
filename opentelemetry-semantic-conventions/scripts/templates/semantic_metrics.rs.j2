@@ -50,7 +50,7 @@
 /// - `{{ example }}`
 {%- endfor %}
 {%- endif %}
-{%- if (metric.stability | string()) == "StabilityLevel.DEPRECATED"  %}
+{%- if (metric.deprecated) %}
 #[deprecated]
 {%- endif %}
 pub const {{ metric.metric_name | to_const_name }}: &str = "{{ metric.metric_name }}";

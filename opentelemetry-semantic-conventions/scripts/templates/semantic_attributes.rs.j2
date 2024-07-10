@@ -12,8 +12,8 @@
 {%- endfor %}
 
 {%- for name, attrs in (attributes | groupby('fqn_const_name')) %}
-{%- set attribute = attrs | selectattr('stability_string', '!=', 'StabilityLevel.DEPRECATED') | first %}
-{%- set attribute = attribute if attribute else attrs.first() %}
+{%- set attribute = (attrs | selectattr('deprecated', 'none') | first) %}
+{%- set attribute = attribute if attribute else (attrs | first) %}
 {%- if conventions != 'attribute' %}
 pub use crate::attribute::{{ attribute.fqn_const_name }};
 {%- else %}
@@ -32,7 +32,7 @@ pub use crate::attribute::{{ attribute.fqn_const_name }};
 /// - `{{example}}`
 {%- endfor %}
 {%- endif %}
-{%- if (attribute.stability | string()) == "StabilityLevel.DEPRECATED"  %}
+{%- if (attribute.deprecated) %}
 #[deprecated]
 {%- endif %}
 pub const {{ attribute.fqn_const_name }}: &str = "{{attribute.fqn}}";
