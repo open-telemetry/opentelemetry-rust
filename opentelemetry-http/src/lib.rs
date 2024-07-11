@@ -180,7 +180,7 @@ pub mod hyper {
             cx: &mut task::Context<'_>,
         ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
             let inner_body = unsafe { self.map_unchecked_mut(|b| &mut b.0) };
-            inner_body.poll_frame(cx)
+            inner_body.poll_frame(cx).map_err(Into::into)
         }
 
         #[inline]
