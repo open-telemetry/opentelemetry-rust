@@ -23,7 +23,7 @@
   lifetime issues. Any changes made to the log data before cloning in this method will be
   reflected in the next log processor in the chain, as well as to the exporter.
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
- Update `LogExporter::export() method to accept a batch of log data, which can be either a
+ Update `LogExporter::export()` method to accept a batch of log data, which can be either a
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
