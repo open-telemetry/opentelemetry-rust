@@ -17,7 +17,7 @@
   `RwLock` instead of `Mutex` to reduce contention
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
-  Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
+  Update `LogProcessor::emit()` method to take mutable reference to LogData. This is breaking
   change for LogProcessor developers. If the processor needs to invoke the exporter
   asynchronously, it should clone the data to ensure it can be safely processed without
   lifetime issues. Any changes made to the log data before cloning in this method will be
