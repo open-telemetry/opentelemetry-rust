@@ -39,13 +39,6 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     fn new(log_record: &'a mut LR) -> Self {
         EventVisitor { log_record }
     }
-    fn visit_metadata(&mut self, meta: &Metadata) {
-        self.log_record
-            .add_attribute(Key::new("name"), AnyValue::from(meta.name()));
-
-        #[cfg(feature = "experimental_metadata_attributes")]
-        self.visit_experimental_metadata(meta);
-    }
 
     #[cfg(feature = "experimental_metadata_attributes")]
     fn visit_experimental_metadata(&mut self, meta: &Metadata) {
@@ -170,15 +163,18 @@ where
 
         //let mut log_record: LogRecord = LogRecord::default();
         let mut log_record = self.logger.create_log_record();
+        log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
         log_record.set_severity_text(meta.level().to_string().into());
         log_record.set_target(meta.target().to_string());
+        #[cfg(feature = "experimental_metadata_attributes")]
+        self.visit_experimental_metadata(meta); // Visit fields.
 
         let mut visitor = EventVisitor::new(&mut log_record);
-        visitor.visit_metadata(meta);
         // Visit fields.
         event.record(&mut visitor);
 
+        //emit record
         self.logger.emit(log_record);
     }
 
