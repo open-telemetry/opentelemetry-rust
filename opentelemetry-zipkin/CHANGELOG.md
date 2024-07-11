@@ -2,12 +2,6 @@
 
 ## vNext
 
-## v0.22.0
-
-### Changed
-
-- Update `opentelemetry-semantic-conventions` dependency version to 0.16
-
 ## v0.21.0
 
 ### Changed
