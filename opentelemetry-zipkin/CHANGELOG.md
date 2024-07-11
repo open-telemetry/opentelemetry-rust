@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Update examples to `hyper` v1 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
+- Update `opentelemetry-http` (and with that to `http` v1 types) [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
 
 ## v0.21.0
 
