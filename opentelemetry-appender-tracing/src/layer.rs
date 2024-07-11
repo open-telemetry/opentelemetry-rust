@@ -3,7 +3,9 @@ use opentelemetry::{
     Key,
 };
 use std::borrow::Cow;
-use tracing_core::{Level, Metadata};
+use tracing_core::Level;
+#[cfg(feature = "experimental_metadata_attributes")]
+use tracing_core::Metadata;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::Layer;
@@ -168,9 +170,9 @@ where
         log_record.set_severity_number(severity_of_level(meta.level()));
         log_record.set_severity_text(meta.level().to_string().into());
         #[cfg(feature = "experimental_metadata_attributes")]
-        self.visit_experimental_metadata(meta); // Visit fields.
-
         let mut visitor = EventVisitor::new(&mut log_record);
+        #[cfg(feature = "experimental_metadata_attributes")]
+        visitor.visit_experimental_metadata(meta);
         // Visit fields.
         event.record(&mut visitor);
 
