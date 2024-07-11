@@ -169,7 +169,6 @@ where
         log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
         log_record.set_severity_text(meta.level().to_string().into());
-        #[cfg(feature = "experimental_metadata_attributes")]
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);
@@ -259,10 +258,9 @@ mod tests {
             .clone()
             .expect("Attributes are expected");
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(attributes.len(), 4);
+        assert_eq!(attributes.len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 9);
-        assert!(attributes.contains(&(Key::new("name"), "my-event-name".into())));
+        assert_eq!(attributes.len(), 8);
         assert!(attributes.contains(&(Key::new("event_id"), 20.into())));
         assert!(attributes.contains(&(Key::new("user_name"), "otel".into())));
         assert!(attributes.contains(&(Key::new("user_email"), "otel@opentelemetry.io".into())));
@@ -356,10 +354,9 @@ mod tests {
             .clone()
             .expect("Attributes are expected");
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(attributes.len(), 4);
+        assert_eq!(attributes.len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 9);
-        assert!(attributes.contains(&(Key::new("name"), "my-event-name".into())));
+        assert_eq!(attributes.len(), 8);
         assert!(attributes.contains(&(Key::new("event_id"), 20.into())));
         assert!(attributes.contains(&(Key::new("user_name"), "otel".into())));
         assert!(attributes.contains(&(Key::new("user_email"), "otel@opentelemetry.io".into())));
@@ -417,6 +414,7 @@ mod tests {
         assert!(log.record.trace_context.is_none());
 
         // Validate attributes
+        #[cfg(feature = "experimental_metadata_attributes")]
         let attributes: Vec<(Key, AnyValue)> = log
             .record
             .attributes
@@ -425,9 +423,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 6);
-
-        assert!(attributes.contains(&(Key::new("name"), "log event".into())));
+        assert_eq!(attributes.len(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -514,6 +510,7 @@ mod tests {
         );
 
         // validate attributes.
+        #[cfg(feature = "experimental_metadata_attributes")]
         let attributes: Vec<(Key, AnyValue)> = log
             .record
             .attributes
@@ -522,9 +519,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 6);
-
-        assert!(attributes.contains(&(Key::new("name"), "log event".into())));
+        assert_eq!(attributes.len(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
