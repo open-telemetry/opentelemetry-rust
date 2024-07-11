@@ -163,10 +163,10 @@ where
 
         //let mut log_record: LogRecord = LogRecord::default();
         let mut log_record = self.logger.create_log_record();
+        log_record.set_target(meta.target().to_string());
         log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
         log_record.set_severity_text(meta.level().to_string().into());
-        log_record.set_target(meta.target().to_string());
         #[cfg(feature = "experimental_metadata_attributes")]
         self.visit_experimental_metadata(meta); // Visit fields.
 
