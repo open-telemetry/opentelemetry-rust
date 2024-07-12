@@ -40,7 +40,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         endpoint: "http://localhost:4317".to_string(),
         ..ExportConfig::default()
     };
-    let provider = opentelemetry_otlp::new_pipeline()
+    opentelemetry_otlp::new_pipeline()
         .metrics(runtime::Tokio)
         .with_exporter(
             opentelemetry_otlp::new_exporter()
@@ -48,11 +48,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
                 .with_export_config(export_config),
         )
         .with_resource(RESOURCE.clone())
-        .build();
-    match provider {
-        Ok(provider) => Ok(provider),
-        Err(err) => Err(err),
-    }
+        .build()
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
