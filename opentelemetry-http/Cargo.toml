@@ -10,6 +10,7 @@ edition = "2021"
 rust-version = "1.65"
 
 [features]
+hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 
@@ -17,7 +18,9 @@ reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 async-trait = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
-hyper = { workspace = true, features = ["http2", "client", "tcp"], optional = true }
+http-body-util = { workspace = true, optional = true }
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http2"], optional = true }
 opentelemetry = { version = "0.23", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }

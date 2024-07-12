@@ -25,7 +25,17 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only span,event,attribute_group,scope \
+  -f /source code \
+	--template /templates/semantic_attributes.rs.j2 \
+	--output /output/attribute.rs \
+	--parameters conventions=attribute
+
+docker run --rm \
+	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
+	-v "${CRATE_DIR}/scripts/templates:/templates" \
+	-v "${CRATE_DIR}/src:/output" \
+	otel/semconvgen:$SEMCOVGEN_VERSION \
+  --only span,event,scope \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/trace.rs \
@@ -36,11 +46,20 @@ docker run --rm \
 	-v "${CRATE_DIR}/scripts/templates:/templates" \
 	-v "${CRATE_DIR}/src:/output" \
 	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only resource,attribute_group \
+  --only resource \
   -f /source code \
 	--template /templates/semantic_attributes.rs.j2 \
 	--output /output/resource.rs \
 	--parameters conventions=resource
+
+docker run --rm \
+	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
+	-v "${CRATE_DIR}/scripts/templates:/templates" \
+	-v "${CRATE_DIR}/src:/output" \
+	otel/semconvgen:$SEMCOVGEN_VERSION \
+  -f /source code \
+	--template /templates/semantic_metrics.rs.j2 \
+	--output /output/metric.rs
 
 SED=(sed -i)
 if [[ "$(uname)" = "Darwin" ]]; then
@@ -51,16 +70,15 @@ fi
 "${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
 
 # handle doc generation failures
-"${SED[@]}" 's/\[2\]\.$//' src/resource.rs src/trace.rs # remove trailing [2] from few of the doc comments
+"${SED[@]}" 's/\[2\]\.$//' src/attribute.rs # remove trailing [2] from few of the doc comments
 
-# Remove the messaging.client_id definition along with its comments from the generated files
-#   - semconv "messaging.client_id" is deprecated
-#   - semconv "messaging.client.id" is to be used instead
-#   - Now because we use:
-#      	pub const {{attribute.fqn | to_const_name}}: &str = "{{attribute.fqn}}";
-#     to generate the consts, where to_const_name replaces '.' with '_', we need to remove the old definition
-#	  to avoid conflicts with the new one. Refer - https://github.com/open-telemetry/semantic-conventions/issues/1031
-"${SED[@]}" '/\/\/\/ Deprecated, use `messaging.client.id` instead\./{N;N;N;N;d;}' src/trace.rs src/resource.rs
-"${SED[@]}" '/pub const MESSAGING_CLIENT_ID: &str = "messaging.client_id";/{N;d;}' src/trace.rs src/resource.rs
+# handle escaping ranges like [0,n] / [0.0, ...] in descriptions/notes which will cause broken intra-doc links
+# unescape any mistakenly escaped ranges which actually contained a link (not that we currently have any)
+expression='
+  s/\[([a-zA-Z0-9\.\s]+,[a-zA-Z0-9\.\s]+)\]/\\[\1\\]/g
+  s/\\\[([^\]]+)\]\(([^)]+)\)/[\1](\2)/g
+'
+"${SED[@]}" -E "${expression}" src/metric.rs
+"${SED[@]}" -E "${expression}" src/attribute.rs
 
 cargo fmt

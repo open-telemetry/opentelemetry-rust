@@ -422,7 +422,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         })
     }
 
-    async fn run(mut self, mut messages: impl Unpin + FusedStream<Item = BatchMessage>) {
+    async fn run(mut self, mut messages: impl FusedStream<Item = BatchMessage> + Unpin) {
         loop {
             select! {
                 // FuturesUnordered implements Fuse intelligently such that it
