@@ -6,7 +6,7 @@
   Exporters might use the target to override the instrumentation scope, which previously contained "opentelemetry-appender-tracing".
 
 - **Breaking** [1928](https://github.com/open-telemetry/opentelemetry-rust/pull/1928) Insert tracing event name into LogRecord::event_name instead of attributes.
-   - Custom exporters must now serialize this field directly from LogRecord::event_name instead of iterating over the attributes.
+   - If using a custom exporter, then they must serialize this field directly from LogRecord::event_name instead of iterating over the attributes. OTLP Exporter is modified to handle this.
 
 ## v0.4.0
 
