@@ -5,6 +5,10 @@
 - [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Utilize the `LogRecord::set_target()` method to pass the tracing target to the SDK.
   Exporters might use the target to override the instrumentation scope, which previously contained "opentelemetry-appender-tracing".
 
+- **Breaking** [1928](https://github.com/open-telemetry/opentelemetry-rust/pull/1928) Insert tracing event name into LogRecord::event_name instead of attributes.
+   - Custom exporters must now serialize this field directly from LogRecord::event_name instead of iterating over the attributes.
+   - The OTLP Log Exporter (and any custom exporter using OTLP transformation from opentelemetry-proto) will no longer receive this field as an attribute.
+
 ## v0.4.0
 
 - Removed unwanted dependency on opentelemetry-sdk.
