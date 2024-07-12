@@ -15,6 +15,8 @@
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
 
+pub mod attribute;
+pub mod metric;
 pub mod resource;
 pub mod trace;
 

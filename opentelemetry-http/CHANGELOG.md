@@ -4,6 +4,7 @@
 
 - **Breaking** Correct the misspelling of "webkpi" to "webpki" in features [#1842](https://github.com/open-telemetry/opentelemetry-rust/pull/1842)
 - **Breaking** Remove support for the `isahc` HTTP client [#1924](https://github.com/open-telemetry/opentelemetry-rust/pull/1924)
+- Update to `http` v1 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
 
 ## v0.12.0
 
