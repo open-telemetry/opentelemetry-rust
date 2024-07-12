@@ -6,8 +6,16 @@
 
 {% include 'header_' + conventions + '.rs' %}
 
-{%- for attribute in attributes if attribute.is_local and not attribute.ref %}
+{%- for attribute in attributes %}
+{%- set x=attribute.__setattr__("fqn_const_name", (attribute.fqn | to_const_name)) %}
+{%- endfor %}
 
+{%- for name, attrs in (attributes | groupby('fqn_const_name')) %}
+{%- set attribute = (attrs | selectattr('deprecated', 'none') | first) %}
+{%- set attribute = attribute if attribute else (attrs | first) %}
+{%- if conventions != 'attribute' %}
+pub use crate::attribute::{{ attribute.fqn_const_name }};
+{%- else %}
 /// {% filter escape %}{{attribute.brief | to_doc_brief}}.{% endfilter %}
 {%- if attribute.note %}
 ///
@@ -23,8 +31,9 @@
 /// - `{{example}}`
 {%- endfor %}
 {%- endif %}
-{%- if (attribute.stability | string()) == "StabilityLevel.DEPRECATED"  %}
+{%- if (attribute.deprecated) %}
 #[deprecated]
 {%- endif %}
-pub const {{attribute.fqn | to_const_name}}: &str = "{{attribute.fqn}}";
+pub const {{ attribute.fqn_const_name }}: &str = "{{attribute.fqn}}";
+{%- endif %}
 {%- endfor %}

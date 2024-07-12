@@ -7,7 +7,7 @@
 //!
 //! ## Usage
 //!
-//! ```
+//! ```rust
 //! use opentelemetry::KeyValue;
 //! use opentelemetry::{global, trace::Tracer as _};
 //! use opentelemetry_semantic_conventions as semconv;
@@ -16,8 +16,8 @@
 //! let _span = tracer
 //!     .span_builder("span-name")
 //!     .with_attributes(vec![
-//!         KeyValue::new(semconv::trace::NET_PEER_NAME, "example.org"),
-//!         KeyValue::new(semconv::trace::NET_PEER_PORT, 80i64),
+//!         KeyValue::new(semconv::trace::CLIENT_ADDRESS, "example.org"),
+//!         KeyValue::new(semconv::trace::CLIENT_PORT, 80i64),
 //!     ])
 //!     .start(&tracer);
 //! ```
