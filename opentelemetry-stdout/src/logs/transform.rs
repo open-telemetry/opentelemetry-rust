@@ -144,7 +144,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                     attributes.push(
                         (
                             opentelemetry::Key::from("name"),
-                            opentelemetry::Value::String(event_name.to_owned().into()),
+                            opentelemetry::Value::String(event_name.clone().into()),
                         )
                             .into(),
                     )
