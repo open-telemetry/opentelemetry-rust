@@ -131,16 +131,26 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .severity_number
                 .map(|u| u as u32)
                 .unwrap_or_default(),
-            attributes: value
-                .record
-                .attributes
-                .map(|attrs| {
-                    attrs
-                        .into_iter()
-                        .map(|(key, value)| (key, value).into())
-                        .collect()
-                })
-                .unwrap_or_default(),
+            attributes: {
+                let mut attributes = value
+                    .record
+                    .attributes
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(key, value)| (key, value).into())
+                    .collect::<Vec<_>>();
+
+                if let Some(event_name) = &value.record.event_name {
+                    attributes.push(
+                        (
+                            opentelemetry::Key::from("name"),
+                            opentelemetry::Value::String(event_name.clone().into()),
+                        )
+                            .into(),
+                    )
+                }
+                attributes
+            },
             dropped_attributes_count: 0,
             severity_text: value.record.severity_text,
             body: value.record.body.map(|a| a.into()),
