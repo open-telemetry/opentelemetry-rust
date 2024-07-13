@@ -2,6 +2,7 @@
 
 ## vNext
 
+## v0.16.0
 ### Changed
 
 - **Breaking** Moved duplicated (and unrelated) attributes from `opentelemetry_semantic_conventions::trace` and `opentelemetry_semantic_conventions::resource` into `opentelemetry_semantic_conventions::attribute` (which now contains all semantic attributes). `trace` and `resource` now only contain references to attributes which fall under their respective category.

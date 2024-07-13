@@ -27,10 +27,10 @@ observability tools.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
-| Logs-API              | Alpha*             |
-| Logs-SDK              | Alpha              |
-| Logs-OTLP Exporter    | Alpha              |
-| Logs-Appender-Tracing | Alpha              |
+| Logs-API              | Beta*              |
+| Logs-SDK              | Beta               |
+| Logs-OTLP Exporter    | Beta               |
+| Logs-Appender-Tracing | Beta               |
 | Metrics-API           | Alpha              |
 | Metrics-SDK           | Alpha              |
 | Metrics-OTLP Exporter | Alpha              |
