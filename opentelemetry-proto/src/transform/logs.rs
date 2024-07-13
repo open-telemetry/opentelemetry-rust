@@ -92,11 +92,22 @@ pub mod tonic {
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.map(Into::into),
-                attributes: log_record
-                    .attributes
-                    .map(Attributes::from_iter)
-                    .unwrap_or_default()
-                    .0,
+                attributes: {
+                    let mut attributes = log_record
+                        .attributes
+                        .map(Attributes::from_iter)
+                        .unwrap_or_default()
+                        .0;
+                    if let Some(event_name) = log_record.event_name.as_ref() {
+                        attributes.push(KeyValue {
+                            key: "name".into(),
+                            value: Some(AnyValue {
+                                value: Some(Value::StringValue(event_name.to_string())),
+                            }),
+                        })
+                    }
+                    attributes
+                },
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {

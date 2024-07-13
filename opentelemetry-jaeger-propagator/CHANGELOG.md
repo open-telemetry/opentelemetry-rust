@@ -2,6 +2,9 @@
 
 ## vNext
 
+## v0.3.0
+- Update `opentelemetry` dependency version to 0.24
+
 ## v0.2.0
 
 ### Changed

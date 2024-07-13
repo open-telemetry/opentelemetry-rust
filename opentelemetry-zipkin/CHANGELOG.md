@@ -2,6 +2,16 @@
 
 ## vNext
 
+## v0.22.0
+
+### Changed
+
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry_sdk` dependency version to 0.24
+- Update `opentelemetry-http` dependency version to 0.13
+- Update `opentelemetry-semantic-conventions` dependency version to 0.16
+- Update `opentelemetry-http` (and with that to `http` v1 types) [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
+
 ## v0.21.0
 
 ### Changed

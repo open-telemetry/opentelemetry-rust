@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.24.0
+
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
@@ -74,6 +76,9 @@ LogData {
 }
 ```
 The `LogRecord::target` field contains the actual target/component emitting the logs, while the `Instrumentation::name` contains the name of the OpenTelemetry appender.
+- **Breaking** [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674) Update to `http` v1 types (via `opentelemetry-http` update)
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry-http` dependency version to 0.13
 
 ## v0.23.0
 

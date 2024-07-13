@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.24.0
+
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - When "metrics" feature is enabled, `KeyValue` implements `PartialEq`, `Eq`,

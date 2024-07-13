@@ -1,0 +1,57 @@
+// DO NOT EDIT, this is an auto-generated file
+//
+// If you want to update the file:
+// - Edit the template at scripts{{template}}
+// - Run the script at scripts/generate-consts-from-spec.sh
+
+{% include 'header_metric.rs' %}
+
+{%- for metric in metrics %}
+/// ## Description
+/// {% filter escape %}{{ metric.brief | to_doc_brief }}.{% endfilter %}
+{%- if metric.note %}
+/// 
+{%- for line in metric.note.split('\n') %}
+/// {% filter escape %}{{ line }}{% endfilter %}
+{%- endfor %}
+{%- endif %}
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `{{ metric.instrument }}` |
+/// | Unit: | `{{ metric.unit }}` |
+/// | Status: | `{{ ((metric.stability | string()).split('.')[1].replace('_', ' ')) | capitalize }}`  |
+{%- if metric.attributes %}
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+{%- endif %}
+{%- for attribute in metric.attributes %}
+{%- if attribute.ref %}
+{%- set ref = (attributes | selectattr('fqn', 'equalto', attribute.ref) | first) %}
+{%- if ref %}
+{%- if attribute.requirement_level %}
+{%- set req_level = ((attribute.requirement_level | string()).split('.')[1].replace('_', ' ')) | capitalize %}
+{%- set req_message = attribute.requirement_level_msg %}
+{%- else %}
+{%- set req_level = "Unspecified" %}
+{%- set req_message = '' %}
+{%- endif %}
+/// | [`crate::attribute::{{ ref.fqn | to_const_name }}`] | `{{ req_level }}`{{ (': ' + req_message if req_message else '') }}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- if metric.examples %}
+///
+/// # Examples
+///
+{%- for example in metric.examples %}
+/// - `{{ example }}`
+{%- endfor %}
+{%- endif %}
+{%- if (metric.deprecated) %}
+#[deprecated]
+{%- endif %}
+pub const {{ metric.metric_name | to_const_name }}: &str = "{{ metric.metric_name }}";
+{%- endfor %}
