@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.24.1
+
+- Add hidden method to support tracing-opentelemetry
+
 ## v0.24.0
 
 - Add "metrics", "logs" to default features. With this, default feature list is
