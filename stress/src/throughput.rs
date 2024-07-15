@@ -69,8 +69,8 @@ where
     let worker_stats_shared_monitor = Arc::clone(&worker_stats_shared);
 
     let handle_main_thread = thread::spawn(move || {
-        let mut start_time = Instant::now();
-        let mut end_time = start_time;
+        let mut last_run = Instant::now();
+        let mut current_time: Instant;
         let mut total_count_old: u64 = 0;
 
         #[cfg(feature = "stats")]
@@ -79,7 +79,8 @@ where
         let mut system = System::new_all();
 
         loop {
-            let elapsed = end_time.duration_since(start_time).as_secs();
+            current_time = Instant::now();
+            let elapsed = current_time.duration_since(last_run).as_secs(); // Calculate the time elapsed (in seconds) since the last collect
             if elapsed >= SLIDING_WINDOW_SIZE {
                 let total_count_u64: u64 = worker_stats_shared_monitor
                     .iter()
@@ -112,14 +113,13 @@ where
                 }
 
                 println!("\n");
-                start_time = Instant::now();
+                last_run = Instant::now();
             }
 
             if STOP.load(Ordering::SeqCst) {
                 break;
             }
 
-            end_time = Instant::now();
             thread::sleep(Duration::from_millis(5000));
         }
     });
