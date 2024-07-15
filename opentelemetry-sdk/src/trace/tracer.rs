@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::TracerProvider,
         span::{Span, SpanData},
-        SpanLimits, SpanLinks,
+        IdGenerator, SpanEvents, SpanLimits, SpanLinks,
     },
     InstrumentationLibrary,
 };
@@ -21,8 +21,6 @@ use opentelemetry::{
 };
 use std::fmt;
 use std::sync::Arc;
-
-use super::SpanEvents;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
@@ -159,6 +157,14 @@ impl Tracer {
             self.clone(),
             span_limits,
         )
+    }
+
+    /// The [`IdGenerator`] associated with this tracer.
+    ///
+    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
+    #[doc(hidden)]
+    pub fn id_generator(&self) -> &dyn IdGenerator {
+        &*self.provider.config().id_generator
     }
 }
 
