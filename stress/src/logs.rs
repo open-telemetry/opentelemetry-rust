@@ -1,9 +1,9 @@
 /*
     Stress test results:
-    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
-    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
+    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
-    69 M/sec
+    ~31 M/sec
 */
 
 use opentelemetry_appender_tracing::layer;

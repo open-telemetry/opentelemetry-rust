@@ -381,9 +381,17 @@ impl From<tonic::Status> for Error {
             code: status.code(),
             message: {
                 if !status.message().is_empty() {
-                    ", detailed error message: ".to_string() + status.message()
+                    let mut result = ", detailed error message: ".to_string() + status.message();
+                    if status.code() == tonic::Code::Unknown {
+                        let source = (&status as &dyn std::error::Error)
+                            .source()
+                            .map(|e| format!("{:?}", e));
+                        result.push(' ');
+                        result.push_str(source.unwrap_or_default().as_ref());
+                    }
+                    result
                 } else {
-                    "".to_string()
+                    String::new()
                 }
             },
         }

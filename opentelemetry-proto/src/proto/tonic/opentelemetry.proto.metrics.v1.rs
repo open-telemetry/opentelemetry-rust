@@ -181,6 +181,7 @@ pub struct Metric {
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
     #[prost(oneof = "metric::Data", tags = "5, 7, 9, 10, 11")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub data: ::core::option::Option<metric::Data>,
 }
 /// Nested message and enum types in `Metric`.
@@ -307,12 +308,26 @@ pub struct NumberDataPoint {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "3")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
@@ -325,6 +340,7 @@ pub struct NumberDataPoint {
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
     #[prost(oneof = "number_data_point::Value", tags = "4, 6")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub value: ::core::option::Option<number_data_point::Value>,
 }
 /// Nested message and enum types in `NumberDataPoint`.
@@ -335,7 +351,7 @@ pub mod number_data_point {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "4")]
         AsDouble(f64),
@@ -371,12 +387,26 @@ pub struct HistogramDataPoint {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "3")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative. This
     /// value must be equal to the sum of the "count" fields in buckets if a
@@ -624,7 +654,7 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
         /// \[0.0, 1.0\].
@@ -685,7 +715,7 @@ pub mod exemplar {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "3")]
         AsDouble(f64),

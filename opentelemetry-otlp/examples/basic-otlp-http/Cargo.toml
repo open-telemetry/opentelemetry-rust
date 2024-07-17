@@ -8,7 +8,7 @@ publish = false
 [features]
 default = ["reqwest"]
 reqwest = ["opentelemetry-otlp/reqwest-client"]
-hyper = ["dep:async-trait", "dep:http", "dep:hyper", "dep:opentelemetry-http", "dep:bytes"]
+hyper = ["dep:async-trait", "dep:http", "dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:opentelemetry-http", "dep:bytes"]
 
 
 [dependencies]
@@ -16,14 +16,16 @@ once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "metrics", "logs"] }
 opentelemetry-http = { path = "../../../opentelemetry-http", optional = true }
-opentelemetry-otlp = { path = "../..", features = ["http-proto", "reqwest-client", "logs"] }
+opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "reqwest-client", "logs"] }
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 
 async-trait = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true  }
 hyper = { workspace = true, features = ["client"], optional = true }
+hyper-util = { workspace = true, features = ["client-legacy"], optional = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }

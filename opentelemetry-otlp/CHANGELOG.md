@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.17.0
+
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - `OtlpMetricPipeline.build()` no longer invoke the
@@ -20,7 +22,11 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
   previous release.
 - **Breaking** [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) The OTLP logs exporter now overrides the [InstrumentationScope::name](https://github.com/open-telemetry/opentelemetry-proto/blob/b3060d2104df364136d75a35779e6bd48bac449a/opentelemetry/proto/common/v1/common.proto#L73) field with the `target` from `LogRecord`, if target is populated.
 - Groups batch of `LogRecord` and `Span` by their resource and instrumentation scope before exporting, for better efficiency [#1873](https://github.com/open-telemetry/opentelemetry-rust/pull/1873).
-
+- **Breaking** Update to `http` v1 and `tonic` v0.12 [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674)
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry_sdk` dependency version to 0.24
+- Update `opentelemetry-http` dependency version to 0.13
+- Update `opentelemetry-proto` dependency version to 0.7
 
 ## v0.16.0
 

@@ -9,6 +9,7 @@ use testcontainers::core::Port;
 use testcontainers::RunnableImage;
 
 mod logs;
+mod metrics;
 mod traces;
 
 const COLLECTOR_CONTAINER_NAME: &str = "otel-collector";

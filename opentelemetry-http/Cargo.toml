@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.12.0"
+version = "0.13.0"
 description = "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -10,6 +10,7 @@ edition = "2021"
 rust-version = "1.65"
 
 [features]
+hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 
@@ -17,8 +18,9 @@ reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
 async-trait = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
-hyper = { workspace = true, features = ["http2", "client", "tcp"], optional = true }
-isahc = { workspace = true, optional = true }
-opentelemetry = { version = "0.23", path = "../opentelemetry", features = ["trace"] }
+http-body-util = { workspace = true, optional = true }
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http2"], optional = true }
+opentelemetry = { version = "0.24", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }

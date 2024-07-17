@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.24.0
+
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
@@ -17,13 +19,13 @@
   `RwLock` instead of `Mutex` to reduce contention
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
-  Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
+  Update `LogProcessor::emit()` method to take mutable reference to LogData. This is breaking
   change for LogProcessor developers. If the processor needs to invoke the exporter
   asynchronously, it should clone the data to ensure it can be safely processed without
   lifetime issues. Any changes made to the log data before cloning in this method will be
   reflected in the next log processor in the chain, as well as to the exporter.
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
- Update `LogExporter::export() method to accept a batch of log data, which can be either a
+ Update `LogExporter::export()` method to accept a batch of log data, which can be either a
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
@@ -74,6 +76,9 @@ LogData {
 }
 ```
 The `LogRecord::target` field contains the actual target/component emitting the logs, while the `Instrumentation::name` contains the name of the OpenTelemetry appender.
+- **Breaking** [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674) Update to `http` v1 types (via `opentelemetry-http` update)
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry-http` dependency version to 0.13
 
 ## v0.23.0
 
