@@ -52,8 +52,16 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
             #[cfg(feature = "gzip-tonic")]
             Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
             #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(crate::Error::UnsupportedCompressionAlgorithm(
-                value.to_string(),
+            Compression::Gzip => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+                "gzip-tonic",
+                "gzip",
+            )),
+            #[cfg(feature = "zstd-tonic")]
+            Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
+            #[cfg(not(feature = "zstd-tonic"))]
+            Compression::Zstd => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+                "zstd-tonic",
+                "zstd",
             )),
         }
     }
@@ -399,7 +407,7 @@ fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
 #[cfg(test)]
 mod tests {
     use crate::exporter::tests::run_env_test;
-    #[cfg(feature = "gzip-tonic")]
+    #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
     use crate::TonicExporterBuilder;
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
@@ -438,12 +446,32 @@ mod tests {
 
     #[test]
     #[cfg(feature = "gzip-tonic")]
-    fn test_with_compression() {
+    fn test_with_gzip_compression() {
         // metadata should merge with the current one with priority instead of just replacing it
         let mut metadata = MetadataMap::new();
         metadata.insert("foo", "bar".parse().unwrap());
         let builder = TonicExporterBuilder::default().with_compression(Compression::Gzip);
         assert_eq!(builder.tonic_config.compression.unwrap(), Compression::Gzip);
+    }
+
+    #[test]
+    #[cfg(feature = "zstd-tonic")]
+    fn test_with_zstd_compression() {
+        let builder = TonicExporterBuilder::default().with_compression(Compression::Zstd);
+        assert_eq!(builder.tonic_config.compression.unwrap(), Compression::Zstd);
+    }
+
+    #[test]
+    #[cfg(feature = "grpc-tonic")]
+    fn test_convert_compression() {
+        #[cfg(feature = "gzip-tonic")]
+        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_ok());
+        #[cfg(not(feature = "gzip-tonic"))]
+        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_err());
+        #[cfg(feature = "zstd-tonic")]
+        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_ok());
+        #[cfg(not(feature = "zstd-tonic"))]
+        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_err());
     }
 
     #[test]
