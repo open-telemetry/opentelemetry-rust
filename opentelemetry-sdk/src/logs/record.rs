@@ -247,4 +247,19 @@ mod tests {
 
         assert_ne!(log_record, log_record_different);
     }
+
+    #[test]
+    fn compare_log_record_target_borrowed_eq_owned() {
+        let log_record_borrowed = LogRecord {
+            event_name: Some(Cow::Borrowed("test_event")),
+            ..Default::default()
+        };
+
+        let log_record_owned = LogRecord {
+            event_name: Some(Cow::Owned("test_event".to_string())),
+            ..Default::default()
+        };
+
+        assert_eq!(log_record_borrowed, log_record_owned);
+    }
 }
