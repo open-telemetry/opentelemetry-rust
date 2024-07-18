@@ -5,7 +5,7 @@ use opentelemetry::{
 };
 use std::{borrow::Cow, time::SystemTime};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -99,7 +99,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
 
 /// TraceContext stores the trace context for logs that have an associated
 /// span.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct TraceContext {
     /// Trace id
@@ -124,6 +124,7 @@ impl From<&SpanContext> for TraceContext {
 mod tests {
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
+    use opentelemetry::trace::TraceState;
     use std::borrow::Cow;
     use std::time::SystemTime;
 
@@ -197,5 +198,58 @@ mod tests {
             log_record.attributes,
             Some(vec![(Key::new("key"), AnyValue::String("value".into()))])
         );
+    }
+
+    #[test]
+    fn compare_trace_context() {
+        let span_context = SpanContext::new(
+            TraceId::from_u128(1),
+            SpanId::from_u64(1),
+            TraceFlags::default(),
+            false,
+            TraceState::default(),
+        );
+
+        let span_context_cloned = span_context.clone();
+
+        assert_eq!(span_context, span_context_cloned);
+
+        let span_context_different = SpanContext::new(
+            TraceId::from_u128(2),
+            SpanId::from_u64(2),
+            TraceFlags::default(),
+            false,
+            TraceState::default(),
+        );
+
+        assert_ne!(span_context, span_context_different);
+    }
+
+    #[test]
+    fn compare_log_record() {
+        let log_record = LogRecord {
+            event_name: Some(Cow::Borrowed("test_event")),
+            target: Some(Cow::Borrowed("foo::bar")),
+            timestamp: Some(SystemTime::now()),
+            observed_timestamp: Some(SystemTime::now()),
+            severity_text: Some(Cow::Borrowed("ERROR")),
+            severity_number: Some(Severity::Error),
+            body: Some(AnyValue::String("Test body".into())),
+            attributes: Some(vec![(Key::new("key"), AnyValue::String("value".into()))]),
+            trace_context: Some(TraceContext {
+                trace_id: TraceId::from_u128(1),
+                span_id: SpanId::from_u64(1),
+                trace_flags: Some(TraceFlags::default()),
+            }),
+        };
+
+        let log_record_cloned = log_record.clone();
+
+        assert_eq!(log_record, log_record_cloned);
+
+        let mut log_record_different = log_record.clone();
+        log_record_different.event_name = Some(Cow::Borrowed("different_event"));
+
+        assert_ne!(log_record, log_record_different);
     }
 }
