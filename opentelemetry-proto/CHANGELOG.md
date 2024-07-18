@@ -1,6 +1,7 @@
 # Changelog
 
 ## vNext
+-  Update protobuf definitions to v1.3.2 [#1945](https://github.com/open-telemetry/opentelemetry-rust/pull/1945)
 
 ## v0.7.0
 
