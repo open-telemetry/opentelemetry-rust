@@ -11,7 +11,7 @@ use crate::{
     trace::{
         provider::TracerProvider,
         span::{Span, SpanData},
-        IdGenerator, SpanEvents, SpanLimits, SpanLinks,
+        IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
     },
     InstrumentationLibrary,
 };
@@ -165,6 +165,14 @@ impl Tracer {
     #[doc(hidden)]
     pub fn id_generator(&self) -> &dyn IdGenerator {
         &*self.provider.config().id_generator
+    }
+
+    /// The [`ShouldSample`] associated with this tracer.
+    ///
+    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
+    #[doc(hidden)]
+    pub fn should_sample(&self) -> &dyn ShouldSample {
+        &*self.provider.config().sampler
     }
 }
 
