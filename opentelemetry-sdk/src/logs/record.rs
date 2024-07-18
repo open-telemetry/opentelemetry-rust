@@ -124,7 +124,6 @@ impl From<&SpanContext> for TraceContext {
 mod tests {
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
-    use opentelemetry::trace::TraceState;
     use std::borrow::Cow;
     use std::time::SystemTime;
 
@@ -202,27 +201,23 @@ mod tests {
 
     #[test]
     fn compare_trace_context() {
-        let span_context = SpanContext::new(
-            TraceId::from_u128(1),
-            SpanId::from_u64(1),
-            TraceFlags::default(),
-            false,
-            TraceState::default(),
-        );
+        let trace_context = TraceContext {
+            trace_id: TraceId::from_u128(1),
+            span_id: SpanId::from_u64(1),
+            trace_flags: Some(TraceFlags::default()),
+        };
 
-        let span_context_cloned = span_context.clone();
+        let trace_context_cloned = trace_context.clone();
 
-        assert_eq!(span_context, span_context_cloned);
+        assert_eq!(trace_context, trace_context_cloned);
 
-        let span_context_different = SpanContext::new(
-            TraceId::from_u128(2),
-            SpanId::from_u64(2),
-            TraceFlags::default(),
-            false,
-            TraceState::default(),
-        );
+        let trace_context_different = TraceContext {
+            trace_id: TraceId::from_u128(2),
+            span_id: SpanId::from_u64(2),
+            trace_flags: Some(TraceFlags::default()),
+        };
 
-        assert_ne!(span_context, span_context_different);
+        assert_ne!(trace_context, trace_context_different);
     }
 
     #[test]
