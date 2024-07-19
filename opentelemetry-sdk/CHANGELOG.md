@@ -2,6 +2,8 @@
 
 ## vNext
 
+- `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
+
 ## v0.24.1
 
 - Add hidden method to support tracing-opentelemetry
