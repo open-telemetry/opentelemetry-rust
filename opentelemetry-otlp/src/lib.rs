@@ -377,7 +377,7 @@ pub enum Error {
     /// Feature required to use the specified compression algorithm.
     #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
     #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
-    FeatureRequiredForCompressionAlgorithm(&'static str, &'static str),
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
 }
 
 #[cfg(feature = "grpc-tonic")]

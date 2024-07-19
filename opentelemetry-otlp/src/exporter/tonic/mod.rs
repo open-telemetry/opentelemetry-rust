@@ -54,14 +54,14 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
             #[cfg(not(feature = "gzip-tonic"))]
             Compression::Gzip => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
                 "gzip-tonic",
-                "gzip",
+                Compression::Gzip,
             )),
             #[cfg(feature = "zstd-tonic")]
             Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
             #[cfg(not(feature = "zstd-tonic"))]
             Compression::Zstd => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
                 "zstd-tonic",
-                "zstd",
+                Compression::Zstd,
             )),
         }
     }
