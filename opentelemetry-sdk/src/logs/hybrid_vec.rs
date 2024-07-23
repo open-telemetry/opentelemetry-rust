@@ -54,7 +54,7 @@ impl<T: Default, const INITIAL_CAPACITY: usize> IntoIterator for HybridVec<T, IN
     type IntoIter = HybridVecIntoIter<T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if self.count <= INITIAL_CAPACITY {
+        if self.additional.is_empty() {
             HybridVecIntoIter::StackOnly {
                 iter: self.initial.into_iter().take(self.count),
             }
@@ -108,7 +108,7 @@ impl<'a, T: Default + 'a, const INITIAL_CAPACITY: usize> IntoIterator
     type IntoIter = HybridVecIter<'a, T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if self.count <= INITIAL_CAPACITY {
+        if self.additional.is_empty() {
             HybridVecIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
             }
@@ -159,6 +159,12 @@ mod tests {
     use super::*;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
+
+    #[cfg(feature = "memory-profiling")]
+    use crate::testing::global_allocator;
+
+    #[cfg(feature = "memory-profiling")]
+    use jemalloc_ctl::{epoch, stats};
 
     /// A struct to hold a key-value pair and implement `Default`.
     #[derive(Clone, Debug, PartialEq)]
@@ -245,5 +251,59 @@ mod tests {
         assert_eq!(iter.next(), Some(KeyValuePair(key1, value1)));
         assert_eq!(iter.next(), Some(KeyValuePair(key2, value2)));
         assert_eq!(iter.next(), None);
+    }
+
+    #[cfg(feature = "memory-profiling")]
+    #[test]
+    fn test_memory_allocation_string() {
+        // Reset jemalloc epoch to refresh stats
+        let e = epoch::mib().unwrap();
+        e.advance().unwrap();
+
+        // Get memory stats before the code block
+        let allocated_before = stats::allocated::read().unwrap();
+
+        // Code block to measure: Allocate a large string
+        let large_string: String = "a".repeat(100_000);
+
+        // Refresh jemalloc stats
+        e.advance().unwrap();
+
+        // Get memory stats after the code block
+        let allocated_after = stats::allocated::read().unwrap();
+
+        // Calculate the difference
+        let allocated_diff = allocated_after - allocated_before;
+
+        // Assert or print the difference
+        println!("Memory allocated for String: {} bytes", allocated_diff);
+        assert!(allocated_diff > 0);
+    }
+
+    #[cfg(feature = "memory-profiling")]
+    #[test]
+    fn test_memory_allocation_int() {
+        // Reset jemalloc epoch to refresh stats
+        let e = epoch::mib().unwrap();
+        e.advance().unwrap();
+
+        // Get memory stats before the code block
+        let allocated_before = stats::allocated::read().unwrap();
+
+        // Code block to measure: Allocate a vector of integers
+        let vec: Vec<i32> = (0..100_000).collect();
+
+        // Refresh jemalloc stats
+        e.advance().unwrap();
+
+        // Get memory stats after the code block
+        let allocated_after = stats::allocated::read().unwrap();
+
+        // Calculate the difference
+        let allocated_diff = allocated_after - allocated_before;
+
+        // Assert or print the difference
+        println!("Memory allocated for Vec<i32>: {} bytes", allocated_diff);
+        assert!(allocated_diff > 0);
     }
 }

@@ -36,6 +36,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 temp-env = { workspace = true }
+jemallocator = { version = "0.5"}
+jemalloc-ctl = { version = "0.5"}
+
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
@@ -51,6 +54,9 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
+memory-profiling = []
+
+
 
 [[bench]]
 name = "context"

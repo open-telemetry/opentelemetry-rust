@@ -4,6 +4,17 @@ use opentelemetry::{
     Key,
 };
 use std::{borrow::Cow, time::SystemTime};
+use super::hybrid_vec::HybridVec;
+
+/// A struct to hold a key-value pair and implement `Default`.
+#[derive(Clone, Debug, PartialEq)]
+struct KeyValuePair(Key, AnyValue);
+
+impl Default for KeyValuePair {
+    fn default() -> Self {
+        KeyValuePair(Key::from_static_str(""), AnyValue::String("".into()))
+    }
+}
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
@@ -34,7 +45,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<Vec<(Key, AnyValue)>>,
+    pub attributes: HybridVec::<KeyValuePair>,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {

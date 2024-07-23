@@ -8,3 +8,5 @@ pub mod metrics;
 
 #[cfg(all(feature = "testing", feature = "logs"))]
 pub mod logs;
+
+pub mod global_allocator;
