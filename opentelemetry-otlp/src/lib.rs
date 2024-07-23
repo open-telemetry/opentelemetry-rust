@@ -97,6 +97,7 @@
 //! For users uses `tonic` as grpc layer:
 //! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
+//! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
 //! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
 //! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
@@ -372,6 +373,11 @@ pub enum Error {
     /// Unsupported compression algorithm.
     #[error("unsupported compression algorithm '{0}'")]
     UnsupportedCompressionAlgorithm(String),
+
+    /// Feature required to use the specified compression algorithm.
+    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
 }
 
 #[cfg(feature = "grpc-tonic")]
