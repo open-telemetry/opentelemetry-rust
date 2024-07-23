@@ -98,12 +98,15 @@ impl Default for ExportConfig {
 pub enum Compression {
     /// Compresses data using gzip.
     Gzip,
+    /// Compresses data using zstd.
+    Zstd,
 }
 
 impl Display for Compression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Compression::Gzip => write!(f, "gzip"),
+            Compression::Zstd => write!(f, "zstd"),
         }
     }
 }
@@ -114,6 +117,7 @@ impl FromStr for Compression {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gzip" => Ok(Compression::Gzip),
+            "zstd" => Ok(Compression::Zstd),
             _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
         }
     }
