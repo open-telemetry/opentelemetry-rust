@@ -91,3 +91,8 @@ required-features = ["metrics"]
 name = "log"
 harness = false
 required-features = ["logs"]
+
+[[bench]]
+name = "hybrid_vec"
+harness = false
+required-features = ["logs"]
