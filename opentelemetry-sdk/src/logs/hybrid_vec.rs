@@ -54,18 +54,34 @@ impl<T: Default, const INITIAL_CAPACITY: usize> IntoIterator for HybridVec<T, IN
     type IntoIter = HybridVecIntoIter<T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        HybridVecIntoIter {
-            initial_iter: self.initial.into_iter().take(self.count),
-            additional_iter: self.additional.into_iter(),
+        if self.count <= INITIAL_CAPACITY {
+            HybridVecIntoIter::StackOnly {
+                iter: self.initial.into_iter().take(self.count),
+            }
+        } else {
+            HybridVecIntoIter::Mixed {
+                stack_iter: self.initial.into_iter().take(self.count),
+                heap_iter: self.additional.into_iter(),
+            }
         }
     }
 }
 
 #[derive(Debug)]
 /// Iterator for consuming a `HybridVec`.
-pub struct HybridVecIntoIter<T: Default, const INITIAL_CAPACITY: usize> {
-    initial_iter: std::iter::Take<IntoIter<T, INITIAL_CAPACITY>>,
-    additional_iter: std::vec::IntoIter<T>,
+pub enum HybridVecIntoIter<T: Default, const INITIAL_CAPACITY: usize> {
+    /// stackonly
+    StackOnly {
+        /// iter
+        iter: std::iter::Take<IntoIter<T, INITIAL_CAPACITY>>,
+    },
+    /// hybrid
+    Mixed {
+        /// stack_iter
+        stack_iter: std::iter::Take<IntoIter<T, INITIAL_CAPACITY>>,
+        /// heap_iter
+        heap_iter: std::vec::IntoIter<T>,
+    },
 }
 
 impl<T: Default, const INITIAL_CAPACITY: usize> Iterator
@@ -74,9 +90,13 @@ impl<T: Default, const INITIAL_CAPACITY: usize> Iterator
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.initial_iter
-            .next()
-            .or_else(|| self.additional_iter.next())
+        match self {
+            HybridVecIntoIter::StackOnly { iter } => iter.next(),
+            HybridVecIntoIter::Mixed {
+                stack_iter,
+                heap_iter,
+            } => stack_iter.next().or_else(|| heap_iter.next()),
+        }
     }
 }
 
@@ -88,18 +108,34 @@ impl<'a, T: Default + 'a, const INITIAL_CAPACITY: usize> IntoIterator
     type IntoIter = HybridVecIter<'a, T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        HybridVecIter {
-            initial_iter: self.initial.iter().take(self.count),
-            additional_iter: self.additional.iter(),
+        if self.count <= INITIAL_CAPACITY {
+            HybridVecIter::StackOnly {
+                iter: self.initial.iter().take(self.count),
+            }
+        } else {
+            HybridVecIter::Mixed {
+                stack_iter: self.initial.iter().take(self.count),
+                heap_iter: self.additional.iter(),
+            }
         }
     }
 }
 
 #[derive(Debug)]
 /// Iterator for referencing elements in a `HybridVec`.
-pub struct HybridVecIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
-    initial_iter: std::iter::Take<std::slice::Iter<'a, T>>,
-    additional_iter: std::slice::Iter<'a, T>,
+pub enum HybridVecIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
+    /// stackonly
+    StackOnly {
+        /// iter
+        iter: std::iter::Take<std::slice::Iter<'a, T>>,
+    },
+    /// hybrid
+    Mixed {
+        /// stack_iter
+        stack_iter: std::iter::Take<std::slice::Iter<'a, T>>,
+        /// heap_iter
+        heap_iter: std::slice::Iter<'a, T>,
+    },
 }
 
 impl<'a, T: Default, const INITIAL_CAPACITY: usize> Iterator
@@ -108,9 +144,13 @@ impl<'a, T: Default, const INITIAL_CAPACITY: usize> Iterator
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.initial_iter
-            .next()
-            .or_else(|| self.additional_iter.next())
+        match self {
+            HybridVecIter::StackOnly { iter } => iter.next(),
+            HybridVecIter::Mixed {
+                stack_iter,
+                heap_iter,
+            } => stack_iter.next().or_else(|| heap_iter.next()),
+        }
     }
 }
 

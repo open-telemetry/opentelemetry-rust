@@ -5,7 +5,7 @@ mod log_emitter;
 mod log_processor;
 mod record;
 
-pub use hybrid_vec::HybridVec;
+pub use hybrid_vec::{HybridVec, HybridVecIntoIter, HybridVecIter};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,

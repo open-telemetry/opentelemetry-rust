@@ -8,7 +8,7 @@ pub struct KeyValuePair(Key, AnyValue);
 
 impl Default for KeyValuePair {
     fn default() -> Self {
-        KeyValuePair(Key::from_static_str(""), AnyValue::String("".into()))
+        KeyValuePair(Key::from_static_str(""), AnyValue::Int(0))
     }
 }
 
@@ -54,6 +54,22 @@ fn hybridvec_iteration_benchmark(c: &mut Criterion) {
     });
 }
 
+fn hybridvec_get_benchmark(c: &mut Criterion) {
+    c.bench_function("HybridVec Get Loop", |b| {
+        let mut collection = HybridVec::<KeyValuePair>::new();
+        for i in 0..8 {
+            let key = Key::from(format!("key{}", i));
+            let value = AnyValue::Int(i as i64);
+            collection.push(KeyValuePair(key, value));
+        }
+        b.iter(|| {
+            for i in 0..collection.len() {
+                criterion::black_box(collection.get(i));
+            }
+        })
+    });
+}
+
 fn vec_iteration_benchmark(c: &mut Criterion) {
     c.bench_function("Vec Iteration", |b| {
         let mut collection = Vec::new();
@@ -75,6 +91,7 @@ criterion_group!(
     hybridvec_insertion_benchmark,
     vec_insertion_benchmark,
     hybridvec_iteration_benchmark,
+    hybridvec_get_benchmark,
     vec_iteration_benchmark
 );
 criterion_main!(benches);
