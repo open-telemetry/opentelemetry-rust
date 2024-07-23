@@ -1,18 +1,35 @@
 use std::array::IntoIter;
 
-/// The default initial capacity for `HybridVec`.
+/// The default initial capacity for `GrowableArray`.
 const DEFAULT_INITIAL_CAPACITY: usize = 10;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 /// A hybrid vector that starts with a fixed-size array and grows dynamically with a vector.
-pub struct HybridVec<T: Default, const INITIAL_CAPACITY: usize = DEFAULT_INITIAL_CAPACITY> {
+pub struct GrowableArray<
+    T: Default + Clone + PartialEq,
+    const INITIAL_CAPACITY: usize = DEFAULT_INITIAL_CAPACITY,
+> {
     initial: [T; INITIAL_CAPACITY],
     additional: Vec<T>,
     count: usize,
 }
 
-impl<T: Default, const INITIAL_CAPACITY: usize> HybridVec<T, INITIAL_CAPACITY> {
-    /// Creates a new `HybridVec` with the default initial capacity.
+impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Default
+    for GrowableArray<T, INITIAL_CAPACITY>
+{
+    fn default() -> Self {
+        Self {
+            initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
+            additional: Vec::new(),
+            count: 0,
+        }
+    }
+}
+
+impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
+    GrowableArray<T, INITIAL_CAPACITY>
+{
+    /// Creates a new `GrowableArray` with the default initial capacity.
     pub fn new() -> Self {
         Self {
             initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
@@ -21,7 +38,7 @@ impl<T: Default, const INITIAL_CAPACITY: usize> HybridVec<T, INITIAL_CAPACITY> {
         }
     }
 
-    /// Pushes a value into the `HybridVec`.
+    /// Pushes a value into the `GrowableArray`.
     pub fn push(&mut self, value: T) {
         if self.count < INITIAL_CAPACITY {
             self.initial[self.count] = value;
@@ -42,24 +59,60 @@ impl<T: Default, const INITIAL_CAPACITY: usize> HybridVec<T, INITIAL_CAPACITY> {
         }
     }
 
-    /// Returns the number of elements in the `HybridVec`.
+    /// Returns the number of elements in the `GrowableArray`.
     pub fn len(&self) -> usize {
         self.count + self.additional.len()
     }
+
+    /// Returns an iterator over the elements in the `GrowableArray`.
+    pub fn iter(&self) -> GrowableArrayIter<'_, T, INITIAL_CAPACITY> {
+        if self.additional.is_empty() {
+            GrowableArrayIter::StackOnly {
+                iter: self.initial.iter().take(self.count),
+            }
+        } else {
+            GrowableArrayIter::Mixed {
+                stack_iter: self.initial.iter().take(self.count),
+                heap_iter: self.additional.iter(),
+            }
+        }
+    }
+
+    /// Maps each element to a new `GrowableArray` using the provided function.
+    pub fn map<U: Default + Clone + PartialEq, F>(
+        &self,
+        mut f: F,
+    ) -> GrowableArray<U, INITIAL_CAPACITY>
+    where
+        F: FnMut(&T) -> U,
+    {
+        let mut new_vec = GrowableArray::<U, INITIAL_CAPACITY>::new();
+
+        for i in 0..self.count {
+            new_vec.push(f(&self.initial[i]));
+        }
+        for value in &self.additional {
+            new_vec.push(f(value));
+        }
+
+        new_vec
+    }
 }
 
-// Implement `IntoIterator` for `HybridVec`
-impl<T: Default, const INITIAL_CAPACITY: usize> IntoIterator for HybridVec<T, INITIAL_CAPACITY> {
+// Implement `IntoIterator` for `GrowableArray`
+impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> IntoIterator
+    for GrowableArray<T, INITIAL_CAPACITY>
+{
     type Item = T;
-    type IntoIter = HybridVecIntoIter<T, INITIAL_CAPACITY>;
+    type IntoIter = GrowableArrayIntoIter<T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
         if self.additional.is_empty() {
-            HybridVecIntoIter::StackOnly {
+            GrowableArrayIntoIter::StackOnly {
                 iter: self.initial.into_iter().take(self.count),
             }
         } else {
-            HybridVecIntoIter::Mixed {
+            GrowableArrayIntoIter::Mixed {
                 stack_iter: self.initial.into_iter().take(self.count),
                 heap_iter: self.additional.into_iter(),
             }
@@ -68,8 +121,8 @@ impl<T: Default, const INITIAL_CAPACITY: usize> IntoIterator for HybridVec<T, IN
 }
 
 #[derive(Debug)]
-/// Iterator for consuming a `HybridVec`.
-pub enum HybridVecIntoIter<T: Default, const INITIAL_CAPACITY: usize> {
+/// Iterator for consuming a `GrowableArray`.
+pub enum GrowableArrayIntoIter<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> {
     /// stackonly
     StackOnly {
         /// iter
@@ -84,15 +137,15 @@ pub enum HybridVecIntoIter<T: Default, const INITIAL_CAPACITY: usize> {
     },
 }
 
-impl<T: Default, const INITIAL_CAPACITY: usize> Iterator
-    for HybridVecIntoIter<T, INITIAL_CAPACITY>
+impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Iterator
+    for GrowableArrayIntoIter<T, INITIAL_CAPACITY>
 {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            HybridVecIntoIter::StackOnly { iter } => iter.next(),
-            HybridVecIntoIter::Mixed {
+            GrowableArrayIntoIter::StackOnly { iter } => iter.next(),
+            GrowableArrayIntoIter::Mixed {
                 stack_iter,
                 heap_iter,
             } => stack_iter.next().or_else(|| heap_iter.next()),
@@ -100,20 +153,20 @@ impl<T: Default, const INITIAL_CAPACITY: usize> Iterator
     }
 }
 
-// Implement `IntoIterator` for a reference to `HybridVec`
-impl<'a, T: Default + 'a, const INITIAL_CAPACITY: usize> IntoIterator
-    for &'a HybridVec<T, INITIAL_CAPACITY>
+// Implement `IntoIterator` for a reference to `GrowableArray`
+impl<'a, T: Default + Clone + PartialEq + 'a, const INITIAL_CAPACITY: usize> IntoIterator
+    for &'a GrowableArray<T, INITIAL_CAPACITY>
 {
     type Item = &'a T;
-    type IntoIter = HybridVecIter<'a, T, INITIAL_CAPACITY>;
+    type IntoIter = GrowableArrayIter<'a, T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
         if self.additional.is_empty() {
-            HybridVecIter::StackOnly {
+            GrowableArrayIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
             }
         } else {
-            HybridVecIter::Mixed {
+            GrowableArrayIter::Mixed {
                 stack_iter: self.initial.iter().take(self.count),
                 heap_iter: self.additional.iter(),
             }
@@ -122,8 +175,8 @@ impl<'a, T: Default + 'a, const INITIAL_CAPACITY: usize> IntoIterator
 }
 
 #[derive(Debug)]
-/// Iterator for referencing elements in a `HybridVec`.
-pub enum HybridVecIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
+/// Iterator for referencing elements in a `GrowableArray`.
+pub enum GrowableArrayIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
     /// stackonly
     StackOnly {
         /// iter
@@ -138,15 +191,15 @@ pub enum HybridVecIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
     },
 }
 
-impl<'a, T: Default, const INITIAL_CAPACITY: usize> Iterator
-    for HybridVecIter<'a, T, INITIAL_CAPACITY>
+impl<'a, T: Default + Clone, const INITIAL_CAPACITY: usize> Iterator
+    for GrowableArrayIter<'a, T, INITIAL_CAPACITY>
 {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            HybridVecIter::StackOnly { iter } => iter.next(),
-            HybridVecIter::Mixed {
+            GrowableArrayIter::StackOnly { iter } => iter.next(),
+            GrowableArrayIter::Mixed {
                 stack_iter,
                 heap_iter,
             } => stack_iter.next().or_else(|| heap_iter.next()),
@@ -178,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_push_and_get() {
-        let mut collection = HybridVec::<i32>::new();
+        let mut collection = GrowableArray::<i32>::new();
         for i in 0..15 {
             collection.push(i);
         }
@@ -189,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_len() {
-        let mut collection = HybridVec::<i32>::new();
+        let mut collection = GrowableArray::<i32>::new();
         for i in 0..15 {
             collection.push(i);
         }
@@ -198,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        let mut collection = HybridVec::<i32>::new();
+        let mut collection = GrowableArray::<i32>::new();
         for i in 0..15 {
             collection.push(i);
         }
@@ -211,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_ref_iter() {
-        let mut collection = HybridVec::<i32>::new();
+        let mut collection = GrowableArray::<i32>::new();
         for i in 0..15 {
             collection.push(i);
         }
@@ -225,8 +278,8 @@ mod tests {
     }
 
     #[test]
-    fn test_key_value_pair_storage_hybridvec() {
-        let mut collection = HybridVec::<KeyValuePair>::new();
+    fn test_key_value_pair_storage_growable_array() {
+        let mut collection = GrowableArray::<KeyValuePair>::new();
 
         let key1 = Key::from("key1");
         let value1 = AnyValue::String("value1".into());

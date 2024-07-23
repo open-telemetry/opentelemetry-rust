@@ -1,17 +1,17 @@
 //! # OpenTelemetry Log SDK
 
-mod hybrid_vec;
+mod growable_array;
 mod log_emitter;
 mod log_processor;
 mod record;
 
-pub use hybrid_vec::{HybridVec, HybridVecIntoIter, HybridVecIter};
+pub use growable_array::{GrowableArray, GrowableArrayIntoIter, GrowableArrayIter};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use record::{LogRecord, TraceContext};
+pub use record::{AttributesGrowableArray, LogRecord, TraceContext};
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
@@ -85,14 +85,19 @@ mod tests {
         let attributes: Vec<(Key, AnyValue)> = log
             .record
             .attributes
-            .clone()
-            .expect("Attributes are expected");
+            .iter()
+            .filter_map(|kv| kv.as_ref().map(|(k, v)| (k.clone(), v.clone())))
+            .collect();
         assert_eq!(attributes.len(), 10);
         for i in 1..=10 {
-            assert!(log.record.attributes.clone().unwrap().contains(&(
-                Key::new(format!("key{}", i)),
-                AnyValue::String(format!("value{}", i).into())
-            )));
+            assert!(log.record.attributes.iter().any(|kv| {
+                if let Some((key, value)) = kv {
+                    key.as_str() == format!("key{}", i)
+                        && *value == AnyValue::String(format!("value{}", i).into())
+                } else {
+                    false
+                }
+            }));
         }
 
         // validate Resource
