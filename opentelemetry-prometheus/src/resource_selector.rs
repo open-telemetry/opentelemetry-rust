@@ -36,7 +36,7 @@ impl ResourceSelector {
             ResourceSelector::All => get_attrs(&mut resource.iter(), &[]),
             ResourceSelector::None => Vec::new(),
             ResourceSelector::KeyAllowList(keys) => {
-                get_attrs(&mut resource.iter().filter(|(k, _)| keys.contains(k)), &[])
+                get_attrs(&mut resource.iter().filter(|(k, _)| keys.contains(*k)), &[])
             }
         }
     }
