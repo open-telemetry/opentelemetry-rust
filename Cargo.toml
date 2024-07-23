@@ -42,7 +42,7 @@ temp-env = "0.3.6"
 thiserror = { version = "1", default-features = false }
 tonic = { version = "0.12", default-features = false }
 tonic-build = "0.12"
-tokio = { version = "1.38.0", default-features = false } #1.39 needs msrv bump to rustc 1.70
+tokio = { version = "~1.38.0", default-features = false } #1.39 needs msrv bump to rustc 1.70
 tokio-stream = "0.1.1"
 tracing = { version = "0.1", default-features = false }
 tracing-core = { version = "0.1", default-features = false }
