@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::AnyValue;
 use opentelemetry::Key;
-use opentelemetry_sdk::logs::HybridVec;
+use opentelemetry_sdk::logs::GrowableArray;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValuePair(Key, AnyValue);
@@ -12,10 +12,10 @@ impl Default for KeyValuePair {
     }
 }
 
-fn hybridvec_insertion_benchmark(c: &mut Criterion) {
-    c.bench_function("HybridVec Insertion", |b| {
+fn growable_array_insertion_benchmark(c: &mut Criterion) {
+    c.bench_function("GrowableArray Insertion", |b| {
         b.iter(|| {
-            let mut collection = HybridVec::<KeyValuePair>::new();
+            let mut collection = GrowableArray::<KeyValuePair>::new();
             for i in 0..8 {
                 let key = Key::from(format!("key{}", i));
                 let value = AnyValue::Int(i as i64);
@@ -38,9 +38,9 @@ fn vec_insertion_benchmark(c: &mut Criterion) {
     });
 }
 
-fn hybridvec_iteration_benchmark(c: &mut Criterion) {
-    c.bench_function("HybridVec Iteration", |b| {
-        let mut collection = HybridVec::<KeyValuePair>::new();
+fn growable_array_iteration_benchmark(c: &mut Criterion) {
+    c.bench_function("GrowableArray Iteration", |b| {
+        let mut collection = GrowableArray::<KeyValuePair>::new();
         for i in 0..8 {
             let key = Key::from(format!("key{}", i));
             let value = AnyValue::Int(i as i64);
@@ -54,9 +54,9 @@ fn hybridvec_iteration_benchmark(c: &mut Criterion) {
     });
 }
 
-fn hybridvec_get_benchmark(c: &mut Criterion) {
-    c.bench_function("HybridVec Get Loop", |b| {
-        let mut collection = HybridVec::<KeyValuePair>::new();
+fn growable_array_get_benchmark(c: &mut Criterion) {
+    c.bench_function("GrowableArray Get Loop", |b| {
+        let mut collection = GrowableArray::<KeyValuePair>::new();
         for i in 0..8 {
             let key = Key::from(format!("key{}", i));
             let value = AnyValue::Int(i as i64);
@@ -88,10 +88,10 @@ fn vec_iteration_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    hybridvec_insertion_benchmark,
+    growable_array_insertion_benchmark,
     vec_insertion_benchmark,
-    hybridvec_iteration_benchmark,
-    hybridvec_get_benchmark,
+    growable_array_iteration_benchmark,
+    growable_array_get_benchmark,
     vec_iteration_benchmark
 );
 criterion_main!(benches);

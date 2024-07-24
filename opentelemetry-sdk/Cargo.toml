@@ -99,6 +99,6 @@ harness = false
 required-features = ["logs"]
 
 [[bench]]
-name = "hybrid_vec"
+name = "growable_array"
 harness = false
 required-features = ["logs"]
