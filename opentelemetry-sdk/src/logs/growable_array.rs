@@ -1,51 +1,57 @@
 use std::array::IntoIter;
 
-/// The default initial capacity for `GrowableArray`.
-const DEFAULT_INITIAL_CAPACITY: usize = 10;
+/// The default max capacity for the stack portation of `GrowableArray`.
+const DEFAULT_MAX_STACK_CAPACITY: usize = 10;
+/// The default initial capacity for the vector portion of `GrowableArray`.
+const DEFAULT_INITIAL_VEC_CAPACITY: usize = 5;
 
 #[derive(Debug, Clone, PartialEq)]
 /// A hybrid vector that starts with a fixed-size array and grows dynamically with a vector.
 pub struct GrowableArray<
     T: Default + Clone + PartialEq,
-    const INITIAL_CAPACITY: usize = DEFAULT_INITIAL_CAPACITY,
+    const MAX_STACK_CAPACITY: usize = DEFAULT_MAX_STACK_CAPACITY,
+    const INITIAL_VEC_CAPACITY: usize = DEFAULT_INITIAL_VEC_CAPACITY,
 > {
-    initial: [T; INITIAL_CAPACITY],
+    initial: [T; MAX_STACK_CAPACITY],
     additional: Option<Vec<T>>,
     count: usize,
 }
 
-impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Default
-    for GrowableArray<T, INITIAL_CAPACITY>
+impl<
+        T: Default + Clone + PartialEq,
+        const MAX_STACK_CAPACITY: usize,
+        const INITIAL_VEC_CAPACITY: usize,
+    > Default for GrowableArray<T, MAX_STACK_CAPACITY, INITIAL_VEC_CAPACITY>
 {
     fn default() -> Self {
         Self {
-            initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
+            initial: [(); MAX_STACK_CAPACITY].map(|_| T::default()),
             additional: None,
             count: 0,
         }
     }
 }
 
-impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
-    GrowableArray<T, INITIAL_CAPACITY>
+impl<
+        T: Default + Clone + PartialEq,
+        const MAX_STACK_CAPACITY: usize,
+        const INITIAL_VEC_CAPACITY: usize,
+    > GrowableArray<T, MAX_STACK_CAPACITY, INITIAL_VEC_CAPACITY>
 {
     /// Creates a new `GrowableArray` with the default initial capacity.
     pub fn new() -> Self {
-        Self {
-            initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
-            additional: None,
-            count: 0,
-        }
+        Self::default()
     }
 
     /// Pushes a value into the `GrowableArray`.
     pub fn push(&mut self, value: T) {
-        if self.count < INITIAL_CAPACITY {
+        if self.count < MAX_STACK_CAPACITY {
             self.initial[self.count] = value;
             self.count += 1;
         } else {
             if self.additional.is_none() {
-                self.additional = Some(Vec::new());
+                // Initialize the vector with a specified capacity
+                self.additional = Some(Vec::with_capacity(INITIAL_VEC_CAPACITY));
             }
             self.additional.as_mut().unwrap().push(value);
         }
@@ -56,7 +62,7 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
         if index < self.count {
             Some(&self.initial[index])
         } else if let Some(ref additional) = self.additional {
-            additional.get(index - INITIAL_CAPACITY)
+            additional.get(index - MAX_STACK_CAPACITY)
         } else {
             None
         }
@@ -68,7 +74,7 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
     }
 
     /// Returns an iterator over the elements in the `GrowableArray`.
-    pub fn iter(&self) -> GrowableArrayIter<'_, T, INITIAL_CAPACITY> {
+    pub fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
         if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
@@ -94,11 +100,11 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
     pub fn map<U: Default + Clone + PartialEq, F>(
         &self,
         mut f: F,
-    ) -> GrowableArray<U, INITIAL_CAPACITY>
+    ) -> GrowableArray<U, MAX_STACK_CAPACITY>
     where
         F: FnMut(&T) -> U,
     {
-        let mut new_vec = GrowableArray::<U, INITIAL_CAPACITY>::new();
+        let mut new_vec = GrowableArray::<U, MAX_STACK_CAPACITY>::new();
 
         for i in 0..self.count {
             new_vec.push(f(&self.initial[i]));
