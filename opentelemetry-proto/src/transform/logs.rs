@@ -93,18 +93,26 @@ pub mod tonic {
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.map(Into::into),
                 attributes: {
-                    let mut attributes = log_record
+                    let mut attributes: Vec<KeyValue> = log_record
                         .attributes
-                        .map(Attributes::from_iter)
-                        .unwrap_or_default()
-                        .0;
+                        .iter()
+                        .filter_map(|kv| {
+                            kv.as_ref().map(|(k, v)| KeyValue {
+                                key: k.to_string(),
+                                value: Some(AnyValue {
+                                    value: Some(v.clone().into()),
+                                }),
+                            })
+                        })
+                        .collect();
+
                     if let Some(event_name) = log_record.event_name.as_ref() {
                         attributes.push(KeyValue {
                             key: "name".into(),
                             value: Some(AnyValue {
                                 value: Some(Value::StringValue(event_name.to_string())),
                             }),
-                        })
+                        });
                     }
                     attributes
                 },

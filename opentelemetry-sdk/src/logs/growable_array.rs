@@ -78,6 +78,11 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
         }
     }
 
+    /// Checks if the `GrowableArray` contains the specified value.
+    pub fn contains(&self, value: &T) -> bool {
+        self.initial[..self.count].contains(value) || self.additional.contains(value)
+    }
+
     /// Maps each element to a new `GrowableArray` using the provided function.
     pub fn map<U: Default + Clone + PartialEq, F>(
         &self,
@@ -304,6 +309,19 @@ mod tests {
         assert_eq!(iter.next(), Some(KeyValuePair(key1, value1)));
         assert_eq!(iter.next(), Some(KeyValuePair(key2, value2)));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_contains() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..10 {
+            collection.push(i);
+        }
+        assert!(collection.contains(&5));
+        assert!(!collection.contains(&15));
+
+        collection.push(15);
+        assert!(collection.contains(&15));
     }
 
     #[cfg(feature = "memory-profiling")]

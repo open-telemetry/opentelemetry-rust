@@ -4,6 +4,7 @@ use crate::common::{
     as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, AttributeSet,
     KeyValue, Resource, Scope, Value,
 };
+use opentelemetry_sdk::logs::AttributesGrowableArray;
 use serde::Serialize;
 
 /// Transformed logs data that can be serialized.
@@ -135,19 +136,15 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 let mut attributes = value
                     .record
                     .attributes
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|(key, value)| (key, value).into())
+                    .iter()
+                    .filter_map(|kv| kv.clone().map(|(k, v)| (k, v).into())) // Filter out None values and convert to KeyValue
                     .collect::<Vec<_>>();
 
                 if let Some(event_name) = &value.record.event_name {
-                    attributes.push(
-                        (
-                            opentelemetry::Key::from("name"),
-                            opentelemetry::Value::String(event_name.clone().into()),
-                        )
-                            .into(),
-                    )
+                    attributes.push(KeyValue::from((
+                        "name".into(),
+                        opentelemetry::Value::String(event_name.clone().into()),
+                    )));
                 }
                 attributes
             },
