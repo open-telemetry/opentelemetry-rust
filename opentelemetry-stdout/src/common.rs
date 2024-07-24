@@ -86,9 +86,21 @@ pub(crate) enum Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        match (&self, &other) {
+        match (self, other) {
+            (Value::Bool(b), Value::Bool(ob)) => b.eq(ob),
+            (Value::Int(i), Value::Int(oi)) => i.eq(oi),
             (Value::Double(f), Value::Double(of)) => OrderedFloat(*f).eq(&OrderedFloat(*of)),
-            (non_double, other_non_double) => non_double.eq(other_non_double),
+            (Value::String(s), Value::String(os)) => s.eq(os),
+            (Value::Array(a), Value::Array(oa)) => a.eq(oa),
+            (Value::KeyValues(kv), Value::KeyValues(okv)) => kv.eq(okv),
+            (Value::BytesValue(b), Value::BytesValue(ob)) => b.eq(ob),
+            (Value::Bool(_), _) => false,
+            (Value::Int(_), _) => false,
+            (Value::Double(_), _) => false,
+            (Value::String(_), _) => false,
+            (Value::Array(_), _) => false,
+            (Value::KeyValues(_), _) => false,
+            (Value::BytesValue(_), _) => false,
         }
     }
 }
