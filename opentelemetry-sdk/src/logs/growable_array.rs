@@ -10,7 +10,7 @@ pub struct GrowableArray<
     const INITIAL_CAPACITY: usize = DEFAULT_INITIAL_CAPACITY,
 > {
     initial: [T; INITIAL_CAPACITY],
-    additional: Vec<T>,
+    additional: Option<Vec<T>>,
     count: usize,
 }
 
@@ -20,7 +20,7 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Default
     fn default() -> Self {
         Self {
             initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
-            additional: Vec::new(),
+            additional: None,
             count: 0,
         }
     }
@@ -33,7 +33,7 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
     pub fn new() -> Self {
         Self {
             initial: [(); INITIAL_CAPACITY].map(|_| T::default()),
-            additional: Vec::new(),
+            additional: None,
             count: 0,
         }
     }
@@ -44,7 +44,10 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
             self.initial[self.count] = value;
             self.count += 1;
         } else {
-            self.additional.push(value);
+            if self.additional.is_none() {
+                self.additional = Some(Vec::new());
+            }
+            self.additional.as_mut().unwrap().push(value);
         }
     }
 
@@ -52,8 +55,8 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.initial[index])
-        } else if index < self.count + self.additional.len() {
-            self.additional.get(index - INITIAL_CAPACITY)
+        } else if let Some(ref additional) = self.additional {
+            additional.get(index - INITIAL_CAPACITY)
         } else {
             None
         }
@@ -61,26 +64,30 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
 
     /// Returns the number of elements in the `GrowableArray`.
     pub fn len(&self) -> usize {
-        self.count + self.additional.len()
+        self.count + self.additional.as_ref().map_or(0, Vec::len)
     }
 
     /// Returns an iterator over the elements in the `GrowableArray`.
     pub fn iter(&self) -> GrowableArrayIter<'_, T, INITIAL_CAPACITY> {
-        if self.additional.is_empty() {
+        if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
             }
         } else {
             GrowableArrayIter::Mixed {
                 stack_iter: self.initial.iter().take(self.count),
-                heap_iter: self.additional.iter(),
+                heap_iter: self.additional.as_ref().unwrap().iter(),
             }
         }
     }
 
     /// Checks if the `GrowableArray` contains the specified value.
     pub fn contains(&self, value: &T) -> bool {
-        self.initial[..self.count].contains(value) || self.additional.contains(value)
+        self.initial[..self.count].contains(value)
+            || self
+                .additional
+                .as_ref()
+                .map_or(false, |vec| vec.contains(value))
     }
 
     /// Maps each element to a new `GrowableArray` using the provided function.
@@ -96,8 +103,10 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
         for i in 0..self.count {
             new_vec.push(f(&self.initial[i]));
         }
-        for value in &self.additional {
-            new_vec.push(f(value));
+        if let Some(ref additional) = self.additional {
+            for value in additional {
+                new_vec.push(f(value));
+            }
         }
 
         new_vec
@@ -112,14 +121,14 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> IntoIterator
     type IntoIter = GrowableArrayIntoIter<T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if self.additional.is_empty() {
+        if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIntoIter::StackOnly {
                 iter: self.initial.into_iter().take(self.count),
             }
         } else {
             GrowableArrayIntoIter::Mixed {
                 stack_iter: self.initial.into_iter().take(self.count),
-                heap_iter: self.additional.into_iter(),
+                heap_iter: self.additional.unwrap().into_iter(),
             }
         }
     }
@@ -166,14 +175,14 @@ impl<'a, T: Default + Clone + PartialEq + 'a, const INITIAL_CAPACITY: usize> Int
     type IntoIter = GrowableArrayIter<'a, T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if self.additional.is_empty() {
+        if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
             }
         } else {
             GrowableArrayIter::Mixed {
                 stack_iter: self.initial.iter().take(self.count),
-                heap_iter: self.additional.iter(),
+                heap_iter: self.additional.as_ref().unwrap().iter(),
             }
         }
     }
