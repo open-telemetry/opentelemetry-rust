@@ -1,4 +1,4 @@
-use super::growable_array::GrowableArray;
+use crate::logs::growable_array::GrowableArray;
 use opentelemetry::{
     logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
@@ -12,7 +12,7 @@ use std::{borrow::Cow, time::SystemTime};
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
 /// A vector of `Option<(Key, AnyValue)>` with default capacity.
-pub type AttributesGrowableArray =
+pub(crate) type AttributesGrowableArray =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -44,7 +44,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: AttributesGrowableArray,
+    pub(crate) attributes: AttributesGrowableArray,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
@@ -100,6 +100,29 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         V: Into<AnyValue>,
     {
         self.attributes.push(Some((key.into(), value.into())));
+    }
+}
+
+impl LogRecord {
+    /// Provides an iterator over the attributes.
+    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
+        self.attributes.iter().filter_map(|opt| opt.as_ref())
+    }
+
+    /// Returns the number of attributes in the `LogRecord`.
+    pub fn attributes_len(&self) -> usize {
+        self.attributes.len()
+    }
+
+    /// Checks if the `LogRecord` contains the specified attribute.
+    pub fn contains_attribute(&self, key: &Key, value: &AnyValue) -> bool {
+        self.attributes.iter().any(|opt| {
+            if let Some((k, v)) = opt {
+                k == key && v == value
+            } else {
+                false
+            }
+        })
     }
 }
 

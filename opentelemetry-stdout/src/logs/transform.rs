@@ -4,7 +4,6 @@ use crate::common::{
     as_human_readable, as_opt_human_readable, as_opt_unix_nano, as_unix_nano, AttributeSet,
     KeyValue, Resource, Scope, Value,
 };
-use opentelemetry_sdk::logs::AttributesGrowableArray;
 use serde::Serialize;
 
 /// Transformed logs data that can be serialized.
@@ -108,6 +107,21 @@ struct LogRecord {
 impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
     fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
         LogRecord {
+            attributes: {
+                let mut attributes = value
+                    .record
+                    .attributes_iter()
+                    .map(|(k, v)| KeyValue::from((k.clone(), v.clone()))) // Map each pair to a KeyValue
+                    .collect::<Vec<KeyValue>>(); // Collect into a Vec<KeyValue>s
+
+                if let Some(event_name) = &value.record.event_name {
+                    attributes.push(KeyValue::from((
+                        "name".into(),
+                        opentelemetry::Value::String(event_name.clone().into()),
+                    )));
+                }
+                attributes
+            },
             trace_id: value
                 .record
                 .trace_context
@@ -132,22 +146,6 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .severity_number
                 .map(|u| u as u32)
                 .unwrap_or_default(),
-            attributes: {
-                let mut attributes = value
-                    .record
-                    .attributes
-                    .iter()
-                    .filter_map(|kv| kv.clone().map(|(k, v)| (k, v).into())) // Filter out None values and convert to KeyValue
-                    .collect::<Vec<_>>();
-
-                if let Some(event_name) = &value.record.event_name {
-                    attributes.push(KeyValue::from((
-                        "name".into(),
-                        opentelemetry::Value::String(event_name.clone().into()),
-                    )));
-                }
-                attributes
-            },
             dropped_attributes_count: 0,
             severity_text: value.record.severity_text,
             body: value.record.body.map(|a| a.into()),

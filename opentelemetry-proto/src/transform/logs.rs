@@ -89,20 +89,14 @@ pub mod tonic {
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
-                severity_number: severity_number.into(),
-                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: log_record.body.map(Into::into),
                 attributes: {
                     let mut attributes: Vec<KeyValue> = log_record
-                        .attributes
-                        .iter()
-                        .filter_map(|kv| {
-                            kv.as_ref().map(|(k, v)| KeyValue {
-                                key: k.to_string(),
-                                value: Some(AnyValue {
-                                    value: Some(v.clone().into()),
-                                }),
-                            })
+                        .attributes_iter()
+                        .map(|kv| KeyValue {
+                            key: kv.0.to_string(),
+                            value: Some(AnyValue {
+                                value: Some(kv.1.clone().into()),
+                            }),
                         })
                         .collect();
 
@@ -116,6 +110,9 @@ pub mod tonic {
                     }
                     attributes
                 },
+                severity_number: severity_number.into(),
+                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
+                body: log_record.body.map(Into::into),
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {

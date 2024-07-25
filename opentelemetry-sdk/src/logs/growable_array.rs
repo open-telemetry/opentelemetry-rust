@@ -7,7 +7,7 @@ const DEFAULT_INITIAL_VEC_CAPACITY: usize = 5;
 
 #[derive(Debug, Clone, PartialEq)]
 /// A hybrid vector that starts with a fixed-size array and grows dynamically with a vector.
-pub struct GrowableArray<
+pub(crate) struct GrowableArray<
     T: Default + Clone + PartialEq,
     const MAX_STACK_CAPACITY: usize = DEFAULT_MAX_STACK_CAPACITY,
     const INITIAL_VEC_CAPACITY: usize = DEFAULT_INITIAL_VEC_CAPACITY,
@@ -39,12 +39,12 @@ impl<
     > GrowableArray<T, MAX_STACK_CAPACITY, INITIAL_VEC_CAPACITY>
 {
     /// Creates a new `GrowableArray` with the default initial capacity.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
     /// Pushes a value into the `GrowableArray`.
-    pub fn push(&mut self, value: T) {
+    pub(crate) fn push(&mut self, value: T) {
         if self.count < MAX_STACK_CAPACITY {
             self.initial[self.count] = value;
             self.count += 1;
@@ -58,7 +58,7 @@ impl<
     }
 
     /// Gets a reference to the value at the specified index.
-    pub fn get(&self, index: usize) -> Option<&T> {
+    pub(crate) fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.initial[index])
         } else if let Some(ref additional) = self.additional {
@@ -69,12 +69,12 @@ impl<
     }
 
     /// Returns the number of elements in the `GrowableArray`.
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.count + self.additional.as_ref().map_or(0, Vec::len)
     }
 
     /// Returns an iterator over the elements in the `GrowableArray`.
-    pub fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
+    pub(crate) fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
         if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIter::StackOnly {
                 iter: self.initial.iter().take(self.count),
@@ -85,37 +85,6 @@ impl<
                 heap_iter: self.additional.as_ref().unwrap().iter(),
             }
         }
-    }
-
-    /// Checks if the `GrowableArray` contains the specified value.
-    pub fn contains(&self, value: &T) -> bool {
-        self.initial[..self.count].contains(value)
-            || self
-                .additional
-                .as_ref()
-                .map_or(false, |vec| vec.contains(value))
-    }
-
-    /// Maps each element to a new `GrowableArray` using the provided function.
-    pub fn map<U: Default + Clone + PartialEq, F>(
-        &self,
-        mut f: F,
-    ) -> GrowableArray<U, MAX_STACK_CAPACITY>
-    where
-        F: FnMut(&T) -> U,
-    {
-        let mut new_vec = GrowableArray::<U, MAX_STACK_CAPACITY>::new();
-
-        for i in 0..self.count {
-            new_vec.push(f(&self.initial[i]));
-        }
-        if let Some(ref additional) = self.additional {
-            for value in additional {
-                new_vec.push(f(value));
-            }
-        }
-
-        new_vec
     }
 }
 
@@ -142,7 +111,8 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> IntoIterator
 
 #[derive(Debug)]
 /// Iterator for consuming a `GrowableArray`.
-pub enum GrowableArrayIntoIter<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> {
+pub(crate) enum GrowableArrayIntoIter<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
+{
     /// stackonly
     StackOnly {
         /// iter
@@ -196,7 +166,7 @@ impl<'a, T: Default + Clone + PartialEq + 'a, const INITIAL_CAPACITY: usize> Int
 
 #[derive(Debug)]
 /// Iterator for referencing elements in a `GrowableArray`.
-pub enum GrowableArrayIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
+pub(crate) enum GrowableArrayIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
     /// stackonly
     StackOnly {
         /// iter
@@ -318,18 +288,5 @@ mod tests {
         assert_eq!(iter.next(), Some(KeyValuePair(key1, value1)));
         assert_eq!(iter.next(), Some(KeyValuePair(key2, value2)));
         assert_eq!(iter.next(), None);
-    }
-
-    #[test]
-    fn test_contains() {
-        let mut collection = GrowableArray::<i32>::new();
-        for i in 0..10 {
-            collection.push(i);
-        }
-        assert!(collection.contains(&5));
-        assert!(!collection.contains(&15));
-
-        collection.push(15);
-        assert!(collection.contains(&15));
     }
 }

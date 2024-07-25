@@ -509,7 +509,7 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::logs::AttributesGrowableArray;
+    use crate::logs::record::AttributesGrowableArray;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         export::logs::{LogData, LogExporter},

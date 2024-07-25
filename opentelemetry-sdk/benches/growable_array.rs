@@ -1,7 +1,8 @@
+/*
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::AnyValue;
 use opentelemetry::Key;
-use opentelemetry_sdk::logs::GrowableArray;
+use opentelemetry_sdk::logs::growable_array::GrowableArray;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValuePair(Key, AnyValue);
@@ -95,3 +96,4 @@ criterion_group!(
     vec_iteration_benchmark
 );
 criterion_main!(benches);
+*/
