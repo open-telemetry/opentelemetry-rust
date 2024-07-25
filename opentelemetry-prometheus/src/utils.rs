@@ -1,16 +1,15 @@
-use opentelemetry::metrics::Unit;
 use std::borrow::Cow;
 
 const NON_APPLICABLE_ON_PER_UNIT: [&str; 8] = ["1", "d", "h", "min", "s", "ms", "us", "ns"];
 
-pub(crate) fn get_unit_suffixes(unit: &Unit) -> Option<Cow<'static, str>> {
+pub(crate) fn get_unit_suffixes(unit: &str) -> Option<Cow<'static, str>> {
     // no unit return early
-    if unit.as_str().is_empty() {
+    if unit.is_empty() {
         return None;
     }
 
     // direct match with known units
-    if let Some(matched) = get_prom_units(unit.as_str()) {
+    if let Some(matched) = get_prom_units(unit) {
         return Some(Cow::Borrowed(matched));
     }
 
@@ -20,7 +19,7 @@ pub(crate) fn get_unit_suffixes(unit: &Unit) -> Option<Cow<'static, str>> {
     // e.g
     // "test/y" => "per_year"
     // "km/s" => "kilometers_per_second"
-    if let Some((first, second)) = unit.as_str().split_once('/') {
+    if let Some((first, second)) = unit.split_once('/') {
         return match (
             NON_APPLICABLE_ON_PER_UNIT.contains(&first),
             get_prom_units(first),
@@ -193,9 +192,8 @@ mod tests {
             // annotations
             ("{request}", None),
         ];
-        for (unit_str, expected_suffix) in test_cases {
-            let unit = Unit::new(unit_str);
-            assert_eq!(get_unit_suffixes(&unit), expected_suffix);
+        for (unit, expected_suffix) in test_cases {
+            assert_eq!(get_unit_suffixes(unit), expected_suffix);
         }
     }
 }
