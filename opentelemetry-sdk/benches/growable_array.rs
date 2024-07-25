@@ -28,7 +28,7 @@ fn growable_array_insertion_benchmark(c: &mut Criterion) {
 fn vec_insertion_benchmark(c: &mut Criterion) {
     c.bench_function("Vec Insertion", |b| {
         b.iter(|| {
-            let mut collection = Vec::new();
+            let mut collection = Vec::with_capacity(10);
             for i in 0..8 {
                 let key = Key::from(format!("key{}", i));
                 let value = AnyValue::Int(i as i64);
@@ -72,7 +72,7 @@ fn growable_array_get_benchmark(c: &mut Criterion) {
 
 fn vec_iteration_benchmark(c: &mut Criterion) {
     c.bench_function("Vec Iteration", |b| {
-        let mut collection = Vec::new();
+        let mut collection = Vec::with_capacity(10);
         for i in 0..8 {
             let key = Key::from(format!("key{}", i));
             let value = AnyValue::Int(i as i64);
