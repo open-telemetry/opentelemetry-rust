@@ -44,6 +44,7 @@ impl<
     }
 
     /// Pushes a value into the `GrowableArray`.
+    #[inline]
     pub(crate) fn push(&mut self, value: T) {
         if self.count < MAX_STACK_CAPACITY {
             self.initial[self.count] = value;
@@ -74,6 +75,7 @@ impl<
     }
 
     /// Returns an iterator over the elements in the `GrowableArray`.
+    #[inline]
     pub(crate) fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
         if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
             GrowableArrayIter::StackOnly {
