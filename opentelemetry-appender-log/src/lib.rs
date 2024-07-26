@@ -938,22 +938,17 @@ mod tests {
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
-        let attributes = &logs[0].record.attributes;
+        //let attributes = &logs[0].record.attributes;
 
-        let get = |needle: &str| {
-            attributes.iter().find_map(|attr| {
-                if let Some((k, v)) = attr {
-                    if k.as_str() == needle {
-                        Some(v.clone())
-                    } else {
-                        None
-                    }
+        let get = |needle: &str| -> Option<AnyValue> {
+            logs[0].record.attributes_iter().find_map(|(k, v)| {
+                if k.as_str() == needle {
+                    Some(v.clone())
                 } else {
                     None
                 }
             })
         };
-
         assert_eq!(
             AnyValue::String(StringValue::from("a string")),
             get("str_value").unwrap()

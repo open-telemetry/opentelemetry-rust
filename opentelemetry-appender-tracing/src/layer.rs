@@ -252,33 +252,38 @@ mod tests {
         assert!(log.record.trace_context.is_none());
 
         // Validate attributes
-        let attributes = log.record.attributes.clone();
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(attributes.len(), 3);
+        assert_eq!(log.record.attributes_len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 8);
-        assert!(attributes.contains(&Some((Key::new("event_id"), 20.into()))));
-        assert!(attributes.contains(&Some((Key::new("user_name"), "otel".into()))));
-        assert!(attributes.contains(&Some((
-            Key::new("user_email"),
-            "otel@opentelemetry.io".into()
-        ))));
+        assert_eq!(log.record.attributes_len(), 8);
+        assert!(log
+            .record
+            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20)));
+        assert!(log
+            .record
+            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
+        assert!(log.record.attributes_contains(
+            &Key::new("user_email"),
+            &AnyValue::String("otel@opentelemetry.io".into())
+        ));
+
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&Some((Key::new("code.filename"), "layer.rs".into()))));
-            assert!(attributes.contains(&Some((
-                Key::new("code.namespace"),
-                "opentelemetry_appender_tracing::layer::tests".into()
-            ))));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.filename"),
+                &AnyValue::String("layer.rs".into())
+            ));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.namespace"),
+                &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
+            ));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
-            let attributes_key: Vec<Key> = attributes
-                .iter()
-                .filter_map(|attr| match attr {
-                    Some((key, _)) => Some(key.clone()),
-                    None => None,
-                })
+            let attributes_key: Vec<Key> = log
+                .record
+                .attributes_iter()
+                .map(|(key, _)| key.clone())
                 .collect();
 
             assert!(attributes_key.contains(&Key::new("code.filepath")));
@@ -354,35 +359,38 @@ mod tests {
         );
 
         // validate attributes.
-        let attributes = log.record.attributes.clone();
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(attributes.len(), 3);
+        assert_eq!(log.record.attributes_len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 8);
-        assert!(attributes.contains(&Some((Key::new("event_id"), 20.into()))));
-        assert!(attributes.contains(&Some((Key::new("user_name"), "otel".into()))));
-        assert!(attributes.contains(&Some((
-            Key::new("user_email"),
-            "otel@opentelemetry.io".into()
-        ))));
+        assert_eq!(log.record.attributes_len(), 8);
+        assert!(log
+            .record
+            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20.into())));
+        assert!(log
+            .record
+            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
+        assert!(log.record.attributes_contains(
+            &Key::new("user_email"),
+            &AnyValue::String("otel@opentelemetry.io".into())
+        ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&Some((Key::new("code.filename"), "layer.rs".into()))));
-            assert!(attributes.contains(&Some((
-                Key::new("code.namespace"),
-                "opentelemetry_appender_tracing::layer::tests".into()
-            ))));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.filename"),
+                &AnyValue::String("layer.rs".into())
+            ));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.namespace"),
+                &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
+            ));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
 
-            //let attributes_key: Vec<Key> = attributes.iter().map(|(key, _)| key.clone()).collect();
-            let attributes_key: Vec<Key> = attributes
-                .iter()
-                .filter_map(|attr| match attr {
-                    Some((key, _)) => Some(key.clone()),
-                    None => None,
-                })
+            let attributes_key: Vec<Key> = log
+                .record
+                .attributes_iter()
+                .map(|(key, _)| key.clone())
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
@@ -426,30 +434,27 @@ mod tests {
         // Validate trace context is none.
         assert!(log.record.trace_context.is_none());
 
-        // Validate attributes
-        #[cfg(feature = "experimental_metadata_attributes")]
-        let attributes = log.record.attributes.clone();
-
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 5);
+        assert_eq!(log.record.attributes_len(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&(Some((Key::new("code.filename"), "layer.rs".into())))));
-            assert!(attributes.contains(&Some((
-                Key::new("code.namespace"),
-                "opentelemetry_appender_tracing::layer::tests".into()
-            ))));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.filename"),
+                &AnyValue::String("layer.rs".into())
+            ));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.namespace"),
+                &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
+            ));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
-            let attributes_key: Vec<Key> = attributes
-                .iter()
-                .filter_map(|attr| match attr {
-                    Some((key, _)) => Some(key.clone()),
-                    None => None,
-                })
+            let attributes_key: Vec<Key> = log
+                .record
+                .attributes_iter()
+                .map(|(key, _)| key.clone())
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
@@ -525,29 +530,27 @@ mod tests {
         );
 
         // validate attributes.
-        #[cfg(feature = "experimental_metadata_attributes")]
-        let attributes = log.record.attributes.clone();
-
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(attributes.len(), 5);
+        assert_eq!(log.record.attributes_len(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(attributes.contains(&Some((Key::new("code.filename"), "layer.rs".into()))));
-            assert!(attributes.contains(&Some((
-                Key::new("code.namespace"),
-                "opentelemetry_appender_tracing::layer::tests".into()
-            ))));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.filename"),
+                &AnyValue::String("layer.rs".into())
+            ));
+            assert!(log.record.attributes_contains(
+                &Key::new("code.namespace"),
+                &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
+            ));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
-            let attributes_key: Vec<Key> = attributes
-                .iter()
-                .filter_map(|attr| match attr {
-                    Some((key, _)) => Some(key.clone()),
-                    None => None,
-                })
+            let attributes_key: Vec<Key> = log
+                .record
+                .attributes_iter()
+                .map(|(key, _)| key.clone())
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));

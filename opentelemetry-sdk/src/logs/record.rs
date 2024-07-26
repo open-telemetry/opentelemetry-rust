@@ -115,7 +115,7 @@ impl LogRecord {
     }
 
     /// Checks if the `LogRecord` contains the specified attribute.
-    pub fn contains_attribute(&self, key: &Key, value: &AnyValue) -> bool {
+    pub fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
         self.attributes.iter().any(|opt| {
             if let Some((k, v)) = opt {
                 k == key && v == value
