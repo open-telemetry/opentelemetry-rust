@@ -59,11 +59,11 @@ pub enum AnyValue {
     /// A boolean value
     Boolean(bool),
     /// A byte array
-    Bytes(Vec<u8>),
+    Bytes(Box<Vec<u8>>),
     /// An array of `Any` values
-    ListAny(Vec<AnyValue>),
+    ListAny(Box<Vec<AnyValue>>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(HashMap<Key, AnyValue>),
+    Map(Box<HashMap<Key, AnyValue>>),
 }
 
 macro_rules! impl_trivial_from {
@@ -98,7 +98,7 @@ impl_trivial_from!(bool, AnyValue::Boolean);
 impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
     /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        AnyValue::ListAny(iter.into_iter().map(Into::into).collect())
+        AnyValue::ListAny(Box::new(iter.into_iter().map(Into::into).collect()))
     }
 }
 
@@ -106,9 +106,9 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
     /// Creates an [`AnyValue::Map`] value from a sequence of key-value pairs
     /// that can be converted into a `Key` and `AnyValue` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        AnyValue::Map(HashMap::from_iter(
+        AnyValue::Map(Box::new(HashMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
-        ))
+        )))
     }
 }
 
