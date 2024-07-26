@@ -14,7 +14,7 @@ use opentelemetry::logs::{
 };
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::Key;
+use opentelemetry::{InstrumentationLibrary, Key};
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
@@ -66,6 +66,20 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    let mut crit = Criterion::default()
+        .sample_size(100) // Set sample size
+        .measurement_time(std::time::Duration::new(20, 0)) // Set measurement time to 10 seconds
+        .warm_up_time(std::time::Duration::new(5, 0)); // Set warm-up time
+                                                       /*log_benchmark_group(c, "simple-log", |logger| {
+                                                           let mut log_record = logger.create_log_record();
+                                                           log_record.set_body("simple log".into());
+                                                           logger.emit(log_record);
+                                                       });*/
+    log_benchmark_group(&mut crit, "custom-test", |logger| {
+        let mut log_record = logger.create_log_record();
+        logger.emit(log_record);
+    });
+
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -100,7 +114,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let bytes = AnyValue::Bytes(vec![25u8, 30u8, 40u8]);
+    let bytes = AnyValue::Bytes(Box::new(vec![25u8, 30u8, 40u8]));
     log_benchmark_group(c, "simple-log-with-bytes", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -108,14 +122,14 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let bytes = AnyValue::Bytes(vec![
+    let bytes = AnyValue::Bytes(Box::new(vec![
         25u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8,
         40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8,
         40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
-    ]);
+    ]));
     log_benchmark_group(c, "simple-log-with-a-lot-of-bytes", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -123,7 +137,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
+        AnyValue::Int(25),
+        "test".into(),
+        true.into(),
+    ]));
     log_benchmark_group(c, "simple-log-with-vec-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -131,13 +149,17 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
-    let vec_any_values = AnyValue::ListAny(vec![
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
+        AnyValue::Int(25),
+        "test".into(),
+        true.into(),
+    ]));
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
         AnyValue::Int(25),
         "test".into(),
         true.into(),
         vec_any_values,
-    ]);
+    ]));
     log_benchmark_group(c, "simple-log-with-inner-vec-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -145,11 +167,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let map_any_values = AnyValue::Map(HashMap::from([
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
-    ]));
+    ])));
     log_benchmark_group(c, "simple-log-with-map-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -157,17 +179,17 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let map_any_values = AnyValue::Map(HashMap::from([
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
-    ]));
-    let map_any_values = AnyValue::Map(HashMap::from([
+    ])));
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
         ("testmap".into(), map_any_values),
-    ]));
+    ])));
     log_benchmark_group(c, "simple-log-with-inner-map-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
