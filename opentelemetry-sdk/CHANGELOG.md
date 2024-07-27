@@ -4,6 +4,10 @@
 
 - `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
 - Fixed an issue causing a panic during shutdown when using the `TokioCurrentThread` tracing batch processor.
+  [#1964](https://github.com/open-telemetry/opentelemetry-rust/pull/1964)
+- Fix BatchSpanProcessor to trigger first export at the first interval
+  instead of doing it right away.
+  [#1970](https://github.com/open-telemetry/opentelemetry-rust/pull/1970)
 
 ## v0.24.1
 
