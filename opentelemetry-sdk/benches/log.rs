@@ -33,19 +33,19 @@ impl LogExporter for NoopExporter {
 
 #[derive(Debug)]
 struct NoopProcessor {
-    exporter: Box<dyn LogExporter>,
+    _exporter: Box<dyn LogExporter>,
 }
 
 impl NoopProcessor {
     fn new(exporter: Box<dyn LogExporter>) -> Self {
-        Self { exporter }
+        Self {
+            _exporter: exporter,
+        }
     }
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogData) {
-        // no-op
-    }
+    fn emit(&self, _data: &mut LogData) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
