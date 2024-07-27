@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use opentelemetry::metrics::{Meter, MeterProvider as _, Unit};
+use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
@@ -54,7 +54,7 @@ fn prometheus_exporter_integration() {
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
-                    .with_unit(Unit::new("ms"))
+                    .with_unit("ms")
                     .init();
                 counter.add(5.0, &attrs);
                 counter.add(10.3, &attrs);
@@ -83,7 +83,7 @@ fn prometheus_exporter_integration() {
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter without a total suffix")
-                    .with_unit(Unit::new("ms"))
+                    .with_unit("ms")
                     .init();
                 counter.add(5.0, &attrs);
                 counter.add(10.3, &attrs);
@@ -106,7 +106,7 @@ fn prometheus_exporter_integration() {
                 let gauge = meter
                     .f64_up_down_counter("bar")
                     .with_description("a fun little gauge")
-                    .with_unit(Unit::new("1"))
+                    .with_unit("1")
                     .init();
                 gauge.add(1.0, &attrs);
                 gauge.add(-0.25, &attrs);
@@ -121,7 +121,7 @@ fn prometheus_exporter_integration() {
                 let histogram = meter
                     .f64_histogram("histogram_baz")
                     .with_description("a very nice histogram")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .init();
                 histogram.record(23.0, &attrs);
                 histogram.record(7.0, &attrs);
@@ -147,7 +147,7 @@ fn prometheus_exporter_integration() {
                     .f64_counter("foo")
                     .with_description("a sanitary counter")
                     // This unit is not added to
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .init();
                 counter.add(5.0, &attrs);
                 counter.add(10.3, &attrs);
@@ -261,7 +261,7 @@ fn prometheus_exporter_integration() {
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
-                    .with_unit(Unit::new("1"))
+                    .with_unit("1")
                     .init();
                 gauge.add(2, &attrs);
                 gauge.add(-1, &attrs);
@@ -279,7 +279,7 @@ fn prometheus_exporter_integration() {
                 let counter = meter
                     .u64_counter("bar")
                     .with_description("a fun little counter")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .init();
                 counter.add(2, &attrs);
                 counter.add(1, &attrs);
@@ -317,7 +317,7 @@ fn prometheus_exporter_integration() {
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
-                    .with_unit(Unit::new("1"))
+                    .with_unit("1")
                     .init();
                 gauge.add(2, &attrs);
                 gauge.add(-1, &attrs);
@@ -334,7 +334,7 @@ fn prometheus_exporter_integration() {
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
-                    .with_unit(Unit::new("1"))
+                    .with_unit("1")
                     .init();
                 gauge.add(2, &attrs);
                 gauge.add(-1, &attrs);
@@ -456,7 +456,7 @@ fn multiple_scopes() {
             Some(vec![KeyValue::new("k", "v")]),
         )
         .u64_counter("foo")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("meter foo counter")
         .init();
     foo_counter.add(100, &[KeyValue::new("type", "foo")]);
@@ -469,7 +469,7 @@ fn multiple_scopes() {
             Some(vec![KeyValue::new("k", "v")]),
         )
         .u64_counter("bar")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .with_description("meter bar counter")
         .init();
     bar_counter.add(200, &[KeyValue::new("type", "bar")]);
@@ -507,7 +507,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let foo_a = meter_a
                     .u64_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter counter foo")
                     .init();
 
@@ -515,7 +515,7 @@ fn duplicate_metrics() {
 
                 let foo_b = meter_b
                     .u64_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter counter foo")
                     .init();
 
@@ -529,7 +529,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let foo_a = meter_a
                     .i64_up_down_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter gauge foo")
                     .init();
 
@@ -537,7 +537,7 @@ fn duplicate_metrics() {
 
                 let foo_b = meter_b
                     .i64_up_down_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter gauge foo")
                     .init();
 
@@ -551,7 +551,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let foo_a = meter_a
                     .u64_histogram("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter histogram foo")
                     .init();
 
@@ -559,7 +559,7 @@ fn duplicate_metrics() {
 
                 let foo_b = meter_b
                     .u64_histogram("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter histogram foo")
                     .init();
 
@@ -573,7 +573,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
                     .u64_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter a bar")
                     .init();
 
@@ -581,7 +581,7 @@ fn duplicate_metrics() {
 
                 let bar_b = meter_b
                     .u64_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter b bar")
                     .init();
 
@@ -598,7 +598,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
                     .i64_up_down_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter a bar")
                     .init();
 
@@ -606,7 +606,7 @@ fn duplicate_metrics() {
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter b bar")
                     .init();
 
@@ -623,7 +623,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
                     .u64_histogram("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter a bar")
                     .init();
 
@@ -631,7 +631,7 @@ fn duplicate_metrics() {
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter b bar")
                     .init();
 
@@ -648,7 +648,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let baz_a = meter_a
                     .u64_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter bar")
                     .init();
 
@@ -656,7 +656,7 @@ fn duplicate_metrics() {
 
                 let baz_b = meter_b
                     .u64_counter("bar")
-                    .with_unit(Unit::new("ms"))
+                    .with_unit("ms")
                     .with_description("meter bar")
                     .init();
 
@@ -671,7 +671,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
                     .i64_up_down_counter("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter gauge bar")
                     .init();
 
@@ -679,7 +679,7 @@ fn duplicate_metrics() {
 
                 let bar_b = meter_b
                     .i64_up_down_counter("bar")
-                    .with_unit(Unit::new("ms"))
+                    .with_unit("ms")
                     .with_description("meter gauge bar")
                     .init();
 
@@ -694,7 +694,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, meter_b| {
                 let bar_a = meter_a
                     .u64_histogram("bar")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter histogram bar")
                     .init();
 
@@ -702,7 +702,7 @@ fn duplicate_metrics() {
 
                 let bar_b = meter_b
                     .u64_histogram("bar")
-                    .with_unit(Unit::new("ms"))
+                    .with_unit("ms")
                     .with_description("meter histogram bar")
                     .init();
 
@@ -717,7 +717,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, _meter_b| {
                 let counter = meter_a
                     .u64_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter foo")
                     .init();
 
@@ -725,7 +725,7 @@ fn duplicate_metrics() {
 
                 let gauge = meter_a
                     .i64_up_down_counter("foo_total")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter foo")
                     .init();
 
@@ -743,7 +743,7 @@ fn duplicate_metrics() {
             record_metrics: Box::new(|meter_a, _meter_b| {
                 let foo_a = meter_a
                     .i64_up_down_counter("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter gauge foo")
                     .init();
 
@@ -751,7 +751,7 @@ fn duplicate_metrics() {
 
                 let foo_histogram_a = meter_a
                     .u64_histogram("foo")
-                    .with_unit(Unit::new("By"))
+                    .with_unit("By")
                     .with_description("meter histogram foo")
                     .init();
 
