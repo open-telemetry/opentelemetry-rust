@@ -16,17 +16,53 @@ use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
 use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
-struct VoidExporter;
+struct NoopExporter;
 
 #[async_trait]
-impl LogExporter for VoidExporter {
-    async fn export<'a>(&mut self, _batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
+impl LogExporter for NoopExporter {
+    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
         LogResult::Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct NoopProcessor {
+    exporter: Box<dyn LogExporter>,
+}
+
+impl NoopProcessor {
+    fn new(exporter: Box<dyn LogExporter>) -> Self {
+        Self { exporter }
+    }
+}
+
+impl LogProcessor for NoopProcessor {
+    fn emit(&self, _: &mut LogData) {
+        // no-op
+    }
+
+    fn force_flush(&self) -> LogResult<()> {
+        Ok(())
+    }
+
+    fn shutdown(&self) -> LogResult<()> {
+        Ok(())
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(
+        &self,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: &str,
+    ) -> bool {
+        true
     }
 }
 
@@ -35,7 +71,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("no-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_simple_exporter(VoidExporter)
+            .with_log_processor(NoopProcessor::new(Box::new(NoopExporter)))
             .build();
 
         let logger = provider.logger("no-context");
@@ -45,7 +81,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("with-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_simple_exporter(VoidExporter)
+            .with_log_processor(NoopProcessor::new(Box::new(NoopExporter)))
             .build();
 
         let logger = provider.logger("with-context");
