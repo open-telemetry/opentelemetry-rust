@@ -3,6 +3,7 @@
 ## vNext
 
 - `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
+- Fixed an issue causing a panic during shutdown when using the `TokioCurrentThread` tracing batch processor.
 
 ## v0.24.1
 
