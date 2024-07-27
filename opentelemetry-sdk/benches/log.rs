@@ -22,27 +22,7 @@ use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
-struct NoopExporter;
-
-#[async_trait]
-impl LogExporter for NoopExporter {
-    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
-        LogResult::Ok(())
-    }
-}
-
-#[derive(Debug)]
-struct NoopProcessor {
-    _exporter: Box<dyn LogExporter>,
-}
-
-impl NoopProcessor {
-    fn new(exporter: Box<dyn LogExporter>) -> Self {
-        Self {
-            _exporter: exporter,
-        }
-    }
-}
+struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
     fn emit(&self, _data: &mut LogData) {}
@@ -71,7 +51,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("no-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_log_processor(NoopProcessor::new(Box::new(NoopExporter)))
+            .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("no-context");
@@ -81,7 +61,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("with-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_log_processor(NoopProcessor::new(Box::new(NoopExporter)))
+            .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("with-context");
