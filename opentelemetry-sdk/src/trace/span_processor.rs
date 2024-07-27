@@ -449,22 +449,28 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
     pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
-        let ticker = runtime
-            .interval(config.scheduled_delay)
-            .map(|_| BatchMessage::Flush(None));
-        let timeout_runtime = runtime.clone();
 
-        let messages = Box::pin(stream::select(message_receiver, ticker));
-        let processor = BatchSpanProcessorInternal {
-            spans: Vec::new(),
-            export_tasks: FuturesUnordered::new(),
-            runtime: timeout_runtime,
-            config,
-            exporter,
-        };
-
+        let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(processor.run(messages)));
+        runtime.spawn(Box::pin(async move {
+            // Timer will take a reference to the current runtime, so its important we do this within the
+            // runtime.spawn()
+            let ticker = inner_runtime
+                .interval(config.scheduled_delay)
+                .map(|_| BatchMessage::Flush(None));
+            let timeout_runtime = inner_runtime.clone();
+
+            let messages = Box::pin(stream::select(message_receiver, ticker));
+            let processor = BatchSpanProcessorInternal {
+                spans: Vec::new(),
+                export_tasks: FuturesUnordered::new(),
+                runtime: timeout_runtime,
+                config,
+                exporter,
+            };
+
+            processor.run(messages).await
+        }));
 
         // Return batch processor with link to worker
         BatchSpanProcessor { message_sender }
