@@ -8,7 +8,7 @@ use hyper::{
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use once_cell::sync::Lazy;
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, Unit},
+    metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::SdkMeterProvider;
@@ -88,12 +88,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .init(),
         http_body_gauge: meter
             .u64_histogram("example.http_response_size")
-            .with_unit(Unit::new("By"))
+            .with_unit("By")
             .with_description("The metrics HTTP response sizes in bytes.")
             .init(),
         http_req_histogram: meter
             .f64_histogram("example.http_request_duration")
-            .with_unit(Unit::new("ms"))
+            .with_unit("ms")
             .with_description("The HTTP request latencies in milliseconds.")
             .init(),
     });
