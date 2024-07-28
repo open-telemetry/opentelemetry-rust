@@ -457,6 +457,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             // runtime.spawn()
             let ticker = inner_runtime
                 .interval(config.scheduled_delay)
+                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
 
