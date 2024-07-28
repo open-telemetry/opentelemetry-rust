@@ -85,17 +85,13 @@ mod tests {
             .record
             .attributes
             .iter()
-            .filter_map(|kv| kv.as_ref().map(|(k, v)| (k.clone(), v.clone())))
+            .map(|kv| (kv.0.clone(), kv.1.clone()))
             .collect();
         assert_eq!(attributes.len(), 10);
         for i in 1..=10 {
-            assert!(log.record.attributes.iter().any(|kv| {
-                if let Some((key, value)) = kv {
-                    key.as_str() == format!("key{}", i)
-                        && *value == AnyValue::String(format!("value{}", i).into())
-                } else {
-                    false
-                }
+            assert!(log.record.attributes.iter().any(|(key, value)| {
+                key.as_str() == format!("key{}", i)
+                    && *value == AnyValue::String(format!("value{}", i).into())
             }));
         }
 

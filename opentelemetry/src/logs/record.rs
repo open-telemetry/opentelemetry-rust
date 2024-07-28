@@ -66,6 +66,12 @@ pub enum AnyValue {
     Map(Box<HashMap<Key, AnyValue>>),
 }
 
+impl Default for AnyValue {
+    fn default() -> Self {
+        AnyValue::Int(0)
+    }
+}
+
 macro_rules! impl_trivial_from {
     ($t:ty, $variant:path) => {
         impl From<$t> for AnyValue {
