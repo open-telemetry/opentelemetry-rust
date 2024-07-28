@@ -1,0 +1,32 @@
+[package]
+name = "opentelemetry-macros"
+version = "0.24.0"
+description = "OpenTelemetry Macros for Rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust"
+repository = "https://github.com/open-telemetry/opentelemetry-rust"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "api-bindings",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.65"
+
+[features]
+default = ["metrics"]
+metrics = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+opentelemetry = { version = "0.24", path = "../opentelemetry" }
+syn = { workspace = true }
+
+[lib]
+proc-macro = true

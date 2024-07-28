@@ -26,7 +26,6 @@ futures-sink = "0.3"
 once_cell = { workspace = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true }
-syn = { workspace = true }
 
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
@@ -45,11 +44,6 @@ otel_unstable = []
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs_level_enabled"] } # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true }
-
-[lib]
-name = "macros"
-proc-macro = true
-path = "src/macros.rs"
 
 [[bench]]
 name = "metrics"
