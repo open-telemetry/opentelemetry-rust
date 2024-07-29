@@ -10,12 +10,6 @@ use std::{fmt, hash};
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
 
-impl Default for Key {
-    fn default() -> Self {
-        Key::from_static_str("")
-    }
-}
-
 impl Key {
     /// Create a new `Key`.
     ///

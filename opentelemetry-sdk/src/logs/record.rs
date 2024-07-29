@@ -11,9 +11,9 @@ use std::{borrow::Cow, time::SystemTime};
 // capacity for attributes to avoid reallocation in common scenarios.
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
-/// A vector of `(Key, AnyValue)` with default capacity.
+/// A vector of `Option<(Key, AnyValue)>` with default capacity.
 pub(crate) type AttributesGrowableArray =
-    GrowableArray<(Key, AnyValue), PREALLOCATED_ATTRIBUTE_CAPACITY>;
+    GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
@@ -99,14 +99,14 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        self.attributes.push((key.into(), value.into()));
+        self.attributes.push(Some((key.into(), value.into())));
     }
 }
 
 impl LogRecord {
     /// Provides an iterator over the attributes.
     pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
-        self.attributes.iter()
+        self.attributes.iter().filter_map(|opt| opt.as_ref())
     }
 
     /// Returns the number of attributes in the `LogRecord`.
@@ -116,7 +116,13 @@ impl LogRecord {
 
     /// Checks if the `LogRecord` contains the specified attribute.
     pub fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
-        self.attributes.iter().any(|(k, v)| k == key && v == value)
+        self.attributes.iter().any(|opt| {
+            if let Some((k, v)) = opt {
+                k == key && v == value
+            } else {
+                false
+            }
+        })
     }
 }
 
@@ -212,7 +218,7 @@ mod tests {
 
         let mut expected_attributes = AttributesGrowableArray::new();
         for (key, value) in attributes {
-            expected_attributes.push((key, value));
+            expected_attributes.push(Some((key, value)));
         }
         assert_eq!(log_record.attributes, expected_attributes);
     }
@@ -224,7 +230,7 @@ mod tests {
 
         let expected_attributes = {
             let mut hybrid_vec = AttributesGrowableArray::new();
-            hybrid_vec.push((Key::new("key"), AnyValue::String("value".into())));
+            hybrid_vec.push(Some((Key::new("key"), AnyValue::String("value".into()))));
             hybrid_vec
         };
         assert_eq!(log_record.attributes, expected_attributes);
@@ -263,7 +269,7 @@ mod tests {
             body: Some(AnyValue::String("Test body".into())),
             attributes: {
                 let mut hybrid_vec = AttributesGrowableArray::new();
-                hybrid_vec.push((Key::new("key"), AnyValue::String("value".into())));
+                hybrid_vec.push(Some((Key::new("key"), AnyValue::String("value".into()))));
                 hybrid_vec
             },
             trace_context: Some(TraceContext {
