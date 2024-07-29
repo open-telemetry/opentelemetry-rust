@@ -7,6 +7,21 @@ const DEFAULT_INITIAL_VEC_CAPACITY: usize = 5;
 
 #[derive(Debug, Clone, PartialEq)]
 /// A hybrid vector that starts with a fixed-size array and grows dynamically with a vector.
+///
+/// `GrowableArray` uses an internal fixed-size array (`initial`) for storing elements until it reaches
+/// `MAX_STACK_CAPACITY`. When this capacity is exceeded, additional elements are stored in a heap-allocated
+/// vector (`additional`). This structure allows for efficient use of stack memory for small numbers of elements,
+/// while still supporting dynamic growth.
+///
+/// # Examples
+///
+/// ```
+/// let mut ga = GrowableArray::<i32>::new();
+/// ga.push(1);
+/// ga.push(2);
+/// assert_eq!(ga.get(0), Some(&1));
+/// assert_eq!(ga.get(1), Some(&2));
+/// ```
 pub(crate) struct GrowableArray<
     T: Default + Clone + PartialEq,
     const MAX_STACK_CAPACITY: usize = DEFAULT_MAX_STACK_CAPACITY,
@@ -39,12 +54,15 @@ impl<
     > GrowableArray<T, MAX_STACK_CAPACITY, INITIAL_VEC_CAPACITY>
 {
     /// Creates a new `GrowableArray` with the default initial capacity.
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self::default()
     }
 
     /// Pushes a value into the `GrowableArray`.
-    #[inline]
+    ///
+    /// If the internal array (`initial`) has reached its capacity (`MAX_STACK_CAPACITY`), the value is pushed
+    /// into the heap-allocated vector (`additional`). Otherwise, it is stored in the array.    #[inline]
     pub(crate) fn push(&mut self, value: T) {
         if self.count < MAX_STACK_CAPACITY {
             self.initial[self.count] = value;
@@ -59,6 +77,9 @@ impl<
     }
 
     /// Gets a reference to the value at the specified index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    #[allow(dead_code)]
     pub(crate) fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.initial[index])
@@ -75,6 +96,22 @@ impl<
     }
 
     /// Returns an iterator over the elements in the `GrowableArray`.
+    ///
+    /// The iterator yields elements from the internal array (`initial`) first, followed by elements
+    /// from the vector (`additional`) if present. This allows for efficient iteration over both
+    /// stack-allocated and heap-allocated portions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut ga = GrowableArray::<i32>::new();
+    /// ga.push(1);
+    /// ga.push(2);
+    /// let mut iter = ga.iter();
+    /// assert_eq!(iter.next(), Some(&1));
+    /// assert_eq!(iter.next(), Some(&2));
+    /// assert_eq!(iter.next(), None);
+    /// ```    
     #[inline]
     pub(crate) fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
         if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
@@ -113,6 +150,21 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> IntoIterator
 
 #[derive(Debug)]
 /// Iterator for consuming a `GrowableArray`.
+///
+/// The iterator consumes the `GrowableArray`, yielding each element by value.
+/// It first iterates over the elements in the internal array (`initial`), and then,
+/// if present, over the elements in the vector (`additional`).
+///
+/// # Examples
+///
+/// ```
+/// let mut ga = GrowableArray::<i32>::new();
+/// ga.push(1);
+/// ga.push(2);
+/// let mut iter = ga.into_iter();
+/// assert_eq!(iter.next(), Some(1));
+/// assert_eq!(iter.next(), Some(2));
+/// assert_eq!(iter.next(), None);
 pub(crate) enum GrowableArrayIntoIter<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
 {
     /// stackonly
@@ -168,6 +220,22 @@ impl<'a, T: Default + Clone + PartialEq + 'a, const INITIAL_CAPACITY: usize> Int
 
 #[derive(Debug)]
 /// Iterator for referencing elements in a `GrowableArray`.
+///
+/// This iterator allows for iterating over elements in a `GrowableArray` by reference.
+/// It first yields references to the elements stored in the internal array (`initial`),
+/// followed by references to the elements in the vector (`additional`) if present.
+///
+/// # Examples
+///
+/// ```
+/// let mut ga = GrowableArray::<i32>::new();
+/// ga.push(1);
+/// ga.push(2);
+/// let mut iter = ga.iter();
+/// assert_eq!(iter.next(), Some(&1));
+/// assert_eq!(iter.next(), Some(&2));
+/// assert_eq!(iter.next(), None);
+/// ```
 pub(crate) enum GrowableArrayIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
     /// stackonly
     StackOnly {

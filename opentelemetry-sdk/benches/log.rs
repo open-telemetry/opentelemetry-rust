@@ -80,20 +80,6 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut crit = Criterion::default()
-        .sample_size(100) // Set sample size
-        .measurement_time(std::time::Duration::new(20, 0)) // Set measurement time to 10 seconds
-        .warm_up_time(std::time::Duration::new(5, 0)); // Set warm-up time
-                                                       /*log_benchmark_group(c, "simple-log", |logger| {
-                                                           let mut log_record = logger.create_log_record();
-                                                           log_record.set_body("simple log".into());
-                                                           logger.emit(log_record);
-                                                       });*/
-    log_benchmark_group(&mut crit, "custom-test", |logger| {
-        let mut log_record = logger.create_log_record();
-        logger.emit(log_record);
-    });
-
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());

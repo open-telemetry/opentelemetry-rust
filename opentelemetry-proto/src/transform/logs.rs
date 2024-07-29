@@ -8,7 +8,6 @@ pub mod tonic {
             },
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
-            Attributes,
         },
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };

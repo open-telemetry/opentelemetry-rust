@@ -7,9 +7,8 @@ use opentelemetry::{
 use std::{borrow::Cow, time::SystemTime};
 
 // According to a Go-specific study mentioned on https://go.dev/blog/slog,
-// up to 5 attributes is the most common case. We have chosen 8 as the default
-// capacity for attributes to avoid reallocation in common scenarios.
-const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
+// up to 5 attributes is the most common case.
+const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 
 /// A vector of `Option<(Key, AnyValue)>` with default capacity.
 pub(crate) type AttributesGrowableArray =
