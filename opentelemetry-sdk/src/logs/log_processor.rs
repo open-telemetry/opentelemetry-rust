@@ -202,15 +202,15 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
-        
+
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = inner_runtime
-            .interval(config.scheduled_delay)
-            .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-            .map(|_| BatchMessage::Flush(None));
+                .interval(config.scheduled_delay)
+                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
             let mut logs = Vec::new();
             let mut messages = Box::pin(stream::select(message_receiver, ticker));
