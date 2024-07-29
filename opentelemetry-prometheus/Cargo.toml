@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-prometheus"
-version = "0.16.0"
+version = "0.17.0"
 description = "Prometheus exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -21,14 +21,16 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { version = "0.23", default-features = false, features = ["metrics"] }
-opentelemetry_sdk = { version = "0.23", default-features = false, features = ["metrics"] }
+opentelemetry = { version = "0.24", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.24", default-features = false, features = ["metrics"] }
 prometheus = "0.13"
 protobuf = "2.14"
 
 [dev-dependencies]
-opentelemetry-semantic-conventions = { version = "0.15" }
+opentelemetry-semantic-conventions = { version = "0.16" }
+http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 
 [features]

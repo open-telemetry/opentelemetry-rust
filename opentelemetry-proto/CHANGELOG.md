@@ -1,10 +1,15 @@
 # Changelog
 
 ## vNext
+-  Update protobuf definitions to v1.3.2 [#1945](https://github.com/open-telemetry/opentelemetry-rust/pull/1945)
+
+## v0.7.0
 
 - Bump MSRV to 1.70 [1864](https://github.com/open-telemetry/opentelemetry-rust/pull/1874)
 - Group log and Span batch by their resource and instrumentation scope before exporting [#1873](https://github.com/open-telemetry/opentelemetry-rust/pull/1873).
    - Introduced `group_logs_by_resource_and_scope()` and `group_spans_by_resource_and_scope()` methods to group logs and spans by the resource and scope respectively.
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry_sdk` dependency version to 0.24
 
 ## v0.6.0
 

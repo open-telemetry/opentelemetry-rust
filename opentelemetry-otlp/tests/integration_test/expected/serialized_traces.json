@@ -9,18 +9,24 @@
               "stringValue": "basic-otlp-tracing-example"
             }
           }
-        ]
+        ],
+        "droppedAttributesCount": 0
       },
       "scopeSpans": [
         {
           "scope": {
-            "name": "ex.com/basic"
+            "name": "ex.com/basic",
+            "version": "",
+            "attributes": [],
+            "droppedAttributesCount": 0
           },
           "spans": [
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "cd7cf7bf939930b7",
+              "traceState": "",
               "parentSpanId": "d58cf2d702a061e0",
+              "flags": 0,
               "name": "Sub operation...",
               "kind": 1,
               "startTimeUnixNano": "1703985537070566698",
@@ -33,17 +39,28 @@
                   }
                 }
               ],
+              "droppedAttributesCount": 0,
               "events": [
                 {
                   "timeUnixNano": "1703985537070567697",
-                  "name": "Sub span event"
+                  "name": "Sub span event",
+                  "attributes": [],
+                  "droppedAttributesCount": 0
                 }
               ],
-              "status": {}
+              "droppedEventsCount": 0,
+              "links": [],
+              "droppedLinksCount": 0,
+              "status": {
+                "message": "",
+                "code": 0
+              }
             }
-          ]
+          ],
+          "schemaUrl": ""
         }
-      ]
+      ],
+      "schemaUrl": ""
     },
     {
       "resource": {
@@ -54,18 +71,24 @@
               "stringValue": "basic-otlp-tracing-example"
             }
           }
-        ]
+        ],
+        "droppedAttributesCount": 0
       },
       "scopeSpans": [
         {
           "scope": {
-            "name": "ex.com/basic"
+            "name": "ex.com/basic",
+            "version": "",
+            "attributes": [],
+            "droppedAttributesCount": 0
           },
           "spans": [
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "d58cf2d702a061e0",
+              "traceState": "",
               "parentSpanId": "",
+              "flags": 0,
               "name": "operation",
               "kind": 1,
               "startTimeUnixNano": "1703985537070558635",
@@ -78,6 +101,7 @@
                   }
                 }
               ],
+              "droppedAttributesCount": 0,
               "events": [
                 {
                   "timeUnixNano": "1703985537070563326",
@@ -88,21 +112,24 @@
                       "value": {
                         "intValue": "100"
                       }
-                    },
-                    {
-                      "key": "number/int",
-                      "value": {
-                        "intValue": 100
-                      }
                     }
-                  ]
+                  ],
+                  "droppedAttributesCount": 0
                 }
               ],
-              "status": {}
+              "droppedEventsCount": 0,
+              "links": [],
+              "droppedLinksCount": 0,
+              "status": {
+                "message": "",
+                "code": 0
+              }
             }
-          ]
+          ],
+          "schemaUrl": ""
         }
-      ]
+      ],
+      "schemaUrl": ""
     }
   ]
 }

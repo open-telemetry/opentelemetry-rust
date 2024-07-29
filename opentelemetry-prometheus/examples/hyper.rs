@@ -1,25 +1,29 @@
+use http_body_util::Full;
 use hyper::{
+    body::{Bytes, Incoming},
     header::CONTENT_TYPE,
-    service::{make_service_fn, service_fn},
-    Body, Method, Request, Response, Server,
+    service::service_fn,
+    Method, Request, Response,
 };
+use hyper_util::rt::{TokioExecutor, TokioIo};
 use once_cell::sync::Lazy;
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, Unit},
+    metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
-use std::convert::Infallible;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::SystemTime;
+use tokio::net::TcpListener;
 
 static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
 
 async fn serve_req(
-    req: Request<Body>,
+    req: Request<Incoming>,
     state: Arc<AppState>,
-) -> Result<Response<Body>, hyper::Error> {
+) -> Result<Response<Full<Bytes>>, hyper::Error> {
     println!("Receiving request at path {}", req.uri());
     let request_start = SystemTime::now();
 
@@ -38,16 +42,16 @@ async fn serve_req(
             Response::builder()
                 .status(200)
                 .header(CONTENT_TYPE, encoder.format_type())
-                .body(Body::from(buffer))
+                .body(Full::new(Bytes::from(buffer)))
                 .unwrap()
         }
         (&Method::GET, "/") => Response::builder()
             .status(200)
-            .body(Body::from("Hello World"))
+            .body(Full::new("Hello World".into()))
             .unwrap(),
         _ => Response::builder()
             .status(404)
-            .body(Body::from("Missing Page"))
+            .body(Full::new("Missing Page".into()))
             .unwrap(),
     };
 
@@ -67,6 +71,8 @@ struct AppState {
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use hyper_util::server::conn::auto::Builder;
+
     let registry = Registry::new();
     let exporter = opentelemetry_prometheus::exporter()
         .with_registry(registry.clone())
@@ -82,33 +88,32 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .init(),
         http_body_gauge: meter
             .u64_histogram("example.http_response_size")
-            .with_unit(Unit::new("By"))
+            .with_unit("By")
             .with_description("The metrics HTTP response sizes in bytes.")
             .init(),
         http_req_histogram: meter
             .f64_histogram("example.http_request_duration")
-            .with_unit(Unit::new("ms"))
+            .with_unit("ms")
             .with_description("The HTTP request latencies in milliseconds.")
             .init(),
     });
 
-    // For every connection, we must make a `Service` to handle all
-    // incoming HTTP requests on said connection.
-    let make_svc = make_service_fn(move |_conn| {
-        let state = state.clone();
-        // This is the `Service` that will handle the connection.
-        // `service_fn` is a helper to convert a function that
-        // returns a Response into a `Service`.
-        async move { Ok::<_, Infallible>(service_fn(move |req| serve_req(req, state.clone()))) }
-    });
-
-    let addr = ([127, 0, 0, 1], 3000).into();
-
-    let server = Server::bind(&addr).serve(make_svc);
+    let addr: SocketAddr = ([127, 0, 0, 1], 3000).into();
+    let listener = TcpListener::bind(addr).await.unwrap();
 
     println!("Listening on http://{addr}");
 
-    server.await?;
+    while let Ok((stream, _addr)) = listener.accept().await {
+        if let Err(err) = Builder::new(TokioExecutor::new())
+            .serve_connection(
+                TokioIo::new(stream),
+                service_fn(|req| serve_req(req, state.clone())),
+            )
+            .await
+        {
+            eprintln!("{err}");
+        }
+    }
 
     Ok(())
 }

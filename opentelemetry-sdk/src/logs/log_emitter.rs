@@ -40,6 +40,9 @@ pub struct LoggerProvider {
 
 /// Default logger name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
+// According to a Go-specific study mentioned on https://go.dev/blog/slog,
+// up to 5 attributes is the most common case. We have chosen 8 as the default
+// capacity for attributes to avoid reallocation in common scenarios.
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
@@ -311,7 +314,7 @@ mod tests {
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
     use std::thread;
 
     struct ShutdownTestLogProcessor {

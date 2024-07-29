@@ -97,6 +97,7 @@
 //! For users uses `tonic` as grpc layer:
 //! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
+//! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
 //! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
 //! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
@@ -372,6 +373,11 @@ pub enum Error {
     /// Unsupported compression algorithm.
     #[error("unsupported compression algorithm '{0}'")]
     UnsupportedCompressionAlgorithm(String),
+
+    /// Feature required to use the specified compression algorithm.
+    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
 }
 
 #[cfg(feature = "grpc-tonic")]
@@ -381,9 +387,17 @@ impl From<tonic::Status> for Error {
             code: status.code(),
             message: {
                 if !status.message().is_empty() {
-                    ", detailed error message: ".to_string() + status.message()
+                    let mut result = ", detailed error message: ".to_string() + status.message();
+                    if status.code() == tonic::Code::Unknown {
+                        let source = (&status as &dyn std::error::Error)
+                            .source()
+                            .map(|e| format!("{:?}", e));
+                        result.push(' ');
+                        result.push_str(source.unwrap_or_default().as_ref());
+                    }
+                    result
                 } else {
-                    "".to_string()
+                    String::new()
                 }
             },
         }

@@ -4,7 +4,7 @@
 //!
 //! * The [`Tracer`] struct which performs all tracing operations.
 //! * The [`Span`] struct with is a mutable object storing information about the
-//! current operation execution.
+//!   current operation execution.
 //! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod events;

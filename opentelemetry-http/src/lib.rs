@@ -99,53 +99,30 @@ mod reqwest {
     }
 }
 
-#[cfg(feature = "isahc")]
-mod isahc {
-    use crate::ResponseExt;
-
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use isahc::AsyncReadResponseExt;
-    use std::convert::TryInto as _;
-
-    #[async_trait]
-    impl HttpClient for isahc::HttpClient {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-            let mut response = self.send_async(request).await?;
-            let mut bytes = Vec::with_capacity(response.body().len().unwrap_or(0).try_into()?);
-            response.copy_to(&mut bytes).await?;
-
-            let headers = std::mem::take(response.headers_mut());
-            let mut http_response = Response::builder()
-                .status(response.status().as_u16())
-                .body(bytes.into())?;
-            *http_response.headers_mut() = headers;
-
-            Ok(http_response.error_for_status()?)
-        }
-    }
-}
-
 #[cfg(feature = "hyper")]
 pub mod hyper {
     use crate::ResponseExt;
 
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
-    use hyper::client::connect::Connect;
-    use hyper::Client;
+    use http_body_util::{BodyExt, Full};
+    use hyper::body::{Body as HttpBody, Frame};
+    use hyper_util::client::legacy::{connect::Connect, Client};
     use std::fmt::Debug;
+    use std::pin::Pin;
+    use std::task::{self, Poll};
     use std::time::Duration;
     use tokio::time;
 
     #[derive(Debug, Clone)]
     pub struct HyperClient<C> {
-        inner: Client<C>,
+        inner: Client<C, Body>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
 
     impl<C> HyperClient<C> {
-        pub fn new_with_timeout(inner: Client<C>, timeout: Duration) -> Self {
+        pub fn new_with_timeout(inner: Client<C, Body>, timeout: Duration) -> Self {
             Self {
                 inner,
                 timeout,
@@ -154,7 +131,7 @@ pub mod hyper {
         }
 
         pub fn new_with_timeout_and_authorization_header(
-            inner: Client<C>,
+            inner: Client<C, Body>,
             timeout: Duration,
             authorization: HeaderValue,
         ) -> Self {
@@ -173,7 +150,7 @@ pub mod hyper {
     {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
-            let mut request = Request::from_parts(parts, body.into());
+            let mut request = Request::from_parts(parts, Body(Full::from(body)));
             if let Some(ref authorization) = self.authorization {
                 request
                     .headers_mut()
@@ -181,12 +158,39 @@ pub mod hyper {
             }
             let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
             let headers = std::mem::take(response.headers_mut());
+
             let mut http_response = Response::builder()
                 .status(response.status())
-                .body(hyper::body::to_bytes(response.into_body()).await?)?;
+                .body(response.into_body().collect().await?.to_bytes())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response.error_for_status()?)
+        }
+    }
+
+    pub struct Body(Full<Bytes>);
+
+    impl HttpBody for Body {
+        type Data = Bytes;
+        type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+        #[inline]
+        fn poll_frame(
+            self: Pin<&mut Self>,
+            cx: &mut task::Context<'_>,
+        ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+            let inner_body = unsafe { self.map_unchecked_mut(|b| &mut b.0) };
+            inner_body.poll_frame(cx).map_err(Into::into)
+        }
+
+        #[inline]
+        fn is_end_stream(&self) -> bool {
+            self.0.is_end_stream()
+        }
+
+        #[inline]
+        fn size_hint(&self) -> hyper::body::SizeHint {
+            self.0.size_hint()
         }
     }
 }

@@ -2,6 +2,19 @@
 
 ## vNext
 
+- `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
+- Fixed an issue causing a panic during shutdown when using the `TokioCurrentThread` tracing batch processor.
+  [#1964](https://github.com/open-telemetry/opentelemetry-rust/pull/1964)
+- Fix BatchSpanProcessor to trigger first export at the first interval
+  instead of doing it right away.
+  [#1970](https://github.com/open-telemetry/opentelemetry-rust/pull/1970)
+
+## v0.24.1
+
+- Add hidden method to support tracing-opentelemetry
+
+## v0.24.0
+
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
 - Add `with_resource` on Builder for LoggerProvider, replacing the `with_config`
@@ -17,13 +30,13 @@
   `RwLock` instead of `Mutex` to reduce contention
 
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
-  Update `LogProcessor::emit() method to take mutable reference to LogData. This is breaking
+  Update `LogProcessor::emit()` method to take mutable reference to LogData. This is breaking
   change for LogProcessor developers. If the processor needs to invoke the exporter
   asynchronously, it should clone the data to ensure it can be safely processed without
   lifetime issues. Any changes made to the log data before cloning in this method will be
   reflected in the next log processor in the chain, as well as to the exporter.
 - **Breaking** [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
- Update `LogExporter::export() method to accept a batch of log data, which can be either a
+ Update `LogExporter::export()` method to accept a batch of log data, which can be either a
  reference or owned`LogData`. If the exporter needs to process the log data
  asynchronously, it should clone the log data to ensure it can be safely processed without
  lifetime issues.
@@ -32,13 +45,13 @@
     - Added `non_exhaustive` annotation to [`trace::Config`]. Marked [`config`] as deprecated since it's only a wrapper for `Config::default`
     - Removed [`Tracer::tracer_provder`] and [`Tracer::instrument_libraries`] as it's not part of the spec.
 
-- **Breaking** [#1830](https://github.com/open-telemetry/opentelemetry-rust/pull/1830/files) [Traces SDK] Improves 
+- **Breaking** [#1830](https://github.com/open-telemetry/opentelemetry-rust/pull/1830/files) [Traces SDK] Improves
   performance by sending Resource information to processors (and exporters) once, instead of sending with every log. If you are an author
   of Processor, Exporter, the following are *BREAKING* changes.
     - Implement `set_resource` method in your custom SpanProcessor, which invokes exporter's `set_resource`.
     - Implement `set_resource` method in your custom SpanExporter. This method should save the resource object
       in original or serialized format, to be merged with every span event during export.
-    - `SpanData` doesn't have the resource attributes. The `SpanExporter::export()` method needs to merge it 
+    - `SpanData` doesn't have the resource attributes. The `SpanExporter::export()` method needs to merge it
       with the earlier preserved resource before export.
 
 - **Breaking** [1836](https://github.com/open-telemetry/opentelemetry-rust/pull/1836) `SpanProcessor::shutdown` now takes an immutable reference to self. Any reference can call shutdown on the processor. After the first call to `shutdown` the processor will not process any new spans.
@@ -74,6 +87,9 @@ LogData {
 }
 ```
 The `LogRecord::target` field contains the actual target/component emitting the logs, while the `Instrumentation::name` contains the name of the OpenTelemetry appender.
+- **Breaking** [#1674](https://github.com/open-telemetry/opentelemetry-rust/pull/1674) Update to `http` v1 types (via `opentelemetry-http` update)
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry-http` dependency version to 0.13
 
 ## v0.23.0
 
@@ -90,17 +106,17 @@ The `LogRecord::target` field contains the actual target/component emitting the 
 - **Breaking** [#1624](https://github.com/open-telemetry/opentelemetry-rust/pull/1624) Remove `OsResourceDetector` and
   `ProcessResourceDetector` resource detectors, use the
   [`opentelemetry-resource-detector`](https://crates.io/crates/opentelemetry-resource-detectors) instead.
-- [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Improves performance by sending 
+- [#1636](https://github.com/open-telemetry/opentelemetry-rust/pull/1636) [Logs SDK] Improves performance by sending
   Resource information to processors (and exporters) once, instead of sending with every log. If you are an author
   of Processor, Exporter, the following are *BREAKING* changes.
     - Implement `set_resource` method in your custom LogProcessor, which invokes exporter's `set_resource`.
     - Implement `set_resource` method in your custom LogExporter. This method should save the resource object
       in original or serialized format, to be merged with every log event during export.
-    - `LogData` doesn't have the resource attributes. The `LogExporter::export()` method needs to merge it 
+    - `LogData` doesn't have the resource attributes. The `LogExporter::export()` method needs to merge it
       with the earlier preserved resource before export.
 - Baggage propagation error will be reported to global error handler [#1640](https://github.com/open-telemetry/opentelemetry-rust/pull/1640)
 - Improves `shutdown` behavior of `LoggerProvider` and `LogProcessor` [#1643](https://github.com/open-telemetry/opentelemetry-rust/pull/1643).
-  - `shutdown` can be called by any clone of the `LoggerProvider` without the need of waiting on all `Logger` drops. Thus, `try_shutdown` has been removed. 
+  - `shutdown` can be called by any clone of the `LoggerProvider` without the need of waiting on all `Logger` drops. Thus, `try_shutdown` has been removed.
   - `shutdown` methods in `LoggerProvider` and `LogProcessor` now takes a immutable reference
   - After `shutdown`, `LoggerProvider` will return noop `Logger`
   - After `shutdown`, `LogProcessor` will not process any new logs
