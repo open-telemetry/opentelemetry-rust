@@ -1,6 +1,6 @@
 use std::array::IntoIter;
 
-/// The default max capacity for the stack portation of `GrowableArray`.
+/// The default max capacity for the stack portion of `GrowableArray`.
 const DEFAULT_MAX_STACK_CAPACITY: usize = 10;
 /// The default initial capacity for the vector portion of `GrowableArray`.
 const DEFAULT_INITIAL_VEC_CAPACITY: usize = 5;
