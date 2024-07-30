@@ -92,7 +92,3 @@ name = "log"
 harness = false
 required-features = ["logs"]
 
-#[[bench]]
-#name = "growable_array"
-#harness = false
-#required-features = ["logs"]
