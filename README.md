@@ -98,7 +98,12 @@ See the [examples](./examples) directory for different integration patterns.
 
 ## Overview of crates
 
-The following crates are maintained in this repo:
+OpenTelemetry Rust is composed of multiple interdependent crates, each of which 
+may have different version numbers. To maintain compatibility and ensure proper 
+functionality, it is recommended to update all related crates simultaneously 
+when new versions are released. While it would be ideal to have fewer breaking 
+changes with minor version updates, this is currently not feasible until all 
+signals within the ecosystem reach stability.
 
 * [`opentelemetry`] This is the OpenTelemetry API crate, and is the crate
   required to instrument libraries and applications. It contains Context API,
