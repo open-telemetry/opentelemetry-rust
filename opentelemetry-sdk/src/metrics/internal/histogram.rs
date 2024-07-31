@@ -128,7 +128,8 @@ impl<T: Number<T>> Histogram<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs: AttributeSet = attrs.into();
         self.hist_values.measure(measurement, attrs)
     }
 
