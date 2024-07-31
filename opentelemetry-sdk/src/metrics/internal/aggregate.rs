@@ -138,7 +138,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            move |n, a: &[KeyValue]| s.measure(n, a),
+            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -173,7 +173,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            move |n, a: &[KeyValue]| h.measure(n, a),
+            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -199,7 +199,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            move |n, a: &[KeyValue]| h.measure(n, a),
+            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
