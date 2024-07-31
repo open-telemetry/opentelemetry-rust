@@ -2,6 +2,14 @@
 
 ## vNext
 
+## v0.17.0
+
+### Changed
+
+- Update `opentelemetry` dependency version to 0.24
+- Update `opentelemetry_sdk` dependency version to 0.24
+- Update `opentelemetry-semantic-conventions` dependency version to 0.16
+
 ## v0.16.0
 
 ### Added
