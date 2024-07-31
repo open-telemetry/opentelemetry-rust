@@ -95,13 +95,12 @@ impl<T: Number<T>> AggregateBuilder<T> {
     fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
         let filter = self.filter.clone();
         move |n, attrs: &[KeyValue]| {
-            let filtered_attrs: Vec<KeyValue> = if let Some(filter) = &filter {
-                attrs.iter().filter(|kv| filter(kv)).cloned().collect()
+            if let Some(filter) = &filter {
+                let filtered_attrs: Vec<KeyValue> = attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+                f.call(n, &filtered_attrs);
             } else {
-                // TODO: This is unwanted allocation. We should avoid it.
-                attrs.to_vec()
+                f.call(n, attrs);
             };
-            f.call(n, &filtered_attrs);
         }
     }
 
