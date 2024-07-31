@@ -1,5 +1,3 @@
-use std::array::IntoIter;
-
 /// The default max capacity for the stack portion of `GrowableArray`.
 const DEFAULT_MAX_STACK_CAPACITY: usize = 10;
 /// The default initial capacity for the vector portion of `GrowableArray`.
@@ -93,16 +91,15 @@ impl<
     /// stack-allocated and heap-allocated portions.
     ///
     #[inline]
-    pub(crate) fn iter(&self) -> GrowableArrayIter<'_, T, MAX_STACK_CAPACITY> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
-            GrowableArrayIter::StackOnly {
-                iter: self.initial.iter().take(self.count),
-            }
+            self.initial.iter().take(self.count).chain([].iter()) // Chaining with an empty array
+                                                                  // so that both `if` and `else` branch return the same type
         } else {
-            GrowableArrayIter::Mixed {
-                stack_iter: self.initial.iter().take(self.count),
-                heap_iter: self.additional.as_ref().unwrap().iter(),
-            }
+            self.initial
+                .iter()
+                .take(self.count)
+                .chain(self.additional.as_ref().unwrap().iter())
         }
     }
 }
@@ -115,40 +112,52 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> IntoIterator
     type IntoIter = GrowableArrayIntoIter<T, INITIAL_CAPACITY>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
-            GrowableArrayIntoIter::StackOnly {
-                iter: self.initial.into_iter().take(self.count),
-            }
-        } else {
-            GrowableArrayIntoIter::Mixed {
-                stack_iter: self.initial.into_iter().take(self.count),
-                heap_iter: self.additional.unwrap().into_iter(),
-            }
-        }
+        GrowableArrayIntoIter::<T, INITIAL_CAPACITY>::new(self)
     }
 }
 
-#[derive(Debug)]
 /// Iterator for consuming a `GrowableArray`.
 ///
-/// The iterator consumes the `GrowableArray`, yielding each element by value.
-/// It first iterates over the elements in the internal array (`initial`), and then,
-/// if present, over the elements in the vector (`additional`).
-///
-pub(crate) enum GrowableArrayIntoIter<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
+#[derive(Debug)]
+pub(crate) struct GrowableArrayIntoIter<
+    T: Default + Clone + PartialEq,
+    const INITIAL_CAPACITY: usize,
+> {
+    iter: std::iter::Chain<
+        std::iter::Take<std::array::IntoIter<T, INITIAL_CAPACITY>>,
+        std::vec::IntoIter<T>,
+    >,
+}
+
+impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
+    GrowableArrayIntoIter<T, INITIAL_CAPACITY>
 {
-    /// stackonly
-    StackOnly {
-        /// iter
-        iter: std::iter::Take<IntoIter<T, INITIAL_CAPACITY>>,
-    },
-    /// hybrid
-    Mixed {
-        /// stack_iter
-        stack_iter: std::iter::Take<IntoIter<T, INITIAL_CAPACITY>>,
-        /// heap_iter
-        heap_iter: std::vec::IntoIter<T>,
-    },
+    fn new(source: GrowableArray<T, INITIAL_CAPACITY>) -> Self {
+        Self {
+            iter: Self::get_iterator(source),
+        }
+    }
+
+    fn get_iterator(
+        source: GrowableArray<T, INITIAL_CAPACITY>,
+    ) -> std::iter::Chain<
+        std::iter::Take<std::array::IntoIter<T, INITIAL_CAPACITY>>,
+        std::vec::IntoIter<T>,
+    > {
+        if source.additional.is_none() || source.additional.as_ref().unwrap().is_empty() {
+            source
+                .initial
+                .into_iter()
+                .take(source.count)
+                .chain(Vec::<T>::new().into_iter())
+        } else {
+            source
+                .initial
+                .into_iter()
+                .take(source.count)
+                .chain(source.additional.unwrap().into_iter())
+        }
+    }
 }
 
 impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Iterator
@@ -157,80 +166,15 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Iterator
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            GrowableArrayIntoIter::StackOnly { iter } => iter.next(),
-            GrowableArrayIntoIter::Mixed {
-                stack_iter,
-                heap_iter,
-            } => stack_iter.next().or_else(|| heap_iter.next()),
-        }
-    }
-}
-
-// Implement `IntoIterator` for a reference to `GrowableArray`
-impl<'a, T: Default + Clone + PartialEq + 'a, const INITIAL_CAPACITY: usize> IntoIterator
-    for &'a GrowableArray<T, INITIAL_CAPACITY>
-{
-    type Item = &'a T;
-    type IntoIter = GrowableArrayIter<'a, T, INITIAL_CAPACITY>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        if self.additional.is_none() || self.additional.as_ref().unwrap().is_empty() {
-            GrowableArrayIter::StackOnly {
-                iter: self.initial.iter().take(self.count),
-            }
-        } else {
-            GrowableArrayIter::Mixed {
-                stack_iter: self.initial.iter().take(self.count),
-                heap_iter: self.additional.as_ref().unwrap().iter(),
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-/// Iterator for referencing elements in a `GrowableArray`.
-///
-/// This iterator allows for iterating over elements in a `GrowableArray` by reference.
-/// It first yields references to the elements stored in the internal array (`initial`),
-/// followed by references to the elements in the vector (`additional`) if present.
-///
-/// # Examples
-///
-pub(crate) enum GrowableArrayIter<'a, T: Default, const INITIAL_CAPACITY: usize> {
-    /// stackonly
-    StackOnly {
-        /// iter
-        iter: std::iter::Take<std::slice::Iter<'a, T>>,
-    },
-    /// hybrid
-    Mixed {
-        /// stack_iter
-        stack_iter: std::iter::Take<std::slice::Iter<'a, T>>,
-        /// heap_iter
-        heap_iter: std::slice::Iter<'a, T>,
-    },
-}
-
-impl<'a, T: Default + Clone, const INITIAL_CAPACITY: usize> Iterator
-    for GrowableArrayIter<'a, T, INITIAL_CAPACITY>
-{
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            GrowableArrayIter::StackOnly { iter } => iter.next(),
-            GrowableArrayIter::Mixed {
-                stack_iter,
-                heap_iter,
-            } => stack_iter.next().or_else(|| heap_iter.next()),
-        }
+        self.iter.next()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::logs::growable_array::GrowableArray;
+    use crate::logs::growable_array::{
+        GrowableArray, DEFAULT_INITIAL_VEC_CAPACITY, DEFAULT_MAX_STACK_CAPACITY,
+    };
     use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
 
@@ -283,7 +227,7 @@ mod tests {
         for i in 0..15 {
             collection.push(i);
         }
-        let iter = &collection;
+        let iter = collection.iter();
         let mut count = 0;
         for value in iter {
             assert_eq!(*value, count);
@@ -318,6 +262,108 @@ mod tests {
         let mut iter = collection.into_iter();
         assert_eq!(iter.next(), Some(KeyValuePair(key1, value1)));
         assert_eq!(iter.next(), Some(KeyValuePair(key2, value2)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_empty_attributes() {
+        let collection = GrowableArray::<KeyValuePair>::new();
+        assert_eq!(collection.len(), 0);
+        assert_eq!(collection.get(0), None);
+
+        let mut iter = collection.into_iter();
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_less_than_max_stack_capacity() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY - 1 {
+            collection.push(i as i32);
+        }
+        assert_eq!(collection.len(), DEFAULT_MAX_STACK_CAPACITY - 1);
+
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY - 1 {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(collection.get(DEFAULT_MAX_STACK_CAPACITY), None);
+
+        let mut iter = collection.into_iter();
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY - 1 {
+            assert_eq!(iter.next(), Some(i as i32));
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_exactly_max_stack_capacity() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY {
+            collection.push(i as i32);
+        }
+        assert_eq!(collection.len(), DEFAULT_MAX_STACK_CAPACITY);
+
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(collection.get(DEFAULT_MAX_STACK_CAPACITY), None);
+
+        let mut iter = collection.into_iter();
+        for i in 0..DEFAULT_MAX_STACK_CAPACITY {
+            assert_eq!(iter.next(), Some(i as i32));
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_exceeds_stack_but_not_initial_vec_capacity() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1) {
+            collection.push(i as i32);
+        }
+        assert_eq!(
+            collection.len(),
+            DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1
+        );
+
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1) {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(
+            collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY),
+            None
+        );
+
+        let mut iter = collection.into_iter();
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1) {
+            assert_eq!(iter.next(), Some(i as i32));
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_exceeds_both_stack_and_initial_vec_capacities() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 5) {
+            collection.push(i as i32);
+        }
+        assert_eq!(
+            collection.len(),
+            DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 5
+        );
+
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 5) {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(
+            collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 6),
+            None
+        );
+
+        let mut iter = collection.into_iter();
+        for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 5) {
+            assert_eq!(iter.next(), Some(i as i32));
+        }
         assert_eq!(iter.next(), None);
     }
 }
