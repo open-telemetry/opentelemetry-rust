@@ -29,11 +29,13 @@ impl<T: Number<T>> LastValue<T> {
         Self::default()
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         let d: DataPointValue<T> = DataPointValue {
             timestamp: SystemTime::now(),
             value: measurement,
         };
+
+        let attrs : AttributeSet = attrs.into();
         if let Ok(mut values) = self.values.lock() {
             let size = values.len();
             match values.entry(attrs) {
@@ -44,7 +46,7 @@ impl<T: Number<T>> LastValue<T> {
                     if is_under_cardinality_limit(size) {
                         vacant_entry.insert(d);
                     } else {
-                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(), d);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                     }
                 }

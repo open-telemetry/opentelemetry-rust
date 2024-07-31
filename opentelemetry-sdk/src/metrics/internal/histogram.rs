@@ -99,7 +99,7 @@ impl<T: Number<T>> HistValues<T> {
             } else {
                 global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                 values
-                    .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
+                    .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into())
                     .or_insert(b)
             }
         };
@@ -128,7 +128,8 @@ impl<T: Number<T>> Histogram<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs : AttributeSet = attrs.into();
         self.hist_values.measure(measurement, attrs)
     }
 

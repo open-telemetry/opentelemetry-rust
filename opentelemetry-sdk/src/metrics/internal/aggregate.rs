@@ -3,10 +3,7 @@ use std::{marker, sync::Arc};
 use once_cell::sync::Lazy;
 use opentelemetry::KeyValue;
 
-use crate::{
-    metrics::data::{Aggregation, Gauge, Temporality},
-    metrics::AttributeSet,
-};
+use crate::metrics::data::{Aggregation, Gauge, Temporality};
 
 use super::{
     exponential_histogram::ExpoHistogram,
@@ -17,10 +14,8 @@ use super::{
 };
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
-    let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
-    AttributeSet::from(&key_values[..])
-});
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<Vec<KeyValue>> =
+    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
@@ -29,14 +24,14 @@ pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
 
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
-    fn call(&self, measurement: T, attrs: AttributeSet);
+    fn call(&self, measurement: T, attrs: &[KeyValue]);
 }
 
 impl<F, T> Measure<T> for F
 where
-    F: Fn(T, AttributeSet) + Send + Sync + 'static,
+    F: Fn(T, &[KeyValue]) + Send + Sync + 'static,
 {
-    fn call(&self, measurement: T, attrs: AttributeSet) {
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
         self(measurement, attrs)
     }
 }
@@ -94,11 +89,13 @@ impl<T: Number<T>> AggregateBuilder<T> {
     /// Wraps the passed in measure with an attribute filtering function.
     fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
         let filter = self.filter.clone();
-        move |n, mut attrs: AttributeSet| {
-            if let Some(filter) = &filter {
-                attrs.retain(filter.as_ref());
-            }
-            f.call(n, attrs)
+        move |n, attrs: &[KeyValue]| {
+            let filtered_attrs: Vec<KeyValue> = if let Some(filter) = &filter {
+                attrs.iter().filter(|kv| filter(kv)).cloned().collect()
+            } else {
+                attrs.to_vec()
+            };
+            f.call(n, &filtered_attrs);
         }
     }
 
@@ -112,7 +109,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let lv_agg = Arc::clone(&lv_filter);
 
         (
-            self.filter(move |n, a| lv_filter.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| {
                 let g = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
                 let mut new_agg = if g.is_none() {
@@ -141,7 +138,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a| s.measure(n, a)),
+            move |n, a: &[KeyValue]| s.measure(n, a),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -156,7 +153,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a| s.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -176,7 +173,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a| h.measure(n, a)),
+            move |n, a: &[KeyValue]| h.measure(n, a),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -202,7 +199,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a| h.measure(n, a)),
+            move |n, a: &[KeyValue]| h.measure(n, a),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -234,7 +231,7 @@ mod tests {
             }],
         };
         let new_attributes = [KeyValue::new("b", 2)];
-        measure.call(2, AttributeSet::from(&new_attributes[..]));
+        measure.call(2, &new_attributes[..]);
 
         let (count, new_agg) = agg.call(Some(&mut a));
 
@@ -275,7 +272,7 @@ mod tests {
                 is_monotonic: false,
             };
             let new_attributes = [KeyValue::new("b", 2)];
-            measure.call(3, AttributeSet::from(&new_attributes[..]));
+            measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
 
@@ -318,7 +315,7 @@ mod tests {
                 is_monotonic: false,
             };
             let new_attributes = [KeyValue::new("b", 2)];
-            measure.call(3, AttributeSet::from(&new_attributes[..]));
+            measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
 
@@ -357,7 +354,7 @@ mod tests {
                 },
             };
             let new_attributes = [KeyValue::new("b", 2)];
-            measure.call(3, AttributeSet::from(&new_attributes[..]));
+            measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
 
@@ -409,7 +406,7 @@ mod tests {
                 },
             };
             let new_attributes = [KeyValue::new("b", 2)];
-            measure.call(3, AttributeSet::from(&new_attributes[..]));
+            measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
 

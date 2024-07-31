@@ -40,7 +40,8 @@ impl<T: Number<T>> ValueMap<T> {
 }
 
 impl<T: Number<T>> ValueMap<T> {
-    fn measure(&self, measurement: T, attrs: AttributeSet) {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs : AttributeSet = attrs.into();
         if attrs.is_empty() {
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
@@ -62,14 +63,14 @@ impl<T: Number<T>> ValueMap<T> {
                         new_value.add(measurement);
                         values.insert(attrs, new_value);
                     } else if let Some(overflow_value) =
-                        values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET)
+                        values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into())
                     {
                         overflow_value.add(measurement);
                         return;
                     } else {
                         let new_value = T::new_atomic_tracker();
                         new_value.add(measurement);
-                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), new_value);
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(), new_value);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                     }
                 }
@@ -99,7 +100,7 @@ impl<T: Number<T>> Sum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         self.value_map.measure(measurement, attrs)
     }
 
@@ -266,7 +267,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         self.value_map.measure(measurement, attrs)
     }
 
