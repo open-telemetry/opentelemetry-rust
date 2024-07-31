@@ -46,7 +46,7 @@ impl<T: Number<T>> LastValue<T> {
                     if is_under_cardinality_limit(size) {
                         vacant_entry.insert(d);
                     } else {
-                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(), d);
+                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), d);
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                     }
                 }

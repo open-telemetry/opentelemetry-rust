@@ -99,7 +99,7 @@ impl<T: Number<T>> HistValues<T> {
             } else {
                 global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow.".into()));
                 values
-                    .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into())
+                    .entry(STREAM_OVERFLOW_ATTRIBUTE_SET.clone())
                     .or_insert(b)
             }
         };
