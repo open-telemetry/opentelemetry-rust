@@ -96,7 +96,8 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let filter = self.filter.clone();
         move |n, attrs: &[KeyValue]| {
             if let Some(filter) = &filter {
-                let filtered_attrs: Vec<KeyValue> = attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+                let filtered_attrs: Vec<KeyValue> =
+                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
                 f.call(n, &filtered_attrs);
             } else {
                 f.call(n, attrs);
