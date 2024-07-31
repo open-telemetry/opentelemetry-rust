@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::vec;
 use std::{
     collections::HashMap,
@@ -18,7 +19,7 @@ use super::{
 
 /// The storage for sums.
 struct ValueMap<T: Number<T>> {
-    values: RwLock<HashMap<AttributeSet, T::AtomicTracker>>,
+    values: RwLock<HashMap<Vec<KeyValue>, Arc<T::AtomicTracker>>>,
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
 }
@@ -41,13 +42,12 @@ impl<T: Number<T>> ValueMap<T> {
 
 impl<T: Number<T>> ValueMap<T> {
     fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        let attrs: AttributeSet = attrs.into();
         if attrs.is_empty() {
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
                 .store(true, Ordering::Release);
         } else if let Ok(values) = self.values.read() {
-            if let Some(value_to_update) = values.get(&attrs) {
+            if let Some(value_to_update) = values.get(attrs) {
                 value_to_update.add(measurement);
                 return;
             } else {
@@ -55,26 +55,33 @@ impl<T: Number<T>> ValueMap<T> {
                 if let Ok(mut values) = self.values.write() {
                     // Recheck after acquiring write lock, in case another
                     // thread has added the value.
-                    if let Some(value_to_update) = values.get(&attrs) {
+                    if let Some(value_to_update) = values.get(attrs) {
                         value_to_update.add(measurement);
                         return;
-                    } else if is_under_cardinality_limit(values.len()) {
-                        let new_value = T::new_atomic_tracker();
-                        new_value.add(measurement);
-                        values.insert(attrs, new_value);
-                    } else if let Some(overflow_value) =
-                        values.get_mut(&STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into())
-                    {
-                        overflow_value.add(measurement);
-                        return;
                     } else {
-                        let new_value = T::new_atomic_tracker();
-                        new_value.add(measurement);
-                        values.insert(
-                            STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(),
-                            new_value,
-                        );
-                        global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+                        // sort and try again
+                        let sorted_attrs: AttributeSet = attrs.into();
+                        if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
+                            value_to_update.add(measurement);
+                            return;
+                        } else if is_under_cardinality_limit(values.len()) {
+                            let new_value = T::new_atomic_tracker();
+                            new_value.add(measurement);
+                            let new_value_rc = Arc::new(new_value);
+                            values.insert(attrs.to_vec(), new_value_rc.clone());
+                            values.insert(sorted_attrs.into_vec(), new_value_rc);
+                        } else if let Some(overflow_value) =
+                            values.get_mut(STREAM_OVERFLOW_ATTRIBUTE_SET.as_slice())
+                        {
+                            overflow_value.add(measurement);
+                            return;
+                        } else {
+                            let new_value = T::new_atomic_tracker();
+                            new_value.add(measurement);
+                            let new_value_rc = Arc::new(new_value);
+                            values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone(), new_value_rc);
+                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+                        }
                     }
                 }
             }
@@ -157,10 +164,7 @@ impl<T: Number<T>> Sum<T> {
 
         for (attrs, value) in values.drain() {
             s_data.data_points.push(DataPoint {
-                attributes: attrs
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
+                attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: value.get_value(),
@@ -234,10 +238,7 @@ impl<T: Number<T>> Sum<T> {
         // overload the system.
         for (attrs, value) in values.iter() {
             s_data.data_points.push(DataPoint {
-                attributes: attrs
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
+                attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: value.get_value(),
@@ -257,7 +258,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
     value_map: ValueMap<T>,
     monotonic: bool,
     start: Mutex<SystemTime>,
-    reported: Mutex<HashMap<AttributeSet, T>>,
+    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
 impl<T: Number<T>> PrecomputedSum<T> {
@@ -334,10 +335,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 new_reported.insert(attrs.clone(), value.get_value());
             }
             s_data.data_points.push(DataPoint {
-                attributes: attrs
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
+                attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: delta,
@@ -419,10 +417,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 new_reported.insert(attrs.clone(), value.get_value());
             }
             s_data.data_points.push(DataPoint {
-                attributes: attrs
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
+                attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
                 value: delta,

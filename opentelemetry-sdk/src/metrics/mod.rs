@@ -129,6 +129,16 @@ impl AttributeSet {
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
+
+    /// Returns a slice of the key value pairs in the set
+    pub fn as_slice(&self) -> &[KeyValue] {
+        &self.0
+    }
+
+    /// Returns the underlying Vec of KeyValue pairs
+    pub fn into_vec(self) -> Vec<KeyValue> {
+        self.0
+    }
 }
 
 impl Hash for AttributeSet {
