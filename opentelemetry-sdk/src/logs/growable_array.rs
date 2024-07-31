@@ -357,7 +357,7 @@ mod tests {
             assert_eq!(collection.get(i), Some(&(i as i32)));
         }
         assert_eq!(
-            collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 6),
+            collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY + 5),
             None
         );
 
