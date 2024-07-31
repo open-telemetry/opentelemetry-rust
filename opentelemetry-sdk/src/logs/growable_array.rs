@@ -178,15 +178,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
 
-    /// A struct to hold a key-value pair and implement `Default`.
-    #[derive(Clone, Debug, PartialEq)]
-    struct KeyValuePair(Key, AnyValue);
-
-    impl Default for KeyValuePair {
-        fn default() -> Self {
-            KeyValuePair(Key::from_static_str(""), AnyValue::String("".into()))
-        }
-    }
+    type KeyValuePair = Option<(Key, AnyValue)>;
 
     #[test]
     fn test_push_and_get() {
@@ -245,23 +237,27 @@ mod tests {
         let key2 = Key::from("key2");
         let value2 = AnyValue::Int(42);
 
-        collection.push(KeyValuePair(key1.clone(), value1.clone()));
-        collection.push(KeyValuePair(key2.clone(), value2.clone()));
+        collection.push(Some((key1.clone(), value1.clone())));
+        collection.push(Some((key2.clone(), value2.clone())));
 
         assert_eq!(
-            collection.get(0).map(|kv| (&kv.0, &kv.1)),
+            collection
+                .get(0)
+                .and_then(|kv| kv.as_ref().map(|kv| (&kv.0, &kv.1))),
             Some((&key1, &value1))
         );
         assert_eq!(
-            collection.get(1).map(|kv| (&kv.0, &kv.1)),
+            collection
+                .get(1)
+                .and_then(|kv| kv.as_ref().map(|kv| (&kv.0, &kv.1))),
             Some((&key2, &value2))
         );
         assert_eq!(collection.len(), 2);
 
         // Test iterating over the key-value pairs
         let mut iter = collection.into_iter();
-        assert_eq!(iter.next(), Some(KeyValuePair(key1, value1)));
-        assert_eq!(iter.next(), Some(KeyValuePair(key2, value2)));
+        assert_eq!(iter.next(), Some(Some((key1, value1))));
+        assert_eq!(iter.next(), Some(Some((key2, value2))));
         assert_eq!(iter.next(), None);
     }
 
@@ -286,6 +282,7 @@ mod tests {
         for i in 0..DEFAULT_MAX_STACK_CAPACITY - 1 {
             assert_eq!(collection.get(i), Some(&(i as i32)));
         }
+        assert_eq!(collection.get(DEFAULT_MAX_STACK_CAPACITY - 1), None);
         assert_eq!(collection.get(DEFAULT_MAX_STACK_CAPACITY), None);
 
         let mut iter = collection.into_iter();
@@ -329,6 +326,10 @@ mod tests {
         for i in 0..(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1) {
             assert_eq!(collection.get(i), Some(&(i as i32)));
         }
+        assert_eq!(
+            collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY - 1),
+            None
+        );
         assert_eq!(
             collection.get(DEFAULT_MAX_STACK_CAPACITY + DEFAULT_INITIAL_VEC_CAPACITY),
             None
