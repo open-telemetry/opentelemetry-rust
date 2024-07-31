@@ -102,7 +102,7 @@ OpenTelemetry Rust is composed of multiple interdependent crates as given below,
 each of which may have different version numbers. To maintain compatibility 
 and ensure proper functionality, it is recommended to update all related 
 crates simultaneously when new versions are released. While it would be ideal
-to have fewer breaking changes with minor version updates, this is currently 
+to not have breaking changes with minor version updates, this is currently 
 not feasible until all signals within the ecosystem reach stability.
 
 * [`opentelemetry`] This is the OpenTelemetry API crate, and is the crate
