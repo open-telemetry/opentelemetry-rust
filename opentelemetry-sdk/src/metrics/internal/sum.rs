@@ -41,7 +41,7 @@ impl<T: Number<T>> ValueMap<T> {
 
 impl<T: Number<T>> ValueMap<T> {
     fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        let attrs : AttributeSet = attrs.into();
+        let attrs: AttributeSet = attrs.into();
         if attrs.is_empty() {
             self.no_attribute_value.add(measurement);
             self.has_no_value_attribute_value
@@ -70,7 +70,10 @@ impl<T: Number<T>> ValueMap<T> {
                     } else {
                         let new_value = T::new_atomic_tracker();
                         new_value.add(measurement);
-                        values.insert(STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(), new_value);
+                        values.insert(
+                            STREAM_OVERFLOW_ATTRIBUTE_SET.clone().as_slice().into(),
+                            new_value,
+                        );
                         global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                     }
                 }

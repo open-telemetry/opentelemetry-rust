@@ -35,7 +35,7 @@ impl<T: Number<T>> LastValue<T> {
             value: measurement,
         };
 
-        let attrs : AttributeSet = attrs.into();
+        let attrs: AttributeSet = attrs.into();
         if let Ok(mut values) = self.values.lock() {
             let size = values.len();
             match values.entry(attrs) {

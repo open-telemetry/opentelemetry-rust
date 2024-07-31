@@ -347,7 +347,7 @@ impl<T: Number<T>> ExpoHistogram<T> {
             return;
         }
 
-        let attrs : AttributeSet = attrs.into();
+        let attrs: AttributeSet = attrs.into();
         if let Ok(mut values) = self.values.lock() {
             let v = values.entry(attrs).or_insert_with(|| {
                 ExpoHistogramDataPoint::new(
@@ -685,7 +685,7 @@ mod tests {
                 h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
-            let alice : AttributeSet = alice.into();
+            let alice: AttributeSet = alice.into();
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
@@ -737,7 +737,7 @@ mod tests {
                 h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
-            let alice:AttributeSet = alice.into();
+            let alice: AttributeSet = alice.into();
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
