@@ -149,13 +149,13 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize>
                 .initial
                 .into_iter()
                 .take(source.count)
-                .chain(Vec::<T>::new().into_iter())
+                .chain(Vec::<T>::new())
         } else {
             source
                 .initial
                 .into_iter()
                 .take(source.count)
-                .chain(source.additional.unwrap().into_iter())
+                .chain(source.additional.unwrap())
         }
     }
 }

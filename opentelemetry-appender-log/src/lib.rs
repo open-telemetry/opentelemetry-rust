@@ -621,7 +621,7 @@ mod any_value {
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
             Ok(Some(AnyValue::Map({
-                let mut variant = Box::new(HashMap::new());
+                let mut variant = Box::<HashMap<Key, AnyValue>>::default();
                 variant.insert(
                     Key::from(self.variant),
                     AnyValue::ListAny(Box::new(self.value)),
@@ -716,7 +716,7 @@ mod any_value {
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
             Ok(Some(AnyValue::Map({
-                let mut variant = Box::new(HashMap::new());
+                let mut variant = Box::<HashMap<Key, AnyValue>>::default();
                 variant.insert(Key::from(self.variant), AnyValue::Map(Box::new(self.value)));
                 variant
             })))
@@ -1037,7 +1037,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::new(HashMap::new());
+                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
 
                     map.insert(Key::from("a"), AnyValue::Int(1));
                     map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1050,7 +1050,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::new(HashMap::new());
+                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
 
                     map.insert(Key::from("a"), AnyValue::Int(1));
                     map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1077,8 +1077,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::new(HashMap::new());
-
+                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
                     map.insert(Key::from("Newtype"), AnyValue::Int(42));
 
                     map
@@ -1088,12 +1087,12 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::new(HashMap::new());
+                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
 
                     map.insert(
                         Key::from("Struct"),
                         AnyValue::Map({
-                            let mut map = Box::new(HashMap::new());
+                            let mut map = Box::<HashMap<Key, AnyValue>>::default();
 
                             map.insert(Key::from("a"), AnyValue::Int(1));
                             map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1110,7 +1109,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::new(HashMap::new());
+                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
 
                     map.insert(
                         Key::from("Tuple"),
