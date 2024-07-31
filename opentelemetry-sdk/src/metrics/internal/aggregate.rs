@@ -98,6 +98,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
             let filtered_attrs: Vec<KeyValue> = if let Some(filter) = &filter {
                 attrs.iter().filter(|kv| filter(kv)).cloned().collect()
             } else {
+                // TODO: This is unwanted allocation. We should avoid it.
                 attrs.to_vec()
             };
             f.call(n, &filtered_attrs);
