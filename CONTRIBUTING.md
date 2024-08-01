@@ -19,12 +19,12 @@ you're more than welcome to participate!
 
 Even though, anybody can contribute, there are benefits of being a member of our
 community. See to the [community membership
-document](https://github.com/open-telemetry/community/blob/main/community-membership.md)
+document](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md)
 on how to become a
-[**Member**](https://github.com/open-telemetry/community/blob/main/community-membership.md#member),
-[**Approver**](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver)
+[**Member**](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#member),
+[**Approver**](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver)
 and
-[**Maintainer**](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
+[**Maintainer**](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ## Pull Requests
 
@@ -99,9 +99,9 @@ the repo to catch any issues locally.
 A PR is considered to be **ready to merge** when:
 
 - It has received approval from
-  [Approvers](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver).
+  [Approvers](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
   /
-  [Maintainers](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
+  [Maintainers](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 - Major feedbacks are resolved.
 
 Any Maintainer can merge the PR once it is **ready to merge**. Note, that some
