@@ -429,7 +429,7 @@ mod any_value {
         }
 
         fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::Bytes(Box::new(v.to_owned()))))
+            Ok(Some(AnyValue::Bytes(v.to_owned())))
         }
 
         fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
@@ -557,7 +557,7 @@ mod any_value {
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::ListAny(Box::new(self.value))))
+            Ok(Some(AnyValue::ListAny(self.value)))
         }
     }
 
@@ -578,7 +578,7 @@ mod any_value {
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::ListAny(Box::new(self.value))))
+            Ok(Some(AnyValue::ListAny(self.value)))
         }
     }
 
@@ -599,7 +599,7 @@ mod any_value {
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::ListAny(Box::new(self.value))))
+            Ok(Some(AnyValue::ListAny(self.value)))
         }
     }
 
@@ -621,11 +621,8 @@ mod any_value {
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
             Ok(Some(AnyValue::Map({
-                let mut variant = Box::<HashMap<Key, AnyValue>>::default();
-                variant.insert(
-                    Key::from(self.variant),
-                    AnyValue::ListAny(Box::new(self.value)),
-                );
+                let mut variant = HashMap::default();
+                variant.insert(Key::from(self.variant), AnyValue::ListAny(self.value));
                 variant
             })))
         }
@@ -667,7 +664,7 @@ mod any_value {
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::Map(Box::new(self.value))))
+            Ok(Some(AnyValue::Map(self.value)))
         }
     }
 
@@ -691,7 +688,7 @@ mod any_value {
         }
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
-            Ok(Some(AnyValue::Map(Box::new(self.value))))
+            Ok(Some(AnyValue::Map(self.value)))
         }
     }
 
@@ -716,8 +713,8 @@ mod any_value {
 
         fn end(self) -> Result<Self::Ok, Self::Error> {
             Ok(Some(AnyValue::Map({
-                let mut variant = Box::<HashMap<Key, AnyValue>>::default();
-                variant.insert(Key::from(self.variant), AnyValue::Map(Box::new(self.value)));
+                let mut variant = HashMap::default();
+                variant.insert(Key::from(self.variant), AnyValue::Map(self.value));
                 variant
             })))
         }
@@ -1027,17 +1024,13 @@ mod tests {
             assert_eq!(AnyValue::Int(42), get("some_value").unwrap());
 
             assert_eq!(
-                AnyValue::ListAny(Box::new(vec![
-                    AnyValue::Int(1),
-                    AnyValue::Int(1),
-                    AnyValue::Int(1)
-                ])),
+                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(1), AnyValue::Int(1)]),
                 get("slice_value").unwrap()
             );
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                    let mut map = HashMap::default();
 
                     map.insert(Key::from("a"), AnyValue::Int(1));
                     map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1050,7 +1043,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                    let mut map = HashMap::default();
 
                     map.insert(Key::from("a"), AnyValue::Int(1));
                     map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1062,11 +1055,7 @@ mod tests {
             );
 
             assert_eq!(
-                AnyValue::ListAny(Box::new(vec![
-                    AnyValue::Int(1),
-                    AnyValue::Int(1),
-                    AnyValue::Int(1)
-                ])),
+                AnyValue::ListAny(vec![AnyValue::Int(1), AnyValue::Int(1), AnyValue::Int(1)]),
                 get("tuple_value").unwrap()
             );
 
@@ -1077,7 +1066,7 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                    let mut map = HashMap::default();
                     map.insert(Key::from("Newtype"), AnyValue::Int(42));
 
                     map
@@ -1087,12 +1076,12 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                    let mut map = HashMap::default();
 
                     map.insert(
                         Key::from("Struct"),
                         AnyValue::Map({
-                            let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                            let mut map = HashMap::default();
 
                             map.insert(Key::from("a"), AnyValue::Int(1));
                             map.insert(Key::from("b"), AnyValue::Int(1));
@@ -1109,15 +1098,15 @@ mod tests {
 
             assert_eq!(
                 AnyValue::Map({
-                    let mut map = Box::<HashMap<Key, AnyValue>>::default();
+                    let mut map = HashMap::default();
 
                     map.insert(
                         Key::from("Tuple"),
-                        AnyValue::ListAny(Box::new(vec![
+                        AnyValue::ListAny(vec![
                             AnyValue::Int(1),
                             AnyValue::Int(1),
                             AnyValue::Int(1),
-                        ])),
+                        ]),
                     );
 
                     map
