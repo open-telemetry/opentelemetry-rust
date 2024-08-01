@@ -99,7 +99,8 @@ impl<T: Number<T>> Sum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs: AttributeSet = attrs.into();
         self.value_map.measure(measurement, attrs)
     }
 
@@ -266,7 +267,8 @@ impl<T: Number<T>> PrecomputedSum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs: AttributeSet = attrs.into();
         self.value_map.measure(measurement, attrs)
     }
 
