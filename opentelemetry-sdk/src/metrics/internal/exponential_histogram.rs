@@ -340,13 +340,14 @@ impl<T: Number<T>> ExpoHistogram<T> {
         }
     }
 
-    pub(crate) fn measure(&self, value: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
         let f_value = value.into_float();
         // Ignore NaN and infinity.
         if f_value.is_infinite() || f_value.is_nan() {
             return;
         }
 
+        let attrs: AttributeSet = attrs.into();
         if let Ok(mut values) = self.values.lock() {
             let v = values.entry(attrs).or_insert_with(|| {
                 ExpoHistogramDataPoint::new(
@@ -633,7 +634,7 @@ mod tests {
     }
 
     fn run_min_max_sum_f64() {
-        let alice = AttributeSet::from(&[KeyValue::new("user", "alice")][..]);
+        let alice = &[KeyValue::new("user", "alice")][..];
         struct Expected {
             min: f64,
             max: f64,
@@ -681,9 +682,10 @@ mod tests {
         for test in test_cases {
             let h = ExpoHistogram::new(4, 20, true, true);
             for v in test.values {
-                h.measure(v, alice.clone());
+                h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
+            let alice: AttributeSet = alice.into();
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
@@ -694,7 +696,7 @@ mod tests {
     }
 
     fn run_min_max_sum<T: Number<T> + From<u32>>() {
-        let alice = AttributeSet::from(&[KeyValue::new("user", "alice")][..]);
+        let alice = &[KeyValue::new("user", "alice")][..];
         struct Expected<T> {
             min: T,
             max: T,
@@ -732,9 +734,10 @@ mod tests {
         for test in test_cases {
             let h = ExpoHistogram::new(4, 20, true, true);
             for v in test.values {
-                h.measure(v, alice.clone());
+                h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
+            let alice: AttributeSet = alice.into();
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
@@ -1436,7 +1439,7 @@ mod tests {
             let mut count = 0;
             for n in test.input {
                 for v in n {
-                    in_fn.call(v, AttributeSet::default())
+                    in_fn.call(v, &[])
                 }
                 count = out_fn.call(Some(got.as_mut())).0
             }
