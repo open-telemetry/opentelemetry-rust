@@ -129,6 +129,16 @@ impl AttributeSet {
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
+
+    /// Returns a slice of the key value pairs in the set
+    pub fn as_slice(&self) -> &[KeyValue] {
+        &self.0
+    }
+
+    /// Returns the underlying Vec of KeyValue pairs
+    pub fn into_vec(self) -> Vec<KeyValue> {
+        self.0
+    }
 }
 
 impl Hash for AttributeSet {
@@ -1051,6 +1061,8 @@ mod tests {
         for i in 0..10 {
             thread::scope(|s| {
                 s.spawn(|| {
+                    counter.add(1, &[]);
+
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
                     counter.add(1, &[KeyValue::new("key1", "value1")]);
@@ -1074,28 +1086,24 @@ mod tests {
         let sums =
             test_context.get_from_multiple_aggregations::<data::Sum<u64>>("my_counter", None, 6);
 
-        let values = sums
-            .iter()
-            .map(|sum| {
-                assert_eq!(sum.data_points.len(), 1); // Expecting 1 time-series.
-                assert!(sum.is_monotonic, "Counter should produce monotonic.");
-                assert_eq!(sum.temporality, temporality);
+        let mut sum_zero_attributes = 0;
+        let mut sum_key1_value1 = 0;
+        sums.iter().for_each(|sum| {
+            assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
+            assert!(sum.is_monotonic, "Counter should produce monotonic.");
+            assert_eq!(sum.temporality, temporality);
 
-                // find and validate key1=value1 datapoint
-                let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            if temporality == Temporality::Delta {
+                sum_zero_attributes += sum.data_points[0].value;
+                sum_key1_value1 += sum.data_points[1].value;
+            } else {
+                sum_zero_attributes = sum.data_points[0].value;
+                sum_key1_value1 = sum.data_points[1].value;
+            };
+        });
 
-                data_point.value
-            })
-            .collect::<Vec<_>>();
-
-        let total_sum: u64 = if temporality == Temporality::Delta {
-            values.iter().sum()
-        } else {
-            *values.last().unwrap()
-        };
-
-        assert_eq!(total_sum, 50); // Each of the 10 update threads record measurements summing up to 5.
+        assert_eq!(sum_zero_attributes, 10);
+        assert_eq!(sum_key1_value1, 50); // Each of the 10 update threads record measurements summing up to 5.
     }
 
     fn histogram_aggregation_helper(temporality: Temporality) {

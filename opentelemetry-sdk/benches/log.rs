@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{
@@ -15,18 +14,34 @@ use opentelemetry::logs::{
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
-use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry_sdk::export::logs::LogData;
+use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
-struct VoidExporter;
+struct NoopProcessor;
 
-#[async_trait]
-impl LogExporter for VoidExporter {
-    async fn export<'a>(&mut self, _batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
-        LogResult::Ok(())
+impl LogProcessor for NoopProcessor {
+    fn emit(&self, _data: &mut LogData) {}
+
+    fn force_flush(&self) -> LogResult<()> {
+        Ok(())
+    }
+
+    fn shutdown(&self) -> LogResult<()> {
+        Ok(())
+    }
+
+    #[cfg(feature = "logs_level_enabled")]
+    fn event_enabled(
+        &self,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: &str,
+    ) -> bool {
+        true
     }
 }
 
@@ -35,7 +50,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("no-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_simple_exporter(VoidExporter)
+            .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("no-context");
@@ -45,7 +60,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
     group.bench_function("with-context", |b| {
         let provider = LoggerProvider::builder()
-            .with_simple_exporter(VoidExporter)
+            .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("with-context");
