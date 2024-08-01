@@ -203,6 +203,7 @@ you're more than welcome to participate!
 ### Approvers
 
 * [Shaun Cox](https://github.com/shaun-cox)
+* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 
 ### Emeritus
 
