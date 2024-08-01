@@ -29,11 +29,13 @@ impl<T: Number<T>> LastValue<T> {
         Self::default()
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: AttributeSet) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         let d: DataPointValue<T> = DataPointValue {
             timestamp: SystemTime::now(),
             value: measurement,
         };
+
+        let attrs: AttributeSet = attrs.into();
         if let Ok(mut values) = self.values.lock() {
             let size = values.len();
             match values.entry(attrs) {
