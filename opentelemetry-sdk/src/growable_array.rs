@@ -59,11 +59,9 @@ impl<
             self.inline[self.count] = value;
             self.count += 1;
         } else {
-            if self.overflow.is_none() {
-                // Initialize the vector with a specified capacity
-                self.overflow = Some(Vec::with_capacity(INITIAL_OVERFLOW_CAPACITY));
-            }
-            self.overflow.as_mut().unwrap().push(value);
+            self.overflow
+                .get_or_insert_with(|| Vec::with_capacity(INITIAL_OVERFLOW_CAPACITY))
+                .push(value);
         }
     }
 
