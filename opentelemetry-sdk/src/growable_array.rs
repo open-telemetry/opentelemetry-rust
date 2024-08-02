@@ -51,7 +51,9 @@ impl<
     /// Pushes a value into the `GrowableArray`.
     ///
     /// If the internal array (`inline`) has reached its capacity (`MAX_INLINE_CAPACITY`), the value is pushed
-    /// into the heap-allocated vector (`overflow`). Otherwise, it is stored in the array.    #[inline]
+    /// into the heap-allocated vector (`overflow`). Otherwise, it is stored in the array.
+    #[allow(dead_code)]
+    #[inline]
     pub(crate) fn push(&mut self, value: T) {
         if self.count < MAX_INLINE_CAPACITY {
             self.inline[self.count] = value;
@@ -80,6 +82,8 @@ impl<
     }
 
     /// Returns the number of elements in the `GrowableArray`.
+    #[inline]
+    #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
