@@ -172,7 +172,7 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Iterator
 
 #[cfg(test)]
 mod tests {
-    use crate::logs::growable_array::{
+    use crate::growable_array::{
         GrowableArray, DEFAULT_INITIAL_OVERFLOW_CAPACITY, DEFAULT_MAX_INLINE_CAPACITY,
     };
     use opentelemetry::logs::AnyValue;

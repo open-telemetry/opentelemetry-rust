@@ -1,6 +1,4 @@
 //! # OpenTelemetry Log SDK
-
-pub(crate) mod growable_array;
 mod log_emitter;
 mod log_processor;
 pub(crate) mod record;

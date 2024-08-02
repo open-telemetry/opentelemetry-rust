@@ -1,4 +1,4 @@
-use crate::logs::growable_array::GrowableArray;
+use crate::growable_array::GrowableArray;
 use opentelemetry::{
     logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
