@@ -69,6 +69,7 @@ impl<
     ///
     /// Returns `None` if the index is out of bounds.
     #[allow(dead_code)]
+    #[inline]
     pub(crate) fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.inline[index])
@@ -80,8 +81,8 @@ impl<
     }
 
     /// Returns the number of elements in the `GrowableArray`.
-    #[inline]
     #[allow(dead_code)]
+    #[inline]
     pub(crate) fn len(&self) -> usize {
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
@@ -92,6 +93,7 @@ impl<
     /// from the vector (`overflow`) if present. This allows for efficient iteration over both
     /// stack-allocated and heap-allocated portions.
     ///
+    #[allow(dead_code)]
     #[inline]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         if self.overflow.is_none() || self.overflow.as_ref().unwrap().is_empty() {
