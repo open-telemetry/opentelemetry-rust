@@ -34,7 +34,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub attributes: Option<Vec<(Key, AnyValue)>>,
+    pub(crate) attributes: Option<Vec<(Key, AnyValue)>>,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
@@ -94,6 +94,27 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         } else {
             self.attributes = Some(vec![(key.into(), value.into())]);
         }
+    }
+}
+
+impl LogRecord {
+    /// Provides an iterator over the attributes in the `LogRecord`.
+    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
+        self.attributes
+            .as_ref()
+            .map_or_else(|| [].iter(), |attrs| attrs.iter())
+    }
+
+    /// Returns the number of attributes in the `LogRecord`.
+    pub fn attributes_len(&self) -> usize {
+        self.attributes.as_ref().map_or(0, |attrs| attrs.len())
+    }
+
+    /// Returns true if the `LogRecord` contains the specified attribute.
+    pub fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+        self.attributes.as_ref().map_or(false, |attrs| {
+            attrs.iter().any(|(k, v)| k == key && v == value)
+        })
     }
 }
 
@@ -186,17 +207,18 @@ mod tests {
         let mut log_record = LogRecord::default();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
-        assert_eq!(log_record.attributes, Some(attributes));
+        for (key, value) in attributes {
+            assert!(log_record.attributes_contains(&key, &value));
+        }
     }
 
     #[test]
     fn test_set_attribute() {
         let mut log_record = LogRecord::default();
         log_record.add_attribute("key", "value");
-        assert_eq!(
-            log_record.attributes,
-            Some(vec![(Key::new("key"), AnyValue::String("value".into()))])
-        );
+        let key = Key::new("key");
+        let value = AnyValue::String("value".into());
+        assert!(log_record.attributes_contains(&key, &value));
     }
 
     #[test]
