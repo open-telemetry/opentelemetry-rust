@@ -243,7 +243,8 @@ mod tests {
         let log = exported_logs
             .first()
             .expect("Atleast one log is expected to be present.");
-
+        
+        // Validate common fields
         assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
