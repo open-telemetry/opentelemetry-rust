@@ -110,8 +110,9 @@ impl LogRecord {
         self.attributes.as_ref().map_or(0, |attrs| attrs.len())
     }
 
+    #[allow(dead_code)]
     /// Returns true if the `LogRecord` contains the specified attribute.
-    pub fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
         self.attributes.as_ref().map_or(false, |attrs| {
             attrs.iter().any(|(k, v)| k == key && v == value)
         })

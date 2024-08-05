@@ -208,12 +208,18 @@ mod tests {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::logs::LoggerProvider;
+    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
     use tracing_subscriber::layer::SubscriberExt;
+
+    pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
+        log_record
+            .attributes_iter()
+            .any(|(k, v)| k == key && v == value)
+    }
 
     // cargo test --features=testing
     #[test]
@@ -256,23 +262,30 @@ mod tests {
         assert_eq!(log.record.attributes_len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
         assert_eq!(log.record.attributes_len(), 8);
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20)));
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
-        assert!(log.record.attributes_contains(
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_id"),
+            &AnyValue::Int(20)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_name"),
+            &AnyValue::String("otel".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
         ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
@@ -361,23 +374,30 @@ mod tests {
         assert_eq!(log.record.attributes_len(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
         assert_eq!(log.record.attributes_len(), 8);
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20.into())));
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
-        assert!(log.record.attributes_contains(
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_id"),
+            &AnyValue::Int(20.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_name"),
+            &AnyValue::String("otel".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
         ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
@@ -437,11 +457,13 @@ mod tests {
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
@@ -532,11 +554,13 @@ mod tests {
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
