@@ -259,9 +259,9 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_len(), 3);
+        assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 8);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -371,9 +371,9 @@ mod tests {
 
         // validate attributes.
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_len(), 3);
+        assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 8);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -453,7 +453,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -550,7 +550,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {

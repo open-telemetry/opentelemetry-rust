@@ -105,8 +105,9 @@ impl LogRecord {
             .map_or_else(|| [].iter(), |attrs| attrs.iter())
     }
 
+    #[allow(dead_code)]
     /// Returns the number of attributes in the `LogRecord`.
-    pub fn attributes_len(&self) -> usize {
+    pub(crate) fn attributes_len(&self) -> usize {
         self.attributes.as_ref().map_or(0, |attrs| attrs.len())
     }
 
