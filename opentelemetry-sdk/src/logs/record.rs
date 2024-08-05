@@ -215,11 +215,9 @@ mod tests {
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
 
-        let mut expected_attributes = AttributesGrowableArray::new();
         for (key, value) in attributes {
-            expected_attributes.push(Some((key, value)));
+            assert!(log_record.attributes_contains(&key, &value));
         }
-        assert_eq!(log_record.attributes, expected_attributes);
     }
 
     #[test]
@@ -227,12 +225,9 @@ mod tests {
         let mut log_record = LogRecord::default();
         log_record.add_attribute("key", "value");
 
-        let expected_attributes = {
-            let mut hybrid_vec = AttributesGrowableArray::new();
-            hybrid_vec.push(Some((Key::new("key"), AnyValue::String("value".into()))));
-            hybrid_vec
-        };
-        assert_eq!(log_record.attributes, expected_attributes);
+        let key = Key::new("key");
+        let value = AnyValue::String("value".into());
+        assert!(log_record.attributes_contains(&key, &value));
     }
 
     #[test]
