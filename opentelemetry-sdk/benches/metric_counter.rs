@@ -128,7 +128,6 @@ fn counter_overflow(c: &mut Criterion) {
     ];
 
     let counter = create_counter("Counter_Overflow");
-    println!("Counter_Overflow hello init");
     // Cause overflow.
     for v in 0..2001 {
         counter.add(100, &[KeyValue::new("A", v.to_string())]);
