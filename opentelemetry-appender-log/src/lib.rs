@@ -948,7 +948,7 @@ mod tests {
                 }
             })
         };
-        
+
         assert_eq!(
             AnyValue::String(StringValue::from("a string")),
             get("str_value").unwrap()
@@ -1068,6 +1068,7 @@ mod tests {
             assert_eq!(
                 AnyValue::Map({
                     let mut map = HashMap::new();
+
                     map.insert(Key::from("Newtype"), AnyValue::Int(42));
 
                     map
