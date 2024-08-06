@@ -54,13 +54,11 @@ impl<T: Number<T>> ValueMap<T> {
             // Try incoming order first
             if let Some(value_to_update) = values.get(attrs) {
                 value_to_update.add(measurement);
-                return;
             } else {
                 // Then try sorted order.
                 let sorted_attrs = AttributeSet::from(attrs).into_vec();
                 if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
                     value_to_update.add(measurement);
-                    return;
                 } else {
                     // Give up the lock, before acquiring write lock.
                     drop(values);
@@ -70,10 +68,8 @@ impl<T: Number<T>> ValueMap<T> {
                         // value.
                         if let Some(value_to_update) = values.get(attrs) {
                             value_to_update.add(measurement);
-                            return;
                         } else if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
                             value_to_update.add(measurement);
-                            return;
                         } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
                             let new_value = T::new_atomic_tracker();
                             new_value.add(measurement);
@@ -90,7 +86,6 @@ impl<T: Number<T>> ValueMap<T> {
                             values.get_mut(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
                         {
                             overflow_value.add(measurement);
-                            return;
                         } else {
                             let new_value = T::new_atomic_tracker();
                             new_value.add(measurement);
@@ -152,7 +147,7 @@ impl<T: Number<T>> Sum<T> {
 
         // Max number of data points need to account for the special casing
         // of the no attribute value + overflow attribute.
-        let n = self.value_map.count.load(Ordering::Relaxed) + 2;
+        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -223,14 +218,11 @@ impl<T: Number<T>> Sum<T> {
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
-        s_data.data_points.clear();
+        s_data.data_points.clear();        
 
-        let values = match self.value_map.values.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
+        // Max number of data points need to account for the special casing
+        // of the no attribute value + overflow attribute.
+        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -252,6 +244,11 @@ impl<T: Number<T>> Sum<T> {
                 exemplars: vec![],
             });
         }
+
+        let values = match self.value_map.values.write() {
+            Ok(v) => v,
+            Err(_) => return (0, None),
+        };
 
         // TODO: This will use an unbounded amount of memory if there
         // are unbounded number of attribute sets being aggregated. Attribute
@@ -316,14 +313,11 @@ impl<T: Number<T>> PrecomputedSum<T> {
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.data_points.clear();
         s_data.temporality = Temporality::Delta;
-        s_data.is_monotonic = self.monotonic;
+        s_data.is_monotonic = self.monotonic;        
 
-        let mut values = match self.value_map.values.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
+        // Max number of data points need to account for the special casing
+        // of the no attribute value + overflow attribute.
+        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -348,6 +342,11 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 exemplars: vec![],
             });
         }
+
+        let mut values = match self.value_map.values.write() {
+            Ok(v) => v,
+            Err(_) => return (0, None),
+        };
 
         let default = T::default();
         for (attrs, value) in values.drain() {
@@ -399,14 +398,11 @@ impl<T: Number<T>> PrecomputedSum<T> {
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.data_points.clear();
         s_data.temporality = Temporality::Cumulative;
-        s_data.is_monotonic = self.monotonic;
+        s_data.is_monotonic = self.monotonic;        
 
-        let values = match self.value_map.values.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len() + 1;
+        // Max number of data points need to account for the special casing
+        // of the no attribute value + overflow attribute.
+        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
         if n > s_data.data_points.capacity() {
             s_data
                 .data_points
@@ -432,6 +428,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
+        let values = match self.value_map.values.write() {
+            Ok(v) => v,
+            Err(_) => return (0, None),
+        };
         let default = T::default();
         for (attrs, value) in values.iter() {
             let delta = value.get_value() - *reported.get(attrs).unwrap_or(&default);

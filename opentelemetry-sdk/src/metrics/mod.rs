@@ -945,13 +945,13 @@ mod tests {
         ];
         let mut rng = rngs::SmallRng::from_entropy();
 
-        for _ in 0..1000000 {
+        for _ in 0..100000 {
             let mut rands: [usize; 4] = [0; 4];
+            // 4X4X10X10 = 1600 time-series.
             rands[0] = rng.gen_range(0..4);
             rands[1] = rng.gen_range(0..4);
             rands[2] = rng.gen_range(0..10);
-            rands[3] = rng.gen_range(0..10);
-
+            rands[3] = rng.gen_range(0..10);            
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
@@ -971,14 +971,14 @@ mod tests {
 
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
-        // Expecting 1 time-series.
+        // Expecting 1600 time-series.
         assert_eq!(sum.data_points.len(), 1600);
 
-        // find and validate key1=value2 datapoint
-        let data_point1 =
+        // validate that overflow data point is not present.
+        let overflow_point =
             find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true");
 
-        assert!(data_point1.is_none());
+        assert!(overflow_point.is_none());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

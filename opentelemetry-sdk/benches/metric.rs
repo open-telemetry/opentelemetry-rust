@@ -72,74 +72,20 @@ impl TemporalitySelector for DeltaTemporalitySelector {
     }
 }
 
-// * Summary *
+/*
+    The benchmark results:
+    criterion = "0.5.1"
+    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    RAM: 64.0 GB
+    | Test                           | Average time|
+    |--------------------------------|-------------|
+    | Counter_Add_Sorted             | 560 ns      |
+    | Counter_Add_Unsorted           | 565 ns      |
+    | Counter_Overflow               | 568 ns      |
+    | ThreadLocal_Random_Generator_5 |  37 ns      |
+*/
 
-// rustc 1.68.0 (2c8cc3432 2023-03-06)
-// cargo 1.68.0 (115f34552 2023-02-26), OS=Windows 11 Enterprise
-// Intel(R) Core(TM) i7-8850H CPU @ 2.60GHz   2.59 GHz
-// 12 logical and 6 physical cores
-
-// Counter/AddNoAttrs      time:   [65.406 ns 65.535 ns 65.675 ns]
-// Counter/AddNoAttrsDelta time:   [65.553 ns 65.761 ns 65.981 ns]
-// Counter/AddOneAttr      time:   [341.55 ns 344.40 ns 347.58 ns]
-// Counter/AddOneAttrDelta time:   [340.11 ns 342.42 ns 344.89 ns]
-// Counter/AddThreeAttr    time:   [619.01 ns 624.16 ns 630.16 ns]
-// Counter/AddThreeAttrDelta
-//                         time:   [606.71 ns 611.45 ns 616.66 ns]
-// Counter/AddFiveAttr     time:   [3.7551 µs 3.7813 µs 3.8094 µs]
-// Counter/AddFiveAttrDelta
-//                         time:   [3.7550 µs 3.7870 µs 3.8266 µs]
-// Counter/AddTenAttr      time:   [4.7684 µs 4.7909 µs 4.8146 µs]
-// Counter/AddTenAttrDelta time:   [4.7682 µs 4.8152 µs 4.8722 µs]
-// Counter/AddInvalidAttr  time:   [469.31 ns 472.97 ns 476.92 ns]
-// Counter/AddSingleUseAttrs
-//                         time:   [749.15 ns 805.09 ns 868.03 ns]
-// Counter/AddSingleUseInvalid
-//                         time:   [693.75 ns 702.65 ns 713.20 ns]
-// Counter/AddSingleUseFiltered
-//                         time:   [677.00 ns 681.63 ns 686.88 ns]
-// Counter/CollectOneAttr  time:   [659.29 ns 681.20 ns 708.04 ns]
-// Counter/CollectTenAttrs time:   [3.5048 µs 3.5384 µs 3.5777 µs]
-// Histogram/Record0Attrs10bounds
-//                         time:   [75.790 ns 77.235 ns 78.825 ns]
-// Histogram/Record3Attrs10bounds
-//                         time:   [580.88 ns 603.84 ns 628.71 ns]
-// Histogram/Record5Attrs10bounds
-//                         time:   [3.8539 µs 3.8988 µs 3.9519 µs]
-// Histogram/Record7Attrs10bounds
-//                         time:   [699.46 ns 720.17 ns 742.24 ns]
-// Histogram/Record10Attrs10bounds
-//                         time:   [844.95 ns 861.92 ns 880.23 ns]
-// Histogram/Record0Attrs49bounds
-//                         time:   [75.198 ns 77.081 ns 79.449 ns]
-// Histogram/Record3Attrs49bounds
-//                         time:   [533.82 ns 540.44 ns 547.30 ns]
-// Histogram/Record5Attrs49bounds
-//                         time:   [583.01 ns 588.27 ns 593.98 ns]
-// Histogram/Record7Attrs49bounds
-//                         time:   [645.67 ns 652.03 ns 658.35 ns]
-// Histogram/Record10Attrs49bounds
-//                         time:   [747.24 ns 755.42 ns 764.37 ns]
-// Histogram/Record0Attrs50bounds
-//                         time:   [72.023 ns 72.218 ns 72.426 ns]
-// Histogram/Record3Attrs50bounds
-//                         time:   [530.21 ns 534.23 ns 538.63 ns]
-// Histogram/Record5Attrs50bounds
-//                         time:   [3.2934 µs 3.3069 µs 3.3228 µs]
-// Histogram/Record7Attrs50bounds
-//                         time:   [633.88 ns 638.87 ns 644.52 ns]
-// Histogram/Record10Attrs50bounds
-//                         time:   [759.69 ns 768.42 ns 778.12 ns]
-// Histogram/Record0Attrs1000bounds
-//                         time:   [75.495 ns 75.942 ns 76.529 ns]
-// Histogram/Record3Attrs1000bounds
-//                         time:   [542.06 ns 548.37 ns 555.31 ns]
-// Histogram/Record5Attrs1000bounds
-//                         time:   [3.2935 µs 3.3058 µs 3.3215 µs]
-// Histogram/Record7Attrs1000bounds
-//                         time:   [643.75 ns 649.05 ns 655.14 ns]
-// Histogram/Record10Attrs1000bounds
-//                         time:   [726.87 ns 736.52 ns 747.09 ns]
 fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
