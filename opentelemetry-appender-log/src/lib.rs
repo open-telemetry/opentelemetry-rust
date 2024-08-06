@@ -948,6 +948,7 @@ mod tests {
                 }
             })
         };
+        
         assert_eq!(
             AnyValue::String(StringValue::from("a string")),
             get("str_value").unwrap()
