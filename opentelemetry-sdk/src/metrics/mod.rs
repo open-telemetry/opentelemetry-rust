@@ -951,7 +951,7 @@ mod tests {
             rands[0] = rng.gen_range(0..4);
             rands[1] = rng.gen_range(0..4);
             rands[2] = rng.gen_range(0..10);
-            rands[3] = rng.gen_range(0..10);            
+            rands[3] = rng.gen_range(0..10);
             let index_first_attribute = rands[0];
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
