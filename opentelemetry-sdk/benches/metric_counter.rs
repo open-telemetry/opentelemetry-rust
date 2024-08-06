@@ -6,9 +6,9 @@
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Counter_Add_Sorted             | 586 ns      |
-    | Counter_Add_Unsorted           | 592 ns      |
-    | Counter_Overflow               | 600 ns      |
+    | Counter_Add_Sorted             | 560 ns      |
+    | Counter_Add_Unsorted           | 565 ns      |
+    | Counter_Overflow               | 568 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 
