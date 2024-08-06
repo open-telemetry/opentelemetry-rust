@@ -74,7 +74,7 @@ impl<T: Number<T>> ValueMap<T> {
                         } else if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
                             value_to_update.add(measurement);
                             return;
-                        } else if is_under_cardinality_limit(self.count.load(Ordering::Acquire)) {
+                        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
                             let new_value = T::new_atomic_tracker();
                             new_value.add(measurement);
                             let new_value = Arc::new(new_value);
@@ -85,7 +85,7 @@ impl<T: Number<T>> ValueMap<T> {
                             // Insert sorted order
                             values.insert(sorted_attrs, new_value);
 
-                            self.count.fetch_add(1, Ordering::Release);
+                            self.count.fetch_add(1, Ordering::SeqCst);
                         } else if let Some(overflow_value) =
                             values.get_mut(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
                         {
