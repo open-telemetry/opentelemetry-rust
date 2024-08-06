@@ -108,42 +108,21 @@ impl LogRecord {
         self.attributes.iter().filter_map(|opt| opt.as_ref())
     }
 
+    #[allow(dead_code)]
     /// Returns the number of attributes in the `LogRecord`.
-    pub fn attributes_len(&self) -> usize {
+    pub(crate) fn attributes_len(&self) -> usize {
         self.attributes.len()
     }
 
+    #[allow(dead_code)]
     /// Checks if the `LogRecord` contains the specified attribute.
-    pub fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
         self.attributes.iter().any(|opt| {
             if let Some((k, v)) = opt {
                 k == key && v == value
             } else {
                 false
             }
-        })
-    }
-}
-
-impl LogRecord {
-    /// Provides an iterator over the attributes in the `LogRecord`.
-    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
-        self.attributes
-            .as_ref()
-            .map_or_else(|| [].iter(), |attrs| attrs.iter())
-    }
-
-    #[allow(dead_code)]
-    /// Returns the number of attributes in the `LogRecord`.
-    pub(crate) fn attributes_len(&self) -> usize {
-        self.attributes.as_ref().map_or(0, |attrs| attrs.len())
-    }
-
-    #[allow(dead_code)]
-    /// Returns true if the `LogRecord` contains the specified attribute.
-    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
-        self.attributes.as_ref().map_or(false, |attrs| {
-            attrs.iter().any(|(k, v)| k == key && v == value)
         })
     }
 }
