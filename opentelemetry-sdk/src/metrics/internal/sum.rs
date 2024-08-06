@@ -56,7 +56,7 @@ impl<T: Number<T>> ValueMap<T> {
                 value_to_update.add(measurement);
                 return;
             } else {
-                // Then try sorted order.                
+                // Then try sorted order.
                 let sorted_attrs = AttributeSet::from(attrs).into_vec();
                 if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
                     value_to_update.add(measurement);
@@ -81,15 +81,14 @@ impl<T: Number<T>> ValueMap<T> {
 
                             // Insert original order
                             values.insert(attrs.to_vec(), new_value.clone());
-                            
+
                             // Insert sorted order
                             values.insert(sorted_attrs, new_value);
 
                             self.count.fetch_add(1, Ordering::Release);
-                            
                         } else if let Some(overflow_value) =
                             values.get_mut(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
-                        {                            
+                        {
                             overflow_value.add(measurement);
                             return;
                         } else {
@@ -150,7 +149,7 @@ impl<T: Number<T>> Sum<T> {
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
         s_data.data_points.clear();
-        
+
         // Max number of data points need to account for the special casing
         // of the no attribute value + overflow attribute.
         let n = self.value_map.count.load(Ordering::Relaxed) + 2;
@@ -160,7 +159,7 @@ impl<T: Number<T>> Sum<T> {
                 .reserve_exact(n - s_data.data_points.capacity());
         }
 
-        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);        
+        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         if self
             .value_map
             .has_no_value_attribute_value
