@@ -208,12 +208,18 @@ mod tests {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::logs::LoggerProvider;
+    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
     use tracing_subscriber::layer::SubscriberExt;
+
+    pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
+        log_record
+            .attributes_iter()
+            .any(|(k, v)| k == key && v == value)
+    }
 
     // cargo test --features=testing
     #[test]
@@ -253,27 +259,33 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_len(), 3);
+        assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 8);
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20)));
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
-        assert!(log.record.attributes_contains(
+        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_id"),
+            &AnyValue::Int(20)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_name"),
+            &AnyValue::String("otel".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
         ));
-
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
@@ -285,7 +297,6 @@ mod tests {
                 .attributes_iter()
                 .map(|(key, _)| key.clone())
                 .collect();
-
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(attributes_key.contains(&Key::new("log.target")));
@@ -360,33 +371,39 @@ mod tests {
 
         // validate attributes.
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_len(), 3);
+        assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 8);
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("event_id"), &AnyValue::Int(20.into())));
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("user_name"), &AnyValue::String("otel".into())));
-        assert!(log.record.attributes_contains(
+        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_id"),
+            &AnyValue::Int(20.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_name"),
+            &AnyValue::String("otel".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
         ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
             // The other 3 experimental_metadata_attributes are too unstable to check their value.
             // Ex.: The path will be different on a Windows and Linux machine.
             // Ex.: The line can change easily if someone makes changes in this source file.
-
             let attributes_key: Vec<Key> = log
                 .record
                 .attributes_iter()
@@ -436,15 +453,17 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));
@@ -529,18 +548,19 @@ mod tests {
             TraceFlags::SAMPLED
         );
 
-        // validate attributes.
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_len(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 5);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.filename"),
                 &AnyValue::String("layer.rs".into())
             ));
-            assert!(log.record.attributes_contains(
+            assert!(attributes_contains(
+                &log.record,
                 &Key::new("code.namespace"),
                 &AnyValue::String("opentelemetry_appender_tracing::layer::tests".into())
             ));

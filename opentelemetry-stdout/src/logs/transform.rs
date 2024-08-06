@@ -113,7 +113,6 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                     .attributes_iter()
                     .map(|(k, v)| KeyValue::from((k.clone(), v.clone()))) // Map each pair to a KeyValue
                     .collect::<Vec<KeyValue>>(); // Collect into a Vec<KeyValue>s
-
                 if let Some(event_name) = &value.record.event_name {
                     attributes.push(KeyValue::from((
                         "name".into(),

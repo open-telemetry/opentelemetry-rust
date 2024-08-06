@@ -98,7 +98,6 @@ pub mod tonic {
                             }),
                         })
                         .collect();
-
                     if let Some(event_name) = log_record.event_name.as_ref() {
                         attributes.push(KeyValue {
                             key: "name".into(),

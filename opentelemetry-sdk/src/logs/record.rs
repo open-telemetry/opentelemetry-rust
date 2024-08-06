@@ -125,6 +125,29 @@ impl LogRecord {
     }
 }
 
+impl LogRecord {
+    /// Provides an iterator over the attributes in the `LogRecord`.
+    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
+        self.attributes
+            .as_ref()
+            .map_or_else(|| [].iter(), |attrs| attrs.iter())
+    }
+
+    #[allow(dead_code)]
+    /// Returns the number of attributes in the `LogRecord`.
+    pub(crate) fn attributes_len(&self) -> usize {
+        self.attributes.as_ref().map_or(0, |attrs| attrs.len())
+    }
+
+    #[allow(dead_code)]
+    /// Returns true if the `LogRecord` contains the specified attribute.
+    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+        self.attributes.as_ref().map_or(false, |attrs| {
+            attrs.iter().any(|(k, v)| k == key && v == value)
+        })
+    }
+}
+
 /// TraceContext stores the trace context for logs that have an associated
 /// span.
 #[derive(Debug, Clone, PartialEq)]
@@ -214,7 +237,6 @@ mod tests {
         let mut log_record = LogRecord::default();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
-
         for (key, value) in attributes {
             assert!(log_record.attributes_contains(&key, &value));
         }
@@ -224,7 +246,6 @@ mod tests {
     fn test_set_attribute() {
         let mut log_record = LogRecord::default();
         log_record.add_attribute("key", "value");
-
         let key = Key::new("key");
         let value = AnyValue::String("value".into());
         assert!(log_record.attributes_contains(&key, &value));
