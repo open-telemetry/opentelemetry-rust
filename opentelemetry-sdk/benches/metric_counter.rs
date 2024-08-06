@@ -32,13 +32,13 @@ thread_local! {
 
 // Run this benchmark with:
 // cargo bench --bench metric_counter
-fn create_counter() -> Counter<u64> {
+fn create_counter(name: &'static str) -> Counter<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_counter("counter_bench").init()
+    meter.u64_counter(name).init()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -51,8 +51,8 @@ fn counter_add(c: &mut Criterion) {
         "value10",
     ];
 
-    let counter = create_counter();
     c.bench_function("Counter_Add_Sorted", |b| {
+        let counter = create_counter("Counter_Add_Sorted");
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
             let rands = CURRENT_RNG.with(|rng| {
@@ -81,6 +81,7 @@ fn counter_add(c: &mut Criterion) {
     });
 
     c.bench_function("Counter_Add_Unsorted", |b| {
+        let counter = create_counter("Counter_Add_Unsorted");
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
             let rands = CURRENT_RNG.with(|rng| {
@@ -108,11 +109,13 @@ fn counter_add(c: &mut Criterion) {
         });
     });
 
-    // Cause overflow.
-    for v in 0..2001 {
-        counter.add(100, &[KeyValue::new("A", v.to_string())]);
-    }
     c.bench_function("Counter_Overflow", |b| {
+        let counter = create_counter("Counter_Overflow");
+        // Cause overflow.
+        for v in 0..2001 {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
             let rands = CURRENT_RNG.with(|rng| {
