@@ -6,7 +6,8 @@ mod sum;
 
 use core::fmt;
 use std::ops::{Add, AddAssign, Sub};
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use atomic_shim::{AtomicI64, AtomicU64};
 use std::sync::Mutex;
 
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
