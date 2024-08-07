@@ -168,7 +168,7 @@ where
         log_record.set_target(meta.target().to_string());
         log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
-        log_record.set_severity_text(meta.level().to_string().into());
+        log_record.set_severity_text(severity_text_of_level(meta.level()).into());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);
@@ -198,6 +198,16 @@ const fn severity_of_level(level: &Level) -> Severity {
         Level::INFO => Severity::Info,
         Level::WARN => Severity::Warn,
         Level::ERROR => Severity::Error,
+    }
+}
+
+const fn severity_text_of_level(level: &Level) -> &'static str {
+    match *level {
+        Level::TRACE => "TRACE",
+        Level::DEBUG => "DEBUG",
+        Level::INFO => "INFO",
+        Level::WARN => "WARN",
+        Level::ERROR => "ERROR",
     }
 }
 
