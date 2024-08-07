@@ -25,21 +25,23 @@ struct ValueMap<T: Number<T>> {
     has_no_value_attribute_value: AtomicBool,
     no_attribute_value: T::AtomicTracker,
     count: AtomicUsize,
+    assign_only: bool, // if true, only assign incoming value, instead of adding to existing value
 }
 
 impl<T: Number<T>> Default for ValueMap<T> {
     fn default() -> Self {
-        ValueMap::new()
+        ValueMap::new(false)
     }
 }
 
 impl<T: Number<T>> ValueMap<T> {
-    fn new() -> Self {
+    fn new(assign_only: bool) -> Self {
         ValueMap {
             values: RwLock::new(HashMap::new()),
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
             count: AtomicUsize::new(0),
+            assign_only: assign_only,
         }
     }
 }
@@ -47,18 +49,30 @@ impl<T: Number<T>> ValueMap<T> {
 impl<T: Number<T>> ValueMap<T> {
     fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         if attrs.is_empty() {
-            self.no_attribute_value.add(measurement);
+            if self.assign_only {
+                self.no_attribute_value.store(measurement);
+            } else {
+                self.no_attribute_value.add(measurement);
+            }
             self.has_no_value_attribute_value
                 .store(true, Ordering::Release);
         } else if let Ok(values) = self.values.read() {
             // Try incoming order first
             if let Some(value_to_update) = values.get(attrs) {
-                value_to_update.add(measurement);
+                if self.assign_only {
+                    value_to_update.store(measurement);
+                } else {
+                    value_to_update.add(measurement);
+                }
             } else {
                 // Then try sorted order.
                 let sorted_attrs = AttributeSet::from(attrs).into_vec();
                 if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
-                    value_to_update.add(measurement);
+                    if self.assign_only {
+                        value_to_update.store(measurement);
+                    } else {
+                        value_to_update.add(measurement);
+                    }
                 } else {
                     // Give up the lock, before acquiring write lock.
                     drop(values);
@@ -67,12 +81,24 @@ impl<T: Number<T>> ValueMap<T> {
                         // write lock, in case another thread has added the
                         // value.
                         if let Some(value_to_update) = values.get(attrs) {
-                            value_to_update.add(measurement);
+                            if self.assign_only {
+                                value_to_update.store(measurement);
+                            } else {
+                                value_to_update.add(measurement);
+                            }
                         } else if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
-                            value_to_update.add(measurement);
+                            if self.assign_only {
+                                value_to_update.store(measurement);
+                            } else {
+                                value_to_update.add(measurement);
+                            }
                         } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
                             let new_value = T::new_atomic_tracker();
-                            new_value.add(measurement);
+                            if self.assign_only {
+                                new_value.store(measurement);
+                            } else {
+                                new_value.add(measurement);
+                            }
                             let new_value = Arc::new(new_value);
 
                             // Insert original order
@@ -85,10 +111,18 @@ impl<T: Number<T>> ValueMap<T> {
                         } else if let Some(overflow_value) =
                             values.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
                         {
-                            overflow_value.add(measurement);
+                            if self.assign_only {
+                                overflow_value.store(measurement);
+                            } else {
+                                overflow_value.add(measurement);
+                            }
                         } else {
                             let new_value = T::new_atomic_tracker();
-                            new_value.add(measurement);
+                            if self.assign_only {
+                                new_value.store(measurement);
+                            } else {
+                                new_value.add(measurement);
+                            }
                             values.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_value));
                             global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
                         }
@@ -114,7 +148,7 @@ impl<T: Number<T>> Sum<T> {
     /// were made in.
     pub(crate) fn new(monotonic: bool) -> Self {
         Sum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(false),
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
@@ -282,7 +316,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
 impl<T: Number<T>> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(true),
             monotonic,
             start: Mutex::new(SystemTime::now()),
             reported: Mutex::new(Default::default()),
@@ -334,11 +368,16 @@ impl<T: Number<T>> PrecomputedSum<T> {
             .has_no_value_attribute_value
             .swap(false, Ordering::AcqRel)
         {
+            let default = T::default();
+            let delta = self.value_map.no_attribute_value.get_value()
+                - *reported.get(&vec![]).unwrap_or(&default);
+            new_reported.insert(vec![], self.value_map.no_attribute_value.get_value());
+
             s_data.data_points.push(DataPoint {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                value: delta,
                 exemplars: vec![],
             });
         }
@@ -351,9 +390,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         let default = T::default();
         for (attrs, value) in values.drain() {
             let delta = value.get_value() - *reported.get(&attrs).unwrap_or(&default);
-            if delta != default {
-                new_reported.insert(attrs.clone(), value.get_value());
-            }
+            new_reported.insert(attrs.clone(), value.get_value());
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
@@ -408,11 +445,6 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 .data_points
                 .reserve_exact(n - s_data.data_points.capacity());
         }
-        let mut new_reported = HashMap::with_capacity(n);
-        let mut reported = match self.reported.lock() {
-            Ok(r) => r,
-            Err(_) => return (0, None),
-        };
 
         if self
             .value_map
@@ -432,23 +464,15 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
-        let default = T::default();
         for (attrs, value) in values.iter() {
-            let delta = value.get_value() - *reported.get(attrs).unwrap_or(&default);
-            if delta != default {
-                new_reported.insert(attrs.clone(), value.get_value());
-            }
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: delta,
+                value: value.get_value(),
                 exemplars: vec![],
             });
         }
-
-        *reported = new_reported;
-        drop(reported); // drop before values guard is dropped
 
         (
             s_data.data_points.len(),
