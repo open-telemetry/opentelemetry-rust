@@ -45,7 +45,7 @@ pub enum AnyValue {
 }
 ```
 So the custom log appenders should box these types while adding them in message body, or
-attribute values. Similarlty, the custom exporters should derefernce these complex type values
+attribute values. Similarly, the custom exporters should dereference these complex type values
 before serializing.
 
 ## v0.24.0
