@@ -29,7 +29,7 @@ path = "tests/json_deserialize.rs"
 
 
 [features]
-default = ["full"]
+populate-logs-event-name = []
 
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde"]
 

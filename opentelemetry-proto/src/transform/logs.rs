@@ -98,6 +98,7 @@ pub mod tonic {
                         .map(Attributes::from_iter)
                         .unwrap_or_default()
                         .0;
+                    #[cfg(feature = "populate-logs-event-name")]
                     if let Some(event_name) = log_record.event_name.as_ref() {
                         attributes.push(KeyValue {
                             key: "name".into(),
