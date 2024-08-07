@@ -99,18 +99,21 @@ pub mod tonic {
                         })
                         .collect();
                     #[cfg(feature = "populate-logs-event-name")]
-                    if let Some(event_name) = &log_record.event_name {
-                        let mut attributes_with_name = attributes;
-                        attributes_with_name.push(KeyValue {
-                            key: "name".into(),
-                            value: Some(AnyValue {
-                                value: Some(Value::StringValue(event_name.to_string())),
-                            }),
-                        });
-                        attributes_with_name
-                    } else {
-                        attributes
+                    {
+                        if let Some(event_name) = &log_record.event_name {
+                            let mut attributes_with_name = attributes;
+                            attributes_with_name.push(KeyValue {
+                                key: "name".into(),
+                                value: Some(AnyValue {
+                                    value: Some(Value::StringValue(event_name.to_string())),
+                                }),
+                            });
+                            attributes_with_name
+                        } else {
+                            attributes
+                        }
                     }
+                    #[cfg(not(feature = "populate-logs-event-name"))]
                     attributes
                 },
                 severity_number: severity_number.into(),
