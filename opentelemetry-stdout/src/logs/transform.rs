@@ -108,7 +108,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
     fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
         LogRecord {
             attributes: {
-                let mut attributes = value
+                let attributes = value
                     .record
                     .attributes_iter()
                     .map(|(k, v)| KeyValue::from((k.clone(), v.clone()))) // Map each pair to a KeyValue
