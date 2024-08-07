@@ -117,7 +117,10 @@ impl LogRecord {
     #[allow(dead_code)]
     /// Checks if the `LogRecord` contains the specified attribute.
     pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
-        self.attributes.iter().flatten().any(|(k, v)| k == key && v == value)
+        self.attributes
+            .iter()
+            .flatten()
+            .any(|(k, v)| k == key && v == value)
     }
 }
 
