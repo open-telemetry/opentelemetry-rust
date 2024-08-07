@@ -11,6 +11,11 @@
   first interval instead of doing it right away.
   [#1970](https://github.com/open-telemetry/opentelemetry-rust/pull/1970)
   [#1973](https://github.com/open-telemetry/opentelemetry-rust/pull/1973)
+  - **Breaking** [#1985](https://github.com/open-telemetry/opentelemetry-rust/pull/1985)
+  Hide LogRecord attributes Implementation Details from processors and exporters.
+  The custom exporters and processors can't directly access the `LogData::LogRecord::attributes`, as
+  these are private to opentelemetry-sdk. Instead, they would now use LogRecord::attributes_iter()
+  method to access them.
 
 
 ## v0.24.1
