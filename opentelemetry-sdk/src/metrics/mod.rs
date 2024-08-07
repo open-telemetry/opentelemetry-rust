@@ -669,7 +669,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
-        // metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter
+        // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
