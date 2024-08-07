@@ -139,7 +139,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                     .into_iter()
                     .map(|(key, value)| (key, value).into())
                     .collect::<Vec<_>>();
-
+                #[cfg(feature = "populate-logs-event-name")]
                 if let Some(event_name) = &value.record.event_name {
                     attributes.push(
                         (
