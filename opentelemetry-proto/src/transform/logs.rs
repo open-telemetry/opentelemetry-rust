@@ -8,7 +8,6 @@ pub mod tonic {
             },
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
-            Attributes,
         },
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
@@ -89,25 +88,29 @@ pub mod tonic {
             LogRecord {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
-                severity_number: severity_number.into(),
-                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: log_record.body.map(Into::into),
                 attributes: {
-                    let mut attributes = log_record
-                        .attributes
-                        .map(Attributes::from_iter)
-                        .unwrap_or_default()
-                        .0;
+                    let mut attributes: Vec<KeyValue> = log_record
+                        .attributes_iter()
+                        .map(|kv| KeyValue {
+                            key: kv.0.to_string(),
+                            value: Some(AnyValue {
+                                value: Some(kv.1.clone().into()),
+                            }),
+                        })
+                        .collect();
                     if let Some(event_name) = log_record.event_name.as_ref() {
                         attributes.push(KeyValue {
                             key: "name".into(),
                             value: Some(AnyValue {
                                 value: Some(Value::StringValue(event_name.to_string())),
                             }),
-                        })
+                        });
                     }
                     attributes
                 },
+                severity_number: severity_number.into(),
+                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
+                body: log_record.body.map(Into::into),
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {

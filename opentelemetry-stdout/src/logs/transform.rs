@@ -107,6 +107,20 @@ struct LogRecord {
 impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
     fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
         LogRecord {
+            attributes: {
+                let mut attributes = value
+                    .record
+                    .attributes_iter()
+                    .map(|(k, v)| KeyValue::from((k.clone(), v.clone()))) // Map each pair to a KeyValue
+                    .collect::<Vec<KeyValue>>(); // Collect into a Vec<KeyValue>s
+                if let Some(event_name) = &value.record.event_name {
+                    attributes.push(KeyValue::from((
+                        "name".into(),
+                        opentelemetry::Value::String(event_name.clone().into()),
+                    )));
+                }
+                attributes
+            },
             trace_id: value
                 .record
                 .trace_context
@@ -131,26 +145,6 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .severity_number
                 .map(|u| u as u32)
                 .unwrap_or_default(),
-            attributes: {
-                let mut attributes = value
-                    .record
-                    .attributes
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|(key, value)| (key, value).into())
-                    .collect::<Vec<_>>();
-
-                if let Some(event_name) = &value.record.event_name {
-                    attributes.push(
-                        (
-                            opentelemetry::Key::from("name"),
-                            opentelemetry::Value::String(event_name.clone().into()),
-                        )
-                            .into(),
-                    )
-                }
-                attributes
-            },
             dropped_attributes_count: 0,
             severity_text: value.record.severity_text,
             body: value.record.body.map(|a| a.into()),
