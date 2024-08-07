@@ -16,11 +16,11 @@ pub enum AnyValue {
     /// A boolean value
     Boolean(bool),
     /// A byte array
-    Bytes(Box<Vec<u8>>),
+    Bytes(Vec<u8>),
     /// An array of `Any` values
-    ListAny(Box<Vec<AnyValue>>),
+    ListAny(Vec<AnyValue>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(Box<HashMap<Key, AnyValue>>),
+    Map(HashMap<Key, AnyValue>),
 }
 ```
 
@@ -37,11 +37,11 @@ pub enum AnyValue {
     /// A boolean value
     Boolean(bool),
     /// A byte array
-    Bytes(Vec<u8>),
+    Bytes(Box<Vec<u8>>),
     /// An array of `Any` values
-    ListAny(Vec<AnyValue>),
+    ListAny(Box<Vec<AnyValue>>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(HashMap<Key, AnyValue>),
+    Map(Box<HashMap<Key, AnyValue>>),
 }
 ```
 So the custom log appenders should box these types while adding them in message body, or
