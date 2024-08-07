@@ -18,6 +18,7 @@ serde = { workspace = true, optional = true, features = ["std"] }
 [features]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 with-serde = ["log/kv_serde", "serde"]
+default = ["logs_level_enabled", "with-serde"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
