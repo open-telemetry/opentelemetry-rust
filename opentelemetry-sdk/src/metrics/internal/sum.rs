@@ -41,7 +41,7 @@ impl<T: Number<T>> ValueMap<T> {
             has_no_value_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
             count: AtomicUsize::new(0),
-            assign_only: assign_only,
+            assign_only,
         }
     }
 }
