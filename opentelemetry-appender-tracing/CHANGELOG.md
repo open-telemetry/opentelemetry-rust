@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Reduce heap allocation by using `&'static str` for `SeverityText`.
+
 ## v0.5.0
 
 - [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Utilize the `LogRecord::set_target()` method to pass the tracing target to the SDK.
