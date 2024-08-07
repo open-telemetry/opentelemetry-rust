@@ -58,7 +58,7 @@ pub use crate::attribute::CONTAINER_IMAGE_REPO_DIGESTS;
 pub use crate::attribute::CONTAINER_IMAGE_TAGS;
 pub use crate::attribute::CONTAINER_NAME;
 pub use crate::attribute::CONTAINER_RUNTIME;
-pub use crate::attribute::DEPLOYMENT_ENVIRONMENT;
+pub use crate::attribute::DEPLOYMENT_ENVIRONMENT_NAME;
 pub use crate::attribute::DEVICE_ID;
 pub use crate::attribute::DEVICE_MANUFACTURER;
 pub use crate::attribute::DEVICE_MODEL_IDENTIFIER;
