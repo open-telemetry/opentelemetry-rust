@@ -167,11 +167,11 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    benchmark_no_subscriber(c);
+    //benchmark_no_subscriber(c);
     benchmark_with_ot_layer(c, true, "ot_layer_enabled");
-    benchmark_with_ot_layer(c, false, "ot_layer_disabled");
-    benchmark_with_noop_layer(c, true, "noop_layer_enabled");
-    benchmark_with_noop_layer(c, false, "noop_layer_disabled");
+    //benchmark_with_ot_layer(c, false, "ot_layer_disabled");
+    //benchmark_with_noop_layer(c, true, "noop_layer_enabled");
+    //benchmark_with_noop_layer(c, false, "noop_layer_disabled");
 }
 
 #[cfg(not(target_os = "windows"))]
