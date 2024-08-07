@@ -95,8 +95,8 @@ fn log_provider_creation(c: &mut Criterion) {
     c.bench_function("LoggerProvider_Creation", |b| {
         b.iter(|| {
             let _provider = LoggerProvider::builder()
-            .with_log_processor(NoopProcessor {})
-            .build();
+                .with_log_processor(NoopProcessor {})
+                .build();
         });
     });
 }
@@ -104,8 +104,8 @@ fn log_provider_creation(c: &mut Criterion) {
 fn logger_creation(c: &mut Criterion) {
     // Provider is created once, outside of the benchmark
     let provider = LoggerProvider::builder()
-            .with_log_processor(NoopProcessor {})
-            .build();
+        .with_log_processor(NoopProcessor {})
+        .build();
 
     c.bench_function("Logger_Creation", |b| {
         b.iter(|| {
