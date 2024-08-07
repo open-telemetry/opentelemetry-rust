@@ -83,7 +83,7 @@ impl<T: Number<T>> ValueMap<T> {
 
                             self.count.fetch_add(1, Ordering::SeqCst);
                         } else if let Some(overflow_value) =
-                            values.get_mut(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
+                            values.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
                         {
                             overflow_value.add(measurement);
                         } else {
@@ -191,7 +191,7 @@ impl<T: Number<T>> Sum<T> {
         if let Ok(mut start) = self.start.lock() {
             *start = t;
         }
-        self.value_map.count.store(0, Ordering::Release);
+        self.value_map.count.store(0, Ordering::SeqCst);
 
         (
             s_data.data_points.len(),
@@ -367,7 +367,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         if let Ok(mut start) = self.start.lock() {
             *start = t;
         }
-        self.value_map.count.store(0, Ordering::Release);
+        self.value_map.count.store(0, Ordering::SeqCst);
 
         *reported = new_reported;
         drop(reported); // drop before values guard is dropped
