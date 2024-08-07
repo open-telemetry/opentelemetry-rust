@@ -926,6 +926,62 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_attribute_ordering() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_attribute_ordering --features=testing -- --nocapture
+
+        // Arrange
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Add the same set of attributes in different order. (they are expected
+        // to be treated as same attributes)
+        // start with unsorted order
+
+        let attribute_values = [
+            "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8",
+            "value9", "value10",
+        ];
+        let mut rng = rngs::SmallRng::from_entropy();
+
+        for _ in 0..100000 {
+            let mut rands: [usize; 4] = [0; 4];
+            // 4X4X10X10 = 1600 time-series.
+            rands[0] = rng.gen_range(0..4);
+            rands[1] = rng.gen_range(0..4);
+            rands[2] = rng.gen_range(0..10);
+            rands[3] = rng.gen_range(0..10);
+            let index_first_attribute = rands[0];
+            let index_second_attribute = rands[1];
+            let index_third_attribute = rands[2];
+            let index_fourth_attribute = rands[3];
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("attribute1", attribute_values[index_first_attribute]),
+                    KeyValue::new("attribute2", attribute_values[index_second_attribute]),
+                    KeyValue::new("attribute3", attribute_values[index_third_attribute]),
+                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
+                ],
+            );
+        }
+
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        // Expecting 1600 time-series.
+        assert_eq!(sum.data_points.len(), 1600);
+
+        // validate that overflow data point is not present.
+        let overflow_point =
+            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true");
+
+        assert!(overflow_point.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn no_attr_cumulative_counter() {
         let mut test_context = TestContext::new(Temporality::Cumulative);
         let counter = test_context.u64_counter("test", "my_counter", None);
