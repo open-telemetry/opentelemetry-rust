@@ -6,7 +6,7 @@ const DEFAULT_INITIAL_OVERFLOW_CAPACITY: usize = 5;
 #[derive(Debug, Clone, PartialEq)]
 /// A hybrid vector that starts with a fixed-size array and grows dynamically with a vector.
 ///
-/// `GrowableArray` uses an internal fixed-size array (`initial`) for storing elements until it reaches
+/// `GrowableArray` uses an internal fixed-size array (`inline`) for storing elements until it reaches
 /// `MAX_INLINE_CAPACITY`. When this capacity is exceeded, additional elements are stored in a heap-allocated
 /// vector (`overflow`). This structure allows for efficient use of stack memory for small numbers of elements,
 /// while still supporting dynamic growth.
