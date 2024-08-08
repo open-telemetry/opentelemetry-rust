@@ -13,7 +13,7 @@
 //!
 //! The following feature flags generate additional code and types:
 //! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
-//!  with the key `name`
+//!    with the key `name`
 //!
 //! # Examples
 //!
