@@ -18,8 +18,8 @@
   method to access them.
 - Fixed various Metric aggregation bug related to
   ObservableCounter,UpDownCounter including
-  [1517](https://github.com/open-telemetry/opentelemetry-rust/issues/1517).
-  [#1990](https://github.com/open-telemetry/opentelemetry-rust/pull/1990)
+  [#1517](https://github.com/open-telemetry/opentelemetry-rust/issues/1517).
+  [#1992](https://github.com/open-telemetry/opentelemetry-rust/pull/1992)
 
 ## v0.24.1
 

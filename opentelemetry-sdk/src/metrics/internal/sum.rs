@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::vec;
@@ -19,123 +20,122 @@ use super::{aggregate::is_under_cardinality_limit, AtomicTracker, Number};
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
     Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
-/// The storage for sums.
-struct ValueMap<T: Number<T>> {
-    values: RwLock<HashMap<Vec<KeyValue>, Arc<T::AtomicTracker>>>,
-    has_no_value_attribute_value: AtomicBool,
-    no_attribute_value: T::AtomicTracker,
-    count: AtomicUsize,
-    assign_only: bool, // if true, only assign incoming value, instead of adding to existing value
+/// Abstracts the update operation for a measurement.
+trait Operation {
+    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T);
 }
 
-impl<T: Number<T>> Default for ValueMap<T> {
-    fn default() -> Self {
-        ValueMap::new(false)
+struct Increment;
+
+impl Operation for Increment {
+    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T) {
+        tracker.add(value);
     }
 }
 
-impl<T: Number<T>> ValueMap<T> {
-    fn new(assign_only: bool) -> Self {
+struct Assign;
+
+impl Operation for Assign {
+    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T) {
+        tracker.store(value);
+    }
+}
+
+/// The storage for sums.
+///
+/// This structure is parametrized by an `Operation` that indicates how
+/// updates to the underlying value trackers should be performed.
+struct ValueMap<T: Number<T>, O> {
+    /// Trackers store the values associated with different attribute sets.
+    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<T::AtomicTracker>>>,
+    /// Number of different attribute set stored in the `trackers` map.
+    count: AtomicUsize,
+    /// Indicates whether a value with no attributes has been stored.
+    has_no_attribute_value: AtomicBool,
+    /// Tracker for values with no attributes attached.
+    no_attribute_value: T::AtomicTracker,
+    phantom: PhantomData<O>,
+}
+
+impl<T: Number<T>, O> Default for ValueMap<T, O> {
+    fn default() -> Self {
+        ValueMap::new()
+    }
+}
+
+impl<T: Number<T>, O> ValueMap<T, O> {
+    fn new() -> Self {
         ValueMap {
-            values: RwLock::new(HashMap::new()),
-            has_no_value_attribute_value: AtomicBool::new(false),
+            trackers: RwLock::new(HashMap::new()),
+            has_no_attribute_value: AtomicBool::new(false),
             no_attribute_value: T::new_atomic_tracker(),
             count: AtomicUsize::new(0),
-            assign_only,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<T: Number<T>> ValueMap<T> {
-    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        if attrs.is_empty() {
-            if self.assign_only {
-                self.no_attribute_value.store(measurement);
-            } else {
-                self.no_attribute_value.add(measurement);
-            }
-            self.has_no_value_attribute_value
-                .store(true, Ordering::Release);
-        } else if let Ok(values) = self.values.read() {
-            // Try incoming order first
-            if let Some(value_to_update) = values.get(attrs) {
-                if self.assign_only {
-                    value_to_update.store(measurement);
-                } else {
-                    value_to_update.add(measurement);
-                }
-            } else {
-                // Then try sorted order.
-                let sorted_attrs = AttributeSet::from(attrs).into_vec();
-                if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
-                    if self.assign_only {
-                        value_to_update.store(measurement);
-                    } else {
-                        value_to_update.add(measurement);
-                    }
-                } else {
-                    // Give up the lock, before acquiring write lock.
-                    drop(values);
-                    if let Ok(mut values) = self.values.write() {
-                        // Recheck both incoming and sorted after acquiring
-                        // write lock, in case another thread has added the
-                        // value.
-                        if let Some(value_to_update) = values.get(attrs) {
-                            if self.assign_only {
-                                value_to_update.store(measurement);
-                            } else {
-                                value_to_update.add(measurement);
-                            }
-                        } else if let Some(value_to_update) = values.get(sorted_attrs.as_slice()) {
-                            if self.assign_only {
-                                value_to_update.store(measurement);
-                            } else {
-                                value_to_update.add(measurement);
-                            }
-                        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
-                            let new_value = T::new_atomic_tracker();
-                            if self.assign_only {
-                                new_value.store(measurement);
-                            } else {
-                                new_value.add(measurement);
-                            }
-                            let new_value = Arc::new(new_value);
+impl<T: Number<T>, O: Operation> ValueMap<T, O> {
+    fn measure(&self, measurement: T, attributes: &[KeyValue]) {
+        if attributes.is_empty() {
+            O::update_tracker(&self.no_attribute_value, measurement);
+            self.has_no_attribute_value.store(true, Ordering::Release);
+            return;
+        }
 
-                            // Insert original order
-                            values.insert(attrs.to_vec(), new_value.clone());
+        let Ok(trackers) = self.trackers.read() else {
+            return;
+        };
 
-                            // Insert sorted order
-                            values.insert(sorted_attrs, new_value);
+        // Try to retrieve and update the tracker with the attributes in the provided order first
+        if let Some(tracker) = trackers.get(attributes) {
+            O::update_tracker(&**tracker, measurement);
+            return;
+        }
 
-                            self.count.fetch_add(1, Ordering::SeqCst);
-                        } else if let Some(overflow_value) =
-                            values.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice())
-                        {
-                            if self.assign_only {
-                                overflow_value.store(measurement);
-                            } else {
-                                overflow_value.add(measurement);
-                            }
-                        } else {
-                            let new_value = T::new_atomic_tracker();
-                            if self.assign_only {
-                                new_value.store(measurement);
-                            } else {
-                                new_value.add(measurement);
-                            }
-                            values.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_value));
-                            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
-                        }
-                    }
-                }
-            }
+        // Try to retrieve and update the tracker with the attributes sorted.
+        let sorted_attrs = AttributeSet::from(attributes).into_vec();
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            O::update_tracker(&**tracker, measurement);
+            return;
+        }
+
+        // Give up the read lock before acquiring the write lock.
+        drop(trackers);
+
+        let Ok(mut trackers) = self.trackers.write() else {
+            return;
+        };
+
+        // Recheck both the provided and sorted orders after acquiring the write lock
+        // in case another thread has pushed an update in the meantime.
+        if let Some(tracker) = trackers.get(attributes) {
+            O::update_tracker(&**tracker, measurement);
+        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            O::update_tracker(&**tracker, measurement);
+        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
+            let new_tracker = Arc::new(T::new_atomic_tracker());
+            O::update_tracker(&*new_tracker, measurement);
+
+            // Insert tracker with the attributes in the provided and sorted orders
+            trackers.insert(attributes.to_vec(), new_tracker.clone());
+            trackers.insert(sorted_attrs, new_tracker);
+
+            self.count.fetch_add(1, Ordering::SeqCst);
+        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
+            O::update_tracker(&**overflow_value, measurement);
+        } else {
+            let new_tracker = T::new_atomic_tracker();
+            O::update_tracker(&new_tracker, measurement);
+            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
+            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
         }
     }
 }
 
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number<T>> {
-    value_map: ValueMap<T>,
+    value_map: ValueMap<T, Increment>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
@@ -148,7 +148,7 @@ impl<T: Number<T>> Sum<T> {
     /// were made in.
     pub(crate) fn new(monotonic: bool) -> Self {
         Sum {
-            value_map: ValueMap::new(false),
+            value_map: ValueMap::new(),
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
@@ -191,7 +191,7 @@ impl<T: Number<T>> Sum<T> {
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         if self
             .value_map
-            .has_no_value_attribute_value
+            .has_no_attribute_value
             .swap(false, Ordering::AcqRel)
         {
             s_data.data_points.push(DataPoint {
@@ -203,7 +203,7 @@ impl<T: Number<T>> Sum<T> {
             });
         }
 
-        let mut values = match self.value_map.values.write() {
+        let mut values = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
@@ -267,7 +267,7 @@ impl<T: Number<T>> Sum<T> {
 
         if self
             .value_map
-            .has_no_value_attribute_value
+            .has_no_attribute_value
             .load(Ordering::Acquire)
         {
             s_data.data_points.push(DataPoint {
@@ -279,7 +279,7 @@ impl<T: Number<T>> Sum<T> {
             });
         }
 
-        let values = match self.value_map.values.write() {
+        let values = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
@@ -307,7 +307,7 @@ impl<T: Number<T>> Sum<T> {
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number<T>> {
-    value_map: ValueMap<T>,
+    value_map: ValueMap<T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
@@ -316,7 +316,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
 impl<T: Number<T>> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new(true),
+            value_map: ValueMap::new(),
             monotonic,
             start: Mutex::new(SystemTime::now()),
             reported: Mutex::new(Default::default()),
@@ -365,13 +365,12 @@ impl<T: Number<T>> PrecomputedSum<T> {
 
         if self
             .value_map
-            .has_no_value_attribute_value
+            .has_no_attribute_value
             .swap(false, Ordering::AcqRel)
         {
-            let default = T::default();
-            let delta = self.value_map.no_attribute_value.get_value()
-                - *reported.get(&vec![]).unwrap_or(&default);
-            new_reported.insert(vec![], self.value_map.no_attribute_value.get_value());
+            let value = self.value_map.no_attribute_value.get_value();
+            let delta = value - *reported.get(&vec![]).unwrap_or(&T::default());
+            new_reported.insert(vec![], value);
 
             s_data.data_points.push(DataPoint {
                 attributes: vec![],
@@ -382,14 +381,13 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
-        let mut values = match self.value_map.values.write() {
+        let mut values = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
 
-        let default = T::default();
         for (attrs, value) in values.drain() {
-            let delta = value.get_value() - *reported.get(&attrs).unwrap_or(&default);
+            let delta = value.get_value() - *reported.get(&attrs).unwrap_or(&T::default());
             new_reported.insert(attrs.clone(), value.get_value());
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
@@ -448,7 +446,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
 
         if self
             .value_map
-            .has_no_value_attribute_value
+            .has_no_attribute_value
             .load(Ordering::Acquire)
         {
             s_data.data_points.push(DataPoint {
@@ -460,7 +458,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
-        let values = match self.value_map.values.write() {
+        let values = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
