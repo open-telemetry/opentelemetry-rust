@@ -2,6 +2,11 @@
 
 ## vNext
 
+### Changed
+
+- Update to [v1.27.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.27.0) of the semantic conventions.
+  [#2000](https://github.com/open-telemetry/opentelemetry-rust/pull/2000)
+
 ## v0.16.0
 ### Changed
 
