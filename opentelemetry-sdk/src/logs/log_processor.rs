@@ -513,7 +513,6 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::logs::record::AttributesGrowableArray;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         export::logs::{LogData, LogExporter},
@@ -529,9 +528,9 @@ mod tests {
         Resource,
     };
     use async_trait::async_trait;
-    use opentelemetry::logs::AnyValue;
     #[cfg(feature = "logs_level_enabled")]
     use opentelemetry::logs::Severity;
+    use opentelemetry::logs::{AnyValue, LogRecord};
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
@@ -820,16 +819,11 @@ mod tests {
 
     impl LogProcessor for FirstProcessor {
         fn emit(&self, data: &mut LogData) {
-            // Ensure attributes is initialized if it is empty
-            if data.record.attributes.len() == 0 {
-                data.record.attributes = AttributesGrowableArray::new();
-            }
-
             // Add attribute
-            data.record.attributes.push(Some((
+            data.record.add_attribute(
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
-            )));
+            );
 
             // Update body
             data.record.body = Some(AnyValue::String("Updated by FirstProcessor".into()));
@@ -858,14 +852,10 @@ mod tests {
 
     impl LogProcessor for SecondProcessor {
         fn emit(&self, data: &mut LogData) {
-            assert!(data.record.attributes.iter().any(|attr| {
-                if let Some((key, value)) = attr {
-                    key.as_str() == "processed_by"
-                        && *value == AnyValue::String("FirstProcessor".into())
-                } else {
-                    false
-                }
-            }));
+            assert!(data.record.attributes_contains(
+                &Key::from_static_str("processed_by"),
+                &AnyValue::String("FirstProcessor".into())
+            ));
             assert!(
                 data.record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
@@ -915,23 +905,14 @@ mod tests {
         let first_log = &first_processor_logs.lock().unwrap()[0];
         let second_log = &second_processor_logs.lock().unwrap()[0];
 
-        assert!(first_log.record.attributes.iter().any(|attr| {
-            if let Some((key, value)) = attr {
-                key.as_str() == "processed_by"
-                    && *value == AnyValue::String("FirstProcessor".into())
-            } else {
-                false
-            }
-        }));
-
-        assert!(second_log.record.attributes.iter().any(|attr| {
-            if let Some((key, value)) = attr {
-                key.as_str() == "processed_by"
-                    && *value == AnyValue::String("FirstProcessor".into())
-            } else {
-                false
-            }
-        }));
+        assert!(first_log.record.attributes_contains(
+            &Key::from_static_str("processed_by"),
+            &AnyValue::String("FirstProcessor".into())
+        ));
+        assert!(second_log.record.attributes_contains(
+            &Key::from_static_str("processed_by"),
+            &AnyValue::String("FirstProcessor".into())
+        ));
 
         assert!(
             first_log.record.body.clone().unwrap()
