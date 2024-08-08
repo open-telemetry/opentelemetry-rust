@@ -14,7 +14,9 @@
 {%- set attribute = (attrs | selectattr('deprecated', 'none') | first) %}
 {%- set attribute = attribute if attribute else (attrs | first) %}
 {%- if conventions != 'attribute' %}
+{%- if not attribute.deprecated %}
 pub use crate::attribute::{{ attribute.fqn_const_name }};
+{%- endif %}
 {%- else %}
 /// {% filter escape %}{{attribute.brief | to_doc_brief}}.{% endfilter %}
 {%- if attribute.note %}
@@ -31,7 +33,7 @@ pub use crate::attribute::{{ attribute.fqn_const_name }};
 /// - `{{example}}`
 {%- endfor %}
 {%- endif %}
-{%- if (attribute.deprecated) %}
+{%- if attribute.deprecated %}
 #[deprecated]
 {%- endif %}
 pub const {{ attribute.fqn_const_name }}: &str = "{{attribute.fqn}}";
