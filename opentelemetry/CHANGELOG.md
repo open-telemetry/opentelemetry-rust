@@ -2,6 +2,52 @@
 
 ## vNext
 
+- **BREAKING** [#1993](https://github.com/open-telemetry/opentelemetry-rust/pull/1993) Box complex types in AnyValue enum
+Before:
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnyValue {
+    /// An integer value
+    Int(i64),
+    /// A double value
+    Double(f64),
+    /// A string value
+    String(StringValue),
+    /// A boolean value
+    Boolean(bool),
+    /// A byte array
+    Bytes(Vec<u8>),
+    /// An array of `Any` values
+    ListAny(Vec<AnyValue>),
+    /// A map of string keys to `Any` values, arbitrarily nested.
+    Map(HashMap<Key, AnyValue>),
+}
+```
+
+After:
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnyValue {
+    /// An integer value
+    Int(i64),
+    /// A double value
+    Double(f64),
+    /// A string value
+    String(StringValue),
+    /// A boolean value
+    Boolean(bool),
+    /// A byte array
+    Bytes(Box<Vec<u8>>),
+    /// An array of `Any` values
+    ListAny(Box<Vec<AnyValue>>),
+    /// A map of string keys to `Any` values, arbitrarily nested.
+    Map(Box<HashMap<Key, AnyValue>>),
+}
+```
+So the custom log appenders should box these types while adding them in message body, or
+attribute values. Similarly, the custom exporters should dereference these complex type values
+before serializing.
+
 ## v0.24.0
 
 - Add "metrics", "logs" to default features. With this, default feature list is
