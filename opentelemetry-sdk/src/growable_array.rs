@@ -8,7 +8,7 @@ const DEFAULT_INITIAL_OVERFLOW_CAPACITY: usize = 5;
 ///
 /// `GrowableArray` uses an internal fixed-size array (`initial`) for storing elements until it reaches
 /// `MAX_INLINE_CAPACITY`. When this capacity is exceeded, additional elements are stored in a heap-allocated
-/// vector (`additional`). This structure allows for efficient use of stack memory for small numbers of elements,
+/// vector (`overflow`). This structure allows for efficient use of stack memory for small numbers of elements,
 /// while still supporting dynamic growth.
 ///
 pub(crate) struct GrowableArray<
