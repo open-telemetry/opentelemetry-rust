@@ -11,7 +11,7 @@ use std::{borrow::Cow, time::SystemTime};
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 
 /// A vector of `Option<(Key, AnyValue)>` with default capacity.
-pub(crate) type AttributesGrowableArray =
+pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -43,7 +43,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub(crate) attributes: AttributesGrowableArray,
+    pub(crate) attributes: LogRecordAttributes,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
@@ -250,7 +250,7 @@ mod tests {
 
     #[test]
     fn compare_log_record() {
-        let log_record = LogRecord {
+        let mut log_record = LogRecord {
             event_name: Some(Cow::Borrowed("test_event")),
             target: Some(Cow::Borrowed("foo::bar")),
             timestamp: Some(SystemTime::now()),
@@ -258,17 +258,14 @@ mod tests {
             severity_text: Some(Cow::Borrowed("ERROR")),
             severity_number: Some(Severity::Error),
             body: Some(AnyValue::String("Test body".into())),
-            attributes: {
-                let mut hybrid_vec = AttributesGrowableArray::new();
-                hybrid_vec.push(Some((Key::new("key"), AnyValue::String("value".into()))));
-                hybrid_vec
-            },
+            attributes: LogRecordAttributes::new(),
             trace_context: Some(TraceContext {
                 trace_id: TraceId::from_u128(1),
                 span_id: SpanId::from_u64(1),
                 trace_flags: Some(TraceFlags::default()),
             }),
         };
+        log_record.add_attribute(Key::new("key"), AnyValue::String("value".into()));
 
         let log_record_cloned = log_record.clone();
 
