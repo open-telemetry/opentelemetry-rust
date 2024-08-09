@@ -271,29 +271,56 @@ mod tests {
     async fn observable_counter_aggregation_cumulative_non_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4);
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4, false);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation_cumulative_non_zero_increment_no_attrs() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_cumulative_non_zero_increment_no_attrs --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4, true);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_delta_non_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_delta_non_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4);
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4, false);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation_delta_non_zero_increment_no_attrs() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_delta_non_zero_increment_no_attrs --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4, true);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_cumulative_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_cumulative_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4);
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4, false);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Aggregation bug! https://github.com/open-telemetry/opentelemetry-rust/issues/1517"]
+    async fn observable_counter_aggregation_cumulative_zero_increment_no_attrs() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_cumulative_zero_increment_no_attrs --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4, true);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_delta_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_delta_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4);
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4, false);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_aggregation_delta_zero_increment_no_attrs() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_aggregation_delta_zero_increment_no_attrs --features=testing -- --nocapture
+        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4, true);
     }
 
     fn observable_counter_aggregation_helper(
@@ -301,9 +328,15 @@ mod tests {
         start: u64,
         increment: u64,
         length: u64,
+        is_empty_attributes: bool,
     ) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
+        let attributes = if is_empty_attributes {
+            vec![]
+        } else {
+            vec![KeyValue::new("key1", "value1")]
+        };
         // The Observable counter reports values[0], values[1],....values[n] on each flush.
         let values: Vec<u64> = (0..length).map(|i| start + i * increment).collect();
         println!("Testing with observable values: {:?}", values);
@@ -317,7 +350,7 @@ mod tests {
             .with_callback(move |observer| {
                 let mut index = i.lock().unwrap();
                 if *index < values.len() {
-                    observer.observe(values[*index], &[KeyValue::new("key1", "value1")]);
+                    observer.observe(values[*index], &attributes);
                     *index += 1;
                 }
             })
@@ -338,9 +371,14 @@ mod tests {
                 assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
             }
 
-            // find and validate key1=value1 datapoint
-            let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
-                .expect("datapoint with key1=value1 expected");
+            // find and validate datapoint
+            let data_point = if is_empty_attributes {
+                &sum.data_points[0]
+            } else {
+                find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+                    .expect("datapoint with key1=value1 expected")
+            };
+
             if let Temporality::Cumulative = temporality {
                 // Cumulative counter should have the value as is.
                 assert_eq!(data_point.value, *v);
@@ -629,8 +667,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
-        // cargo test spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
+        // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
