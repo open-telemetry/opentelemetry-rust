@@ -22,13 +22,13 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
 
 /// Abstracts the update operation for a measurement.
 trait Operation {
-    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T);
+    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T);
 }
 
 struct Increment;
 
 impl Operation for Increment {
-    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T) {
+    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T) {
         tracker.add(value);
     }
 }
@@ -36,7 +36,7 @@ impl Operation for Increment {
 struct Assign;
 
 impl Operation for Assign {
-    fn update_tracker<T: 'static>(tracker: &dyn AtomicTracker<T>, value: T) {
+    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T) {
         tracker.store(value);
     }
 }
