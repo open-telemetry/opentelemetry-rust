@@ -63,8 +63,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         self.writer.take();
     }
 
-    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
+    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) -> LogResult<()> {
         self.resource = res.clone();
+        Ok(())
     }
 }
 

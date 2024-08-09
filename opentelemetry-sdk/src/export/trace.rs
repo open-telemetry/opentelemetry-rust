@@ -65,7 +65,12 @@ pub trait SpanExporter: Send + Sync + Debug {
     }
 
     /// Set the resource for the exporter.
-    fn set_resource(&mut self, _resource: &Resource) {}
+    /// This function SHOULD only be called once during the initialization of the exporter.
+    /// This function SHOULD complete or abort within some timeout. This function SHOULD be
+    /// implemented as a blocking API
+    fn set_resource(&mut self, _resource: &Resource) -> ExportResult {
+        Ok(())
+    }
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used

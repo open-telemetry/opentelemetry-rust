@@ -56,8 +56,9 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
         self.writer.take();
     }
 
-    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
+    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) -> ExportResult {
         self.resource = res.clone();
+        Ok(())
     }
 }
 
