@@ -18,6 +18,6 @@ fn main() {
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();
 
-    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     let _ = provider.shutdown();
 }
