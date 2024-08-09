@@ -53,7 +53,7 @@ struct ValueMap<T: Number<T>, O> {
     /// Indicates whether a value with no attributes has been stored.
     has_no_attribute_value: AtomicBool,
     /// Tracker for values with no attributes attached.
-    no_attribute_value: T::AtomicTracker,
+    no_attribute_tracker: T::AtomicTracker,
     phantom: PhantomData<O>,
 }
 
@@ -68,7 +68,7 @@ impl<T: Number<T>, O> ValueMap<T, O> {
         ValueMap {
             trackers: RwLock::new(HashMap::new()),
             has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_value: T::new_atomic_tracker(),
+            no_attribute_tracker: T::new_atomic_tracker(),
             count: AtomicUsize::new(0),
             phantom: PhantomData,
         }
@@ -78,7 +78,7 @@ impl<T: Number<T>, O> ValueMap<T, O> {
 impl<T: Number<T>, O: Operation> ValueMap<T, O> {
     fn measure(&self, measurement: T, attributes: &[KeyValue]) {
         if attributes.is_empty() {
-            O::update_tracker(&self.no_attribute_value, measurement);
+            O::update_tracker(&self.no_attribute_tracker, measurement);
             self.has_no_attribute_value.store(true, Ordering::Release);
             return;
         }
@@ -198,24 +198,24 @@ impl<T: Number<T>> Sum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_and_reset_value(),
+                value: self.value_map.no_attribute_tracker.get_and_reset_value(),
                 exemplars: vec![],
             });
         }
 
-        let mut values = match self.value_map.trackers.write() {
+        let mut trackers = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
 
         let mut seen = HashSet::new();
-        for (attrs, value) in values.drain() {
-            if seen.insert(Arc::as_ptr(&value)) {
+        for (attrs, tracker) in trackers.drain() {
+            if seen.insert(Arc::as_ptr(&tracker)) {
                 s_data.data_points.push(DataPoint {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: value.get_value(),
+                    value: tracker.get_value(),
                     exemplars: vec![],
                 });
             }
@@ -274,12 +274,12 @@ impl<T: Number<T>> Sum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_value(),
+                value: self.value_map.no_attribute_tracker.get_value(),
                 exemplars: vec![],
             });
         }
 
-        let values = match self.value_map.trackers.write() {
+        let trackers = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
@@ -288,12 +288,12 @@ impl<T: Number<T>> Sum<T> {
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
         // overload the system.
-        for (attrs, value) in values.iter() {
+        for (attrs, tracker) in trackers.iter() {
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: value.get_value(),
+                value: tracker.get_value(),
                 exemplars: vec![],
             });
         }
@@ -368,7 +368,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
             .has_no_attribute_value
             .swap(false, Ordering::AcqRel)
         {
-            let value = self.value_map.no_attribute_value.get_value();
+            let value = self.value_map.no_attribute_tracker.get_value();
             let delta = value - *reported.get(&vec![]).unwrap_or(&T::default());
             new_reported.insert(vec![], value);
 
@@ -381,14 +381,15 @@ impl<T: Number<T>> PrecomputedSum<T> {
             });
         }
 
-        let mut values = match self.value_map.trackers.write() {
+        let mut trackers = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
 
-        for (attrs, value) in values.drain() {
-            let delta = value.get_value() - *reported.get(&attrs).unwrap_or(&T::default());
-            new_reported.insert(attrs.clone(), value.get_value());
+        for (attrs, tracker) in trackers.drain() {
+            let value = tracker.get_value();
+            let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
+            new_reported.insert(attrs.clone(), value);
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
@@ -453,21 +454,21 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_value.get_value(),
+                value: self.value_map.no_attribute_tracker.get_value(),
                 exemplars: vec![],
             });
         }
 
-        let values = match self.value_map.trackers.write() {
+        let trackers = match self.value_map.trackers.write() {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
-        for (attrs, value) in values.iter() {
+        for (attrs, tracker) in trackers.iter() {
             s_data.data_points.push(DataPoint {
                 attributes: attrs.clone(),
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: value.get_value(),
+                value: tracker.get_value(),
                 exemplars: vec![],
             });
         }
