@@ -16,7 +16,10 @@
   The custom exporters and processors can't directly access the `LogData::LogRecord::attributes`, as
   these are private to opentelemetry-sdk. Instead, they would now use LogRecord::attributes_iter()
   method to access them.
-
+- Fixed various Metric aggregation bug related to
+  ObservableCounter,UpDownCounter including
+  [#1517](https://github.com/open-telemetry/opentelemetry-rust/issues/1517).
+  [#2004](https://github.com/open-telemetry/opentelemetry-rust/pull/2004)
 
 ## v0.24.1
 

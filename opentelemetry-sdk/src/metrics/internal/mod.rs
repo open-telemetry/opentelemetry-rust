@@ -15,6 +15,7 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 /// Marks a type that can have a value added and retrieved atomically. Required since
 /// different types have different backing atomic mechanisms
 pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
+    fn store(&self, value: T);
     fn add(&self, value: T);
     fn get_value(&self) -> T;
     fn get_and_reset_value(&self) -> T;
@@ -90,6 +91,10 @@ impl Number<f64> for f64 {
 }
 
 impl AtomicTracker<u64> for AtomicU64 {
+    fn store(&self, value: u64) {
+        self.store(value, Ordering::Relaxed);
+    }
+
     fn add(&self, value: u64) {
         self.fetch_add(value, Ordering::Relaxed);
     }
@@ -112,6 +117,10 @@ impl AtomicallyUpdate<u64> for u64 {
 }
 
 impl AtomicTracker<i64> for AtomicI64 {
+    fn store(&self, value: i64) {
+        self.store(value, Ordering::Relaxed);
+    }
+
     fn add(&self, value: i64) {
         self.fetch_add(value, Ordering::Relaxed);
     }
@@ -146,6 +155,11 @@ impl F64AtomicTracker {
 }
 
 impl AtomicTracker<f64> for F64AtomicTracker {
+    fn store(&self, value: f64) {
+        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
+        *guard = value;
+    }
+
     fn add(&self, value: f64) {
         let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
         *guard += value;
