@@ -89,7 +89,7 @@ pub mod tonic {
                 time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
                 attributes: {
-                    let mut attributes: Vec<KeyValue> = log_record
+                    let attributes: Vec<KeyValue> = log_record
                         .attributes_iter()
                         .map(|kv| KeyValue {
                             key: kv.0.to_string(),
@@ -98,14 +98,22 @@ pub mod tonic {
                             }),
                         })
                         .collect();
-                    if let Some(event_name) = log_record.event_name.as_ref() {
-                        attributes.push(KeyValue {
-                            key: "name".into(),
-                            value: Some(AnyValue {
-                                value: Some(Value::StringValue(event_name.to_string())),
-                            }),
-                        });
+                    #[cfg(feature = "populate-logs-event-name")]
+                    {
+                        if let Some(event_name) = &log_record.event_name {
+                            let mut attributes_with_name = attributes;
+                            attributes_with_name.push(KeyValue {
+                                key: "name".into(),
+                                value: Some(AnyValue {
+                                    value: Some(Value::StringValue(event_name.to_string())),
+                                }),
+                            });
+                            attributes_with_name
+                        } else {
+                            attributes
+                        }
                     }
+                    #[cfg(not(feature = "populate-logs-event-name"))]
                     attributes
                 },
                 severity_number: severity_number.into(),
