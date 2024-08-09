@@ -268,6 +268,18 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_gauge_aggregation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_gauge_aggregation --features=testing -- --nocapture
+
+        // Gauge should use last value aggregation regardless of the aggregation temporality used.
+        observable_gauge_aggregation_helper(Temporality::Delta, false);
+        observable_gauge_aggregation_helper(Temporality::Delta, true);
+        observable_gauge_aggregation_helper(Temporality::Cumulative, false);
+        observable_gauge_aggregation_helper(Temporality::Cumulative, true);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_aggregation_cumulative_non_zero_increment() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
@@ -1445,15 +1457,78 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
-        assert_eq!(sum.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        assert_eq!(gauge.data_points.len(), 2);
+        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 41);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 54);
+    }
+
+    fn observable_gauge_aggregation_helper(temporality: Temporality, use_empty_attributes: bool) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let _observable_gauge = test_context
+            .meter()
+            .i64_observable_gauge("test_observable_gauge")
+            .with_callback(move |observer| {
+                if use_empty_attributes {
+                    observer.observe(1, &[]);
+                }
+                observer.observe(4, &[KeyValue::new("key1", "value1")]);
+                observer.observe(5, &[KeyValue::new("key2", "value2")]);
+            })
+            .init();
+
+        test_context.flush_metrics();
+
+        // Assert
+        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        // Expecting 2 time-series.
+        let expected_time_series_count = if use_empty_attributes { 3 } else { 2 };
+        assert_eq!(gauge.data_points.len(), expected_time_series_count);
+
+        if use_empty_attributes {
+            // find and validate zero attribute datapoint
+            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
+                .expect("datapoint with no attributes expected");
+            assert_eq!(zero_attribute_datapoint.value, 1);
+        }
+
+        // find and validate key1=value1 datapoint
+        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 4);
+
+        // find and validate key2=value2 datapoint
+        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+            .expect("datapoint with key2=value2 expected");
+        assert_eq!(data_point2.value, 5);
+
+        // Reset and report more measurements
+        test_context.reset_metrics();
+
+        test_context.flush_metrics();
+
+        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        assert_eq!(gauge.data_points.len(), expected_time_series_count);
+
+        if use_empty_attributes {
+            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
+                .expect("datapoint with no attributes expected");
+            assert_eq!(zero_attribute_datapoint.value, 1);
+        }
+
+        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+            .expect("datapoint with key1=value1 expected");
+        assert_eq!(data_point1.value, 4);
+
+        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+            .expect("datapoint with key2=value2 expected");
+        assert_eq!(data_point2.value, 5);
     }
 
     fn counter_aggregation_helper(temporality: Temporality) {
@@ -1620,6 +1695,12 @@ mod tests {
                 .iter()
                 .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
         })
+    }
+
+    fn find_datapoint_with_no_attributes<T>(data_points: &[DataPoint<T>]) -> Option<&DataPoint<T>> {
+        data_points
+            .iter()
+            .find(|&datapoint| datapoint.attributes.is_empty())
     }
 
     fn find_histogram_datapoint_with_key_value<'a, T>(
