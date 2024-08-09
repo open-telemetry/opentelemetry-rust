@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 280 ns      |
+    | ot_layer_enabled            | 250 ns      |
 */
 
 use async_trait::async_trait;
@@ -116,7 +116,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
                 name = "CheckoutFailed",
                 book_id = "12345",
                 book_title = "Rust Programming Adventures",
-                "Unable to process checkout."
+                message = "Unable to process checkout."
             );
         });
     });
@@ -142,7 +142,7 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
                     name = "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
-                    "Unable to process checkout."
+                    message = "Unable to process checkout."
                 );
             });
         });

@@ -93,6 +93,13 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
         if is_duplicated_metadata(field.name()) {
             return;
         }
+        //TODO: Consider special casing "message" to populate body and document
+        // to users to use message field for log message, to avoid going to the
+        // record_debug, which has dyn dispatch, string allocation and
+        // formatting cost.
+
+        //TODO: Fix heap allocation. Check if lifetime of &str can be used
+        // to optimize sync exporter scenario.
         self.log_record
             .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
     }
@@ -163,8 +170,9 @@ where
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         let meta = event.metadata();
 
-        //let mut log_record: LogRecord = LogRecord::default();
         let mut log_record = self.logger.create_log_record();
+
+        // TODO: Fix heap allocation
         log_record.set_target(meta.target().to_string());
         log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
