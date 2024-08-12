@@ -11,7 +11,7 @@ use std::{borrow::Cow, time::SystemTime};
 /// is provided to `LogExporter`s as input.
 pub struct LogRecord {
     /// Event name. Optional as not all the logging API support it.
-    pub event_name: Option<Cow<'static, str>>,
+    pub event_name: Option<&'static str>,
 
     /// Target of the log record
     pub target: Option<Cow<'static, str>>,
@@ -38,11 +38,8 @@ pub struct LogRecord {
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
-    fn set_event_name<T>(&mut self, name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.event_name = Some(name.into());
+    fn set_event_name(&mut self, name: &'static str) {
+        self.event_name = Some(name);
     }
 
     // Sets the `target` of a record
@@ -154,7 +151,7 @@ mod tests {
     fn test_set_eventname() {
         let mut log_record = LogRecord::default();
         log_record.set_event_name("test_event");
-        assert_eq!(log_record.event_name, Some(Cow::Borrowed("test_event")));
+        assert_eq!(log_record.event_name, Some("test_event"));
     }
 
     #[test]
@@ -247,7 +244,7 @@ mod tests {
     #[test]
     fn compare_log_record() {
         let log_record = LogRecord {
-            event_name: Some(Cow::Borrowed("test_event")),
+            event_name: Some("test_event"),
             target: Some(Cow::Borrowed("foo::bar")),
             timestamp: Some(SystemTime::now()),
             observed_timestamp: Some(SystemTime::now()),
@@ -267,7 +264,7 @@ mod tests {
         assert_eq!(log_record, log_record_cloned);
 
         let mut log_record_different = log_record.clone();
-        log_record_different.event_name = Some(Cow::Borrowed("different_event"));
+        log_record_different.event_name = Some("different_event");
 
         assert_ne!(log_record, log_record_different);
     }
@@ -275,12 +272,12 @@ mod tests {
     #[test]
     fn compare_log_record_target_borrowed_eq_owned() {
         let log_record_borrowed = LogRecord {
-            event_name: Some(Cow::Borrowed("test_event")),
+            event_name: Some("test_event"),
             ..Default::default()
         };
 
         let log_record_owned = LogRecord {
-            event_name: Some(Cow::Owned("test_event".to_string())),
+            event_name: Some("test_event"),
             ..Default::default()
         };
 

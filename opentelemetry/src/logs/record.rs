@@ -4,11 +4,7 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 /// SDK implemented trait for managing log records
 pub trait LogRecord {
     /// Sets the `event_name` of a record
-    fn set_event_name<T>(&mut self, _name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-    }
+    fn set_event_name(&mut self, _name: &'static str);
 
     /// Sets the `target` of a record.
     /// Currently, both `opentelemetry-appender-tracing` and `opentelemetry-appender-log` create a single logger
