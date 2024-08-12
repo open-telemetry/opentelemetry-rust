@@ -1251,6 +1251,140 @@ mod tests {
         counter_multithreaded_aggregation_helper(Temporality::Cumulative);
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn synchronous_instruments_cumulative_with_gap_in_measurements() {
+        // Run this test with stdout enabled to see output.
+        // cargo test synchronous_instruments_cumulative_with_gap_in_measurements --features=testing -- --nocapture
+
+        synchronous_instruments_cumulative_with_gap_in_measurements_helper("counter");
+        synchronous_instruments_cumulative_with_gap_in_measurements_helper("updown_counter");
+        synchronous_instruments_cumulative_with_gap_in_measurements_helper("histogram");
+
+        /* Synchronous Gauge has an aggregation bug. Uncomment the code below to run the test for gauge
+        once this issue is fixed: https://github.com/open-telemetry/opentelemetry-rust/issues/1975
+        */
+
+        // synchronous_instruments_cumulative_with_gap_in_measurements_helper("gauge");
+    }
+
+    fn synchronous_instruments_cumulative_with_gap_in_measurements_helper(
+        instrument_name: &'static str,
+    ) {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let attributes = &[KeyValue::new("key1", "value1")];
+
+        // Create instrument and emit measurements
+        match instrument_name {
+            "counter" => {
+                let counter = test_context.meter().u64_counter("test_counter").init();
+                counter.add(5, &[]);
+                counter.add(10, attributes);
+            }
+            "updown_counter" => {
+                let updown_counter = test_context
+                    .meter()
+                    .i64_up_down_counter("test_updowncounter")
+                    .init();
+                updown_counter.add(15, &[]);
+                updown_counter.add(20, attributes);
+            }
+            "histogram" => {
+                let histogram = test_context.meter().u64_histogram("test_histogram").init();
+                histogram.record(25, &[]);
+                histogram.record(30, attributes);
+            }
+            "gauge" => {
+                let gauge = test_context.meter().u64_gauge("test_gauge").init();
+                gauge.record(35, &[]);
+                gauge.record(40, attributes);
+            }
+            _ => panic!("Incorrect instrument kind provided"),
+        };
+
+        test_context.flush_metrics();
+
+        // Test the first export
+        assert_correct_export(&mut test_context, instrument_name);
+
+        // Reset and export again without making any measurements
+        test_context.reset_metrics();
+
+        test_context.flush_metrics();
+
+        // Test that latest export has the same data as the previous one
+        assert_correct_export(&mut test_context, instrument_name);
+
+        fn assert_correct_export(test_context: &mut TestContext, instrument_name: &'static str) {
+            match instrument_name {
+                "counter" => {
+                    let counter_data =
+                        test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
+                    assert_eq!(counter_data.data_points.len(), 2);
+                    let zero_attribute_datapoint =
+                        find_datapoint_with_no_attributes(&counter_data.data_points)
+                            .expect("datapoint with no attributes expected");
+                    assert_eq!(zero_attribute_datapoint.value, 5);
+                    let data_point1 =
+                        find_datapoint_with_key_value(&counter_data.data_points, "key1", "value1")
+                            .expect("datapoint with key1=value1 expected");
+                    assert_eq!(data_point1.value, 10);
+                }
+                "updown_counter" => {
+                    let updown_counter_data =
+                        test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
+                    assert_eq!(updown_counter_data.data_points.len(), 2);
+                    let zero_attribute_datapoint =
+                        find_datapoint_with_no_attributes(&updown_counter_data.data_points)
+                            .expect("datapoint with no attributes expected");
+                    assert_eq!(zero_attribute_datapoint.value, 15);
+                    let data_point1 = find_datapoint_with_key_value(
+                        &updown_counter_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
+                    assert_eq!(data_point1.value, 20);
+                }
+                "histogram" => {
+                    let histogram_data = test_context
+                        .get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+                    assert_eq!(histogram_data.data_points.len(), 2);
+                    let zero_attribute_datapoint =
+                        find_histogram_datapoint_with_no_attributes(&histogram_data.data_points)
+                            .expect("datapoint with no attributes expected");
+                    assert_eq!(zero_attribute_datapoint.count, 1);
+                    assert_eq!(zero_attribute_datapoint.sum, 25);
+                    assert_eq!(zero_attribute_datapoint.min, Some(25));
+                    assert_eq!(zero_attribute_datapoint.max, Some(25));
+                    let data_point1 = find_histogram_datapoint_with_key_value(
+                        &histogram_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
+                    assert_eq!(data_point1.count, 1);
+                    assert_eq!(data_point1.sum, 30);
+                    assert_eq!(data_point1.min, Some(30));
+                    assert_eq!(data_point1.max, Some(30));
+                }
+                "gauge" => {
+                    let gauge_data =
+                        test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
+                    assert_eq!(gauge_data.data_points.len(), 2);
+                    let zero_attribute_datapoint =
+                        find_datapoint_with_no_attributes(&gauge_data.data_points)
+                            .expect("datapoint with no attributes expected");
+                    assert_eq!(zero_attribute_datapoint.value, 35);
+                    let data_point1 =
+                        find_datapoint_with_key_value(&gauge_data.data_points, "key1", "value1")
+                            .expect("datapoint with key1=value1 expected");
+                    assert_eq!(data_point1.value, 40);
+                }
+                _ => panic!("Incorrect instrument kind provided"),
+            }
+        }
+    }
+
     fn counter_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
@@ -1714,6 +1848,14 @@ mod tests {
                 .iter()
                 .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
         })
+    }
+
+    fn find_histogram_datapoint_with_no_attributes<T>(
+        data_points: &[HistogramDataPoint<T>],
+    ) -> Option<&HistogramDataPoint<T>> {
+        data_points
+            .iter()
+            .find(|&datapoint| datapoint.attributes.is_empty())
     }
 
     fn find_scope_metric<'a>(
