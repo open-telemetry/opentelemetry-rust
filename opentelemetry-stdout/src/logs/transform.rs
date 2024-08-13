@@ -115,11 +115,11 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                     .collect::<Vec<KeyValue>>(); // Collect into a Vec<KeyValue>s
 
                 #[cfg(feature = "populate-logs-event-name")]
-                if let Some(event_name) = &value.record.event_name {
+                if let Some(event_name) = value.record.event_name {
                     let mut attributes_with_name = attributes;
                     attributes_with_name.push(KeyValue::from((
                         "name".into(),
-                        opentelemetry::Value::String(event_name.clone().into()),
+                        opentelemetry::Value::String(event_name.into()),
                     )));
                     attributes_with_name
                 } else {
