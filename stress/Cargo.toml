@@ -9,7 +9,7 @@ name = "metrics"
 path = "src/metrics_counter.rs"
 doc = false
 
-[[bin]] # Bin to run the metrics stress tests for Counter
+[[bin]] # Bin to run the metrics stress tests for Gauge
 name = "metrics_gauge"
 path = "src/metrics_gauge.rs"
 doc = false
