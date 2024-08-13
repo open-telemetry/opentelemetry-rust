@@ -65,22 +65,22 @@ pub trait MeterProvider {
 
 /// Provides the ability to create instruments for recording measurements or
 /// accepting callbacks to report measurements.
-/// 
+///
 /// # Instrument Types
-/// 
+///
 /// Instruments are categorized as either synchronous or asynchronous:
-/// 
+///
 /// - **Synchronous Instruments** (e.g., Counter): These are used inline with
 ///   your application's processing logic. For example, you might use a Counter
 ///   to record the number of HTTP requests received.
-/// 
+///
 /// - **Asynchronous Instruments** (e.g., Gauge): These allow you to register a
 ///   callback function that is invoked during export. For instance, you could
 ///   use an asynchronous gauge to monitor temperature from a sensor every time
 ///   metrics are exported.
-/// 
+///
 /// # Example Usage
-/// 
+///
 /// ```rust
 /// use opentelemetry::{global, KeyValue};
 ///
@@ -262,7 +262,7 @@ pub trait MeterProvider {
 ///     ],
 /// );
 /// ```
-/// 
+///
 #[derive(Clone)]
 pub struct Meter
 {
