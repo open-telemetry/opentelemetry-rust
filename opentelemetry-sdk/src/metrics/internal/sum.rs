@@ -165,14 +165,17 @@ impl<T: Number<T>> Sum<T> {
         // are unbounded number of attribute sets being aggregated. Attribute
         // sets that become "stale" need to be forgotten so this will not
         // overload the system.
+        let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: tracker.get_value(),
-                exemplars: vec![],
-            });
+            if seen.insert(Arc::as_ptr(tracker)) {
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(prev_start),
+                    time: Some(t),
+                    value: tracker.get_value(),
+                    exemplars: vec![],
+                });
+            }
         }
 
         (
@@ -263,17 +266,20 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Err(_) => return (0, None),
         };
 
+        let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.drain() {
-            let value = tracker.get_value();
-            let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
-            new_reported.insert(attrs.clone(), value);
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: delta,
-                exemplars: vec![],
-            });
+            if seen.insert(Arc::as_ptr(&tracker)) {
+                let value = tracker.get_value();
+                let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
+                new_reported.insert(attrs.clone(), value);
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(prev_start),
+                    time: Some(t),
+                    value: delta,
+                    exemplars: vec![],
+                });
+            }
         }
 
         // The delta collection cycle resets.
@@ -340,14 +346,18 @@ impl<T: Number<T>> PrecomputedSum<T> {
             Ok(v) => v,
             Err(_) => return (0, None),
         };
+
+        let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
-            s_data.data_points.push(DataPoint {
-                attributes: attrs.clone(),
-                start_time: Some(prev_start),
-                time: Some(t),
-                value: tracker.get_value(),
-                exemplars: vec![],
-            });
+            if seen.insert(Arc::as_ptr(tracker)) {
+                s_data.data_points.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: Some(prev_start),
+                    time: Some(t),
+                    value: tracker.get_value(),
+                    exemplars: vec![],
+                });
+            }
         }
 
         (
