@@ -176,7 +176,7 @@ where
         log_record.set_target(meta.target().to_string());
         log_record.set_event_name(meta.name());
         log_record.set_severity_number(severity_of_level(meta.level()));
-        log_record.set_severity_text(meta.level().as_str().into());
+        log_record.set_severity_text(meta.level().as_str());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);

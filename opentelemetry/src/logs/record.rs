@@ -4,11 +4,7 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 /// SDK implemented trait for managing log records
 pub trait LogRecord {
     /// Sets the `event_name` of a record
-    fn set_event_name<T>(&mut self, _name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-    }
+    fn set_event_name(&mut self, name: &'static str);
 
     /// Sets the `target` of a record.
     /// Currently, both `opentelemetry-appender-tracing` and `opentelemetry-appender-log` create a single logger
@@ -25,7 +21,7 @@ pub trait LogRecord {
     fn set_observed_timestamp(&mut self, timestamp: SystemTime);
 
     /// Sets severity as text.
-    fn set_severity_text(&mut self, text: Cow<'static, str>);
+    fn set_severity_text(&mut self, text: &'static str);
 
     /// Sets severity as a numeric value.
     fn set_severity_number(&mut self, number: Severity);

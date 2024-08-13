@@ -3,7 +3,7 @@
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
-    ~1.5 M/sec
+    ~11.5 M/sec
 */
 
 use lazy_static::lazy_static;
