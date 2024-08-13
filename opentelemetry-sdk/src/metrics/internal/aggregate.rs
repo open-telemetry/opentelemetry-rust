@@ -106,11 +106,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
     }
 
     /// Builds a last-value aggregate function input and output.
-    ///
-    /// [Builder::temporality] is ignored and delta is always used.
     pub(crate) fn last_value(&self) -> (impl Measure<T>, impl ComputeAggregation) {
-        // Delta temporality is the only temporality that makes semantic sense for
-        // a last-value aggregate.
         let lv_filter = Arc::new(LastValue::new());
         let lv_agg = Arc::clone(&lv_filter);
         let t = self.temporality;
