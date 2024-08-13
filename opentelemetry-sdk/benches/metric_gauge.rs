@@ -6,7 +6,7 @@
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Gauge_Add                      | 483.78 ns   |
+    | Gauge_Add                      | 178.37 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
