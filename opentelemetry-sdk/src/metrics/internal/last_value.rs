@@ -25,7 +25,7 @@ impl<T: Number<T>> LastValue<T> {
         self.value_map.measure(measurement, attrs);
     }
 
-    pub(crate) fn compute_aggregation(&self, dest: &mut Vec<DataPoint<T>>) {
+    pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {
         let t = SystemTime::now();
         dest.clear();
 
@@ -58,6 +58,50 @@ impl<T: Number<T>> LastValue<T> {
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
+                dest.push(DataPoint {
+                    attributes: attrs.clone(),
+                    start_time: None,
+                    time: Some(t),
+                    value: tracker.get_value(),
+                    exemplars: vec![],
+                });
+            }
+        }
+    }
+
+    pub(crate) fn compute_aggregation_cumulative(&self, dest: &mut Vec<DataPoint<T>>) {
+        let t = SystemTime::now();
+        dest.clear();
+
+        // Max number of data points need to account for the special casing
+        // of the no attribute value + overflow attribute.
+        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
+        if n > dest.capacity() {
+            dest.reserve_exact(n - dest.capacity());
+        }
+
+        if self
+            .value_map
+            .has_no_attribute_value
+            .load(Ordering::Acquire)
+        {
+            dest.push(DataPoint {
+                attributes: vec![],
+                start_time: None,
+                time: Some(t),
+                value: self.value_map.no_attribute_tracker.get_value(),
+                exemplars: vec![],
+            });
+        }
+
+        let trackers = match self.value_map.trackers.write() {
+            Ok(v) => v,
+            _ => return,
+        };
+
+        let mut seen = HashSet::new();
+        for (attrs, tracker) in trackers.iter() {
+            if seen.insert(Arc::as_ptr(tracker)) {
                 dest.push(DataPoint {
                     attributes: attrs.clone(),
                     start_time: None,
