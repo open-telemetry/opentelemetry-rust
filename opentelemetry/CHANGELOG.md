@@ -49,7 +49,14 @@ attribute values. Similarly, the custom exporters should dereference these compl
 before serializing.
 
 *Breaking* : Removed the ability to register callbacks for Observable
-instruments on Meter directly.
+instruments on Meter directly. If you were using `meter.register_callback` to
+provide the callback, provide them using `with_callback` method, while creating
+the Observable instrument itself.
+[1715](https://github.com/open-telemetry/opentelemetry-rust/pull/1715/files)
+shows the exact changes needed to make this migration. If you are starting new,
+refer to the
+[examples](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/metrics-basic/src/main.rs)
+to learn how to provide Observable callbacks.
 
 ## v0.24.0
 
