@@ -30,18 +30,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a meter from the above MeterProvider.
     let meter = global::meter("mylibraryname");
 
-    // Create a Counter Instrument.
-    let counter = meter.u64_counter("my_counter").init();
-
-    // Record measurements using the Counter instrument.
-    counter.add(
-        10,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-        ],
-    );
-
     // Create a ObservableCounter instrument and register a callback that reports the measurement.
     let _observable_counter = meter
         .u64_observable_counter("my_observable_counter")
@@ -54,83 +42,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                     KeyValue::new("mykey1", "myvalue1"),
                     KeyValue::new("mykey2", "myvalue2"),
                 ],
-            )
-        })
-        .init();
+            );
 
-    // Create a UpCounter Instrument.
-    let updown_counter = meter.i64_up_down_counter("my_updown_counter").init();
-
-    // Record measurements using the UpCounter instrument.
-    updown_counter.add(
-        -10,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-        ],
-    );
-
-    // Create a Observable UpDownCounter instrument and register a callback that reports the measurement.
-    let _observable_up_down_counter = meter
-        .i64_observable_up_down_counter("my_observable_updown_counter")
-        .with_description("My observable updown counter example description")
-        .with_unit("myunit")
-        .with_callback(|observer| {
             observer.observe(
-                100,
+                200,
                 &[
-                    KeyValue::new("mykey1", "myvalue1"),
-                    KeyValue::new("mykey2", "myvalue2"),
+                    KeyValue::new("mykey3", "myvalue1"),
+                    KeyValue::new("mykey4", "myvalue2"),
                 ],
-            )
-        })
-        .init();
-
-    // Create a Histogram Instrument.
-    let histogram = meter
-        .f64_histogram("my_histogram")
-        .with_description("My histogram example description")
-        .init();
-
-    // Record measurements using the histogram instrument.
-    histogram.record(
-        10.5,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-        ],
-    );
-
-    // Note that there is no ObservableHistogram instrument.
-
-    // Create a Gauge Instrument.
-    let gauge = meter
-        .f64_gauge("my_gauge")
-        .with_description("A gauge set to 1.0")
-        .with_unit("myunit")
-        .init();
-
-    gauge.record(
-        1.0,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-        ],
-    );
-
-    // Create a ObservableGauge instrument and register a callback that reports the measurement.
-    let _observable_gauge = meter
-        .f64_observable_gauge("my_observable_gauge")
-        .with_description("An observable gauge set to 1.0")
-        .with_unit("myunit")
-        .with_callback(|observer| {
-            observer.observe(
-                1.0,
-                &[
-                    KeyValue::new("mykey1", "myvalue1"),
-                    KeyValue::new("mykey2", "myvalue2"),
-                ],
-            )
+            );
         })
         .init();
 

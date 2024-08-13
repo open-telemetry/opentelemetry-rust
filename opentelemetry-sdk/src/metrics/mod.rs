@@ -148,7 +148,7 @@ impl Hash for AttributeSet {
 }
 
 #[cfg(all(test, feature = "testing"))]
-mod tests {
+mod tests { 
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};

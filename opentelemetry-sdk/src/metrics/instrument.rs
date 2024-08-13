@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
+use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, sync::Arc};
 
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
@@ -284,69 +284,14 @@ impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
     }
 }
 
-/// A comparable unique identifier of an observable.
-#[derive(Clone, Debug)]
-pub(crate) struct ObservableId<T> {
-    pub(crate) inner: IdInner,
-    _marker: marker::PhantomData<T>,
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub(crate) struct IdInner {
-    /// The human-readable identifier of the instrument.
-    pub(crate) name: Cow<'static, str>,
-    /// describes the purpose of the instrument.
-    pub(crate) description: Cow<'static, str>,
-    /// The functional group of the instrument.
-    kind: InstrumentKind,
-    /// The unit of measurement recorded by the instrument.
-    pub(crate) unit: Cow<'static, str>,
-    /// The instrumentation that created the instrument.
-    scope: Scope,
-}
-
-impl<T> Hash for ObservableId<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.inner.hash(state)
-    }
-}
-
-impl<T> PartialEq for ObservableId<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
-    }
-}
-
-impl<T> Eq for ObservableId<T> {}
-
 #[derive(Clone)]
 pub(crate) struct Observable<T> {
-    pub(crate) id: ObservableId<T>,
     measures: Vec<Arc<dyn Measure<T>>>,
 }
 
 impl<T> Observable<T> {
-    pub(crate) fn new(
-        scope: Scope,
-        kind: InstrumentKind,
-        name: Cow<'static, str>,
-        description: Cow<'static, str>,
-        unit: Cow<'static, str>,
-        measures: Vec<Arc<dyn Measure<T>>>,
-    ) -> Self {
-        Self {
-            id: ObservableId {
-                inner: IdInner {
-                    name,
-                    description,
-                    kind,
-                    unit,
-                    scope,
-                },
-                _marker: marker::PhantomData,
-            },
-            measures,
-        }
+    pub(crate) fn new(measures: Vec<Arc<dyn Measure<T>>>) -> Self {
+        Self { measures }
     }
 }
 

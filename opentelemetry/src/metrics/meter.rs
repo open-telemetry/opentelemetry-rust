@@ -8,8 +8,6 @@ use crate::metrics::{
 };
 use crate::KeyValue;
 
-use super::AsyncInstrument;
-
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
 pub trait MeterProvider {
@@ -342,18 +340,6 @@ impl Meter {
     ) -> InstrumentBuilder<'_, Histogram<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
-}
-
-/// Records measurements for multiple instruments in a callback.
-pub trait Observer {
-    /// Records the f64 value with attributes for the observable.
-    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]);
-
-    /// Records the u64 value with attributes for the observable.
-    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]);
-
-    /// Records the i64 value with attributes for the observable.
-    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]);
 }
 
 impl fmt::Debug for Meter {

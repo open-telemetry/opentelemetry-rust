@@ -19,7 +19,7 @@ pub use instruments::{
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
 };
-pub use meter::{Meter, MeterProvider, Observer};
+pub use meter::{Meter, MeterProvider};
 
 /// A specialized `Result` type for metric operations.
 pub type Result<T> = result::Result<T, MetricsError>;

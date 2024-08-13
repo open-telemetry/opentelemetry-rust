@@ -1,19 +1,18 @@
 use core::fmt;
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
     global,
     metrics::{
-        noop::NoopAsyncInstrument, AsyncInstrument, Callback, Counter, Gauge, Histogram,
-        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
-        ObservableUpDownCounter, Observer as ApiObserver, Result, UpDownCounter,
+        noop::NoopAsyncInstrument, Callback, Counter, Gauge, Histogram, InstrumentProvider,
+        MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result,
+        UpDownCounter,
     },
-    KeyValue,
 };
 
 use crate::instrumentation::Scope;
 use crate::metrics::{
-    instrument::{Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures},
+    instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
@@ -120,14 +119,7 @@ impl InstrumentProvider for SdkMeter {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableCounter,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -156,14 +148,7 @@ impl InstrumentProvider for SdkMeter {
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableCounter,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -219,14 +204,7 @@ impl InstrumentProvider for SdkMeter {
             )));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableUpDownCounter,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -258,14 +236,7 @@ impl InstrumentProvider for SdkMeter {
             )));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableUpDownCounter,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -331,14 +302,7 @@ impl InstrumentProvider for SdkMeter {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableGauge,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -368,14 +332,7 @@ impl InstrumentProvider for SdkMeter {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableGauge,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -405,14 +362,7 @@ impl InstrumentProvider for SdkMeter {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
-        let observable = Arc::new(Observable::new(
-            self.scope.clone(),
-            InstrumentKind::ObservableGauge,
-            name,
-            description.unwrap_or_default(),
-            unit.unwrap_or_default(),
-            ms,
-        ));
+        let observable = Arc::new(Observable::new(ms));
 
         for callback in callbacks {
             let cb_inst = Arc::clone(&observable);
@@ -515,72 +465,6 @@ fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> Result<()> {
         }
     }
     Ok(())
-}
-
-#[derive(Default)]
-struct Observer {
-    f64s: HashSet<ObservableId<f64>>,
-    i64s: HashSet<ObservableId<i64>>,
-    u64s: HashSet<ObservableId<u64>>,
-}
-
-impl ApiObserver for Observer {
-    fn observe_f64(&self, inst: &dyn AsyncInstrument<f64>, measurement: f64, attrs: &[KeyValue]) {
-        if let Some(f64_obs) = inst.as_any().downcast_ref::<Observable<f64>>() {
-            if self.f64s.contains(&f64_obs.id) {
-                f64_obs.observe(measurement, attrs)
-            } else {
-                global::handle_error(
-                    MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
-                    f64_obs.id.inner.name,
-                    f64_obs.id.inner.description,
-                    f64_obs.id.inner.unit,
-                )))
-            }
-        } else {
-            global::handle_error(MetricsError::Other(
-                "unknown observable instrument, failed to record.".into(),
-            ))
-        }
-    }
-
-    fn observe_u64(&self, inst: &dyn AsyncInstrument<u64>, measurement: u64, attrs: &[KeyValue]) {
-        if let Some(u64_obs) = inst.as_any().downcast_ref::<Observable<u64>>() {
-            if self.u64s.contains(&u64_obs.id) {
-                u64_obs.observe(measurement, attrs)
-            } else {
-                global::handle_error(
-                    MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
-                    u64_obs.id.inner.name,
-                    u64_obs.id.inner.description,
-                    u64_obs.id.inner.unit,
-                )))
-            }
-        } else {
-            global::handle_error(MetricsError::Other(
-                "unknown observable instrument, failed to record.".into(),
-            ))
-        }
-    }
-
-    fn observe_i64(&self, inst: &dyn AsyncInstrument<i64>, measurement: i64, attrs: &[KeyValue]) {
-        if let Some(i64_obs) = inst.as_any().downcast_ref::<Observable<i64>>() {
-            if self.i64s.contains(&i64_obs.id) {
-                i64_obs.observe(measurement, attrs)
-            } else {
-                global::handle_error(
-                    MetricsError::Other(format!("observable instrument not registered for callback, failed to record. name: {}, description: {}, unit: {:?}, number: f64",
-                    i64_obs.id.inner.name,
-                    i64_obs.id.inner.description,
-                    i64_obs.id.inner.unit,
-                )))
-            }
-        } else {
-            global::handle_error(MetricsError::Other(
-                "unknown observable instrument, failed to record.".into(),
-            ))
-        }
-    }
 }
 
 impl fmt::Debug for SdkMeter {
