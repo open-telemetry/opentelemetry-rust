@@ -1252,6 +1252,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_f64_multithreaded() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_f64_multithreaded --features=testing -- --nocapture
+
+        counter_f64_multithreaded_aggregation_helper(Temporality::Delta);
+        counter_f64_multithreaded_aggregation_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn synchronous_instruments_cumulative_with_gap_in_measurements() {
         // Run this test with stdout enabled to see output.
         // cargo test synchronous_instruments_cumulative_with_gap_in_measurements --features=testing -- --nocapture
@@ -1436,6 +1445,59 @@ mod tests {
 
         assert_eq!(sum_zero_attributes, 10);
         assert_eq!(sum_key1_value1, 50); // Each of the 10 update threads record measurements summing up to 5.
+    }
+
+    fn counter_f64_multithreaded_aggregation_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = Arc::new(test_context.meter().f64_counter("test_counter").init());
+
+        for i in 0..10 {
+            thread::scope(|s| {
+                s.spawn(|| {
+                    counter.add(1.23, &[]);
+
+                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+
+                    // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
+                    if i % 2 == 0 {
+                        test_context.flush_metrics();
+                        thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
+                    }
+
+                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                });
+            });
+        }
+
+        test_context.flush_metrics();
+
+        // Assert
+        // We invoke `test_context.flush_metrics()` six times.
+        let sums =
+            test_context.get_from_multiple_aggregations::<data::Sum<f64>>("test_counter", None, 6);
+
+        let mut sum_zero_attributes = 0.0;
+        let mut sum_key1_value1 = 0.0;
+        sums.iter().for_each(|sum| {
+            assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
+            assert!(sum.is_monotonic, "Counter should produce monotonic.");
+            assert_eq!(sum.temporality, temporality);
+
+            if temporality == Temporality::Delta {
+                sum_zero_attributes += sum.data_points[0].value;
+                sum_key1_value1 += sum.data_points[1].value;
+            } else {
+                sum_zero_attributes = sum.data_points[0].value;
+                sum_key1_value1 = sum.data_points[1].value;
+            };
+        });
+
+        assert!(f64::abs(12.3 - sum_zero_attributes) < 0.0001);
+        assert!(f64::abs(61.5 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements 5 times = 10 * 5 * 1.23 = 61.5
     }
 
     fn histogram_aggregation_helper(temporality: Temporality) {
