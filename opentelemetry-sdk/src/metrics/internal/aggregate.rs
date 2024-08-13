@@ -113,6 +113,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         // a last-value aggregate.
         let lv_filter = Arc::new(LastValue::new());
         let lv_agg = Arc::clone(&lv_filter);
+        let t = self.temporality;
 
         (
             self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
@@ -127,7 +128,12 @@ impl<T: Number<T>> AggregateBuilder<T> {
                 };
                 let g = g.unwrap_or_else(|| new_agg.as_mut().expect("present if g is none"));
 
-                lv_agg.compute_aggregation(&mut g.data_points);
+                match t {
+                    Some(Temporality::Delta) => {
+                        lv_agg.compute_aggregation_delta(&mut g.data_points)
+                    }
+                    _ => lv_agg.compute_aggregation_cumulative(&mut g.data_points),
+                }
 
                 (g.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
             },
