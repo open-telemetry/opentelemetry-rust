@@ -4,6 +4,9 @@
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
     ~1.8 M/sec
+
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    ~2.2 M /sec
 */
 
 use lazy_static::lazy_static;
