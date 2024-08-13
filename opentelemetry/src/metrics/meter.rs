@@ -63,31 +63,43 @@ pub trait MeterProvider {
     ) -> Meter;
 }
 
-/// Provides access to instrument instances for recording measurements.
-///
-/// ```
+/// Provides the ability to create instruments for recording measurements or
+/// accepting callbacks to report measurements.
+/// 
+/// # Instrument Types
+/// 
+/// Instruments are categorized as either synchronous or asynchronous:
+/// 
+/// - **Synchronous Instruments** (e.g., Counter): These are used inline with
+///   your application's processing logic. For example, you might use a Counter
+///   to record the number of HTTP requests received.
+/// 
+/// - **Asynchronous Instruments** (e.g., Gauge): These allow you to register a
+///   callback function that is invoked during export. For instance, you could
+///   use an asynchronous gauge to monitor temperature from a sensor every time
+///   metrics are exported.
+/// 
+/// # Example Usage
+/// 
+/// ```rust
 /// use opentelemetry::{global, KeyValue};
 ///
 /// let meter = global::meter("my-meter");
 ///
-/// // Meters can create metric instruments that can record values of type u64 and f64
+/// // Synchronous Instruments
 ///
 /// // u64 Counter
 /// let u64_counter = meter.u64_counter("my_u64_counter").init();
-///
-/// // Record measurements using the counter instrument add()
 /// u64_counter.add(
 ///     10,
 ///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
-///     ]
+///     ],
 /// );
 ///
 /// // f64 Counter
 /// let f64_counter = meter.f64_counter("my_f64_counter").init();
-///
-/// // Record measurements using the counter instrument add()
 /// f64_counter.add(
 ///     3.15,
 ///     &[
@@ -96,88 +108,142 @@ pub trait MeterProvider {
 ///     ],
 /// );
 ///
-/// // u64 observable counter
+/// // Asynchronous Instruments
 ///
-/// let _observable_counter = meter
-/// .u64_observable_counter("my_observable_u64_counter")
-/// .with_description("My observable counter example description")
-/// .with_unit("myunit")
-/// .with_callback(|observer| {
-///     observer.observe(
-///         100,
-///         &[
-///             KeyValue::new("mykey1", "myvalue1"),
-///             KeyValue::new("mykey2", "myvalue2"),
-///         ],
-///     )
-/// })
-/// .init();
+/// // u64 Observable Counter
+/// let _observable_u64_counter = meter
+///     .u64_observable_counter("my_observable_u64_counter")
+///     .with_description("My observable counter example")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             100,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
+/// // f64 Observable Counter
+/// let _observable_f64_counter = meter
+///     .f64_observable_counter("my_observable_f64_counter")
+///     .with_description("My observable counter example")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             100.0,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
-/// // i64 updown counter
+/// // i64 UpDownCounter
 /// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").init();
-///
-/// // Record measurements using the updown counter instrument add()
 /// updown_i64_counter.add(
 ///     -10,
-///     &
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
-/// // f64 updown counter
+/// // f64 UpDownCounter
 /// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").init();
-///
-/// // Record measurements using the updown counter instrument add()
 /// updown_f64_counter.add(
 ///     -10.67,
-///     &
-///     [
+///     &[
 ///         KeyValue::new("mykey1", "myvalue1"),
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
-/// // i64 observable updown counter
-/// let _observable_up_down_counter = meter
-/// .i64_observable_up_down_counter("my_observable_i64_updown_counter")
-/// .with_description("My observable updown counter example description")
-/// .with_unit("myunit")
-/// .with_callback(|observer| {
-///     observer.observe(
-///         100,
-///         &[
-///             KeyValue::new("mykey1", "myvalue1"),
-///             KeyValue::new("mykey2", "myvalue2"),
-///         ],
-///     )
-/// })
-/// .init();
+/// // i64 Observable UpDownCounter
+/// let _observable_updown_i64_counter = meter
+///     .i64_observable_up_down_counter("my_observable_i64_updown_counter")
+///     .with_description("My observable updown counter example")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             100,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
-/// // Observable f64 gauge
+/// // f64 Observable UpDownCounter
+/// let _observable_updown_f64_counter = meter
+///     .f64_observable_up_down_counter("my_observable_f64_updown_counter")
+///     .with_description("My observable updown counter example")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             100.0,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
-/// let _observable_gauge = meter
-/// .f64_observable_gauge("my_f64_gauge")
-/// .with_description("An observable gauge set to 1.0")
-/// .with_unit("myunit")
-/// .with_callback(|observer| {
-///     observer.observe(
-///         1.0,
-///         &[
-///             KeyValue::new("mykey1", "myvalue1"),
-///             KeyValue::new("mykey2", "myvalue2"),
-///         ],
-///     )
-/// })
-/// .init();
+/// // u64 Observable Gauge
+/// let _observable_u64_gauge = meter
+///     .u64_observable_gauge("my_u64_gauge")
+///     .with_description("An observable gauge set to 1")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             1,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
+/// // f64 Observable Gauge
+/// let _observable_f64_gauge = meter
+///     .f64_observable_gauge("my_f64_gauge")
+///     .with_description("An observable gauge set to 1.0")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             1.0,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
 ///
-/// // f64 histogram
+/// // i64 Observable Gauge
+/// let _observable_i64_gauge = meter
+///     .i64_observable_gauge("my_i64_gauge")
+///     .with_description("An observable gauge set to 1")
+///     .with_unit("myunit")
+///     .with_callback(|observer| {
+///         observer.observe(
+///             1,
+///             &[
+///                 KeyValue::new("mykey1", "myvalue1"),
+///                 KeyValue::new("mykey2", "myvalue2"),
+///             ],
+///         )
+///     })
+///     .init();
+///
+/// // f64 Histogram
 /// let f64_histogram = meter.f64_histogram("my_f64_histogram").init();
-///
-/// // Record measurements using the histogram instrument record()
 /// f64_histogram.record(
 ///     10.5,
 ///     &[
@@ -186,10 +252,8 @@ pub trait MeterProvider {
 ///     ],
 /// );
 ///
-/// // u64 histogram
+/// // u64 Histogram
 /// let u64_histogram = meter.u64_histogram("my_u64_histogram").init();
-///
-/// // Record measurements using the histogram instrument record()
 /// u64_histogram.record(
 ///     12,
 ///     &[
@@ -197,10 +261,11 @@ pub trait MeterProvider {
 ///         KeyValue::new("mykey2", "myvalue2"),
 ///     ],
 /// );
-///
 /// ```
+/// 
 #[derive(Clone)]
-pub struct Meter {
+pub struct Meter
+{
     pub(crate) instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
 }
 
