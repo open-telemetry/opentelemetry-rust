@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
@@ -267,39 +267,56 @@ impl AtomicallyUpdate<i64> for i64 {
 }
 
 pub(crate) struct F64AtomicTracker {
-    inner: Mutex<f64>, // Floating points don't have true atomics, so we need to use mutex for them
+    inner: AtomicU64, // Floating points don't have true atomics, so we need to use the their binary representation to perform atomic operations
 }
 
 impl F64AtomicTracker {
     fn new() -> Self {
+        let zero_as_u64 = 0.0_f64.to_bits();
         F64AtomicTracker {
-            inner: Mutex::new(0.0),
+            inner: AtomicU64::new(zero_as_u64),
         }
     }
 }
 
 impl AtomicTracker<f64> for F64AtomicTracker {
     fn store(&self, value: f64) {
-        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
-        *guard = value;
+        let value_as_u64 = value.to_bits();
+        self.inner.store(value_as_u64, Ordering::Relaxed);
     }
 
     fn add(&self, value: f64) {
-        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
-        *guard += value;
+        let mut current_value_as_u64 = self.inner.load(Ordering::Relaxed);
+
+        loop {
+            let current_value = f64::from_bits(current_value_as_u64);
+            let new_value = current_value + value;
+            let new_value_as_u64 = new_value.to_bits();
+            match self.inner.compare_exchange(
+                current_value_as_u64,
+                new_value_as_u64,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                // Succeeded in updating the value
+                Ok(_) => return,
+
+                // Some other thread changed the value before this thread could update it.
+                // Read the latest value again and try to swap it with the recomputed `new_value_as_u64`.
+                Err(v) => current_value_as_u64 = v,
+            }
+        }
     }
 
     fn get_value(&self) -> f64 {
-        let guard = self.inner.lock().expect("F64 mutex was poisoned");
-        *guard
+        let value_as_u64 = self.inner.load(Ordering::Relaxed);
+        f64::from_bits(value_as_u64)
     }
 
     fn get_and_reset_value(&self) -> f64 {
-        let mut guard = self.inner.lock().expect("F64 mutex was poisoned");
-        let value = *guard;
-        *guard = 0.0;
-
-        value
+        let zero_as_u64 = 0.0_f64.to_bits();
+        let value = self.inner.swap(zero_as_u64, Ordering::Relaxed);
+        f64::from_bits(value)
     }
 }
 
