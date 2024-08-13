@@ -47,7 +47,7 @@ impl LogRecord for NoopLogRecord {
     #[inline]
     fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
     #[inline]
-    fn set_severity_text(&mut self, _text: Cow<'static, str>) {}
+    fn set_severity_text(&mut self, _text: &'static str) {}
     #[inline]
     fn set_severity_number(&mut self, _number: Severity) {}
     #[inline]

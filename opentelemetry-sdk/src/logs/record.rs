@@ -26,7 +26,8 @@ pub struct LogRecord {
     pub trace_context: Option<TraceContext>,
 
     /// The original severity string from the source
-    pub severity_text: Option<Cow<'static, str>>,
+    pub severity_text: Option<&'static str>,
+
     /// The corresponding severity value, normalized
     pub severity_number: Option<Severity>,
 
@@ -58,7 +59,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.observed_timestamp = Some(timestamp);
     }
 
-    fn set_severity_text(&mut self, severity_text: Cow<'static, str>) {
+    fn set_severity_text(&mut self, severity_text: &'static str) {
         self.severity_text = Some(severity_text);
     }
 
@@ -180,9 +181,8 @@ mod tests {
     #[test]
     fn test_set_severity_text() {
         let mut log_record = LogRecord::default();
-        let severity_text: Cow<'static, str> = "ERROR".into(); // Explicitly typed
-        log_record.set_severity_text(severity_text);
-        assert_eq!(log_record.severity_text, Some(Cow::Borrowed("ERROR")));
+        log_record.set_severity_text("ERROR");
+        assert_eq!(log_record.severity_text, Some("ERROR"));
     }
 
     #[test]
@@ -248,7 +248,7 @@ mod tests {
             target: Some(Cow::Borrowed("foo::bar")),
             timestamp: Some(SystemTime::now()),
             observed_timestamp: Some(SystemTime::now()),
-            severity_text: Some(Cow::Borrowed("ERROR")),
+            severity_text: Some("ERROR"),
             severity_number: Some(Severity::Error),
             body: Some(AnyValue::String("Test body".into())),
             attributes: Some(vec![(Key::new("key"), AnyValue::String("value".into()))]),

@@ -91,7 +91,7 @@ struct LogRecord {
     observed_time: SystemTime,
     severity_number: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    severity_text: Option<Cow<'static, str>>,
+    severity_text: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     body: Option<Value>,
     attributes: Vec<KeyValue>,
