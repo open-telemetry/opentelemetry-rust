@@ -67,7 +67,8 @@ impl SpanExporter for OtlpHttpClient {
         let _ = self.client.lock().map(|mut c| c.take());
     }
 
-    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
+    fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) -> ExportResult {
         self.resource = resource.into();
+        Ok(())
     }
 }
