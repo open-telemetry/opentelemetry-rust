@@ -1,10 +1,7 @@
 use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, marker, sync::Arc};
 
 use opentelemetry::{
-    metrics::{
-        AsyncInstrument, MetricsError, Result, SyncCounter, SyncGauge, SyncHistogram,
-        SyncUpDownCounter,
-    },
+    metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
     Key, KeyValue,
 };
 
@@ -12,8 +9,6 @@ use crate::{
     instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
-
-pub(crate) const EMPTY_MEASURE_MSG: &str = "no aggregators for observable instrument";
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -352,26 +347,6 @@ impl<T> Observable<T> {
             },
             measures,
         }
-    }
-
-    /// Returns `Err` if the observable should not be registered, and `Ok` if it
-    /// should.
-    ///
-    /// An error is returned if this observable is effectively a no-op because it does not have
-    /// any aggregators. Also, an error is returned if scope defines a Meter other
-    /// than the observable it was created by.
-    pub(crate) fn registerable(&self, scope: &Scope) -> Result<()> {
-        if self.measures.is_empty() {
-            return Err(MetricsError::Other(EMPTY_MEASURE_MSG.into()));
-        }
-        if &self.id.inner.scope != scope {
-            return Err(MetricsError::Other(format!(
-                "invalid registration: observable {} from Meter {:?}, registered with Meter {}",
-                self.id.inner.name, self.id.inner.scope, scope.name,
-            )));
-        }
-
-        Ok(())
     }
 }
 

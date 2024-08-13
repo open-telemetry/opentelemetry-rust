@@ -1,11 +1,10 @@
 use core::fmt;
-use std::any::Any;
 use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::metrics::{
     AsyncInstrumentBuilder, Counter, Gauge, Histogram, InstrumentBuilder, InstrumentProvider,
-    ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
+    ObservableCounter, ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
 use crate::KeyValue;
 
@@ -396,32 +395,6 @@ impl Meter {
     ) -> InstrumentBuilder<'_, Histogram<u64>> {
         InstrumentBuilder::new(self, name.into())
     }
-
-    /// Registers a callback to be called during the collection of a measurement
-    /// cycle.
-    ///
-    /// The instruments passed as arguments to be registered are the only
-    /// instruments that may observe values.
-    ///
-    /// If no instruments are passed, the callback will not be registered.
-    pub fn register_callback<F>(
-        &self,
-        instruments: &[Arc<dyn Any>],
-        callback: F,
-    ) -> Result<Box<dyn CallbackRegistration>>
-    where
-        F: Fn(&dyn Observer) + Send + Sync + 'static,
-    {
-        self.instrument_provider
-            .register_callback(instruments, Box::new(callback))
-    }
-}
-
-/// A token representing the unique registration of a callback for a set of
-/// instruments with a [Meter].
-pub trait CallbackRegistration: Send + Sync {
-    /// Removes the callback registration from its associated [Meter].
-    fn unregister(&mut self) -> Result<()>;
 }
 
 /// Records measurements for multiple instruments in a callback.

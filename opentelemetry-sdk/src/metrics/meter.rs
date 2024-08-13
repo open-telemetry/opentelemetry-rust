@@ -1,11 +1,10 @@
 use core::fmt;
-use std::{any::Any, borrow::Cow, collections::HashSet, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
     global,
     metrics::{
-        noop::{NoopAsyncInstrument, NoopRegistration},
-        AsyncInstrument, Callback, CallbackRegistration, Counter, Gauge, Histogram,
+        noop::NoopAsyncInstrument, AsyncInstrument, Callback, Counter, Gauge, Histogram,
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Observer as ApiObserver, Result, UpDownCounter,
     },
@@ -14,9 +13,7 @@ use opentelemetry::{
 
 use crate::instrumentation::Scope;
 use crate::metrics::{
-    instrument::{
-        Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures, EMPTY_MEASURE_MSG,
-    },
+    instrument::{Instrument, InstrumentKind, Observable, ObservableId, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
@@ -449,62 +446,6 @@ impl InstrumentProvider for SdkMeter {
         p.lookup(InstrumentKind::Histogram, name, description, unit)
             .map(|i| Histogram::new(Arc::new(i)))
     }
-
-    fn register_callback(
-        &self,
-        insts: &[Arc<dyn Any>],
-        callback: Box<dyn Fn(&dyn ApiObserver) + Send + Sync>,
-    ) -> Result<Box<dyn CallbackRegistration>> {
-        if insts.is_empty() {
-            return Ok(Box::new(NoopRegistration::new()));
-        }
-
-        let mut reg = Observer::default();
-        let mut errs = vec![];
-        for inst in insts {
-            if let Some(i64_obs) = inst.downcast_ref::<Observable<i64>>() {
-                if let Err(err) = i64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
-                        errs.push(err);
-                    }
-                    continue;
-                }
-                reg.register_i64(i64_obs.id.clone());
-            } else if let Some(u64_obs) = inst.downcast_ref::<Observable<u64>>() {
-                if let Err(err) = u64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
-                        errs.push(err);
-                    }
-                    continue;
-                }
-                reg.register_u64(u64_obs.id.clone());
-            } else if let Some(f64_obs) = inst.downcast_ref::<Observable<f64>>() {
-                if let Err(err) = f64_obs.registerable(&self.scope) {
-                    if !err.to_string().contains(EMPTY_MEASURE_MSG) {
-                        errs.push(err);
-                    }
-                    continue;
-                }
-                reg.register_f64(f64_obs.id.clone());
-            } else {
-                // Instrument external to the SDK.
-                return Err(MetricsError::Other(
-                    "invalid observable: from different implementation".into(),
-                ));
-            }
-        }
-
-        if !errs.is_empty() {
-            return Err(MetricsError::Other(format!("{errs:?}")));
-        }
-
-        if reg.is_empty() {
-            // All instruments use drop aggregation or are invalid.
-            return Ok(Box::new(NoopRegistration::new()));
-        }
-
-        self.pipes.register_multi_callback(move || callback(&reg))
-    }
 }
 
 /// Validation policy for instrument
@@ -581,24 +522,6 @@ struct Observer {
     f64s: HashSet<ObservableId<f64>>,
     i64s: HashSet<ObservableId<i64>>,
     u64s: HashSet<ObservableId<u64>>,
-}
-
-impl Observer {
-    fn is_empty(&self) -> bool {
-        self.f64s.is_empty() && self.i64s.is_empty() && self.u64s.is_empty()
-    }
-
-    pub(crate) fn register_i64(&mut self, id: ObservableId<i64>) {
-        self.i64s.insert(id);
-    }
-
-    pub(crate) fn register_f64(&mut self, id: ObservableId<f64>) {
-        self.f64s.insert(id);
-    }
-
-    pub(crate) fn register_u64(&mut self, id: ObservableId<u64>) {
-        self.u64s.insert(id);
-    }
 }
 
 impl ApiObserver for Observer {

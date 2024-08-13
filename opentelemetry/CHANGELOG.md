@@ -48,6 +48,9 @@ So the custom log appenders should box these types while adding them in message 
 attribute values. Similarly, the custom exporters should dereference these complex type values
 before serializing.
 
+*Breaking* : Removed the ability to register callbacks for Observable
+instruments on Meter directly.
+
 ## v0.24.0
 
 - Add "metrics", "logs" to default features. With this, default feature list is
