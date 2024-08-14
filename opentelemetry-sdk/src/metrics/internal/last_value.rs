@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    sync::{atomic::Ordering, Arc},
+    sync::{atomic::Ordering, Arc, Mutex},
     time::SystemTime,
 };
 
@@ -12,12 +12,14 @@ use super::{Assign, AtomicTracker, Number, ValueMap};
 /// Summarizes a set of measurements as the last one made.
 pub(crate) struct LastValue<T: Number<T>> {
     value_map: ValueMap<T, Assign>,
+    start: Mutex<SystemTime>,
 }
 
 impl<T: Number<T>> LastValue<T> {
     pub(crate) fn new() -> Self {
         LastValue {
             value_map: ValueMap::new(),
+            start: Mutex::new(SystemTime::now()),
         }
     }
 
@@ -27,6 +29,7 @@ impl<T: Number<T>> LastValue<T> {
 
     pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {
         let t = SystemTime::now();
+        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         dest.clear();
 
         // Max number of data points need to account for the special casing
@@ -43,7 +46,7 @@ impl<T: Number<T>> LastValue<T> {
         {
             dest.push(DataPoint {
                 attributes: vec![],
-                start_time: None,
+                start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_tracker.get_and_reset_value(),
                 exemplars: vec![],
@@ -60,17 +63,25 @@ impl<T: Number<T>> LastValue<T> {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 dest.push(DataPoint {
                     attributes: attrs.clone(),
-                    start_time: None,
+                    start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),
                     exemplars: vec![],
                 });
             }
         }
+
+        // The delta collection cycle resets.
+        if let Ok(mut start) = self.start.lock() {
+            *start = t;
+        }
+        self.value_map.count.store(0, Ordering::SeqCst);
     }
 
     pub(crate) fn compute_aggregation_cumulative(&self, dest: &mut Vec<DataPoint<T>>) {
         let t = SystemTime::now();
+        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
+
         dest.clear();
 
         // Max number of data points need to account for the special casing
@@ -87,7 +98,7 @@ impl<T: Number<T>> LastValue<T> {
         {
             dest.push(DataPoint {
                 attributes: vec![],
-                start_time: None,
+                start_time: Some(prev_start),
                 time: Some(t),
                 value: self.value_map.no_attribute_tracker.get_value(),
                 exemplars: vec![],
@@ -104,7 +115,7 @@ impl<T: Number<T>> LastValue<T> {
             if seen.insert(Arc::as_ptr(tracker)) {
                 dest.push(DataPoint {
                     attributes: attrs.clone(),
-                    start_time: None,
+                    start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),
                     exemplars: vec![],
