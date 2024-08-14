@@ -1,3 +1,15 @@
+//! run with `$ cargo bench --bench batch_log_processor --features="rt-tokio,testing"
+//!
+/*
+The benchmark results:
+criterion = "0.5.1"
+OS: Ubuntu 22.04.3 LTS (6.6.36.3-microsoft-standard-WSL2)
+Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+RAM: 32.0 GB
+| Test                           | Average time|
+|--------------------------------|-------------|
+| batch_log_processor_emit       |  438.47 ns  |
+*/
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LoggerProvider as _;
 use opentelemetry::logs::Severity;
@@ -58,7 +70,7 @@ fn benchmark_batch_log_processor(c: &mut Criterion) {
                         provider.force_flush();
                         count = 0;
                     }
-                    let start = Instant::now();
+                    let start = Instant::now(); // FIXME - this is part of timing loop, but we want to flush the queue outside the timing loop
                     let mut log_record = logger.create_log_record();
                     let now = SystemTime::now();
                     log_record.set_observed_timestamp(now);
@@ -70,8 +82,8 @@ fn benchmark_batch_log_processor(c: &mut Criterion) {
                     log_record.add_attribute("book_title", "Rust Programming Adventures");
                     log_record.add_attribute("message", "Unable to process checkout.");
                     logger.emit(log_record);
-                    count += 1;
-                    total_duration += start.elapsed();
+                    count += 1; // FIXME - this is part of timing loop, but we want to flush the queue outside the timing loop
+                    total_duration += start.elapsed(); // FIXME - this is part of timing loop, but we want to flush the queue outside the timing loop
                 }
                 total_duration
             });
