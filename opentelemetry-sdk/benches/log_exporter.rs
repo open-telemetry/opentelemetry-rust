@@ -10,20 +10,17 @@
     | LogExporterWithoutFuture       | 255 ns      |
 */
 
-
 use std::sync::Mutex;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{
-   LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity,
-};
+use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
 
 use opentelemetry_sdk::export::logs::LogData;
 use opentelemetry_sdk::logs::LogProcessor;
-use opentelemetry_sdk::logs::{LoggerProvider};
+use opentelemetry_sdk::logs::LoggerProvider;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
@@ -34,8 +31,8 @@ pub trait LogExporterWithFuture: Send + Sync + Debug {
     async fn export(&mut self, batch: Vec<LogData>);
 }
 
-pub trait LogExporterWithoutFuture : Send + Sync + Debug {
-    fn export(&mut self, batch: Vec<LogData>);    
+pub trait LogExporterWithoutFuture: Send + Sync + Debug {
+    fn export(&mut self, batch: Vec<LogData>);
 }
 
 #[derive(Debug)]
@@ -43,15 +40,13 @@ struct NoOpExporterWithFuture {}
 
 #[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
-    async fn export(&mut self, _batch: Vec<LogData>){
-    }
+    async fn export(&mut self, _batch: Vec<LogData>) {}
 }
 
 #[derive(Debug)]
 struct NoOpExporterWithoutFuture {}
 impl LogExporterWithoutFuture for NoOpExporterWithoutFuture {
-    fn export(&mut self, _batch: Vec<LogData>) {
-    }
+    fn export(&mut self, _batch: Vec<LogData>) {}
 }
 
 #[derive(Debug)]
@@ -61,12 +56,14 @@ struct ExportingProcessorWithFuture {
 
 impl ExportingProcessorWithFuture {
     fn new(exporter: NoOpExporterWithFuture) -> Self {
-        ExportingProcessorWithFuture { exporter: Mutex::new(exporter) }
+        ExportingProcessorWithFuture {
+            exporter: Mutex::new(exporter),
+        }
     }
 }
 
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, data: &mut LogData) {        
+    fn emit(&self, data: &mut LogData) {
         let mut exporter = self.exporter.lock().expect("lock error");
         futures_executor::block_on(exporter.export(vec![data.clone()]));
     }
@@ -87,13 +84,19 @@ struct ExportingProcessorWithoutFuture {
 
 impl ExportingProcessorWithoutFuture {
     fn new(exporter: NoOpExporterWithoutFuture) -> Self {
-        ExportingProcessorWithoutFuture { exporter: Mutex::new(exporter) }
+        ExportingProcessorWithoutFuture {
+            exporter: Mutex::new(exporter),
+        }
     }
 }
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
     fn emit(&self, data: &mut LogData) {
-        let _ = self.exporter.lock().expect("lock error").export(vec![data.clone()]);
+        let _ = self
+            .exporter
+            .lock()
+            .expect("lock error")
+            .export(vec![data.clone()]);
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -136,7 +139,9 @@ fn exporter_with_future(c: &mut Criterion) {
 
 fn exporter_without_future(c: &mut Criterion) {
     let provider = LoggerProvider::builder()
-        .with_log_processor(ExportingProcessorWithoutFuture::new(NoOpExporterWithoutFuture {}))
+        .with_log_processor(ExportingProcessorWithoutFuture::new(
+            NoOpExporterWithoutFuture {},
+        ))
         .build();
     let logger = provider.logger("benchmark");
 
