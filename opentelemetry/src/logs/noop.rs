@@ -41,17 +41,13 @@ pub struct NoopLogRecord;
 impl LogRecord for NoopLogRecord {
     // Implement the LogRecord trait methods with empty bodies.
     #[inline]
-    fn set_event_name<T>(&mut self, _name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-    }
+    fn set_event_name(&mut self, _name: &'static str) {}
     #[inline]
     fn set_timestamp(&mut self, _timestamp: SystemTime) {}
     #[inline]
     fn set_observed_timestamp(&mut self, _timestamp: SystemTime) {}
     #[inline]
-    fn set_severity_text(&mut self, _text: Cow<'static, str>) {}
+    fn set_severity_text(&mut self, _text: &'static str) {}
     #[inline]
     fn set_severity_number(&mut self, _number: Severity) {}
     #[inline]

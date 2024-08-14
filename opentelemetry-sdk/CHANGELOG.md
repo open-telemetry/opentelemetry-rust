@@ -20,6 +20,9 @@
   ObservableCounter,UpDownCounter including
   [#1517](https://github.com/open-telemetry/opentelemetry-rust/issues/1517).
   [#2004](https://github.com/open-telemetry/opentelemetry-rust/pull/2004)
+- Fixed a bug related to cumulative aggregation of `Gauge` measurements.
+  [#1975](https://github.com/open-telemetry/opentelemetry-rust/issues/1975).
+  [#2021](https://github.com/open-telemetry/opentelemetry-rust/pull/2021)
 
 ## v0.24.1
 

@@ -131,7 +131,7 @@ fn logging_comparable_to_appender(c: &mut Criterion) {
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");
             log_record.set_severity_number(Severity::Warn);
-            log_record.set_severity_text("WARN".into());
+            log_record.set_severity_text("WARN");
             log_record.add_attribute("book_id", "12345");
             log_record.add_attribute("book_title", "Rust Programming Adventures");
             log_record.add_attribute("message", "Unable to process checkout.");
@@ -275,7 +275,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         logger.emit(log_record);
     });
 
@@ -285,7 +285,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -299,7 +299,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -338,7 +338,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attributes(attributes.clone());
         logger.emit(log_record);
     });
