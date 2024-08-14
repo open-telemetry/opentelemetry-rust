@@ -169,7 +169,7 @@ mod tests {
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
-    
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
@@ -184,7 +184,6 @@ mod tests {
         counter_aggregation_helper(Temporality::Cumulative);
     }
 
-    
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_no_attributes_cumulative() {
         let mut test_context = TestContext::new(Temporality::Cumulative);
