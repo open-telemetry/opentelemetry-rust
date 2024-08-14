@@ -83,7 +83,7 @@ impl SendToChannelProcessor {
     fn new() -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         let s = Self {
-            sender: sender,
+            sender,
             receiver: Arc::new(Mutex::new(receiver)),
         };
         let receiver_cloned = s.receiver.clone();
