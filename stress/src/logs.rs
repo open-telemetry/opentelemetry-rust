@@ -29,15 +29,6 @@ impl LogProcessor for NoOpLogProcessor {
     fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
-
-    fn event_enabled(
-        &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
-    ) -> bool {
-        true
-    }
 }
 
 fn main() {
