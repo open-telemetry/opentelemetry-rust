@@ -522,8 +522,6 @@ mod tests {
     };
     use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
-    #[cfg(feature = "logs_level_enabled")]
-    use opentelemetry::logs::Severity;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
