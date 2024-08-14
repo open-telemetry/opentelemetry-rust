@@ -169,9 +169,66 @@ mod tests {
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
+    
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_delta --features=testing -- --nocapture
+        counter_aggregation_helper(Temporality::Delta);
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_overflow_delta() {
+    async fn counter_aggregation_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_cumulative --features=testing -- --nocapture
+        counter_aggregation_helper(Temporality::Cumulative);
+    }
+
+    
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_no_attributes_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce cumulative"
+        );
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_no_attributes_delta() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        counter.add(50, &[]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
+        assert!(sum.is_monotonic, "Should produce monotonic.");
+        assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+
+        let data_point = &sum.data_points[0];
+        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
+        assert_eq!(data_point.value, 50, "Unexpected data point value");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_overflow_delta() {
         // Arrange
         let mut test_context = TestContext::new(Temporality::Delta);
         let counter = test_context.u64_counter("test", "my_counter", None);
@@ -217,17 +274,159 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_cumulative() {
+    async fn counter_aggregation_attribute_order_sorted_first() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_cumulative --features=testing -- --nocapture
-        counter_aggregation_helper(Temporality::Cumulative);
+        // cargo test counter_aggregation_attribute_order_sorted_first --features=testing -- --nocapture
+
+        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Delta);
+        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Cumulative);
+
+        fn counter_aggregation_attribute_order_sorted_first_helper(temporality: Temporality) {
+            // Arrange
+            let mut test_context = TestContext::new(temporality);
+            let counter = test_context.u64_counter("test", "my_counter", None);
+
+            // Act
+            // Add the same set of attributes in different order. (they are expected
+            // to be treated as same attributes)
+            // start with sorted order
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("A", "a"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                ],
+            );
+            test_context.flush_metrics();
+
+            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+            // Expecting 1 time-series.
+            assert_eq!(sum.data_points.len(), 1);
+
+            // validate the sole datapoint
+            let data_point1 = &sum.data_points[0];
+            assert_eq!(data_point1.value, 6);
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_delta() {
+    async fn counter_aggregation_attribute_order_unsorted_first() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_delta --features=testing -- --nocapture
-        counter_aggregation_helper(Temporality::Delta);
+        // cargo test counter_aggregation_attribute_order_unsorted_first --features=testing -- --nocapture
+
+        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Delta);
+        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Cumulative);
+
+        fn counter_aggregation_attribute_order_unsorted_first_helper(temporality: Temporality) {
+            // Arrange
+            let mut test_context = TestContext::new(temporality);
+            let counter = test_context.u64_counter("test", "my_counter", None);
+
+            // Act
+            // Add the same set of attributes in different order. (they are expected
+            // to be treated as same attributes)
+            // start with unsorted order
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("A", "a"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                ],
+            );
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                ],
+            );
+            test_context.flush_metrics();
+
+            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+            // Expecting 1 time-series.
+            assert_eq!(sum.data_points.len(), 1);
+
+            // validate the sole datapoint
+            let data_point1 = &sum.data_points[0];
+            assert_eq!(data_point1.value, 6);
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -829,260 +1028,6 @@ mod tests {
         // find and validate the single datapoint
         let data_point = &sum.data_points[0];
         assert_eq!(data_point.value, 30);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_sorted_first() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_sorted_first --features=testing -- --nocapture
-
-        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Delta);
-        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Cumulative);
-
-        fn counter_aggregation_attribute_order_sorted_first_helper(temporality: Temporality) {
-            // Arrange
-            let mut test_context = TestContext::new(temporality);
-            let counter = test_context.u64_counter("test", "my_counter", None);
-
-            // Act
-            // Add the same set of attributes in different order. (they are expected
-            // to be treated as same attributes)
-            // start with sorted order
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            test_context.flush_metrics();
-
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-            // Expecting 1 time-series.
-            assert_eq!(sum.data_points.len(), 1);
-
-            // validate the sole datapoint
-            let data_point1 = &sum.data_points[0];
-            assert_eq!(data_point1.value, 6);
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_unsorted_first() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_unsorted_first --features=testing -- --nocapture
-
-        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Delta);
-        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Cumulative);
-
-        fn counter_aggregation_attribute_order_unsorted_first_helper(temporality: Temporality) {
-            // Arrange
-            let mut test_context = TestContext::new(temporality);
-            let counter = test_context.u64_counter("test", "my_counter", None);
-
-            // Act
-            // Add the same set of attributes in different order. (they are expected
-            // to be treated as same attributes)
-            // start with unsorted order
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            test_context.flush_metrics();
-
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-            // Expecting 1 time-series.
-            assert_eq!(sum.data_points.len(), 1);
-
-            // validate the sole datapoint
-            let data_point1 = &sum.data_points[0];
-            assert_eq!(data_point1.value, 6);
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_ordering() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_ordering --features=testing -- --nocapture
-
-        // Arrange
-        let mut test_context = TestContext::new(Temporality::Delta);
-        let counter = test_context.u64_counter("test", "my_counter", None);
-
-        // Act
-        // Add the same set of attributes in different order. (they are expected
-        // to be treated as same attributes)
-        // start with unsorted order
-
-        let attribute_values = [
-            "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8",
-            "value9", "value10",
-        ];
-        let mut rng = rngs::SmallRng::from_entropy();
-
-        for _ in 0..100000 {
-            let mut rands: [usize; 4] = [0; 4];
-            // 4X4X10X10 = 1600 time-series.
-            rands[0] = rng.gen_range(0..4);
-            rands[1] = rng.gen_range(0..4);
-            rands[2] = rng.gen_range(0..10);
-            rands[3] = rng.gen_range(0..10);
-            let index_first_attribute = rands[0];
-            let index_second_attribute = rands[1];
-            let index_third_attribute = rands[2];
-            let index_fourth_attribute = rands[3];
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("attribute1", attribute_values[index_first_attribute]),
-                    KeyValue::new("attribute2", attribute_values[index_second_attribute]),
-                    KeyValue::new("attribute3", attribute_values[index_third_attribute]),
-                    KeyValue::new("attribute4", attribute_values[index_fourth_attribute]),
-                ],
-            );
-        }
-
-        test_context.flush_metrics();
-
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-        // Expecting 1600 time-series.
-        assert_eq!(sum.data_points.len(), 1600);
-
-        // validate that overflow data point is not present.
-        let overflow_point =
-            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true");
-
-        assert!(overflow_point.is_none());
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn no_attr_cumulative_counter() {
-        let mut test_context = TestContext::new(Temporality::Cumulative);
-        let counter = test_context.u64_counter("test", "my_counter", None);
-
-        counter.add(50, &[]);
-        test_context.flush_metrics();
-
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
-        assert!(sum.is_monotonic, "Should produce monotonic.");
-        assert_eq!(
-            sum.temporality,
-            Temporality::Cumulative,
-            "Should produce cumulative"
-        );
-
-        let data_point = &sum.data_points[0];
-        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
-        assert_eq!(data_point.value, 50, "Unexpected data point value");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn no_attr_delta_counter() {
-        let mut test_context = TestContext::new(Temporality::Delta);
-        let counter = test_context.u64_counter("test", "my_counter", None);
-
-        counter.add(50, &[]);
-        test_context.flush_metrics();
-
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-        assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
-        assert!(sum.is_monotonic, "Should produce monotonic.");
-        assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
-
-        let data_point = &sum.data_points[0];
-        assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
-        assert_eq!(data_point.value, 50, "Unexpected data point value");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
