@@ -64,7 +64,11 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn shutdown(&self) -> LogResult<()>;
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
-    fn event_enabled(&self, level: Severity, target: &str, name: &str) -> bool;
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool
+    {
+        // By default, all logs are enabled
+        true
+    }
 
     /// Set the resource for the log processor.
     fn set_resource(&self, _resource: &Resource) {}
