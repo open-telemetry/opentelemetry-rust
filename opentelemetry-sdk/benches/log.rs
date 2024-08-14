@@ -12,6 +12,7 @@ RAM: 64.0 GB
 |--------------------------------|-------------|
 | Logger_Creation                |  30 ns      |
 | LoggerProvider_Creation        | 909 ns      |
+| Logging_Comparable_To_Appender | 135 ns      |
 */
 
 use std::collections::HashMap;
@@ -114,9 +115,36 @@ fn logger_creation(c: &mut Criterion) {
     });
 }
 
+fn logging_comparable_to_appender(c: &mut Criterion) {
+    let provider = LoggerProvider::builder()
+        .with_log_processor(NoopProcessor {})
+        .build();
+    let logger = provider.logger("benchmark");
+
+    // This mimics the logic from opentelemetry-tracing-appender closely, but
+    // without the overhead of the tracing layer itself.
+    c.bench_function("Logging_Comparable_To_Appender", |b| {
+        b.iter(|| {
+            let mut log_record = logger.create_log_record();
+            let now = SystemTime::now();
+            log_record.set_observed_timestamp(now);
+            log_record.set_target("my-target".to_string());
+            log_record.set_event_name("CheckoutFailed");
+            log_record.set_severity_number(Severity::Warn);
+            log_record.set_severity_text("WARN");
+            log_record.add_attribute("book_id", "12345");
+            log_record.add_attribute("book_title", "Rust Programming Adventures");
+            log_record.add_attribute("message", "Unable to process checkout.");
+
+            logger.emit(log_record);
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     logger_creation(c);
     log_provider_creation(c);
+    logging_comparable_to_appender(c);
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -247,7 +275,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         logger.emit(log_record);
     });
 
@@ -257,7 +285,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -271,7 +299,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -310,7 +338,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attributes(attributes.clone());
         logger.emit(log_record);
     });

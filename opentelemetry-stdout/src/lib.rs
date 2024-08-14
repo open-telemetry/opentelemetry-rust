@@ -4,6 +4,17 @@
 //! exhaustive and is subject to change at any time.
 //! </div>
 //!
+//! # Feature Flags
+//! The following feature flags can enable exporters for different telemetry signals:
+//!
+//! * `trace`: Includes the trace exporters (enabled by default).
+//! * `metrics`: Includes the metrics exporters.
+//! * `logs`: Includes the logs exporters.
+//!
+//! The following feature flags generate additional code and types:
+//! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
+//!    with the key `name`
+//!
 //! # Examples
 //!
 //! ```no_run
