@@ -23,6 +23,8 @@
 - Fixed a bug related to cumulative aggregation of `Gauge` measurements.
   [#1975](https://github.com/open-telemetry/opentelemetry-rust/issues/1975).
   [#2021](https://github.com/open-telemetry/opentelemetry-rust/pull/2021)
+- Provide default implementation for `event_enabled` trait in LogProcessor that
+  returns `true` always.
 
 ## v0.24.1
 
