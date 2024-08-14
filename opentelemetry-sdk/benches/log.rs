@@ -45,16 +45,6 @@ impl LogProcessor for NoopProcessor {
     fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
-
-    #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(
-        &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
-    ) -> bool {
-        true
-    }
 }
 
 fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {

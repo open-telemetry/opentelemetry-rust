@@ -21,6 +21,7 @@ pub trait LogExporter: Send + Sync + Debug {
     #[cfg(feature = "logs_level_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+        // By default, all logs are enabled
         true
     }
     /// Set the resource for the exporter.

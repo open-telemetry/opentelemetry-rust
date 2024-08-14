@@ -64,8 +64,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn shutdown(&self) -> LogResult<()>;
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
-    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool
-    {
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         // By default, all logs are enabled
         true
     }
@@ -134,11 +133,6 @@ impl LogProcessor for SimpleLogProcessor {
             exporter.set_resource(resource);
         }
     }
-
-    #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        true
-    }
 }
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
@@ -164,11 +158,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         if let Err(err) = result {
             global::handle_error(LogError::Other(err.into()));
         }
-    }
-
-    #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-        true
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -533,8 +522,6 @@ mod tests {
     };
     use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
-    #[cfg(feature = "logs_level_enabled")]
-    use opentelemetry::logs::Severity;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
@@ -834,11 +821,6 @@ mod tests {
             self.logs.lock().unwrap().push(data.clone()); //clone as the LogProcessor is storing the data.
         }
 
-        #[cfg(feature = "logs_level_enabled")]
-        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-            true
-        }
-
         fn force_flush(&self) -> LogResult<()> {
             Ok(())
         }
@@ -866,11 +848,6 @@ mod tests {
                     == AnyValue::String("Updated by FirstProcessor".into())
             );
             self.logs.lock().unwrap().push(data.clone());
-        }
-
-        #[cfg(feature = "logs_level_enabled")]
-        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-            true
         }
 
         fn force_flush(&self) -> LogResult<()> {
