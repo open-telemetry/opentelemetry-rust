@@ -24,6 +24,8 @@ impl<T: Number<T>> Buckets<T> {
     fn new(n: usize) -> Buckets<T> {
         Buckets {
             counts: vec![0; n],
+            min: T::max(),
+            max: T::min(),
             ..Default::default()
         }
     }
@@ -37,7 +39,8 @@ impl<T: Number<T>> Buckets<T> {
         self.count += 1;
         if value < self.min {
             self.min = value;
-        } else if value > self.max {
+        }
+        if value > self.max {
             self.max = value
         }
     }
@@ -98,9 +101,7 @@ impl<T: Number<T>> Histogram<T> {
             // Then,
             //
             //   buckets = (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, +∞)
-            let mut b = Buckets::new(self.bounds.len() + 1);
-            // Ensure min and max are recorded values (not zero), for new buckets.
-            (b.min, b.max) = (measurement, measurement);
+            let b = Buckets::new(self.bounds.len() + 1);
 
             if is_under_cardinality_limit(size) {
                 values.entry(attrs).or_insert(b)
