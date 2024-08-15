@@ -4,7 +4,7 @@ mod histogram;
 mod last_value;
 mod sum;
 
-use core::fmt;
+use core::{f64, fmt};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
@@ -202,11 +202,11 @@ impl Number<u64> for u64 {
 }
 impl Number<f64> for f64 {
     fn min() -> Self {
-        f64::MIN
+        f64::NEG_INFINITY
     }
 
     fn max() -> Self {
-        f64::MAX
+        f64::INFINITY
     }
 
     fn into_float(self) -> f64 {

@@ -24,6 +24,8 @@ impl<T: Number<T>> Buckets<T> {
     fn new(n: usize) -> Buckets<T> {
         Buckets {
             counts: vec![0; n],
+            min: T::max(),
+            max: T::min(),
             ..Default::default()
         }
     }
@@ -37,34 +39,43 @@ impl<T: Number<T>> Buckets<T> {
         self.count += 1;
         if value < self.min {
             self.min = value;
-        } else if value > self.max {
+        }
+        if value > self.max {
             self.max = value
         }
     }
 }
 
-/// Summarizes a set of measurements with explicitly defined buckets.
-struct HistValues<T> {
-    record_sum: bool,
-    bounds: Vec<f64>,
+/// Summarizes a set of measurements as a histogram with explicitly defined
+/// buckets.
+pub(crate) struct Histogram<T> {
     values: Mutex<HashMap<AttributeSet, Buckets<T>>>,
+    bounds: Vec<f64>,
+    record_min_max: bool,
+    record_sum: bool,
+    start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> HistValues<T> {
-    fn new(mut bounds: Vec<f64>, record_sum: bool) -> Self {
-        bounds.retain(|v| !v.is_nan());
-        bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
-
-        HistValues {
-            record_sum,
-            bounds,
+impl<T: Number<T>> Histogram<T> {
+    pub(crate) fn new(boundaries: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
+        let mut histogram = Histogram {
             values: Mutex::new(Default::default()),
-        }
-    }
-}
+            bounds: boundaries,
+            record_min_max,
+            record_sum,
+            start: Mutex::new(SystemTime::now()),
+        };
 
-impl<T: Number<T>> HistValues<T> {
-    fn measure(&self, measurement: T, attrs: AttributeSet) {
+        histogram.bounds.retain(|v| !v.is_nan());
+        histogram
+            .bounds
+            .sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
+
+        histogram
+    }
+
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let attrs: AttributeSet = attrs.into();
         let f = measurement.into_float();
 
         // This search will return an index in the range `[0, bounds.len()]`, where
@@ -90,9 +101,7 @@ impl<T: Number<T>> HistValues<T> {
             // Then,
             //
             //   buckets = (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, +∞)
-            let mut b = Buckets::new(self.bounds.len() + 1);
-            // Ensure min and max are recorded values (not zero), for new buckets.
-            (b.min, b.max) = (measurement, measurement);
+            let b = Buckets::new(self.bounds.len() + 1);
 
             if is_under_cardinality_limit(size) {
                 values.entry(attrs).or_insert(b)
@@ -109,35 +118,12 @@ impl<T: Number<T>> HistValues<T> {
             b.sum(measurement)
         }
     }
-}
-
-/// Summarizes a set of measurements as a histogram with explicitly defined
-/// buckets.
-pub(crate) struct Histogram<T> {
-    hist_values: HistValues<T>,
-    record_min_max: bool,
-    start: Mutex<SystemTime>,
-}
-
-impl<T: Number<T>> Histogram<T> {
-    pub(crate) fn new(boundaries: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
-        Histogram {
-            hist_values: HistValues::new(boundaries, record_sum),
-            record_min_max,
-            start: Mutex::new(SystemTime::now()),
-        }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        let attrs: AttributeSet = attrs.into();
-        self.hist_values.measure(measurement, attrs)
-    }
 
     pub(crate) fn delta(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let mut values = match self.hist_values.values.lock() {
+        let mut values = match self.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
             _ => return (0, None),
         };
@@ -174,9 +160,9 @@ impl<T: Number<T>> Histogram<T> {
                 start_time: start,
                 time: t,
                 count: b.count,
-                bounds: self.hist_values.bounds.clone(),
+                bounds: self.bounds.clone(),
                 bucket_counts: b.counts.clone(),
-                sum: if self.hist_values.record_sum {
+                sum: if self.record_sum {
                     b.total
                 } else {
                     T::default()
@@ -207,7 +193,7 @@ impl<T: Number<T>> Histogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let values = match self.hist_values.values.lock() {
+        let values = match self.values.lock() {
             Ok(guard) if !guard.is_empty() => guard,
             _ => return (0, None),
         };
@@ -248,9 +234,9 @@ impl<T: Number<T>> Histogram<T> {
                 start_time: start,
                 time: t,
                 count: b.count,
-                bounds: self.hist_values.bounds.clone(),
+                bounds: self.bounds.clone(),
                 bucket_counts: b.counts.clone(),
-                sum: if self.hist_values.record_sum {
+                sum: if self.record_sum {
                     b.total
                 } else {
                     T::default()
