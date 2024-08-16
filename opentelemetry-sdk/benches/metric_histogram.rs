@@ -6,7 +6,7 @@
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Histogram_Record               | 509.21 ns   |
+    | Histogram_Record               | 193.04 ns   |
 
 */
 
