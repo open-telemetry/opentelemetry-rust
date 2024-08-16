@@ -69,6 +69,10 @@ name = "metric_gauge"
 harness = false
 
 [[bench]]
+name = "metric_histogram"
+harness = false
+
+[[bench]]
 name = "attribute_set"
 harness = false
 
