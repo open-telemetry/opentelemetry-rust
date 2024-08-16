@@ -69,6 +69,10 @@ name = "metric_gauge"
 harness = false
 
 [[bench]]
+name = "metric_histogram"
+harness = false
+
+[[bench]]
 name = "attribute_set"
 harness = false
 
@@ -79,6 +83,10 @@ required-features = ["testing"]
 
 [[bench]]
 name = "log_processor"
+harness = false
+
+[[bench]]
+name = "log_exporter"
 harness = false
 
 [[bench]]
