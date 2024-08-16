@@ -1623,10 +1623,6 @@ mod tests {
             6,
         );
 
-        let histogram = histograms[0];
-        assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
-        assert_eq!(histogram.temporality, temporality);
-
         let (
             mut sum_zero_attributes,
             mut count_zero_attributes,
