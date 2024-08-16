@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -14,8 +13,7 @@ use super::{AtomicTracker, AtomicallyUpdate, Operation, ValueMap};
 struct HistogramUpdate;
 
 impl Operation for HistogramUpdate {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize) {
-        println!("index:{:?}", index);
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize) {
         tracker.update_histogram(index, value);
     }
 }
@@ -25,22 +23,6 @@ struct HistogramTracker<T> {
 }
 
 impl<T: Number<T>> AtomicTracker<T> for HistogramTracker<T> {
-    fn store(&self, _value: T) {
-        unreachable!()
-    }
-
-    fn add(&self, _value: T) {
-        unreachable!()
-    }
-
-    fn get_value(&self) -> T {
-        unreachable!()
-    }
-
-    fn get_and_reset_value(&self) -> T {
-        unreachable!()
-    }
-
     fn update_histogram(&self, index: usize, value: T) {
         let mut buckets = match self.buckets.lock() {
             Ok(guard) => guard,
@@ -49,38 +31,6 @@ impl<T: Number<T>> AtomicTracker<T> for HistogramTracker<T> {
 
         buckets.bin(index, value);
         buckets.sum(value);
-    }
-
-    fn get_histogram(&self) -> (Vec<u64>, u64, Option<T>, Option<T>, Option<T>) {
-        let buckets = match self.buckets.lock() {
-            Ok(guard) => guard,
-            Err(_) => return (vec![], 0, None, None, None),
-        };
-
-        (
-            buckets.counts.clone(),
-            buckets.count,
-            Some(buckets.total),
-            Some(buckets.min),
-            Some(buckets.max),
-        )
-    }
-
-    fn get_and_reset_histogram(&self) -> (Vec<u64>, u64, Option<T>, Option<T>, Option<T>) {
-        let mut buckets = match self.buckets.lock() {
-            Ok(guard) => guard,
-            Err(_) => return (vec![], 0, None, None, None),
-        };
-
-        let result = (
-            buckets.counts.clone(),
-            buckets.count,
-            Some(buckets.total),
-            Some(buckets.min),
-            Some(buckets.max),
-        );
-        buckets.reset();
-        result
     }
 }
 
@@ -128,12 +78,12 @@ impl<T: Number<T>> Buckets<T> {
         if value > self.max {
             self.max = value
         }
-
-        println!("count: {}", self.count);
     }
 
     fn reset(&mut self) {
-        self.counts.clear();
+        for item in &mut self.counts {
+            *item = 0;
+        }
         self.count = Default::default();
         self.total = Default::default();
         self.min = T::max();
@@ -217,26 +167,34 @@ impl<T: Number<T>> Histogram<T> {
             .has_no_attribute_value
             .swap(false, Ordering::AcqRel)
         {
-            let (counts, count, total, min, max) = self
-                .value_map
-                .no_attribute_tracker
-                .get_and_reset_histogram();
-            h.data_points.push(HistogramDataPoint {
-                attributes: vec![],
-                start_time: start,
-                time: t,
-                count,
-                bounds: self.bounds.clone(),
-                bucket_counts: counts,
-                sum: if self.record_sum {
-                    total.unwrap_or_default()
-                } else {
-                    T::default()
-                },
-                min: if self.record_min_max { min } else { None },
-                max: if self.record_min_max { max } else { None },
-                exemplars: vec![],
-            });
+            if let Ok(ref mut b) = self.value_map.no_attribute_tracker.buckets.lock() {
+                h.data_points.push(HistogramDataPoint {
+                    attributes: vec![],
+                    start_time: start,
+                    time: t,
+                    count: b.count,
+                    bounds: self.bounds.clone(),
+                    bucket_counts: b.counts.clone(),
+                    sum: if self.record_sum {
+                        b.total
+                    } else {
+                        T::default()
+                    },
+                    min: if self.record_min_max {
+                        Some(b.min)
+                    } else {
+                        None
+                    },
+                    max: if self.record_min_max {
+                        Some(b.max)
+                    } else {
+                        None
+                    },
+                    exemplars: vec![],
+                });
+
+                b.reset();
+            }
         }
 
         let mut trackers = match self.value_map.trackers.write() {
@@ -247,23 +205,32 @@ impl<T: Number<T>> Histogram<T> {
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
-                let (counts, count, total, min, max) = tracker.get_histogram();
-                h.data_points.push(HistogramDataPoint {
-                    attributes: attrs.clone(),
-                    start_time: start,
-                    time: t,
-                    count,
-                    bounds: self.bounds.clone(),
-                    bucket_counts: counts,
-                    sum: if self.record_sum {
-                        total.unwrap_or_default()
-                    } else {
-                        T::default()
-                    },
-                    min: if self.record_min_max { min } else { None },
-                    max: if self.record_min_max { max } else { None },
-                    exemplars: vec![],
-                });
+                if let Ok(b) = tracker.buckets.lock() {
+                    h.data_points.push(HistogramDataPoint {
+                        attributes: attrs.clone(),
+                        start_time: start,
+                        time: t,
+                        count: b.count,
+                        bounds: self.bounds.clone(),
+                        bucket_counts: b.counts.clone(),
+                        sum: if self.record_sum {
+                            b.total
+                        } else {
+                            T::default()
+                        },
+                        min: if self.record_min_max {
+                            Some(b.min)
+                        } else {
+                            None
+                        },
+                        max: if self.record_min_max {
+                            Some(b.max)
+                        } else {
+                            None
+                        },
+                        exemplars: vec![],
+                    });
+                }
             }
         }
 
@@ -309,15 +276,9 @@ impl<T: Number<T>> Histogram<T> {
         if self
             .value_map
             .has_no_attribute_value
-            .swap(false, Ordering::AcqRel)
+            .load(Ordering::Acquire)
         {
-            let tracker_no_attributes = &self.value_map.no_attribute_tracker;
-            let any_tracker_no_attributes = tracker_no_attributes as &dyn Any;
-            let histogram_tracker_no_attributes = any_tracker_no_attributes
-                .downcast_ref::<HistogramTracker<T>>()
-                .unwrap();
-
-            if let Ok(b) = histogram_tracker_no_attributes.buckets.lock() {
+            if let Ok(b) = &self.value_map.no_attribute_tracker.buckets.lock() {
                 h.data_points.push(HistogramDataPoint {
                     attributes: vec![],
                     start_time: start,
@@ -357,9 +318,7 @@ impl<T: Number<T>> Histogram<T> {
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                let any_tracker = tracker as &dyn Any;
-                let histogram_tracker = any_tracker.downcast_ref::<HistogramTracker<T>>().unwrap();
-                if let Ok(b) = histogram_tracker.buckets.lock() {
+                if let Ok(b) = tracker.buckets.lock() {
                     h.data_points.push(HistogramDataPoint {
                         attributes: attrs.clone(),
                         start_time: start,

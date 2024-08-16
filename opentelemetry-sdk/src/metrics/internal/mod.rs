@@ -25,13 +25,13 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
 
 /// Abstracts the update operation for a measurement.
 pub(crate) trait Operation {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize);
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize);
 }
 
 struct Increment;
 
 impl Operation for Increment {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
         tracker.add(value);
     }
 }
@@ -39,7 +39,7 @@ impl Operation for Increment {
 struct Assign;
 
 impl Operation for Assign {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
         tracker.store(value);
     }
 }
@@ -56,7 +56,7 @@ pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number<T>, O> {
     /// Indicates whether a value with no attributes has been stored.
     has_no_attribute_value: AtomicBool,
     /// Tracker for values with no attributes attached.
-    no_attribute_tracker: T::AtomicTracker,
+    no_attribute_tracker: AU::AtomicTracker,
     /// Buckets Count is only used by Histogram.
     buckets_count: Option<usize>,
     phantom: PhantomData<O>,
@@ -73,7 +73,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
         ValueMap {
             trackers: RwLock::new(HashMap::new()),
             has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: T::new_atomic_tracker(None),
+            no_attribute_tracker: AU::new_atomic_tracker(None),
             count: AtomicUsize::new(0),
             buckets_count: None,
             phantom: PhantomData,
@@ -84,7 +84,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
         ValueMap {
             trackers: RwLock::new(HashMap::new()),
             has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: T::new_atomic_tracker(Some(buckets_count)),
+            no_attribute_tracker: AU::new_atomic_tracker(Some(buckets_count)),
             count: AtomicUsize::new(0),
             buckets_count: Some(buckets_count),
             phantom: PhantomData,
@@ -152,27 +152,25 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
 /// different types have different backing atomic mechanisms
-pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
-    fn store(&self, value: T);
-    fn add(&self, value: T);
-    fn get_value(&self) -> T;
-    fn get_and_reset_value(&self) -> T;
-    fn update_histogram(&self, _index: usize, _value: T);
-    fn get_histogram(&self) -> (Vec<u64>, u64, Option<T>, Option<T>, Option<T>) {
-        (vec![], 0, None, None, None)
+pub(crate) trait AtomicTracker<T: Default>: Sync + Send + 'static {
+    fn store(&self, _value: T) {}
+    fn add(&self, _value: T) {}
+    fn get_value(&self) -> T {
+        T::default()
     }
-    fn get_and_reset_histogram(&self) -> (Vec<u64>, u64, Option<T>, Option<T>, Option<T>) {
-        (vec![], 0, None, None, None)
+    fn get_and_reset_value(&self) -> T {
+        T::default()
     }
+    fn update_histogram(&self, _index: usize, _value: T) {}
 }
 
 /// Marks a type that can have an atomic tracker generated for it
-pub(crate) trait AtomicallyUpdate<T> {
+pub(crate) trait AtomicallyUpdate<T: Default> {
     type AtomicTracker: AtomicTracker<T>;
     fn new_atomic_tracker(buckets_count: Option<usize>) -> Self::AtomicTracker;
 }
 
-pub(crate) trait Number<T>:
+pub(crate) trait Number<T: Default>:
     Add<Output = T>
     + AddAssign
     + Sub<Output = T>
@@ -251,11 +249,6 @@ impl AtomicTracker<u64> for AtomicU64 {
     fn get_and_reset_value(&self) -> u64 {
         self.swap(0, Ordering::Relaxed)
     }
-
-    fn update_histogram(&self, _index: usize, _value: u64) {
-        println!("Called by u64");
-        todo!()
-    }
 }
 
 impl AtomicallyUpdate<u64> for u64 {
@@ -281,10 +274,6 @@ impl AtomicTracker<i64> for AtomicI64 {
 
     fn get_and_reset_value(&self) -> i64 {
         self.swap(0, Ordering::Relaxed)
-    }
-
-    fn update_histogram(&self, _index: usize, _value: i64) {
-        todo!()
     }
 }
 
@@ -347,10 +336,6 @@ impl AtomicTracker<f64> for F64AtomicTracker {
         let zero_as_u64 = 0.0_f64.to_bits();
         let value = self.inner.swap(zero_as_u64, Ordering::Relaxed);
         f64::from_bits(value)
-    }
-
-    fn update_histogram(&self, _index: usize, _value: f64) {
-        todo!()
     }
 }
 
