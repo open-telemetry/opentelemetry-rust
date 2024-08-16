@@ -2,7 +2,7 @@
     Stress test results:
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
-    RAM: 32.0 GB
+    RAM: 64.0 GB
     ~1.8 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,

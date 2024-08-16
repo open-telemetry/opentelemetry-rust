@@ -3,7 +3,7 @@
     criterion = "0.5.1"
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
-    RAM: 32.0 GB
+    RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
     | Histogram_Record               | 509.21 ns   |
