@@ -86,6 +86,10 @@ name = "log_processor"
 harness = false
 
 [[bench]]
+name = "log_exporter"
+harness = false
+
+[[bench]]
 name = "batch_span_processor"
 harness = false
 required-features = ["rt-tokio", "testing"]
