@@ -159,6 +159,7 @@ mod tests {
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
+    use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread;
@@ -1216,6 +1217,14 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_multithreaded() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_multithreaded --features=testing -- --nocapture
+
+        histogram_multithreaded_aggregation_helper(Temporality::Delta);
+        histogram_multithreaded_aggregation_helper(Temporality::Cumulative);
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn synchronous_instruments_cumulative_with_gap_in_measurements() {
         // Run this test with stdout enabled to see output.
         // cargo test synchronous_instruments_cumulative_with_gap_in_measurements --features=testing -- --nocapture
@@ -1575,6 +1584,143 @@ mod tests {
 
         assert!(f64::abs(12.3 - sum_zero_attributes) < 0.0001);
         assert!(f64::abs(61.5 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements 5 times = 10 * 5 * 1.23 = 61.5
+    }
+
+    fn histogram_multithreaded_aggregation_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let histogram = Arc::new(test_context.meter().u64_histogram("test_histogram").init());
+
+        for i in 0..10 {
+            thread::scope(|s| {
+                s.spawn(|| {
+                    histogram.record(1, &[]);
+                    histogram.record(4, &[]);
+
+                    histogram.record(5, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(7, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(18, &[KeyValue::new("key1", "value1")]);
+
+                    // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
+                    if i % 2 == 0 {
+                        test_context.flush_metrics();
+                        thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
+                    }
+
+                    histogram.record(35, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(35, &[KeyValue::new("key1", "value1")]);
+                });
+            });
+        }
+
+        test_context.flush_metrics();
+
+        // Assert
+        // We invoke `test_context.flush_metrics()` six times.
+        let histograms = test_context.get_from_multiple_aggregations::<data::Histogram<u64>>(
+            "test_histogram",
+            None,
+            6,
+        );
+
+        let (
+            mut sum_zero_attributes,
+            mut count_zero_attributes,
+            mut min_zero_attributes,
+            mut max_zero_attributes,
+        ) = (0, 0, u64::MAX, u64::MIN);
+        let (mut sum_key1_value1, mut count_key1_value1, mut min_key1_value1, mut max_key1_value1) =
+            (0, 0, u64::MAX, u64::MIN);
+
+        let mut bucket_counts_zero_attributes = vec![0; 16]; // There are 16 buckets for the default configuration
+        let mut bucket_counts_key1_value1 = vec![0; 16];
+
+        histograms.iter().for_each(|histogram| {
+            assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
+            assert_eq!(histogram.temporality, temporality);
+
+            let data_point_zero_attributes =
+                find_histogram_datapoint_with_no_attributes(&histogram.data_points).unwrap();
+            let data_point_key1_value1 =
+                find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value1")
+                    .unwrap();
+
+            if temporality == Temporality::Delta {
+                sum_zero_attributes += data_point_zero_attributes.sum;
+                sum_key1_value1 += data_point_key1_value1.sum;
+
+                count_zero_attributes += data_point_zero_attributes.count;
+                count_key1_value1 += data_point_key1_value1.count;
+
+                min_zero_attributes =
+                    min(min_zero_attributes, data_point_zero_attributes.min.unwrap());
+                min_key1_value1 = min(min_key1_value1, data_point_key1_value1.min.unwrap());
+
+                max_zero_attributes =
+                    max(max_zero_attributes, data_point_zero_attributes.max.unwrap());
+                max_key1_value1 = max(max_key1_value1, data_point_key1_value1.max.unwrap());
+
+                assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                for (i, _) in data_point_zero_attributes.bucket_counts.iter().enumerate() {
+                    bucket_counts_zero_attributes[i] += data_point_zero_attributes.bucket_counts[i];
+                }
+
+                for (i, _) in data_point_key1_value1.bucket_counts.iter().enumerate() {
+                    bucket_counts_key1_value1[i] += data_point_key1_value1.bucket_counts[i];
+                }
+            } else {
+                sum_zero_attributes = data_point_zero_attributes.sum;
+                sum_key1_value1 = data_point_key1_value1.sum;
+
+                count_zero_attributes = data_point_zero_attributes.count;
+                count_key1_value1 = data_point_key1_value1.count;
+
+                min_zero_attributes = data_point_zero_attributes.min.unwrap();
+                min_key1_value1 = data_point_key1_value1.min.unwrap();
+
+                max_zero_attributes = data_point_zero_attributes.max.unwrap();
+                max_key1_value1 = data_point_key1_value1.max.unwrap();
+
+                assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                bucket_counts_zero_attributes.clone_from(&data_point_zero_attributes.bucket_counts);
+                bucket_counts_key1_value1.clone_from(&data_point_key1_value1.bucket_counts);
+            };
+        });
+
+        // Default buckets:
+        // (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0],
+        // (500.0, 750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0], (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞).
+
+        assert_eq!(count_zero_attributes, 20); // Each of the 10 update threads record two measurements.
+        assert_eq!(sum_zero_attributes, 50); // Each of the 10 update threads record measurements summing up to 5.
+        assert_eq!(min_zero_attributes, 1);
+        assert_eq!(max_zero_attributes, 4);
+
+        for (i, count) in bucket_counts_zero_attributes.iter().enumerate() {
+            match i {
+                1 => assert_eq!(*count, 20), // For each of the 10 update threads, both the recorded values 1 and 4 fall under the bucket (0, 5].
+                _ => assert_eq!(*count, 0),
+            }
+        }
+
+        assert_eq!(count_key1_value1, 50); // Each of the 10 update threads record 5 measurements.
+        assert_eq!(sum_key1_value1, 1000); // Each of the 10 update threads record measurements summing up to 100 (5 + 7 + 18 + 35 + 35).
+        assert_eq!(min_key1_value1, 5);
+        assert_eq!(max_key1_value1, 35);
+
+        for (i, count) in bucket_counts_key1_value1.iter().enumerate() {
+            match i {
+                1 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 5 falls under the bucket (0, 5].
+                2 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 7 falls under the bucket (5, 10].
+                3 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 18 falls under the bucket (10, 25].
+                4 => assert_eq!(*count, 20), // For each of the 10 update threads, the recorded value 35 (recorded twice) falls under the bucket (25, 50].
+                _ => assert_eq!(*count, 0),
+            }
+        }
     }
 
     fn histogram_aggregation_helper(temporality: Temporality) {
