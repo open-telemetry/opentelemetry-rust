@@ -11,7 +11,7 @@ use super::{Assign, AtomicTracker, Number, ValueMap};
 
 /// Summarizes a set of measurements as the last one made.
 pub(crate) struct LastValue<T: Number<T>> {
-    value_map: ValueMap<T, Assign>,
+    value_map: ValueMap<T, T, Assign>,
     start: Mutex<SystemTime>,
 }
 
@@ -24,7 +24,8 @@ impl<T: Number<T>> LastValue<T> {
     }
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        self.value_map.measure(measurement, attrs);
+        // The argument index is not applicable to LastValue.
+        self.value_map.measure(measurement, attrs, 0);
     }
 
     pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {

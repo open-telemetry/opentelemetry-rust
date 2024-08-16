@@ -12,7 +12,7 @@ use super::{AtomicTracker, Number};
 
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number<T>> {
-    value_map: ValueMap<T, Increment>,
+    value_map: ValueMap<T, T, Increment>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
@@ -32,7 +32,8 @@ impl<T: Number<T>> Sum<T> {
     }
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        self.value_map.measure(measurement, attrs)
+        // The argument index is not applicable to Sum.
+        self.value_map.measure(measurement, attrs, 0);
     }
 
     pub(crate) fn delta(
@@ -187,7 +188,7 @@ impl<T: Number<T>> Sum<T> {
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number<T>> {
-    value_map: ValueMap<T, Assign>,
+    value_map: ValueMap<T, T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
@@ -204,7 +205,8 @@ impl<T: Number<T>> PrecomputedSum<T> {
     }
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        self.value_map.measure(measurement, attrs)
+        // The argument index is not applicable to PrecomputedSum.
+        self.value_map.measure(measurement, attrs, 0);
     }
 
     pub(crate) fn delta(
