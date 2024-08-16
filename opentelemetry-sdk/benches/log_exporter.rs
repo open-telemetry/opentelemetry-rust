@@ -92,7 +92,7 @@ impl ExportingProcessorWithoutFuture {
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
     fn emit(&self, data: &mut LogData) {
-        let _ = self
+        self
             .exporter
             .lock()
             .expect("lock error")
