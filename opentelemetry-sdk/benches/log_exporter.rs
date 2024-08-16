@@ -92,8 +92,7 @@ impl ExportingProcessorWithoutFuture {
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
     fn emit(&self, data: &mut LogData) {
-        self
-            .exporter
+        self.exporter
             .lock()
             .expect("lock error")
             .export(vec![data.clone()]);
