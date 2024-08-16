@@ -40,10 +40,10 @@ thread_local! {
 }
 
 fn main() {
-    throughput::test_throughput(test_counter);
+    throughput::test_throughput(test_histogram);
 }
 
-fn test_counter() {
+fn test_histogram() {
     let len = ATTRIBUTE_VALUES.len();
     let rands = CURRENT_RNG.with(|rng| {
         let mut rng = rng.borrow_mut();
