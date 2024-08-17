@@ -1916,7 +1916,7 @@ mod tests {
         // Add the same set of attributes in different order. (they are expected
         // to be treated as same attributes)
         // start with sorted order
-        if start_sorted == true {
+        if start_sorted {
             counter.add(
                 1,
                 &[
