@@ -10,7 +10,7 @@ Tests are located in [mod.rs](mod.rs)
 |----------------------------|-----------------|----------------------|----------------------|----------------------------|---------------|--------------------|-------------------|------------------------|
 | Regular aggregation test   | [Yes]         | [Yes]              | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
 | No-attribute test          | [Yes]         | [Yes]              | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
-| Overflow test              | [Yes]         | [No]               | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
+| Overflow test              | [Yes]         | [Yes]              | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
 | Attr Order Sorted First    | [Yes]         | [Yes]              | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
 | Attr Order Unsorted First  | [Yes]         | [Yes]              | [No]              | [No]                    | [No]      | [No]            | [No]           | [No]                |
 

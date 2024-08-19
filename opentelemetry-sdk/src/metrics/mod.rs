@@ -229,204 +229,42 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_delta() {
-        // Arrange
-        let mut test_context = TestContext::new(Temporality::Delta);
-        let counter = test_context.u64_counter("test", "my_counter", None);
-
-        // Act
-        // Record measurements with A:0, A:1,.......A:1999, which just fits in the 2000 limit
-        for v in 0..2000 {
-            counter.add(100, &[KeyValue::new("A", v.to_string())]);
-        }
-
-        // Empty attributes is specially treated and does not count towards the limit.
-        counter.add(3, &[]);
-        counter.add(3, &[]);
-
-        // All of the below will now go into overflow.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
-        test_context.flush_metrics();
-
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-        // Expecting 2002 metric points. (2000 + 1 overflow + Empty attributes)
-        assert_eq!(sum.data_points.len(), 2002);
-
-        let data_point =
-            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
-        assert_eq!(data_point.value, 300);
-
-        // TODO: This is relying on the current behavior of the SDK that 0th
-        // point is empty attributes, but it is not guaranteed to be the case in
-        // the future.
-        let empty_attrs_data_point = &sum.data_points[0];
-        assert!(
-            empty_attrs_data_point.attributes.is_empty(),
-            "Non-empty attribute set"
-        );
-        assert_eq!(
-            empty_attrs_data_point.value, 6,
-            "Empty attributes value should be 3+3=6"
-        );
+        counter_aggregation_overflow_helper(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_sorted_first() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_sorted_first --features=testing -- --nocapture
-
-        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Delta);
-        counter_aggregation_attribute_order_sorted_first_helper(Temporality::Cumulative);
-
-        fn counter_aggregation_attribute_order_sorted_first_helper(temporality: Temporality) {
-            // Arrange
-            let mut test_context = TestContext::new(temporality);
-            let counter = test_context.u64_counter("test", "my_counter", None);
-
-            // Act
-            // Add the same set of attributes in different order. (they are expected
-            // to be treated as same attributes)
-            // start with sorted order
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            test_context.flush_metrics();
-
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
-
-            // Expecting 1 time-series.
-            assert_eq!(sum.data_points.len(), 1);
-
-            // validate the sole datapoint
-            let data_point1 = &sum.data_points[0];
-            assert_eq!(data_point1.value, 6);
-        }
+    async fn counter_aggregation_overflow_cumulative() {
+        counter_aggregation_overflow_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_unsorted_first() {
+    async fn counter_aggregation_attribute_order_sorted_first_delta() {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_unsorted_first --features=testing -- --nocapture
+        // cargo test counter_aggregation_attribute_order_sorted_first_delta --features=testing -- --nocapture
+        counter_aggregation_attribute_order_helper(Temporality::Delta, true);
+    }
 
-        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Delta);
-        counter_aggregation_attribute_order_unsorted_first_helper(Temporality::Cumulative);
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_attribute_order_sorted_first_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_attribute_order_sorted_first_cumulative --features=testing -- --nocapture
+        counter_aggregation_attribute_order_helper(Temporality::Cumulative, true);
+    }
 
-        fn counter_aggregation_attribute_order_unsorted_first_helper(temporality: Temporality) {
-            // Arrange
-            let mut test_context = TestContext::new(temporality);
-            let counter = test_context.u64_counter("test", "my_counter", None);
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_attribute_order_unsorted_first_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_attribute_order_unsorted_first_delta --features=testing -- --nocapture
 
-            // Act
-            // Add the same set of attributes in different order. (they are expected
-            // to be treated as same attributes)
-            // start with unsorted order
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("A", "a"),
-                ],
-            );
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                ],
-            );
-            test_context.flush_metrics();
+        counter_aggregation_attribute_order_helper(Temporality::Delta, false);
+    }
 
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_attribute_order_unsorted_first_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_attribute_order_unsorted_first_cumulative --features=testing -- --nocapture
 
-            // Expecting 1 time-series.
-            assert_eq!(sum.data_points.len(), 1);
-
-            // validate the sole datapoint
-            let data_point1 = &sum.data_points[0];
-            assert_eq!(data_point1.value, 6);
-        }
+        counter_aggregation_attribute_order_helper(Temporality::Cumulative, false);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2023,6 +1861,131 @@ mod tests {
         } else {
             assert_eq!(data_point1.value, 3);
         }
+    }
+
+    fn counter_aggregation_overflow_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Record measurements with A:0, A:1,.......A:1999, which just fits in the 2000 limit
+        for v in 0..2000 {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // Empty attributes is specially treated and does not count towards the limit.
+        counter.add(3, &[]);
+        counter.add(3, &[]);
+
+        // All of the below will now go into overflow.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        // Expecting 2002 metric points. (2000 + 1 overflow + Empty attributes)
+        assert_eq!(sum.data_points.len(), 2002);
+
+        let data_point =
+            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                .expect("overflow point expected");
+        assert_eq!(data_point.value, 300);
+
+        // let empty_attrs_data_point = &sum.data_points[0];
+        let empty_attrs_data_point = find_datapoint_with_no_attributes(&sum.data_points)
+            .expect("Empty attributes point expected");
+        assert!(
+            empty_attrs_data_point.attributes.is_empty(),
+            "Non-empty attribute set"
+        );
+        assert_eq!(
+            empty_attrs_data_point.value, 6,
+            "Empty attributes value should be 3+3=6"
+        );
+    }
+
+    fn counter_aggregation_attribute_order_helper(temporality: Temporality, start_sorted: bool) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Add the same set of attributes in different order. (they are expected
+        // to be treated as same attributes)
+        // start with sorted order
+        if start_sorted {
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                ],
+            );
+        } else {
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                ],
+            );
+        }
+
+        counter.add(
+            1,
+            &[
+                KeyValue::new("A", "a"),
+                KeyValue::new("C", "c"),
+                KeyValue::new("B", "b"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("B", "b"),
+                KeyValue::new("A", "a"),
+                KeyValue::new("C", "c"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("B", "b"),
+                KeyValue::new("C", "c"),
+                KeyValue::new("A", "a"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("C", "c"),
+                KeyValue::new("B", "b"),
+                KeyValue::new("A", "a"),
+            ],
+        );
+        counter.add(
+            1,
+            &[
+                KeyValue::new("C", "c"),
+                KeyValue::new("A", "a"),
+                KeyValue::new("B", "b"),
+            ],
+        );
+        test_context.flush_metrics();
+
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+
+        // Expecting 1 time-series.
+        assert_eq!(sum.data_points.len(), 1);
+
+        // validate the sole datapoint
+        let data_point1 = &sum.data_points[0];
+        assert_eq!(data_point1.value, 6);
     }
 
     fn updown_counter_aggregation_helper(temporality: Temporality) {
