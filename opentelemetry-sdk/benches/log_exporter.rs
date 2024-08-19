@@ -28,11 +28,11 @@ use std::fmt::Debug;
 // cargo bench --bench log_exporter
 #[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export(&mut self, batch: Vec<LogData>);
+    async fn export<'a>(&mut self, batch: Vec<LogData<'a>>);
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
-    fn export(&mut self, batch: Vec<LogData>);
+    fn export<'a>(&mut self, batch: Vec<LogData<'a>>);
 }
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ struct NoOpExporterWithFuture {}
 
 #[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
-    async fn export(&mut self, _batch: Vec<LogData>) {}
+    async fn export<'a>(&mut self, _batch: Vec<LogData<'a>>) {}
 }
 
 #[derive(Debug)]

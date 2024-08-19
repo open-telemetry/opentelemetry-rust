@@ -108,6 +108,41 @@ pub mod tonic {
         }
     }
 
+    impl
+        From<(
+            Cow<'_, opentelemetry_sdk::InstrumentationLibrary>,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                Cow<'_, opentelemetry_sdk::InstrumentationLibrary>,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
+            let (library, target) = data;
+            if let Some(t) = target {
+                InstrumentationScope {
+                    name: t.to_string(),
+                    version: String::new(),
+                    attributes: vec![],
+                    ..Default::default()
+                }
+            } else {
+                InstrumentationScope {
+                    name: library.name.clone().into_owned(),
+                    version: library
+                        .version
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes.clone()).0,
+                    ..Default::default()
+                }
+            }
+        }
+    }
+
     /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default, Debug)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);

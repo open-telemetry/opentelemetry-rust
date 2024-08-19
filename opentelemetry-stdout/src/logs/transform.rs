@@ -16,7 +16,7 @@ pub struct LogData {
 
 impl
     From<(
-        Vec<opentelemetry_sdk::export::logs::LogData>,
+        Vec<opentelemetry_sdk::export::logs::LogData<'_>>,
         &opentelemetry_sdk::Resource,
     )> for LogData
 {
@@ -31,7 +31,7 @@ impl
         for sdk_log in sdk_logs {
             let resource_schema_url = sdk_resource.schema_url().map(|s| s.to_string().into());
             let schema_url = sdk_log.instrumentation.schema_url.clone();
-            let scope: Scope = sdk_log.instrumentation.clone().into();
+            let scope: Scope = sdk_log.instrumentation.clone().into_owned().into();
             let resource: Resource = sdk_resource.into();
 
             let rl = resource_logs
@@ -104,7 +104,7 @@ struct LogRecord {
     trace_id: Option<String>,
 }
 
-impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
+impl From<opentelemetry_sdk::export::logs::LogData<'_>> for LogRecord {
     fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
         LogRecord {
             attributes: {
@@ -142,6 +142,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
             flags: value
                 .record
                 .trace_context
+                .as_ref()
                 .map(|c| c.trace_flags.map(|f| f.to_u8()))
                 .unwrap_or_default(),
             time_unix_nano: value.record.timestamp,
@@ -155,7 +156,7 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 .unwrap_or_default(),
             dropped_attributes_count: 0,
             severity_text: value.record.severity_text,
-            body: value.record.body.map(|a| a.into()),
+            body: value.record.body.clone().map(|a| a.into()),
         }
     }
 }

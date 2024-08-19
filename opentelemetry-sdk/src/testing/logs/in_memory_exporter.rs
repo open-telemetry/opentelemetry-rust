@@ -37,11 +37,21 @@ use std::sync::{Arc, Mutex};
 ///# }
 /// ```
 ///
+///
 #[derive(Clone, Debug)]
 pub struct InMemoryLogsExporter {
-    logs: Arc<Mutex<Vec<LogData>>>,
+    logs: Arc<Mutex<Vec<OwnedLogData>>>,
     resource: Arc<Mutex<Resource>>,
     should_reset_on_shutdown: bool,
+}
+
+/// `OwnedLogData` represents a single log event without resource context.
+#[derive(Debug, Clone)]
+pub struct OwnedLogData {
+    /// Log record, which can be borrowed or owned.
+    pub record: LogRecord,
+    /// Instrumentation details for the emitter who produced this `LogEvent`.
+    pub instrumentation: InstrumentationLibrary,
 }
 
 impl Default for InMemoryLogsExporter {
@@ -175,10 +185,14 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData<'a>>>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for log in batch.into_iter() {
-            logs_guard.push(log.into_owned());
+            let owned_log = OwnedLogData {
+                record: log.record.clone().into_owned(),
+                instrumentation: log.instrumentation.clone().into_owned(),
+            };
+            logs_guard.push(owned_log);
         }
         Ok(())
     }

@@ -15,7 +15,7 @@ use std::fmt::Debug;
 #[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of [`LogData`].
-    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData<'a>>>) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "logs_level_enabled")]
@@ -30,11 +30,11 @@ pub trait LogExporter: Send + Sync + Debug {
 
 /// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
+pub struct LogData<'a> {
+    /// Log record, which can be borrowed or owned.
+    pub record: Cow<'a, LogRecord>,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
+    pub instrumentation: Cow<'a, InstrumentationLibrary>,
 }
 
 /// Describes the result of an export.

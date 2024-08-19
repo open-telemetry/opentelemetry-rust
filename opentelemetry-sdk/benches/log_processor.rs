@@ -23,6 +23,7 @@ use opentelemetry_sdk::{
     export::logs::LogData,
     logs::{LogProcessor, LogRecord, Logger, LoggerProvider},
 };
+use std::borrow::Cow;
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
@@ -45,7 +46,7 @@ fn create_log_record(logger: &Logger) -> LogRecord {
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogData) {}
+    fn emit(&self, _data: &mut LogData<'_>) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
@@ -60,7 +61,7 @@ impl LogProcessor for NoopProcessor {
 struct CloningProcessor;
 
 impl LogProcessor for CloningProcessor {
-    fn emit(&self, data: &mut LogData) {
+    fn emit(&self, data: &mut LogData<'_>) {
         let _data_cloned = data.clone();
     }
 
@@ -75,8 +76,8 @@ impl LogProcessor for CloningProcessor {
 
 #[derive(Debug)]
 struct SendToChannelProcessor {
-    sender: std::sync::mpsc::Sender<LogData>,
-    receiver: Arc<Mutex<std::sync::mpsc::Receiver<LogData>>>,
+    sender: std::sync::mpsc::Sender<LogData<'static>>,
+    receiver: Arc<Mutex<std::sync::mpsc::Receiver<LogData<'static>>>>,
 }
 
 impl SendToChannelProcessor {
@@ -104,7 +105,10 @@ impl SendToChannelProcessor {
 
 impl LogProcessor for SendToChannelProcessor {
     fn emit(&self, data: &mut LogData) {
-        let data_cloned = data.clone();
+        let data_cloned = LogData {
+            record: Cow::Owned(data.record.clone().into_owned()),
+            instrumentation: Cow::Owned(data.instrumentation.clone().into_owned()),
+        };
         let res = self.sender.send(data_cloned);
         if res.is_err() {
             println!("Error sending log data to channel {0}", res.err().unwrap());

@@ -45,7 +45,7 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> ExportResult {
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData<'a>>>) -> ExportResult {
         if let Some(writer) = &mut self.writer {
             // TODO - Avoid cloning logdata if it is borrowed.
             let log_data = crate::logs::transform::LogData::from((

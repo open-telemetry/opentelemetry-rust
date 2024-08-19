@@ -100,7 +100,7 @@ impl LogExporter {
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     async fn export<'a>(
         &mut self,
-        batch: Vec<std::borrow::Cow<'a, LogData>>,
+        batch: Vec<std::borrow::Cow<'a, LogData<'a>>>,
     ) -> opentelemetry::logs::LogResult<()> {
         self.client.export(batch).await
     }

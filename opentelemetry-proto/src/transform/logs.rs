@@ -139,7 +139,7 @@ pub mod tonic {
 
     impl
         From<(
-            opentelemetry_sdk::export::logs::LogData,
+            opentelemetry_sdk::export::logs::LogData<'_>,
             &ResourceAttributesWithSchema,
         )> for ResourceLogs
     {
@@ -164,15 +164,21 @@ pub mod tonic {
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some((log_data.instrumentation, log_data.record.target.clone()).into()),
-                    log_records: vec![log_data.record.into()],
+                    scope: Some(
+                        (
+                            log_data.instrumentation.into_owned(),
+                            log_data.record.target.clone(),
+                        )
+                            .into(),
+                    ),
+                    log_records: vec![log_data.record.into_owned().into()],
                 }],
             }
         }
     }
 
     pub fn group_logs_by_resource_and_scope(
-        logs: Vec<opentelemetry_sdk::export::logs::LogData>,
+        logs: Vec<opentelemetry_sdk::export::logs::LogData<'_>>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group logs by target or instrumentation name
@@ -180,14 +186,13 @@ pub mod tonic {
             HashMap::new(),
             |mut scope_map: HashMap<
                 Cow<'static, str>,
-                Vec<&opentelemetry_sdk::export::logs::LogData>,
+                Vec<&opentelemetry_sdk::export::logs::LogData<'_>>,
             >,
              log| {
-                let key = log
-                    .record
-                    .target
-                    .clone()
-                    .unwrap_or_else(|| log.instrumentation.name.clone());
+                let key =
+                    log.record.target.clone().unwrap_or_else(|| {
+                        Cow::Owned(log.instrumentation.name.clone().into_owned())
+                    });
                 scope_map.entry(key).or_default().push(log);
                 scope_map
             },
@@ -197,13 +202,20 @@ pub mod tonic {
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
                 scope: Some(InstrumentationScope::from((
-                    &log_data.first().unwrap().instrumentation,
-                    Some(key),
+                    Cow::Owned(
+                        log_data
+                            .first()
+                            .unwrap()
+                            .instrumentation
+                            .clone()
+                            .into_owned(),
+                    ),
+                    Some(key.into_owned().into()),
                 ))),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 log_records: log_data
                     .into_iter()
-                    .map(|log_data| log_data.record.clone().into())
+                    .map(|log_data| log_data.record.clone().into_owned().into())
                     .collect(),
             })
             .collect();
@@ -225,18 +237,21 @@ mod tests {
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry_sdk::export::logs::LogData;
     use opentelemetry_sdk::{logs::LogRecord, Resource};
+    use std::borrow::Cow;
     use std::time::SystemTime;
 
-    fn create_test_log_data(instrumentation_name: &str, _message: &str) -> LogData {
+    fn create_test_log_data<'a>(instrumentation_name: &str, _message: &str) -> LogData<'a> {
         let mut logrecord = LogRecord::default();
         logrecord.set_timestamp(SystemTime::now());
         logrecord.set_observed_timestamp(SystemTime::now());
         LogData {
-            instrumentation: opentelemetry_sdk::InstrumentationLibrary::builder(
-                instrumentation_name.to_string(),
-            )
-            .build(),
-            record: logrecord,
+            instrumentation: Cow::Owned(
+                opentelemetry_sdk::InstrumentationLibrary::builder(
+                    instrumentation_name.to_string(),
+                )
+                .build(),
+            ),
+            record: Cow::Owned(logrecord),
         }
     }
 
