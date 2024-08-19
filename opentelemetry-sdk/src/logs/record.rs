@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn compare_log_record() {
-        let log_record = LogRecord {
+        let mut log_record = LogRecord {
             event_name: Some("test_event"),
             target: Some(Cow::Borrowed("foo::bar")),
             timestamp: Some(SystemTime::now()),
