@@ -40,7 +40,7 @@ mod tests {
         let logger = logger_provider.logger("test-logger");
         let mut log_record = logger.create_log_record();
         log_record.set_severity_number(Severity::Error);
-        log_record.set_severity_text("Error".into());
+        log_record.set_severity_text("Error");
 
         // Adding attributes using a vector with explicitly constructed Key and AnyValue objects.
         log_record.add_attributes(vec![

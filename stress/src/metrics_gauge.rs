@@ -3,15 +3,12 @@
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
-    ~9.0 M/sec
-
-    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~2.2 M /sec // Needs to be updated.
+    ~11.5 M/sec
 */
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{Histogram, MeterProvider as _},
+    metrics::{Gauge, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
@@ -31,7 +28,7 @@ lazy_static! {
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
         "value10"
     ];
-    static ref HISTOGRAM: Histogram<u64> = PROVIDER.meter("test").u64_histogram("hello").init();
+    static ref GAUGE: Gauge<u64> = PROVIDER.meter("test").u64_gauge("test_gauge").init();
 }
 
 thread_local! {
@@ -40,10 +37,10 @@ thread_local! {
 }
 
 fn main() {
-    throughput::test_throughput(test_histogram);
+    throughput::test_throughput(test_gauge);
 }
 
-fn test_histogram() {
+fn test_gauge() {
     let len = ATTRIBUTE_VALUES.len();
     let rands = CURRENT_RNG.with(|rng| {
         let mut rng = rng.borrow_mut();
@@ -58,7 +55,7 @@ fn test_histogram() {
     let index_third_attribute = rands[2];
 
     // each attribute has 10 possible values, so there are 1000 possible combinations (time-series)
-    HISTOGRAM.record(
+    GAUGE.record(
         1,
         &[
             KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),

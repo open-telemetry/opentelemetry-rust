@@ -351,11 +351,6 @@ mod tests {
                 .expect("lock poisoned");
             Ok(())
         }
-
-        #[cfg(feature = "logs_level_enabled")]
-        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-            true
-        }
     }
     #[test]
     fn test_logger_provider_default_resource() {
@@ -575,11 +570,6 @@ mod tests {
         fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
-        }
-
-        #[cfg(feature = "logs_level_enabled")]
-        fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
-            true
         }
     }
 }
