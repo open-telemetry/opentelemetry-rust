@@ -6,17 +6,15 @@
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Histogram_Record               | 193.04 ns   |
-
+    | Gauge_Add                      | 178.37 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    metrics::{Histogram, MeterProvider as _},
+    metrics::{Gauge, MeterProvider as _},
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
     Rng, SeedableRng,
@@ -34,23 +32,23 @@ static ATTRIBUTE_VALUES: [&str; 10] = [
 ];
 
 // Run this benchmark with:
-// cargo bench --bench metric_histogram
-fn create_histogram(name: &'static str) -> Histogram<u64> {
+// cargo bench --bench metrics_gauge
+fn create_gauge() -> Gauge<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_histogram(name).init()
+    meter.u64_gauge("gauge_bench").init()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    histogram_record(c);
+    gauge_record(c);
 }
 
-fn histogram_record(c: &mut Criterion) {
-    let histogram = create_histogram("Histogram_Record");
-    c.bench_function("Histogram_Record", |b| {
+fn gauge_record(c: &mut Criterion) {
+    let gauge = create_gauge();
+    c.bench_function("Gauge_Add", |b| {
         b.iter(|| {
             // 4*4*10*10 = 1600 time series.
             let rands = CURRENT_RNG.with(|rng| {
@@ -66,7 +64,7 @@ fn histogram_record(c: &mut Criterion) {
             let index_second_attribute = rands[1];
             let index_third_attribute = rands[2];
             let index_fourth_attribute = rands[3];
-            histogram.record(
+            gauge.record(
                 1,
                 &[
                     KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
@@ -79,16 +77,6 @@ fn histogram_record(c: &mut Criterion) {
     });
 }
 
-#[cfg(not(target_os = "windows"))]
-criterion_group! {
-    name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = criterion_benchmark
-}
-#[cfg(target_os = "windows")]
-criterion_group! {
-    name = benches;
-    config = Criterion::default();
-    targets = criterion_benchmark
-}
+criterion_group!(benches, criterion_benchmark);
+
 criterion_main!(benches);
