@@ -530,7 +530,7 @@ mod tests {
         testing::logs::InMemoryLogsExporter,
         Resource,
     };
-    use async_trait::async_trait;
+    use futures_util::future::BoxFuture;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::InstrumentationLibrary;
@@ -544,13 +544,12 @@ mod tests {
         resource: Arc<Mutex<Option<Resource>>>,
     }
 
-    #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(
+        fn export(
             &mut self,
             _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
-        ) -> LogResult<()> {
-            Ok(())
+        ) -> BoxFuture<'static, LogResult<()>> {
+            Box::pin(std::future::ready(Ok(())))
         }
 
         fn shutdown(&mut self) {}

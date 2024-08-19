@@ -13,8 +13,8 @@
     | ot_layer_enabled            | 250 ns      |
 */
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
+use futures_util::future::BoxFuture;
 use opentelemetry::logs::LogResult;
 use opentelemetry::{InstrumentationLibrary, KeyValue};
 use opentelemetry_appender_tracing::layer as tracing_layer;
@@ -32,10 +32,12 @@ struct NoopExporter {
     enabled: bool,
 }
 
-#[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
-        LogResult::Ok(())
+    fn export(
+        &mut self,
+        _: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, LogResult<()>> {
+        Box::pin(std::future::ready(LogResult::Ok(())))
     }
 
     fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {

@@ -11,6 +11,7 @@ license = "Apache-2.0"
 rust-version = "1.65"
 
 [dependencies]
+futures-util = { workspace = true }
 log = { workspace = true, optional = true }
 opentelemetry = { version = "0.24", path = "../opentelemetry", features = ["logs"] }
 tracing = { workspace = true, features = ["std"]}

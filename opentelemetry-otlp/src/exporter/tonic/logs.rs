@@ -1,10 +1,11 @@
-use async_trait::async_trait;
 use core::fmt;
+use futures_core::future::BoxFuture;
 use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
 use opentelemetry_sdk::export::logs::LogExporter;
+use std::future::ready;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -54,33 +55,39 @@ impl TonicLogsClient {
     }
 }
 
-#[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
+    fn export(
+        &mut self,
+        batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, LogResult<()>> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .call(Request::new(()))
-                    .map_err(|e| LogError::Other(Box::new(e)))?
-                    .into_parts();
+                let (m, e, _) = match inner.interceptor.call(Request::new(())) {
+                    Ok(r) => r.into_parts(),
+                    Err(e) => return Box::pin(ready(Err(LogError::Other(Box::new(e))))),
+                };
                 (inner.client.clone(), m, e)
             }
-            None => return Err(LogError::Other("exporter is already shut down".into())),
+            None => {
+                return Box::pin(ready(Err(LogError::Other(
+                    "exporter is already shut down".into(),
+                ))))
+            }
         };
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await
-            .map_err(crate::Error::from)?;
-
-        Ok(())
+        Box::pin(async move {
+            client
+                .export(Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportLogsServiceRequest { resource_logs },
+                ))
+                .await
+                .map_err(crate::Error::from)?;
+            Ok(())
+        })
     }
 
     fn shutdown(&mut self) {
