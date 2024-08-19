@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     meter_provider.shutdown()?;
 
     #[cfg(feature = "logs")]
-    logger_provider.shutdown()?;
+    logger_provider.shutdown().await?;
 
     Ok(())
 }

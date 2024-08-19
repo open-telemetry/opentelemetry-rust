@@ -26,6 +26,7 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testin
 tracing-log = "0.2"
 async-trait = { workspace = true }
 criterion = { workspace = true }
+tokio = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }

@@ -40,6 +40,7 @@ path = "src/random.rs"
 doc = false
 
 [dependencies]
+async-trait.workspace = true
 ctrlc = "3.2.5"
 lazy_static = "1.4.0"
 num_cpus = "1.15.0"

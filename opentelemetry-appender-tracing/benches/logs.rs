@@ -56,16 +56,17 @@ impl NoopProcessor {
     }
 }
 
+#[async_trait::async_trait]
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
+    async fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
         // no-op
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 

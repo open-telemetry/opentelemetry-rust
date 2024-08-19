@@ -20,19 +20,20 @@ mod throughput;
 #[derive(Debug)]
 pub struct NoOpLogProcessor;
 
+#[async_trait::async_trait]
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(
+    async fn emit(
         &self,
         _record: &mut opentelemetry_sdk::logs::LogRecord,
         _library: &InstrumentationLibrary,
     ) {
     }
 
-    fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
+    async fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
+    async fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
     }
 }

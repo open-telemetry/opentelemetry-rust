@@ -35,14 +35,15 @@ use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 #[derive(Debug)]
 struct NoopProcessor;
 
+#[async_trait::async_trait]
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
+    async fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }

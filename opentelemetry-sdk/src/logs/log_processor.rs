@@ -45,6 +45,7 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// The interface for plugging into a [`Logger`].
 ///
 /// [`Logger`]: crate::logs::Logger
+#[async_trait::async_trait]
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     ///
@@ -57,13 +58,13 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// # Parameters
     /// - `record`: A mutable reference to `LogData` representing the log record.
     /// - `instrumentation`: The instrumentation library associated with the log record.
-    fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationLibrary);
+    async fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationLibrary);
     /// Force the logs lying in the cache to be exported.
-    fn force_flush(&self) -> LogResult<()>;
+    async fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> LogResult<()>;
+    async fn shutdown(&self) -> LogResult<()>;
     #[cfg(feature = "logs_level_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -94,30 +95,33 @@ impl SimpleLogProcessor {
     }
 }
 
+#[async_trait::async_trait]
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    async fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
-            .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![(record, instrumentation)]))
-            });
-        if let Err(err) = result {
-            global::handle_error(err);
+        let exporter_future = match self.exporter.lock() {
+            // create future and release lock
+            Ok(mut exporter) => exporter.export(vec![(record, instrumentation)]),
+            Err(_) => {
+                global::handle_error(LogError::Other("simple logprocessor mutex poison".into()));
+                return;
+            }
+        };
+
+        if let Err(err) = exporter_future.await {
+            global::handle_error(err)
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
@@ -151,8 +155,9 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
     }
 }
 
+#[async_trait::async_trait]
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    async fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -163,26 +168,29 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| LogError::Other(err.into()))?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
-            .and_then(std::convert::identity)
+        res_receiver
+            .await
+            .map(|_| ())
+            .map_err(|e| LogError::Other(e.into()))
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| LogError::Other(err.into()))?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
-            .and_then(std::convert::identity)
+        res_receiver
+            .await
+            .map_err(|e| LogError::Other(e.into()))??;
+
+        Ok(())
     }
 
     fn set_resource(&self, resource: &Resource) {
@@ -762,7 +770,7 @@ mod tests {
             .build();
         tokio::time::sleep(Duration::from_secs(2)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
-        let _ = provider.shutdown();
+        let _ = provider.shutdown().await;
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -781,16 +789,16 @@ mod tests {
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationLibrary = Default::default();
 
-        processor.emit(&mut record, &instrumentation);
-        processor.force_flush().unwrap();
-        processor.shutdown().unwrap();
+        processor.emit(&mut record, &instrumentation).await;
+        processor.force_flush().await.unwrap();
+        processor.shutdown().await.unwrap();
         // todo: expect to see errors here. How should we assert this?
-        processor.emit(&mut record, &instrumentation);
+        processor.emit(&mut record, &instrumentation).await;
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 
-    #[test]
-    fn test_simple_shutdown() {
+    #[tokio::test]
+    async fn test_simple_shutdown() {
         let exporter = InMemoryLogsExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
@@ -799,16 +807,16 @@ mod tests {
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationLibrary = Default::default();
 
-        processor.emit(&mut record, &instrumentation);
+        processor.emit(&mut record, &instrumentation).await;
 
-        processor.shutdown().unwrap();
+        processor.shutdown().await.unwrap();
 
         let is_shutdown = processor
             .is_shutdown
             .load(std::sync::atomic::Ordering::Relaxed);
         assert!(is_shutdown);
 
-        processor.emit(&mut record, &instrumentation);
+        processor.emit(&mut record, &instrumentation).await;
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
@@ -818,8 +826,9 @@ mod tests {
         pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
     }
 
+    #[async_trait::async_trait]
     impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        async fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
             // add attribute
             record.attributes.get_or_insert(vec![]).push((
                 Key::from_static_str("processed_by"),
@@ -834,11 +843,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        async fn force_flush(&self) -> LogResult<()> {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        async fn shutdown(&self) -> LogResult<()> {
             Ok(())
         }
     }
@@ -848,8 +857,9 @@ mod tests {
         pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
     }
 
+    #[async_trait::async_trait]
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        async fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
             assert!(record.attributes.as_ref().map_or(false, |attrs| {
                 attrs.iter().any(|(key, value)| {
                     key.as_str() == "processed_by"
@@ -866,11 +876,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        async fn force_flush(&self) -> LogResult<()> {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        async fn shutdown(&self) -> LogResult<()> {
             Ok(())
         }
     }
