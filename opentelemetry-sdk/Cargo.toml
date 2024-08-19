@@ -61,15 +61,15 @@ name = "span_builder"
 harness = false
 
 [[bench]]
-name = "metric_counter"
+name = "metrics_counter"
 harness = false
 
 [[bench]]
-name = "metric_gauge"
+name = "metrics_gauge"
 harness = false
 
 [[bench]]
-name = "metric_histogram"
+name = "metrics_histogram"
 harness = false
 
 [[bench]]
