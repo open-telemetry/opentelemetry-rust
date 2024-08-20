@@ -1,38 +1,24 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    ExportError,
-};
 use opentelemetry_sdk::export::logs::{ExportResult, LogData};
 use opentelemetry_sdk::Resource;
-use std::borrow::Cow;
-use std::io::{stdout, Write};
+use std::{borrow::Cow, sync::atomic};
 
-type Encoder =
-    Box<dyn Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()> + Send + Sync>;
-
-/// A [`LogExporter`] that writes to [`Stdout`] or other configured [`Write`].
-///
-/// [`LogExporter`]: opentelemetry_sdk::export::logs::LogExporter
-/// [`Write`]: std::io::Write
-/// [`Stdout`]: std::io::Stdout
+/// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
-    writer: Option<Box<dyn Write + Send + Sync>>,
-    encoder: Encoder,
     resource: Resource,
-}
-
-impl LogExporter {
-    /// Create a builder to configure this exporter.
-    pub fn builder() -> LogExporterBuilder {
-        Default::default()
-    }
+    is_shutdown: atomic::AtomicBool,
+    resource_emitted: bool,
 }
 
 impl Default for LogExporter {
     fn default() -> Self {
-        LogExporterBuilder::default().build()
+        LogExporter {
+            resource: Resource::default(),
+            is_shutdown: atomic::AtomicBool::new(false),
+            resource_emitted: false,
+        }
     }
 }
 
@@ -44,23 +30,33 @@ impl fmt::Debug for LogExporter {
 
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    /// Export spans to stdout
+    /// Write logs to stdout
     async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> ExportResult {
-        if let Some(writer) = &mut self.writer {
-            // TODO - Avoid cloning logdata if it is borrowed.
-            let log_data = crate::logs::transform::LogData::from((
-                batch.into_iter().map(Cow::into_owned).collect(),
-                &self.resource,
-            ));
-            let result = (self.encoder)(writer, log_data) as LogResult<()>;
-            result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
+        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+            return Err("exporter is shut down".into());
         } else {
-            Err("exporter is shut down".into())
+            if self.resource_emitted {
+                print_logs(batch);
+            } else {
+                self.resource_emitted = true;
+                println!("Resource");
+                if self.resource.schema_url().is_some() {
+                    println!("\t Resource SchemaUrl: {:?}", self.resource.schema_url());
+                }
+
+                self.resource.iter().for_each(|(k, v)| {
+                    println!("\t {}={:?}", k, v);
+                });
+
+                print_logs(batch);
+            }
+
+            Ok(())
         }
     }
 
     fn shutdown(&mut self) {
-        self.writer.take();
+        self.is_shutdown.store(true, atomic::Ordering::SeqCst);
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -68,84 +64,45 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-/// Stdout exporter's error
-#[derive(thiserror::Error, Debug)]
-#[error(transparent)]
-struct Error(#[from] std::io::Error);
+fn print_logs<'a>(batch: Vec<Cow<'a, LogData>>) {
+    let mut i = 0;
+    for log in batch {
+        println!("Log #{}", i);
+        i = i + 1;
+        if let Some(event_name) = &log.record.event_name {
+            println!("\t EventName: {:?}", event_name);
+        }
+        if let Some(target) = &log.record.target {
+            println!("\t Target (Scope): {:?}", target);
+        }
+        if let Some(trace_context) = &log.record.trace_context {
+            println!("\t TraceId: {:?}", trace_context.trace_id);
+            println!("\t SpanId: {:?}", trace_context.span_id);
+        }
+        if let Some(timestamp) = &log.record.timestamp {
+            let datetime: DateTime<Utc> = (*timestamp).into();
+            println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+        }
+        if let Some(timestamp) = &log.record.observed_timestamp {
+            let datetime: DateTime<Utc> = (*timestamp).into();
+            println!(
+                "\t Observed Timestamp: {}",
+                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+            );
+        }
+        if let Some(severity) = &log.record.severity_text {
+            println!("\t SeverityText: {:?}", severity);
+        }
+        if let Some(severity) = &log.record.severity_number {
+            println!("\t SeverityNumber: {:?}", severity);
+        }
+        if let Some(body) = &log.record.body {
+            println!("\t Body: {:?}", body);
+        }
 
-impl ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "stdout"
-    }
-}
-
-/// Configuration for the stdout log exporter
-#[derive(Default)]
-pub struct LogExporterBuilder {
-    writer: Option<Box<dyn Write + Send + Sync>>,
-    encoder: Option<Encoder>,
-}
-
-impl fmt::Debug for LogExporterBuilder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("LogExporterBuilder")
-    }
-}
-
-impl LogExporterBuilder {
-    /// Set the writer that the exporter will write to
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_stdout::LogExporterBuilder;
-    ///
-    /// let buffer = Vec::new(); // Any type that implements `Write`
-    /// let exporter = LogExporterBuilder::default().with_writer(buffer).build();
-    /// ```
-    pub fn with_writer<W>(mut self, writer: W) -> Self
-    where
-        W: Write + Send + Sync + 'static,
-    {
-        self.writer = Some(Box::new(writer));
-        self
-    }
-
-    /// Set the encoder that the exporter will use.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_stdout::LogExporterBuilder;
-    /// use serde_json;
-    ///
-    /// let exporter = LogExporterBuilder::default()
-    ///     .with_encoder(|writer, data|
-    ///          Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
-    ///     .build();
-    /// ```
-    pub fn with_encoder<E>(mut self, encoder: E) -> Self
-    where
-        E: Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()>
-            + Send
-            + Sync
-            + 'static,
-    {
-        self.encoder = Some(Box::new(encoder));
-        self
-    }
-
-    /// Create a log exporter with the current configuration.
-    pub fn build(self) -> LogExporter {
-        LogExporter {
-            writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
-            resource: Resource::default(),
-            encoder: self.encoder.unwrap_or_else(|| {
-                Box::new(|writer, logs| {
-                    serde_json::to_writer(writer, &logs)
-                        .map_err(|err| LogError::Other(Box::new(err)))
-                })
-            }),
+        println!("\t Attributes:");
+        for (k, v) in log.record.attributes_iter() {
+            println!("\t\t {}: {:?}", k, v);
         }
     }
 }

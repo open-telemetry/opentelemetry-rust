@@ -64,9 +64,16 @@ fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
 
 #[cfg(feature = "trace")]
 fn emit_span() {
-    let tracer = global::tracer("stdout-test");
+    use opentelemetry::trace::TracerProvider;
+
+    let tracer = global::tracer_provider()
+        .tracer_builder("stdout-example")
+        .with_version("v1.")
+        .with_schema_url("schema_url")
+        .with_attributes(vec![KeyValue::new("scope_key", "scope_value")])
+        .build();
     let mut span = tracer.start("test_span");
-    span.set_attribute(KeyValue::new("test_key", "test_value"));
+    span.set_attribute(KeyValue::new("test_attribute_key", "test_attribute_value"));
     span.add_event(
         "test_event",
         vec![KeyValue::new("test_event_key", "test_event_value")],
