@@ -25,6 +25,44 @@
   [#2021](https://github.com/open-telemetry/opentelemetry-rust/pull/2021)
 - Provide default implementation for `event_enabled` method in `LogProcessor`
   trait that returns `true` always.
+- **Breaking** [#2035](https://github.com/open-telemetry/opentelemetry-rust/pull/2035)
+  - The Exporter::export() interface is modified as below:
+    Previous Signature:
+    ```rust
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+    ```
+
+    Updated Signature:
+    ```rust
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()>;
+    ```
+    This change simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
+
+  - The LogData structure is NO longer the part of the export interface. So it has been moved from `opentelemetry_sdk::export::logs` to `opentelemetry_sdk::logs` namespace. The custom implementations of `LogProcessor` need to update the imports accordindgly. 
+
+  - The LogData structure has been changed as below:
+    Previous Signature
+    ```rust
+    #[derive(Clone, Debug)]
+    pub struct LogData {
+        /// Log record
+        pub record: LogRecord,
+        /// Instrumentation details for the emitter who produced this `LogEvent`.
+        pub instrumentation: InstrumentationLibrary,
+    ```
+
+    Updated Signature:
+    ```rust
+    #[derive(Clone, Debug)]
+    pub struct LogData<'a> {
+      /// Log record, which can be borrowed or owned.
+      pub record: Cow<'a, LogRecord>,
+      /// Instrumentation details for the emitter who produced this `LogEvent`.
+      pub instrumentation: Cow<'a, InstrumentationLibrary>,
+    }
+    ```
+    The custom implementation of `LogProcessor` need to accordingly modify the handling of LogData 
+    received through LogProcessor::emit() interface. 
 
 ## v0.24.1
 
