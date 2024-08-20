@@ -6,7 +6,7 @@
     ~9.0 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~2.2 M /sec // Needs to be updated.
+    ~12.0 M /sec
 */
 
 use lazy_static::lazy_static;
