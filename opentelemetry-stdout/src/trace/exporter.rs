@@ -48,7 +48,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
                 }
 
                 self.resource.iter().for_each(|(k, v)| {
-                    println!("\t {}={:?}", k, v);
+                    println!("\t ->  {}={:?}", k, v);
                 });
 
                 print_spans(batch);
@@ -81,10 +81,10 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
         let mut print_header = true;
         for kv in &span.instrumentation_lib.attributes {
             if print_header {
-                println!("\t\t Scope Attributes:");
+                println!("\t\t  Scope Attributes:");
                 print_header = false;
             }
-            println!("\t\t\t {}: {:?}", kv.key, kv.value);
+            println!("\t\t\t ->  {}: {:?}", kv.key, kv.value);
         }
         println!();
         println!("\t Name: {:?}", &span.name);
@@ -106,13 +106,9 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
         for kv in span.attributes.iter() {
             if print_header {
                 println!("\t Attributes:");
-                println!(
-                    "\t Dropped attributes count: {:?}",
-                    span.dropped_attributes_count
-                );
                 print_header = false;
             }
-            println!("\t\t {}: {:?}", kv.key, kv.value);
+            println!("\t\t ->  {}: {:?}", kv.key, kv.value);
         }
 
         print_header = true;
@@ -133,7 +129,7 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
                     println!("\t\t Attributes:");
                     print_header_event_attributes = false;
                 }
-                println!("\t\t\t {}: {:?}", kv.key, kv.value);
+                println!("\t\t\t ->  {}: {:?}", kv.key, kv.value);
             }
         }
 
@@ -152,7 +148,7 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
                     println!("\t\t Attributes:");
                     print_header_link_attributes = false;
                 }
-                println!("\t\t\t {}: {:?}", kv.key, kv.value);
+                println!("\t\t\t ->  {}: {:?}", kv.key, kv.value);
             }
         }
     }

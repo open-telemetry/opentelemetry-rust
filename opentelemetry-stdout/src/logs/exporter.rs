@@ -45,7 +45,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                 }
 
                 self.resource.iter().for_each(|(k, v)| {
-                    println!("\t {}={:?}", k, v);
+                    println!("\t ->  {}={:?}", k, v);
                 });
 
                 print_logs(batch);
@@ -100,7 +100,7 @@ fn print_logs(batch: Vec<Cow<'_, LogData>>) {
 
         println!("\t Attributes:");
         for (k, v) in log.record.attributes_iter() {
-            println!("\t\t {}: {:?}", k, v);
+            println!("\t\t ->  {}: {:?}", k, v);
         }
     }
 }
