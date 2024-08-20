@@ -550,9 +550,9 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export<'a>(
+        async fn export(
             &mut self,
-            _batch: Vec<(&'a LogRecord, &'a InstrumentationLibrary)>,
+            _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
         ) -> LogResult<()> {
             Ok(())
         }

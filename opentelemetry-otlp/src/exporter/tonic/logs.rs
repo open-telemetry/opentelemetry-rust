@@ -57,10 +57,7 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export<'a>(
-        &mut self,
-        batch: Vec<(&'a LogRecord, &'a InstrumentationLibrary)>,
-    ) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = inner

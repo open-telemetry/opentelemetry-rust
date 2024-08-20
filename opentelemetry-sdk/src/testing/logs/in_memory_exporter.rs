@@ -185,10 +185,7 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export<'a>(
-        &mut self,
-        batch: Vec<(&'a LogRecord, &'a InstrumentationLibrary)>,
-    ) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for (log_record, instrumentation) in batch.into_iter() {
             let owned_log = OwnedLogData {

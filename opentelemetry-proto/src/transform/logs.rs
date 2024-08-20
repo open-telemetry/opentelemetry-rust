@@ -176,10 +176,10 @@ pub mod tonic {
         }
     }
 
-    pub fn group_logs_by_resource_and_scope<'a>(
+    pub fn group_logs_by_resource_and_scope(
         logs: Vec<(
-            &'a opentelemetry_sdk::logs::LogRecord,
-            &'a opentelemetry::InstrumentationLibrary,
+            &opentelemetry_sdk::logs::LogRecord,
+            &opentelemetry::InstrumentationLibrary,
         )>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
@@ -189,8 +189,8 @@ pub mod tonic {
             |mut scope_map: HashMap<
                 Cow<'static, str>,
                 Vec<(
-                    &'a opentelemetry_sdk::logs::LogRecord,
-                    &'a opentelemetry::InstrumentationLibrary,
+                    &opentelemetry_sdk::logs::LogRecord,
+                    &opentelemetry::InstrumentationLibrary,
                 )>,
             >,
              (log_record, instrumentation)| {
