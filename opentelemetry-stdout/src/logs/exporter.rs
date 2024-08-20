@@ -64,11 +64,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-fn print_logs<'a>(batch: Vec<Cow<'a, LogData>>) {
-    let mut i = 0;
-    for log in batch {
+fn print_logs(batch: Vec<Cow<'_, LogData>>) {
+    for (i, log) in batch.into_iter().enumerate() {
         println!("Log #{}", i);
-        i = i + 1;
         if let Some(event_name) = &log.record.event_name {
             println!("\t EventName: {:?}", event_name);
         }

@@ -108,16 +108,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "logs")]
     emit_log();
 
-    println!(
-        "======================================================================================"
-    );
-
     #[cfg(feature = "trace")]
     emit_span();
 
-    println!(
-        "======================================================================================"
-    );
 
     #[cfg(feature = "metrics")]
     emit_metrics();

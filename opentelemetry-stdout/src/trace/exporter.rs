@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::{Status, TraceError, TraceResult};
+use opentelemetry::trace::TraceError;
 use opentelemetry_sdk::export::{self, trace::ExportResult};
 use std::sync::atomic;
 
@@ -34,9 +34,9 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            return Box::pin(futures_util::future::ready(Err(TraceError::from(
+            Box::pin(futures_util::future::ready(Err(TraceError::from(
                 "exporter is shut down",
-            ))));
+            ))))
         } else {
             if self.resource_emitted {
                 print_spans(batch);
@@ -68,10 +68,8 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
 }
 
 fn print_spans(batch: Vec<export::trace::SpanData>) {
-    let mut i = 0;
-    for span in batch {
+    for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{}", i);
-        i = i + 1;
         println!("\t Instrumentation Scope");
         println!("\t\t Name: {:?}", &span.instrumentation_lib.name);
         if let Some(version) = &span.instrumentation_lib.version {
@@ -88,7 +86,7 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
             }
             println!("\t\t\t {}: {:?}", kv.key, kv.value);
         }
-        println!("");
+        println!();
         println!("\t Name: {:?}", &span.name);
         println!("\t TraceId: {:?}", &span.span_context.trace_id());
         println!("\t SpanId: {:?}", &span.span_context.span_id());
