@@ -328,9 +328,9 @@ impl OtlpHttpClient {
     }
 
     #[cfg(feature = "logs")]
-    fn build_logs_export_body<'a>(
+    fn build_logs_export_body(
         &self,
-        logs: Vec<(&'a LogRecord, &'a InstrumentationLibrary)>,
+        logs: Vec<(&LogRecord, &InstrumentationLibrary)>,
     ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
