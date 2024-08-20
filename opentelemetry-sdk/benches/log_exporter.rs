@@ -18,8 +18,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
 
+use opentelemetry::InstrumentationLibrary;
 use opentelemetry_sdk::export::logs::LogData;
 use opentelemetry_sdk::logs::LogProcessor;
+use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
@@ -28,11 +30,11 @@ use std::fmt::Debug;
 // cargo bench --bench log_exporter
 #[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export<'a>(&mut self, batch: Vec<LogData<'a>>);
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>);
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
-    fn export<'a>(&mut self, batch: Vec<LogData<'a>>);
+    fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>);
 }
 
 #[derive(Debug)]
@@ -40,13 +42,13 @@ struct NoOpExporterWithFuture {}
 
 #[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
-    async fn export<'a>(&mut self, _batch: Vec<LogData<'a>>) {}
+    async fn export(&mut self, _batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {}
 }
 
 #[derive(Debug)]
 struct NoOpExporterWithoutFuture {}
 impl LogExporterWithoutFuture for NoOpExporterWithoutFuture {
-    fn export(&mut self, _batch: Vec<LogData>) {}
+    fn export(&mut self, _batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {}
 }
 
 #[derive(Debug)]
@@ -65,7 +67,9 @@ impl ExportingProcessorWithFuture {
 impl LogProcessor for ExportingProcessorWithFuture {
     fn emit(&self, data: &mut LogData) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        futures_executor::block_on(exporter.export(vec![data.clone()]));
+        futures_executor::block_on(
+            exporter.export(vec![(data.record.as_ref(), data.instrumentation.as_ref())]),
+        );
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -95,7 +99,7 @@ impl LogProcessor for ExportingProcessorWithoutFuture {
         self.exporter
             .lock()
             .expect("lock error")
-            .export(vec![data.clone()]);
+            .export(vec![(data.record.as_ref(), data.instrumentation.as_ref())]);
     }
 
     fn force_flush(&self) -> LogResult<()> {

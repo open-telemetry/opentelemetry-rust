@@ -34,7 +34,13 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export<'a>(
+        &mut self,
+        _: Vec<(
+            &'a opentelemetry_sdk::logs::LogRecord,
+            &'a opentelemetry::InstrumentationLibrary,
+        )>,
+    ) -> LogResult<()> {
         LogResult::Ok(())
     }
 

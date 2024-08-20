@@ -1,4 +1,4 @@
-use crate::export::logs::{LogData, LogExporter};
+use crate::export::logs::LogExporter;
 use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
@@ -185,12 +185,15 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData<'a>>>) -> LogResult<()> {
+    async fn export<'a>(
+        &mut self,
+        batch: Vec<(&'a LogRecord, &'a InstrumentationLibrary)>,
+    ) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
-        for log in batch.into_iter() {
+        for (log_record, instrumentation) in batch.into_iter() {
             let owned_log = OwnedLogData {
-                record: log.record.clone().into_owned(),
-                instrumentation: log.instrumentation.clone().into_owned(),
+                record: log_record.clone(),
+                instrumentation: instrumentation.clone(),
             };
             logs_guard.push(owned_log);
         }
