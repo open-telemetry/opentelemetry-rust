@@ -18,7 +18,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
 
-use opentelemetry_sdk::export::logs::LogData;
+use opentelemetry_sdk::logs::LogData;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LoggerProvider;
 use pprof::criterion::{Output, PProfProfiler};

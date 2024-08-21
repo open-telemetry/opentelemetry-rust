@@ -1,5 +1,6 @@
 use crate::{
-    export::logs::{ExportResult, LogData, LogExporter},
+    export::logs::{ExportResult, LogExporter},
+    logs::LogData,
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -104,7 +105,9 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![Cow::Borrowed(data)]))
+                futures_executor::block_on(
+                    exporter.export(vec![(&data.record, &data.instrumentation)]),
+                )
             });
         if let Err(err) = result {
             global::handle_error(err);
@@ -309,8 +312,13 @@ where
     if batch.is_empty() {
         return Ok(());
     }
+    // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
+    let export_batch = batch
+        .iter()
+        .map(|log_data| (&log_data.record, &log_data.instrumentation))
+        .collect();
 
-    let export = exporter.export(batch);
+    let export = exporter.export(export_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -506,15 +514,17 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
+    use crate::export::logs::LogExporter;
+    use crate::logs::LogRecord;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
-        export::logs::{LogData, LogExporter},
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogData, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
@@ -523,9 +533,9 @@ mod tests {
     use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    use std::borrow::Cow;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -536,7 +546,10 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export<'a>(&mut self, _batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+        async fn export(
+            &mut self,
+            _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+        ) -> LogResult<()> {
             Ok(())
         }
 
