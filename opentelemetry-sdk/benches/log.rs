@@ -26,7 +26,7 @@ use opentelemetry::logs::{
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::Key;
-use opentelemetry_sdk::export::logs::LogData;
+use opentelemetry_sdk::logs::LogData;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
