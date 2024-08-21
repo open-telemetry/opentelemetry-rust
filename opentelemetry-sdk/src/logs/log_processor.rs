@@ -1,5 +1,6 @@
 use crate::{
-    export::logs::{ExportResult, LogData, LogExporter},
+    export::logs::{ExportResult, LogExporter},
+    logs::LogData,
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -513,16 +514,17 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
+    use crate::export::logs::LogExporter;
     use crate::logs::LogRecord;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
-        export::logs::{LogData, LogExporter},
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogData, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,

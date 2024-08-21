@@ -27,14 +27,5 @@ pub trait LogExporter: Send + Sync + Debug {
     fn set_resource(&mut self, _resource: &Resource) {}
 }
 
-/// `LogData` represents a single log event without resource context.
-#[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
-}
-
 /// Describes the result of an export.
 pub type ExportResult = Result<(), LogError>;
