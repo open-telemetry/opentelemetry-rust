@@ -16,13 +16,19 @@ pub struct LogData {
 
 impl
     From<(
-        Vec<opentelemetry_sdk::export::logs::LogData>,
+        Vec<(
+            &opentelemetry_sdk::logs::LogRecord,
+            &opentelemetry::InstrumentationLibrary,
+        )>,
         &opentelemetry_sdk::Resource,
     )> for LogData
 {
     fn from(
         (sdk_logs, sdk_resource): (
-            Vec<opentelemetry_sdk::export::logs::LogData>,
+            Vec<(
+                &opentelemetry_sdk::logs::LogRecord,
+                &opentelemetry::InstrumentationLibrary,
+            )>,
             &opentelemetry_sdk::Resource,
         ),
     ) -> Self {
@@ -30,8 +36,8 @@ impl
 
         for sdk_log in sdk_logs {
             let resource_schema_url = sdk_resource.schema_url().map(|s| s.to_string().into());
-            let schema_url = sdk_log.instrumentation.schema_url.clone();
-            let scope: Scope = sdk_log.instrumentation.clone().into();
+            let schema_url = sdk_log.1.schema_url.clone();
+            let scope: Scope = sdk_log.1.clone().into();
             let resource: Resource = sdk_resource.into();
 
             let rl = resource_logs
@@ -43,10 +49,10 @@ impl
                 });
 
             match rl.scope_logs.iter_mut().find(|sl| sl.scope == scope) {
-                Some(sl) => sl.log_records.push(sdk_log.into()),
+                Some(sl) => sl.log_records.push(sdk_log.0.into()),
                 None => rl.scope_logs.push(ScopeLogs {
                     scope,
-                    log_records: vec![sdk_log.into()],
+                    log_records: vec![sdk_log.0.into()],
                     schema_url,
                 }),
             }
@@ -104,18 +110,17 @@ struct LogRecord {
     trace_id: Option<String>,
 }
 
-impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
-    fn from(value: opentelemetry_sdk::export::logs::LogData) -> Self {
+impl From<&opentelemetry_sdk::logs::LogRecord> for LogRecord {
+    fn from(record: &opentelemetry_sdk::logs::LogRecord) -> Self {
         LogRecord {
             attributes: {
-                let attributes = value
-                    .record
+                let attributes = record
                     .attributes_iter()
                     .map(|(k, v)| KeyValue::from((k.clone(), v.clone()))) // Map each pair to a KeyValue
                     .collect::<Vec<KeyValue>>(); // Collect into a Vec<KeyValue>s
 
                 #[cfg(feature = "populate-logs-event-name")]
-                if let Some(event_name) = value.record.event_name {
+                if let Some(event_name) = record.event_name {
                     let mut attributes_with_name = attributes;
                     attributes_with_name.push(KeyValue::from((
                         "name".into(),
@@ -129,33 +134,24 @@ impl From<opentelemetry_sdk::export::logs::LogData> for LogRecord {
                 #[cfg(not(feature = "populate-logs-event-name"))]
                 attributes
             },
-            trace_id: value
-                .record
+            trace_id: record
                 .trace_context
                 .as_ref()
                 .map(|c| c.trace_id.to_string()),
-            span_id: value
-                .record
+            span_id: record.trace_context.as_ref().map(|c| c.span_id.to_string()),
+            flags: record
                 .trace_context
                 .as_ref()
-                .map(|c| c.span_id.to_string()),
-            flags: value
-                .record
-                .trace_context
                 .map(|c| c.trace_flags.map(|f| f.to_u8()))
                 .unwrap_or_default(),
-            time_unix_nano: value.record.timestamp,
-            time: value.record.timestamp,
-            observed_time_unix_nano: value.record.observed_timestamp.unwrap(),
-            observed_time: value.record.observed_timestamp.unwrap(),
-            severity_number: value
-                .record
-                .severity_number
-                .map(|u| u as u32)
-                .unwrap_or_default(),
+            time_unix_nano: record.timestamp,
+            time: record.timestamp,
+            observed_time_unix_nano: record.observed_timestamp.unwrap(),
+            observed_time: record.observed_timestamp.unwrap(),
+            severity_number: record.severity_number.map(|u| u as u32).unwrap_or_default(),
             dropped_attributes_count: 0,
-            severity_text: value.record.severity_text,
-            body: value.record.body.map(|a| a.into()),
+            severity_text: record.severity_text,
+            body: record.body.clone().map(|a| a.into()),
         }
     }
 }
