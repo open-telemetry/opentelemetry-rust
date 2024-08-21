@@ -377,9 +377,9 @@ impl MetricReader for PeriodicReader {
 
         drop(inner); // don't hold lock when blocking on future
 
-        futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))
-            .and_then(|res| res)
+        crate::util::spawn_future(receiver);
+
+        Ok(())
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -395,14 +395,22 @@ impl MetricReader for PeriodicReader {
             .map_err(|e| MetricsError::Other(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
-        let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))?;
+        let inner = self.inner.clone();
+        crate::util::spawn_future(async move {
+            match receiver
+                .await
+                .map_err(|err| MetricsError::Other(err.to_string()))
+            {
+                // Acquire the lock again to set the shutdown flag
+                Ok(Ok(())) => match inner.lock() {
+                    Ok(mut inner) => inner.is_shutdown = true,
+                    Err(_poisoned) => {}
+                },
+                Err(err) | Ok(Err(err)) => global::handle_error(err),
+            }
+        });
 
-        // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
-        inner.is_shutdown = true;
-
-        shutdown_result
+        Ok(())
     }
 }
 
