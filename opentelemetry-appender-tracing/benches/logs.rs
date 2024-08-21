@@ -17,9 +17,10 @@ use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LogResult;
 use opentelemetry::{InstrumentationLibrary, KeyValue};
+use opentelemetry::{InstrumentationLibrary, KeyValue};
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::LogExporter;
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::logs::{LogData, LogProcessor, LogRecord, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
@@ -34,6 +35,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
+    async fn export(&mut self, _: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
     async fn export(&mut self, _: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
         LogResult::Ok(())
     }

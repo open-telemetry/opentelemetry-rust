@@ -1,6 +1,6 @@
 use crate::{
     export::logs::{ExportResult, LogExporter},
-    logs::LogRecord,
+    logs::LogData,
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -106,7 +106,9 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![(record, instrumentation)]))
+                futures_executor::block_on(
+                    exporter.export(vec![(&data.record, &data.instrumentation)]),
+                )
             });
         if let Err(err) = result {
             global::handle_error(err);
@@ -313,12 +315,12 @@ where
         return Ok(());
     }
     // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
-    // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
     let export_batch = batch
         .iter()
-        .map(|log_data| (&log_data.0, &log_data.1))
+        .map(|log_data| (&log_data.record, &log_data.instrumentation))
         .collect();
 
+    let export = exporter.export(export_batch);
     let export = exporter.export(export_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
@@ -517,6 +519,8 @@ mod tests {
     };
     use crate::export::logs::LogExporter;
     use crate::logs::LogRecord;
+    use crate::export::logs::LogExporter;
+    use crate::logs::LogRecord;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         logs::{
@@ -524,7 +528,8 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogData, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,
@@ -533,6 +538,7 @@ mod tests {
     use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::InstrumentationLibrary;
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
@@ -546,6 +552,10 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
+        async fn export(
+            &mut self,
+            _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+        ) -> LogResult<()> {
         async fn export(
             &mut self,
             _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
