@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 ///     cx.span().add_event("handling this...", Vec::new());
 ///     cx.span().end();
 ///
-///     let results = provider.force_flush();
+///     let results = provider.force_flush().await;
 ///     for result in results {
 ///         if let Err(e) = result {
 ///             println!("{:?}", e)

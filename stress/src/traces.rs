@@ -32,20 +32,21 @@ lazy_static! {
 #[derive(Debug)]
 pub struct NoOpSpanProcessor;
 
+#[async_trait::async_trait]
 impl SpanProcessor for NoOpSpanProcessor {
     fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {
         // No-op
     }
 
-    fn on_end(&self, _span: SpanData) {
+    async fn on_end(&self, _span: SpanData) {
         // No-op
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    async fn force_flush(&self) -> TraceResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    async fn shutdown(&self) -> TraceResult<()> {
         Ok(())
     }
 }

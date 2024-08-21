@@ -39,6 +39,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 temp-env = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }

@@ -64,7 +64,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                             let spans = get_span_data();
                             handles.push(tokio::spawn(async move {
                                 for span in spans {
-                                    span_processor.on_end(span);
+                                    span_processor.on_end(span).await;
                                     tokio::task::yield_now().await;
                                 }
                             }));
@@ -73,7 +73,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                         let _ =
                             Arc::<BatchSpanProcessor<Tokio>>::get_mut(&mut shared_span_processor)
                                 .unwrap()
-                                .shutdown();
+                                .shutdown()
+                                .await;
                     });
                 })
             },

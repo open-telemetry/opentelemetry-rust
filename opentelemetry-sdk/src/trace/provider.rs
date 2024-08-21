@@ -14,6 +14,7 @@ use crate::trace::{
 };
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
+use futures_util::StreamExt;
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{global, trace::TraceResult};
@@ -49,11 +50,14 @@ pub(crate) struct TracerProviderInner {
 
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+        let processors = std::mem::take(&mut self.processors);
+        crate::util::spawn_future(async move {
+            for processor in processors {
+                if let Err(err) = processor.shutdown().await {
+                    global::handle_error(err);
+                }
             }
-        }
+        })
     }
 }
 
@@ -121,13 +125,14 @@ impl TracerProvider {
     ///     provider
     /// }
     ///
-    /// fn main() {
+    /// #[tokio::main]
+    /// async fn main() {
     ///     let provider = init_tracing();
     ///
     ///     // create spans..
     ///
     ///     // force all spans to flush
-    ///     for result in provider.force_flush() {
+    ///     for result in provider.force_flush().await {
     ///         if let Err(err) = result {
     ///             // .. handle flush error
     ///         }
@@ -141,17 +146,17 @@ impl TracerProvider {
     ///     global::shutdown_tracer_provider();
     /// }
     /// ```
-    pub fn force_flush(&self) -> Vec<TraceResult<()>> {
-        self.span_processors()
-            .iter()
-            .map(|processor| processor.force_flush())
+    pub async fn force_flush(&self) -> Vec<TraceResult<()>> {
+        futures_util::stream::iter(self.span_processors())
+            .then(|processor| processor.force_flush())
             .collect()
+            .await
     }
 
     /// Shuts down the current `TracerProvider`.
     ///
     /// Note that shut down doesn't means the TracerProvider has dropped
-    pub fn shutdown(&self) -> TraceResult<()> {
+    pub async fn shutdown(&self) -> TraceResult<()> {
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -161,7 +166,7 @@ impl TracerProvider {
             // it's up to the processor to properly block new spans after shutdown
             let mut errs = vec![];
             for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
+                if let Err(err) = processor.shutdown().await {
                     errs.push(err);
                 }
             }
@@ -348,6 +353,7 @@ mod tests {
         }
     }
 
+    #[async_trait::async_trait]
     impl SpanProcessor for TestSpanProcessor {
         fn on_start(&self, _span: &mut Span, _cx: &Context) {
             self.assert_info
@@ -356,11 +362,11 @@ mod tests {
                 .fetch_add(1, Ordering::SeqCst);
         }
 
-        fn on_end(&self, _span: SpanData) {
+        async fn on_end(&self, _span: SpanData) {
             // ignore
         }
 
-        fn force_flush(&self) -> TraceResult<()> {
+        async fn force_flush(&self) -> TraceResult<()> {
             if self.success {
                 Ok(())
             } else {
@@ -368,7 +374,7 @@ mod tests {
             }
         }
 
-        fn shutdown(&self) -> TraceResult<()> {
+        async fn shutdown(&self) -> TraceResult<()> {
             if self.assert_info.0.is_shutdown.load(Ordering::SeqCst) {
                 Ok(())
             } else {
@@ -378,13 +384,13 @@ mod tests {
                     Ordering::SeqCst,
                     Ordering::SeqCst,
                 );
-                self.force_flush()
+                self.force_flush().await
             }
         }
     }
 
-    #[test]
-    fn test_force_flush() {
+    #[tokio::test]
+    async fn test_force_flush() {
         let tracer_provider = super::TracerProvider::new(TracerProviderInner {
             processors: vec![
                 Box::from(TestSpanProcessor::new(true)),
@@ -393,7 +399,7 @@ mod tests {
             config: Default::default(),
         });
 
-        let results = tracer_provider.force_flush();
+        let results = tracer_provider.force_flush().await;
         assert_eq!(results.len(), 2);
     }
 
@@ -527,8 +533,8 @@ mod tests {
         assert_eq!(no_service_name.config().resource.len(), 0)
     }
 
-    #[test]
-    fn test_shutdown_noops() {
+    #[tokio::test]
+    async fn test_shutdown_noops() {
         let processor = TestSpanProcessor::new(false);
         let assert_handle = processor.assert_info();
         let tracer_provider = super::TracerProvider::new(TracerProviderInner {
@@ -545,12 +551,12 @@ mod tests {
 
         assert!(assert_handle.started_span_count(2));
 
-        let shutdown = |tracer_provider: super::TracerProvider| {
-            let _ = tracer_provider.shutdown(); // shutdown once
+        let shutdown = |tracer_provider: super::TracerProvider| async move {
+            let _ = tracer_provider.shutdown().await; // shutdown once
         };
 
         // assert tracer provider can be shutdown using on a cloned version
-        shutdown(tracer_provider.clone());
+        shutdown(tracer_provider.clone()).await;
 
         // after shutdown we should get noop tracer
         let noop_tracer = tracer_provider.tracer("noop");

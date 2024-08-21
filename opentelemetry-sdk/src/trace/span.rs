@@ -14,6 +14,8 @@ use opentelemetry::KeyValue;
 use std::borrow::Cow;
 use std::time::SystemTime;
 
+use super::TracerProvider;
+
 /// Single operation within a trace.
 #[derive(Debug)]
 pub struct Span {
@@ -192,24 +194,45 @@ impl opentelemetry::trace::Span for Span {
 
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
-        self.ensure_ended_and_exported(Some(timestamp));
+        if let Some(fut) = self.ensure_ended_and_exported(Some(timestamp)) {
+            crate::util::spawn_future(fut)
+        }
     }
 }
 
 impl Span {
-    fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
+    fn ensure_ended_and_exported(
+        &mut self,
+        timestamp: Option<SystemTime>,
+    ) -> Option<impl std::future::Future<Output = ()>> {
         // skip if data has already been exported
-        let mut data = match self.data.take() {
+        let data = match self.data.take() {
             Some(data) => data,
-            None => return,
+            None => return None,
         };
 
         let provider = self.tracer.provider();
         // skip if provider has been shut down
         if provider.is_shutdown() {
-            return;
+            return None;
         }
 
+        Some(Self::ensure_ended_and_exported_impl(
+            data,
+            provider.clone(),
+            self.tracer.clone(),
+            self.span_context.clone(),
+            timestamp,
+        ))
+    }
+
+    async fn ensure_ended_and_exported_impl(
+        mut data: SpanData,
+        provider: TracerProvider,
+        tracer: crate::trace::Tracer,
+        span_context: SpanContext,
+        timestamp: Option<SystemTime>,
+    ) {
         // ensure end time is set via explicit end or implicitly on drop
         if let Some(timestamp) = timestamp {
             data.end_time = timestamp;
@@ -220,19 +243,19 @@ impl Span {
         match provider.span_processors() {
             [] => {}
             [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
+                processor
+                    .on_end(build_export_data(data, span_context, &tracer))
+                    .await;
             }
             processors => {
                 for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
+                    processor
+                        .on_end(build_export_data(
+                            data.clone(),
+                            span_context.clone(),
+                            &tracer,
+                        ))
+                        .await;
                 }
             }
         }
@@ -242,7 +265,9 @@ impl Span {
 impl Drop for Span {
     /// Report span on inner drop
     fn drop(&mut self) {
-        self.ensure_ended_and_exported(None);
+        if let Some(fut) = self.ensure_ended_and_exported(None) {
+            crate::util::spawn_future(fut)
+        }
     }
 }
 
@@ -705,8 +730,8 @@ mod tests {
         assert_eq!(event_vec.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
     }
 
-    #[test]
-    fn test_span_exported_data() {
+    #[tokio::test]
+    async fn test_span_exported_data() {
         let provider = crate::trace::TracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
             .build();
@@ -719,7 +744,7 @@ mod tests {
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());
 
-        provider.shutdown().expect("shutdown panicked");
+        provider.shutdown().await.expect("shutdown panicked");
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
