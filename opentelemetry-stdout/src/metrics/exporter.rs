@@ -163,7 +163,7 @@ fn print_histogram<T: std::fmt::Debug + DataPointValue>(histogram: &data::Histog
     print_hist_data_points(&histogram.data_points);
 }
 
-fn print_data_points<T: std::fmt::Debug + DataPointValue>(data_points: &[data::DataPoint<T>] {
+fn print_data_points<T: std::fmt::Debug + DataPointValue>(data_points: &[data::DataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
