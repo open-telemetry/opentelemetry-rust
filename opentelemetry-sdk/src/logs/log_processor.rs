@@ -320,7 +320,6 @@ where
         .collect();
 
     let export = exporter.export(export_batch);
-    let export = exporter.export(export_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -518,8 +517,6 @@ mod tests {
     };
     use crate::export::logs::LogExporter;
     use crate::logs::LogRecord;
-    use crate::export::logs::LogExporter;
-    use crate::logs::LogRecord;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
         logs::{
@@ -537,7 +534,6 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::InstrumentationLibrary;
-    use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::sync::{Arc, Mutex};
@@ -550,10 +546,6 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(
-            &mut self,
-            _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
-        ) -> LogResult<()> {
         async fn export(
             &mut self,
             _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
