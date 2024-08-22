@@ -55,7 +55,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogData) {
+    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
         // no-op
     }
 
