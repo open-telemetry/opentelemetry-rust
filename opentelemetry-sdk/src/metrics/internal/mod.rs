@@ -2,6 +2,7 @@ mod aggregate;
 mod exponential_histogram;
 mod histogram;
 mod last_value;
+mod precomputed_sum;
 mod sum;
 
 use core::fmt;

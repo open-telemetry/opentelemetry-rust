@@ -3,13 +3,15 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::logs::{LogError, LogResult};
-use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry::InstrumentationLibrary;
+use opentelemetry_sdk::export::logs::LogExporter;
+use opentelemetry_sdk::logs::LogRecord;
 
 use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export<'a>(&mut self, batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
         let client = self
             .client
             .lock()
@@ -19,13 +21,7 @@ impl LogExporter for OtlpHttpClient {
                 _ => Err(LogError::Other("exporter is already shut down".into())),
             })?;
 
-        //TODO: avoid cloning here.
-        let owned_batch = batch
-            .into_iter()
-            .map(|cow_log_data| cow_log_data.into_owned()) // Converts Cow to owned LogData
-            .collect::<Vec<LogData>>();
-
-        let (body, content_type) = { self.build_logs_export_body(owned_batch)? };
+        let (body, content_type) = { self.build_logs_export_body(batch)? };
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
