@@ -1,17 +1,13 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
+use std::sync::atomic;
 use opentelemetry::InstrumentationLibrary;
 use opentelemetry::{
-    logs::{LogError, LogResult},
-    ExportError,
+    logs::LogResult,
 };
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::Resource;
-use std::io::{stdout, Write};
-
-type Encoder =
-    Box<dyn Fn(&mut dyn Write, crate::logs::transform::LogData) -> LogResult<()> + Send + Sync>;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
@@ -40,10 +36,10 @@ impl fmt::Debug for LogExporter {
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
-        if let Some(writer) = &mut self.writer {
-            let result = (self.encoder)(writer, (batch, &self.resource).into()) as LogResult<()>;
-            result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
+        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+            return Err("exporter is shut down".into());
         } else {
+            println!("Logs");
             if self.resource_emitted {
                 print_logs(batch);
             } else {

@@ -11,11 +11,9 @@ use opentelemetry_sdk::{
         },
         Aggregation, InstrumentKind,
     },
-    Resource,
 };
 use std::{
-    io::{stdout, Write},
-    sync::{atomic, Mutex},
+    sync::{atomic,},
 };
 
 /// An OpenTelemetry exporter that writes to stdout on export.
@@ -89,7 +87,7 @@ impl PushMetricsExporter for MetricsExporter {
 
 fn print_metrics(metrics: &Vec<ScopeMetrics>) {
     for (i, metric) in metrics.into_iter().enumerate() {
-        println!("\tInstrumentation Scope");
+        println!("\tInstrumentation Scope #{}", i);
         println!("\t\tName         : {}", &metric.scope.name);
         if let Some(version) = &metric.scope.version {
             println!("\t\tVersion  : {:?}", version);
@@ -122,10 +120,10 @@ fn print_metrics(metrics: &Vec<ScopeMetrics>) {
             } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
                 println!("\t\tType         : Histogram");
                 print_histogram(hist);
-            } else if let Some(hist) = data.downcast_ref::<data::ExponentialHistogram<i64>>() {
+            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<i64>>() {
                 println!("\t\tType         : Exponential Histogram");
                 // TODO
-            } else if let Some(hist) = data.downcast_ref::<data::ExponentialHistogram<f64>>() {
+            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<f64>>() {
                 println!("\t\tType         : Exponential Histogram");
                 // TODO
             } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
