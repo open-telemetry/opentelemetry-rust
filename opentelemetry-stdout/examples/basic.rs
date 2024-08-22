@@ -64,28 +64,92 @@ fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
 
 #[cfg(feature = "trace")]
 fn emit_span() {
-    use opentelemetry::trace::TracerProvider;
+    use opentelemetry::trace::{
+        SpanContext, SpanId, TraceFlags, TraceId, TraceState, TracerProvider,
+    };
 
     let tracer = global::tracer_provider()
         .tracer_builder("stdout-example")
-        .with_version("v1.")
+        .with_version("v1")
         .with_schema_url("schema_url")
         .with_attributes(vec![KeyValue::new("scope_key", "scope_value")])
         .build();
-    let mut span = tracer.start("test_span");
-    span.set_attribute(KeyValue::new("test_attribute_key", "test_attribute_value"));
+    let mut span = tracer.start("example-span");
+    span.set_attribute(KeyValue::new("attribute_key1", "attribute_value1"));
+    span.set_attribute(KeyValue::new("attribute_key2", "attribute_value2"));
     span.add_event(
-        "test_event",
-        vec![KeyValue::new("test_event_key", "test_event_value")],
+        "example-event-name",
+        vec![KeyValue::new("event_attribute1", "event_value1")],
+    );
+    span.add_link(
+        SpanContext::new(
+            TraceId::from_hex("58406520a006649127e371903a2de979").expect("invalid"),
+            SpanId::from_hex("b6d7d7f6d7d6d7f6").expect("invalid"),
+            TraceFlags::default(),
+            false,
+            TraceState::NONE,
+        ),
+        vec![
+            KeyValue::new("link_attribute1", "link_value1"),
+            KeyValue::new("link_attribute2", "link_value2"),
+        ],
+    );
+
+    span.add_link(
+        SpanContext::new(
+            TraceId::from_hex("23401120a001249127e371903f2de971").expect("invalid"),
+            SpanId::from_hex("cd37d765d743d7f6").expect("invalid"),
+            TraceFlags::default(),
+            false,
+            TraceState::NONE,
+        ),
+        vec![
+            KeyValue::new("link_attribute1", "link_value1"),
+            KeyValue::new("link_attribute2", "link_value2"),
+        ],
     );
     span.end();
 }
 
 #[cfg(feature = "metrics")]
 fn emit_metrics() {
-    let meter = global::meter("stdout-test");
-    let c = meter.u64_counter("test_counter").init();
-    c.add(1, &[KeyValue::new("test_key", "test_value")]);
+    let meter = global::meter("stdout-example");
+    let c = meter.u64_counter("example_counter").init();
+    c.add(
+        1,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "green"),
+        ],
+    );
+    c.add(
+        1,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "green"),
+        ],
+    );
+    c.add(
+        2,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "red"),
+        ],
+    );
+    c.add(
+        1,
+        &[
+            KeyValue::new("name", "banana"),
+            KeyValue::new("color", "yellow"),
+        ],
+    );
+    c.add(
+        11,
+        &[
+            KeyValue::new("name", "banana"),
+            KeyValue::new("color", "yellow"),
+        ],
+    );
 }
 
 #[cfg(feature = "logs")]

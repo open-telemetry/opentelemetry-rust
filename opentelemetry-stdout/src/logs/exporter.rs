@@ -35,13 +35,14 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             return Err("exporter is shut down".into());
         } else {
+            println!("Logs");
             if self.resource_emitted {
                 print_logs(batch);
             } else {
                 self.resource_emitted = true;
                 println!("Resource");
                 if self.resource.schema_url().is_some() {
-                    println!("\t Resource SchemaUrl: {:?}", self.resource.schema_url());
+                    println!("\tResource SchemaUrl: {:?}", self.resource.schema_url());
                 }
 
                 self.resource.iter().for_each(|(k, v)| {
@@ -68,37 +69,40 @@ fn print_logs(batch: Vec<Cow<'_, LogData>>) {
     for (i, log) in batch.into_iter().enumerate() {
         println!("Log #{}", i);
         if let Some(event_name) = &log.record.event_name {
-            println!("\t EventName: {:?}", event_name);
+            println!("\tEventName     : {}", event_name);
         }
         if let Some(target) = &log.record.target {
-            println!("\t Target (Scope): {:?}", target);
+            println!("\tTarget (Scope): {}", target);
         }
         if let Some(trace_context) = &log.record.trace_context {
-            println!("\t TraceId: {:?}", trace_context.trace_id);
-            println!("\t SpanId: {:?}", trace_context.span_id);
+            println!("\tTraceId       : {}", trace_context.trace_id);
+            println!("\tSpanId        : {}", trace_context.span_id);
         }
         if let Some(timestamp) = &log.record.timestamp {
             let datetime: DateTime<Utc> = (*timestamp).into();
-            println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+            println!(
+                "\tTimestamp     : {}",
+                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+            );
         }
         if let Some(timestamp) = &log.record.observed_timestamp {
             let datetime: DateTime<Utc> = (*timestamp).into();
             println!(
-                "\t Observed Timestamp: {}",
+                "\tObserved Timestamp : {}",
                 datetime.format("%Y-%m-%d %H:%M:%S%.6f")
             );
         }
         if let Some(severity) = &log.record.severity_text {
-            println!("\t SeverityText: {:?}", severity);
+            println!("\tSeverityText  : {:?}", severity);
         }
         if let Some(severity) = &log.record.severity_number {
-            println!("\t SeverityNumber: {:?}", severity);
+            println!("\tSeverityNumber: {:?}", severity);
         }
         if let Some(body) = &log.record.body {
-            println!("\t Body: {:?}", body);
+            println!("\tBody          : {:?}", body);
         }
 
-        println!("\t Attributes:");
+        println!("\tAttributes:");
         for (k, v) in log.record.attributes_iter() {
             println!("\t\t ->  {}: {:?}", k, v);
         }
