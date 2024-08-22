@@ -1,13 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
-use std::sync::atomic;
+use opentelemetry::logs::LogResult;
 use opentelemetry::InstrumentationLibrary;
-use opentelemetry::{
-    logs::LogResult,
-};
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::Resource;
+use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {

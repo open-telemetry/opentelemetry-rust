@@ -1,20 +1,16 @@
 use async_trait::async_trait;
 use core::{f64, fmt};
 use opentelemetry::metrics::{MetricsError, Result};
-use opentelemetry_sdk::{
-    metrics::{
-        data::{self, ScopeMetrics},
-        exporter::PushMetricsExporter,
-        reader::{
-            AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
-            TemporalitySelector,
-        },
-        Aggregation, InstrumentKind,
+use opentelemetry_sdk::metrics::{
+    data::{self, ScopeMetrics},
+    exporter::PushMetricsExporter,
+    reader::{
+        AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
+        TemporalitySelector,
     },
+    Aggregation, InstrumentKind,
 };
-use std::{
-    sync::{atomic,},
-};
+use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricsExporter {
