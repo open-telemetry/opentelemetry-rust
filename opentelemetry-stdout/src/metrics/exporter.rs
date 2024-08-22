@@ -82,7 +82,7 @@ impl PushMetricsExporter for MetricsExporter {
 }
 
 fn print_metrics(metrics: &Vec<ScopeMetrics>) {
-    for (i, metric) in metrics.into_iter().enumerate() {
+    for (i, metric) in metrics.iter().enumerate() {
         println!("\tInstrumentation Scope #{}", i);
         println!("\t\tName         : {}", &metric.scope.name);
         if let Some(version) = &metric.scope.version {
