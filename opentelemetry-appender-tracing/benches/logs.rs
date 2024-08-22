@@ -19,7 +19,7 @@ use opentelemetry::logs::LogResult;
 use opentelemetry::{InstrumentationLibrary, KeyValue};
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::LogExporter;
-use opentelemetry_sdk::logs::{LogData, LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;

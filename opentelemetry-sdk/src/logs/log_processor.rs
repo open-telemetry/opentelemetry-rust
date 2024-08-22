@@ -106,7 +106,7 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![(record, &instrumentation)]))
+                futures_executor::block_on(exporter.export(vec![(record, instrumentation)]))
             });
         if let Err(err) = result {
             global::handle_error(err);
