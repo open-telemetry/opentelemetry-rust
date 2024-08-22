@@ -1,6 +1,6 @@
 use crate::{
     export::logs::{ExportResult, LogExporter},
-    logs::LogData,
+    logs::LogRecord,
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -106,9 +106,7 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                futures_executor::block_on(
-                    exporter.export(vec![(&data.record, &data.instrumentation)]),
-                )
+                futures_executor::block_on(exporter.export(vec![(record, instrumentation)]))
             });
         if let Err(err) = result {
             global::handle_error(err);
@@ -315,9 +313,10 @@ where
         return Ok(());
     }
     // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
+    // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
     let export_batch = batch
         .iter()
-        .map(|log_data| (&log_data.record, &log_data.instrumentation))
+        .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
 
     let export = exporter.export(export_batch);
@@ -528,8 +527,7 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogData, LogProcessor, LoggerProvider,
-            SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
         runtime,
         testing::logs::InMemoryLogsExporter,

@@ -1,5 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, logs::LogData, runtime::RuntimeChannel, Resource};
+use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},

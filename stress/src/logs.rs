@@ -21,7 +21,12 @@ mod throughput;
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: &mut opentelemetry_sdk::logs::LogData) {}
+    fn emit(
+        &self,
+        _record: &mut opentelemetry_sdk::logs::LogRecord,
+        _library: &InstrumentationLibrary,
+    ) {
+    }
 
     fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
