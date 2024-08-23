@@ -2,8 +2,11 @@
 
 ## vNext
 
-- **Breaking** [1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994) The logrecord event-name is added as attribute with
-key `name` only if the feature flag `populate-logs-event-name` is enabled.
+- **Breaking**
+[1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994) The
+logrecord event-name is added as an attribute only if the feature flag
+`populate-logs-event-name` is enabled. The name of the attribute is changed from
+"name" to "event.name".
 
 ## v0.17.0
 
