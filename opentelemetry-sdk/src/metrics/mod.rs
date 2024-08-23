@@ -72,7 +72,7 @@ use opentelemetry::{Key, KeyValue, Value};
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct AttributeSet(Vec<KeyValue>, u64);
+pub(crate) struct AttributeSet(Vec<KeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
@@ -109,34 +109,13 @@ impl AttributeSet {
         AttributeSet(values, hash)
     }
 
-    /// Returns `true` if the set contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Retains only the attributes specified by the predicate.
-    pub fn retain<F>(&mut self, f: F)
-    where
-        F: Fn(&KeyValue) -> bool,
-    {
-        self.0.retain(|kv| f(kv));
-
-        // Recalculate the hash as elements are changed.
-        self.1 = calculate_hash(&self.0);
-    }
-
     /// Iterate over key value pairs in the set
-    pub fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 
-    /// Returns a slice of the key value pairs in the set
-    pub fn as_slice(&self) -> &[KeyValue] {
-        &self.0
-    }
-
     /// Returns the underlying Vec of KeyValue pairs
-    pub fn into_vec(self) -> Vec<KeyValue> {
+    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
         self.0
     }
 }
