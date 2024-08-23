@@ -10,7 +10,11 @@ use std::{borrow::Cow, time::SystemTime};
 // up to 5 attributes is the most common case.
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 
-/// A vector of `Option<(Key, AnyValue)>` with default capacity.
+/// Represents a collection of log record attributes with a predefined capacity.
+///
+/// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
+/// The initial attributes are allocated in a fixed-size array of capacity `PREALLOCATED_ATTRIBUTE_CAPACITY`.
+/// If more attributes are added beyond this capacity, additional storage is handled by dynamically growing a vector.
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
