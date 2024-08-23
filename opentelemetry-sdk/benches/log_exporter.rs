@@ -13,9 +13,9 @@
 use std::sync::Mutex;
 use std::time::SystemTime;
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
+use futures_util::future::BoxFuture;
 use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
 
 use opentelemetry::InstrumentationLibrary;
@@ -27,9 +27,11 @@ use std::fmt::Debug;
 
 // Run this benchmark with:
 // cargo bench --bench log_exporter
-#[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>);
+    fn export(
+        &mut self,
+        batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, ()>;
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
@@ -39,9 +41,13 @@ pub trait LogExporterWithoutFuture: Send + Sync + Debug {
 #[derive(Debug)]
 struct NoOpExporterWithFuture {}
 
-#[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
-    async fn export(&mut self, _batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {}
+    fn export(
+        &mut self,
+        _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, ()> {
+        Box::pin(std::future::ready(()))
+    }
 }
 
 #[derive(Debug)]
@@ -63,17 +69,22 @@ impl ExportingProcessorWithFuture {
     }
 }
 
+#[async_trait::async_trait]
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
-        let mut exporter = self.exporter.lock().expect("lock error");
-        futures_executor::block_on(exporter.export(vec![(record, library)]));
+    async fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
+        let export_future = self
+            .exporter
+            .lock()
+            .expect("lock error")
+            .export(vec![(record, library)]);
+        export_future.await;
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }
@@ -91,19 +102,20 @@ impl ExportingProcessorWithoutFuture {
     }
 }
 
+#[async_trait::async_trait]
 impl LogProcessor for ExportingProcessorWithoutFuture {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
+    async fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
         self.exporter
             .lock()
             .expect("lock error")
             .export(vec![(record, library)]);
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }

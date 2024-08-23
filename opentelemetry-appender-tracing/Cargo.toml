@@ -11,6 +11,7 @@ license = "Apache-2.0"
 rust-version = "1.65"
 
 [dependencies]
+futures-util = { workspace = true }
 log = { workspace = true, optional = true }
 opentelemetry = { version = "0.24", path = "../opentelemetry", features = ["logs"] }
 tracing = { workspace = true, features = ["std"]}
@@ -25,6 +26,7 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testin
 tracing-log = "0.2"
 async-trait = { workspace = true }
 criterion = { workspace = true }
+tokio = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }

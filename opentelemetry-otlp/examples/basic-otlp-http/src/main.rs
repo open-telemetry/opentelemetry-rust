@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     global::shutdown_tracer_provider();
-    logger_provider.shutdown()?;
+    logger_provider.shutdown().await?;
     meter_provider.shutdown()?;
 
     Ok(())

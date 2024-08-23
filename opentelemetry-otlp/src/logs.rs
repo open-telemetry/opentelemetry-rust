@@ -9,7 +9,7 @@ use crate::exporter::tonic::TonicExporterBuilder;
 use crate::exporter::http::HttpExporterBuilder;
 
 use crate::{NoExporterConfig, OtlpPipeline};
-use async_trait::async_trait;
+use futures_core::future::BoxFuture;
 use std::fmt::Debug;
 
 use opentelemetry::logs::{LogError, LogResult};
@@ -97,10 +97,12 @@ impl LogExporter {
     }
 }
 
-#[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
-        self.client.export(batch).await
+    fn export(
+        &mut self,
+        batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, LogResult<()>> {
+        Box::pin(self.client.export(batch))
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

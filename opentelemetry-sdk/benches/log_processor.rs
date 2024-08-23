@@ -42,14 +42,15 @@ fn create_log_record(logger: &Logger) -> LogRecord {
 #[derive(Debug)]
 struct NoopProcessor;
 
+#[async_trait::async_trait]
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
+    async fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }
@@ -57,16 +58,17 @@ impl LogProcessor for NoopProcessor {
 #[derive(Debug)]
 struct CloningProcessor;
 
+#[async_trait::async_trait]
 impl LogProcessor for CloningProcessor {
-    fn emit(&self, data: &mut LogRecord, _library: &InstrumentationLibrary) {
+    async fn emit(&self, data: &mut LogRecord, _library: &InstrumentationLibrary) {
         let _data_cloned = data.clone();
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }
@@ -100,19 +102,20 @@ impl SendToChannelProcessor {
     }
 }
 
+#[async_trait::async_trait]
 impl LogProcessor for SendToChannelProcessor {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
+    async fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
         let res = self.sender.send((record.clone(), library.clone()));
         if res.is_err() {
             println!("Error sending log data to channel {0}", res.err().unwrap());
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    async fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    async fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }

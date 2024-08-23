@@ -6,7 +6,8 @@ use opentelemetry_sdk::{logs::LoggerProvider, Resource};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: LoggerProvider = LoggerProvider::builder()
         .with_resource(Resource::new(vec![KeyValue::new(
@@ -19,5 +20,5 @@ fn main() {
     tracing_subscriber::registry().with(layer).init();
 
     error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
-    let _ = provider.shutdown();
+    let _ = provider.shutdown().await;
 }

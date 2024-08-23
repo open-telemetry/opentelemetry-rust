@@ -32,5 +32,5 @@ async fn main() {
     warn!("warn!");
     info!("test log!");
 
-    let _ = logger_provider.shutdown();
+    let _ = logger_provider.shutdown().await;
 }

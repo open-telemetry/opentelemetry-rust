@@ -1,5 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use futures_util::StreamExt;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
@@ -99,15 +100,15 @@ impl LoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> Vec<LogResult<()>> {
-        self.log_processors()
-            .iter()
-            .map(|processor| processor.force_flush())
+    pub async fn force_flush(&self) -> Vec<LogResult<()>> {
+        futures_util::stream::iter(self.log_processors())
+            .then(|processor| processor.force_flush())
             .collect()
+            .await
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> LogResult<()> {
+    pub async fn shutdown(&self) -> LogResult<()> {
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -117,7 +118,7 @@ impl LoggerProvider {
             // it's up to the processor to properly block new logs after shutdown
             let mut errs = vec![];
             for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
+                if let Err(err) = processor.shutdown().await {
                     errs.push(err);
                 }
             }
@@ -141,11 +142,14 @@ struct LoggerProviderInner {
 
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+        let processors = std::mem::take(&mut self.processors);
+        crate::util::spawn_future(async move {
+            for processor in processors {
+                if let Err(err) = processor.shutdown().await {
+                    global::handle_error(err);
+                }
             }
-        }
+        })
     }
 }
 
@@ -255,8 +259,6 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        let provider = self.provider();
-        let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
@@ -270,9 +272,13 @@ impl opentelemetry::logs::Logger for Logger {
             record.observed_timestamp = Some(SystemTime::now());
         }
 
-        for p in processors {
-            p.emit(&mut record, self.instrumentation_library());
-        }
+        let provider = self.provider().clone();
+        let instrumentation_library = self.instrumentation_library().clone();
+        crate::util::spawn_future(async move {
+            for p in provider.log_processors() {
+                p.emit(&mut record, &instrumentation_library).await;
+            }
+        })
     }
 
     #[cfg(feature = "logs_level_enabled")]
@@ -327,8 +333,9 @@ mod tests {
         }
     }
 
+    #[async_trait::async_trait]
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        async fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -340,11 +347,11 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        async fn force_flush(&self) -> LogResult<()> {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        async fn shutdown(&self) -> LogResult<()> {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -462,8 +469,8 @@ mod tests {
         assert_eq!(no_service_name.resource().len(), 0);
     }
 
-    #[test]
-    fn shutdown_test() {
+    #[tokio::test]
+    async fn shutdown_test() {
         let counter = Arc::new(AtomicU64::new(0));
         let logger_provider = LoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
@@ -480,33 +487,33 @@ mod tests {
         });
         handle.join().expect("thread panicked");
 
-        let _ = logger_provider.shutdown();
+        let _ = logger_provider.shutdown().await;
         logger1.emit(logger1.create_log_record());
 
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
-    #[test]
-    fn shutdown_idempotent_test() {
+    #[tokio::test]
+    async fn shutdown_idempotent_test() {
         let counter = Arc::new(AtomicU64::new(0));
         let logger_provider = LoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
             .build();
 
-        let shutdown_res = logger_provider.shutdown();
+        let shutdown_res = logger_provider.shutdown().await;
         assert!(shutdown_res.is_ok());
 
         // Subsequent shutdowns should return an error.
-        let shutdown_res = logger_provider.shutdown();
+        let shutdown_res = logger_provider.shutdown().await;
         assert!(shutdown_res.is_err());
 
         // Subsequent shutdowns should return an error.
-        let shutdown_res = logger_provider.shutdown();
+        let shutdown_res = logger_provider.shutdown().await;
         assert!(shutdown_res.is_err());
     }
 
-    #[test]
-    fn global_shutdown_test() {
+    #[tokio::test]
+    async fn global_shutdown_test() {
         // cargo test global_shutdown_test --features=testing
 
         // Arrange
@@ -528,7 +535,7 @@ mod tests {
 
         // explicitly calling shutdown on logger_provider. This will
         // indeed do the shutdown, even if there are loggers still alive.
-        let _ = logger_provider.shutdown();
+        let _ = logger_provider.shutdown().await;
 
         // Assert
 
@@ -557,17 +564,18 @@ mod tests {
         }
     }
 
+    #[async_trait::async_trait]
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        async fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        async fn force_flush(&self) -> LogResult<()> {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        async fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }

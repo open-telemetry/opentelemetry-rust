@@ -79,6 +79,7 @@ const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
 /// is true.
+#[async_trait::async_trait]
 pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_start` is called when a `Span` is started.  This method is called
     /// synchronously on the thread that started the span, therefore it should
@@ -87,14 +88,14 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
-    fn on_end(&self, span: SpanData);
+    async fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self) -> TraceResult<()>;
+    async fn force_flush(&self) -> TraceResult<()>;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
     ///
     /// Implementation should make sure shutdown can be called multiple times.
-    fn shutdown(&self) -> TraceResult<()>;
+    async fn shutdown(&self) -> TraceResult<()>;
     /// Set the resource for the log processor.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
@@ -116,33 +117,37 @@ impl SimpleSpanProcessor {
     }
 }
 
+#[async_trait::async_trait]
 impl SpanProcessor for SimpleSpanProcessor {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
+    async fn on_end(&self, span: SpanData) {
         if !span.span_context.is_sampled() {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| TraceError::Other("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
+        let exporter_future = match self.exporter.lock() {
+            // create future and release lock
+            Ok(mut exporter) => exporter.export(vec![span]),
+            Err(_) => {
+                global::handle_error(TraceError::Other("SimpleSpanProcessor mutex poison".into()));
+                return;
+            }
+        };
 
-        if let Err(err) = result {
-            global::handle_error(err);
+        if let Err(err) = exporter_future.await {
+            global::handle_error(err)
         }
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    async fn force_flush(&self) -> TraceResult<()> {
         // Nothing to flush for simple span processor.
         Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    async fn shutdown(&self) -> TraceResult<()> {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -154,7 +159,7 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn set_resource(&mut self, resource: &Resource) {
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.get_mut() {
             exporter.set_resource(resource);
         }
     }
@@ -232,12 +237,13 @@ impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
     }
 }
 
+#[async_trait::async_trait]
 impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
+    async fn on_end(&self, span: SpanData) {
         if !span.span_context.is_sampled() {
             return;
         }
@@ -249,26 +255,30 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    async fn force_flush(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| TraceError::Other(err.into()))?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
+        res_receiver
+            .await
+            .map_err(|e| TraceError::Other(e.into()))??;
+
+        Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    async fn shutdown(&self) -> TraceResult<()> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| TraceError::Other(err.into()))?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
+        res_receiver
+            .await
+            .map_err(|e| TraceError::Other(e.into()))??;
+
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -714,18 +724,18 @@ mod tests {
     use std::future::Future;
     use std::time::Duration;
 
-    #[test]
-    fn simple_span_processor_on_end_calls_export() {
+    #[tokio::test]
+    async fn simple_span_processor_on_end_calls_export() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(span_data.clone()).await;
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
 
-    #[test]
-    fn simple_span_processor_on_end_skips_export_if_not_sampled() {
+    #[tokio::test]
+    async fn simple_span_processor_on_end_skips_export_if_not_sampled() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let unsampled = SpanData {
@@ -742,18 +752,18 @@ mod tests {
             status: Status::Unset,
             instrumentation_lib: Default::default(),
         };
-        processor.on_end(unsampled);
+        processor.on_end(unsampled).await;
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
-    #[test]
-    fn simple_span_processor_shutdown_calls_shutdown() {
+    #[tokio::test]
+    async fn simple_span_processor_shutdown_calls_shutdown() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(span_data.clone()).await;
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
-        let _result = processor.shutdown();
+        let _result = processor.shutdown().await;
         // Assume shutdown is called by ensuring spans are empty in the exporter
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
@@ -916,8 +926,8 @@ mod tests {
             }
         });
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
+        processor.on_end(new_test_export_span_data()).await;
+        let flush_res = processor.force_flush().await;
         assert!(flush_res.is_ok());
         let _shutdown_result = processor.shutdown();
 
@@ -1006,14 +1016,14 @@ mod tests {
             delay_fn: async_std::task::sleep,
         };
         let processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::AsyncStd);
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
+        processor.on_end(new_test_export_span_data()).await;
+        let flush_res = processor.force_flush().await;
         if time_out {
             assert!(flush_res.is_err());
         } else {
             assert!(flush_res.is_ok());
         }
-        let shutdown_res = processor.shutdown();
+        let shutdown_res = processor.shutdown().await;
         assert!(shutdown_res.is_ok());
     }
 
@@ -1032,14 +1042,14 @@ mod tests {
         let processor =
             BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
+        processor.on_end(new_test_export_span_data()).await;
+        let flush_res = processor.force_flush().await;
         if time_out {
             assert!(flush_res.is_err());
         } else {
             assert!(flush_res.is_ok());
         }
-        let shutdown_res = processor.shutdown();
+        let shutdown_res = processor.shutdown().await;
         assert!(shutdown_res.is_ok());
     }
 }

@@ -2,6 +2,7 @@ use crate::export::logs::LogExporter;
 use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
+use futures_util::future::BoxFuture;
 use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry::InstrumentationLibrary;
 use std::borrow::Cow;
@@ -184,16 +185,25 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
-        let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
-        for (log_record, instrumentation) in batch.into_iter() {
-            let owned_log = OwnedLogData {
-                record: log_record.clone(),
-                instrumentation: instrumentation.clone(),
+    fn export(
+        &mut self,
+        batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+    ) -> BoxFuture<'static, LogResult<()>> {
+        let result = 'result: {
+            let mut logs_guard = match self.logs.lock().map_err(LogError::from) {
+                Ok(logs_guard) => logs_guard,
+                Err(e) => break 'result Err(e),
             };
-            logs_guard.push(owned_log);
-        }
-        Ok(())
+            for (log_record, instrumentation) in batch.into_iter() {
+                let owned_log = OwnedLogData {
+                    record: log_record.clone(),
+                    instrumentation: instrumentation.clone(),
+                };
+                logs_guard.push(owned_log);
+            }
+            Ok(())
+        };
+        Box::pin(std::future::ready(result))
     }
 
     fn shutdown(&mut self) {

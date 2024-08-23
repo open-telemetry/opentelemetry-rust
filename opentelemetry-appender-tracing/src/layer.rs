@@ -230,8 +230,8 @@ mod tests {
     }
 
     // cargo test --features=testing
-    #[test]
-    fn tracing_appender_standalone() {
+    #[tokio::test]
+    async fn tracing_appender_standalone() {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
@@ -247,7 +247,7 @@ mod tests {
 
         // Act
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-        logger_provider.force_flush();
+        logger_provider.force_flush().await;
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -311,8 +311,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn tracing_appender_inside_tracing_context() {
+    #[tokio::test]
+    async fn tracing_appender_inside_tracing_context() {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
@@ -342,7 +342,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        logger_provider.force_flush().await;
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -423,8 +423,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn tracing_appender_standalone_with_tracing_log() {
+    #[tokio::test]
+    async fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
@@ -441,7 +441,7 @@ mod tests {
 
         // Act
         log::error!("log from log crate");
-        logger_provider.force_flush();
+        logger_provider.force_flush().await;
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -489,8 +489,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn tracing_appender_inside_tracing_context_with_tracing_log() {
+    #[tokio::test]
+    async fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
         let logger_provider = LoggerProvider::builder()
@@ -521,7 +521,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        logger_provider.force_flush().await;
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
