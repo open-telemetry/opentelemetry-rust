@@ -12,7 +12,7 @@ RAM: 64.0 GB
 |--------------------------------|-------------|
 | Logger_Creation                |  30 ns      |
 | LoggerProvider_Creation        | 909 ns      |
-| Logging_Comparable_To_Appender | 135 ns      |
+| Logging_Comparable_To_Appender | 97 ns       |
 */
 
 use std::collections::HashMap;
