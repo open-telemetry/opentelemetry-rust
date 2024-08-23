@@ -531,7 +531,8 @@ mod tests {
         Resource,
     };
     use async_trait::async_trait;
-    use opentelemetry::logs::{AnyValue, LogRecord};
+    use opentelemetry::logs::AnyValue;
+    use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
@@ -822,7 +823,7 @@ mod tests {
     impl LogProcessor for FirstProcessor {
         fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
             // add attribute
-            data.record.add_attribute(
+            record.add_attribute(
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
             );
@@ -850,7 +851,7 @@ mod tests {
     }
 
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, _instrumentation: &InstrumentationLibrary) {
+        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
