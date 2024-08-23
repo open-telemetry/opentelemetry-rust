@@ -532,6 +532,7 @@ mod tests {
     };
     use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
+    use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
@@ -822,10 +823,10 @@ mod tests {
     impl LogProcessor for FirstProcessor {
         fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
             // add attribute
-            record.attributes.get_or_insert(vec![]).push((
+            record.add_attribute(
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
-            ));
+            );
             // update body
             record.body = Some("Updated by FirstProcessor".into());
 
@@ -851,12 +852,10 @@ mod tests {
 
     impl LogProcessor for SecondProcessor {
         fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
-            assert!(record.attributes.as_ref().map_or(false, |attrs| {
-                attrs.iter().any(|(key, value)| {
-                    key.as_str() == "processed_by"
-                        && value == &AnyValue::String("FirstProcessor".into())
-                })
-            }));
+            assert!(record.attributes_contains(
+                &Key::from_static_str("processed_by"),
+                &AnyValue::String("FirstProcessor".into())
+            ));
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
@@ -904,19 +903,15 @@ mod tests {
         let first_log = &first_processor_logs.lock().unwrap()[0];
         let second_log = &second_processor_logs.lock().unwrap()[0];
 
-        assert!(first_log.0.attributes.iter().any(|attrs| {
-            attrs.iter().any(|(key, value)| {
-                key.as_str() == "processed_by"
-                    && value == &AnyValue::String("FirstProcessor".into())
-            })
-        }));
+        assert!(first_log.0.attributes_contains(
+            &Key::from_static_str("processed_by"),
+            &AnyValue::String("FirstProcessor".into())
+        ));
+        assert!(second_log.0.attributes_contains(
+            &Key::from_static_str("processed_by"),
+            &AnyValue::String("FirstProcessor".into())
+        ));
 
-        assert!(second_log.0.attributes.iter().any(|attrs| {
-            attrs.iter().any(|(key, value)| {
-                key.as_str() == "processed_by"
-                    && value == &AnyValue::String("FirstProcessor".into())
-            })
-        }));
         assert!(
             first_log.0.body.clone().unwrap()
                 == AnyValue::String("Updated by FirstProcessor".into())

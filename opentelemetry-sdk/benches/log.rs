@@ -12,7 +12,7 @@ RAM: 64.0 GB
 |--------------------------------|-------------|
 | Logger_Creation                |  30 ns      |
 | LoggerProvider_Creation        | 909 ns      |
-| Logging_Comparable_To_Appender | 96 ns      |
+| Logging_Comparable_To_Appender | 87 ns       |
 */
 
 use std::collections::HashMap;
@@ -26,9 +26,7 @@ use opentelemetry::logs::{
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::{InstrumentationLibrary, Key};
-use opentelemetry_sdk::logs::LogProcessor;
-use opentelemetry_sdk::logs::LogRecord;
-use opentelemetry_sdk::logs::{Logger, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
