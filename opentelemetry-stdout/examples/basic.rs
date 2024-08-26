@@ -72,7 +72,7 @@ fn emit_span() {
         .tracer_builder("stdout-example")
         .with_version("v1")
         .with_schema_url("schema_url")
-        .with_attributes(vec![KeyValue::new("scope_key", "scope_value")])
+        .with_attributes([KeyValue::new("scope_key", "scope_value")])
         .build();
     let mut span = tracer.start("example-span");
     span.set_attribute(KeyValue::new("attribute_key1", "attribute_value1"));

@@ -43,10 +43,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
             } else {
                 self.resource_emitted = true;
                 println!("Resource");
-                if self.resource.schema_url().is_some() {
-                    println!("\t Resource SchemaUrl: {:?}", self.resource.schema_url());
+                if let Some(schema_url) = self.resource.schema_url() {
+                    println!("\t Resource SchemaUrl: {:?}", schema_url);
                 }
-
                 self.resource.iter().for_each(|(k, v)| {
                     println!("\t ->  {}={:?}", k, v);
                 });

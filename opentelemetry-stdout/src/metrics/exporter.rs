@@ -10,6 +10,7 @@ use opentelemetry_sdk::metrics::{
     },
     Aggregation, InstrumentKind,
 };
+use std::fmt::Debug;
 use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
@@ -110,7 +111,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
             println!("\t\tUnit         : {}", &metric.unit);
 
             let data = metric.data.as_any();
-            if let Some(hist) = data.downcast_ref::<data::Histogram<i64>>() {
+            if let Some(hist) = data.downcast_ref::<data::Histogram<u64>>() {
                 println!("\t\tType         : Histogram");
                 print_histogram(hist);
             } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
@@ -147,23 +148,23 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
     }
 }
 
-fn print_sum<T: std::fmt::Debug + DataPointValue>(sum: &data::Sum<T>) {
+fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic);
     print_data_points(&sum.data_points);
 }
 
-fn print_gauge<T: std::fmt::Debug + DataPointValue>(gauge: &data::Gauge<T>) {
+fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
     println!("\t\tGauge DataPoints");
     print_data_points(&gauge.data_points);
 }
 
-fn print_histogram<T: std::fmt::Debug + DataPointValue>(histogram: &data::Histogram<T>) {
+fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
     println!("\t\tHistogram DataPoints");
     print_hist_data_points(&histogram.data_points);
 }
 
-fn print_data_points<T: std::fmt::Debug + DataPointValue>(data_points: &[data::DataPoint<T>]) {
+fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
@@ -174,9 +175,7 @@ fn print_data_points<T: std::fmt::Debug + DataPointValue>(data_points: &[data::D
     }
 }
 
-fn print_hist_data_points<T: std::fmt::Debug + DataPointValue>(
-    data_points: &[data::HistogramDataPoint<T>],
-) {
+fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count);
@@ -195,11 +194,6 @@ fn print_hist_data_points<T: std::fmt::Debug + DataPointValue>(
         }
     }
 }
-
-trait DataPointValue {}
-impl DataPointValue for u64 {}
-impl DataPointValue for i64 {}
-impl DataPointValue for f64 {}
 
 /// Configuration for the stdout metrics exporter
 #[derive(Default)]

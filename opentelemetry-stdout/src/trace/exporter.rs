@@ -34,7 +34,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Box::pin(futures_util::future::ready(Err(TraceError::from(
+            Box::pin(std::future::ready(Err(TraceError::from(
                 "exporter is shut down",
             ))))
         } else {
