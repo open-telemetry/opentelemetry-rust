@@ -1,1 +1,0 @@
-cargo +nightly build -Z build-std --release --target mipsel-unknown-linux-musl
