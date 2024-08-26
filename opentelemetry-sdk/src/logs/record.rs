@@ -8,15 +8,27 @@ use std::{borrow::Cow, time::SystemTime};
 
 // According to a Go-specific study mentioned on https://go.dev/blog/slog,
 // up to 5 attributes is the most common case.
+#[cfg(not(feature = "no-preallocate-attributes-array"))]
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
+#[cfg(feature = "no-preallocate-attributes-array")]
+const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 0;
+#[cfg(feature = "no-preallocate-attributes-array")]
+const OVERFLOW_ATTRIBUTE_CAPACITY: usize = 5;
 
 /// Represents a collection of log record attributes with a predefined capacity.
 ///
 /// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
 /// The initial attributes are allocated in a fixed-size array of capacity `PREALLOCATED_ATTRIBUTE_CAPACITY`.
 /// If more attributes are added beyond this capacity, additional storage is handled by dynamically growing a vector.
+#[cfg(not(feature = "no-preallocate-attributes-array"))]
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
+#[cfg(feature = "no-preallocate-attributes-array")]
+pub(crate) type LogRecordAttributes = GrowableArray<
+    Option<(Key, AnyValue)>,
+    PREALLOCATED_ATTRIBUTE_CAPACITY,
+    OVERFLOW_ATTRIBUTE_CAPACITY,
+>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
