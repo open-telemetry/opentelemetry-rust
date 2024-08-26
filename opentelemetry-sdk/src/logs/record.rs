@@ -23,6 +23,8 @@ const OVERFLOW_ATTRIBUTE_CAPACITY: usize = 5;
 #[cfg(not(feature = "no-preallocate-attributes-array"))]
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
+/// When the `no-preallocate-attributes-array` feature flag is enabled, we don't use array allocation.
+/// Instead, the vector part of `GrowableArray` is used, and OVERFLOW_ATTRIBUTE_CAPACITY allocation occurs when the first entry is added.
 #[cfg(feature = "no-preallocate-attributes-array")]
 pub(crate) type LogRecordAttributes = GrowableArray<
     Option<(Key, AnyValue)>,
