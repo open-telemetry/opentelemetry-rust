@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{
@@ -117,7 +118,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
             } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
                 println!("\t\tType         : Histogram");
                 print_histogram(hist);
-            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<i64>>() {
+            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<u64>>() {
                 println!("\t\tType         : Exponential Histogram");
                 // TODO
             } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<f64>>() {
@@ -151,6 +152,11 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
 fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic);
+    if sum.temporality == data::Temporality::Cumulative {
+        println!("\t\tTemporality  : Cumulative");
+    } else {
+        println!("\t\tTemporality  : Delta");
+    }
     print_data_points(&sum.data_points);
 }
 
@@ -160,6 +166,11 @@ fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
 }
 
 fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
+    if histogram.temporality == data::Temporality::Cumulative {
+        println!("\t\tTemporality  : Cumulative");
+    } else {
+        println!("\t\tTemporality  : Delta");
+    }
     println!("\t\tHistogram DataPoints");
     print_hist_data_points(&histogram.data_points);
 }
@@ -167,6 +178,20 @@ fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
 fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
+        if let Some(start_time) = data_point.start_time {
+            let datetime: DateTime<Utc> = start_time.into();
+            println!(
+                "\t\t\tStartTime    : {}",
+                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+            );
+        }
+        if let Some(end_time) = data_point.time {
+            let datetime: DateTime<Utc> = end_time.into();
+            println!(
+                "\t\t\tEndTime      : {}",
+                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+            );
+        }
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes.iter() {
@@ -178,6 +203,16 @@ fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
 fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
+        let datetime: DateTime<Utc> = data_point.start_time.into();
+        println!(
+            "\t\t\tStartTime    : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
+        let datetime: DateTime<Utc> = data_point.time.into();
+        println!(
+            "\t\t\tEndTime      : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
         println!("\t\t\tCount        : {}", data_point.count);
         println!("\t\t\tSum          : {:?}", data_point.sum);
         if let Some(min) = &data_point.min {

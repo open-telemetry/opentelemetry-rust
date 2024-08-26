@@ -150,6 +150,43 @@ fn emit_metrics() {
             KeyValue::new("color", "yellow"),
         ],
     );
+
+    let h = meter.f64_histogram("example_histogram").init();
+    h.record(
+        1.0,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "green"),
+        ],
+    );
+    h.record(
+        1.0,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "green"),
+        ],
+    );
+    h.record(
+        2.0,
+        &[
+            KeyValue::new("name", "apple"),
+            KeyValue::new("color", "red"),
+        ],
+    );
+    h.record(
+        1.0,
+        &[
+            KeyValue::new("name", "banana"),
+            KeyValue::new("color", "yellow"),
+        ],
+    );
+    h.record(
+        11.0,
+        &[
+            KeyValue::new("name", "banana"),
+            KeyValue::new("color", "yellow"),
+        ],
+    );
 }
 
 #[cfg(feature = "logs")]
