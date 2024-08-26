@@ -168,7 +168,7 @@ pub const ASPNETCORE_ROUTING_MATCH_ATTEMPTS: &str = "aspnetcore.routing.match_at
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CONTAINER_CPU_STATE`] | `Opt in`
+/// | [`crate::attribute::CPU_MODE`] | `Opt in`
 pub const CONTAINER_CPU_TIME: &str = "container.cpu.time";
 /// ## Description
 /// Disk bytes for the container.
@@ -227,8 +227,8 @@ pub const CONTAINER_NETWORK_IO: &str = "container.network.io";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_STATE`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_STATE`] | `Required`
 pub const DB_CLIENT_CONNECTION_COUNT: &str = "db.client.connection.count";
 /// ## Description
 /// The time it took to create a new connection.
@@ -242,7 +242,7 @@ pub const DB_CLIENT_CONNECTION_COUNT: &str = "db.client.connection.count";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_CREATE_TIME: &str = "db.client.connection.create_time";
 /// ## Description
 /// The maximum number of idle open connections allowed.
@@ -256,7 +256,7 @@ pub const DB_CLIENT_CONNECTION_CREATE_TIME: &str = "db.client.connection.create_
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_IDLE_MAX: &str = "db.client.connection.idle.max";
 /// ## Description
 /// The minimum number of idle open connections allowed.
@@ -270,7 +270,7 @@ pub const DB_CLIENT_CONNECTION_IDLE_MAX: &str = "db.client.connection.idle.max";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_IDLE_MIN: &str = "db.client.connection.idle.min";
 /// ## Description
 /// The maximum number of open connections allowed.
@@ -284,7 +284,7 @@ pub const DB_CLIENT_CONNECTION_IDLE_MIN: &str = "db.client.connection.idle.min";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_MAX: &str = "db.client.connection.max";
 /// ## Description
 /// The number of pending requests for an open connection, cumulative for the entire pool.
@@ -298,7 +298,7 @@ pub const DB_CLIENT_CONNECTION_MAX: &str = "db.client.connection.max";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_PENDING_REQUESTS: &str = "db.client.connection.pending_requests";
 /// ## Description
 /// The number of connection timeouts that have occurred trying to obtain a connection from the pool.
@@ -312,7 +312,7 @@ pub const DB_CLIENT_CONNECTION_PENDING_REQUESTS: &str = "db.client.connection.pe
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_TIMEOUTS: &str = "db.client.connection.timeouts";
 /// ## Description
 /// The time between borrowing a connection and returning it to the pool.
@@ -326,7 +326,7 @@ pub const DB_CLIENT_CONNECTION_TIMEOUTS: &str = "db.client.connection.timeouts";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_USE_TIME: &str = "db.client.connection.use_time";
 /// ## Description
 /// The time it took to obtain an open connection from the pool.
@@ -340,7 +340,7 @@ pub const DB_CLIENT_CONNECTION_USE_TIME: &str = "db.client.connection.use_time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+/// | [`crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME`] | `Required`
 pub const DB_CLIENT_CONNECTION_WAIT_TIME: &str = "db.client.connection.wait_time";
 /// ## Description
 /// Deprecated, use `db.client.connection.create_time` instead. Note: the unit also changed from `ms` to `s`.
@@ -355,6 +355,7 @@ pub const DB_CLIENT_CONNECTION_WAIT_TIME: &str = "db.client.connection.wait_time
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.create_time";
 /// ## Description
 /// Deprecated, use `db.client.connection.idle.max` instead.
@@ -369,6 +370,7 @@ pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.creat
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max";
 /// ## Description
 /// Deprecated, use `db.client.connection.idle.min` instead.
@@ -383,6 +385,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min";
 /// ## Description
 /// Deprecated, use `db.client.connection.max` instead.
@@ -397,6 +400,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 /// ## Description
 /// Deprecated, use `db.client.connection.pending_requests` instead.
@@ -411,6 +415,7 @@ pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.pending_requests";
 /// ## Description
 /// Deprecated, use `db.client.connection.timeouts` instead.
@@ -425,6 +430,7 @@ pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts";
 /// ## Description
 /// Deprecated, use `db.client.connection.count` instead.
@@ -440,6 +446,7 @@ pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_STATE`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 /// ## Description
 /// Deprecated, use `db.client.connection.use_time` instead. Note: the unit also changed from `ms` to `s`.
@@ -454,6 +461,7 @@ pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time";
 /// ## Description
 /// Deprecated, use `db.client.connection.wait_time` instead. Note: the unit also changed from `ms` to `s`.
@@ -468,9 +476,12 @@ pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
+#[deprecated]
 pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_time";
 /// ## Description
 /// Duration of database client operations.
+///
+/// Batch operations SHOULD be recorded as a single operation.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -482,9 +493,9 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_SYSTEM`] | `Required`
-/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally required`: If readily available. Otherwise, if the instrumentation library parses `db.query.text` to capture `db.collection.name`, then it SHOULD be the first collection name found in the query.
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally required`: If readily available. The collection name MAY be parsed from the query text, in which case it SHOULD be the first collection name in the query.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally required`: If readily available. Otherwise, if the instrumentation library parses `db.query.text` to capture `db.operation.name`, then it SHOULD be the first operation name found in the query.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally required`: If readily available. The operation name MAY be parsed from the query text, in which case it SHOULD be the first operation name found in the query.
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the operation failed.
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Recommended`: If applicable for this database system.
@@ -632,6 +643,208 @@ pub const FAAS_NET_IO: &str = "faas.net_io";
 /// |:-|:- |
 /// | [`crate::attribute::FAAS_TRIGGER`] | `Unspecified`
 pub const FAAS_TIMEOUTS: &str = "faas.timeouts";
+/// ## Description
+/// GenAI operation duration.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: if the operation ended in an error
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If `server.address` is set.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.duration";
+/// ## Description
+/// Measures number of input and output tokens used.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `{token}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_TOKEN_TYPE`] | `Required`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If `server.address` is set.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
+/// ## Description
+/// Generative AI server request duration such as time-to-last byte or last output token.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: if the operation ended in an error
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If `server.address` is set.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration";
+/// ## Description
+/// Time per output token generated after the first token for successful responses.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If `server.address` is set.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_output_token";
+/// ## Description
+/// Time to generate first token for successful responses.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally required`: If `server.address` is set.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+pub const GEN_AI_SERVER_TIME_TO_FIRST_TOKEN: &str = "gen_ai.server.time_to_first_token";
+/// ## Description
+/// Heap size target percentage configured by the user, otherwise 100.
+///
+/// The value range is \[0.0,100.0\]. Computed from `/gc/gogc:percent`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `%` |
+/// | Status: | `Experimental`  |
+pub const GO_CONFIG_GOGC: &str = "go.config.gogc";
+/// ## Description
+/// Count of live goroutines.
+///
+/// Computed from `/sched/goroutines:goroutines`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{goroutine}` |
+/// | Status: | `Experimental`  |
+pub const GO_GOROUTINE_COUNT: &str = "go.goroutine.count";
+/// ## Description
+/// Memory allocated to the heap by the application.
+///
+/// Computed from `/gc/heap/allocs:bytes`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+pub const GO_MEMORY_ALLOCATED: &str = "go.memory.allocated";
+/// ## Description
+/// Count of allocations to the heap by the application.
+///
+/// Computed from `/gc/heap/allocs:objects`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{allocation}` |
+/// | Status: | `Experimental`  |
+pub const GO_MEMORY_ALLOCATIONS: &str = "go.memory.allocations";
+/// ## Description
+/// Heap size target for the end of the GC cycle.
+///
+/// Computed from `/gc/heap/goal:bytes`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+pub const GO_MEMORY_GC_GOAL: &str = "go.memory.gc.goal";
+/// ## Description
+/// Go runtime memory limit configured by the user, if a limit exists.
+///
+/// Computed from `/gc/gomemlimit:bytes`. This metric is excluded if the limit obtained from the Go runtime is math.MaxInt64.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+pub const GO_MEMORY_LIMIT: &str = "go.memory.limit";
+/// ## Description
+/// Memory used by the Go runtime.
+///
+/// Computed from `(/memory/classes/total:bytes - /memory/classes/heap/released:bytes)`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GO_MEMORY_TYPE`] | `Recommended`
+pub const GO_MEMORY_USED: &str = "go.memory.used";
+/// ## Description
+/// The number of OS threads that can execute user-level Go code simultaneously.
+///
+/// Computed from `/sched/gomaxprocs:threads`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{thread}` |
+/// | Status: | `Experimental`  |
+pub const GO_PROCESSOR_LIMIT: &str = "go.processor.limit";
+/// ## Description
+/// The time goroutines have spent in the scheduler in a runnable state before actually running.
+///
+/// Computed from `/sched/latencies:seconds`. Bucket boundaries are provided by the runtime, and are subject to change.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const GO_SCHEDULE_DURATION: &str = "go.schedule.duration";
 /// ## Description
 /// Number of active HTTP requests.
 /// ## Metadata
@@ -872,6 +1085,21 @@ pub const JVM_BUFFER_COUNT: &str = "jvm.buffer.count";
 /// | [`crate::attribute::JVM_BUFFER_POOL_NAME`] | `Recommended`
 pub const JVM_BUFFER_MEMORY_LIMIT: &str = "jvm.buffer.memory.limit";
 /// ## Description
+/// Deprecated, use `jvm.buffer.memory.used` instead.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::JVM_BUFFER_POOL_NAME`] | `Recommended`
+#[deprecated]
+pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
+/// ## Description
 /// Measure of memory used by buffers.
 /// ## Metadata
 /// | | |
@@ -884,7 +1112,7 @@ pub const JVM_BUFFER_MEMORY_LIMIT: &str = "jvm.buffer.memory.limit";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::JVM_BUFFER_POOL_NAME`] | `Recommended`
-pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
+pub const JVM_BUFFER_MEMORY_USED: &str = "jvm.buffer.memory.used";
 /// ## Description
 /// Number of classes currently loaded.
 /// ## Metadata
@@ -1232,7 +1460,35 @@ pub const KESTREL_TLS_HANDSHAKE_DURATION: &str = "kestrel.tls_handshake.duration
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
 pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
 /// ## Description
-/// Measures the duration of process operation.
+/// Number of messages that were delivered to the application.
+///
+/// Records the number of messages pulled from the broker or number of messages dispatched to the application in push-based scenarios.
+/// The metric SHOULD be reported once per message delivery. For example, if receiving and processing operations are both instrumented for a single message delivery, this counter is incremented when the message is received and not reported when it is processed.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{message}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
+/// | [`crate::attribute::MESSAGING_CONSUMER_GROUP_NAME`] | `Conditionally required`: if applicable.
+/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
+/// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `Conditionally required`: if applicable.
+/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
+/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
+/// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+pub const MESSAGING_CLIENT_CONSUMED_MESSAGES: &str = "messaging.client.consumed.messages";
+/// ## Description
+/// Duration of messaging operation initiated by a producer or consumer client.
+///
+/// This metric SHOULD NOT be used to report processing duration - processing duration is reported in `messaging.process.duration` metric.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1243,16 +1499,68 @@ pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
+/// | [`crate::attribute::MESSAGING_CONSUMER_GROUP_NAME`] | `Conditionally required`: if applicable.
+/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
+/// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `Conditionally required`: if applicable.
+/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
+/// | [`crate::attribute::MESSAGING_OPERATION_TYPE`] | `Conditionally required`: If applicable.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
+/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
+/// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operation.duration";
+/// ## Description
+/// Number of messages producer attempted to publish to the broker.
+///
+/// This metric MUST NOT count messages that were created haven&#39;t yet been attempted to be published.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{message}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
 /// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
+/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
+/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
+/// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.published.messages";
+/// ## Description
+/// Duration of processing operation.
+///
+/// This metric MUST be reported for operations with `messaging.operation.type` that matches `process`.
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
+/// | [`crate::attribute::MESSAGING_CONSUMER_GROUP_NAME`] | `Conditionally required`: if applicable.
+/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
+/// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `Conditionally required`: if applicable.
 /// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
 /// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
 pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// ## Description
-/// Measures the number of processed messages.
+/// Deprecated. Use `messaging.client.consumed.messages` instead.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1263,16 +1571,14 @@ pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
-/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
-/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
-/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+#[deprecated]
 pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// ## Description
-/// Measures the duration of publish operation.
+/// Deprecated. Use `messaging.client.operation.duration` instead.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1283,16 +1589,14 @@ pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
-/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
-/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
-/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+#[deprecated]
 pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// ## Description
-/// Measures the number of published messages.
+/// Deprecated. Use `messaging.client.produced.messages` instead.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1303,16 +1607,14 @@ pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
-/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
-/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
-/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+#[deprecated]
 pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// ## Description
-/// Measures the duration of receive operation.
+/// Deprecated. Use `messaging.client.operation.duration` instead.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1323,16 +1625,14 @@ pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
-/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
-/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
-/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+#[deprecated]
 pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// ## Description
-/// Measures the number of received messages.
+/// Deprecated. Use `messaging.client.consumed.messages` instead.
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1343,14 +1643,100 @@ pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally required`: If and only if the messaging operation has failed.
-/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
-/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally required`: if available.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally required`: If available.
-/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Unspecified`
 /// | [`crate::attribute::SERVER_PORT`] | `Unspecified`
+#[deprecated]
 pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
+/// ## Description
+/// Event loop maximum delay.
+///
+/// Value can be retrieved from value `histogram.max` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_MAX: &str = "nodejs.eventloop.delay.max";
+/// ## Description
+/// Event loop mean delay.
+///
+/// Value can be retrieved from value `histogram.mean` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_MEAN: &str = "nodejs.eventloop.delay.mean";
+/// ## Description
+/// Event loop minimum delay.
+///
+/// Value can be retrieved from value `histogram.min` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_MIN: &str = "nodejs.eventloop.delay.min";
+/// ## Description
+/// Event loop 50 percentile delay.
+///
+/// Value can be retrieved from value `histogram.percentile(50)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_P50: &str = "nodejs.eventloop.delay.p50";
+/// ## Description
+/// Event loop 90 percentile delay.
+///
+/// Value can be retrieved from value `histogram.percentile(90)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_P90: &str = "nodejs.eventloop.delay.p90";
+/// ## Description
+/// Event loop 99 percentile delay.
+///
+/// Value can be retrieved from value `histogram.percentile(99)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_P99: &str = "nodejs.eventloop.delay.p99";
+/// ## Description
+/// Event loop standard deviation delay.
+///
+/// Value can be retrieved from value `histogram.stddev` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_DELAY_STDDEV: &str = "nodejs.eventloop.delay.stddev";
+/// ## Description
+/// Event loop utilization.
+///
+/// The value range is \[0.0,1.0\] and can be retrieved from value [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Experimental`  |
+pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 /// ## Description
 /// Number of times the process has been context switched.
 /// ## Metadata
@@ -1377,7 +1763,7 @@ pub const PROCESS_CONTEXT_SWITCHES: &str = "process.context_switches";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::PROCESS_CPU_STATE`] | `Unspecified`
+/// | [`crate::attribute::CPU_MODE`] | `Unspecified`
 pub const PROCESS_CPU_TIME: &str = "process.cpu.time";
 /// ## Description
 /// Difference in process.cpu.time since the last measurement, divided by the elapsed time and number of CPUs available to the process.
@@ -1391,7 +1777,7 @@ pub const PROCESS_CPU_TIME: &str = "process.cpu.time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::PROCESS_CPU_STATE`] | `Unspecified`
+/// | [`crate::attribute::CPU_MODE`] | `Unspecified`
 pub const PROCESS_CPU_UTILIZATION: &str = "process.cpu.utilization";
 /// ## Description
 /// Disk bytes transferred.
@@ -1673,8 +2059,8 @@ pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::CPU_MODE`] | `Unspecified`
 /// | [`crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER`] | `Unspecified`
-/// | [`crate::attribute::SYSTEM_CPU_STATE`] | `Unspecified`
 pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 /// ## Description
 /// Difference in system.cpu.time since the last measurement, divided by the elapsed time and number of logical CPUs.
@@ -1688,8 +2074,8 @@ pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::CPU_MODE`] | `Unspecified`
 /// | [`crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER`] | `Unspecified`
-/// | [`crate::attribute::SYSTEM_CPU_STATE`] | `Unspecified`
 pub const SYSTEM_CPU_UTILIZATION: &str = "system.cpu.utilization";
 /// ## Description
 /// .
@@ -1828,6 +2214,24 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 /// | Unit: | `By` |
 /// | Status: | `Experimental`  |
 pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
+/// ## Description
+/// Reports the memory used by the Linux kernel for managing caches of frequently used objects.
+///
+/// The sum over the `reclaimable` and `unreclaimable` state values in `linux.memory.slab.usage` SHOULD be equal to the total slab memory available on the system.
+/// Note that the total slab memory is not constant and may vary over time.
+/// See also the [Slab allocator](https://blogs.oracle.com/linux/post/understanding-linux-kernel-memory-statistics) and `Slab` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html).
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::LINUX_MEMORY_SLAB_STATE`] | `Unspecified`
+pub const SYSTEM_LINUX_MEMORY_SLAB_USAGE: &str = "system.linux.memory.slab.usage";
 /// ## Description
 /// Total memory available in the system.
 ///
@@ -2050,3 +2454,83 @@ pub const SYSTEM_PROCESS_COUNT: &str = "system.process.count";
 /// | Unit: | `{process}` |
 /// | Status: | `Experimental`  |
 pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
+/// ## Description
+/// Garbage collection duration.
+///
+/// The values can be retrieve from [`perf_hooks.PerformanceObserver(...).observe({ entryTypes: [&#39;gc&#39;] })`](https://nodejs.org/api/perf_hooks.html#performanceobserverobserveoptions)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_GC_TYPE`] | `Required`
+pub const V8JS_GC_DURATION: &str = "v8js.gc.duration";
+/// ## Description
+/// Heap space available size.
+///
+/// Value can be retrieved from value `space_available_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size";
+/// ## Description
+/// Committed size of a heap space.
+///
+/// Value can be retrieved from value `physical_space_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
+/// ## Description
+/// Total heap memory size pre-allocated.
+///
+/// The value can be retrieved from value `space_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
+/// ## Description
+/// Heap Memory size allocated.
+///
+/// The value can be retrieved from value `space_used_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+pub const V8JS_MEMORY_HEAP_USED: &str = "v8js.memory.heap.used";

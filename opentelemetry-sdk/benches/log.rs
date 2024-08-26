@@ -2,6 +2,18 @@
 //! So to run test named "full-log-with-attributes/with-context" you would run `$ cargo bench --bench log -- --exact full-log-with-attributes/with-context`
 //! To run all tests for logs you would run `$ cargo bench --bench log`
 //!
+/*
+The benchmark results:
+criterion = "0.5.1"
+OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+RAM: 64.0 GB
+| Test                           | Average time|
+|--------------------------------|-------------|
+| Logger_Creation                |  30 ns      |
+| LoggerProvider_Creation        | 909 ns      |
+| Logging_Comparable_To_Appender | 87 ns       |
+*/
 
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -13,10 +25,8 @@ use opentelemetry::logs::{
 };
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::Key;
-use opentelemetry_sdk::export::logs::LogData;
-use opentelemetry_sdk::logs::LogProcessor;
-use opentelemetry_sdk::logs::{Logger, LoggerProvider};
+use opentelemetry::{InstrumentationLibrary, Key};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
@@ -24,7 +34,7 @@ use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogData) {}
+    fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
@@ -32,16 +42,6 @@ impl LogProcessor for NoopProcessor {
 
     fn shutdown(&self) -> LogResult<()> {
         Ok(())
-    }
-
-    #[cfg(feature = "logs_level_enabled")]
-    fn event_enabled(
-        &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
-    ) -> bool {
-        true
     }
 }
 
@@ -80,7 +80,59 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
     group.finish();
 }
 
+fn log_provider_creation(c: &mut Criterion) {
+    c.bench_function("LoggerProvider_Creation", |b| {
+        b.iter(|| {
+            let _provider = LoggerProvider::builder()
+                .with_log_processor(NoopProcessor {})
+                .build();
+        });
+    });
+}
+
+fn logger_creation(c: &mut Criterion) {
+    // Provider is created once, outside of the benchmark
+    let provider = LoggerProvider::builder()
+        .with_log_processor(NoopProcessor {})
+        .build();
+
+    c.bench_function("Logger_Creation", |b| {
+        b.iter(|| {
+            let _logger = provider.logger("benchmark");
+        });
+    });
+}
+
+fn logging_comparable_to_appender(c: &mut Criterion) {
+    let provider = LoggerProvider::builder()
+        .with_log_processor(NoopProcessor {})
+        .build();
+    let logger = provider.logger("benchmark");
+
+    // This mimics the logic from opentelemetry-tracing-appender closely, but
+    // without the overhead of the tracing layer itself.
+    c.bench_function("Logging_Comparable_To_Appender", |b| {
+        b.iter(|| {
+            let mut log_record = logger.create_log_record();
+            let now = SystemTime::now();
+            log_record.set_observed_timestamp(now);
+            log_record.set_target("my-target".to_string());
+            log_record.set_event_name("CheckoutFailed");
+            log_record.set_severity_number(Severity::Warn);
+            log_record.set_severity_text("WARN");
+            log_record.add_attribute("book_id", "12345");
+            log_record.add_attribute("book_title", "Rust Programming Adventures");
+            log_record.add_attribute("message", "Unable to process checkout.");
+
+            logger.emit(log_record);
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
+    logger_creation(c);
+    log_provider_creation(c);
+    logging_comparable_to_appender(c);
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -115,7 +167,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let bytes = AnyValue::Bytes(vec![25u8, 30u8, 40u8]);
+    let bytes = AnyValue::Bytes(Box::new(vec![25u8, 30u8, 40u8]));
     log_benchmark_group(c, "simple-log-with-bytes", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -123,14 +175,14 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let bytes = AnyValue::Bytes(vec![
+    let bytes = AnyValue::Bytes(Box::new(vec![
         25u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8,
         40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8,
         40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
         30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8, 30u8, 40u8,
-    ]);
+    ]));
     log_benchmark_group(c, "simple-log-with-a-lot-of-bytes", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -138,7 +190,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
+        AnyValue::Int(25),
+        "test".into(),
+        true.into(),
+    ]));
     log_benchmark_group(c, "simple-log-with-vec-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -146,13 +202,17 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let vec_any_values = AnyValue::ListAny(vec![AnyValue::Int(25), "test".into(), true.into()]);
-    let vec_any_values = AnyValue::ListAny(vec![
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
+        AnyValue::Int(25),
+        "test".into(),
+        true.into(),
+    ]));
+    let vec_any_values = AnyValue::ListAny(Box::new(vec![
         AnyValue::Int(25),
         "test".into(),
         true.into(),
         vec_any_values,
-    ]);
+    ]));
     log_benchmark_group(c, "simple-log-with-inner-vec-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -160,11 +220,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let map_any_values = AnyValue::Map(HashMap::from([
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
-    ]));
+    ])));
     log_benchmark_group(c, "simple-log-with-map-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -172,17 +232,17 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let map_any_values = AnyValue::Map(HashMap::from([
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
-    ]));
-    let map_any_values = AnyValue::Map(HashMap::from([
+    ])));
+    let map_any_values = AnyValue::Map(Box::new(HashMap::from([
         ("testint".into(), 2.into()),
         ("testdouble".into(), 2.2.into()),
         ("teststring".into(), "test".into()),
         ("testmap".into(), map_any_values),
-    ]));
+    ])));
     log_benchmark_group(c, "simple-log-with-inner-map-any-value", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
@@ -203,7 +263,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         logger.emit(log_record);
     });
 
@@ -213,7 +273,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -227,7 +287,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attribute("name", "my-event-name");
         log_record.add_attribute("event.id", 20);
         log_record.add_attribute("user.name", "otel");
@@ -266,7 +326,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         log_record.set_timestamp(now);
         log_record.set_observed_timestamp(now);
         log_record.set_severity_number(Severity::Warn);
-        log_record.set_severity_text(Severity::Warn.name().into());
+        log_record.set_severity_text(Severity::Warn.name());
         log_record.add_attributes(attributes.clone());
         logger.emit(log_record);
     });

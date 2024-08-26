@@ -4,8 +4,12 @@
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
     ~31 M/sec
+
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
+    ~44 M /sec
 */
 
+use opentelemetry::InstrumentationLibrary;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
@@ -17,7 +21,12 @@ mod throughput;
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: &mut opentelemetry_sdk::export::logs::LogData) {}
+    fn emit(
+        &self,
+        _record: &mut opentelemetry_sdk::logs::LogRecord,
+        _library: &InstrumentationLibrary,
+    ) {
+    }
 
     fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
@@ -25,15 +34,6 @@ impl LogProcessor for NoOpLogProcessor {
 
     fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())
-    }
-
-    fn event_enabled(
-        &self,
-        _level: opentelemetry::logs::Severity,
-        _target: &str,
-        _name: &str,
-    ) -> bool {
-        true
     }
 }
 
@@ -50,5 +50,10 @@ fn main() {
 }
 
 fn test_log() {
-    error!(target: "my-system", event_id = 20, event_name = "my-event_name", user_name = "otel", user_email = "otel@opentelemetry.io");
+    error!(
+        name = "CheckoutFailed",
+        book_id = "12345",
+        book_title = "Rust Programming Adventures",
+        message = "Unable to process checkout."
+    );
 }

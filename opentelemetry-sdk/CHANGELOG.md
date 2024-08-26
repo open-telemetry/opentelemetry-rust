@@ -11,7 +11,32 @@
   first interval instead of doing it right away.
   [#1970](https://github.com/open-telemetry/opentelemetry-rust/pull/1970)
   [#1973](https://github.com/open-telemetry/opentelemetry-rust/pull/1973)
+  - **Breaking** [#1985](https://github.com/open-telemetry/opentelemetry-rust/pull/1985)
+  Hide LogRecord attributes Implementation Details from processors and exporters.
+  The custom exporters and processors can't directly access the `LogData::LogRecord::attributes`, as
+  these are private to opentelemetry-sdk. Instead, they would now use LogRecord::attributes_iter()
+  method to access them.
+- Fixed various Metric aggregation bug related to
+  ObservableCounter,UpDownCounter including
+  [#1517](https://github.com/open-telemetry/opentelemetry-rust/issues/1517).
+  [#2004](https://github.com/open-telemetry/opentelemetry-rust/pull/2004)
+- Fixed a bug related to cumulative aggregation of `Gauge` measurements.
+  [#1975](https://github.com/open-telemetry/opentelemetry-rust/issues/1975).
+  [#2021](https://github.com/open-telemetry/opentelemetry-rust/pull/2021)
+- Provide default implementation for `event_enabled` method in `LogProcessor`
+  trait that returns `true` always.
+- **Breaking** [#2041](https://github.com/open-telemetry/opentelemetry-rust/pull/2041)
+  - The Exporter::export() interface is modified as below:
+    Previous Signature:
+    ```rust
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+    ```
 
+    Updated Signature:
+    ```rust
+    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()>;
+    ```
+    This change simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
 
 ## v0.24.1
 

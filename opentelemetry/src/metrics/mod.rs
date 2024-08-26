@@ -1,6 +1,5 @@
 //! # OpenTelemetry Metrics API
 
-use std::any::Any;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::result;
@@ -20,7 +19,7 @@ pub use instruments::{
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
 };
-pub use meter::{CallbackRegistration, Meter, MeterProvider, Observer};
+pub use meter::{Meter, MeterProvider};
 
 /// A specialized `Result` type for metric operations.
 pub type Result<T> = result::Result<T, MetricsError>;
@@ -292,18 +291,7 @@ pub trait InstrumentProvider {
     ) -> Result<Histogram<u64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
-
-    /// Captures the function that will be called during data collection.
-    ///
-    /// It is only valid to call `observe` within the scope of the passed function.
-    fn register_callback(
-        &self,
-        instruments: &[Arc<dyn Any>],
-        callbacks: Box<MultiInstrumentCallback>,
-    ) -> Result<Box<dyn CallbackRegistration>>;
 }
-
-type MultiInstrumentCallback = dyn Fn(&dyn Observer) + Send + Sync;
 
 #[cfg(test)]
 mod tests {

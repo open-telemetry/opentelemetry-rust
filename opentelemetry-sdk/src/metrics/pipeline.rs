@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{CallbackRegistration, MetricsError, Result},
+    metrics::{MetricsError, Result},
     KeyValue,
 };
 
@@ -85,23 +85,6 @@ impl Pipeline {
             .inner
             .lock()
             .map(|mut inner| inner.callbacks.push(callback));
-    }
-
-    /// Registers a multi-instrument callback to be run when `produce` is called.
-    fn add_multi_callback(
-        &self,
-        callback: GenericCallback,
-    ) -> Result<impl FnOnce(&Pipeline) -> Result<()>> {
-        let mut inner = self.inner.lock()?;
-        inner.multi_callbacks.push(Some(callback));
-        let idx = inner.multi_callbacks.len() - 1;
-
-        Ok(move |this: &Pipeline| {
-            let mut inner = this.inner.lock()?;
-            // can't compare trait objects so use index + tombstones to drop
-            inner.multi_callbacks[idx] = None;
-            Ok(())
-        })
     }
 
     /// Send accumulated telemetry
@@ -620,26 +603,6 @@ impl Pipelines {
         }
     }
 
-    /// Registers a multi-instrument callback to be run when `produce` is called.
-    pub(crate) fn register_multi_callback<F>(&self, f: F) -> Result<Box<dyn CallbackRegistration>>
-    where
-        F: Fn() + Send + Sync + 'static,
-    {
-        let cb = Arc::new(f);
-
-        let fns = self
-            .0
-            .iter()
-            .map(|pipe| {
-                let pipe = Arc::clone(pipe);
-                let unreg = pipe.add_multi_callback(cb.clone())?;
-                Ok(Box::new(move || unreg(pipe.as_ref())) as _)
-            })
-            .collect::<Result<_>>()?;
-
-        Ok(Box::new(Unregister(fns)))
-    }
-
     /// Force flush all pipelines
     pub(crate) fn force_flush(&self) -> Result<()> {
         let mut errs = vec![];
@@ -661,25 +624,6 @@ impl Pipelines {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
-                errs.push(err);
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
-        }
-    }
-}
-
-struct Unregister(Vec<Box<dyn FnOnce() -> Result<()> + Send + Sync>>);
-
-impl CallbackRegistration for Unregister {
-    fn unregister(&mut self) -> Result<()> {
-        let mut errs = vec![];
-        while let Some(unreg) = self.0.pop() {
-            if let Err(err) = unreg() {
                 errs.push(err);
             }
         }

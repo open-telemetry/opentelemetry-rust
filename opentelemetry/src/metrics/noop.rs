@@ -5,8 +5,8 @@
 //! runtime impact.
 use crate::{
     metrics::{
-        AsyncInstrument, CallbackRegistration, InstrumentProvider, Meter, MeterProvider, Observer,
-        Result, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter,
+        AsyncInstrument, InstrumentProvider, Meter, MeterProvider, SyncCounter, SyncGauge,
+        SyncHistogram, SyncUpDownCounter,
     },
     KeyValue,
 };
@@ -50,34 +50,7 @@ impl NoopMeterCore {
     }
 }
 
-impl InstrumentProvider for NoopMeterCore {
-    fn register_callback(
-        &self,
-        _instruments: &[Arc<dyn Any>],
-        _callback: Box<dyn Fn(&dyn Observer) + Send + Sync>,
-    ) -> Result<Box<dyn CallbackRegistration>> {
-        Ok(Box::new(NoopRegistration::new()))
-    }
-}
-
-/// A no-op instance of a callback [CallbackRegistration].
-#[derive(Debug, Default)]
-pub struct NoopRegistration {
-    _private: (),
-}
-
-impl NoopRegistration {
-    /// Create a new no-op registration.
-    pub fn new() -> Self {
-        NoopRegistration { _private: () }
-    }
-}
-
-impl CallbackRegistration for NoopRegistration {
-    fn unregister(&mut self) -> Result<()> {
-        Ok(())
-    }
-}
+impl InstrumentProvider for NoopMeterCore {}
 
 /// A no-op sync instrument
 #[derive(Debug, Default)]

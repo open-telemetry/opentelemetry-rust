@@ -121,6 +121,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 pub mod export;
+pub(crate) mod growable_array;
 mod instrumentation;
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]

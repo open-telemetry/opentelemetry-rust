@@ -585,7 +585,7 @@ impl InstrumentationLibraryBuilder {
     /// use opentelemetry::KeyValue;
     ///
     /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
-    ///     .with_attributes(vec![KeyValue::new("k", "v")])
+    ///     .with_attributes([KeyValue::new("k", "v")])
     ///     .build();
     /// ```
     pub fn with_attributes<I>(mut self, attributes: I) -> Self

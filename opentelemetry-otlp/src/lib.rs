@@ -91,6 +91,8 @@
 //!
 //! The following feature flags generate additional code and types:
 //! * `serialize`: Enables serialization support for type defined in this create via `serde`.
+//! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
+//!    with the key `name`
 //!
 //! The following feature flags offer additional configurations on gRPC:
 //!

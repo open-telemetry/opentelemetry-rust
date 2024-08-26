@@ -2,6 +2,64 @@
 
 ## vNext
 
+- **BREAKING** [#1993](https://github.com/open-telemetry/opentelemetry-rust/pull/1993) Box complex types in AnyValue enum
+Before:
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnyValue {
+    /// An integer value
+    Int(i64),
+    /// A double value
+    Double(f64),
+    /// A string value
+    String(StringValue),
+    /// A boolean value
+    Boolean(bool),
+    /// A byte array
+    Bytes(Vec<u8>),
+    /// An array of `Any` values
+    ListAny(Vec<AnyValue>),
+    /// A map of string keys to `Any` values, arbitrarily nested.
+    Map(HashMap<Key, AnyValue>),
+}
+```
+
+After:
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnyValue {
+    /// An integer value
+    Int(i64),
+    /// A double value
+    Double(f64),
+    /// A string value
+    String(StringValue),
+    /// A boolean value
+    Boolean(bool),
+    /// A byte array
+    Bytes(Box<Vec<u8>>),
+    /// An array of `Any` values
+    ListAny(Box<Vec<AnyValue>>),
+    /// A map of string keys to `Any` values, arbitrarily nested.
+    Map(Box<HashMap<Key, AnyValue>>),
+}
+```
+So the custom log appenders should box these types while adding them in message body, or
+attribute values. Similarly, the custom exporters should dereference these complex type values
+before serializing.
+
+*Breaking* :
+[#2015](https://github.com/open-telemetry/opentelemetry-rust/pull/2015) Removed
+the ability to register callbacks for Observable instruments on Meter directly.
+If you were using `meter.register_callback` to provide the callback, provide
+them using `with_callback` method, while creating the Observable instrument
+itself.
+[1715](https://github.com/open-telemetry/opentelemetry-rust/pull/1715/files)
+shows the exact changes needed to make this migration. If you are starting new,
+refer to the
+[examples](https://github.com/open-telemetry/opentelemetry-rust/blob/main/examples/metrics-basic/src/main.rs)
+to learn how to provide Observable callbacks.
+
 ## v0.24.0
 
 - Add "metrics", "logs" to default features. With this, default feature list is

@@ -4,11 +4,7 @@ use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 /// SDK implemented trait for managing log records
 pub trait LogRecord {
     /// Sets the `event_name` of a record
-    fn set_event_name<T>(&mut self, _name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-    }
+    fn set_event_name(&mut self, name: &'static str);
 
     /// Sets the `target` of a record.
     /// Currently, both `opentelemetry-appender-tracing` and `opentelemetry-appender-log` create a single logger
@@ -25,7 +21,7 @@ pub trait LogRecord {
     fn set_observed_timestamp(&mut self, timestamp: SystemTime);
 
     /// Sets severity as text.
-    fn set_severity_text(&mut self, text: Cow<'static, str>);
+    fn set_severity_text(&mut self, text: &'static str);
 
     /// Sets severity as a numeric value.
     fn set_severity_number(&mut self, number: Severity);
@@ -59,11 +55,11 @@ pub enum AnyValue {
     /// A boolean value
     Boolean(bool),
     /// A byte array
-    Bytes(Vec<u8>),
+    Bytes(Box<Vec<u8>>),
     /// An array of `Any` values
-    ListAny(Vec<AnyValue>),
+    ListAny(Box<Vec<AnyValue>>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(HashMap<Key, AnyValue>),
+    Map(Box<HashMap<Key, AnyValue>>),
 }
 
 macro_rules! impl_trivial_from {
@@ -98,7 +94,7 @@ impl_trivial_from!(bool, AnyValue::Boolean);
 impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
     /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        AnyValue::ListAny(iter.into_iter().map(Into::into).collect())
+        AnyValue::ListAny(Box::new(iter.into_iter().map(Into::into).collect()))
     }
 }
 
@@ -106,9 +102,9 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
     /// Creates an [`AnyValue::Map`] value from a sequence of key-value pairs
     /// that can be converted into a `Key` and `AnyValue` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        AnyValue::Map(HashMap::from_iter(
+        AnyValue::Map(Box::new(HashMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
-        ))
+        )))
     }
 }
 

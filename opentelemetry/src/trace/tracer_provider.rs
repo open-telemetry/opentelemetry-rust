@@ -32,7 +32,7 @@ pub trait TracerProvider {
     /// let tracer = provider.tracer_builder("my_library").
     ///     with_version(env!("CARGO_PKG_VERSION")).
     ///     with_schema_url("https://opentelemetry.io/schema/1.0.0").
-    ///     with_attributes(vec![KeyValue::new("key", "value")]).
+    ///     with_attributes([KeyValue::new("key", "value")]).
     ///     build();
     /// ```
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {

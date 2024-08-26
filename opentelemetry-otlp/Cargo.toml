@@ -56,6 +56,7 @@ temp-env = { workspace = true }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+populate-logs-event-name = ["opentelemetry-proto/populate-logs-event-name"]
 
 # add ons
 serialize = ["serde", "serde_json"]
