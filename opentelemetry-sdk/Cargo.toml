@@ -51,7 +51,7 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
-no-preallocate-attributes-array = []
+disable_stack_log_attributes = []
 
 [[bench]]
 name = "context"

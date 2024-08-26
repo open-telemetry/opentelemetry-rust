@@ -38,6 +38,12 @@
     ```
     This change simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
 
+- [#2055](https://github.com/open-telemetry/opentelemetry-rust/pull/2055)
+  New Feature Flag: `disable_stack_log_attributes`
+  * Default Behavior: By default, the `LogRecord::attributes` field uses a combination of stack and heap allocation for storing attributes. This approach is efficient for handling a limited number of attributes with minimal heap allocation.
+
+  * Behavior with `disable_stack_log_attributes` Enabled: When the `disable_stack_log_attributes` feature flag is enabled, the LogRecord::attributes field only uses vector-based heap allocation, bypassing stack allocation entirely. This setting is beneficial for applications that run in constrained environment with limited stack, and thus avoiding potential stack overflow.
+
 ## v0.24.1
 
 - Add hidden method to support tracing-opentelemetry
