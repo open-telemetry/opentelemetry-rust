@@ -67,7 +67,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 }
 
 fn print_logs(batch: &[(&LogRecord, &InstrumentationLibrary)]) {
-    for (i, log) in batch.into_iter().enumerate() {
+    for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;
         if let Some(event_name) = record.event_name {

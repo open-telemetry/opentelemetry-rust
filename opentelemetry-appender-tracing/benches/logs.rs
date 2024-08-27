@@ -34,7 +34,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
+    async fn export(&mut self, _: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
         LogResult::Ok(())
     }
 
