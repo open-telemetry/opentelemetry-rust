@@ -106,7 +106,8 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                futures_executor::block_on(exporter.export(vec![(record, instrumentation)]))
+                let log_batch = &[(record as &LogRecord, instrumentation)][..];
+                futures_executor::block_on(exporter.export(log_batch))
             });
         if let Err(err) = result {
             global::handle_error(err);
@@ -222,7 +223,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 config.max_export_timeout,
                                 exporter.as_mut(),
                                 &timeout_runtime,
-                                logs.split_off(0),
+                                &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
                             )
                             .await;
 
@@ -237,7 +238,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            logs.split_off(0),
+                            &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
                         )
                         .await;
 
@@ -258,7 +259,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            logs.split_off(0),
+                            &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
                         )
                         .await;
 
@@ -303,7 +304,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<(LogRecord, InstrumentationLibrary)>,
+    batch: &[(&LogRecord, &InstrumentationLibrary)],
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -312,14 +313,8 @@ where
     if batch.is_empty() {
         return Ok(());
     }
-    // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
-    // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let export_batch = batch
-        .iter()
-        .map(|log_data| (&log_data.0, &log_data.1))
-        .collect();
 
-    let export = exporter.export(export_batch);
+    let export = exporter.export(batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -549,7 +544,7 @@ mod tests {
     impl LogExporter for MockLogExporter {
         async fn export(
             &mut self,
-            _batch: Vec<(&LogRecord, &InstrumentationLibrary)>,
+            _batch: &[(&LogRecord, &InstrumentationLibrary)],
         ) -> LogResult<()> {
             Ok(())
         }

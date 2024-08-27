@@ -14,7 +14,7 @@ use std::fmt::Debug;
 #[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of [`LogRecord`, `InstrumentationLibrary`].
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()>;
+    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "logs_level_enabled")]

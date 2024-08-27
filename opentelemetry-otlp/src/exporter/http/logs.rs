@@ -11,7 +11,7 @@ use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
+    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
         let client = self
             .client
             .lock()

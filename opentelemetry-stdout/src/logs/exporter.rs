@@ -45,7 +45,7 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
+    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
         if let Some(writer) = &mut self.writer {
             let result = (self.encoder)(writer, (batch, &self.resource).into()) as LogResult<()>;
             result.and_then(|_| writer.write_all(b"\n").map_err(|e| Error(e).into()))
