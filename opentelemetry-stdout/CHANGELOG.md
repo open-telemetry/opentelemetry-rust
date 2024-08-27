@@ -4,6 +4,10 @@
 
 - **Breaking** [1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994) The logrecord event-name is added as attribute with
 key `name` only if the feature flag `populate-logs-event-name` is enabled.
+- **Breaking** [2040](https://github.com/open-telemetry/opentelemetry-rust/pull/2040) Simplified stdout exporter:
+  - Now only supports writing to stdout, removing ability to send telemetry to other streams.
+  - Output format improved for better human readability.
+  - Note: This exporter is intended for learning and debugging purposes only. Not recommended for production use or automated parsing.
 
 ## v0.5.0
 
