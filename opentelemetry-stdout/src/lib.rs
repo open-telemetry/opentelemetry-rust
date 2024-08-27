@@ -59,6 +59,11 @@
 //! # }
 //! ```
 #![warn(missing_debug_implementations, missing_docs)]
+#![cfg_attr(
+    docsrs,
+    feature(doc_cfg, doc_auto_cfg),
+    deny(rustdoc::broken_intra_doc_links)
+)]
 
 pub(crate) mod common;
 

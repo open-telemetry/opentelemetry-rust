@@ -15,6 +15,10 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
