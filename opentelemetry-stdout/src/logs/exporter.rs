@@ -66,7 +66,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-fn print_logs(batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {
+fn print_logs(batch: &[(&LogRecord, &InstrumentationLibrary)]) {
     for (i, log) in batch.into_iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;
