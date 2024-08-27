@@ -1,19 +1,17 @@
+use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry::trace::TraceError;
 use opentelemetry_sdk::export::{self, trace::ExportResult};
-use std::io::{stdout, Write};
+use std::sync::atomic;
 
-use crate::trace::transform::SpanData;
 use opentelemetry_sdk::resource::Resource;
 
-type Encoder = Box<dyn Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + Sync>;
-
-/// An OpenTelemetry exporter that writes to stdout on export.
+/// An OpenTelemetry exporter that writes Spans to stdout on export.
 pub struct SpanExporter {
-    writer: Option<Box<dyn Write + Send + Sync>>,
-    encoder: Encoder,
     resource: Resource,
+    is_shutdown: atomic::AtomicBool,
+    resource_emitted: bool,
 }
 
 impl fmt::Debug for SpanExporter {
@@ -22,38 +20,47 @@ impl fmt::Debug for SpanExporter {
     }
 }
 
-impl SpanExporter {
-    /// Create a builder to configure this exporter.
-    pub fn builder() -> SpanExporterBuilder {
-        SpanExporterBuilder::default()
-    }
-}
-
 impl Default for SpanExporter {
     fn default() -> Self {
-        SpanExporterBuilder::default().build()
+        SpanExporter {
+            resource: Resource::default(),
+            is_shutdown: atomic::AtomicBool::new(false),
+            resource_emitted: false,
+        }
     }
 }
 
 impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
+    /// Write Spans to stdout
     fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
-        let res = if let Some(writer) = &mut self.writer {
-            (self.encoder)(writer, crate::trace::SpanData::new(batch, &self.resource)).and_then(
-                |_| {
-                    writer
-                        .write_all(b"\n")
-                        .map_err(|err| TraceError::Other(Box::new(err)))
-                },
-            )
+        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+            Box::pin(std::future::ready(Err(TraceError::from(
+                "exporter is shut down",
+            ))))
         } else {
-            Err("exporter is shut down".into())
-        };
+            println!("Spans");
+            if self.resource_emitted {
+                print_spans(batch);
+            } else {
+                self.resource_emitted = true;
+                println!("Resource");
+                if let Some(schema_url) = self.resource.schema_url() {
+                    println!("\tResource SchemaUrl: {:?}", schema_url);
+                }
 
-        Box::pin(std::future::ready(res))
+                self.resource.iter().for_each(|(k, v)| {
+                    println!("\t ->  {}={:?}", k, v);
+                });
+
+                print_spans(batch);
+            }
+
+            Box::pin(std::future::ready(Ok(())))
+        }
     }
 
     fn shutdown(&mut self) {
-        self.writer.take();
+        self.is_shutdown.store(true, atomic::Ordering::SeqCst);
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -61,67 +68,81 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     }
 }
 
-/// Configuration for the stdout trace exporter
-#[derive(Default)]
-pub struct SpanExporterBuilder {
-    writer: Option<Box<dyn Write + Send + Sync>>,
-    encoder: Option<Encoder>,
-}
-
-impl fmt::Debug for SpanExporterBuilder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("SpanExporterBuilder")
-    }
-}
-
-impl SpanExporterBuilder {
-    /// Set the writer that the exporter will write to
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_stdout::SpanExporterBuilder;
-    ///
-    /// let buffer = Vec::new(); // Any type that implements `Write`
-    /// let exporter = SpanExporterBuilder::default().with_writer(buffer).build();
-    /// ```
-    pub fn with_writer(mut self, writer: impl Write + Send + Sync + 'static) -> Self {
-        self.writer = Some(Box::new(writer));
-        self
-    }
-
-    /// Set the encoder that this exporter will use
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry_stdout::SpanExporterBuilder;
-    ///
-    /// let exporter = SpanExporterBuilder::default()
-    ///     // Can be any function that can write formatted data
-    ///     // serde ecosystem crates for example provide such functions
-    ///     .with_encoder(|writer, data| Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
-    ///     .build();
-    /// ```
-    pub fn with_encoder(
-        mut self,
-        writer: impl Fn(&mut dyn Write, SpanData) -> TraceResult<()> + Send + Sync + 'static,
-    ) -> Self {
-        self.encoder = Some(Box::new(writer));
-        self
-    }
-
-    /// Create a span exporter with the current configuration
-    pub fn build(self) -> SpanExporter {
-        SpanExporter {
-            writer: Some(self.writer.unwrap_or_else(|| Box::new(stdout()))),
-            resource: Resource::empty(),
-            encoder: self.encoder.unwrap_or_else(|| {
-                Box::new(|writer, spans| {
-                    serde_json::to_writer(writer, &spans)
-                        .map_err(|err| TraceError::Other(Box::new(err)))
-                })
-            }),
+fn print_spans(batch: Vec<export::trace::SpanData>) {
+    for (i, span) in batch.into_iter().enumerate() {
+        println!("Span #{}", i);
+        println!("\tInstrumentation Scope");
+        println!("\t\tName         : {:?}", &span.instrumentation_lib.name);
+        if let Some(version) = &span.instrumentation_lib.version {
+            println!("\t\tVersion  : {:?}", version);
         }
+        if let Some(schema_url) = &span.instrumentation_lib.schema_url {
+            println!("\t\tSchemaUrl: {:?}", schema_url);
+        }
+        span.instrumentation_lib
+            .attributes
+            .iter()
+            .enumerate()
+            .for_each(|(index, kv)| {
+                if index == 0 {
+                    println!("\t\tScope Attributes:");
+                }
+                println!("\t\t\t ->  {}: {}", kv.key, kv.value);
+            });
+
+        println!();
+        println!("\tName        : {}", &span.name);
+        println!("\tTraceId     : {}", &span.span_context.trace_id());
+        println!("\tSpanId      : {}", &span.span_context.span_id());
+        println!("\tParentSpanId: {}", &span.parent_span_id);
+        println!("\tKind        : {:?}", &span.span_kind);
+
+        let datetime: DateTime<Utc> = span.start_time.into();
+        println!("\tStart time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+        let datetime: DateTime<Utc> = span.end_time.into();
+        println!("\tEnd time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+        println!("\tStatus: {:?}", &span.status);
+
+        let mut print_header = true;
+        for kv in span.attributes.iter() {
+            if print_header {
+                println!("\tAttributes:");
+                print_header = false;
+            }
+            println!("\t\t ->  {}: {:?}", kv.key, kv.value);
+        }
+
+        span.events.iter().enumerate().for_each(|(index, event)| {
+            if index == 0 {
+                println!("\tEvents:");
+            }
+            println!("\tEvent #{}", index);
+            println!("\tName      : {}", event.name);
+            let datetime: DateTime<Utc> = event.timestamp.into();
+            println!("\tTimestamp : {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+
+            event.attributes.iter().enumerate().for_each(|(index, kv)| {
+                if index == 0 {
+                    println!("\tAttributes:");
+                }
+                println!("\t\t ->  {}: {:?}", kv.key, kv.value);
+            });
+        });
+
+        span.links.iter().enumerate().for_each(|(index, link)| {
+            if index == 0 {
+                println!("\tLinks:");
+            }
+            println!("\tLink #{}", index);
+            println!("\tTraceId: {}", link.span_context.trace_id());
+            println!("\tSpanId : {}", link.span_context.span_id());
+
+            link.attributes.iter().enumerate().for_each(|(index, kv)| {
+                if index == 0 {
+                    println!("\tAttributes:");
+                }
+                println!("\t\t ->  {}: {:?}", kv.key, kv.value);
+            });
+        });
     }
 }
