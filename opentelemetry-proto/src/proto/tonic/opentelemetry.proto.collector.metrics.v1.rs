@@ -89,8 +89,8 @@ pub mod metrics_service_client {
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
-        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
-        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
@@ -115,7 +115,7 @@ pub mod metrics_service_client {
             >,
             <T as tonic::codegen::Service<
                 http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             MetricsServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -191,7 +191,7 @@ pub mod metrics_service_server {
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with MetricsServiceServer.
     #[async_trait]
-    pub trait MetricsService: Send + Sync + 'static {
+    pub trait MetricsService: std::marker::Send + std::marker::Sync + 'static {
         /// For performance reasons, it is recommended to keep this RPC
         /// alive for the entire life of the application.
         async fn export(
@@ -206,14 +206,14 @@ pub mod metrics_service_server {
     /// instrumented with OpenTelemetry and a collector, or between a collector and a
     /// central collector.
     #[derive(Debug)]
-    pub struct MetricsServiceServer<T: MetricsService> {
+    pub struct MetricsServiceServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T: MetricsService> MetricsServiceServer<T> {
+    impl<T> MetricsServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -267,8 +267,8 @@ pub mod metrics_service_server {
     impl<T, B> tonic::codegen::Service<http::Request<B>> for MetricsServiceServer<T>
     where
         T: MetricsService,
-        B: Body + Send + 'static,
-        B::Error: Into<StdError> + Send + 'static,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
@@ -344,7 +344,7 @@ pub mod metrics_service_server {
             }
         }
     }
-    impl<T: MetricsService> Clone for MetricsServiceServer<T> {
+    impl<T> Clone for MetricsServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -356,7 +356,9 @@ pub mod metrics_service_server {
             }
         }
     }
-    impl<T: MetricsService> tonic::server::NamedService for MetricsServiceServer<T> {
-        const NAME: &'static str = "opentelemetry.proto.collector.metrics.v1.MetricsService";
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "opentelemetry.proto.collector.metrics.v1.MetricsService";
+    impl<T> tonic::server::NamedService for MetricsServiceServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
     }
 }
