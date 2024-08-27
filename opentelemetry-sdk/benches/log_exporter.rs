@@ -29,11 +29,11 @@ use std::fmt::Debug;
 // cargo bench --bench log_exporter
 #[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>);
+    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]);
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
-    fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>);
+    fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]);
 }
 
 #[derive(Debug)]
@@ -41,13 +41,13 @@ struct NoOpExporterWithFuture {}
 
 #[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
-    async fn export(&mut self, _batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {}
+    async fn export(&mut self, _batch: &[(&LogRecord, &InstrumentationLibrary)]) {}
 }
 
 #[derive(Debug)]
 struct NoOpExporterWithoutFuture {}
 impl LogExporterWithoutFuture for NoOpExporterWithoutFuture {
-    fn export(&mut self, _batch: Vec<(&LogRecord, &InstrumentationLibrary)>) {}
+    fn export(&mut self, _batch: &[(&LogRecord, &InstrumentationLibrary)]) {}
 }
 
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl ExportingProcessorWithFuture {
 impl LogProcessor for ExportingProcessorWithFuture {
     fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        futures_executor::block_on(exporter.export(vec![(record, library)]));
+        futures_executor::block_on(exporter.export(&[(record, library)]));
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -96,7 +96,7 @@ impl LogProcessor for ExportingProcessorWithoutFuture {
         self.exporter
             .lock()
             .expect("lock error")
-            .export(vec![(record, library)]);
+            .export(&[(record, library)]);
     }
 
     fn force_flush(&self) -> LogResult<()> {
