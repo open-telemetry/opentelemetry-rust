@@ -7,7 +7,7 @@ RAM: 64.0 GB
 | CreateOTelKey_Owned            |     12.6 ns |
 | CreateOTelKey_Arc              |    23.35 ns |
 | CreateOTelKeyValue             |     3.24 ns |
-| CreateTupleKeyValue            |      671 ps |  
+| CreateTupleKeyValue            |      671 ps |
 | CreateOtelKeyValueVector       |     18.4 ns |
 | CreateTupleKeyValueVector      |     2.73 ns |
 */
