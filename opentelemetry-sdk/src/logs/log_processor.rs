@@ -223,7 +223,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 config.max_export_timeout,
                                 exporter.as_mut(),
                                 &timeout_runtime,
-                                &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
+                                logs.split_off(0),
                             )
                             .await;
 
@@ -238,7 +238,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
+                            logs.split_off(0),
                         )
                         .await;
 
@@ -259,7 +259,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             config.max_export_timeout,
                             exporter.as_mut(),
                             &timeout_runtime,
-                            &logs.iter().map(|log| (&log.0, &log.1)).collect::<Vec<_>>(),
+                            logs.split_off(0),
                         )
                         .await;
 
@@ -304,7 +304,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: &[(&LogRecord, &InstrumentationLibrary)],
+    batch: Vec<(LogRecord, InstrumentationLibrary)>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -314,7 +314,14 @@ where
         return Ok(());
     }
 
-    let export = exporter.export(batch);
+    // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
+    // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
+    let export_batch: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
+        .iter()
+        .map(|log_data| (&log_data.0, &log_data.1))
+        .collect();
+
+    let export = exporter.export(export_batch.as_slice());
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
