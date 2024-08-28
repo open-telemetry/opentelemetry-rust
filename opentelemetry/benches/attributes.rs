@@ -8,8 +8,8 @@ RAM: 64.0 GB
 | CreateOTelKey_Arc              |    23.35 ns |
 | CreateOTelKeyValue             |     3.24 ns |
 | CreateTupleKeyValue            |      671 ps |
-| CreateOtelKeyValueVector       |     18.4 ns |
-| CreateTupleKeyValueVector      |     2.73 ns |
+| CreateOtelKeyValueArray        |     18.4 ns |
+| CreateTupleKeyValueArray       |     2.73 ns |
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -55,7 +55,7 @@ fn attributes_creation(c: &mut Criterion) {
     });
 
     #[allow(clippy::useless_vec)]
-    c.bench_function("CreateOtelKeyValueVector", |b| {
+    c.bench_function("CreateOtelKeyValueArray", |b| {
         b.iter(|| {
             let _v1 = black_box([
                 KeyValue::new("attribute1", "value1"),
@@ -67,7 +67,7 @@ fn attributes_creation(c: &mut Criterion) {
     });
 
     #[allow(clippy::useless_vec)]
-    c.bench_function("CreateTupleKeyValueVector", |b| {
+    c.bench_function("CreateTupleKeyValueArray", |b| {
         b.iter(|| {
             let _v1 = black_box([
                 ("attribute1", "value1"),
