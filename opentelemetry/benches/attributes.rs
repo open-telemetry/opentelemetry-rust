@@ -1,10 +1,3 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opentelemetry::{Key, KeyValue};
-use std::sync::Arc;
-
-// Run this benchmark with:
-// cargo bench --bench attributes
-
 /* OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
 Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
 RAM: 64.0 GB
@@ -18,6 +11,13 @@ RAM: 64.0 GB
 | CreateOtelKeyValueVector       |     18.4 ns |
 | CreateTupleKeyValueVector      |     2.73 ns |
 */
+
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use opentelemetry::{Key, KeyValue};
+use std::sync::Arc;
+
+// Run this benchmark with:
+// cargo bench --bench attributes
 
 fn criterion_benchmark(c: &mut Criterion) {
     attributes_creation(c);
