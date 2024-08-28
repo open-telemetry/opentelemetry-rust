@@ -6,8 +6,8 @@
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | LogExporterWithFuture          | 280 ns      |
-    | LogExporterWithoutFuture       | 255 ns      |
+    | LogExporterWithFuture          | 122 ns      |
+    | LogExporterWithoutFuture       | 89 ns      |
 */
 
 use std::sync::Mutex;
