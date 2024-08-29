@@ -66,9 +66,7 @@ impl ExportingProcessorWithFuture {
 impl LogProcessor for ExportingProcessorWithFuture {
     fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        black_box(futures_executor::block_on(
-            exporter.export(&[(record, library)]),
-        ));
+        futures_executor::block_on(exporter.export(&[(record, library)]));
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -95,12 +93,10 @@ impl ExportingProcessorWithoutFuture {
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
     fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
-        black_box(
-            self.exporter
-                .lock()
-                .expect("lock error")
-                .export(&[(record, library)]),
-        );
+        self.exporter
+            .lock()
+            .expect("lock error")
+            .export(&[(record, library)]);
     }
 
     fn force_flush(&self) -> LogResult<()> {
