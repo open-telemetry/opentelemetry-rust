@@ -2,9 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
 use opentelemetry::logs::LogResult;
-use opentelemetry::InstrumentationLibrary;
 use opentelemetry_sdk::export::logs::LogBatch;
-use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 
