@@ -1,7 +1,7 @@
 use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
-use opentelemetry::{metrics::MetricsError, KeyValue};
+use opentelemetry::{metrics::MetricsError, KeyValue, MetricAttribute};
 
 use crate::{
     metrics::data::{self, Aggregation, Temporality},
@@ -340,14 +340,18 @@ impl<T: Number<T>> ExpoHistogram<T> {
         }
     }
 
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, value: T, attrs: &[MetricAttribute<'_>]) {
         let f_value = value.into_float();
         // Ignore NaN and infinity.
         if f_value.is_infinite() || f_value.is_nan() {
             return;
         }
 
-        let attrs: AttributeSet = attrs.into();
+        let attrs = attrs
+            .iter()
+            .map(|a| a.clone().into())
+            .collect::<Vec<KeyValue>>();
+        let attrs: AttributeSet = AttributeSet::new(attrs);
         if let Ok(mut values) = self.values.lock() {
             let v = values.entry(attrs).or_insert_with(|| {
                 ExpoHistogramDataPoint::new(
@@ -519,8 +523,6 @@ impl<T: Number<T>> ExpoHistogram<T> {
 mod tests {
     use std::ops::Neg;
 
-    use opentelemetry::KeyValue;
-
     use crate::metrics::internal::{self, AggregateBuilder};
 
     use super::*;
@@ -634,7 +636,7 @@ mod tests {
     }
 
     fn run_min_max_sum_f64() {
-        let alice = &[KeyValue::new("user", "alice")][..];
+        let alice = &[MetricAttribute::new("user", "alice")][..];
         struct Expected {
             min: f64,
             max: f64,
@@ -685,7 +687,7 @@ mod tests {
                 h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
+            let alice: AttributeSet = AttributeSet::new(vec![alice[0].clone().into()]);
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
@@ -696,7 +698,7 @@ mod tests {
     }
 
     fn run_min_max_sum<T: Number<T> + From<u32>>() {
-        let alice = &[KeyValue::new("user", "alice")][..];
+        let alice = &[MetricAttribute::new("user", "alice")][..];
         struct Expected<T> {
             min: T,
             max: T,
@@ -737,7 +739,7 @@ mod tests {
                 h.measure(v, alice);
             }
             let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
+            let alice: AttributeSet = AttributeSet::new(vec![alice[0].clone().into()]);
             let dp = values.get(&alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);

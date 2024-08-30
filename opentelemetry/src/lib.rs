@@ -72,7 +72,7 @@
 //! ```
 //! # #[cfg(feature = "metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{global, MetricAttribute};
 //!
 //! // get a meter from a provider
 //! let meter = global::meter("my_service");
@@ -81,7 +81,7 @@
 //! let counter = meter.u64_counter("my_counter").init();
 //!
 //! // record a measurement
-//! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
+//! counter.add(1, &[MetricAttribute::new("http.client_ip", "83.164.160.102")]);
 //! # }
 //! ```
 //!
@@ -205,7 +205,7 @@ pub mod testing;
 
 pub use common::{
     Array, ExportError, InstrumentationLibrary, InstrumentationLibraryBuilder, Key, KeyValue,
-    StringValue, Value,
+    MetricAttribute, StringValue, Value,
 };
 
 #[cfg(feature = "metrics")]

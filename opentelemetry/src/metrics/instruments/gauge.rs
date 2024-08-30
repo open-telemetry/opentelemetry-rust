@@ -1,6 +1,6 @@
 use crate::{
     metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
-    KeyValue,
+    MetricAttribute,
 };
 use core::fmt;
 use std::any::Any;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// An SDK implemented instrument that records independent values
 pub trait SyncGauge<T> {
     /// Records an independent value.
-    fn record(&self, value: T, attributes: &[KeyValue]);
+    fn record(&self, value: T, attributes: &[MetricAttribute<'_>]);
 }
 
 /// An instrument that records independent values
@@ -32,7 +32,7 @@ impl<T> Gauge<T> {
     }
 
     /// Records an independent value.
-    pub fn record(&self, value: T, attributes: &[KeyValue]) {
+    pub fn record(&self, value: T, attributes: &[MetricAttribute<'_>]) {
         self.0.record(value, attributes)
     }
 }
@@ -89,7 +89,7 @@ impl<T> ObservableGauge<T> {
     /// It is only valid to call this within a callback. If called outside of the
     /// registered callback it should have no effect on the instrument, and an
     /// error will be reported via the error handler.
-    pub fn observe(&self, measurement: T, attributes: &[KeyValue]) {
+    pub fn observe(&self, measurement: T, attributes: &[MetricAttribute<'_>]) {
         self.0.observe(measurement, attributes)
     }
 
@@ -100,7 +100,7 @@ impl<T> ObservableGauge<T> {
 }
 
 impl<M> AsyncInstrument<M> for ObservableGauge<M> {
-    fn observe(&self, measurement: M, attributes: &[KeyValue]) {
+    fn observe(&self, measurement: M, attributes: &[MetricAttribute<'_>]) {
         self.observe(measurement, attributes)
     }
 

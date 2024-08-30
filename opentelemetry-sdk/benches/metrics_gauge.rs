@@ -12,7 +12,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     metrics::{Gauge, MeterProvider as _},
-    KeyValue,
+    MetricAttribute,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
@@ -67,10 +67,10 @@ fn gauge_record(c: &mut Criterion) {
             gauge.record(
                 1,
                 &[
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    MetricAttribute::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                    MetricAttribute::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                    MetricAttribute::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                    MetricAttribute::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
                 ],
             );
         });

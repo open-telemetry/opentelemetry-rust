@@ -1,6 +1,6 @@
 use std::{marker, sync::Arc};
 
-use opentelemetry::KeyValue;
+use opentelemetry::MetricAttribute;
 
 use crate::metrics::data::{Aggregation, Gauge, Temporality};
 
@@ -18,14 +18,14 @@ pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
 
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
-    fn call(&self, measurement: T, attrs: &[KeyValue]);
+    fn call(&self, measurement: T, attrs: &[MetricAttribute<'_>]);
 }
 
 impl<F, T> Measure<T> for F
 where
-    F: Fn(T, &[KeyValue]) + Send + Sync + 'static,
+    F: Fn(T, &[MetricAttribute<'_>]) + Send + Sync + 'static,
 {
-    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+    fn call(&self, measurement: T, attrs: &[MetricAttribute<'_>]) {
         self(measurement, attrs)
     }
 }
@@ -69,7 +69,7 @@ pub(crate) struct AggregateBuilder<T> {
     _marker: marker::PhantomData<T>,
 }
 
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+type Filter = Arc<dyn Fn(&MetricAttribute<'_>) -> bool + Send + Sync>;
 
 impl<T: Number<T>> AggregateBuilder<T> {
     pub(crate) fn new(temporality: Option<Temporality>, filter: Option<Filter>) -> Self {
@@ -83,9 +83,9 @@ impl<T: Number<T>> AggregateBuilder<T> {
     /// Wraps the passed in measure with an attribute filtering function.
     fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
         let filter = self.filter.clone();
-        move |n, attrs: &[KeyValue]| {
+        move |n, attrs: &[MetricAttribute<'_>]| {
             if let Some(filter) = &filter {
-                let filtered_attrs: Vec<KeyValue> =
+                let filtered_attrs: Vec<MetricAttribute<'_>> =
                     attrs.iter().filter(|kv| filter(kv)).cloned().collect();
                 f.call(n, &filtered_attrs);
             } else {
@@ -101,7 +101,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
+            self.filter(move |n, a: &[MetricAttribute<'_>]| lv_filter.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| {
                 let g = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
                 let mut new_agg = if g.is_none() {
@@ -135,7 +135,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
+            self.filter(move |n, a: &[MetricAttribute<'_>]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -150,7 +150,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
+            self.filter(move |n, a: &[MetricAttribute<'_>]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -170,7 +170,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
+            self.filter(move |n, a: &[MetricAttribute<'_>]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -196,7 +196,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
+            self.filter(move |n, a: &[MetricAttribute<'_>]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -207,6 +207,8 @@ impl<T: Number<T>> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
+    use opentelemetry::KeyValue;
+
     use crate::metrics::data::{
         DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
         Histogram, HistogramDataPoint, Sum,
@@ -227,7 +229,7 @@ mod tests {
                 exemplars: vec![],
             }],
         };
-        let new_attributes = [KeyValue::new("b", 2)];
+        let new_attributes = [MetricAttribute::new("b", 2)];
         measure.call(2, &new_attributes[..]);
 
         let (count, new_agg) = agg.call(Some(&mut a));
@@ -235,7 +237,10 @@ mod tests {
         assert_eq!(count, 1);
         assert!(new_agg.is_none());
         assert_eq!(a.data_points.len(), 1);
-        assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+        assert_eq!(
+            a.data_points[0].attributes,
+            vec![new_attributes[0].clone().into()]
+        );
         assert_eq!(a.data_points[0].value, 2);
     }
 
@@ -268,7 +273,7 @@ mod tests {
                 },
                 is_monotonic: false,
             };
-            let new_attributes = [KeyValue::new("b", 2)];
+            let new_attributes = [MetricAttribute::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
@@ -278,7 +283,10 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(
+                a.data_points[0].attributes,
+                vec![new_attributes[0].clone().into()]
+            );
             assert_eq!(a.data_points[0].value, 3);
         }
     }
@@ -311,7 +319,7 @@ mod tests {
                 },
                 is_monotonic: false,
             };
-            let new_attributes = [KeyValue::new("b", 2)];
+            let new_attributes = [MetricAttribute::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
@@ -321,7 +329,10 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(
+                a.data_points[0].attributes,
+                vec![new_attributes[0].clone().into()]
+            );
             assert_eq!(a.data_points[0].value, 3);
         }
     }
@@ -350,7 +361,7 @@ mod tests {
                     Temporality::Delta
                 },
             };
-            let new_attributes = [KeyValue::new("b", 2)];
+            let new_attributes = [MetricAttribute::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
@@ -359,7 +370,10 @@ mod tests {
             assert!(new_agg.is_none());
             assert_eq!(a.temporality, temporality);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(
+                a.data_points[0].attributes,
+                vec![new_attributes[0].clone().into()]
+            );
             assert_eq!(a.data_points[0].count, 1);
             assert_eq!(a.data_points[0].bounds, vec![1.0]);
             assert_eq!(a.data_points[0].bucket_counts, vec![0, 1]);
@@ -402,7 +416,7 @@ mod tests {
                     Temporality::Delta
                 },
             };
-            let new_attributes = [KeyValue::new("b", 2)];
+            let new_attributes = [MetricAttribute::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = agg.call(Some(&mut a));
@@ -411,7 +425,10 @@ mod tests {
             assert!(new_agg.is_none());
             assert_eq!(a.temporality, temporality);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(
+                a.data_points[0].attributes,
+                vec![new_attributes[0].clone().into()]
+            );
             assert_eq!(a.data_points[0].count, 1);
             assert_eq!(a.data_points[0].min, Some(3));
             assert_eq!(a.data_points[0].max, Some(3));

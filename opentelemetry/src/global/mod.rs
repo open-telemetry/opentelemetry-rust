@@ -90,7 +90,7 @@
 //! # #[cfg(feature="metrics")]
 //! # {
 //! use opentelemetry::metrics::{Meter};
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{global, MetricAttribute};
 //!
 //!    fn do_something_instrumented() {
 //!     let meter = global::meter("my-component");
@@ -99,7 +99,7 @@
 //!     let counter = meter.u64_counter("my_counter").init();
 //!
 //!     // record measurements
-//!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
+//!     counter.add(1, &[MetricAttribute::new("mykey", "myvalue")]);
 //!     }
 //! }
 //! ```
@@ -113,7 +113,7 @@
 //! ```
 //! # #[cfg(feature="metrics")]
 //! # {
-//! use opentelemetry::{global, KeyValue};
+//! use opentelemetry::{global, MetricAttribute};
 //!
 //! fn main() {
 //!    // Set the global meter provider

@@ -1,0 +1,20 @@
+error[E0308]: mismatched types
+  --> opentelemetry/benches/attributes.rs:91:53
+   |
+91 |             let _v1 = black_box(MetricKeyValue::new("attribute1", "value1"));
+   |                                 ------------------- ^^^^^^^^^^^^ expected `Cow<'_, str>`, found `&str`
+   |                                 |
+   |                                 arguments to this function are incorrect
+   |
+   = note:   expected enum `Cow<'_, str>`
+           found reference `&'static str`
+note: associated function defined here
+  --> opentelemetry/benches/attributes.rs:44:12
+   |
+44 |     pub fn new<K, V>(key: Cow<'a, str>, value: V) -> Self
+   |            ^^^       -----------------
+help: try wrapping the expression in `std::borrow::Cow::Borrowed`
+   |
+91 |             let _v1 = black_box(MetricKeyValue::new(std::borrow::Cow::Borrowed("attribute1"), "value1"));
+   |                                                     +++++++++++++++++++++++++++            +
+

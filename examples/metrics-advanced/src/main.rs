@@ -1,6 +1,7 @@
 use opentelemetry::global;
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
+use opentelemetry::MetricAttribute;
 use opentelemetry_sdk::metrics::{
     Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream,
 };
@@ -83,10 +84,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram.record(
         10.5,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey3", "myvalue3"),
+            MetricAttribute::new("mykey4", "myvalue4"),
         ],
     );
 
@@ -100,10 +101,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     counter.add(
         10,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey3", "myvalue3"),
+            MetricAttribute::new("mykey4", "myvalue4"),
         ],
     );
 
@@ -123,30 +124,30 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram2.record(
         1.5,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey3", "myvalue3"),
+            MetricAttribute::new("mykey4", "myvalue4"),
         ],
     );
 
     histogram2.record(
         1.2,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey3", "myvalue3"),
+            MetricAttribute::new("mykey4", "myvalue4"),
         ],
     );
 
     histogram2.record(
         1.23,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey3", "myvalue3"),
+            MetricAttribute::new("mykey4", "myvalue4"),
         ],
     );
 

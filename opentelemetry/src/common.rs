@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, Cow};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::{fmt, hash};
 
@@ -603,6 +604,217 @@ impl InstrumentationLibraryBuilder {
             version: self.version,
             schema_url: self.schema_url,
             attributes: self.attributes.unwrap_or_default(),
+        }
+    }
+}
+
+/// A key-value pair describing a metric attribute.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MetricAttribute<'a> {
+    /// The attribute name
+    pub key: AttributeKey<'a>,
+
+    /// The attribute value
+    pub value: AttributeValue<'a>,
+}
+
+/// The key part of attribute [AttributeKey] pairs.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct AttributeKey<'a> {
+    key: Cow<'a, str>,
+}
+
+/// The value part of attribute [AttributeValue] pairs.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AttributeValue<'a> {
+    /// bool values
+    Bool(Cow<'a, bool>),
+    /// i64 values
+    I64(Cow<'a, i64>),
+    /// f64 values
+    F64(Cow<'a, f64>),
+    /// String values
+    String(Cow<'a, str>),
+    /// Array of homogeneous values
+    Array(ArrayValue<'a>),
+}
+
+/// A [AttributeValue::Array] containing homogeneous values.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ArrayValue<'a> {
+    /// Array of bools
+    Bool(Cow<'a, [bool]>),
+    /// Array of integers
+    I64(Cow<'a, [i64]>),
+    /// Array of floats
+    F64(Cow<'a, [f64]>),
+    /// Array of strings
+    String(Cow<'a, [String]>),
+}
+
+impl<'a> MetricAttribute<'a> {
+    /// Create a new `KeyValue` pair.
+    pub fn new<K, V>(key: K, value: V) -> Self
+    where
+        K: Into<AttributeKey<'a>>,
+        V: Into<AttributeValue<'a>>,
+    {
+        MetricAttribute {
+            key: key.into(),
+            value: value.into(),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for AttributeKey<'a> {
+    fn from(key: &'a str) -> Self {
+        AttributeKey {
+            key: Cow::Borrowed(key),
+        }
+    }
+}
+
+impl From<String> for AttributeKey<'_> {
+    fn from(key: String) -> Self {
+        AttributeKey {
+            key: Cow::Owned(key),
+        }
+    }
+}
+
+macro_rules! impl_trivial_from {
+    ($t:ty, $variant:path) => {
+        impl From<$t> for AttributeValue<'_> {
+            fn from(val: $t) -> Self {
+                $variant(Cow::Owned(val))
+            }
+        }
+    };
+}
+
+impl_trivial_from!(i64, AttributeValue::I64);
+impl_trivial_from!(f64, AttributeValue::F64);
+impl_trivial_from!(bool, AttributeValue::Bool);
+
+impl<'a> From<&'a [String]> for AttributeValue<'a> {
+    fn from(value: &'a [String]) -> Self {
+        AttributeValue::Array(ArrayValue::String(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> From<&'a [bool]> for AttributeValue<'a> {
+    fn from(value: &'a [bool]) -> Self {
+        AttributeValue::Array(ArrayValue::Bool(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> From<&'a [i64]> for AttributeValue<'a> {
+    fn from(value: &'a [i64]) -> Self {
+        AttributeValue::Array(ArrayValue::I64(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> From<&'a [f64]> for AttributeValue<'a> {
+    fn from(value: &'a [f64]) -> Self {
+        AttributeValue::Array(ArrayValue::F64(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> From<&'a str> for AttributeValue<'a> {
+    fn from(value: &'a str) -> Self {
+        AttributeValue::String(Cow::Borrowed(value))
+    }
+}
+
+impl From<String> for AttributeValue<'_> {
+    fn from(value: String) -> Self {
+        AttributeValue::String(Cow::Owned(value))
+    }
+}
+
+impl From<MetricAttribute<'_>> for KeyValue {
+    fn from(attr: MetricAttribute<'_>) -> Self {
+        KeyValue {
+            key: attr.key.into(),
+            value: attr.value.into(),
+        }
+    }
+}
+
+impl From<AttributeKey<'_>> for Key {
+    fn from(key: AttributeKey<'_>) -> Self {
+        Key(OtelString::Owned(key.key.deref().to_owned().into()))
+    }
+}
+
+impl From<AttributeValue<'_>> for Value {
+    fn from(value: AttributeValue<'_>) -> Self {
+        match value {
+            AttributeValue::Bool(v) => Value::Bool(*v),
+            AttributeValue::I64(v) => Value::I64(*v),
+            AttributeValue::F64(v) => Value::F64(*v),
+            AttributeValue::String(v) => Value::String(v.deref().to_owned().into()),
+            AttributeValue::Array(v) => Value::Array(v.into()),
+        }
+    }
+}
+
+impl From<ArrayValue<'_>> for Array {
+    fn from(value: ArrayValue<'_>) -> Self {
+        match value {
+            ArrayValue::Bool(v) => Array::Bool(v.into_owned()),
+            ArrayValue::I64(v) => Array::I64(v.into_owned()),
+            ArrayValue::F64(v) => Array::F64(v.into_owned()),
+            ArrayValue::String(v) => Array::String(
+                v.into_owned()
+                    .iter()
+                    .map(|s| s.to_string().into())
+                    .collect(),
+            ),
+        }
+    }
+}
+
+impl From<KeyValue> for MetricAttribute<'static> {
+    fn from(value: KeyValue) -> Self {
+        MetricAttribute {
+            key: value.key.into(),
+            value: value.value.into(),
+        }
+    }
+}
+
+impl From<Key> for AttributeKey<'_> {
+    fn from(key: Key) -> Self {
+        AttributeKey {
+            key: Cow::Owned(key.0.as_str().to_owned()),
+        }
+    }
+}
+
+impl From<Value> for AttributeValue<'_> {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::Bool(v) => AttributeValue::Bool(Cow::Owned(v)),
+            Value::I64(v) => AttributeValue::I64(Cow::Owned(v)),
+            Value::F64(v) => AttributeValue::F64(Cow::Owned(v)),
+            Value::String(v) => AttributeValue::String(Cow::Owned(v.as_ref().to_owned())),
+            Value::Array(v) => AttributeValue::Array(v.into()),
+        }
+    }
+}
+
+impl From<Array> for ArrayValue<'_> {
+    fn from(value: Array) -> Self {
+        match value {
+            Array::Bool(v) => ArrayValue::Bool(Cow::Owned(v)),
+            Array::I64(v) => ArrayValue::I64(Cow::Owned(v)),
+            Array::F64(v) => ArrayValue::F64(Cow::Owned(v)),
+            Array::String(v) => ArrayValue::String(Cow::Owned(
+                v.into_iter()
+                    .map(|s| s.as_ref().to_owned())
+                    .collect::<Vec<_>>(),
+            )),
         }
     }
 }

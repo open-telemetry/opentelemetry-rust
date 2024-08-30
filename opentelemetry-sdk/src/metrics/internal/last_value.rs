@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::metrics::data::DataPoint;
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, MetricAttribute};
 
 use super::{Assign, AtomicTracker, Number, ValueMap};
 
@@ -23,7 +23,7 @@ impl<T: Number<T>> LastValue<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[MetricAttribute<'_>]) {
         // The argument index is not applicable to LastValue.
         self.value_map.measure(measurement, attrs, 0);
     }
@@ -63,7 +63,10 @@ impl<T: Number<T>> LastValue<T> {
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 dest.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),
@@ -115,7 +118,10 @@ impl<T: Number<T>> LastValue<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 dest.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),

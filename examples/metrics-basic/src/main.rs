@@ -1,5 +1,6 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
+use opentelemetry::MetricAttribute;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
@@ -37,8 +38,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     counter.add(
         10,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
         ],
     );
 
@@ -51,8 +52,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             observer.observe(
                 100,
                 &[
-                    KeyValue::new("mykey1", "myvalue1"),
-                    KeyValue::new("mykey2", "myvalue2"),
+                    MetricAttribute::new("mykey1", "myvalue1"),
+                    MetricAttribute::new("mykey2", "myvalue2"),
                 ],
             )
         })
@@ -65,8 +66,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     updown_counter.add(
         -10,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
         ],
     );
 
@@ -79,8 +80,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             observer.observe(
                 100,
                 &[
-                    KeyValue::new("mykey1", "myvalue1"),
-                    KeyValue::new("mykey2", "myvalue2"),
+                    MetricAttribute::new("mykey1", "myvalue1"),
+                    MetricAttribute::new("mykey2", "myvalue2"),
                 ],
             )
         })
@@ -96,8 +97,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram.record(
         10.5,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
         ],
     );
 
@@ -113,8 +114,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     gauge.record(
         1.0,
         &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
+            MetricAttribute::new("mykey1", "myvalue1"),
+            MetricAttribute::new("mykey2", "myvalue2"),
         ],
     );
 
@@ -127,8 +128,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             observer.observe(
                 1.0,
                 &[
-                    KeyValue::new("mykey1", "myvalue1"),
-                    KeyValue::new("mykey2", "myvalue2"),
+                    MetricAttribute::new("mykey1", "myvalue1"),
+                    MetricAttribute::new("mykey2", "myvalue2"),
                 ],
             )
         })

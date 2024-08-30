@@ -11,7 +11,8 @@ mod instruments;
 mod meter;
 pub mod noop;
 
-use crate::{Array, ExportError, KeyValue, Value};
+use crate::common::{ArrayValue, AttributeValue};
+use crate::{Array, ExportError, KeyValue, MetricAttribute, Value};
 pub use instruments::{
     counter::{Counter, ObservableCounter, SyncCounter},
     gauge::{Gauge, ObservableGauge, SyncGauge},
@@ -104,6 +105,39 @@ impl Ord for KeyValue {
 }
 
 impl Eq for KeyValue {}
+
+impl Hash for MetricAttribute<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
+        match &self.value {
+            AttributeValue::F64(f) => F64Hashable(**f).hash(state),
+            AttributeValue::Array(a) => match a {
+                ArrayValue::Bool(b) => b.hash(state),
+                ArrayValue::I64(i) => i.hash(state),
+                ArrayValue::F64(f) => f.iter().for_each(|f| F64Hashable(*f).hash(state)),
+                ArrayValue::String(s) => s.hash(state),
+            },
+            AttributeValue::Bool(b) => b.hash(state),
+            AttributeValue::I64(i) => i.hash(state),
+            AttributeValue::String(s) => s.hash(state),
+        };
+    }
+}
+
+impl PartialOrd for MetricAttribute<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Ordering is based on the key only.
+impl Ord for MetricAttribute<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl Eq for MetricAttribute<'_> {}
 
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {

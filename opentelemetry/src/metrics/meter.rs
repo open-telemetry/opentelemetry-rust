@@ -82,7 +82,7 @@ pub trait MeterProvider {
 /// # Example Usage
 ///
 /// ```rust
-/// use opentelemetry::{global, KeyValue};
+/// use opentelemetry::{global, MetricAttribute};
 ///
 /// let meter = global::meter("my-meter");
 ///
@@ -93,8 +93,8 @@ pub trait MeterProvider {
 /// u64_counter.add(
 ///     10,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
@@ -103,8 +103,8 @@ pub trait MeterProvider {
 /// f64_counter.add(
 ///     3.15,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
@@ -119,8 +119,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             100,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -135,8 +135,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             100.0,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -147,8 +147,8 @@ pub trait MeterProvider {
 /// updown_i64_counter.add(
 ///     -10,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
@@ -157,8 +157,8 @@ pub trait MeterProvider {
 /// updown_f64_counter.add(
 ///     -10.67,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
@@ -171,8 +171,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             100,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -187,8 +187,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             100.0,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -203,8 +203,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             1,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -219,8 +219,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             1.0,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -235,8 +235,8 @@ pub trait MeterProvider {
 ///         observer.observe(
 ///             1,
 ///             &[
-///                 KeyValue::new("mykey1", "myvalue1"),
-///                 KeyValue::new("mykey2", "myvalue2"),
+///                 MetricAttribute::new("mykey1", "myvalue1"),
+///                 MetricAttribute::new("mykey2", "myvalue2"),
 ///             ],
 ///         )
 ///     })
@@ -247,8 +247,8 @@ pub trait MeterProvider {
 /// f64_histogram.record(
 ///     10.5,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 ///
@@ -257,8 +257,8 @@ pub trait MeterProvider {
 /// u64_histogram.record(
 ///     12,
 ///     &[
-///         KeyValue::new("mykey1", "myvalue1"),
-///         KeyValue::new("mykey2", "myvalue2"),
+///         MetricAttribute::new("mykey1", "myvalue1"),
+///         MetricAttribute::new("mykey2", "myvalue2"),
 ///     ],
 /// );
 /// ```

@@ -3,7 +3,7 @@ use opentelemetry::{
     global,
     metrics::MetricsError,
     trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
-    Key, KeyValue,
+    Key, KeyValue, MetricAttribute,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::Protocol;
@@ -138,9 +138,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with_unit("my_unit")
         .init();
     for _ in 0..10 {
-        counter.add(1, &[KeyValue::new("test_key", "test_value")]);
+        counter.add(1, &[MetricAttribute::new("test_key", "test_value")]);
     }
-    counter.add(1, &[KeyValue::new("test_key", "test_value")]);
+    counter.add(1, &[MetricAttribute::new("test_key", "test_value")]);
 
     tracer.in_span("Main operation", |cx| {
         let span = cx.span();

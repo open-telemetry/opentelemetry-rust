@@ -12,7 +12,7 @@
 use lazy_static::lazy_static;
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
-    KeyValue,
+    MetricAttribute,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
@@ -61,9 +61,9 @@ fn test_counter() {
     COUNTER.add(
         1,
         &[
-            KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-            KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-            KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+            MetricAttribute::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+            MetricAttribute::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+            MetricAttribute::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
         ],
     );
 }

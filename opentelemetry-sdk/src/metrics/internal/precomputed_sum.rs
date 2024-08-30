@@ -1,4 +1,4 @@
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, MetricAttribute};
 
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 
@@ -14,7 +14,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
     value_map: ValueMap<T, T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
-    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
+    reported: Mutex<HashMap<Vec<MetricAttribute<'static>>, T>>,
 }
 
 impl<T: Number<T>> PrecomputedSum<T> {
@@ -27,7 +27,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[MetricAttribute<'_>]) {
         // The argument index is not applicable to PrecomputedSum.
         self.value_map.measure(measurement, attrs, 0);
     }
@@ -98,7 +98,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
                 new_reported.insert(attrs.clone(), value);
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: delta,
@@ -176,7 +179,10 @@ impl<T: Number<T>> PrecomputedSum<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),

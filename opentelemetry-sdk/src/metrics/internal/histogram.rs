@@ -5,7 +5,7 @@ use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation, Temporality};
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, MetricAttribute};
 
 use super::Number;
 use super::{AtomicTracker, AtomicallyUpdate, Operation, ValueMap};
@@ -120,7 +120,7 @@ impl<T: Number<T>> Histogram<T> {
         histogram
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[MetricAttribute<'_>]) {
         let f = measurement.into_float();
 
         // This search will return an index in the range `[0, bounds.len()]`, where
@@ -207,7 +207,10 @@ impl<T: Number<T>> Histogram<T> {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 if let Ok(b) = tracker.buckets.lock() {
                     h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
+                        attributes: attrs
+                            .iter()
+                            .map(|attr| attr.clone().into())
+                            .collect::<Vec<KeyValue>>(),
                         start_time: start,
                         time: t,
                         count: b.count,
@@ -320,7 +323,10 @@ impl<T: Number<T>> Histogram<T> {
             if seen.insert(Arc::as_ptr(tracker)) {
                 if let Ok(b) = tracker.buckets.lock() {
                     h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
+                        attributes: attrs
+                            .iter()
+                            .map(|attr| attr.clone().into())
+                            .collect::<Vec<KeyValue>>(),
                         start_time: start,
                         time: t,
                         count: b.count,

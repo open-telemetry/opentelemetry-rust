@@ -5,7 +5,7 @@ use std::vec;
 use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, MetricAttribute};
 
 use super::{AtomicTracker, Number};
 use super::{Increment, ValueMap};
@@ -31,7 +31,7 @@ impl<T: Number<T>> Sum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[MetricAttribute<'_>]) {
         // The argument index is not applicable to Sum.
         self.value_map.measure(measurement, attrs, 0);
     }
@@ -90,7 +90,10 @@ impl<T: Number<T>> Sum<T> {
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),
@@ -170,7 +173,10 @@ impl<T: Number<T>> Sum<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: attrs
+                        .iter()
+                        .map(|attr| attr.clone().into())
+                        .collect::<Vec<KeyValue>>(),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),

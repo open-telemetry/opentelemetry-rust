@@ -113,41 +113,43 @@ fn emit_span() {
 
 #[cfg(feature = "metrics")]
 fn emit_metrics() {
+    use opentelemetry::MetricAttribute;
+
     let meter = global::meter("stdout-example");
     let c = meter.u64_counter("example_counter").init();
     c.add(
         1,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "green"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "green"),
         ],
     );
     c.add(
         1,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "green"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "green"),
         ],
     );
     c.add(
         2,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "red"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "red"),
         ],
     );
     c.add(
         1,
         &[
-            KeyValue::new("name", "banana"),
-            KeyValue::new("color", "yellow"),
+            MetricAttribute::new("name", "banana"),
+            MetricAttribute::new("color", "yellow"),
         ],
     );
     c.add(
         11,
         &[
-            KeyValue::new("name", "banana"),
-            KeyValue::new("color", "yellow"),
+            MetricAttribute::new("name", "banana"),
+            MetricAttribute::new("color", "yellow"),
         ],
     );
 
@@ -155,36 +157,36 @@ fn emit_metrics() {
     h.record(
         1.0,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "green"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "green"),
         ],
     );
     h.record(
         1.0,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "green"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "green"),
         ],
     );
     h.record(
         2.0,
         &[
-            KeyValue::new("name", "apple"),
-            KeyValue::new("color", "red"),
+            MetricAttribute::new("name", "apple"),
+            MetricAttribute::new("color", "red"),
         ],
     );
     h.record(
         1.0,
         &[
-            KeyValue::new("name", "banana"),
-            KeyValue::new("color", "yellow"),
+            MetricAttribute::new("name", "banana"),
+            MetricAttribute::new("color", "yellow"),
         ],
     );
     h.record(
         11.0,
         &[
-            KeyValue::new("name", "banana"),
-            KeyValue::new("color", "yellow"),
+            MetricAttribute::new("name", "banana"),
+            MetricAttribute::new("color", "yellow"),
         ],
     );
 }

@@ -1,8 +1,8 @@
 use once_cell::sync::Lazy;
-use opentelemetry::global;
 use opentelemetry::logs::LogError;
 use opentelemetry::metrics::MetricsError;
 use opentelemetry::trace::{TraceError, TracerProvider};
+use opentelemetry::{global, MetricAttribute};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
@@ -129,7 +129,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with_unit("my_unit")
         .init();
     for _ in 0..10 {
-        counter.add(1, &[KeyValue::new("test_key", "test_value")]);
+        counter.add(1, &[MetricAttribute::new("test_key", "test_value")]);
     }
 
     tracer.in_span("Main operation", |cx| {

@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _, Result},
-    Key, KeyValue,
+    Key, MetricAttribute,
 };
 use opentelemetry_sdk::{
     metrics::{
@@ -170,19 +170,19 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(1, &[])));
 
     group.bench_function("AddOneAttr", |b| {
-        b.iter(|| cntr.add(1, &[KeyValue::new("K", "V")]))
+        b.iter(|| cntr.add(1, &[MetricAttribute::new("K", "V")]))
     });
     group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(1, &[KeyValue::new("K1", "V1")]))
+        b.iter(|| cntr2.add(1, &[MetricAttribute::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
             cntr.add(
                 1,
                 &[
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
+                    MetricAttribute::new("K2", "V2"),
+                    MetricAttribute::new("K3", "V3"),
+                    MetricAttribute::new("K4", "V4"),
                 ],
             )
         })
@@ -192,9 +192,9 @@ fn counters(c: &mut Criterion) {
             cntr2.add(
                 1,
                 &[
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
+                    MetricAttribute::new("K2", "V2"),
+                    MetricAttribute::new("K3", "V3"),
+                    MetricAttribute::new("K4", "V4"),
                 ],
             )
         })
@@ -204,11 +204,11 @@ fn counters(c: &mut Criterion) {
             cntr.add(
                 1,
                 &[
-                    KeyValue::new("K5", "V5"),
-                    KeyValue::new("K6", "V6"),
-                    KeyValue::new("K7", "V7"),
-                    KeyValue::new("K8", "V8"),
-                    KeyValue::new("K9", "V9"),
+                    MetricAttribute::new("K5", "V5"),
+                    MetricAttribute::new("K6", "V6"),
+                    MetricAttribute::new("K7", "V7"),
+                    MetricAttribute::new("K8", "V8"),
+                    MetricAttribute::new("K9", "V9"),
                 ],
             )
         })
@@ -218,11 +218,11 @@ fn counters(c: &mut Criterion) {
             cntr2.add(
                 1,
                 &[
-                    KeyValue::new("K5", "V5"),
-                    KeyValue::new("K6", "V6"),
-                    KeyValue::new("K7", "V7"),
-                    KeyValue::new("K8", "V8"),
-                    KeyValue::new("K9", "V9"),
+                    MetricAttribute::new("K5", "V5"),
+                    MetricAttribute::new("K6", "V6"),
+                    MetricAttribute::new("K7", "V7"),
+                    MetricAttribute::new("K8", "V8"),
+                    MetricAttribute::new("K9", "V9"),
                 ],
             )
         })
@@ -232,16 +232,16 @@ fn counters(c: &mut Criterion) {
             cntr.add(
                 1,
                 &[
-                    KeyValue::new("K10", "V10"),
-                    KeyValue::new("K11", "V11"),
-                    KeyValue::new("K12", "V12"),
-                    KeyValue::new("K13", "V13"),
-                    KeyValue::new("K14", "V14"),
-                    KeyValue::new("K15", "V15"),
-                    KeyValue::new("K16", "V16"),
-                    KeyValue::new("K17", "V17"),
-                    KeyValue::new("K18", "V18"),
-                    KeyValue::new("K19", "V19"),
+                    MetricAttribute::new("K10", "V10"),
+                    MetricAttribute::new("K11", "V11"),
+                    MetricAttribute::new("K12", "V12"),
+                    MetricAttribute::new("K13", "V13"),
+                    MetricAttribute::new("K14", "V14"),
+                    MetricAttribute::new("K15", "V15"),
+                    MetricAttribute::new("K16", "V16"),
+                    MetricAttribute::new("K17", "V17"),
+                    MetricAttribute::new("K18", "V18"),
+                    MetricAttribute::new("K19", "V19"),
                 ],
             )
         })
@@ -251,26 +251,26 @@ fn counters(c: &mut Criterion) {
             cntr2.add(
                 1,
                 &[
-                    KeyValue::new("K10", "V10"),
-                    KeyValue::new("K11", "V11"),
-                    KeyValue::new("K12", "V12"),
-                    KeyValue::new("K13", "V13"),
-                    KeyValue::new("K14", "V14"),
-                    KeyValue::new("K15", "V15"),
-                    KeyValue::new("K16", "V16"),
-                    KeyValue::new("K17", "V17"),
-                    KeyValue::new("K18", "V18"),
-                    KeyValue::new("K19", "V19"),
+                    MetricAttribute::new("K10", "V10"),
+                    MetricAttribute::new("K11", "V11"),
+                    MetricAttribute::new("K12", "V12"),
+                    MetricAttribute::new("K13", "V13"),
+                    MetricAttribute::new("K14", "V14"),
+                    MetricAttribute::new("K15", "V15"),
+                    MetricAttribute::new("K16", "V16"),
+                    MetricAttribute::new("K17", "V17"),
+                    MetricAttribute::new("K18", "V18"),
+                    MetricAttribute::new("K19", "V19"),
                 ],
             )
         })
     });
 
     const MAX_DATA_POINTS: i64 = 2000;
-    let mut max_attributes: Vec<KeyValue> = Vec::new();
+    let mut max_attributes: Vec<MetricAttribute<'_>> = Vec::new();
 
     for i in 0..MAX_DATA_POINTS - 2 {
-        max_attributes.push(KeyValue::new(i.to_string(), i))
+        max_attributes.push(MetricAttribute::new(i.to_string(), i))
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
@@ -278,25 +278,36 @@ fn counters(c: &mut Criterion) {
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
-        max_attributes.push(KeyValue::new(i.to_string(), i))
+        max_attributes.push(MetricAttribute::new(i.to_string(), i))
     }
 
     group.bench_function("AddMaxAttr", |b| b.iter(|| cntr3.add(1, &max_attributes)));
 
     group.bench_function("AddInvalidAttr", |b| {
-        b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))
+        b.iter(|| {
+            cntr.add(
+                1,
+                &[
+                    MetricAttribute::new("", "V"),
+                    MetricAttribute::new("K", "V"),
+                ],
+            )
+        })
     });
     group.bench_function("AddSingleUseAttrs", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, &[KeyValue::new("K", v)]);
+            cntr.add(1, &[MetricAttribute::new("K", v)]);
             v += 1;
         })
     });
     group.bench_function("AddSingleUseInvalid", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, &[KeyValue::new("", v), KeyValue::new("K", v)]);
+            cntr.add(
+                1,
+                &[MetricAttribute::new("", v), MetricAttribute::new("K", v)],
+            );
             v += 1;
         })
     });
@@ -315,7 +326,10 @@ fn counters(c: &mut Criterion) {
     group.bench_function("AddSingleUseFiltered", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, &[KeyValue::new("L", v), KeyValue::new("K", v)]);
+            cntr.add(
+                1,
+                &[MetricAttribute::new("L", v), MetricAttribute::new("K", v)],
+            );
             v += 1;
         })
     });
@@ -329,7 +343,7 @@ fn counters(c: &mut Criterion) {
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
         b.iter(|| {
-            cntr.add(1, &[KeyValue::new("K", v)]);
+            cntr.add(1, &[MetricAttribute::new("K", v)]);
             let _ = rdr.collect(&mut rm);
             v += 1;
         })
@@ -339,7 +353,7 @@ fn counters(c: &mut Criterion) {
         let mut v = 0;
         b.iter(|| {
             for i in 0..10 {
-                cntr.add(1, &[KeyValue::new("K", i)]);
+                cntr.add(1, &[MetricAttribute::new("K", i)]);
             }
             let _ = rdr.collect(&mut rm);
             v += 1;
@@ -386,9 +400,9 @@ fn histograms(c: &mut Criterion) {
     for bound_size in [10, 49, 50, 1000].iter() {
         let (_, hist) = bench_histogram(*bound_size);
         for attr_size in [0, 3, 5, 7, 10].iter() {
-            let mut attributes: Vec<KeyValue> = Vec::new();
+            let mut attributes: Vec<MetricAttribute<'_>> = Vec::new();
             for i in 0..*attr_size {
-                attributes.push(KeyValue::new(
+                attributes.push(MetricAttribute::new(
                     format!("K,{},{}", bound_size, attr_size),
                     format!("V,{},{},{}", bound_size, attr_size, i),
                 ))

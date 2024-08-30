@@ -14,7 +14,7 @@
 */
 
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use opentelemetry::{global, metrics::Counter, KeyValue};
+use opentelemetry::{global, metrics::Counter, MetricAttribute};
 
 // Run this benchmark with:
 // cargo bench --bench metrics
@@ -43,20 +43,20 @@ fn counter_add(c: &mut Criterion) {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("attribute1", "value1"),
-                    KeyValue::new("attribute2", "value2"),
-                    KeyValue::new("attribute3", "value3"),
-                    KeyValue::new("attribute4", "value4"),
+                    MetricAttribute::new("attribute1", "value1"),
+                    MetricAttribute::new("attribute2", "value2"),
+                    MetricAttribute::new("attribute3", "value3"),
+                    MetricAttribute::new("attribute4", "value4"),
                 ],
             );
         });
     });
 
     let kv = [
-        KeyValue::new("attribute1", "value1"),
-        KeyValue::new("attribute2", "value2"),
-        KeyValue::new("attribute3", "value3"),
-        KeyValue::new("attribute4", "value4"),
+        MetricAttribute::new("attribute1", "value1"),
+        MetricAttribute::new("attribute2", "value2"),
+        MetricAttribute::new("attribute3", "value3"),
+        MetricAttribute::new("attribute4", "value4"),
     ];
 
     c.bench_function("AddWithStaticArray", |b| {
@@ -77,10 +77,10 @@ fn counter_add(c: &mut Criterion) {
             },
             |values| {
                 let kv = &[
-                    KeyValue::new("attribute1", values.0),
-                    KeyValue::new("attribute2", values.1),
-                    KeyValue::new("attribute3", values.2),
-                    KeyValue::new("attribute4", values.3),
+                    MetricAttribute::new("attribute1", values.0),
+                    MetricAttribute::new("attribute2", values.1),
+                    MetricAttribute::new("attribute3", values.2),
+                    MetricAttribute::new("attribute4", values.3),
                 ];
 
                 counter.add(1, kv);
@@ -92,10 +92,10 @@ fn counter_add(c: &mut Criterion) {
     c.bench_function("AddWithDynamicAttributes_WithStringAllocation", |b| {
         b.iter(|| {
             let kv = &[
-                KeyValue::new("attribute1", black_box("value1".to_string())),
-                KeyValue::new("attribute2", black_box("value2".to_string())),
-                KeyValue::new("attribute3", black_box("value3".to_string())),
-                KeyValue::new("attribute4", black_box("value4".to_string())),
+                MetricAttribute::new("attribute1", black_box("value1".to_string())),
+                MetricAttribute::new("attribute2", black_box("value2".to_string())),
+                MetricAttribute::new("attribute3", black_box("value3".to_string())),
+                MetricAttribute::new("attribute4", black_box("value4".to_string())),
             ];
 
             counter.add(1, kv);

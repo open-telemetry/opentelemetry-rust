@@ -8,7 +8,7 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    KeyValue,
+    Key, MetricAttribute,
 };
 
 use crate::{
@@ -367,10 +367,11 @@ where
         let mut cache = self.aggregators.lock()?;
 
         let cached = cache.entry(id).or_insert_with(|| {
-            let filter = stream
-                .allowed_attribute_keys
-                .clone()
-                .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
+            let filter = stream.allowed_attribute_keys.clone().map(|allowed| {
+                Arc::new(move |kv: &MetricAttribute<'_>| {
+                    allowed.contains::<Key>(&kv.key.clone().into())
+                }) as Arc<_>
+            });
 
             let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
             let (m, ca) = match aggregate_fn(b, &agg, kind) {

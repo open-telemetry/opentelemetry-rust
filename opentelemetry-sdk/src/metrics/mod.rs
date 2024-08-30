@@ -9,8 +9,7 @@
 //! ### Example
 //!
 //! ```
-//! use opentelemetry::global;
-//! use opentelemetry::KeyValue;
+//! use opentelemetry::{global, MetricAttribute};
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
@@ -30,7 +29,7 @@
 //!     .init();
 //!
 //! // use instruments to record measurements
-//! counter.add(10, &[KeyValue::new("rate", "standard")]);
+//! counter.add(10, &[MetricAttribute::new("rate", "standard")]);
 //!
 //! // shutdown the provider at the end of the application to ensure any metrics not yet
 //! // exported are flushed.
@@ -65,14 +64,14 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::{Key, KeyValue, MetricAttribute, Value};
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct AttributeSet(Vec<KeyValue>, u64);
+pub(crate) struct AttributeSet(Vec<KeyValue>, u64, Vec<MetricAttribute<'static>>);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
@@ -105,8 +104,12 @@ fn calculate_hash(values: &[KeyValue]) -> u64 {
 impl AttributeSet {
     fn new(mut values: Vec<KeyValue>) -> Self {
         values.sort_unstable();
+        let metric_attributes = values
+            .iter()
+            .map(|kv| kv.clone().into())
+            .collect::<Vec<MetricAttribute<'static>>>();
         let hash = calculate_hash(&values);
-        AttributeSet(values, hash)
+        AttributeSet(values, hash, metric_attributes)
     }
 
     /// Iterate over key value pairs in the set
@@ -114,15 +117,34 @@ impl AttributeSet {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 
-    /// Returns the underlying Vec of KeyValue pairs
-    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
-        self.0
+    /// Returns the underlying Vec of MetricAttribute pairs
+    pub(crate) fn into_metric_attributes(self) -> Vec<MetricAttribute<'static>> {
+        self.2
     }
 }
 
 impl Hash for AttributeSet {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.1)
+    }
+}
+
+impl From<&[MetricAttribute<'_>]> for AttributeSet {
+    fn from(value: &[MetricAttribute<'_>]) -> Self {
+        let mut seen_keys = HashSet::with_capacity(value.len());
+        let vec = value
+            .iter()
+            .rev()
+            .filter_map(|kv| {
+                if seen_keys.insert(kv.key.clone()) {
+                    Some(kv.clone().into())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<KeyValue>>();
+
+        AttributeSet::new(vec)
     }
 }
 
@@ -135,6 +157,7 @@ mod tests {
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::MetricAttribute;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
@@ -364,7 +387,7 @@ mod tests {
         let attributes = if is_empty_attributes {
             vec![]
         } else {
-            vec![KeyValue::new("key1", "value1")]
+            vec![MetricAttribute::new("key1", "value1")]
         };
         // The Observable counter reports values[0], values[1],....values[n] on each flush.
         let values: Vec<u64> = (0..length).map(|i| start + i * increment).collect();
@@ -446,7 +469,7 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = vec![KeyValue::new("key1", "value1")];
+        let attribute = vec![MetricAttribute::new("key1", "value1")];
         counter.add(10, &attribute);
         counter_duplicated.add(5, &attribute);
 
@@ -498,7 +521,7 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = vec![KeyValue::new("key1", "value1")];
+        let attribute = vec![MetricAttribute::new("key1", "value1")];
         counter1.add(10, &attribute);
         counter2.add(5, &attribute);
 
@@ -599,7 +622,7 @@ mod tests {
             .with_description("my_description")
             .init();
 
-        let attribute = vec![KeyValue::new("key1", "value1")];
+        let attribute = vec![MetricAttribute::new("key1", "value1")];
         counter1.add(10, &attribute);
         counter2.add(5, &attribute);
 
@@ -676,7 +699,7 @@ mod tests {
             .with_unit("test_unit")
             .init();
 
-        histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
+        histogram.record(1.5, &[MetricAttribute::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
 
         // Assert
@@ -722,24 +745,24 @@ mod tests {
                 observer.observe(
                     100,
                     &[
-                        KeyValue::new("statusCode", "200"),
-                        KeyValue::new("verb", "get"),
+                        MetricAttribute::new("statusCode", "200"),
+                        MetricAttribute::new("verb", "get"),
                     ],
                 );
 
                 observer.observe(
                     100,
                     &[
-                        KeyValue::new("statusCode", "200"),
-                        KeyValue::new("verb", "post"),
+                        MetricAttribute::new("statusCode", "200"),
+                        MetricAttribute::new("verb", "post"),
                     ],
                 );
 
                 observer.observe(
                     100,
                     &[
-                        KeyValue::new("statusCode", "500"),
-                        KeyValue::new("verb", "get"),
+                        MetricAttribute::new("statusCode", "500"),
+                        MetricAttribute::new("verb", "get"),
                     ],
                 );
             })
@@ -798,8 +821,8 @@ mod tests {
         counter.add(
             10,
             [
-                KeyValue::new("statusCode", "200"),
-                KeyValue::new("verb", "Get"),
+                MetricAttribute::new("statusCode", "200"),
+                MetricAttribute::new("verb", "Get"),
             ]
             .as_ref(),
         );
@@ -807,8 +830,8 @@ mod tests {
         counter.add(
             10,
             [
-                KeyValue::new("statusCode", "500"),
-                KeyValue::new("verb", "Get"),
+                MetricAttribute::new("statusCode", "500"),
+                MetricAttribute::new("verb", "Get"),
             ]
             .as_ref(),
         );
@@ -816,8 +839,8 @@ mod tests {
         counter.add(
             10,
             [
-                KeyValue::new("statusCode", "200"),
-                KeyValue::new("verb", "Post"),
+                MetricAttribute::new("statusCode", "200"),
+                MetricAttribute::new("verb", "Post"),
             ]
             .as_ref(),
         );
@@ -953,7 +976,7 @@ mod tests {
         let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
-        counter.add(50, &[KeyValue::new("a", "b")]);
+        counter.add(50, &[MetricAttribute::new("a", "b")]);
         test_context.flush_metrics();
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
 
@@ -976,15 +999,15 @@ mod tests {
         let counter = test_context.u64_counter("test", "my_counter", None);
 
         // Act
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
         test_context.flush_metrics();
 
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
@@ -1065,7 +1088,7 @@ mod tests {
         instrument_name: &'static str,
     ) {
         let mut test_context = TestContext::new(Temporality::Cumulative);
-        let attributes = &[KeyValue::new("key1", "value1")];
+        let attributes = &[MetricAttribute::new("key1", "value1")];
 
         // Create instrument and emit measurements
         match instrument_name {
@@ -1193,7 +1216,7 @@ mod tests {
         instrument_name: &'static str,
     ) {
         let mut test_context = TestContext::new(Temporality::Cumulative);
-        let attributes = Arc::new([KeyValue::new("key1", "value1")]);
+        let attributes = Arc::new([MetricAttribute::new("key1", "value1")]);
 
         // Create instrument and emit measurements
         match instrument_name {
@@ -1316,9 +1339,9 @@ mod tests {
                 s.spawn(|| {
                     counter.add(1, &[]);
 
-                    counter.add(1, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
                     // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
                     if i % 2 == 0 {
@@ -1326,8 +1349,8 @@ mod tests {
                         thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
                     }
 
-                    counter.add(1, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1, &[MetricAttribute::new("key1", "value1")]);
                 });
             });
         }
@@ -1369,9 +1392,9 @@ mod tests {
                 s.spawn(|| {
                     counter.add(1.23, &[]);
 
-                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1.23, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1.23, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1.23, &[MetricAttribute::new("key1", "value1")]);
 
                     // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
                     if i % 2 == 0 {
@@ -1379,8 +1402,8 @@ mod tests {
                         thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
                     }
 
-                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
-                    counter.add(1.23, &[KeyValue::new("key1", "value1")]);
+                    counter.add(1.23, &[MetricAttribute::new("key1", "value1")]);
+                    counter.add(1.23, &[MetricAttribute::new("key1", "value1")]);
                 });
             });
         }
@@ -1423,9 +1446,9 @@ mod tests {
                     histogram.record(1, &[]);
                     histogram.record(4, &[]);
 
-                    histogram.record(5, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(7, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(18, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(5, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(7, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(18, &[MetricAttribute::new("key1", "value1")]);
 
                     // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
                     if i % 2 == 0 {
@@ -1433,8 +1456,8 @@ mod tests {
                         thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
                     }
 
-                    histogram.record(35, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(35, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(35, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(35, &[MetricAttribute::new("key1", "value1")]);
                 });
             });
         }
@@ -1560,9 +1583,9 @@ mod tests {
                     histogram.record(1.5, &[]);
                     histogram.record(4.6, &[]);
 
-                    histogram.record(5.0, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(7.3, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(18.1, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(5.0, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(7.3, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(18.1, &[MetricAttribute::new("key1", "value1")]);
 
                     // Test concurrent collection by forcing half of the update threads to `force_flush` metrics and sleep for some time.
                     if i % 2 == 0 {
@@ -1570,8 +1593,8 @@ mod tests {
                         thread::sleep(Duration::from_millis(i)); // Make each thread sleep for some time duration for better testing
                     }
 
-                    histogram.record(35.1, &[KeyValue::new("key1", "value1")]);
-                    histogram.record(35.1, &[KeyValue::new("key1", "value1")]);
+                    histogram.record(35.1, &[MetricAttribute::new("key1", "value1")]);
+                    histogram.record(35.1, &[MetricAttribute::new("key1", "value1")]);
                 });
             });
         }
@@ -1697,14 +1720,14 @@ mod tests {
             .map(|_| rand.gen_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv1.iter() {
-            histogram.record(*value, &[KeyValue::new("key1", "value1")]);
+            histogram.record(*value, &[MetricAttribute::new("key1", "value1")]);
         }
 
         let values_kv2 = (0..30)
             .map(|_| rand.gen_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv2.iter() {
-            histogram.record(*value, &[KeyValue::new("key1", "value2")]);
+            histogram.record(*value, &[MetricAttribute::new("key1", "value2")]);
         }
 
         test_context.flush_metrics();
@@ -1748,11 +1771,11 @@ mod tests {
         // Reset and report more measurements
         test_context.reset_metrics();
         for value in values_kv1.iter() {
-            histogram.record(*value, &[KeyValue::new("key1", "value1")]);
+            histogram.record(*value, &[MetricAttribute::new("key1", "value1")]);
         }
 
         for value in values_kv2.iter() {
-            histogram.record(*value, &[KeyValue::new("key1", "value2")]);
+            histogram.record(*value, &[MetricAttribute::new("key1", "value2")]);
         }
 
         test_context.flush_metrics();
@@ -1797,15 +1820,15 @@ mod tests {
         let gauge = test_context.meter().i64_gauge("my_gauge").init();
 
         // Act
-        gauge.record(1, &[KeyValue::new("key1", "value1")]);
-        gauge.record(2, &[KeyValue::new("key1", "value1")]);
-        gauge.record(1, &[KeyValue::new("key1", "value1")]);
-        gauge.record(3, &[KeyValue::new("key1", "value1")]);
-        gauge.record(4, &[KeyValue::new("key1", "value1")]);
+        gauge.record(1, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(2, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(1, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(3, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(4, &[MetricAttribute::new("key1", "value1")]);
 
-        gauge.record(11, &[KeyValue::new("key1", "value2")]);
-        gauge.record(13, &[KeyValue::new("key1", "value2")]);
-        gauge.record(6, &[KeyValue::new("key1", "value2")]);
+        gauge.record(11, &[MetricAttribute::new("key1", "value2")]);
+        gauge.record(13, &[MetricAttribute::new("key1", "value2")]);
+        gauge.record(6, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1827,15 +1850,15 @@ mod tests {
 
         // Reset and report more measurements
         test_context.reset_metrics();
-        gauge.record(1, &[KeyValue::new("key1", "value1")]);
-        gauge.record(2, &[KeyValue::new("key1", "value1")]);
-        gauge.record(11, &[KeyValue::new("key1", "value1")]);
-        gauge.record(3, &[KeyValue::new("key1", "value1")]);
-        gauge.record(41, &[KeyValue::new("key1", "value1")]);
+        gauge.record(1, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(2, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(11, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(3, &[MetricAttribute::new("key1", "value1")]);
+        gauge.record(41, &[MetricAttribute::new("key1", "value1")]);
 
-        gauge.record(34, &[KeyValue::new("key1", "value2")]);
-        gauge.record(12, &[KeyValue::new("key1", "value2")]);
-        gauge.record(54, &[KeyValue::new("key1", "value2")]);
+        gauge.record(34, &[MetricAttribute::new("key1", "value2")]);
+        gauge.record(12, &[MetricAttribute::new("key1", "value2")]);
+        gauge.record(54, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1860,8 +1883,8 @@ mod tests {
                 if use_empty_attributes {
                     observer.observe(1, &[]);
                 }
-                observer.observe(4, &[KeyValue::new("key1", "value1")]);
-                observer.observe(5, &[KeyValue::new("key2", "value2")]);
+                observer.observe(4, &[MetricAttribute::new("key1", "value1")]);
+                observer.observe(5, &[MetricAttribute::new("key2", "value2")]);
             })
             .init();
 
@@ -1919,15 +1942,15 @@ mod tests {
         let counter = test_context.u64_counter("test", "my_counter", None);
 
         // Act
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1957,15 +1980,15 @@ mod tests {
 
         // Reset and report more measurements
         test_context.reset_metrics();
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
-        counter.add(1, &[KeyValue::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -1996,7 +2019,7 @@ mod tests {
         // Act
         // Record measurements with A:0, A:1,.......A:1999, which just fits in the 2000 limit
         for v in 0..2000 {
-            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+            counter.add(100, &[MetricAttribute::new("A", v.to_string())]);
         }
 
         // Empty attributes is specially treated and does not count towards the limit.
@@ -2004,9 +2027,9 @@ mod tests {
         counter.add(3, &[]);
 
         // All of the below will now go into overflow.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        counter.add(100, &[MetricAttribute::new("A", "foo")]);
+        counter.add(100, &[MetricAttribute::new("A", "another")]);
+        counter.add(100, &[MetricAttribute::new("A", "yet_another")]);
         test_context.flush_metrics();
 
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
@@ -2045,18 +2068,18 @@ mod tests {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("B", "b"),
-                    KeyValue::new("C", "c"),
+                    MetricAttribute::new("A", "a"),
+                    MetricAttribute::new("B", "b"),
+                    MetricAttribute::new("C", "c"),
                 ],
             );
         } else {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("A", "a"),
-                    KeyValue::new("C", "c"),
-                    KeyValue::new("B", "b"),
+                    MetricAttribute::new("A", "a"),
+                    MetricAttribute::new("C", "c"),
+                    MetricAttribute::new("B", "b"),
                 ],
             );
         }
@@ -2064,41 +2087,41 @@ mod tests {
         counter.add(
             1,
             &[
-                KeyValue::new("A", "a"),
-                KeyValue::new("C", "c"),
-                KeyValue::new("B", "b"),
+                MetricAttribute::new("A", "a"),
+                MetricAttribute::new("C", "c"),
+                MetricAttribute::new("B", "b"),
             ],
         );
         counter.add(
             1,
             &[
-                KeyValue::new("B", "b"),
-                KeyValue::new("A", "a"),
-                KeyValue::new("C", "c"),
+                MetricAttribute::new("B", "b"),
+                MetricAttribute::new("A", "a"),
+                MetricAttribute::new("C", "c"),
             ],
         );
         counter.add(
             1,
             &[
-                KeyValue::new("B", "b"),
-                KeyValue::new("C", "c"),
-                KeyValue::new("A", "a"),
+                MetricAttribute::new("B", "b"),
+                MetricAttribute::new("C", "c"),
+                MetricAttribute::new("A", "a"),
             ],
         );
         counter.add(
             1,
             &[
-                KeyValue::new("C", "c"),
-                KeyValue::new("B", "b"),
-                KeyValue::new("A", "a"),
+                MetricAttribute::new("C", "c"),
+                MetricAttribute::new("B", "b"),
+                MetricAttribute::new("A", "a"),
             ],
         );
         counter.add(
             1,
             &[
-                KeyValue::new("C", "c"),
-                KeyValue::new("A", "a"),
-                KeyValue::new("B", "b"),
+                MetricAttribute::new("C", "c"),
+                MetricAttribute::new("A", "a"),
+                MetricAttribute::new("B", "b"),
             ],
         );
         test_context.flush_metrics();
@@ -2119,15 +2142,15 @@ mod tests {
         let counter = test_context.i64_up_down_counter("test", "my_updown_counter", None);
 
         // Act
-        counter.add(10, &[KeyValue::new("key1", "value1")]);
-        counter.add(-1, &[KeyValue::new("key1", "value1")]);
-        counter.add(-5, &[KeyValue::new("key1", "value1")]);
-        counter.add(0, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(10, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(-1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(-5, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(0, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
-        counter.add(10, &[KeyValue::new("key1", "value2")]);
-        counter.add(0, &[KeyValue::new("key1", "value2")]);
-        counter.add(-3, &[KeyValue::new("key1", "value2")]);
+        counter.add(10, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(0, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(-3, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 
@@ -2160,15 +2183,15 @@ mod tests {
 
         // Reset and report more measurements
         test_context.reset_metrics();
-        counter.add(10, &[KeyValue::new("key1", "value1")]);
-        counter.add(-1, &[KeyValue::new("key1", "value1")]);
-        counter.add(-5, &[KeyValue::new("key1", "value1")]);
-        counter.add(0, &[KeyValue::new("key1", "value1")]);
-        counter.add(1, &[KeyValue::new("key1", "value1")]);
+        counter.add(10, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(-1, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(-5, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(0, &[MetricAttribute::new("key1", "value1")]);
+        counter.add(1, &[MetricAttribute::new("key1", "value1")]);
 
-        counter.add(10, &[KeyValue::new("key1", "value2")]);
-        counter.add(0, &[KeyValue::new("key1", "value2")]);
-        counter.add(-3, &[KeyValue::new("key1", "value2")]);
+        counter.add(10, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(0, &[MetricAttribute::new("key1", "value2")]);
+        counter.add(-3, &[MetricAttribute::new("key1", "value2")]);
 
         test_context.flush_metrics();
 

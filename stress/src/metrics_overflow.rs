@@ -9,7 +9,7 @@
 use lazy_static::lazy_static;
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
-    KeyValue,
+    MetricAttribute,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
@@ -42,5 +42,5 @@ fn test_counter() {
     // unbounded metric points (unique time series).
     // It also checks that SDK's internal logging is also done in a bounded way.
     let rand = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..100000000));
-    COUNTER.add(1, &[KeyValue::new("A", rand)]);
+    COUNTER.add(1, &[MetricAttribute::new("A", rand)]);
 }

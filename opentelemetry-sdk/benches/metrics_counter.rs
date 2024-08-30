@@ -15,7 +15,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
-    KeyValue,
+    MetricAttribute,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use pprof::criterion::{Output, PProfProfiler};
@@ -75,10 +75,10 @@ fn counter_add_sorted(c: &mut Criterion) {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    MetricAttribute::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                    MetricAttribute::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                    MetricAttribute::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                    MetricAttribute::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
                 ],
             );
         });
@@ -106,10 +106,10 @@ fn counter_add_unsorted(c: &mut Criterion) {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    MetricAttribute::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                    MetricAttribute::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                    MetricAttribute::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                    MetricAttribute::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
                 ],
             );
         });
@@ -120,7 +120,7 @@ fn counter_overflow(c: &mut Criterion) {
     let counter = create_counter("Counter_Overflow");
     // Cause overflow.
     for v in 0..2001 {
-        counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        counter.add(100, &[MetricAttribute::new("A", v.to_string())]);
     }
 
     c.bench_function("Counter_Overflow", |b| {
@@ -142,10 +142,10 @@ fn counter_overflow(c: &mut Criterion) {
             counter.add(
                 1,
                 &[
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    MetricAttribute::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                    MetricAttribute::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                    MetricAttribute::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                    MetricAttribute::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
                 ],
             );
         });

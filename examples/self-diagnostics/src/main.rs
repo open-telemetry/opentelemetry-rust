@@ -1,5 +1,5 @@
 use opentelemetry::global::{self, set_error_handler, Error as OtelError};
-use opentelemetry::KeyValue;
+use opentelemetry::MetricAttribute;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
 use tracing_subscriber::prelude::*;
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     for i in 0..3000 {
         counter.add(
             10,
-            &[KeyValue::new(
+            &[MetricAttribute::new(
                 format!("mykey{}", i),
                 format!("myvalue{}", i),
             )],
