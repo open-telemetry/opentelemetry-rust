@@ -1,5 +1,5 @@
 use crate::{
-    export::logs::{ExportResult, LogExporter},
+    export::logs::{ExportResult, LogBatch, LogExporter},
     logs::LogRecord,
     runtime::{RuntimeChannel, TrySend},
     Resource,
@@ -106,7 +106,8 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                let log_batch = &[(record as &LogRecord, instrumentation)][..];
+                let log_tuple = &[(record as &LogRecord, instrumentation)];
+                let log_batch = LogBatch::new(log_tuple);
                 futures_executor::block_on(exporter.export(log_batch))
             });
         if let Err(err) = result {
@@ -314,14 +315,13 @@ where
         return Ok(());
     }
 
-    // Convert the Vec<&LogData> to Vec<(&LogRecord, &InstrumentationLibrary)>
     // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let export_batch: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
+    let log_vec: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
-
-    let export = exporter.export(export_batch.as_slice());
+    let log_batch: LogBatch<'_> = LogBatch::new(log_vec.as_slice());
+    let export = exporter.export(log_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -517,7 +517,7 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::LogExporter;
+    use crate::export::logs::{LogBatch, LogExporter};
     use crate::logs::LogRecord;
     use crate::testing::logs::InMemoryLogsExporterBuilder;
     use crate::{
@@ -549,10 +549,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(
-            &mut self,
-            _batch: &[(&LogRecord, &InstrumentationLibrary)],
-        ) -> LogResult<()> {
+        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
             Ok(())
         }
 

@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use core::fmt;
 use opentelemetry::logs::LogResult;
 use opentelemetry::InstrumentationLibrary;
+use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
@@ -33,7 +34,7 @@ impl fmt::Debug for LogExporter {
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             return Err("exporter is shut down".into());
         } else {
@@ -66,7 +67,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-fn print_logs(batch: &[(&LogRecord, &InstrumentationLibrary)]) {
+fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;

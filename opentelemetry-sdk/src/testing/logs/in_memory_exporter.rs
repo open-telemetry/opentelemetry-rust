@@ -1,4 +1,4 @@
-use crate::export::logs::LogExporter;
+use crate::export::logs::{LogBatch, LogExporter};
 use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
@@ -184,7 +184,7 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {

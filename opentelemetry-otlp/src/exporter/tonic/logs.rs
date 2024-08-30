@@ -4,14 +4,12 @@ use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
-use opentelemetry_sdk::export::logs::LogExporter;
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
-use opentelemetry::InstrumentationLibrary;
-use opentelemetry_sdk::logs::LogRecord;
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
@@ -56,7 +54,7 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&mut self, batch: &[(&LogRecord, &InstrumentationLibrary)]) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = inner
