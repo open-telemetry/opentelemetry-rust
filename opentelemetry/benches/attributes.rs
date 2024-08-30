@@ -54,7 +54,6 @@ fn attributes_creation(c: &mut Criterion) {
         });
     });
 
-    #[allow(clippy::useless_vec)]
     c.bench_function("CreateOtelKeyValueArray", |b| {
         b.iter(|| {
             let _v1 = black_box([
@@ -66,7 +65,6 @@ fn attributes_creation(c: &mut Criterion) {
         });
     });
 
-    #[allow(clippy::useless_vec)]
     c.bench_function("CreateTupleKeyValueArray", |b| {
         b.iter(|| {
             let _v1 = black_box([
