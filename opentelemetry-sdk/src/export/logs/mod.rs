@@ -39,6 +39,8 @@ impl<'a> LogBatch<'a> {
     ///
     /// A `LogBatch` instance containing the provided log records and instrumentation libraries.
     ///
+    /// Note - this is not a public function, and should not be used directly. This would be
+    /// made private in the future.
 
     pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationLibrary)]) -> LogBatch<'a> {
         LogBatch { data }
