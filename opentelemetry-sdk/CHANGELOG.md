@@ -26,6 +26,7 @@
 - Provide default implementation for `event_enabled` method in `LogProcessor`
   trait that returns `true` always.
 - **Breaking** [#2041](https://github.com/open-telemetry/opentelemetry-rust/pull/2041)
+  and [#2057](https://github.com/open-telemetry/opentelemetry-rust/pull/2057)
   - The Exporter::export() interface is modified as below:
     Previous Signature:
     ```rust
@@ -34,9 +35,17 @@
 
     Updated Signature:
     ```rust
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()>;
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
     ```
-    This change simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
+
+    where
+    ```rust
+    pub struct LogBatch<'a> {
+
+      data: &'a [(&'a LogRecord, &'a InstrumentationLibrary)],
+    }
+    ```
+    This change enhances performance by reducing unnecessary heap allocations and maintains object safety, allowing for more efficient handling of log records. It also simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
 
 ## v0.24.1
 

@@ -7,18 +7,16 @@ use crate::{
     OTEL_EXPORTER_OTLP_TIMEOUT,
 };
 use http::{HeaderName, HeaderValue, Uri};
-#[cfg(feature = "logs")]
-use opentelemetry::InstrumentationLibrary;
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::export::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::export::trace::SpanData;
-#[cfg(feature = "logs")]
-use opentelemetry_sdk::logs::LogRecord;
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use prost::Message;
@@ -330,7 +328,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "logs")]
     fn build_logs_export_body(
         &self,
-        logs: Vec<(&LogRecord, &InstrumentationLibrary)>,
+        logs: LogBatch<'_>,
     ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);

@@ -12,6 +12,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
+    use opentelemetry_sdk::export::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
@@ -177,10 +178,7 @@ pub mod tonic {
     }
 
     pub fn group_logs_by_resource_and_scope(
-        logs: Vec<(
-            &opentelemetry_sdk::logs::LogRecord,
-            &opentelemetry::InstrumentationLibrary,
-        )>,
+        logs: LogBatch<'_>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group logs by target or instrumentation name
@@ -237,7 +235,7 @@ mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::InstrumentationLibrary;
-    use opentelemetry_sdk::{logs::LogRecord, Resource};
+    use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
     use std::time::SystemTime;
 
     fn create_test_log_data(
@@ -258,11 +256,12 @@ mod tests {
         let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("test-lib", "Log 2");
 
-        let logs = vec![(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(logs, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -278,10 +277,11 @@ mod tests {
         let (log_record1, instrum_lib1) = create_test_log_data("lib1", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("lib2", "Log 2");
 
-        let logs = vec![(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(logs, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];

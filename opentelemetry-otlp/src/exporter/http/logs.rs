@@ -3,15 +3,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::logs::{LogError, LogResult};
-use opentelemetry::InstrumentationLibrary;
-use opentelemetry_sdk::export::logs::LogExporter;
-use opentelemetry_sdk::logs::LogRecord;
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 
 use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: Vec<(&LogRecord, &InstrumentationLibrary)>) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let client = self
             .client
             .lock()
