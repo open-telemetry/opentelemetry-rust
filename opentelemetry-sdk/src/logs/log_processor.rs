@@ -107,8 +107,7 @@ impl LogProcessor for SimpleLogProcessor {
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
-                let log_batch = LogBatch::new(log_tuple);
-                futures_executor::block_on(exporter.export(log_batch))
+                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         if let Err(err) = result {
             global::handle_error(err);
@@ -320,8 +319,7 @@ where
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
-    let log_batch: LogBatch<'_> = LogBatch::new(log_vec.as_slice());
-    let export = exporter.export(log_batch);
+    let export = exporter.export(LogBatch::new(log_vec.as_slice()));
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
