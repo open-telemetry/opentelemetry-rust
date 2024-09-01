@@ -63,6 +63,11 @@ pub trait MeterProvider {
     ) -> Meter;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+type ArcInstrumentProvider = Arc<dyn InstrumentProvider + Send + Sync>;
+#[cfg(target_arch = "wasm32")]
+type ArcInstrumentProvider = Arc<dyn InstrumentProvider>;
+
 /// Provides the ability to create instruments for recording measurements or
 /// accepting callbacks to report measurements.
 ///
@@ -265,13 +270,13 @@ pub trait MeterProvider {
 ///
 #[derive(Clone)]
 pub struct Meter {
-    pub(crate) instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
+    pub(crate) instrument_provider: ArcInstrumentProvider,
 }
 
 impl Meter {
     /// Create a new named meter from an instrumentation provider
     #[doc(hidden)]
-    pub fn new(instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>) -> Self {
+    pub fn new(instrument_provider: ArcInstrumentProvider) -> Self {
         Meter {
             instrument_provider,
         }

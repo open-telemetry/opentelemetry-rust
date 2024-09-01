@@ -97,7 +97,8 @@ impl LogExporter {
     }
 }
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         self.client.export(batch).await

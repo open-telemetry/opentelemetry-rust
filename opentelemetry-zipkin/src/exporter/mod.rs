@@ -214,7 +214,8 @@ async fn zipkin_export(
     uploader.upload(zipkin_spans).await
 }
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl trace::SpanExporter for Exporter {
     /// Export spans to Zipkin collector.
     fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {

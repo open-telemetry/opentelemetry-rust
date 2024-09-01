@@ -190,7 +190,8 @@ pub mod logs_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with LogsServiceServer.
-    #[async_trait]
+    #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+    #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
     pub trait LogsService: std::marker::Send + std::marker::Sync + 'static {
         /// For performance reasons, it is recommended to keep this RPC
         /// alive for the entire life of the application.

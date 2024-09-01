@@ -2,7 +2,7 @@
 use crate::Resource;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, MaybeSendBoxFuture};
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -30,7 +30,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     ///
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+    fn export(&mut self, batch: Vec<SpanData>) -> MaybeSendBoxFuture<'static, ExportResult>;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.

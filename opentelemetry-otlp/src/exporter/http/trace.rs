@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::trace::TraceError;
+use opentelemetry::{trace::TraceError, MaybeSendBoxFuture};
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;
 
 impl SpanExporter for OtlpHttpClient {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> MaybeSendBoxFuture<'static, ExportResult> {
         let client = match self
             .client
             .lock()

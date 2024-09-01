@@ -6,7 +6,8 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use futures_util::{future::BoxFuture, stream::Stream};
+use futures_util::stream::Stream;
+use opentelemetry::MaybeSendBoxFuture;
 use std::{fmt::Debug, future::Future, time::Duration};
 use thiserror::Error;
 
@@ -37,7 +38,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// finish when TracerProvider gets shutdown. At the moment this happens by blocking the
     /// current thread. This means runtime implementations need to make sure they can still execute
     /// the given future even if the main thread is blocked.
-    fn spawn(&self, future: BoxFuture<'static, ()>);
+    fn spawn(&self, future: MaybeSendBoxFuture<'static, ()>);
 
     /// Return a new future, which resolves after the specified [std::time::Duration].
     fn delay(&self, duration: Duration) -> Self::Delay;

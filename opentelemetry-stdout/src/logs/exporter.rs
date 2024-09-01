@@ -29,7 +29,8 @@ impl fmt::Debug for LogExporter {
     }
 }
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {

@@ -65,7 +65,8 @@ impl LogBatch<'_> {
 }
 
 /// `LogExporter` defines the interface that log exporters should implement.
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of log records and their associated instrumentation libraries.
     ///

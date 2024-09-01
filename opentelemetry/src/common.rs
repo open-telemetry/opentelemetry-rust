@@ -1,6 +1,9 @@
 use std::borrow::{Borrow, Cow};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::{fmt, hash};
+
+use futures_core::Future;
 
 /// The key part of attribute [KeyValue] pairs.
 ///
@@ -433,6 +436,14 @@ impl KeyValue {
         }
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+/// A pinned, boxed future which is Send + Sync when the platform is not wasm
+pub type MaybeSendBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+
+#[cfg(not(target_arch = "wasm32"))]
+/// A pinned, boxed future which is Send + Sync when the platform is not wasm
+pub type MaybeSendBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Marker trait for errors returned by exporters
 pub trait ExportError: std::error::Error + Send + Sync + 'static {

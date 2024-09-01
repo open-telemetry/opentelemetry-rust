@@ -52,7 +52,8 @@ impl TonicLogsClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl LogExporter for TonicLogsClient {
     async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let (mut client, metadata, extensions) = match &mut self.inner {
