@@ -182,7 +182,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
 
-    type KeyValuePair = Option<(Key, AnyValue)>;
+    type KeyValuePair<'a> = Option<(Key, AnyValue<'a>)>;
 
     #[test]
     fn test_push_and_get() {
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_key_value_pair_storage_growable_array() {
-        let mut collection = GrowableArray::<KeyValuePair>::new();
+        let mut collection = GrowableArray::<KeyValuePair<'_>>::new();
 
         let key1 = Key::from("key1");
         let value1 = AnyValue::String("value1".into());
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_empty_attributes() {
-        let collection = GrowableArray::<KeyValuePair>::new();
+        let collection = GrowableArray::<KeyValuePair<'_>>::new();
         assert_eq!(collection.len(), 0);
         assert_eq!(collection.get(0), None);
 

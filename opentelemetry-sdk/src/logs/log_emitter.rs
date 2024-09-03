@@ -239,14 +239,14 @@ impl Logger {
 }
 
 impl opentelemetry::logs::Logger for Logger {
-    type LogRecord = LogRecord;
+    type LogRecord<'a> = LogRecord<'a>;
 
-    fn create_log_record(&self) -> Self::LogRecord {
+    fn create_log_record<'a>(&self) -> Self::LogRecord<'a> {
         LogRecord::default()
     }
 
     /// Emit a `LogRecord`.
-    fn emit(&self, mut record: Self::LogRecord) {
+    fn emit<'a>(&self, mut record: Self::LogRecord<'a>) {
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
@@ -320,7 +320,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit<'a>(&self, _data: &mut LogRecord<'a>, _library: &InstrumentationLibrary) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -550,7 +550,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit<'a>(&self, _data: &mut LogRecord<'a>, _library: &InstrumentationLibrary) {
             // nothing to do.
         }
 

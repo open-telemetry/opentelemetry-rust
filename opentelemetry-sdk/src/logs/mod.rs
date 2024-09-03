@@ -10,16 +10,6 @@ pub use log_processor::{
 };
 pub use record::{LogRecord, TraceContext};
 
-use opentelemetry::InstrumentationLibrary;
-/// `LogData` represents a single log event without resource context.
-#[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
-}
-
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
