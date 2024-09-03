@@ -106,6 +106,21 @@ impl<
                 .chain(self.overflow.as_ref().unwrap().iter())
         }
     }
+
+    /// Provides a mutable iterator over the elements.
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        if self.overflow.is_none() || self.overflow.as_ref().unwrap().is_empty() {
+            self.inline.iter_mut().take(self.count).chain([].iter_mut()) // Chaining with an empty array
+                                                                         // so that both `if` and `else` branch return the same type
+        } else {
+            self.inline
+                .iter_mut()
+                .take(self.count)
+                .chain(self.overflow.as_mut().unwrap().iter_mut())
+        }
+    }
 }
 
 // Implement `IntoIterator` for `GrowableArray`

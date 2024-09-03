@@ -110,6 +110,11 @@ impl<'a> LogRecord<'a> {
         self.attributes.iter().filter_map(|opt| opt.as_ref())
     }
 
+    /// Provides a mutable iterator over the attributes.
+    pub fn attributes_iter_mut(&mut self) -> impl Iterator<Item = &mut (Key, AnyValue<'a>)> {
+        self.attributes.iter_mut().filter_map(|opt| opt.as_mut())
+    }
+
     #[allow(dead_code)]
     /// Returns the number of attributes in the `LogRecord`.
     pub(crate) fn attributes_len(&self) -> usize {
@@ -123,6 +128,43 @@ impl<'a> LogRecord<'a> {
             .iter()
             .flatten()
             .any(|(k, v)| k == key && v == value)
+    }
+
+    pub fn make_owned(&mut self) {
+        if let Some(ref mut target) = self.target {
+            *target = Cow::Owned(target.clone().into_owned());
+        }
+
+        if let Some(ref mut body) = self.body {
+            body.make_owned(); // Use the `make_owned` method of `AnyValue`
+        }
+
+        // Use the mutable iterator method to convert each attribute value to owned
+        for (_, value) in self.attributes_iter_mut() {
+            value.make_owned(); // Convert each attribute value to owned
+        }
+    }
+
+    pub fn into_owned(self) -> LogRecord<'static> {
+        // Create a new empty GrowableArray with the same capacity settings
+        let mut owned_attributes: LogRecordAttributes<'static> = GrowableArray::new();
+
+        // Iterate over the attributes and convert each to owned
+        for (key, value) in self.attributes_iter() {
+            owned_attributes.push(Some((key.clone(), value.clone().into_owned())));
+        }
+
+        LogRecord {
+            event_name: self.event_name,
+            target: self.target.map(|t| Cow::Owned(t.into_owned())),
+            timestamp: self.timestamp,
+            observed_timestamp: self.observed_timestamp,
+            trace_context: self.trace_context.clone(),
+            severity_text: self.severity_text,
+            severity_number: self.severity_number,
+            body: self.body.map(|b| b.into_owned()), // Convert the body to an owned version
+            attributes: owned_attributes,            // Use the newly created owned attributes
+        }
     }
 }
 

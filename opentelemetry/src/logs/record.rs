@@ -84,7 +84,6 @@ impl_trivial_from!(u32, AnyValue::Int);
 impl_trivial_from!(f64, AnyValue::Double);
 impl_trivial_from!(f32, AnyValue::Double);
 
-
 impl_trivial_from!(bool, AnyValue::Boolean);
 
 impl<'a> From<Cow<'a, str>> for AnyValue<'a> {
@@ -141,6 +140,51 @@ impl<'a> From<Value> for AnyValue<'a> {
                 Array::I64(i) => AnyValue::from_iter(i),
                 Array::String(s) => AnyValue::from_iter(s),
             },
+        }
+    }
+}
+
+impl<'a> AnyValue<'a> {
+    /// Converts the `AnyValue` into an owned version in place, updating the existing instance.
+    pub fn make_owned(&mut self) {
+        match self {
+            AnyValue::String(ref mut s) => {
+                if let Cow::Borrowed(borrowed_str) = s {
+                    // Replace the borrowed string with an owned string
+                    *s = Cow::Owned(borrowed_str.to_string());
+                }
+            }
+            AnyValue::ListAny(ref mut list) => {
+                // Recursively convert each item in the list to owned
+                for item in list.iter_mut() {
+                    item.make_owned();
+                }
+            }
+            AnyValue::Map(ref mut map) => {
+                // Recursively convert each value in the map to owned
+                for value in map.values_mut() {
+                    value.make_owned();
+                }
+            }
+            // Other variants are inherently owned and do not need to be modified
+            _ => {}
+        }
+    }
+
+    /// Converts the `AnyValue` into an owned version.
+    pub fn into_owned(self) -> AnyValue<'static> {
+        match self {
+            AnyValue::Int(v) => AnyValue::Int(v),
+            AnyValue::Double(v) => AnyValue::Double(v),
+            AnyValue::String(s) => AnyValue::String(Cow::Owned(s.into_owned())),
+            AnyValue::Boolean(v) => AnyValue::Boolean(v),
+            AnyValue::Bytes(b) => AnyValue::Bytes(b), // Assuming this is already owned
+            AnyValue::ListAny(v) => {
+                AnyValue::ListAny(Box::new(v.into_iter().map(AnyValue::into_owned).collect()))
+            }
+            AnyValue::Map(m) => AnyValue::Map(Box::new(
+                m.into_iter().map(|(k, v)| (k, v.into_owned())).collect(),
+            )),
         }
     }
 }
