@@ -15,14 +15,14 @@ const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 /// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
 /// The initial attributes are allocated in a fixed-size array of capacity `PREALLOCATED_ATTRIBUTE_CAPACITY`.
 /// If more attributes are added beyond this capacity, additional storage is handled by dynamically growing a vector.
-pub(crate) type LogRecordAttributes =
-    GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
+pub(crate) type LogRecordAttributes<'a> =
+    GrowableArray<Option<(Key, AnyValue<'a>)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
-pub struct LogRecord {
+pub struct LogRecord<'a> {
     /// Event name. Optional as not all the logging API support it.
     pub event_name: Option<&'static str>,
 
@@ -45,13 +45,13 @@ pub struct LogRecord {
     pub severity_number: Option<Severity>,
 
     /// Record body
-    pub body: Option<AnyValue>,
+    pub body: Option<AnyValue<'a>>,
 
     /// Additional attributes associated with this record
-    pub(crate) attributes: LogRecordAttributes,
+    pub(crate) attributes: LogRecordAttributes<'a>,
 }
 
-impl opentelemetry::logs::LogRecord for LogRecord {
+impl<'a> opentelemetry::logs::LogRecord<'a> for LogRecord<'a> {
     fn set_event_name(&mut self, name: &'static str) {
         self.event_name = Some(name);
     }
@@ -80,7 +80,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.severity_number = Some(severity_number);
     }
 
-    fn set_body(&mut self, body: AnyValue) {
+    fn set_body(&mut self, body: AnyValue<'a>) {
         self.body = Some(body);
     }
 
@@ -88,7 +88,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     where
         I: IntoIterator<Item = (K, V)>,
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
         for (key, value) in attributes.into_iter() {
             self.add_attribute(key, value);
@@ -98,15 +98,15 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
         self.attributes.push(Some((key.into(), value.into())));
     }
 }
 
-impl LogRecord {
+impl<'a> LogRecord<'a> {
     /// Provides an iterator over the attributes.
-    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
+    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue<'a>)> {
         self.attributes.iter().filter_map(|opt| opt.as_ref())
     }
 
@@ -118,7 +118,7 @@ impl LogRecord {
 
     #[allow(dead_code)]
     /// Checks if the `LogRecord` contains the specified attribute.
-    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue<'a>) -> bool {
         self.attributes
             .iter()
             .flatten()
