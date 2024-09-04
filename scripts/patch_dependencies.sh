@@ -8,3 +8,4 @@ function patch_version() {
 
 patch_version cc 1.0.105
 patch_version url 2.5.0
+patch_version hyper-rustls 0.27.2 # 0.27.3 needs rustc v1.70.0
