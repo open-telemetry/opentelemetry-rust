@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Perf improvements for all metric instruments (except `ExponentialHistogram`) that led to **faster metric updates** and **higher throughput** [#1740](https://github.com/open-telemetry/opentelemetry-rust/pull/1740):
+  - **Zero allocations when recording measurements**: Once a measurement for a given attribute combination is reported, the SDK would not allocate additional memory for subsquent measurements reported for the same combination.
+  - **Minimized thread contention**: Threads reporting measurements for the same instrument no longer contest for the same `Mutex`. The internal aggregation data structure now uses a combination of `RwLock` and atomics. Consequently, threads reporting measurements now only have to acquire a read lock.
+  - **Lock-free floating point updates**: Measurements reported for `f64` based metrics no longer need to acquire a `Mutex` to update the `f64` value. They use a CAS-based loop instead.
+
 - `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
 - Fixed an issue causing a panic during shutdown when using the
   `TokioCurrentThread` in BatchExportProcessor for traces and logs.
