@@ -2,7 +2,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceRequest {
     /// An array of ResourceMetrics.
@@ -18,7 +17,6 @@ pub struct ExportMetricsServiceRequest {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceResponse {
     /// The details of a partially successful export request.
@@ -42,7 +40,6 @@ pub struct ExportMetricsServiceResponse {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsPartialSuccess {
     /// The number of rejected data points.

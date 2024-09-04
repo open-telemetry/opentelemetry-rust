@@ -12,7 +12,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
     /// An array of ResourceSpans.
@@ -28,7 +27,6 @@ pub struct TracesData {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
@@ -51,7 +49,6 @@ pub struct ResourceSpans {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeSpans {
     /// The instrumentation scope information for the spans in this message.
@@ -76,7 +73,6 @@ pub struct ScopeSpans {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
@@ -243,7 +239,6 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
         /// time_unix_nano is the time the event occurred.
@@ -280,7 +275,6 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
@@ -398,7 +392,6 @@ pub mod span {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
