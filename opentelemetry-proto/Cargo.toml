@@ -58,7 +58,7 @@ serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
-opentelemetry = { version = "0.24", features = ["testing"], path = "../opentelemetry" }
+opentelemetry = { features = ["testing"], path = "../opentelemetry" }
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"
