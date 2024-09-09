@@ -41,7 +41,6 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: SpanData) ->
                 if kv.key == Key::new("span.kind") {
                     user_defined_span_kind = true;
                 }
-                kv
             })
             .chain(
                 [
