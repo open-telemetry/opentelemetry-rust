@@ -44,7 +44,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError>
                 .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
                 .with_endpoint("http://localhost:4318/v1/logs"),
         )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .install_batch()
 }
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {

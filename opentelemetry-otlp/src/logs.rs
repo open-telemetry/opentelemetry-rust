@@ -14,7 +14,7 @@ use std::fmt::Debug;
 
 use opentelemetry::logs::LogError;
 
-use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel, Resource};
+use opentelemetry_sdk::{export::logs::LogData, Resource};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -167,14 +167,12 @@ impl OtlpLogPipeline<LogExporterBuilder> {
     /// Returns a [`LoggerProvider`].
     ///
     /// [`LoggerProvider`]: opentelemetry_sdk::logs::LoggerProvider
-    pub fn install_batch<R: RuntimeChannel>(
+    pub fn install_batch(
         self,
-        runtime: R,
     ) -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
         Ok(build_batch_with_exporter(
             self.exporter_builder.build_log_exporter()?,
             self.resource,
-            runtime,
             self.batch_config,
         ))
     }
@@ -194,14 +192,13 @@ fn build_simple_with_exporter(
     provider_builder.build()
 }
 
-fn build_batch_with_exporter<R: RuntimeChannel>(
+fn build_batch_with_exporter(
     exporter: LogExporter,
     resource: Option<Resource>,
-    runtime: R,
     batch_config: Option<opentelemetry_sdk::logs::BatchConfig>,
 ) -> opentelemetry_sdk::logs::LoggerProvider {
     let mut provider_builder = opentelemetry_sdk::logs::LoggerProvider::builder();
-    let batch_processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter, runtime)
+    let batch_processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter)
         .with_batch_config(batch_config.unwrap_or_default())
         .build();
     provider_builder = provider_builder.with_log_processor(batch_processor);

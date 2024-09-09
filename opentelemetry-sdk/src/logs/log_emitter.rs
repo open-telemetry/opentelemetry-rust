@@ -173,9 +173,8 @@ impl Builder {
     pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel>(
         self,
         exporter: T,
-        runtime: R,
     ) -> Self {
-        let batch = BatchLogProcessor::builder(exporter, runtime).build();
+        let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
