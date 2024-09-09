@@ -37,7 +37,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: SpanData) ->
         span_data
             .attributes
             .into_iter()
-            .map(|kv| {
+            .inspect(|kv| {
                 if kv.key == Key::new("span.kind") {
                     user_defined_span_kind = true;
                 }
