@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{AggregationSelector, MetricReader, TemporalitySelector},
+        reader::{MetricReader, TemporalitySelector},
         Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         View,
     },
@@ -23,12 +23,6 @@ struct SharedReader(Arc<dyn MetricReader>);
 impl TemporalitySelector for SharedReader {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.0.temporality(kind)
-    }
-}
-
-impl AggregationSelector for SharedReader {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.0.aggregation(kind)
     }
 }
 

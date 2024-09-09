@@ -26,10 +26,9 @@ use crate::{
 };
 
 use super::{
-    aggregation::Aggregation,
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
-    reader::{AggregationSelector, MetricReader, TemporalitySelector},
+    reader::{MetricReader, TemporalitySelector},
     Pipeline,
 };
 
@@ -297,12 +296,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 break;
             }
         }
-    }
-}
-
-impl AggregationSelector for PeriodicReader {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.exporter.aggregation(kind)
     }
 }
 

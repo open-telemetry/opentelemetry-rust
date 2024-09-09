@@ -112,6 +112,12 @@
                       "value": {
                         "intValue": "100"
                       }
+                    },
+                    {
+                      "key": "number/int",
+                      "value": {
+                        "intValue": "100"
+                      }
                     }
                   ],
                   "droppedAttributesCount": 0
