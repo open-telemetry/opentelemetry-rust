@@ -340,7 +340,7 @@ impl<T: Number<T>> ExpoHistogram<T> {
         }
     }
 
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue<'_>]) {
         let f_value = value.into_float();
         // Ignore NaN and infinity.
         if f_value.is_infinite() || f_value.is_nan() {

@@ -46,7 +46,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
+        attributes: Option<Vec<opentelemetry::KeyValue<'static>>>,
     ) -> Logger {
         let name = name.into();
 

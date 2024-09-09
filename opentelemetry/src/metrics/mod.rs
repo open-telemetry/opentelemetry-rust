@@ -72,11 +72,11 @@ impl Hash for F64Hashable {
     }
 }
 
-impl Hash for KeyValue {
+impl Hash for KeyValue<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
         match &self.value {
-            Value::F64(f) => F64Hashable(*f).hash(state),
+            Value::F64(f) => F64Hashable(**f).hash(state),
             Value::Array(a) => match a {
                 Array::Bool(b) => b.hash(state),
                 Array::I64(i) => i.hash(state),
@@ -90,20 +90,20 @@ impl Hash for KeyValue {
     }
 }
 
-impl PartialOrd for KeyValue {
+impl PartialOrd for KeyValue<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 /// Ordering is based on the key only.
-impl Ord for KeyValue {
+impl Ord for KeyValue<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.key.cmp(&other.key)
     }
 }
 
-impl Eq for KeyValue {}
+impl Eq for KeyValue<'_> {}
 
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {

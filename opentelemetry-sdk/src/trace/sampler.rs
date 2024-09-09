@@ -77,7 +77,7 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &[KeyValue<'static>],
         links: &[Link],
     ) -> SamplingResult;
 }
@@ -169,7 +169,7 @@ impl ShouldSample for Sampler {
         trace_id: TraceId,
         name: &str,
         span_kind: &SpanKind,
-        attributes: &[KeyValue],
+        attributes: &[KeyValue<'static>],
         links: &[Link],
     ) -> SamplingResult {
         let decision = match self {

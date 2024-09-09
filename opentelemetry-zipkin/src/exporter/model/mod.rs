@@ -104,7 +104,7 @@ pub(crate) fn into_zipkin_span(local_endpoint: Endpoint, span_data: SpanData) ->
 
 fn map_from_kvs<T>(kvs: T) -> HashMap<String, String>
 where
-    T: IntoIterator<Item = KeyValue>,
+    T: IntoIterator<Item = KeyValue<'static>>,
 {
     let mut map: HashMap<String, String> = HashMap::new();
     for kv in kvs {

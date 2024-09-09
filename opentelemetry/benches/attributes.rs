@@ -10,7 +10,7 @@ RAM: 64.0 GB
 | CreateTupleKeyValue                              |      671 ps |
 | CreateOtelKeyValueArray                          |     18.4 ns |
 | CreateOtelKeyValueArrayWithMixedValueTypes       |     18.1 ns |
-| CreateOtelKeyValueArrayWithNonStaticValues       |     90.1 ns |
+| CreateOtelKeyValueArrayWithNonStaticValues       |     61.2 ns |
 | CreateTupleKeyValueArray                         |     2.73 ns |
 */
 

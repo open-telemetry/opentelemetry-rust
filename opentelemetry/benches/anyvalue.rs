@@ -28,7 +28,7 @@ fn attributes_creation(c: &mut Criterion) {
 
     c.bench_function("CreateOTelValueInt", |b| {
         b.iter(|| {
-            let _v = black_box(Value::I64(123));
+            let _v = black_box(Into::<Value>::into(123));
         });
     });
 

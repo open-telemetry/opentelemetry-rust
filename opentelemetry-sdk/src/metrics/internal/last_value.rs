@@ -23,7 +23,7 @@ impl<T: Number<T>> LastValue<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         // The argument index is not applicable to LastValue.
         self.value_map.measure(measurement, attrs, 0);
     }

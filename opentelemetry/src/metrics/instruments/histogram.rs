@@ -8,7 +8,7 @@ use std::sync::Arc;
 /// An SDK implemented instrument that records a distribution of values.
 pub trait SyncHistogram<T> {
     /// Adds an additional value to the distribution.
-    fn record(&self, value: T, attributes: &[KeyValue]);
+    fn record(&self, value: T, attributes: &[KeyValue<'_>]);
 }
 
 /// An instrument that records a distribution of values.
@@ -31,7 +31,7 @@ impl<T> Histogram<T> {
     }
 
     /// Adds an additional value to the distribution.
-    pub fn record(&self, value: T, attributes: &[KeyValue]) {
+    pub fn record(&self, value: T, attributes: &[KeyValue<'_>]) {
         self.0.record(value, attributes)
     }
 }

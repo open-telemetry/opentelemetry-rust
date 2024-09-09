@@ -142,7 +142,7 @@ impl MeterProvider for SdkMeterProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeterCore::new()));

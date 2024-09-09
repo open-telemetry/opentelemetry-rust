@@ -72,17 +72,17 @@ use opentelemetry::{Key, KeyValue, Value};
 /// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
 /// HashMap keys and other de-duplication methods.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct AttributeSet(Vec<KeyValue>, u64);
+pub(crate) struct AttributeSet(Vec<KeyValue<'static>>, u64);
 
-impl From<&[KeyValue]> for AttributeSet {
-    fn from(values: &[KeyValue]) -> Self {
+impl From<&[KeyValue<'_>]> for AttributeSet {
+    fn from(values: &[KeyValue<'_>]) -> Self {
         let mut seen_keys = HashSet::with_capacity(values.len());
         let vec = values
             .iter()
             .rev()
             .filter_map(|kv| {
                 if seen_keys.insert(kv.key.clone()) {
-                    Some(kv.clone())
+                    Some(kv.to_owned())
                 } else {
                     None
                 }
@@ -93,7 +93,7 @@ impl From<&[KeyValue]> for AttributeSet {
     }
 }
 
-fn calculate_hash(values: &[KeyValue]) -> u64 {
+fn calculate_hash(values: &[KeyValue<'static>]) -> u64 {
     let mut hasher = DefaultHasher::new();
     values.iter().fold(&mut hasher, |mut hasher, item| {
         item.hash(&mut hasher);
@@ -103,19 +103,19 @@ fn calculate_hash(values: &[KeyValue]) -> u64 {
 }
 
 impl AttributeSet {
-    fn new(mut values: Vec<KeyValue>) -> Self {
+    fn new(mut values: Vec<KeyValue<'static>>) -> Self {
         values.sort_unstable();
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
     }
 
     /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value<'static>)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 
     /// Returns the underlying Vec of KeyValue pairs
-    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
+    pub(crate) fn into_vec(self) -> Vec<KeyValue<'static>> {
         self.0
     }
 }

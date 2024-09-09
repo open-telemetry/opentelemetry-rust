@@ -56,7 +56,7 @@ pub trait Span {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    fn add_event<T>(&mut self, name: T, attributes: Vec<KeyValue>)
+    fn add_event<T>(&mut self, name: T, attributes: Vec<KeyValue<'static>>)
     where
         T: Into<Cow<'static, str>>,
     {
@@ -88,7 +88,7 @@ pub trait Span {
         &mut self,
         name: T,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>;
 
@@ -119,7 +119,7 @@ pub trait Span {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    fn set_attribute(&mut self, attribute: KeyValue);
+    fn set_attribute(&mut self, attribute: KeyValue<'static>);
 
     /// Set multiple attributes of this span.
     ///
@@ -133,7 +133,7 @@ pub trait Span {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    fn set_attributes(&mut self, attributes: impl IntoIterator<Item = KeyValue>) {
+    fn set_attributes(&mut self, attributes: impl IntoIterator<Item = KeyValue<'static>>) {
         if self.is_recording() {
             for attr in attributes.into_iter() {
                 self.set_attribute(attr);
@@ -168,7 +168,7 @@ pub trait Span {
     ///   can include any contextual information relevant to the link between the spans.
     ///
     /// [`Link`]: crate::trace::Link
-    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>);
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue<'static>>);
 
     /// Signals that the operation described by this span has now ended.
     fn end(&mut self) {

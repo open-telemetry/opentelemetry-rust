@@ -44,7 +44,7 @@ pub trait LoggerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Self::Logger {
         let mut builder = self.logger_builder(name);
         if let Some(v) = version {
@@ -144,7 +144,7 @@ impl<'a, T: LoggerProvider + ?Sized> LoggerBuilder<'a, T> {
 
     pub fn with_attributes<I>(mut self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = KeyValue>,
+        I: IntoIterator<Item = KeyValue<'static>>,
     {
         self.library_builder = self.library_builder.with_attributes(attributes);
         self

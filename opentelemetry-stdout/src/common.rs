@@ -124,25 +124,25 @@ impl Hash for Value {
     }
 }
 
-impl From<opentelemetry::Value> for Value {
+impl From<opentelemetry::Value<'_>> for Value {
     fn from(value: opentelemetry::Value) -> Self {
         match value {
-            opentelemetry::Value::Bool(b) => Value::Bool(b),
-            opentelemetry::Value::I64(i) => Value::Int(i),
-            opentelemetry::Value::F64(f) => Value::Double(f),
+            opentelemetry::Value::Bool(b) => Value::Bool(*b),
+            opentelemetry::Value::I64(i) => Value::Int(*i),
+            opentelemetry::Value::F64(f) => Value::Double(*f),
             opentelemetry::Value::String(s) => Value::String(s.into()),
             opentelemetry::Value::Array(a) => match a {
                 opentelemetry::Array::Bool(b) => {
-                    Value::Array(b.into_iter().map(Value::Bool).collect())
+                    Value::Array(b.iter().map(|b| Value::Bool(*b)).collect())
                 }
                 opentelemetry::Array::I64(i) => {
-                    Value::Array(i.into_iter().map(Value::Int).collect())
+                    Value::Array(i.iter().map(|i| Value::Int(*i)).collect())
                 }
                 opentelemetry::Array::F64(f) => {
-                    Value::Array(f.into_iter().map(Value::Double).collect())
+                    Value::Array(f.iter().map(|f| Value::Double(*f)).collect())
                 }
                 opentelemetry::Array::String(s) => {
-                    Value::Array(s.into_iter().map(|s| Value::String(s.into())).collect())
+                    Value::Array(s.iter().map(|s| Value::String(s.clone().into())).collect())
                 }
             },
         }
@@ -190,7 +190,7 @@ impl From<(opentelemetry::Key, opentelemetry::logs::AnyValue)> for KeyValue {
     }
 }
 
-impl From<opentelemetry::KeyValue> for KeyValue {
+impl From<opentelemetry::KeyValue<'_>> for KeyValue {
     fn from(value: opentelemetry::KeyValue) -> Self {
         KeyValue {
             key: value.key.into(),
@@ -199,7 +199,7 @@ impl From<opentelemetry::KeyValue> for KeyValue {
     }
 }
 
-impl From<&opentelemetry::KeyValue> for KeyValue {
+impl From<&opentelemetry::KeyValue<'_>> for KeyValue {
     fn from(value: &opentelemetry::KeyValue) -> Self {
         KeyValue {
             key: value.key.clone().into(),
@@ -208,7 +208,7 @@ impl From<&opentelemetry::KeyValue> for KeyValue {
     }
 }
 
-impl From<(opentelemetry::Key, opentelemetry::Value)> for KeyValue {
+impl From<(opentelemetry::Key, opentelemetry::Value<'_>)> for KeyValue {
     fn from((key, value): (opentelemetry::Key, opentelemetry::Value)) -> Self {
         KeyValue {
             key: key.into(),

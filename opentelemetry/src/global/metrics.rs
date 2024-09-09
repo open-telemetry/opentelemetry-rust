@@ -24,7 +24,7 @@ pub trait ObjectSafeMeterProvider {
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Meter;
 }
 
@@ -38,7 +38,7 @@ where
         name: Cow<'static, str>,
         version: Option<Cow<'static, str>>,
         schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Meter {
         self.versioned_meter(name, version, schema_url, attributes)
     }
@@ -63,7 +63,7 @@ impl MeterProvider for GlobalMeterProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Meter {
         self.provider.versioned_meter_cow(
             name.into(),
@@ -141,7 +141,7 @@ pub fn meter_with_version(
     name: impl Into<Cow<'static, str>>,
     version: Option<impl Into<Cow<'static, str>>>,
     schema_url: Option<impl Into<Cow<'static, str>>>,
-    attributes: Option<Vec<KeyValue>>,
+    attributes: Option<Vec<KeyValue<'static>>>,
 ) -> Meter {
     meter_provider().versioned_meter(
         name.into(),

@@ -32,46 +32,6 @@ impl Key {
         Key(OtelString::Static(value))
     }
 
-    /// Create a `KeyValue` pair for `bool` values.
-    pub fn bool<T: Into<bool>>(self, value: T) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::Bool(value.into()),
-        }
-    }
-
-    /// Create a `KeyValue` pair for `i64` values.
-    pub fn i64(self, value: i64) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::I64(value),
-        }
-    }
-
-    /// Create a `KeyValue` pair for `f64` values.
-    pub fn f64(self, value: f64) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::F64(value),
-        }
-    }
-
-    /// Create a `KeyValue` pair for string-like values.
-    pub fn string(self, value: impl Into<StringValue>) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::String(value.into()),
-        }
-    }
-
-    /// Create a `KeyValue` pair for arrays.
-    pub fn array<T: Into<Array>>(self, value: T) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::Array(value.into()),
-        }
-    }
-
     /// Returns a reference to the underlying key name
     pub fn as_str(&self) -> &str {
         self.0.as_str()
@@ -190,18 +150,29 @@ impl hash::Hash for OtelString {
 
 /// A [Value::Array] containing homogeneous values.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Array {
+pub enum Array<'a> {
     /// Array of bools
-    Bool(Vec<bool>),
+    Bool(Cow<'a, [bool]>),
     /// Array of integers
-    I64(Vec<i64>),
+    I64(Cow<'a, [i64]>),
     /// Array of floats
-    F64(Vec<f64>),
+    F64(Cow<'a, [f64]>),
     /// Array of strings
-    String(Vec<StringValue>),
+    String(Cow<'a, [StringValue]>),
 }
 
-impl fmt::Display for Array {
+impl Array<'_> {
+    fn to_owned(&self) -> Array<'static> {
+        match self {
+            Array::Bool(v) => Array::Bool(Cow::Owned(v.clone().into_owned())),
+            Array::I64(v) => Array::I64(Cow::Owned(v.clone().into_owned())),
+            Array::F64(v) => Array::F64(Cow::Owned(v.clone().into_owned())),
+            Array::String(v) => Array::String(Cow::Owned(v.clone().into_owned())),
+        }
+    }
+}
+
+impl fmt::Display for Array<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Array::Bool(values) => display_array_str(values, fmt),
@@ -235,9 +206,9 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
 macro_rules! into_array {
     ($(($t:ty, $val:expr),)+) => {
         $(
-            impl From<$t> for Array {
+            impl From<$t> for Array<'static> {
                 fn from(t: $t) -> Self {
-                    $val(t)
+                    $val(Cow::Owned(t.to_vec()))
                 }
             }
         )+
@@ -245,25 +216,37 @@ macro_rules! into_array {
 }
 
 into_array!(
-    (Vec<bool>, Array::Bool),
-    (Vec<i64>, Array::I64),
-    (Vec<f64>, Array::F64),
-    (Vec<StringValue>, Array::String),
+    (&[bool], Array::Bool),
+    (&[i64], Array::I64),
+    (&[f64], Array::F64),
+    (&[StringValue], Array::String),
 );
 
 /// The value part of attribute [KeyValue] pairs.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Value {
+pub enum Value<'a> {
     /// bool values
-    Bool(bool),
+    Bool(Cow<'a, bool>),
     /// i64 values
-    I64(i64),
+    I64(Cow<'a, i64>),
     /// f64 values
-    F64(f64),
+    F64(Cow<'a, f64>),
     /// String values
-    String(StringValue),
+    String(Cow<'a, str>),
     /// Array of homogeneous values
-    Array(Array),
+    Array(Array<'a>),
+}
+
+impl Value<'_> {
+    fn to_owned(&self) -> Value<'static> {
+        match self {
+            Value::Bool(v) => Value::Bool(Cow::Owned(v.clone().into_owned())),
+            Value::I64(v) => Value::I64(Cow::Owned(v.clone().into_owned())),
+            Value::F64(v) => Value::F64(Cow::Owned(v.clone().into_owned())),
+            Value::String(v) => Value::String(Cow::Owned(v.clone().into_owned())),
+            Value::Array(v) => Value::Array(v.to_owned()),
+        }
+    }
 }
 
 /// Wrapper for string-like values
@@ -336,7 +319,7 @@ impl From<Cow<'static, str>> for StringValue {
     }
 }
 
-impl Value {
+impl Value<'_> {
     /// String representation of the `Value`
     ///
     /// This will allocate iff the underlying value is not a `String`.
@@ -345,7 +328,7 @@ impl Value {
             Value::Bool(v) => format!("{}", v).into(),
             Value::I64(v) => format!("{}", v).into(),
             Value::F64(v) => format!("{}", v).into(),
-            Value::String(v) => Cow::Borrowed(v.as_str()),
+            Value::String(v) => Cow::Borrowed(v),
             Value::Array(v) => format!("{}", v).into(),
         }
     }
@@ -354,13 +337,13 @@ impl Value {
 macro_rules! from_values {
    (
         $(
-            ($t:ty, $val:expr);
+            ($t:ty, $variant:path);
         )+
     ) => {
         $(
-            impl From<$t> for Value {
-                fn from(t: $t) -> Self {
-                    $val(t)
+            impl From<$t> for Value<'_> {
+                fn from(val: $t) -> Self {
+                    $variant(Cow::Owned(val))
                 }
             }
         )+
@@ -371,40 +354,39 @@ from_values!(
     (bool, Value::Bool);
     (i64, Value::I64);
     (f64, Value::F64);
-    (StringValue, Value::String);
 );
 
-impl From<&'static str> for Value {
-    fn from(s: &'static str) -> Self {
-        Value::String(s.into())
+impl<'a> From<&'a str> for Value<'a> {
+    fn from(s: &'a str) -> Self {
+        Value::String(Cow::Borrowed(s))
     }
 }
 
-impl From<String> for Value {
+impl From<String> for Value<'static> {
     fn from(s: String) -> Self {
-        Value::String(s.into())
+        Value::String(Cow::Owned(s))
     }
 }
 
-impl From<Arc<str>> for Value {
-    fn from(s: Arc<str>) -> Self {
-        Value::String(s.into())
+impl From<StringValue> for Value<'static> {
+    fn from(s: StringValue) -> Self {
+        Value::String(Cow::Owned(s.into()))
     }
 }
 
-impl From<Cow<'static, str>> for Value {
+impl From<Cow<'static, str>> for Value<'_> {
     fn from(s: Cow<'static, str>) -> Self {
-        Value::String(s.into())
+        Value::String(s)
     }
 }
 
-impl fmt::Display for Value {
+impl fmt::Display for Value<'_> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Bool(v) => v.fmt(fmt),
             Value::I64(v) => v.fmt(fmt),
             Value::F64(v) => v.fmt(fmt),
-            Value::String(v) => fmt.write_str(v.as_str()),
+            Value::String(v) => fmt.write_str(v.as_ref()),
             Value::Array(v) => v.fmt(fmt),
         }
     }
@@ -412,24 +394,32 @@ impl fmt::Display for Value {
 
 /// A key-value pair describing an attribute.
 #[derive(Clone, Debug, PartialEq)]
-pub struct KeyValue {
+pub struct KeyValue<'a> {
     /// The attribute name
     pub key: Key,
 
     /// The attribute value
-    pub value: Value,
+    pub value: Value<'a>,
 }
 
-impl KeyValue {
+impl<'a> KeyValue<'a> {
     /// Create a new `KeyValue` pair.
     pub fn new<K, V>(key: K, value: V) -> Self
     where
         K: Into<Key>,
-        V: Into<Value>,
+        V: Into<Value<'a>>,
     {
         KeyValue {
             key: key.into(),
             value: value.into(),
+        }
+    }
+
+    /// Returns an owned version of the `KeyValue`
+    pub fn to_owned(&self) -> KeyValue<'static> {
+        KeyValue {
+            key: self.key.clone(),
+            value: self.value.to_owned(),
         }
     }
 }
@@ -474,7 +464,7 @@ pub struct InstrumentationLibrary {
     pub schema_url: Option<Cow<'static, str>>,
 
     /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
 }
 
 // Uniqueness for InstrumentationLibrary/InstrumentationScope does not depend on attributes
@@ -505,7 +495,7 @@ impl InstrumentationLibrary {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> InstrumentationLibrary {
         InstrumentationLibrary {
             name: name.into(),
@@ -545,7 +535,7 @@ pub struct InstrumentationLibraryBuilder {
 
     schema_url: Option<Cow<'static, str>>,
 
-    attributes: Option<Vec<KeyValue>>,
+    attributes: Option<Vec<KeyValue<'static>>>,
 }
 
 impl InstrumentationLibraryBuilder {
@@ -590,7 +580,7 @@ impl InstrumentationLibraryBuilder {
     /// ```
     pub fn with_attributes<I>(mut self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = KeyValue>,
+        I: IntoIterator<Item = KeyValue<'static>>,
     {
         self.attributes = Some(attributes.into_iter().collect());
         self

@@ -18,14 +18,14 @@ pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
 
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
-    fn call(&self, measurement: T, attrs: &[KeyValue]);
+    fn call(&self, measurement: T, attrs: &[KeyValue<'_>]);
 }
 
 impl<F, T> Measure<T> for F
 where
-    F: Fn(T, &[KeyValue]) + Send + Sync + 'static,
+    F: Fn(T, &[KeyValue<'_>]) + Send + Sync + 'static,
 {
-    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+    fn call(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         self(measurement, attrs)
     }
 }
@@ -69,7 +69,7 @@ pub(crate) struct AggregateBuilder<T> {
     _marker: marker::PhantomData<T>,
 }
 
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+type Filter = Arc<dyn Fn(&KeyValue<'_>) -> bool + Send + Sync>;
 
 impl<T: Number<T>> AggregateBuilder<T> {
     pub(crate) fn new(temporality: Option<Temporality>, filter: Option<Filter>) -> Self {
@@ -83,9 +83,9 @@ impl<T: Number<T>> AggregateBuilder<T> {
     /// Wraps the passed in measure with an attribute filtering function.
     fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
         let filter = self.filter.clone();
-        move |n, attrs: &[KeyValue]| {
+        move |n, attrs: &[KeyValue<'_>]| {
             if let Some(filter) = &filter {
-                let filtered_attrs: Vec<KeyValue> =
+                let filtered_attrs: Vec<KeyValue<'_>> =
                     attrs.iter().filter(|kv| filter(kv)).cloned().collect();
                 f.call(n, &filtered_attrs);
             } else {
@@ -101,7 +101,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue<'_>]| lv_filter.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| {
                 let g = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
                 let mut new_agg = if g.is_none() {
@@ -135,7 +135,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue<'_>]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -150,7 +150,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue<'_>]| s.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_sum.delta(dest),
                 _ => agg_sum.cumulative(dest),
@@ -170,7 +170,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue<'_>]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),
@@ -196,7 +196,7 @@ impl<T: Number<T>> AggregateBuilder<T> {
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
+            self.filter(move |n, a: &[KeyValue<'_>]| h.measure(n, a)),
             move |dest: Option<&mut dyn Aggregation>| match t {
                 Some(Temporality::Delta) => agg_h.delta(dest),
                 _ => agg_h.cumulative(dest),

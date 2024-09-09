@@ -85,7 +85,7 @@ pub struct SpanData {
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
     /// The number of attributes that were above the configured limit, and thus
     /// dropped.
     pub dropped_attributes_count: u32,

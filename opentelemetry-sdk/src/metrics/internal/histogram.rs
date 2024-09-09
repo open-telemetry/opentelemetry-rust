@@ -120,7 +120,7 @@ impl<T: Number<T>> Histogram<T> {
         histogram
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         let f = measurement.into_float();
 
         // This search will return an index in the range `[0, bounds.len()]`, where

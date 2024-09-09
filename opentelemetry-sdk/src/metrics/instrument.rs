@@ -253,7 +253,7 @@ pub(crate) struct ResolvedMeasures<T> {
 }
 
 impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
+    fn add(&self, val: T, attrs: &[KeyValue<'_>]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
@@ -261,7 +261,7 @@ impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
 }
 
 impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
+    fn add(&self, val: T, attrs: &[KeyValue<'_>]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
@@ -269,7 +269,7 @@ impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
 }
 
 impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
+    fn record(&self, val: T, attrs: &[KeyValue<'_>]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
@@ -277,7 +277,7 @@ impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
 }
 
 impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
+    fn record(&self, val: T, attrs: &[KeyValue<'_>]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
@@ -296,7 +296,7 @@ impl<T> Observable<T> {
 }
 
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
-    fn observe(&self, measurement: T, attrs: &[KeyValue]) {
+    fn observe(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         for measure in &self.measures {
             measure.call(measurement, attrs)
         }
