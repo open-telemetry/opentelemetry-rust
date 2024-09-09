@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.25.0
+
 - Perf improvements for all metric instruments (except `ExponentialHistogram`) that led to **faster metric updates** and **higher throughput** [#1740](https://github.com/open-telemetry/opentelemetry-rust/pull/1740):
   - **Zero allocations when recording measurements**: Once a measurement for a given attribute combination is reported, the SDK would not allocate additional memory for subsquent measurements reported for the same combination.
   - **Minimized thread contention**: Threads reporting measurements for the same instrument no longer contest for the same `Mutex`. The internal aggregation data structure now uses a combination of `RwLock` and atomics. Consequently, threads reporting measurements now only have to acquire a read lock.
