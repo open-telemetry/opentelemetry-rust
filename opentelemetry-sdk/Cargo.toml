@@ -10,8 +10,8 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-opentelemetry = { version = "0.24", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.13", path = "../opentelemetry-http", optional = true }
+opentelemetry = { version = "0.25", path = "../opentelemetry/" }
+opentelemetry-http = { version = "0.25", path = "../opentelemetry-http", optional = true }
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 futures-channel = "0.3"
