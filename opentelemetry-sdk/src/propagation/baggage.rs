@@ -25,7 +25,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
+/// use opentelemetry::{baggage::BaggageExt, KeyValue, propagation::TextMapPropagator};
 /// use opentelemetry_sdk::propagation::BaggagePropagator;
 /// use std::collections::HashMap;
 ///
@@ -43,7 +43,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// }
 ///
 /// // Add new baggage
-/// let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").i64(42)]);
+/// let cx_with_additions = cx.with_baggage(vec![KeyValue::new("server_id", 42)]);
 ///
 /// // Inject baggage into http request
 /// propagator.inject_context(&cx_with_additions, &mut headers);
