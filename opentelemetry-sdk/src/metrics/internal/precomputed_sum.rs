@@ -14,7 +14,7 @@ pub(crate) struct PrecomputedSum<T: Number<T>> {
     value_map: ValueMap<T, T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
-    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
+    reported: Mutex<HashMap<Vec<KeyValue<'static>>, T>>,
 }
 
 impl<T: Number<T>> PrecomputedSum<T> {
@@ -27,7 +27,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         // The argument index is not applicable to PrecomputedSum.
         self.value_map.measure(measurement, attrs, 0);
     }

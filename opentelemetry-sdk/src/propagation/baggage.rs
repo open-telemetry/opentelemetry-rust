@@ -25,7 +25,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{baggage::BaggageExt, Key, propagation::TextMapPropagator};
+/// use opentelemetry::{baggage::BaggageExt, Key, KeyValue, propagation::TextMapPropagator};
 /// use opentelemetry_sdk::propagation::BaggagePropagator;
 /// use std::collections::HashMap;
 ///
@@ -43,7 +43,7 @@ static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned
 /// }
 ///
 /// // Add new baggage
-/// let cx_with_additions = cx.with_baggage(vec![Key::new("server_id").i64(42)]);
+/// let cx_with_additions = cx.with_baggage(vec![KeyValue::new("server_id", 42)]);
 ///
 /// // Inject baggage into http request
 /// propagator.inject_context(&cx_with_additions, &mut headers);
@@ -159,7 +159,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[rustfmt::skip]
-    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, Value>)> {
+    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, Value<'static>>)> {
         vec![
             // "valid w3cHeader"
             ("key1=val1,key2=val2", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
@@ -176,7 +176,7 @@ mod tests {
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, BaggageMetadata)>)> {
+    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value<'static>, BaggageMetadata)>)> {
         vec![
             // "valid w3cHeader with properties"
             ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    fn valid_inject_data() -> Vec<(Vec<KeyValue>, Vec<&'static str>)> {
+    fn valid_inject_data() -> Vec<(Vec<KeyValue<'static>>, Vec<&'static str>)> {
         vec![
             // "two simple values"
             (vec![KeyValue::new("key1", "val1"), KeyValue::new("key2", "val2")], vec!["key1=val1", "key2=val2"]),
@@ -202,8 +202,8 @@ mod tests {
             (
                 vec![
                     KeyValue::new("key1", true),
-                    KeyValue::new("key2", Value::I64(123)),
-                    KeyValue::new("key3", Value::F64(123.567)),
+                    KeyValue::new("key2", 123),
+                    KeyValue::new("key3", 123.567),
                 ],
                 vec![
                     "key1=true",
@@ -214,9 +214,9 @@ mod tests {
             // "values of array types"
             (
                 vec![
-                    KeyValue::new("key1", Value::Array(vec![true, false].into())),
-                    KeyValue::new("key2", Value::Array(vec![123, 456].into())),
-                    KeyValue::new("key3", Value::Array(vec![StringValue::from("val1"), StringValue::from("val2")].into())),
+                    KeyValue::new("key1", Value::Array(vec![true, false].as_slice().into())),
+                    KeyValue::new("key2", Value::Array(vec![123, 456].as_slice().into())),
+                    KeyValue::new("key3", Value::Array(vec![StringValue::from("val1"), StringValue::from("val2")].as_slice().into())),
                 ],
                 vec![
                     "key1=[true%2Cfalse]",

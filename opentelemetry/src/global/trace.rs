@@ -23,7 +23,7 @@ pub trait ObjectSafeSpan {
         &mut self,
         name: Cow<'static, str>,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
     );
 
     /// Returns the `SpanContext` for the given `Span`. The returned value may be used even after
@@ -61,7 +61,7 @@ pub trait ObjectSafeSpan {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: KeyValue);
+    fn set_attribute(&mut self, attribute: KeyValue<'static>);
 
     /// Sets the status of the `Span`. `message` MUST be ignored when the status is `OK` or
     /// `Unset`.
@@ -88,7 +88,7 @@ pub trait ObjectSafeSpan {
 
     /// Adds a link to this span
     ///
-    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>);
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue<'static>>);
 
     /// Finishes the `Span`.
     ///
@@ -117,7 +117,7 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         &mut self,
         name: Cow<'static, str>,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
     ) {
         self.add_event_with_timestamp(name, timestamp, attributes)
     }
@@ -130,7 +130,7 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         self.is_recording()
     }
 
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, attribute: KeyValue<'static>) {
         self.set_attribute(attribute)
     }
 
@@ -142,7 +142,7 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         self.update_name(new_name)
     }
 
-    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue<'static>>) {
         self.add_link(span_context, attributes)
     }
 
@@ -182,7 +182,7 @@ impl trace::Span for BoxedSpan {
         &mut self,
         name: T,
         timestamp: SystemTime,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>,
     {
@@ -206,7 +206,7 @@ impl trace::Span for BoxedSpan {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, attribute: KeyValue<'static>) {
         self.0.set_attribute(attribute)
     }
 
@@ -226,7 +226,7 @@ impl trace::Span for BoxedSpan {
 
     /// Adds a link to this span
     ///
-    fn add_link(&mut self, span_context: trace::SpanContext, attributes: Vec<KeyValue>) {
+    fn add_link(&mut self, span_context: trace::SpanContext, attributes: Vec<KeyValue<'static>>) {
         self.0.add_link(span_context, attributes)
     }
 

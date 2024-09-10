@@ -262,7 +262,7 @@ pub struct SpanBuilder {
     /// More attributes can be added afterwards.
     /// Providing duplicate keys will result in multiple attributes
     /// with the same key, as there is no de-duplication performed.
-    pub attributes: Option<Vec<KeyValue>>,
+    pub attributes: Option<Vec<KeyValue<'static>>>,
 
     /// Span events
     pub events: Option<Vec<Event>>,
@@ -332,7 +332,7 @@ impl SpanBuilder {
     /// with the same key, as there is no de-duplication performed.    
     pub fn with_attributes<I>(self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = KeyValue>,
+        I: IntoIterator<Item = KeyValue<'static>>,
     {
         SpanBuilder {
             attributes: Some(attributes.into_iter().collect()),
@@ -388,7 +388,7 @@ pub struct SamplingResult {
     pub decision: SamplingDecision,
 
     /// Extra attributes to be added to the span by the sampler
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
 
     /// Trace state from parent context, may be modified by samplers.
     pub trace_state: TraceState,

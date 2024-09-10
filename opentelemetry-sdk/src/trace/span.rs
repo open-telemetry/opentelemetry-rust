@@ -36,7 +36,7 @@ pub(crate) struct SpanData {
     /// Span end time
     pub(crate) end_time: SystemTime,
     /// Span attributes
-    pub(crate) attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue<'static>>,
     /// The number of attributes that were above the configured limit, and thus
     /// dropped.
     pub(crate) dropped_attributes_count: u32,
@@ -93,7 +93,7 @@ impl opentelemetry::trace::Span for Span {
         &mut self,
         name: T,
         timestamp: SystemTime,
-        mut attributes: Vec<KeyValue>,
+        mut attributes: Vec<KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>,
     {
@@ -134,7 +134,7 @@ impl opentelemetry::trace::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, attribute: KeyValue<'static>) {
         let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
         self.with_data(|data| {
             if data.attributes.len() < span_attribute_limit {
@@ -170,7 +170,7 @@ impl opentelemetry::trace::Span for Span {
 
     /// Add `Link` to this `Span`
     ///
-    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue<'static>>) {
         let span_links_limit = self.span_limits.max_links_per_span as usize;
         let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
         self.with_data(|data| {
@@ -391,7 +391,7 @@ mod tests {
         let attributes = KeyValue::new("k", "v");
         span.set_attribute(attributes.clone());
         span.with_data(|data| {
-            let matching_attribute: Vec<&KeyValue> = data
+            let matching_attribute: Vec<&KeyValue<'static>> = data
                 .attributes
                 .iter()
                 .filter(|kv| kv.key.as_str() == attributes.key.as_str())

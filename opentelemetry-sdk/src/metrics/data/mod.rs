@@ -97,7 +97,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
 pub struct DataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
     /// The time when the time series was started.
     pub start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
@@ -143,7 +143,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
 #[derive(Debug)]
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
     /// The time when the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
@@ -210,7 +210,7 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 #[derive(Debug)]
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
     /// When the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
@@ -273,7 +273,7 @@ pub struct ExponentialBucket {
 pub struct Exemplar<T> {
     /// The attributes recorded with the measurement but filtered out of the
     /// time series' aggregated data.
-    pub filtered_attributes: Vec<KeyValue>,
+    pub filtered_attributes: Vec<KeyValue<'static>>,
     /// The time when the measurement was recorded.
     pub time: SystemTime,
     /// The measured value.

@@ -71,7 +71,7 @@ pub trait TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
+        attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Self::Tracer {
         let mut builder = self.tracer_builder(name);
         if let Some(v) = version {
@@ -160,7 +160,7 @@ impl<'a, T: TracerProvider + ?Sized> TracerBuilder<'a, T> {
 
     pub fn with_attributes<I>(mut self, attributes: I) -> Self
     where
-        I: IntoIterator<Item = KeyValue>,
+        I: IntoIterator<Item = KeyValue<'static>>,
     {
         self.library_builder = self.library_builder.with_attributes(attributes);
         self

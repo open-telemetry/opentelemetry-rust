@@ -5,7 +5,7 @@ use opentelemetry::metrics::MetricsError;
 use opentelemetry::trace::{TraceError, TracerProvider};
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
-    Key, KeyValue,
+    KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{ExportConfig, WithExportConfig};
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
-            vec![Key::new("bogons").i64(100)],
+            vec![KeyValue::new("bogons", 100)],
         );
         span.set_attribute(KeyValue::new("another.key", "yes"));
 

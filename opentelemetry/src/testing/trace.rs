@@ -12,7 +12,7 @@ impl Span for TestSpan {
         &mut self,
         _name: T,
         _timestamp: std::time::SystemTime,
-        _attributes: Vec<KeyValue>,
+        _attributes: Vec<KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>,
     {
@@ -23,7 +23,7 @@ impl Span for TestSpan {
     fn is_recording(&self) -> bool {
         false
     }
-    fn set_attribute(&mut self, _attribute: KeyValue) {}
+    fn set_attribute(&mut self, _attribute: KeyValue<'static>) {}
     fn set_status(&mut self, _status: Status) {}
     fn update_name<T>(&mut self, _new_name: T)
     where
@@ -31,7 +31,7 @@ impl Span for TestSpan {
     {
     }
 
-    fn add_link(&mut self, _span_context: SpanContext, _attributes: Vec<KeyValue>) {}
+    fn add_link(&mut self, _span_context: SpanContext, _attributes: Vec<KeyValue<'static>>) {}
     fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {}
 }
 

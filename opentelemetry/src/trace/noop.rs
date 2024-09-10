@@ -47,7 +47,7 @@ impl NoopSpan {
 
 impl trace::Span for NoopSpan {
     /// Ignores all events
-    fn add_event<T>(&mut self, _name: T, _attributes: Vec<KeyValue>)
+    fn add_event<T>(&mut self, _name: T, _attributes: Vec<KeyValue<'static>>)
     where
         T: Into<Cow<'static, str>>,
     {
@@ -59,7 +59,7 @@ impl trace::Span for NoopSpan {
         &mut self,
         _name: T,
         _timestamp: SystemTime,
-        _attributes: Vec<KeyValue>,
+        _attributes: Vec<KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>,
     {
@@ -77,7 +77,7 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores all attributes
-    fn set_attribute(&mut self, _attribute: KeyValue) {
+    fn set_attribute(&mut self, _attribute: KeyValue<'static>) {
         // Ignored
     }
 
@@ -94,7 +94,7 @@ impl trace::Span for NoopSpan {
         // Ignored
     }
 
-    fn add_link(&mut self, _span_context: trace::SpanContext, _attributes: Vec<KeyValue>) {
+    fn add_link(&mut self, _span_context: trace::SpanContext, _attributes: Vec<KeyValue<'static>>) {
         // Ignored
     }
 

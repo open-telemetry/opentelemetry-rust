@@ -70,7 +70,7 @@ impl SpanRef<'_> {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    pub fn add_event<T>(&self, name: T, attributes: Vec<KeyValue>)
+    pub fn add_event<T>(&self, name: T, attributes: Vec<KeyValue<'static>>)
     where
         T: Into<Cow<'static, str>>,
     {
@@ -99,7 +99,7 @@ impl SpanRef<'_> {
         &self,
         name: T,
         timestamp: std::time::SystemTime,
-        attributes: Vec<crate::KeyValue>,
+        attributes: Vec<crate::KeyValue<'static>>,
     ) where
         T: Into<Cow<'static, str>>,
     {
@@ -142,7 +142,7 @@ impl SpanRef<'_> {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    pub fn set_attribute(&self, attribute: crate::KeyValue) {
+    pub fn set_attribute(&self, attribute: crate::KeyValue<'static>) {
         self.with_inner_mut(move |inner| inner.set_attribute(attribute))
     }
 
@@ -157,7 +157,7 @@ impl SpanRef<'_> {
     ///
     /// [standard attributes]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/trace/semantic_conventions/README.md
     /// [opentelemetry_semantic_conventions]: https://docs.rs/opentelemetry-semantic-conventions
-    pub fn set_attributes(&self, attributes: impl IntoIterator<Item = KeyValue>) {
+    pub fn set_attributes(&self, attributes: impl IntoIterator<Item = KeyValue<'static>>) {
         self.with_inner_mut(move |inner| inner.set_attributes(attributes))
     }
 

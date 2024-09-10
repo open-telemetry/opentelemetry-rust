@@ -271,7 +271,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &[KeyValue],
+            _attributes: &[KeyValue<'static>],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context

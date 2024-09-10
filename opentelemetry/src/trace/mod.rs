@@ -248,7 +248,7 @@ pub struct Event {
     pub timestamp: time::SystemTime,
 
     /// Attributes that describe this event.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
 
     /// The number of attributes that were above the configured limit, and thus
     /// dropped.
@@ -260,7 +260,7 @@ impl Event {
     pub fn new<T: Into<Cow<'static, str>>>(
         name: T,
         timestamp: time::SystemTime,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
         dropped_attributes_count: u32,
     ) -> Self {
         Event {
@@ -292,7 +292,7 @@ pub struct Link {
     pub span_context: SpanContext,
 
     /// Attributes that describe this link.
-    pub attributes: Vec<KeyValue>,
+    pub attributes: Vec<KeyValue<'static>>,
 
     /// The number of attributes that were above the configured limit, and thus
     /// dropped.
@@ -303,7 +303,7 @@ impl Link {
     /// Create new `Link`
     pub fn new(
         span_context: SpanContext,
-        attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue<'static>>,
         dropped_attributes_count: u32,
     ) -> Self {
         Link {

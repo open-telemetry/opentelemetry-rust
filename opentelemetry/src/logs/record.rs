@@ -1,4 +1,4 @@
-use crate::{Array, Key, StringValue, Value};
+use crate::{Key, StringValue};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// SDK implemented trait for managing log records
@@ -105,23 +105,6 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
         AnyValue::Map(Box::new(HashMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
         )))
-    }
-}
-
-impl From<Value> for AnyValue {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Bool(b) => b.into(),
-            Value::I64(i) => i.into(),
-            Value::F64(f) => f.into(),
-            Value::String(s) => s.into(),
-            Value::Array(a) => match a {
-                Array::Bool(b) => AnyValue::from_iter(b),
-                Array::F64(f) => AnyValue::from_iter(f),
-                Array::I64(i) => AnyValue::from_iter(i),
-                Array::String(s) => AnyValue::from_iter(s),
-            },
-        }
     }
 }
 

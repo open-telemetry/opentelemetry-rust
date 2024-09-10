@@ -112,8 +112,8 @@ pub mod tonic {
     #[derive(Default, Debug)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
-    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
+    impl From<Vec<opentelemetry::KeyValue<'static>>> for Attributes {
+        fn from(kvs: Vec<opentelemetry::KeyValue<'static>>) -> Self {
             Attributes(
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {
@@ -139,19 +139,19 @@ pub mod tonic {
         }
     }
 
-    impl From<Value> for AnyValue {
+    impl From<Value<'static>> for AnyValue {
         fn from(value: Value) -> Self {
             AnyValue {
                 value: match value {
-                    Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
-                    Value::I64(val) => Some(any_value::Value::IntValue(val)),
-                    Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
+                    Value::Bool(val) => Some(any_value::Value::BoolValue(*val)),
+                    Value::I64(val) => Some(any_value::Value::IntValue(*val)),
+                    Value::F64(val) => Some(any_value::Value::DoubleValue(*val)),
                     Value::String(val) => Some(any_value::Value::StringValue(val.to_string())),
                     Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
-                        Array::Bool(vals) => array_into_proto(vals),
-                        Array::I64(vals) => array_into_proto(vals),
-                        Array::F64(vals) => array_into_proto(vals),
-                        Array::String(vals) => array_into_proto(vals),
+                        Array::Bool(vals) => array_into_proto(vals.to_vec()),
+                        Array::I64(vals) => array_into_proto(vals.to_vec()),
+                        Array::F64(vals) => array_into_proto(vals.to_vec()),
+                        Array::String(vals) => array_into_proto(vals.to_vec()),
                     })),
                 },
             }
@@ -160,7 +160,7 @@ pub mod tonic {
 
     fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
     where
-        Value: From<T>,
+        Value<'static>: From<T>,
     {
         let values = vals
             .into_iter()

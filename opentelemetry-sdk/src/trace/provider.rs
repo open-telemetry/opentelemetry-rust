@@ -189,7 +189,7 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
         name: impl Into<Cow<'static, str>>,
         version: Option<impl Into<Cow<'static, str>>>,
         schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
+        attributes: Option<Vec<opentelemetry::KeyValue<'static>>>,
     ) -> Self::Tracer {
         // Use default value if name is invalid empty string
         let name = name.into();

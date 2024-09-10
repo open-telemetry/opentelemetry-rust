@@ -31,7 +31,7 @@ impl MeterProvider for NoopMeterProvider {
         _name: impl Into<Cow<'static, str>>,
         _version: Option<impl Into<Cow<'static, str>>>,
         _schema_url: Option<impl Into<Cow<'static, str>>>,
-        _attributes: Option<Vec<KeyValue>>,
+        _attributes: Option<Vec<KeyValue<'static>>>,
     ) -> Meter {
         Meter::new(Arc::new(NoopMeterCore::new()))
     }
@@ -66,25 +66,25 @@ impl NoopSyncInstrument {
 }
 
 impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: &[KeyValue<'_>]) {
         // Ignored
     }
 }
 
 impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
+    fn add(&self, _value: T, _attributes: &[KeyValue<'_>]) {
         // Ignored
     }
 }
 
 impl<T> SyncHistogram<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+    fn record(&self, _value: T, _attributes: &[KeyValue<'_>]) {
         // Ignored
     }
 }
 
 impl<T> SyncGauge<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+    fn record(&self, _value: T, _attributes: &[KeyValue<'_>]) {
         // Ignored
     }
 }
@@ -103,7 +103,7 @@ impl NoopAsyncInstrument {
 }
 
 impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
-    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
+    fn observe(&self, _value: T, _attributes: &[KeyValue<'_>]) {
         // Ignored
     }
 

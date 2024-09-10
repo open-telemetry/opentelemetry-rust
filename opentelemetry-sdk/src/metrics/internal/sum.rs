@@ -31,7 +31,7 @@ impl<T: Number<T>> Sum<T> {
         }
     }
 
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue<'_>]) {
         // The argument index is not applicable to Sum.
         self.value_map.measure(measurement, attrs, 0);
     }

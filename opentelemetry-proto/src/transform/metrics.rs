@@ -73,8 +73,8 @@ pub mod tonic {
         }
     }
 
-    impl From<(&Key, &Value)> for KeyValue {
-        fn from(kv: (&Key, &Value)) -> Self {
+    impl From<(&Key, &Value<'static>)> for KeyValue {
+        fn from(kv: (&Key, &Value<'static>)) -> Self {
             KeyValue {
                 key: kv.0.to_string(),
                 value: Some(kv.1.clone().into()),
@@ -82,8 +82,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry::KeyValue> for KeyValue {
-        fn from(kv: &opentelemetry::KeyValue) -> Self {
+    impl From<&opentelemetry::KeyValue<'static>> for KeyValue {
+        fn from(kv: &opentelemetry::KeyValue<'static>) -> Self {
             KeyValue {
                 key: kv.key.to_string(),
                 value: Some(kv.value.clone().into()),

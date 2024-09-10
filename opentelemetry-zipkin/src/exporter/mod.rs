@@ -102,7 +102,7 @@ impl ZipkinPipelineBuilder {
                         .iter()
                         .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
                         .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>(),
+                        .collect::<Vec<KeyValue<'static>>>(),
                 ));
                 cfg
             } else {

@@ -21,7 +21,7 @@ use opentelemetry::{global, KeyValue};
 
 use crate::metrics::AttributeSet;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue<'static>>> =
     Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
 /// Abstracts the update operation for a measurement.
@@ -51,7 +51,7 @@ impl Operation for Assign {
 /// updates to the underlying value trackers should be performed.
 pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number<T>, O> {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<AU::AtomicTracker>>>,
+    trackers: RwLock<HashMap<Vec<KeyValue<'static>>, Arc<AU::AtomicTracker>>>,
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Indicates whether a value with no attributes has been stored.
@@ -94,7 +94,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
 }
 
 impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
-    fn measure(&self, measurement: T, attributes: &[KeyValue], index: usize) {
+    fn measure(&self, measurement: T, attributes: &[KeyValue<'_>], index: usize) {
         if attributes.is_empty() {
             O::update_tracker(&self.no_attribute_tracker, measurement, index);
             self.has_no_attribute_value.store(true, Ordering::Release);
@@ -136,7 +136,10 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
             O::update_tracker(&*new_tracker, measurement, index);
 
             // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
+            trackers.insert(
+                attributes.iter().map(|kv| kv.to_owned()).collect(),
+                new_tracker.clone(),
+            );
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);

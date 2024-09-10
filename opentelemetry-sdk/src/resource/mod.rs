@@ -41,7 +41,7 @@ use std::time::Duration;
 /// This structure is designed to be shared among `Resource` instances via `Arc`.
 #[derive(Debug, Clone, PartialEq)]
 struct ResourceInner {
-    attrs: HashMap<Key, Value>,
+    attrs: HashMap<Key, Value<'static>>,
     schema_url: Option<Cow<'static, str>>,
 }
 
@@ -81,7 +81,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    pub fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+    pub fn new<T: IntoIterator<Item = KeyValue<'static>>>(kvs: T) -> Self {
         let mut attrs = HashMap::new();
         for kv in kvs {
             attrs.insert(kv.key, kv.value);
@@ -105,7 +105,7 @@ impl Resource {
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn from_schema_url<KV, S>(kvs: KV, schema_url: S) -> Self
     where
-        KV: IntoIterator<Item = KeyValue>,
+        KV: IntoIterator<Item = KeyValue<'static>>,
         S: Into<Cow<'static, str>>,
     {
         let schema_url_str = schema_url.into();
@@ -215,17 +215,17 @@ impl Resource {
     }
 
     /// Retrieve the value from resource associate with given key.
-    pub fn get(&self, key: Key) -> Option<Value> {
+    pub fn get(&self, key: Key) -> Option<Value<'static>> {
         self.inner.attrs.get(&key).cloned()
     }
 }
 
 /// An iterator over the entries of a `Resource`.
 #[derive(Debug)]
-pub struct Iter<'a>(hash_map::Iter<'a, Key, Value>);
+pub struct Iter<'a>(hash_map::Iter<'a, Key, Value<'static>>);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a Key, &'a Value);
+    type Item = (&'a Key, &'a Value<'static>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -233,7 +233,7 @@ impl<'a> Iterator for Iter<'a> {
 }
 
 impl<'a> IntoIterator for &'a Resource {
-    type Item = (&'a Key, &'a Value);
+    type Item = (&'a Key, &'a Value<'static>);
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

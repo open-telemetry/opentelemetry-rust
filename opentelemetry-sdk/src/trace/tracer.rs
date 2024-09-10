@@ -67,7 +67,7 @@ impl Tracer {
         psc: &SpanContext,
         sc: SpanContext,
         mut builder: SpanBuilder,
-        attrs: Vec<KeyValue>,
+        attrs: Vec<KeyValue<'static>>,
         span_limits: SpanLimits,
     ) -> Span {
         let mut attribute_options = builder.attributes.take().unwrap_or_default();
@@ -315,7 +315,7 @@ mod tests {
             _trace_id: TraceId,
             _name: &str,
             _span_kind: &SpanKind,
-            _attributes: &[KeyValue],
+            _attributes: &[KeyValue<'static>],
             _links: &[Link],
         ) -> SamplingResult {
             let trace_state = parent_context

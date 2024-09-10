@@ -41,7 +41,7 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
-            vec![Key::new("bogons").i64(100)],
+            vec![KeyValue::new("bogons", 100)],
         );
         span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
 
