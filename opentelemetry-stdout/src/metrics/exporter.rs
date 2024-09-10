@@ -51,7 +51,8 @@ impl AggregationSelector for MetricsExporter {
     }
 }
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl PushMetricsExporter for MetricsExporter {
     /// Write Metrics to stdout
     async fn export(&self, metrics: &mut data::ResourceMetrics) -> Result<()> {

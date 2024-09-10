@@ -28,7 +28,8 @@ use std::fmt::Debug;
 
 // Run this benchmark with:
 // cargo bench --bench log_exporter
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
     async fn export(&mut self, batch: LogBatch<'_>);
 }
@@ -40,7 +41,8 @@ pub trait LogExporterWithoutFuture: Send + Sync + Debug {
 #[derive(Debug)]
 struct NoOpExporterWithFuture {}
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
     async fn export(&mut self, _batch: LogBatch<'_>) {}
 }

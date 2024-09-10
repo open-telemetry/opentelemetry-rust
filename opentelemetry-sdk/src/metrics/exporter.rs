@@ -11,7 +11,8 @@ use crate::metrics::{
 /// Exporter handles the delivery of metric data to external receivers.
 ///
 /// This is the final component in the metric push pipeline.
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 pub trait PushMetricsExporter:
     AggregationSelector + TemporalitySelector + Send + Sync + 'static
 {

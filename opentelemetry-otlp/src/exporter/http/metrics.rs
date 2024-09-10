@@ -9,7 +9,8 @@ use crate::{metric::MetricsClient, Error};
 
 use super::OtlpHttpClient;
 
-#[async_trait]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl MetricsClient for OtlpHttpClient {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
         let client = self

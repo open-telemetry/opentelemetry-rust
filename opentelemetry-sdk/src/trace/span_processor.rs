@@ -40,12 +40,12 @@ use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
 use futures_channel::oneshot;
 use futures_util::{
-    future::{self, BoxFuture, Either},
+    future::{self, Either},
     select,
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::global;
+use opentelemetry::{global, MaybeSendBoxFuture};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
@@ -299,7 +299,7 @@ enum BatchMessage {
 
 struct BatchSpanProcessorInternal<R> {
     spans: Vec<SpanData>,
-    export_tasks: FuturesUnordered<BoxFuture<'static, ExportResult>>,
+    export_tasks: FuturesUnordered<MaybeSendBoxFuture<'static, ExportResult>>,
     runtime: R,
     exporter: Box<dyn SpanExporter>,
     config: BatchConfig,
@@ -403,7 +403,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         true
     }
 
-    fn export(&mut self) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self) -> MaybeSendBoxFuture<'static, ExportResult> {
         // Batch size check for flush / shutdown. Those methods may be called
         // when there's no work to do.
         if self.spans.is_empty() {
@@ -944,7 +944,8 @@ mod tests {
         }
     }
 
-    #[async_trait]
+    #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+    #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,
