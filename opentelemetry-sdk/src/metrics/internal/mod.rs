@@ -6,7 +6,7 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
@@ -17,7 +17,7 @@ pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
 use opentelemetry::metrics::MetricsError;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{global, Key, KeyValue};
 
 use crate::metrics::AttributeSet;
 
@@ -134,6 +134,20 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
         } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
             let new_tracker = Arc::new(AU::new_atomic_tracker(self.buckets_count));
             O::update_tracker(&*new_tracker, measurement, index);
+
+            // Dedup the user provided attributes before storing them in the dictionary
+            let mut keys_set: HashSet<Key> = HashSet::with_capacity(attributes.len());
+            let attributes = attributes
+                .iter()
+                .rev()
+                .filter_map(|kv| {
+                    if keys_set.insert(kv.key.clone()) {
+                        Some(kv.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
