@@ -9,7 +9,7 @@ use core::fmt;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use aggregate::is_under_cardinality_limit;
@@ -21,8 +21,11 @@ use opentelemetry::{global, KeyValue};
 
 use crate::metrics::AttributeSet;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
-    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+const STREAM_OVERFLOW_MSG:&str = "Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.";
+
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<AttributeSet> = Lazy::new(|| {
+    AttributeSet::from(&[KeyValue::new("otel.metric.overflow", "true")] as &[KeyValue])
+});
 
 /// Abstracts the update operation for a measurement.
 pub(crate) trait Operation {
@@ -45,21 +48,161 @@ impl Operation for Assign {
     }
 }
 
+pub(crate) struct AttributeSetTracker<AU, T>
+where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    list: HashMap<Vec<KeyValue>, Arc<AU::AtomicTracker>>,
+    sorted_deduped: HashMap<AttributeSet, Arc<AU::AtomicTracker>>,
+    /// Buckets Count is only used by Histogram.
+    buckets_count: Option<usize>,
+}
+
+impl<AU, T> AttributeSetTracker<AU, T>
+where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    fn new(buckets_count: Option<usize>) -> Self {
+        Self {
+            list: Default::default(),
+            sorted_deduped: Default::default(),
+            buckets_count,
+        }
+    }
+
+    fn get_existing(&self, attributes: &[KeyValue]) -> Option<&Arc<AU::AtomicTracker>> {
+        self.list.get(attributes)
+    }
+
+    fn create_new(&mut self, attributes: &[KeyValue]) -> &mut Arc<AU::AtomicTracker> {
+        if is_under_cardinality_limit(self.list.len()) {
+            // Recheck in case another thread has pushed an update in the meantime.
+            self.list.entry(attributes.into()).or_insert_with(|| {
+                // return existing combination if we have one
+                self.sorted_deduped
+                    .entry(AttributeSet::from(attributes))
+                    .or_insert_with(|| Arc::new(AU::new_atomic_tracker(self.buckets_count)))
+                    .clone()
+            })
+        } else {
+            self.sorted_deduped
+                .entry(STREAM_OVERFLOW_ATTRIBUTES.clone())
+                .or_insert_with(|| {
+                    global::handle_error(MetricsError::Other(STREAM_OVERFLOW_MSG.into()));
+                    Arc::new(AU::new_atomic_tracker(self.buckets_count))
+                })
+        }
+    }
+}
+
+pub(crate) struct LockFreeNoAttribsTracker<AU, T>
+where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    /// Indicates whether a value with no attributes has been stored.
+    is_set: AtomicBool,
+    /// Tracker for values with no attributes attached.
+    tracker: AU::AtomicTracker,
+}
+
+impl<AU, T> LockFreeNoAttribsTracker<AU, T>
+where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    fn new(buckets_count: Option<usize>) -> Self {
+        Self {
+            is_set: AtomicBool::new(false),
+            tracker: AU::new_atomic_tracker(buckets_count),
+        }
+    }
+
+    fn update_tracker<O>(&self, measurement: T, index: usize)
+    where
+        O: Operation,
+    {
+        O::update_tracker(&self.tracker, measurement, index);
+        self.is_set.store(true, Ordering::Release);
+    }
+}
+
+/// Collect all data points from various sources in readonly mode
+/// without reseting anything
+pub(crate) fn collect_data_points_readonly<AU, T, Res>(
+    no_attribs: &LockFreeNoAttribsTracker<AU, T>,
+    with_attribs: &AttributeSetTracker<AU, T>,
+    dest: &mut Vec<Res>,
+    f: impl Fn(Vec<KeyValue>, &AU::AtomicTracker) -> Res,
+) where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    // Max number of data points need to account for the special casing
+    // of the no attribute value
+    let n = with_attribs.list.len() + 1;
+    if n > dest.capacity() {
+        dest.reserve_exact(n - dest.capacity());
+    }
+    if no_attribs.is_set.load(Ordering::Acquire) {
+        dest.push(f(vec![], &no_attribs.tracker));
+    }
+    // TODO: This will use an unbounded amount of memory if there
+    // are unbounded number of attribute sets being aggregated. Attribute
+    // sets that become "stale" need to be forgotten so this will not
+    // overload the system.
+    dest.extend(
+        with_attribs
+            .sorted_deduped
+            .iter()
+            .map(|(attrs, tracker)| f(attrs.as_ref().clone(), tracker.as_ref())),
+    )
+}
+
+/// Collect all data sources and also resets everything
+/// It is expected for caller to reset AtomicTracker as well
+pub(crate) fn collect_data_points_reset<AU, T, Res>(
+    no_attribs: &LockFreeNoAttribsTracker<AU, T>,
+    with_attribs: &mut AttributeSetTracker<AU, T>,
+    dest: &mut Vec<Res>,
+    mut f: impl FnMut(Vec<KeyValue>, &AU::AtomicTracker) -> Res,
+) where
+    AU: AtomicallyUpdate<T>,
+    T: Number<T>,
+{
+    // Max number of data points need to account for the special casing
+    // of the no attribute value
+    let n = with_attribs.list.len() + 1;
+    if n > dest.capacity() {
+        dest.reserve_exact(n - dest.capacity());
+    }
+    if no_attribs.is_set.swap(false, Ordering::AcqRel) {
+        dest.push(f(vec![], &no_attribs.tracker));
+    }
+
+    with_attribs.list.clear();
+    // TODO: This will use an unbounded amount of memory if there
+    // are unbounded number of attribute sets being aggregated. Attribute
+    // sets that become "stale" need to be forgotten so this will not
+    // overload the system.
+    dest.extend(
+        with_attribs
+            .sorted_deduped
+            .drain()
+            .map(|(attrs, tracker)| f(attrs.into_inner(), tracker.as_ref())),
+    );
+}
+
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
 pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number<T>, O> {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<AU::AtomicTracker>>>,
-    /// Number of different attribute set stored in the `trackers` map.
-    count: AtomicUsize,
-    /// Indicates whether a value with no attributes has been stored.
-    has_no_attribute_value: AtomicBool,
-    /// Tracker for values with no attributes attached.
-    no_attribute_tracker: AU::AtomicTracker,
-    /// Buckets Count is only used by Histogram.
-    buckets_count: Option<usize>,
+    trackers: RwLock<AttributeSetTracker<AU, T>>,
+    no_attribs_tracker: LockFreeNoAttribsTracker<AU, T>,
     phantom: PhantomData<O>,
 }
 
@@ -72,22 +215,16 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> Default for ValueMap<AU, T, O> {
 impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
     fn new() -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::new()),
-            has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: AU::new_atomic_tracker(None),
-            count: AtomicUsize::new(0),
-            buckets_count: None,
+            trackers: RwLock::new(AttributeSetTracker::new(None)),
+            no_attribs_tracker: LockFreeNoAttribsTracker::new(None),
             phantom: PhantomData,
         }
     }
 
     fn new_with_buckets_count(buckets_count: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::new()),
-            has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: AU::new_atomic_tracker(Some(buckets_count)),
-            count: AtomicUsize::new(0),
-            buckets_count: Some(buckets_count),
+            trackers: RwLock::new(AttributeSetTracker::new(Some(buckets_count))),
+            no_attribs_tracker: LockFreeNoAttribsTracker::new(Some(buckets_count)),
             phantom: PhantomData,
         }
     }
@@ -96,57 +233,24 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
 impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
     fn measure(&self, measurement: T, attributes: &[KeyValue], index: usize) {
         if attributes.is_empty() {
-            O::update_tracker(&self.no_attribute_tracker, measurement, index);
-            self.has_no_attribute_value.store(true, Ordering::Release);
+            self.no_attribs_tracker
+                .update_tracker::<O>(measurement, index);
             return;
         }
 
-        let Ok(trackers) = self.trackers.read() else {
-            return;
-        };
-
-        // Try to retrieve and update the tracker with the attributes in the provided order first
-        if let Some(tracker) = trackers.get(attributes) {
-            O::update_tracker(&**tracker, measurement, index);
-            return;
+        match self.trackers.read() {
+            Ok(trackers) => {
+                if let Some(tracker) = trackers.get_existing(attributes) {
+                    O::update_tracker(tracker.as_ref(), measurement, index);
+                    return;
+                }
+            }
+            Err(_) => return,
         }
 
-        // Try to retrieve and update the tracker with the attributes sorted.
-        let sorted_attrs = AttributeSet::from(attributes).into_vec();
-        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            O::update_tracker(&**tracker, measurement, index);
-            return;
-        }
-
-        // Give up the read lock before acquiring the write lock.
-        drop(trackers);
-
-        let Ok(mut trackers) = self.trackers.write() else {
-            return;
-        };
-
-        // Recheck both the provided and sorted orders after acquiring the write lock
-        // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
-            O::update_tracker(&**tracker, measurement, index);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            O::update_tracker(&**tracker, measurement, index);
-        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
-            let new_tracker = Arc::new(AU::new_atomic_tracker(self.buckets_count));
-            O::update_tracker(&*new_tracker, measurement, index);
-
-            // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
-            trackers.insert(sorted_attrs, new_tracker);
-
-            self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
-            O::update_tracker(&**overflow_value, measurement, index);
-        } else {
-            let new_tracker = AU::new_atomic_tracker(self.buckets_count);
-            O::update_tracker(&new_tracker, measurement, index);
-            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
-            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+        if let Ok(mut trackers) = self.trackers.write() {
+            let tracker = trackers.create_new(attributes);
+            O::update_tracker(tracker.as_ref(), measurement, index);
         }
     }
 }
@@ -350,6 +454,10 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
+    use sum::Sum;
+
     use super::*;
 
     #[test]
@@ -464,5 +572,69 @@ mod tests {
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
         assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
+    }
+
+    #[test]
+    fn attributes_should_be_sorted_and_deduplicated() {
+        let counter = Sum::<i64>::new(true);
+        let mut results = HashSet::new();
+        let attr1 = [
+            KeyValue::new("key1", "a1"),
+            KeyValue::new("key3", "c1"),
+            KeyValue::new("key1", "a2"),
+        ];
+        counter.measure(4, &attr1);
+        results.insert(AttributeSet::from(&attr1 as &[KeyValue]).into_inner());
+        assert!(
+            results.contains([KeyValue::new("key1", "a2"), KeyValue::new("key3", "c1")].as_slice())
+        );
+        // add more variations because Rust default hasher has randomness
+        // more cases should help to fight that
+        let attr2 = [
+            KeyValue::new("key3", "c1"),
+            KeyValue::new("key2", "b1"),
+            KeyValue::new("key2", "b2"),
+        ];
+        counter.measure(4, &attr2);
+        results.insert(AttributeSet::from(&attr2 as &[KeyValue]).into_inner());
+        assert!(
+            results.contains([KeyValue::new("key2", "b2"), KeyValue::new("key3", "c1")].as_slice())
+        );
+        let attr3 = [
+            KeyValue::new("key3", "c4"),
+            KeyValue::new("key2", "b1"),
+            KeyValue::new("key3", "c2"),
+        ];
+        counter.measure(4, &attr3);
+        results.insert(AttributeSet::from(&attr3 as &[KeyValue]).into_inner());
+        assert!(
+            results.contains([KeyValue::new("key2", "b1"), KeyValue::new("key3", "c2")].as_slice())
+        );
+
+        let attr4 = [
+            KeyValue::new("key3", "c4"),
+            KeyValue::new("key3", "c2"),
+            KeyValue::new("key1", "b3"),
+        ];
+        counter.measure(4, &attr4);
+        results.insert(AttributeSet::from(&attr4 as &[KeyValue]).into_inner());
+        assert!(
+            results.contains([KeyValue::new("key1", "b3"), KeyValue::new("key3", "c2")].as_slice())
+        );
+
+        let res = counter.cumulative(None).1.unwrap();
+        let data = res
+            .as_any()
+            .downcast_ref::<crate::metrics::data::Sum<i64>>()
+            .unwrap();
+
+        assert_eq!(data.data_points.len(), 4);
+        for points in &data.data_points {
+            assert!(
+                results.contains(&points.attributes),
+                "unexpected attributes: {:?}",
+                points.attributes
+            );
+        }
     }
 }

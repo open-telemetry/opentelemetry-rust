@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::mem::take;
 use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation, Temporality};
 use opentelemetry::KeyValue;
 
-use super::Number;
+use super::{collect_data_points_readonly, collect_data_points_reset, Number};
 use super::{AtomicTracker, AtomicallyUpdate, Operation, ValueMap};
 
 struct HistogramUpdate;
@@ -45,7 +43,6 @@ impl<T: Number<T>> AtomicallyUpdate<T> for HistogramTracker<T> {
     }
 }
 
-#[derive(Default)]
 struct Buckets<T> {
     counts: Vec<u64>,
     count: u64,
@@ -61,7 +58,8 @@ impl<T: Number<T>> Buckets<T> {
             counts: vec![0; n],
             min: T::max(),
             max: T::min(),
-            ..Default::default()
+            count: 0,
+            total: T::default(),
         }
     }
 
@@ -80,14 +78,17 @@ impl<T: Number<T>> Buckets<T> {
         }
     }
 
-    fn reset(&mut self) {
-        for item in &mut self.counts {
-            *item = 0;
-        }
-        self.count = Default::default();
-        self.total = Default::default();
-        self.min = T::max();
-        self.max = T::min();
+    fn clone_and_reset(&mut self) -> Self {
+        let n = self.counts.len();
+        let res = Buckets {
+            counts: take(&mut self.counts),
+            count: self.count,
+            total: self.total,
+            min: self.min,
+            max: self.max,
+        };
+        *self = Buckets::new(n);
+        res
     }
 }
 
@@ -155,26 +156,27 @@ impl<T: Number<T>> Histogram<T> {
         h.temporality = Temporality::Delta;
         h.data_points.clear();
 
-        // Max number of data points need to account for the special casing
-        // of the no attribute value + overflow attribute.
-        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
+        let Ok(mut trackers) = self.value_map.trackers.write() else {
+            return (0, None);
+        };
 
-        if self
-            .value_map
-            .has_no_attribute_value
-            .swap(false, Ordering::AcqRel)
-        {
-            if let Ok(ref mut b) = self.value_map.no_attribute_tracker.buckets.lock() {
-                h.data_points.push(HistogramDataPoint {
-                    attributes: vec![],
+        collect_data_points_reset(
+            &self.value_map.no_attribs_tracker,
+            &mut trackers,
+            &mut h.data_points,
+            |attributes, tracker| {
+                let b = tracker
+                    .buckets
+                    .lock()
+                    .unwrap_or_else(|err| err.into_inner())
+                    .clone_and_reset();
+                HistogramDataPoint {
+                    attributes,
                     start_time: start,
                     time: t,
                     count: b.count,
                     bounds: self.bounds.clone(),
-                    bucket_counts: b.counts.clone(),
+                    bucket_counts: b.counts,
                     sum: if self.record_sum {
                         b.total
                     } else {
@@ -191,54 +193,14 @@ impl<T: Number<T>> Histogram<T> {
                         None
                     },
                     exemplars: vec![],
-                });
-
-                b.reset();
-            }
-        }
-
-        let mut trackers = match self.value_map.trackers.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.drain() {
-            if seen.insert(Arc::as_ptr(&tracker)) {
-                if let Ok(b) = tracker.buckets.lock() {
-                    h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
-                        start_time: start,
-                        time: t,
-                        count: b.count,
-                        bounds: self.bounds.clone(),
-                        bucket_counts: b.counts.clone(),
-                        sum: if self.record_sum {
-                            b.total
-                        } else {
-                            T::default()
-                        },
-                        min: if self.record_min_max {
-                            Some(b.min)
-                        } else {
-                            None
-                        },
-                        max: if self.record_min_max {
-                            Some(b.max)
-                        } else {
-                            None
-                        },
-                        exemplars: vec![],
-                    });
                 }
-            }
-        }
+            },
+        );
 
         // The delta collection cycle resets.
         if let Ok(mut start) = self.start.lock() {
             *start = t;
         }
-        self.value_map.count.store(0, Ordering::SeqCst);
 
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
@@ -266,21 +228,21 @@ impl<T: Number<T>> Histogram<T> {
         h.temporality = Temporality::Cumulative;
         h.data_points.clear();
 
-        // Max number of data points need to account for the special casing
-        // of the no attribute value + overflow attribute.
-        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
+        let Ok(trackers) = self.value_map.trackers.read() else {
+            return (0, None);
+        };
 
-        if self
-            .value_map
-            .has_no_attribute_value
-            .load(Ordering::Acquire)
-        {
-            if let Ok(b) = &self.value_map.no_attribute_tracker.buckets.lock() {
-                h.data_points.push(HistogramDataPoint {
-                    attributes: vec![],
+        collect_data_points_readonly(
+            &self.value_map.no_attribs_tracker,
+            &trackers,
+            &mut h.data_points,
+            |attributes, tracker| {
+                let b = tracker
+                    .buckets
+                    .lock()
+                    .unwrap_or_else(|err| err.into_inner());
+                HistogramDataPoint {
+                    attributes,
                     start_time: start,
                     time: t,
                     count: b.count,
@@ -302,50 +264,9 @@ impl<T: Number<T>> Histogram<T> {
                         None
                     },
                     exemplars: vec![],
-                });
-            }
-        }
-
-        let trackers = match self.value_map.trackers.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        // TODO: This will use an unbounded amount of memory if there
-        // are unbounded number of attribute sets being aggregated. Attribute
-        // sets that become "stale" need to be forgotten so this will not
-        // overload the system.
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.iter() {
-            if seen.insert(Arc::as_ptr(tracker)) {
-                if let Ok(b) = tracker.buckets.lock() {
-                    h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
-                        start_time: start,
-                        time: t,
-                        count: b.count,
-                        bounds: self.bounds.clone(),
-                        bucket_counts: b.counts.clone(),
-                        sum: if self.record_sum {
-                            b.total
-                        } else {
-                            T::default()
-                        },
-                        min: if self.record_min_max {
-                            Some(b.min)
-                        } else {
-                            None
-                        },
-                        max: if self.record_min_max {
-                            Some(b.max)
-                        } else {
-                            None
-                        },
-                        exemplars: vec![],
-                    });
                 }
-            }
-        }
+            },
+        );
 
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
