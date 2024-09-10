@@ -1,7 +1,13 @@
 # Changelog
 
 ## vNext
--  Update protobuf definitions to v1.3.2 [#1945](https://github.com/open-telemetry/opentelemetry-rust/pull/1945)
+
+## v0.25.0
+- Update `opentelemetry` dependency version to 0.25
+- Update `opentelemetry_sdk` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
+- Update protobuf definitions to v1.3.2 [#1945](https://github.com/open-telemetry/opentelemetry-rust/pull/1945)
 
 ## v0.7.0
 

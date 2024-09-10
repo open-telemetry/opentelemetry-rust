@@ -2,6 +2,8 @@
 
 ## vNext
 
+## v0.25.0
+
 - **BREAKING** [#1993](https://github.com/open-telemetry/opentelemetry-rust/pull/1993) Box complex types in AnyValue enum
 Before:
 ```rust

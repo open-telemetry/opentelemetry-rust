@@ -5,7 +5,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AnyValue {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
@@ -20,7 +19,6 @@ pub mod any_value {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(string, tag = "1")]
@@ -44,7 +42,6 @@ pub mod any_value {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArrayValue {
     /// Array of values. The array may be empty (contain 0 elements).
@@ -59,7 +56,6 @@ pub struct ArrayValue {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValueList {
     /// A collection of key/value pairs of key-value pairs. The list may be empty (may
@@ -74,7 +70,6 @@ pub struct KeyValueList {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValue {
     #[prost(string, tag = "1")]
@@ -95,7 +90,6 @@ pub struct KeyValue {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstrumentationScope {
     /// An empty instrumentation scope name means the name is unknown.

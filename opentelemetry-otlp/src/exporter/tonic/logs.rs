@@ -4,7 +4,7 @@ use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
-use opentelemetry_sdk::export::logs::{LogData, LogExporter};
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -54,7 +54,7 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export<'a>(&mut self, batch: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = inner
@@ -67,13 +67,7 @@ impl LogExporter for TonicLogsClient {
             None => return Err(LogError::Other("exporter is already shut down".into())),
         };
 
-        //TODO: avoid cloning here.
-        let owned_batch = batch
-            .into_iter()
-            .map(|cow_log_data| cow_log_data.into_owned()) // Converts Cow to owned LogData
-            .collect::<Vec<LogData>>();
-
-        let resource_logs = group_logs_by_resource_and_scope(owned_batch, &self.resource);
+        let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
         client
             .export(Request::from_parts(

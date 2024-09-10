@@ -14,7 +14,8 @@ use std::fmt::Debug;
 
 use opentelemetry::logs::LogError;
 
-use opentelemetry_sdk::{export::logs::LogData, Resource};
+use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::Resource;
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -98,9 +99,9 @@ impl LogExporter {
 
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    async fn export<'a>(
+    async fn export(
         &mut self,
-        batch: Vec<std::borrow::Cow<'a, LogData>>,
+        batch: LogBatch<'_>,
     ) -> opentelemetry::logs::LogResult<()> {
         self.client.export(batch).await
     }

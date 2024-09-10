@@ -21,7 +21,7 @@
 //! let tracer = global::tracer("my-component");
 //! let _span = tracer
 //!     .span_builder("span-name")
-//!     .with_attributes(vec![
+//!     .with_attributes([
 //!         KeyValue::new(semconv::trace::CLIENT_ADDRESS, "example.org"),
 //!         KeyValue::new(semconv::trace::CLIENT_PORT, 80i64),
 //!     ])

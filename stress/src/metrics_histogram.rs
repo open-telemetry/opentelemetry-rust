@@ -3,10 +3,10 @@
     OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
-    ~1.8 M/sec
+    ~9.0 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~2.2 M /sec
+    ~12.0 M /sec
 */
 
 use lazy_static::lazy_static;
@@ -40,10 +40,10 @@ thread_local! {
 }
 
 fn main() {
-    throughput::test_throughput(test_counter);
+    throughput::test_throughput(test_histogram);
 }
 
-fn test_counter() {
+fn test_histogram() {
     let len = ATTRIBUTE_VALUES.len();
     let rands = CURRENT_RNG.with(|rng| {
         let mut rng = rng.borrow_mut();

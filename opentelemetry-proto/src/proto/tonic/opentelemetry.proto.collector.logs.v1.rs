@@ -2,7 +2,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceRequest {
     /// An array of ResourceLogs.
@@ -18,7 +17,6 @@ pub struct ExportLogsServiceRequest {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsServiceResponse {
     /// The details of a partially successful export request.
@@ -42,7 +40,6 @@ pub struct ExportLogsServiceResponse {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportLogsPartialSuccess {
     /// The number of rejected log records.
@@ -89,8 +86,8 @@ pub mod logs_service_client {
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
-        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
-        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
     {
         pub fn new(inner: T) -> Self {
             let inner = tonic::client::Grpc::new(inner);
@@ -115,7 +112,7 @@ pub mod logs_service_client {
             >,
             <T as tonic::codegen::Service<
                 http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             LogsServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -191,7 +188,7 @@ pub mod logs_service_server {
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with LogsServiceServer.
     #[async_trait]
-    pub trait LogsService: Send + Sync + 'static {
+    pub trait LogsService: std::marker::Send + std::marker::Sync + 'static {
         /// For performance reasons, it is recommended to keep this RPC
         /// alive for the entire life of the application.
         async fn export(
@@ -206,14 +203,14 @@ pub mod logs_service_server {
     /// OpenTelemetry and an collector, or between an collector and a central collector (in this
     /// case logs are sent/received to/from multiple Applications).
     #[derive(Debug)]
-    pub struct LogsServiceServer<T: LogsService> {
+    pub struct LogsServiceServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T: LogsService> LogsServiceServer<T> {
+    impl<T> LogsServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -267,8 +264,8 @@ pub mod logs_service_server {
     impl<T, B> tonic::codegen::Service<http::Request<B>> for LogsServiceServer<T>
     where
         T: LogsService,
-        B: Body + Send + 'static,
-        B::Error: Into<StdError> + Send + 'static,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
     {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
@@ -344,7 +341,7 @@ pub mod logs_service_server {
             }
         }
     }
-    impl<T: LogsService> Clone for LogsServiceServer<T> {
+    impl<T> Clone for LogsServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -356,7 +353,9 @@ pub mod logs_service_server {
             }
         }
     }
-    impl<T: LogsService> tonic::server::NamedService for LogsServiceServer<T> {
-        const NAME: &'static str = "opentelemetry.proto.collector.logs.v1.LogsService";
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "opentelemetry.proto.collector.logs.v1.LogsService";
+    impl<T> tonic::server::NamedService for LogsServiceServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
     }
 }

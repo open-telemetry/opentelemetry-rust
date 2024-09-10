@@ -6,9 +6,10 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~38 M /sec
+    ~44 M /sec
 */
 
+use opentelemetry::InstrumentationLibrary;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
@@ -20,7 +21,12 @@ mod throughput;
 pub struct NoOpLogProcessor;
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(&self, _data: &mut opentelemetry_sdk::export::logs::LogData) {}
+    fn emit(
+        &self,
+        _record: &mut opentelemetry_sdk::logs::LogRecord,
+        _library: &InstrumentationLibrary,
+    ) {
+    }
 
     fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
         Ok(())

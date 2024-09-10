@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.24.1"
+version = "0.25.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -10,8 +10,8 @@ edition = "2021"
 rust-version = "1.65"
 
 [dependencies]
-opentelemetry = { version = "0.24", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.13", path = "../opentelemetry-http", optional = true }
+opentelemetry = { version = "0.25", path = "../opentelemetry/" }
+opentelemetry-http = { version = "0.25", path = "../opentelemetry-http", optional = true }
 async-std = { workspace = true, features = ["unstable"], optional = true }
 async-trait = { workspace = true, optional = true }
 futures-channel = "0.3"
@@ -61,15 +61,15 @@ name = "span_builder"
 harness = false
 
 [[bench]]
-name = "metric_counter"
+name = "metrics_counter"
 harness = false
 
 [[bench]]
-name = "metric_gauge"
+name = "metrics_gauge"
 harness = false
 
 [[bench]]
-name = "attribute_set"
+name = "metrics_histogram"
 harness = false
 
 [[bench]]
@@ -79,6 +79,10 @@ required-features = ["testing"]
 
 [[bench]]
 name = "log_processor"
+harness = false
+
+[[bench]]
+name = "log_exporter"
 harness = false
 
 [[bench]]

@@ -36,7 +36,7 @@ static ATTRIBUTE_VALUES: [&str; 10] = [
 ];
 
 // Run this benchmark with:
-// cargo bench --bench metric_counter
+// cargo bench --bench metrics_counter
 fn create_counter(name: &'static str) -> Counter<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())

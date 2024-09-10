@@ -12,7 +12,6 @@ use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use ctrlc;
 use std::sync::mpsc::channel;
 
 struct ErrorState {
