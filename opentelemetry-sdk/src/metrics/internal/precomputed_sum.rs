@@ -1,6 +1,9 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::{
+    data::{self, Aggregation, DataPoint, Temporality},
+    KeyValueHelper,
+};
 
 use super::{Assign, AtomicTracker, Number, ValueMap};
 use std::{
@@ -98,7 +101,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
                 let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
                 new_reported.insert(attrs.clone(), value);
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(&attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: delta,
@@ -176,7 +179,7 @@ impl<T: Number<T>> PrecomputedSum<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.get_value(),

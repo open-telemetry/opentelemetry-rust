@@ -5,6 +5,7 @@ use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation, Temporality};
+use crate::metrics::KeyValueHelper;
 use opentelemetry::KeyValue;
 
 use super::Number;
@@ -207,7 +208,7 @@ impl<T: Number<T>> Histogram<T> {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 if let Ok(b) = tracker.buckets.lock() {
                     h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
+                        attributes: KeyValueHelper::dedup_and_sort_attributes(&attrs),
                         start_time: start,
                         time: t,
                         count: b.count,
@@ -320,7 +321,7 @@ impl<T: Number<T>> Histogram<T> {
             if seen.insert(Arc::as_ptr(tracker)) {
                 if let Ok(b) = tracker.buckets.lock() {
                     h.data_points.push(HistogramDataPoint {
-                        attributes: attrs.clone(),
+                        attributes: KeyValueHelper::dedup_and_sort_attributes(attrs),
                         start_time: start,
                         time: t,
                         count: b.count,

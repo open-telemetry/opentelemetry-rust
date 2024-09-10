@@ -126,6 +126,47 @@ impl Hash for AttributeSet {
     }
 }
 
+#[allow(dead_code)]
+pub(crate) struct KeyValueHelper;
+
+impl KeyValueHelper {
+    #[allow(dead_code)]
+    pub(crate) fn dedup_and_sort_attributes(attributes: &[KeyValue]) -> Vec<KeyValue> {
+        // Check if the attributes are already deduped
+        let mut has_duplicates = false;
+        let mut keys_set: HashSet<Key> = HashSet::with_capacity(attributes.len());
+        for kv in attributes {
+            if !keys_set.insert(kv.key.clone()) {
+                has_duplicates = true;
+                break;
+            }
+        }
+
+        if has_duplicates {
+            // Dedup the attributes and sort them
+            keys_set.clear();
+            let mut vec = attributes
+                .iter()
+                .rev()
+                .filter_map(|kv| {
+                    if keys_set.insert(kv.key.clone()) {
+                        Some(kv.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            vec.sort_unstable();
+            vec
+        } else {
+            // Attributes are already deduped
+            let mut vec = attributes.to_vec();
+            vec.sort_unstable();
+            vec
+        }
+    }
+}
+
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
