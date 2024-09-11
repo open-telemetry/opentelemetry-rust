@@ -124,6 +124,27 @@ impl LogRecord {
             .flatten()
             .any(|(k, v)| k == key && v == value)
     }
+
+    /// Updates the attribute with the specified key.
+    pub fn update_attribute<K, V>(&mut self, key: K, value: V) -> bool
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+        let key = key.into();
+        if let Some(attr) = self.attributes.iter_mut().find(|opt| {
+            if let Some((k, _)) = opt {
+                k == &key
+            } else {
+                false
+            }
+        }) {
+            *attr = Some((key, value.into()));
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// TraceContext stores the trace context for logs that have an associated

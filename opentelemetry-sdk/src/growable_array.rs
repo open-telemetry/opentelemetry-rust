@@ -87,6 +87,41 @@ impl<
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
 
+    /// Deletes the element matching the given value from the array.
+    ///
+    /// Returns the deleted value if found, or `None` otherwise.
+    #[allow(dead_code)]
+    pub(crate) fn delete_by_value(&mut self, value: &T) -> Option<T> {
+        // Search and remove from inline array
+        if let Some(index) = self.inline[..self.count].iter().position(|v| v == value) {
+            let removed_value = self.inline[index].clone();
+
+            // Manually shift elements to the left
+            for i in index..self.count - 1 {
+                self.inline[i] = self.inline[i + 1].clone();
+            }
+            // Fill the last spot in inline array with an element from overflow or default
+            self.inline[self.count - 1] = if let Some(ref mut overflow) = self.overflow {
+                overflow.pop().unwrap_or_default()
+            } else {
+                Default::default()
+            };
+
+            self.count -= 1;
+            return Some(removed_value);
+        }
+
+        // Search and remove from overflow vector
+        if let Some(ref mut overflow) = self.overflow {
+            if let Some(index) = overflow.iter().position(|v| v == value) {
+                return Some(overflow.remove(index));
+            }
+        }
+
+        // Value not found
+        None
+    }
+
     /// Returns an iterator over the elements in the `GrowableArray`.
     ///
     /// The iterator yields elements from the internal array (`initial`) first, followed by elements
@@ -104,6 +139,26 @@ impl<
                 .iter()
                 .take(self.count)
                 .chain(self.overflow.as_ref().unwrap().iter())
+        }
+    }
+
+    /// Returns a mutable iterator over the elements in the `GrowableArray`.
+    ///
+    /// The iterator yields elements from the internal array (`initial`) first, followed by elements
+    /// from the vector (`overflow`) if present. This allows for efficient iteration over both
+    /// stack-allocated and heap-allocated portions.
+    ///
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        if self.overflow.is_none() || self.overflow.as_ref().unwrap().is_empty() {
+            self.inline.iter_mut().take(self.count).chain([].iter_mut()) // Chaining with an empty array
+                                                                         // so that both `if` and `else` branch return the same type
+        } else {
+            self.inline
+                .iter_mut()
+                .take(self.count)
+                .chain(self.overflow.as_mut().unwrap().iter_mut())
         }
     }
 }
@@ -370,5 +425,144 @@ mod tests {
             assert_eq!(iter.next(), Some(i as i32));
         }
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_mut_iter_all_cases() {
+        let mut collection = GrowableArray::<i32>::new();
+
+        // Case 1: Try to modify values in an empty list
+        for value in collection.iter_mut() {
+            *value *= 2; // This should not be executed
+        }
+        assert_eq!(collection.len(), 0);
+        assert_eq!(collection.get(0), None);
+
+        // Case 2: Add a single element and modify it
+        collection.push(5);
+        for value in collection.iter_mut() {
+            *value *= 2;
+        }
+        assert_eq!(collection.get(0), Some(&10));
+        assert_eq!(collection.len(), 1);
+
+        // Case 3: Add more elements and modify them
+        for i in 1..10 {
+            collection.push(i);
+        }
+        for (i, value) in collection.iter_mut().enumerate() {
+            *value = i as i32 * 3; // Set values to i * 3
+        }
+        for i in 0..10 {
+            assert_eq!(collection.get(i), Some(&(i as i32 * 3)));
+        }
+    }
+    #[test]
+    fn test_delete_by_value_from_inline() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
+            collection.push(i as i32);
+        }
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
+
+        // Delete a value from the inline array
+        let removed = collection.delete_by_value(&3);
+        assert_eq!(removed, Some(3));
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 1);
+
+        // Ensure the array shifted correctly and the value was removed
+        for i in 0..3 {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        for i in 3..collection.len() {
+            assert_eq!(collection.get(i), Some(&((i + 1) as i32)));
+        }
+
+        // Try to delete a value not in the array
+        let non_existent = collection.delete_by_value(&99);
+        assert_eq!(non_existent, None);
+    }
+
+    #[test]
+    fn test_delete_by_value_from_overflow() {
+        let mut collection = GrowableArray::<i32>::new();
+        // Fill inline array
+        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
+            collection.push(i as i32);
+        }
+        // Add elements to the overflow
+        for i in DEFAULT_MAX_INLINE_CAPACITY..(DEFAULT_MAX_INLINE_CAPACITY + 5) {
+            collection.push(i as i32);
+        }
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 5);
+
+        // Delete a value from the overflow vector
+        let removed = collection.delete_by_value(&12);
+        assert_eq!(removed, Some(12));
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 4);
+
+        // Ensure the rest of the elements are in order
+        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY), Some(&10));
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY + 1), Some(&11));
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY + 2), Some(&13));
+    }
+
+    #[test]
+    fn test_delete_last_element() {
+        let mut collection = GrowableArray::<i32>::new();
+        collection.push(10);
+        assert_eq!(collection.len(), 1);
+
+        // Delete the only element in the collection
+        let removed = collection.delete_by_value(&10);
+        assert_eq!(removed, Some(10));
+        assert_eq!(collection.len(), 0);
+
+        // Ensure it's empty
+        assert_eq!(collection.get(0), None);
+    }
+
+    #[test]
+    fn test_delete_multiple_values() {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
+            collection.push(i as i32);
+        }
+
+        // Delete multiple values
+        assert_eq!(collection.delete_by_value(&2), Some(2));
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 1);
+        assert_eq!(collection.delete_by_value(&4), Some(4));
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 2);
+
+        // Ensure the elements are still correct
+        assert_eq!(collection.get(2), Some(&3));
+        assert_eq!(collection.get(3), Some(&5));
+    }
+
+    #[test]
+    fn test_delete_by_value_empty_array() {
+        let mut collection = GrowableArray::<i32>::new();
+
+        // Try to delete from an empty array
+        let removed = collection.delete_by_value(&5);
+        assert_eq!(removed, None);
+        assert_eq!(collection.len(), 0);
+    }
+
+    #[test]
+    fn test_delete_by_value_not_in_array() {
+        let mut collection = GrowableArray::<i32>::new();
+        collection.push(1);
+        collection.push(2);
+        collection.push(3);
+
+        // Try to delete a value not present
+        let removed = collection.delete_by_value(&10);
+        assert_eq!(removed, None);
+        assert_eq!(collection.len(), 3);
     }
 }
