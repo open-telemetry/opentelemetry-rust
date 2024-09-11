@@ -91,7 +91,7 @@ impl MetricReader for ManualReader {
         });
     }
 
-    /// Gathers all metrics from the SDK and other [MetricProducer]s, calling any
+    /// Gathers all metrics from the SDK, calling any
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
