@@ -2,6 +2,11 @@
 
 ## vNext
 
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
 - Reduce heap allocation by using `&'static str` for `SeverityText`.
 
 ## v0.5.0

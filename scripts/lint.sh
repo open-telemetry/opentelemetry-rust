@@ -47,6 +47,10 @@ if rustup component add clippy; then
   cargo_feature opentelemetry-proto "gen-tonic,trace,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,trace,with-schemars,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,metrics"
+  cargo_feature opentelemetry-proto "gen-tonic,metrics,with-serde"
+  cargo_feature opentelemetry-proto "gen-tonic,metrics,with-schemars,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,logs"
+  cargo_feature opentelemetry-proto "gen-tonic,logs,with-serde"
+  cargo_feature opentelemetry-proto "gen-tonic,logs,with-schemars,with-serde"
 
 fi

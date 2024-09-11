@@ -2,6 +2,12 @@
 
 ## vNext
 
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
+  
 ## v0.3.0
 - Update `opentelemetry` dependency version to 0.24
 

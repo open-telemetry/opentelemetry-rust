@@ -107,7 +107,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
         )));
         return Ok(Box::new(empty_view));
     }
-    let contains_wildcard = criteria.name.contains(|c| c == '*' || c == '?');
+    let contains_wildcard = criteria.name.contains(['*', '?']);
     let err_msg_criteria = criteria.clone();
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
