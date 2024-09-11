@@ -44,11 +44,6 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
 
     #[cfg(feature = "experimental_metadata_attributes")]
     fn visit_experimental_metadata(&mut self, meta: &Metadata) {
-        self.log_record.add_attribute(
-            Key::new("log.target"),
-            AnyValue::from(meta.target().to_owned()),
-        );
-
         if let Some(module_path) = meta.module_path() {
             self.log_record.add_attribute(
                 Key::new("code.namespace"),
@@ -164,6 +159,7 @@ where
     ) {
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
+
         #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
 
@@ -269,7 +265,7 @@ mod tests {
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 7);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -307,7 +303,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -381,7 +377,7 @@ mod tests {
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 7);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -419,7 +415,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -461,7 +457,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 4);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -485,7 +481,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -558,7 +554,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 4);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -582,7 +578,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 }
