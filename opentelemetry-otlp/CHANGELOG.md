@@ -2,6 +2,14 @@
 
 ## vNext
 
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Update `opentelemetry_sdk` dependency version to 0.25
+- Update `opentelemetry-http` dependency version to 0.25
+- Update `opentelemetry-proto` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
 - **Breaking**
 The logrecord event-name is added as an attribute only if the feature flag
 `populate-logs-event-name` is enabled. The name of the attribute is changed from
