@@ -4,7 +4,7 @@ use std::{fmt, sync::Weak};
 use opentelemetry::metrics::Result;
 
 use super::{
-    data::{ResourceMetrics, ScopeMetrics, Temporality},
+    data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
     pipeline::Pipeline,
 };
@@ -57,12 +57,6 @@ pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
     fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
-}
-
-/// Produces metrics for a [MetricReader] from an external source.
-pub trait MetricProducer: fmt::Debug + Send + Sync {
-    /// Returns aggregated metrics from an external source.
-    fn produce(&self) -> Result<ScopeMetrics>;
 }
 
 /// An interface for selecting the temporality for an [InstrumentKind].

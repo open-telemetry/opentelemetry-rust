@@ -12,9 +12,7 @@ use super::{
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
     pipeline::Pipeline,
-    reader::{
-        DefaultTemporalitySelector, MetricProducer, MetricReader, SdkProducer, TemporalitySelector,
-    },
+    reader::{DefaultTemporalitySelector, MetricReader, SdkProducer, TemporalitySelector},
 };
 
 /// A simple [MetricReader] that allows an application to read metrics on demand.
@@ -51,7 +49,6 @@ impl fmt::Debug for ManualReader {
 struct ManualReaderInner {
     sdk_producer: Option<Weak<dyn SdkProducer>>,
     is_shutdown: bool,
-    external_producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl ManualReader {
@@ -61,15 +58,11 @@ impl ManualReader {
     }
 
     /// A [MetricReader] which is directly called to collect metrics.
-    pub(crate) fn new(
-        temporality_selector: Box<dyn TemporalitySelector>,
-        producers: Vec<Box<dyn MetricProducer>>,
-    ) -> Self {
+    pub(crate) fn new(temporality_selector: Box<dyn TemporalitySelector>) -> Self {
         ManualReader {
             inner: Box::new(Mutex::new(ManualReaderInner {
                 sdk_producer: None,
                 is_shutdown: false,
-                external_producers: producers,
             })),
             temporality_selector,
         }
@@ -113,19 +106,7 @@ impl MetricReader for ManualReader {
             }
         };
 
-        let mut errs = vec![];
-        for producer in &inner.external_producers {
-            match producer.produce() {
-                Ok(metrics) => rm.scope_metrics.push(metrics),
-                Err(err) => errs.push(err),
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(MetricsError::Other(format!("{:?}", errs)))
-        }
+        Ok(())
     }
 
     /// ForceFlush is a no-op, it always returns nil.
@@ -140,7 +121,6 @@ impl MetricReader for ManualReader {
         // Any future call to collect will now return an error.
         inner.sdk_producer = None;
         inner.is_shutdown = true;
-        inner.external_producers = Vec::new();
 
         Ok(())
     }
@@ -149,7 +129,6 @@ impl MetricReader for ManualReader {
 /// Configuration for a [ManualReader]
 pub struct ManualReaderBuilder {
     temporality_selector: Box<dyn TemporalitySelector>,
-    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl fmt::Debug for ManualReaderBuilder {
@@ -162,7 +141,6 @@ impl Default for ManualReaderBuilder {
     fn default() -> Self {
         ManualReaderBuilder {
             temporality_selector: Box::new(DefaultTemporalitySelector { _private: () }),
-            producers: vec![],
         }
     }
 }
@@ -184,17 +162,8 @@ impl ManualReaderBuilder {
         self
     }
 
-    /// Registers a an external [MetricProducer] with this reader.
-    ///
-    /// The producer is used as a source of aggregated metric data which is
-    /// incorporated into metrics collected from the SDK.
-    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
-        self.producers.push(Box::new(producer));
-        self
-    }
-
     /// Create a new [ManualReader] from this configuration.
     pub fn build(self) -> ManualReader {
-        ManualReader::new(self.temporality_selector, self.producers)
+        ManualReader::new(self.temporality_selector)
     }
 }
