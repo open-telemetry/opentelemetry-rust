@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Update `async-std` dependency version to 1.13
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25

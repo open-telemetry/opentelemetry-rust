@@ -16,7 +16,7 @@ resolver = "2"
 debug = 1
 
 [workspace.dependencies]
-async-std = "1.10"
+async-std = "1.13"
 async-trait = "0.1"
 bytes = "1"
 criterion = "0.5"
