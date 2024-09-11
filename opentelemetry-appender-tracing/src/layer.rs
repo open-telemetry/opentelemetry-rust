@@ -44,11 +44,6 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
 
     #[cfg(feature = "experimental_metadata_attributes")]
     fn visit_experimental_metadata(&mut self, meta: &Metadata) {
-        self.log_record.add_attribute(
-            Key::new("log.target"),
-            AnyValue::from(meta.target().to_owned()),
-        );
-
         if let Some(module_path) = meta.module_path() {
             self.log_record.add_attribute(
                 Key::new("code.namespace"),
@@ -162,8 +157,12 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        println!("---->>> Event Metadata:: {:?}", event.metadata());
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
+        #[cfg(feature = "experimental_metadata_attributes")]
+        println!("---->>> Normalised Metadata:: {:?}", normalized_meta);
+
         #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
 
