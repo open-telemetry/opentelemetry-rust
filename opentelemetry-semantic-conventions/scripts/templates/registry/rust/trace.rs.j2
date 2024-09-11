@@ -35,7 +35,7 @@
 #[cfg(feature = "semconv_experimental")]
         {% endif %}
         {% if attr is deprecated %}
-#[deprecated(note="{{ attr.deprecated }}")]
+#[deprecated(note="{{ attr.deprecated.strip(" \n\"") }}")]
         {% endif %}
 pub use crate::attribute::{{ attr.name | screaming_snake_case }};
 

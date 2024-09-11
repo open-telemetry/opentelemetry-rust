@@ -293,7 +293,7 @@ pub use crate::attribute::CONTAINER_COMMAND_ARGS;
 pub use crate::attribute::CONTAINER_COMMAND_LINE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `cpu.mode`")]
+#[deprecated(note = "Replaced by `cpu.mode`")]
 pub use crate::attribute::CONTAINER_CPU_STATE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -315,7 +315,7 @@ pub use crate::attribute::CONTAINER_IMAGE_TAGS;
 pub use crate::attribute::CONTAINER_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `container.label`.")]
+#[deprecated(note = "Replaced by `container.label`.")]
 pub use crate::attribute::CONTAINER_LABELS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -346,7 +346,7 @@ pub use crate::attribute::DB_CASSANDRA_PAGE_SIZE;
 pub use crate::attribute::DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.collection.name`.")]
+#[deprecated(note = "Replaced by `db.collection.name`.")]
 pub use crate::attribute::DB_CASSANDRA_TABLE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -356,19 +356,18 @@ pub use crate::attribute::DB_CLIENT_CONNECTION_POOL_NAME;
 pub use crate::attribute::DB_CLIENT_CONNECTION_STATE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.client.connection.pool.name`.")]
+#[deprecated(note = "Replaced by `db.client.connection.pool.name`.")]
 pub use crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.client.connection.state`.")]
+#[deprecated(note = "Replaced by `db.client.connection.state`.")]
 pub use crate::attribute::DB_CLIENT_CONNECTIONS_STATE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_COLLECTION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note=""Replaced by `server.address` and `server.port`."
-")]
+#[deprecated(note = "Replaced by `server.address` and `server.port`.")]
 pub use crate::attribute::DB_CONNECTION_STRING;
 
 #[cfg(feature = "semconv_experimental")]
@@ -378,7 +377,7 @@ pub use crate::attribute::DB_COSMOSDB_CLIENT_ID;
 pub use crate::attribute::DB_COSMOSDB_CONNECTION_MODE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.collection.name`.")]
+#[deprecated(note = "Replaced by `db.collection.name`.")]
 pub use crate::attribute::DB_COSMOSDB_CONTAINER;
 
 #[cfg(feature = "semconv_experimental")]
@@ -397,7 +396,7 @@ pub use crate::attribute::DB_COSMOSDB_STATUS_CODE;
 pub use crate::attribute::DB_COSMOSDB_SUB_STATUS_CODE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.namespace`.")]
+#[deprecated(note = "Replaced by `db.namespace`.")]
 pub use crate::attribute::DB_ELASTICSEARCH_CLUSTER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -407,30 +406,32 @@ pub use crate::attribute::DB_ELASTICSEARCH_NODE_NAME;
 pub use crate::attribute::DB_ELASTICSEARCH_PATH_PARTS;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.")]
+#[deprecated(
+    note = "Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead."
+)]
 pub use crate::attribute::DB_INSTANCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Removed as not used.")]
+#[deprecated(note = "Removed as not used.")]
 pub use crate::attribute::DB_JDBC_DRIVER_CLASSNAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.collection.name`.")]
+#[deprecated(note = "Replaced by `db.collection.name`.")]
 pub use crate::attribute::DB_MONGODB_COLLECTION;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Deprecated, no replacement at this time.")]
+#[deprecated(note = "Deprecated, no replacement at this time.")]
 pub use crate::attribute::DB_MSSQL_INSTANCE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.namespace`.")]
+#[deprecated(note = "Replaced by `db.namespace`.")]
 pub use crate::attribute::DB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_NAMESPACE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.operation.name`.")]
+#[deprecated(note = "Replaced by `db.operation.name`.")]
 pub use crate::attribute::DB_OPERATION;
 
 #[cfg(feature = "semconv_experimental")]
@@ -446,26 +447,26 @@ pub use crate::attribute::DB_QUERY_PARAMETER;
 pub use crate::attribute::DB_QUERY_TEXT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.namespace`.")]
+#[deprecated(note = "Replaced by `db.namespace`.")]
 pub use crate::attribute::DB_REDIS_DATABASE_INDEX;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.collection.name`.")]
+#[deprecated(note = "Replaced by `db.collection.name`.")]
 pub use crate::attribute::DB_SQL_TABLE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.query.text`.")]
+#[deprecated(note = "Replaced by `db.query.text`.")]
 pub use crate::attribute::DB_STATEMENT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_SYSTEM;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="No replacement at this time.")]
+#[deprecated(note = "No replacement at this time.")]
 pub use crate::attribute::DB_USER;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Deprecated, use `deployment.environment.name` instead.")]
+#[deprecated(note = "Deprecated, use `deployment.environment.name` instead.")]
 pub use crate::attribute::DEPLOYMENT_ENVIRONMENT;
 
 #[cfg(feature = "semconv_experimental")]
@@ -505,15 +506,15 @@ pub use crate::attribute::DISK_IO_DIRECTION;
 pub use crate::attribute::DNS_QUESTION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `user.id` attribute.")]
+#[deprecated(note = "Replaced by `user.id` attribute.")]
 pub use crate::attribute::ENDUSER_ID;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `user.roles` attribute.")]
+#[deprecated(note = "Replaced by `user.roles` attribute.")]
 pub use crate::attribute::ENDUSER_ROLE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Removed.")]
+#[deprecated(note = "Removed.")]
 pub use crate::attribute::ENDUSER_SCOPE;
 
 pub use crate::attribute::ERROR_TYPE;
@@ -665,7 +666,7 @@ pub use crate::attribute::GEN_AI_SYSTEM;
 pub use crate::attribute::GEN_AI_TOKEN_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `gen_ai.usage.output_tokens` attribute.")]
+#[deprecated(note = "Replaced by `gen_ai.usage.output_tokens` attribute.")]
 pub use crate::attribute::GEN_AI_USAGE_COMPLETION_TOKENS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -675,7 +676,7 @@ pub use crate::attribute::GEN_AI_USAGE_INPUT_TOKENS;
 pub use crate::attribute::GEN_AI_USAGE_OUTPUT_TOKENS;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `gen_ai.usage.input_tokens` attribute.")]
+#[deprecated(note = "Replaced by `gen_ai.usage.input_tokens` attribute.")]
 pub use crate::attribute::GEN_AI_USAGE_PROMPT_TOKENS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -745,22 +746,24 @@ pub use crate::attribute::HOST_NAME;
 pub use crate::attribute::HOST_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `client.address`.")]
+#[deprecated(note = "Replaced by `client.address`.")]
 pub use crate::attribute::HTTP_CLIENT_IP;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::HTTP_CONNECTION_STATE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.protocol.name`.")]
+#[deprecated(note = "Replaced by `network.protocol.name`.")]
 pub use crate::attribute::HTTP_FLAVOR;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by one of `server.address`, `client.address` or `http.request.header.host`, depending on the usage.")]
+#[deprecated(
+    note = "Replaced by one of `server.address`, `client.address` or `http.request.header.host`, depending on the usage."
+)]
 pub use crate::attribute::HTTP_HOST;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `http.request.method`.")]
+#[deprecated(note = "Replaced by `http.request.method`.")]
 pub use crate::attribute::HTTP_METHOD;
 
 #[cfg(feature = "semconv_experimental")]
@@ -778,11 +781,11 @@ pub use crate::attribute::HTTP_REQUEST_RESEND_COUNT;
 pub use crate::attribute::HTTP_REQUEST_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `http.request.header.content-length`.")]
+#[deprecated(note = "Replaced by `http.request.header.content-length`.")]
 pub use crate::attribute::HTTP_REQUEST_CONTENT_LENGTH;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `http.request.body.size`.")]
+#[deprecated(note = "Replaced by `http.request.body.size`.")]
 pub use crate::attribute::HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED;
 
 #[cfg(feature = "semconv_experimental")]
@@ -796,41 +799,41 @@ pub use crate::attribute::HTTP_RESPONSE_SIZE;
 pub use crate::attribute::HTTP_RESPONSE_STATUS_CODE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `http.response.header.content-length`.")]
+#[deprecated(note = "Replaced by `http.response.header.content-length`.")]
 pub use crate::attribute::HTTP_RESPONSE_CONTENT_LENGTH;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replace by `http.response.body.size`.")]
+#[deprecated(note = "Replace by `http.response.body.size`.")]
 pub use crate::attribute::HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED;
 
 pub use crate::attribute::HTTP_ROUTE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `url.scheme` instead.")]
+#[deprecated(note = "Replaced by `url.scheme` instead.")]
 pub use crate::attribute::HTTP_SCHEME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.address`.")]
+#[deprecated(note = "Replaced by `server.address`.")]
 pub use crate::attribute::HTTP_SERVER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `http.response.status_code`.")]
+#[deprecated(note = "Replaced by `http.response.status_code`.")]
 pub use crate::attribute::HTTP_STATUS_CODE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Split to `url.path` and `url.query.")]
+#[deprecated(note = "Split to `url.path` and `url.query.")]
 pub use crate::attribute::HTTP_TARGET;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `url.full`.")]
+#[deprecated(note = "Replaced by `url.full`.")]
 pub use crate::attribute::HTTP_URL;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `user_agent.original`.")]
+#[deprecated(note = "Replaced by `user_agent.original`.")]
 pub use crate::attribute::HTTP_USER_AGENT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Moved to a payload field of `device.app.lifecycle`.")]
+#[deprecated(note = "Moved to a payload field of `device.app.lifecycle`.")]
 pub use crate::attribute::IOS_STATE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -903,7 +906,7 @@ pub use crate::attribute::K8S_POD_ANNOTATION;
 pub use crate::attribute::K8S_POD_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `k8s.pod.label`.")]
+#[deprecated(note = "Replaced by `k8s.pod.label`.")]
 pub use crate::attribute::K8S_POD_LABELS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -949,19 +952,19 @@ pub use crate::attribute::LOG_RECORD_ORIGINAL;
 pub use crate::attribute::LOG_RECORD_UID;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `rpc.message.compressed_size`.")]
+#[deprecated(note = "Replaced by `rpc.message.compressed_size`.")]
 pub use crate::attribute::MESSAGE_COMPRESSED_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `rpc.message.id`.")]
+#[deprecated(note = "Replaced by `rpc.message.id`.")]
 pub use crate::attribute::MESSAGE_ID;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `rpc.message.type`.")]
+#[deprecated(note = "Replaced by `rpc.message.type`.")]
 pub use crate::attribute::MESSAGE_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `rpc.message.uncompressed_size`.")]
+#[deprecated(note = "Replaced by `rpc.message.uncompressed_size`.")]
 pub use crate::attribute::MESSAGE_UNCOMPRESSED_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -992,16 +995,15 @@ pub use crate::attribute::MESSAGING_DESTINATION_TEMPLATE;
 pub use crate::attribute::MESSAGING_DESTINATION_TEMPORARY;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="No replacement at this time.")]
+#[deprecated(note = "No replacement at this time.")]
 pub use crate::attribute::MESSAGING_DESTINATION_PUBLISH_ANONYMOUS;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="No replacement at this time.")]
+#[deprecated(note = "No replacement at this time.")]
 pub use crate::attribute::MESSAGING_DESTINATION_PUBLISH_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.consumer.group.name`.
-")]
+#[deprecated(note = "Replaced by `messaging.consumer.group.name`.")]
 pub use crate::attribute::MESSAGING_EVENTHUBS_CONSUMER_GROUP;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1020,20 +1022,18 @@ pub use crate::attribute::MESSAGING_GCP_PUBSUB_MESSAGE_DELIVERY_ATTEMPT;
 pub use crate::attribute::MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.consumer.group.name`.
-")]
+#[deprecated(note = "Replaced by `messaging.consumer.group.name`.")]
 pub use crate::attribute::MESSAGING_KAFKA_CONSUMER_GROUP;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.destination.partition.id`.")]
+#[deprecated(note = "Replaced by `messaging.destination.partition.id`.")]
 pub use crate::attribute::MESSAGING_KAFKA_DESTINATION_PARTITION;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::MESSAGING_KAFKA_MESSAGE_KEY;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.kafka.offset`.
-")]
+#[deprecated(note = "Replaced by `messaging.kafka.offset`.")]
 pub use crate::attribute::MESSAGING_KAFKA_MESSAGE_OFFSET;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1055,7 +1055,7 @@ pub use crate::attribute::MESSAGING_MESSAGE_ENVELOPE_SIZE;
 pub use crate::attribute::MESSAGING_MESSAGE_ID;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.operation.type`.")]
+#[deprecated(note = "Replaced by `messaging.operation.type`.")]
 pub use crate::attribute::MESSAGING_OPERATION;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1071,8 +1071,9 @@ pub use crate::attribute::MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY;
 pub use crate::attribute::MESSAGING_RABBITMQ_MESSAGE_DELIVERY_TAG;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.consumer.group.name` on the consumer spans. No replacement for producer spans.
-")]
+#[deprecated(
+    note = "Replaced by `messaging.consumer.group.name` on the consumer spans. No replacement for producer spans."
+)]
 pub use crate::attribute::MESSAGING_ROCKETMQ_CLIENT_GROUP;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1100,8 +1101,7 @@ pub use crate::attribute::MESSAGING_ROCKETMQ_MESSAGE_TYPE;
 pub use crate::attribute::MESSAGING_ROCKETMQ_NAMESPACE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `messaging.servicebus.destination.subscription_name`.
-")]
+#[deprecated(note = "Replaced by `messaging.servicebus.destination.subscription_name`.")]
 pub use crate::attribute::MESSAGING_SERVICEBUS_DESTINATION_SUBSCRIPTION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1117,63 +1117,67 @@ pub use crate::attribute::MESSAGING_SERVICEBUS_MESSAGE_ENQUEUED_TIME;
 pub use crate::attribute::MESSAGING_SYSTEM;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.local.address`.")]
+#[deprecated(note = "Replaced by `network.local.address`.")]
 pub use crate::attribute::NET_HOST_IP;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.address`.")]
+#[deprecated(note = "Replaced by `server.address`.")]
 pub use crate::attribute::NET_HOST_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.port`.")]
+#[deprecated(note = "Replaced by `server.port`.")]
 pub use crate::attribute::NET_HOST_PORT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.peer.address`.")]
+#[deprecated(note = "Replaced by `network.peer.address`.")]
 pub use crate::attribute::NET_PEER_IP;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.address` on client spans and `client.address` on server spans.")]
+#[deprecated(
+    note = "Replaced by `server.address` on client spans and `client.address` on server spans."
+)]
 pub use crate::attribute::NET_PEER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.port` on client spans and `client.port` on server spans.")]
+#[deprecated(
+    note = "Replaced by `server.port` on client spans and `client.port` on server spans."
+)]
 pub use crate::attribute::NET_PEER_PORT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.protocol.name`.")]
+#[deprecated(note = "Replaced by `network.protocol.name`.")]
 pub use crate::attribute::NET_PROTOCOL_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.protocol.version`.")]
+#[deprecated(note = "Replaced by `network.protocol.version`.")]
 pub use crate::attribute::NET_PROTOCOL_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Split to `network.transport` and `network.type`.")]
+#[deprecated(note = "Split to `network.transport` and `network.type`.")]
 pub use crate::attribute::NET_SOCK_FAMILY;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.local.address`.")]
+#[deprecated(note = "Replaced by `network.local.address`.")]
 pub use crate::attribute::NET_SOCK_HOST_ADDR;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.local.port`.")]
+#[deprecated(note = "Replaced by `network.local.port`.")]
 pub use crate::attribute::NET_SOCK_HOST_PORT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.peer.address`.")]
+#[deprecated(note = "Replaced by `network.peer.address`.")]
 pub use crate::attribute::NET_SOCK_PEER_ADDR;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Removed.")]
+#[deprecated(note = "Removed.")]
 pub use crate::attribute::NET_SOCK_PEER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.peer.port`.")]
+#[deprecated(note = "Replaced by `network.peer.port`.")]
 pub use crate::attribute::NET_SOCK_PEER_PORT;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `network.transport`.")]
+#[deprecated(note = "Replaced by `network.transport`.")]
 pub use crate::attribute::NET_TRANSPORT;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1235,11 +1239,11 @@ pub use crate::attribute::OS_TYPE;
 pub use crate::attribute::OS_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="use the `otel.scope.name` attribute.")]
+#[deprecated(note = "use the `otel.scope.name` attribute.")]
 pub use crate::attribute::OTEL_LIBRARY_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="use the `otel.scope.version` attribute.")]
+#[deprecated(note = "use the `otel.scope.version` attribute.")]
 pub use crate::attribute::OTEL_LIBRARY_VERSION;
 
 pub use crate::attribute::OTEL_SCOPE_NAME;
@@ -1251,14 +1255,14 @@ pub use crate::attribute::OTEL_STATUS_CODE;
 pub use crate::attribute::OTEL_STATUS_DESCRIPTION;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.client.connection.state`.")]
+#[deprecated(note = "Replaced by `db.client.connection.state`.")]
 pub use crate::attribute::STATE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PEER_SERVICE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `db.client.connection.pool.name`.")]
+#[deprecated(note = "Replaced by `db.client.connection.pool.name`.")]
 pub use crate::attribute::POOL_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1274,7 +1278,7 @@ pub use crate::attribute::PROCESS_COMMAND_LINE;
 pub use crate::attribute::PROCESS_CONTEXT_SWITCH_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `cpu.mode`")]
+#[deprecated(note = "Replaced by `cpu.mode`")]
 pub use crate::attribute::PROCESS_CPU_STATE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1428,7 +1432,7 @@ pub use crate::attribute::SOURCE_PORT;
 pub use crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `cpu.mode`")]
+#[deprecated(note = "Replaced by `cpu.mode`")]
 pub use crate::attribute::SYSTEM_CPU_STATE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1465,7 +1469,7 @@ pub use crate::attribute::SYSTEM_PAGING_TYPE;
 pub use crate::attribute::SYSTEM_PROCESS_STATUS;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `system.process.status`.")]
+#[deprecated(note = "Replaced by `system.process.status`.")]
 pub use crate::attribute::SYSTEM_PROCESSES_STATUS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1529,7 +1533,7 @@ pub use crate::attribute::TLS_CLIENT_NOT_AFTER;
 pub use crate::attribute::TLS_CLIENT_NOT_BEFORE;
 
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note="Replaced by `server.address.")]
+#[deprecated(note = "Replaced by `server.address.")]
 pub use crate::attribute::TLS_CLIENT_SERVER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -1678,4 +1682,3 @@ pub use crate::attribute::WEBENGINE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_VERSION;
-
