@@ -3,18 +3,6 @@ whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
 
-text_maps:
-  # Map of the semconv types to the corresponding Rust types.
-  rust_type:
-    int: i64
-    double: f64
-    boolean: bool
-    string: String
-    string[]: Vec<String>
-    int[]: Vec<i64>
-    double[]: Vec<f64>
-    boolean[]: Vec<bool>
-
 # Configuration for the comment formatting
 comment_formats:
   rust:
@@ -28,8 +16,6 @@ params:
   schema_url: "https://opentelemetry.io/schemas/1.27.0"
   exclude_root_namespace: []
   excluded_attributes: ["messaging.client_id"]
-#  exclude_stability: ["experimental"]
-#  exclude_deprecated: true
 
 templates:
   - pattern: attribute.rs.j2
@@ -48,7 +34,7 @@ templates:
     application_mode: single
   - pattern: trace.rs.j2
     filter: >
-      semconv_signal("span"; $params) 
+      semconv_signal("span"; $params) + semconv_signal("event"; $params)
       | map(.attributes[])
       | unique_by(.name)
       | sort_by(.name)

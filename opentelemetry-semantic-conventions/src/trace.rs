@@ -118,6 +118,9 @@ pub use crate::attribute::AWS_S3_PART_NUMBER;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_S3_UPLOAD_ID;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZ_SERVICE_REQUEST_ID;
+
 pub use crate::attribute::CLIENT_ADDRESS;
 
 pub use crate::attribute::CLIENT_PORT;
@@ -233,6 +236,17 @@ pub use crate::attribute::ENDUSER_SCOPE;
 pub use crate::attribute::ERROR_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::EVENT_NAME;
+
+pub use crate::attribute::EXCEPTION_ESCAPED;
+
+pub use crate::attribute::EXCEPTION_MESSAGE;
+
+pub use crate::attribute::EXCEPTION_STACKTRACE;
+
+pub use crate::attribute::EXCEPTION_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FAAS_COLDSTART;
 
 #[cfg(feature = "semconv_experimental")]
@@ -269,7 +283,22 @@ pub use crate::attribute::FAAS_TIME;
 pub use crate::attribute::FAAS_TRIGGER;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_KEY;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_PROVIDER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_VARIANT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_COMPLETION;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_OPERATION_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_PROMPT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_REQUEST_FREQUENCY_PENALTY;
@@ -439,6 +468,18 @@ pub use crate::attribute::RPC_JSONRPC_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::RPC_JSONRPC_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_MESSAGE_COMPRESSED_SIZE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_MESSAGE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_MESSAGE_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_MESSAGE_UNCOMPRESSED_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::RPC_METHOD;
