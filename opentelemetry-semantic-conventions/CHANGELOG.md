@@ -2,6 +2,12 @@
 
 ## vNext
 
+## v0.26.0
+### Changed
+
+- Starting with this version, this crate will use Weaver for the generation of
+  the semantic conventions.
+
 ## v0.25.0
 ### Changed
 
