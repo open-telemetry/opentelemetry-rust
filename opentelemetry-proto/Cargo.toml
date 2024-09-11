@@ -24,8 +24,8 @@ name = "grpc_build"
 path = "tests/grpc_build.rs"
 
 [[test]]
-name = "json_deserialize"
-path = "tests/json_deserialize.rs"
+name = "json_serde"
+path = "tests/json_serde.rs"
 
 
 [features]
