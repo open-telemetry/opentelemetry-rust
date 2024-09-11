@@ -41,8 +41,8 @@ fn build_tonic() {
             "#[cfg_attr(feature = \"with-serde\", serde(rename_all = \"camelCase\"))]",
         );
 
-    // optional numeric and String field need to default it to 0 otherwise JSON files without those field
-    // cannot deserialize
+    // Optional numeric, string and array fields need to default to their default value otherwise
+    // JSON files without those field cannot deserialize
     // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
     for path in [
         "trace.v1.Span",
@@ -56,6 +56,16 @@ fn build_tonic() {
         "logs.v1.LogRecord",
         "logs.v1.ScopeLogs",
         "logs.v1.ResourceLogs",
+        "metrics.v1.Metric",
+        "metrics.v1.ResourceMetrics",
+        "metrics.v1.ScopeMetrics",
+        "metrics.v1.Gauge",
+        "metrics.v1.Sum",
+        "metrics.v1.Histogram",
+        "metrics.v1.ExponentialHistogram",
+        "metrics.v1.Summary",
+        "metrics.v1.NumberDataPoint",
+        "metrics.v1.HistogramDataPoint",
     ] {
         builder = builder.type_attribute(
             path,
@@ -71,8 +81,12 @@ fn build_tonic() {
         "trace.v1.Span.trace_id",
         "trace.v1.Span.span_id",
         "trace.v1.Span.parent_span_id",
+        "trace.v1.Span.Link.trace_id",
+        "trace.v1.Span.Link.span_id",
         "logs.v1.LogRecord.span_id",
         "logs.v1.LogRecord.trace_id",
+        "metrics.v1.Exemplar.span_id",
+        "metrics.v1.Exemplar.trace_id",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
