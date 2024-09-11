@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex, Weak};
 
 use crate::metrics::{
-    aggregation::Aggregation,
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
     pipeline::Pipeline,
-    reader::{AggregationSelector, MetricReader, TemporalitySelector},
+    reader::{MetricReader, TemporalitySelector},
 };
 use opentelemetry::metrics::Result;
 
@@ -52,12 +51,6 @@ impl MetricReader for TestMetricReader {
             *is_shutdown = true;
         }
         result
-    }
-}
-
-impl AggregationSelector for TestMetricReader {
-    fn aggregation(&self, _kind: InstrumentKind) -> Aggregation {
-        Aggregation::Drop
     }
 }
 

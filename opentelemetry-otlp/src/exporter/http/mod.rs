@@ -78,7 +78,7 @@ impl Default for HttpConfig {
 /// ```
 /// # #[cfg(feature="metrics")]
 /// use opentelemetry_sdk::metrics::reader::{
-///     DefaultAggregationSelector, DefaultTemporalitySelector,
+///     DefaultTemporalitySelector,
 /// };
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -91,7 +91,6 @@ impl Default for HttpConfig {
 /// let metrics_exporter = opentelemetry_otlp::new_exporter()
 ///     .http()
 ///     .build_metrics_exporter(
-///         Box::new(DefaultAggregationSelector::new()),
 ///         Box::new(DefaultTemporalitySelector::new()),
 ///     )?;
 ///
@@ -252,7 +251,6 @@ impl HttpExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         mut self,
-        aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::{
@@ -267,11 +265,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
-        Ok(crate::MetricsExporter::new(
-            client,
-            temporality_selector,
-            aggregation_selector,
-        ))
+        Ok(crate::MetricsExporter::new(client, temporality_selector))
     }
 }
 
