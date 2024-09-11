@@ -178,9 +178,9 @@ pub const ASPNETCORE_RATE_LIMITING_REQUESTS: &str = "aspnetcore.rate_limiting.re
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::HTTP_ROUTE`] | `{"conditionally_required": "if and only if a route was successfully matched."}`
 /// | [`crate::attribute::ASPNETCORE_ROUTING_IS_FALLBACK`] | `{"conditionally_required": "if and only if a route was successfully matched."}`
 /// | [`crate::attribute::ASPNETCORE_ROUTING_MATCH_STATUS`] | `Required`
-/// | [`crate::attribute::HTTP_ROUTE`] | `{"conditionally_required": "if and only if a route was successfully matched."}`
 pub const ASPNETCORE_ROUTING_MATCH_ATTEMPTS: &str = "aspnetcore.routing.match_attempts";
 
 /// ## Description
@@ -259,8 +259,8 @@ pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_NETWORK_IO: &str = "container.network.io";
 
@@ -604,15 +604,15 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if using a port other than the default port for this dbms and if `server.address` is set."}`
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `{"conditionally_required": "if readily available. the collection name may be parsed from the query text, in which case it should be the first collection name in the query.\n"}`
 /// | [`crate::attribute::DB_NAMESPACE`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `{"conditionally_required": "if readily available. the operation name may be parsed from the query text, in which case it should be the first operation name found in the query.\n"}`
 /// | [`crate::attribute::DB_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the operation failed."}`
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
 /// | [`crate::attribute::NETWORK_PEER_PORT`] | `{"recommended": "if and only if `network.peer.address` is set."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
-/// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if using a port other than the default port for this dbms and if `server.address` is set."}`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the operation failed."}`
 #[cfg(feature = "semconv_experimental")]
 pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 
@@ -800,13 +800,13 @@ pub const FAAS_TIMEOUTS: &str = "faas.timeouts";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
-/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if `server.address` is set."}`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if the operation ended in an error"}`
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if the operation ended in an error"}`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.duration";
 
@@ -823,12 +823,12 @@ pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.dura
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
-/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if `server.address` is set."}`
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_TOKEN_TYPE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
@@ -846,12 +846,12 @@ pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
-/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if `server.address` is set."}`
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if the operation ended in an error"}`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration";
@@ -869,12 +869,12 @@ pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
-/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if `server.address` is set."}`
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_output_token";
 
@@ -891,12 +891,12 @@ pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_ou
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
-/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `{"conditionally_required": "if `server.address` is set."}`
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_SERVER_TIME_TO_FIRST_TOKEN: &str = "gen_ai.server.time_to_first_token";
 
@@ -1062,9 +1062,9 @@ pub const GO_SCHEDULE_DURATION: &str = "go.schedule.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::SERVER_PORT`] | `Required`
 /// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Required`
 /// | [`crate::attribute::URL_TEMPLATE`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 #[cfg(feature = "semconv_experimental")]
@@ -1083,10 +1083,10 @@ pub const HTTP_CLIENT_ACTIVE_REQUESTS: &str = "http.client.active_requests";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
-/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_CLIENT_CONNECTION_DURATION: &str = "http.client.connection.duration";
@@ -1104,10 +1104,10 @@ pub const HTTP_CLIENT_CONNECTION_DURATION: &str = "http.client.connection.durati
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
-/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::HTTP_CONNECTION_STATE`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 #[cfg(feature = "semconv_experimental")]
@@ -1130,15 +1130,15 @@ pub const HTTP_CLIENT_OPEN_CONNECTIONS: &str = "http.client.open_connections";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
+/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
+/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
-/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
-/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
-/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::URL_TEMPLATE`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_CLIENT_REQUEST_BODY_SIZE: &str = "http.client.request.body.size";
 
@@ -1155,14 +1155,14 @@ pub const HTTP_CLIENT_REQUEST_BODY_SIZE: &str = "http.client.request.body.size";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
+/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
+/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
-/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
 /// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
-/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
-/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 pub const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";
 
 /// ## Description
@@ -1182,15 +1182,15 @@ pub const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
+/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
+/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
-/// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
-/// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
-/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::URL_TEMPLATE`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_CLIENT_RESPONSE_BODY_SIZE: &str = "http.client.response.body.size";
 
@@ -1231,15 +1231,15 @@ pub const HTTP_SERVER_ACTIVE_REQUESTS: &str = "http.server.active_requests";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
-/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 /// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
 /// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::HTTP_ROUTE`] | `{"conditionally_required": "if and only if it's available"}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_SERVER_REQUEST_BODY_SIZE: &str = "http.server.request.body.size";
 
@@ -1256,15 +1256,15 @@ pub const HTTP_SERVER_REQUEST_BODY_SIZE: &str = "http.server.request.body.size";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
-/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 /// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
 /// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::HTTP_ROUTE`] | `{"conditionally_required": "if and only if it's available"}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 
 /// ## Description
@@ -1284,15 +1284,15 @@ pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
-/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 /// | [`crate::attribute::HTTP_REQUEST_METHOD`] | `Required`
 /// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"conditionally_required": "if and only if one was received/sent."}`
 /// | [`crate::attribute::HTTP_ROUTE`] | `{"conditionally_required": "if and only if it's available"}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"conditionally_required": "if not `http` and `network.protocol.version` is set."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if request has ended with an error."}`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_SERVER_RESPONSE_BODY_SIZE: &str = "http.server.response.body.size";
 
@@ -1650,14 +1650,14 @@ pub const KESTREL_ACTIVE_TLS_HANDSHAKES: &str = "kestrel.active_tls_handshakes";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
+/// | [`crate::attribute::TLS_PROTOCOL_VERSION`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::NETWORK_TYPE`] | `{"recommended": "if the transport is `tcp` or `udp`"}`
 /// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
-/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `Recommended`
-/// | [`crate::attribute::TLS_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if an error has occurred."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `Recommended`
 pub const KESTREL_CONNECTION_DURATION: &str = "kestrel.connection.duration";
 
 /// ## Description
@@ -1700,9 +1700,9 @@ pub const KESTREL_QUEUED_CONNECTIONS: &str = "kestrel.queued_connections";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::NETWORK_TYPE`] | `{"recommended": "if the transport is `tcp` or `udp`"}`
 /// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
 /// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `Recommended`
@@ -1751,9 +1751,9 @@ pub const KESTREL_REJECTED_CONNECTIONS: &str = "kestrel.rejected_connections";
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
+/// | [`crate::attribute::TLS_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::NETWORK_TYPE`] | `{"recommended": "if the transport is `tcp` or `udp`"}`
 /// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
-/// | [`crate::attribute::TLS_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if an error has occurred."}`
 pub const KESTREL_TLS_HANDSHAKE_DURATION: &str = "kestrel.tls_handshake.duration";
 
@@ -1802,7 +1802,6 @@ pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 /// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `{"conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. otherwise, `messaging.destination.template` may be populated."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `{"conditionally_required": "if available."}`
@@ -1810,6 +1809,7 @@ pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
 /// | [`crate::attribute::MESSAGING_CONSUMER_GROUP_NAME`] | `{"conditionally_required": "if applicable."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `{"conditionally_required": "if applicable."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_CLIENT_CONSUMED_MESSAGES: &str = "messaging.client.consumed.messages";
 
@@ -1832,7 +1832,6 @@ pub const MESSAGING_CLIENT_CONSUMED_MESSAGES: &str = "messaging.client.consumed.
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 /// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `{"conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. otherwise, `messaging.destination.template` may be populated."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `{"conditionally_required": "if available."}`
@@ -1841,6 +1840,7 @@ pub const MESSAGING_CLIENT_CONSUMED_MESSAGES: &str = "messaging.client.consumed.
 /// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `{"conditionally_required": "if applicable."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::MESSAGING_OPERATION_TYPE`] | `{"conditionally_required": "if applicable."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operation.duration";
 
@@ -1863,12 +1863,12 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 /// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `{"conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. otherwise, `messaging.destination.template` may be populated."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.published.messages";
 
@@ -1891,7 +1891,6 @@ pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.publishe
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 /// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `{"conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. otherwise, `messaging.destination.template` may be populated."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `{"conditionally_required": "if available."}`
@@ -1899,6 +1898,7 @@ pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.publishe
 /// | [`crate::attribute::MESSAGING_CONSUMER_GROUP_NAME`] | `{"conditionally_required": "if applicable."}`
 /// | [`crate::attribute::MESSAGING_DESTINATION_SUBSCRIPTION_NAME`] | `{"conditionally_required": "if applicable."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 
@@ -1916,9 +1916,9 @@ pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `messaging.client.consumed.messages`.")]
 pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
@@ -1937,9 +1937,9 @@ pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `messaging.client.operation.duration`.")]
 pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
@@ -1958,9 +1958,9 @@ pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `messaging.client.produced.messages`.")]
 pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
@@ -1979,9 +1979,9 @@ pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `messaging.client.operation.duration`.")]
 pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
@@ -2000,9 +2000,9 @@ pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
-/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
-/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
 /// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"conditionally_required": "if available."}`
+/// | [`crate::attribute::ERROR_TYPE`] | `{"conditionally_required": "if and only if the messaging operation has failed."}`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `messaging.client.consumed.messages`.")]
 pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
@@ -2839,9 +2839,9 @@ pub const SYSTEM_MEMORY_UTILIZATION: &str = "system.memory.utilization";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_NETWORK_STATE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 
@@ -2866,8 +2866,8 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 
@@ -2892,8 +2892,8 @@ pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 
@@ -2908,8 +2908,8 @@ pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 
@@ -2924,8 +2924,8 @@ pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_PACKETS: &str = "system.network.packets";
 

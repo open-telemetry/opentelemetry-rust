@@ -39,10 +39,20 @@ templates:
     filter: semconv_grouped_metrics($params)
     application_mode: single
   - pattern: resource.rs.j2
-    filter: semconv_grouped_attributes($params)
+    filter: >
+      semconv_signal("resource"; $params) 
+      | map(.attributes[])
+      | unique_by(.name)
+      | sort_by(.name)
+      | map({name, brief, examples, requirement_level, stability, type})
     application_mode: single
   - pattern: trace.rs.j2
-    filter: semconv_grouped_attributes($params)
+    filter: >
+      semconv_signal("span"; $params) 
+      | map(.attributes[])
+      | unique_by(.name)
+      | sort_by(.name)
+      | map({name, brief, examples, requirement_level, stability, type})
     application_mode: single
   - pattern: lib.rs.j2
     filter: .
