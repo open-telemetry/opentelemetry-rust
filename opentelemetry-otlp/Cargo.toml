@@ -31,7 +31,7 @@ futures-core = { workspace = true }
 opentelemetry = { version = "0.24", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.24", default-features = false, path = "../opentelemetry-sdk" }
 opentelemetry-http = { version = "0.13", path = "../opentelemetry-http", optional = true }
-opentelemetry-proto = { version = "0.7", path = "../opentelemetry-proto", default-features = false }
+opentelemetry-proto = { version = "0.7", path = "../opentelemetry-proto", default-features = false, features = ["populate-instrumentation-scope-from-target"] }
 
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }

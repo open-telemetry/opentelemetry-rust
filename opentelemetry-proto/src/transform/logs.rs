@@ -170,7 +170,11 @@ pub mod tonic {
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target.clone()).into()),
+                    scope: if cfg!(feature = "populate-instrumentation-scope-from-target") {
+                        Some((instrumentation, log_record.target.clone()).into())
+                    } else {
+                        Some((instrumentation, None).into())
+                    },
                     log_records: vec![log_record.into()],
                 }],
             }

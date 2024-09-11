@@ -30,7 +30,7 @@ path = "tests/json_deserialize.rs"
 
 [features]
 default = ["full"]
-full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde"]
+full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "populate-instrumentation-scope-from-target"]
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/transport"]
@@ -47,6 +47,7 @@ testing = ["opentelemetry/testing"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex"]
 populate-logs-event-name = []
+populate-instrumentation-scope-from-target = []
 
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
