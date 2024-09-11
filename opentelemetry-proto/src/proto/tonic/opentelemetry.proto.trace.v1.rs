@@ -280,9 +280,23 @@ pub mod span {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
         /// 16-byte array.
         #[prost(bytes = "vec", tag = "1")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+                deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+            )
+        )]
         pub trace_id: ::prost::alloc::vec::Vec<u8>,
         /// A unique identifier for the linked span. The ID is an 8-byte array.
         #[prost(bytes = "vec", tag = "2")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+                deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+            )
+        )]
         pub span_id: ::prost::alloc::vec::Vec<u8>,
         /// The trace_state associated with the link.
         #[prost(string, tag = "3")]
