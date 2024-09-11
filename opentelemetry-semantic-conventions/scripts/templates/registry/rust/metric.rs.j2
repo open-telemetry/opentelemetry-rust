@@ -44,10 +44,15 @@
 /// | Name | Requirement |
 /// |:-|:- |
         {% endif %}
-        {% for attribute in metric.attributes | rejectattr("name", "in", params.excluded_attributes) %}
+        {% for attribute in metric.attributes | rejectattr("name", "in", params.excluded_attributes) | sort(attribute="name") %}
             {% if attribute.requirement_level %}
-                {% set req_level = (attribute.requirement_level | capitalize) %}
-                {% set req_message = attribute.requirement_level_msg %}
+                {% if attribute.requirement_level.conditionally_required %}
+                    {% set req_level = "Conditionally_required" %}
+                    {% set req_message = attribute.requirement_level.conditionally_required %}
+                {% else %}
+                    {% set req_level = (attribute.requirement_level | capitalize) %}
+                    {% set req_message = attribute.requirement_level_msg %}
+                {% endif %}
             {% else %}
                 {% set req_level = "Unspecified" %}
                 {% set req_message = '' %}
