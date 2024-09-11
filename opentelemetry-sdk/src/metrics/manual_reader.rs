@@ -13,8 +13,7 @@ use super::{
     instrument::InstrumentKind,
     pipeline::Pipeline,
     reader::{
-        AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
-        MetricProducer, MetricReader, SdkProducer, TemporalitySelector,
+        DefaultTemporalitySelector, MetricProducer, MetricReader, SdkProducer, TemporalitySelector,
     },
 };
 
@@ -34,7 +33,6 @@ use super::{
 pub struct ManualReader {
     inner: Box<Mutex<ManualReaderInner>>,
     temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,
 }
 
 impl Default for ManualReader {
@@ -65,7 +63,6 @@ impl ManualReader {
     /// A [MetricReader] which is directly called to collect metrics.
     pub(crate) fn new(
         temporality_selector: Box<dyn TemporalitySelector>,
-        aggregation_selector: Box<dyn AggregationSelector>,
         producers: Vec<Box<dyn MetricProducer>>,
     ) -> Self {
         ManualReader {
@@ -75,7 +72,6 @@ impl ManualReader {
                 external_producers: producers,
             })),
             temporality_selector,
-            aggregation_selector,
         }
     }
 }
@@ -83,12 +79,6 @@ impl ManualReader {
 impl TemporalitySelector for ManualReader {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.temporality_selector.temporality(kind)
-    }
-}
-
-impl AggregationSelector for ManualReader {
-    fn aggregation(&self, kind: InstrumentKind) -> super::aggregation::Aggregation {
-        self.aggregation_selector.aggregation(kind)
     }
 }
 
@@ -159,7 +149,6 @@ impl MetricReader for ManualReader {
 /// Configuration for a [ManualReader]
 pub struct ManualReaderBuilder {
     temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,
     producers: Vec<Box<dyn MetricProducer>>,
 }
 
@@ -173,7 +162,6 @@ impl Default for ManualReaderBuilder {
     fn default() -> Self {
         ManualReaderBuilder {
             temporality_selector: Box::new(DefaultTemporalitySelector { _private: () }),
-            aggregation_selector: Box::new(DefaultAggregationSelector { _private: () }),
             producers: vec![],
         }
     }
@@ -196,20 +184,6 @@ impl ManualReaderBuilder {
         self
     }
 
-    /// Sets the [AggregationSelector] a reader will use to determine the
-    /// aggregation to use for an instrument based on its kind.
-    ///
-    /// If this option is not used, the reader will use the default aggregation
-    /// selector or the aggregation explicitly passed for a view matching an
-    /// instrument.
-    pub fn with_aggregation_selector(
-        mut self,
-        aggregation_selector: impl AggregationSelector + 'static,
-    ) -> Self {
-        self.aggregation_selector = Box::new(aggregation_selector);
-        self
-    }
-
     /// Registers a an external [MetricProducer] with this reader.
     ///
     /// The producer is used as a source of aggregated metric data which is
@@ -221,10 +195,6 @@ impl ManualReaderBuilder {
 
     /// Create a new [ManualReader] from this configuration.
     pub fn build(self) -> ManualReader {
-        ManualReader::new(
-            self.temporality_selector,
-            self.aggregation_selector,
-            self.producers,
-        )
+        ManualReader::new(self.temporality_selector, self.producers)
     }
 }
