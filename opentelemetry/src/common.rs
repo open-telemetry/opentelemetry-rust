@@ -32,46 +32,6 @@ impl Key {
         Key(OtelString::Static(value))
     }
 
-    /// Create a `KeyValue` pair for `bool` values.
-    pub fn bool<T: Into<bool>>(self, value: T) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::Bool(value.into()),
-        }
-    }
-
-    /// Create a `KeyValue` pair for `i64` values.
-    pub fn i64(self, value: i64) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::I64(value),
-        }
-    }
-
-    /// Create a `KeyValue` pair for `f64` values.
-    pub fn f64(self, value: f64) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::F64(value),
-        }
-    }
-
-    /// Create a `KeyValue` pair for string-like values.
-    pub fn string(self, value: impl Into<StringValue>) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::String(value.into()),
-        }
-    }
-
-    /// Create a `KeyValue` pair for arrays.
-    pub fn array<T: Into<Array>>(self, value: T) -> KeyValue {
-        KeyValue {
-            key: self,
-            value: Value::Array(value.into()),
-        }
-    }
-
     /// Returns a reference to the underlying key name
     pub fn as_str(&self) -> &str {
         self.0.as_str()
