@@ -5,11 +5,8 @@ use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{
     data::{self, ScopeMetrics},
     exporter::PushMetricsExporter,
-    reader::{
-        AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
-        TemporalitySelector,
-    },
-    Aggregation, InstrumentKind,
+    reader::{DefaultTemporalitySelector, TemporalitySelector},
+    InstrumentKind,
 };
 use std::fmt::Debug;
 use std::sync::atomic;
@@ -18,7 +15,6 @@ use std::sync::atomic;
 pub struct MetricsExporter {
     is_shutdown: atomic::AtomicBool,
     temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,
 }
 
 impl MetricsExporter {
@@ -42,12 +38,6 @@ impl fmt::Debug for MetricsExporter {
 impl TemporalitySelector for MetricsExporter {
     fn temporality(&self, kind: InstrumentKind) -> data::Temporality {
         self.temporality_selector.temporality(kind)
-    }
-}
-
-impl AggregationSelector for MetricsExporter {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.aggregation_selector.aggregation(kind)
     }
 }
 
@@ -234,7 +224,6 @@ fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>])
 #[derive(Default)]
 pub struct MetricsExporterBuilder {
     temporality_selector: Option<Box<dyn TemporalitySelector>>,
-    aggregation_selector: Option<Box<dyn AggregationSelector>>,
 }
 
 impl MetricsExporterBuilder {
@@ -247,24 +236,12 @@ impl MetricsExporterBuilder {
         self
     }
 
-    /// Set the aggregation exporter for the exporter
-    pub fn with_aggregation_selector(
-        mut self,
-        selector: impl AggregationSelector + 'static,
-    ) -> Self {
-        self.aggregation_selector = Some(Box::new(selector));
-        self
-    }
-
     /// Create a metrics exporter with the current configuration
     pub fn build(self) -> MetricsExporter {
         MetricsExporter {
             temporality_selector: self
                 .temporality_selector
                 .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
-            aggregation_selector: self
-                .aggregation_selector
-                .unwrap_or_else(|| Box::new(DefaultAggregationSelector::new())),
             is_shutdown: atomic::AtomicBool::new(false),
         }
     }
