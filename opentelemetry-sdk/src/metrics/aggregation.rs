@@ -17,10 +17,10 @@ pub enum Aggregation {
     /// instrument kind that differs from the default. This aggregation ensures the
     /// default is used.
     ///
-    /// See the [DefaultAggregationSelector] for information about the default
+    /// See the [the spec] for information about the default
     /// instrument kind selection mapping.
     ///
-    /// [DefaultAggregationSelector]: crate::metrics::reader::DefaultAggregationSelector
+    /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/metrics/sdk.md#default-aggregation
     Default,
 
     /// An aggregation that summarizes a set of measurements as their arithmetic

@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Update `async-std` dependency version to 1.13
+- *Breaking* - Remove support for `MetricProducer` which allowed metrics from
+  external sources to be sent through OpenTelemetry.
+  [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)  
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25

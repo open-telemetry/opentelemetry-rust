@@ -14,11 +14,8 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         exporter::PushMetricsExporter,
-        reader::{
-            AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
-            TemporalitySelector,
-        },
-        Aggregation, InstrumentKind, PeriodicReader, SdkMeterProvider,
+        reader::{DefaultTemporalitySelector, TemporalitySelector},
+        InstrumentKind, PeriodicReader, SdkMeterProvider,
     },
     runtime::Runtime,
     Resource,
@@ -50,7 +47,6 @@ impl OtlpPipeline {
     {
         OtlpMetricPipeline {
             rt,
-            aggregator_selector: None,
             temporality_selector: None,
             exporter_pipeline: NoExporterConfig(()),
             resource: None,
@@ -82,21 +78,19 @@ impl MetricsExporterBuilder {
     pub fn build_metrics_exporter(
         self,
         temporality_selector: Box<dyn TemporalitySelector>,
-        aggregation_selector: Box<dyn AggregationSelector>,
     ) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
             MetricsExporterBuilder::Tonic(builder) => {
-                builder.build_metrics_exporter(aggregation_selector, temporality_selector)
+                builder.build_metrics_exporter(temporality_selector)
             }
             #[cfg(feature = "http-proto")]
             MetricsExporterBuilder::Http(builder) => {
-                builder.build_metrics_exporter(aggregation_selector, temporality_selector)
+                builder.build_metrics_exporter(temporality_selector)
             }
             #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
             MetricsExporterBuilder::Unconfigured => {
                 drop(temporality_selector);
-                drop(aggregation_selector);
                 Err(opentelemetry::metrics::MetricsError::Other(
                     "no configured metrics exporter, enable `http-proto` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
@@ -125,7 +119,6 @@ impl From<HttpExporterBuilder> for MetricsExporterBuilder {
 /// runtime.
 pub struct OtlpMetricPipeline<RT, EB> {
     rt: RT,
-    aggregator_selector: Option<Box<dyn AggregationSelector>>,
     temporality_selector: Option<Box<dyn TemporalitySelector>>,
     exporter_pipeline: EB,
     resource: Option<Resource>,
@@ -178,14 +171,6 @@ where
     pub fn with_delta_temporality(self) -> Self {
         self.with_temporality_selector(DeltaTemporalitySelector)
     }
-
-    /// Build with the given aggregation selector
-    pub fn with_aggregation_selector<T: AggregationSelector + 'static>(self, selector: T) -> Self {
-        OtlpMetricPipeline {
-            aggregator_selector: Some(Box::new(selector)),
-            ..self
-        }
-    }
 }
 
 impl<RT> OtlpMetricPipeline<RT, NoExporterConfig>
@@ -200,7 +185,6 @@ where
         OtlpMetricPipeline {
             exporter_pipeline: pipeline.into(),
             rt: self.rt,
-            aggregator_selector: self.aggregator_selector,
             temporality_selector: self.temporality_selector,
             resource: self.resource,
             period: self.period,
@@ -218,8 +202,6 @@ where
         let exporter = self.exporter_pipeline.build_metrics_exporter(
             self.temporality_selector
                 .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
-            self.aggregator_selector
-                .unwrap_or_else(|| Box::new(DefaultAggregationSelector::new())),
         )?;
 
         let mut builder = PeriodicReader::builder(exporter, self.rt);
@@ -295,7 +277,6 @@ pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
 pub struct MetricsExporter {
     client: Box<dyn MetricsClient>,
     temporality_selector: Box<dyn TemporalitySelector>,
-    aggregation_selector: Box<dyn AggregationSelector>,
 }
 
 impl Debug for MetricsExporter {
@@ -307,12 +288,6 @@ impl Debug for MetricsExporter {
 impl TemporalitySelector for MetricsExporter {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.temporality_selector.temporality(kind)
-    }
-}
-
-impl AggregationSelector for MetricsExporter {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.aggregation_selector.aggregation(kind)
     }
 }
 
@@ -337,12 +312,10 @@ impl MetricsExporter {
     pub fn new(
         client: impl MetricsClient,
         temporality_selector: Box<dyn TemporalitySelector>,
-        aggregation_selector: Box<dyn AggregationSelector>,
     ) -> MetricsExporter {
         MetricsExporter {
             client: Box::new(client),
             temporality_selector,
-            aggregation_selector,
         }
     }
 }
