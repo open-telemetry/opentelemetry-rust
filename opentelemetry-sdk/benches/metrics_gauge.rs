@@ -37,7 +37,7 @@ fn create_gauge() -> Gauge<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    let meter = meter_provider.meter("benchmarks");
+    let meter = meter_provider.meter("benchmarks".to_string());
 
     meter.u64_gauge("gauge_bench").init()
 }

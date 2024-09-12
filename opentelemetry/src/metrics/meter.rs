@@ -29,23 +29,18 @@ pub trait MeterProvider {
     /// let provider = global::meter_provider();
     ///
     /// // meter used in applications
-    /// let meter = provider.meter("my_app");
+    /// let meter = provider.meter("my_app".to_string());
     ///
     /// // meter used in libraries/crates that optionally includes version and schema url
     /// let meter = provider.versioned_meter(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
+    ///     "my_library".to_string(),
+    ///     Some(env!("CARGO_PKG_VERSION").to_string()),
+    ///     Some("https://opentelemetry.io/schema/1.0.0".to_string()),
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn meter(&self, name: impl Into<Cow<'static, str>>) -> Meter {
-        self.versioned_meter(
-            name,
-            None::<Cow<'static, str>>,
-            None::<Cow<'static, str>>,
-            None,
-        )
+    fn meter(&self, name: String) -> Meter {
+        self.versioned_meter(name, None, None, None)
     }
 
     /// Returns a new versioned meter with a given name.
@@ -56,9 +51,9 @@ pub trait MeterProvider {
     /// default name will be used instead.
     fn versioned_meter(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
+        name: String,
+        version: Option<String>,
+        schema_url: Option<String>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }

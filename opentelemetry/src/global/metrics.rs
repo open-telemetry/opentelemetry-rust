@@ -1,90 +1,16 @@
 use crate::metrics::{self, Meter, MeterProvider};
 use crate::KeyValue;
-use core::fmt;
 use once_cell::sync::Lazy;
 use std::{
     borrow::Cow,
     sync::{Arc, RwLock},
 };
 
+type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
+
 /// The global `MeterProvider` singleton.
-static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
-    RwLock::new(GlobalMeterProvider::new(
-        metrics::noop::NoopMeterProvider::new(),
-    ))
-});
-
-/// Allows a specific [MeterProvider] to be used generically by the
-/// [GlobalMeterProvider] by mirroring the interface and boxing the return types.
-trait ObjectSafeMeterProvider {
-    /// Creates a versioned named meter instance that is a trait object through the underlying
-    /// [MeterProvider].
-    fn versioned_meter_cow(
-        &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter;
-}
-
-impl<P> ObjectSafeMeterProvider for P
-where
-    P: MeterProvider,
-{
-    /// Return a versioned boxed tracer
-    fn versioned_meter_cow(
-        &self,
-        name: Cow<'static, str>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter {
-        self.versioned_meter(name, version, schema_url, attributes)
-    }
-}
-
-/// Represents the globally configured [`MeterProvider`] instance for this
-/// application.
-#[derive(Clone)]
-pub struct GlobalMeterProvider {
-    provider: Arc<dyn ObjectSafeMeterProvider + Send + Sync>,
-}
-
-impl fmt::Debug for GlobalMeterProvider {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("GlobalMeterProvider").finish()
-    }
-}
-
-impl MeterProvider for GlobalMeterProvider {
-    fn versioned_meter(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter {
-        self.provider.versioned_meter_cow(
-            name.into(),
-            version.map(Into::into),
-            schema_url.map(Into::into),
-            attributes,
-        )
-    }
-}
-
-impl GlobalMeterProvider {
-    /// Create a new global meter provider
-    fn new<P>(provider: P) -> Self
-    where
-        P: MeterProvider + Send + Sync + 'static,
-    {
-        GlobalMeterProvider {
-            provider: Arc::new(provider),
-        }
-    }
-}
+static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> =
+    Lazy::new(|| RwLock::new(Arc::new(metrics::noop::NoopMeterProvider::new())));
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.
@@ -95,7 +21,7 @@ where
     let mut global_provider = GLOBAL_METER_PROVIDER
         .write()
         .expect("GLOBAL_METER_PROVIDER RwLock poisoned");
-    *global_provider = GlobalMeterProvider::new(new_provider);
+    *global_provider = Arc::new(new_provider);
 }
 
 /// Returns an instance of the currently configured global [`MeterProvider`]
@@ -113,7 +39,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
 pub fn meter(name: impl Into<Cow<'static, str>>) -> Meter {
-    meter_provider().meter(name.into())
+    meter_provider().meter(name.into().into_owned())
 }
 
 /// Creates a [`Meter`] with the name, version and schema url.
@@ -144,9 +70,9 @@ pub fn meter_with_version(
     attributes: Option<Vec<KeyValue>>,
 ) -> Meter {
     meter_provider().versioned_meter(
-        name.into(),
-        version.map(Into::into),
-        schema_url.map(Into::into),
+        name.into().into_owned(),
+        version.map(|v| v.into().into_owned()),
+        schema_url.map(|s| s.into().into_owned()),
         attributes,
     )
 }

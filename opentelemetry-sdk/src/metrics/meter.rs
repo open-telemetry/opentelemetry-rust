@@ -540,7 +540,7 @@ mod tests {
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1699"]
     fn test_instrument_creation() {
         let provider = SdkMeterProvider::builder().build();
-        let meter = provider.meter("test");
+        let meter = provider.meter("test".to_string());
         assert!(meter.u64_counter("test").try_init().is_ok());
         let result = meter.u64_counter("test with invalid name").try_init();
         // this assert fails, as result is always ok variant.

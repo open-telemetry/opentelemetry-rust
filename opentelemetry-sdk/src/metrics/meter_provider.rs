@@ -1,6 +1,5 @@
 use core::fmt;
 use std::{
-    borrow::Cow,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -139,9 +138,9 @@ impl Drop for SdkMeterProviderInner {
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
+        name: String,
+        version: Option<String>,
+        schema_url: Option<String>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
@@ -443,24 +442,48 @@ mod tests {
     #[test]
     fn same_meter_reused_same_scope() {
         let provider = super::SdkMeterProvider::builder().build();
-        let _meter1 = provider.meter("test");
-        let _meter2 = provider.meter("test");
+        let _meter1 = provider.meter("test".to_string());
+        let _meter2 = provider.meter("test".to_string());
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
-        let _meter3 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter4 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter5 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter3 = provider.versioned_meter(
+            "test".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
+        let _meter4 = provider.versioned_meter(
+            "test".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
+        let _meter5 = provider.versioned_meter(
+            "test".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
         // the below are different meters, as meter names are case sensitive
-        let _meter6 =
-            provider.versioned_meter("ABC", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter7 =
-            provider.versioned_meter("Abc", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter8 =
-            provider.versioned_meter("abc", Some("1.0.0"), Some("http://example.com"), None);
+        let _meter6 = provider.versioned_meter(
+            "ABC".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
+        let _meter7 = provider.versioned_meter(
+            "Abc".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
+        let _meter8 = provider.versioned_meter(
+            "abc".to_string(),
+            Some("1.0.0".to_string()),
+            Some("http://example.com".to_string()),
+            None,
+        );
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }
 }
