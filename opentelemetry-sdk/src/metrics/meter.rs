@@ -481,7 +481,7 @@ struct InstrumentResolver<'a, T> {
 
 impl<'a, T> InstrumentResolver<'a, T>
 where
-    T: Number<T>,
+    T: Number,
 {
     fn new(meter: &'a SdkMeter, resolve: &'a Resolver<T>) -> Self {
         InstrumentResolver { meter, resolve }
