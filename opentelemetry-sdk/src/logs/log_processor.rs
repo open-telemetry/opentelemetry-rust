@@ -824,6 +824,11 @@ mod tests {
                 Key::from_static_str("processed_by"),
                 AnyValue::String("FirstProcessor".into()),
             );
+            record.add_attribute(
+                Key::from_static_str("key1"),
+                AnyValue::String("val1".into()),
+            );
+
             // update body
             record.body = Some("Updated by FirstProcessor".into());
 
@@ -853,6 +858,11 @@ mod tests {
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
             ));
+            record.update_attribute(
+                &Key::from_static_str("processed_by"),
+                &AnyValue::from("SecondProcessor"),
+            );
+            let _ = record.delete_attribute(&Key::from_static_str("key1"));
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
@@ -871,10 +881,52 @@ mod tests {
             Ok(())
         }
     }
+
+    #[derive(Debug)]
+    struct ThirdProcessor {
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+    }
+
+    impl LogProcessor for ThirdProcessor {
+        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+            assert!(record.attributes_contains(
+                &Key::from_static_str("processed_by"),
+                &AnyValue::String("SecondProcessor".into())
+            ));
+            record.update_attribute(
+                &Key::from_static_str("processed_by"),
+                &AnyValue::from("ThirdProcessor"),
+            );
+            assert!(!record.attributes_contains(
+                &Key::from_static_str("key1"),
+                &AnyValue::String("value1".into())
+            ));
+
+            let _ = record.delete_attribute(&Key::from_static_str("key1"));
+            assert!(
+                record.body.clone().unwrap()
+                    == AnyValue::String("Updated by FirstProcessor".into())
+            );
+            self.logs
+                .lock()
+                .unwrap()
+                .push((record.clone(), instrumentation.clone()));
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
+
     #[test]
     fn test_log_data_modification_by_multiple_processors() {
         let first_processor_logs = Arc::new(Mutex::new(Vec::new()));
         let second_processor_logs = Arc::new(Mutex::new(Vec::new()));
+        let third_processor_logs = Arc::new(Mutex::new(Vec::new()));
 
         let first_processor = FirstProcessor {
             logs: Arc::clone(&first_processor_logs),
@@ -882,10 +934,14 @@ mod tests {
         let second_processor = SecondProcessor {
             logs: Arc::clone(&second_processor_logs),
         };
+        let third_processor = ThirdProcessor {
+            logs: Arc::clone(&third_processor_logs),
+        };
 
         let logger_provider = LoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
+            .with_log_processor(third_processor)
             .build();
 
         let logger = logger_provider.logger("test-logger");
@@ -896,9 +952,11 @@ mod tests {
 
         assert_eq!(first_processor_logs.lock().unwrap().len(), 1);
         assert_eq!(second_processor_logs.lock().unwrap().len(), 1);
+        assert_eq!(third_processor_logs.lock().unwrap().len(), 1);
 
         let first_log = &first_processor_logs.lock().unwrap()[0];
         let second_log = &second_processor_logs.lock().unwrap()[0];
+        let third_log = &third_processor_logs.lock().unwrap()[0];
 
         assert!(first_log.0.attributes_contains(
             &Key::from_static_str("processed_by"),
@@ -906,7 +964,11 @@ mod tests {
         ));
         assert!(second_log.0.attributes_contains(
             &Key::from_static_str("processed_by"),
-            &AnyValue::String("FirstProcessor".into())
+            &AnyValue::String("SecondProcessor".into())
+        ));
+        assert!(third_log.0.attributes_contains(
+            &Key::from_static_str("processed_by"),
+            &AnyValue::String("ThirdProcessor".into())
         ));
 
         assert!(
@@ -915,6 +977,10 @@ mod tests {
         );
         assert!(
             second_log.0.body.clone().unwrap()
+                == AnyValue::String("Updated by FirstProcessor".into())
+        );
+        assert!(
+            third_log.0.body.clone().unwrap()
                 == AnyValue::String("Updated by FirstProcessor".into())
         );
     }

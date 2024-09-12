@@ -1,4 +1,5 @@
 use crate::growable_array::GrowableArray;
+use opentelemetry::logs::LogRecord as _;
 use opentelemetry::{
     logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
@@ -125,25 +126,74 @@ impl LogRecord {
             .any(|(k, v)| k == key && v == value)
     }
 
-    /// Updates the attribute with the specified key.
-    pub fn update_attribute<K, V>(&mut self, key: K, value: V) -> bool
-    where
-        K: Into<Key>,
-        V: Into<AnyValue>,
-    {
-        let key = key.into();
-        if let Some(attr) = self.attributes.iter_mut().find(|opt| {
-            if let Some((k, _)) = opt {
-                k == &key
-            } else {
-                false
-            }
-        }) {
-            *attr = Some((key, value.into()));
-            true
-        } else {
-            false
+    /// Updates the first occurrence of an attribute with the specified key.
+    ///
+    /// This method searches for the first occurrence of the attribute with the given key
+    /// in the `attributes` collection. If the key is found, its value is updated with the
+    /// provided value. If the key is not found, the attribute is added.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: A reference to the key of the attribute to update.
+    /// - `value`: A reference to the new value for the attribute.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(AnyValue)`: The old value of the attribute if found and updated.
+    /// - `None`: If the attribute was not found, and a new one was added.
+    ///
+    pub fn update_attribute(&mut self, key: &Key, value: &AnyValue) -> Option<AnyValue> {
+        // First, search for the attribute mutably
+        if let Some(attr) = self
+            .attributes
+            .iter_mut()
+            .find(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false))
+        {
+            // Take the old value and update the attribute
+            let old_value = attr.take().map(|(_, v)| v);
+            *attr = Some((key.clone(), value.clone()));
+            return old_value;
         }
+
+        // If not found, add a new attribute
+        self.add_attribute(key.clone(), value.clone());
+        None
+    }
+
+    /// Deletes the first occurrence of an attribute with the specified key.
+    ///
+    /// This method first searches for the attribute with the given key in the `attributes`
+    /// collection. If the attribute is found, it then calls the `delete_item` method from
+    /// the `GrowableArray` to remove it.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: A reference to the key of the attribute to delete.
+    ///
+    /// # Returns
+    ///
+    /// - `Some((Key, AnyValue))`: The deleted key-value pair if found.
+    /// - `None`: If the attribute was not found.
+    ///
+    pub fn delete_attribute(&mut self, key: &Key) -> Option<(Key, AnyValue)> {
+        // First, find the position of the attribute (this is an immutable borrow).
+        let position = self
+            .attributes
+            .iter()
+            .position(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false));
+
+        // Now drop the immutable borrow before we proceed with the mutable borrow.
+        if let Some(position) = position {
+            // Mutably borrow attributes and remove the item
+            if let Some(attribute) = self.attributes.get(position).and_then(|opt| opt.clone()) {
+                // Clone the attribute before passing it to delete_item
+                let cloned_attribute = attribute.clone();
+                // Use delete_item to remove the found attribute
+                self.attributes.delete_item(&Some(attribute));
+                return Some(cloned_attribute);
+            }
+        }
+        None
     }
 }
 
@@ -173,7 +223,7 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
+    use opentelemetry::logs::{AnyValue, Severity};
     use std::borrow::Cow;
     use std::time::SystemTime;
 
@@ -312,5 +362,42 @@ mod tests {
         };
 
         assert_eq!(log_record_borrowed, log_record_owned);
+    }
+
+    #[test]
+    fn test_update_attribute() {
+        let mut log_record = LogRecord::default();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+        let updated_value = AnyValue::String("updated_value".into());
+
+        // Add a new attribute
+        assert!(log_record.update_attribute(&key, &value).is_none());
+        assert!(log_record.attributes_contains(&key, &value));
+
+        // Update the existing attribute
+        assert_eq!(
+            log_record.update_attribute(&key, &updated_value),
+            Some(value)
+        );
+        assert!(log_record.attributes_contains(&key, &updated_value));
+    }
+
+    #[test]
+    fn test_delete_attribute() {
+        let mut log_record = LogRecord::default();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+
+        // Add an attribute
+        log_record.add_attribute(key.clone(), value.clone());
+        assert!(log_record.attributes_contains(&key, &value));
+
+        // Delete the attribute
+        let deleted_attribute = log_record.delete_attribute(&key);
+        assert_eq!(deleted_attribute, Some((key.clone(), value.clone())));
+
+        // Ensure it is deleted
+        assert!(!log_record.attributes_contains(&key, &value));
     }
 }
