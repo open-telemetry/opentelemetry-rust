@@ -74,9 +74,7 @@ impl<
         if index < self.count {
             Some(&self.inline[index])
         } else if let Some(ref overflow) = self.overflow {
-            // Ensure that the index is within bounds for the overflow vector
-            let overflow_index = index - self.count;
-            overflow.get(overflow_index)
+            overflow.get(index - MAX_INLINE_CAPACITY)
         } else {
             None
         }
