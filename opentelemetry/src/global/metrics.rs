@@ -16,7 +16,7 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> = Lazy::new(|| {
 
 /// Allows a specific [MeterProvider] to be used generically by the
 /// [GlobalMeterProvider] by mirroring the interface and boxing the return types.
-pub trait ObjectSafeMeterProvider {
+trait ObjectSafeMeterProvider {
     /// Creates a versioned named meter instance that is a trait object through the underlying
     /// [MeterProvider].
     fn versioned_meter_cow(
@@ -76,7 +76,7 @@ impl MeterProvider for GlobalMeterProvider {
 
 impl GlobalMeterProvider {
     /// Create a new global meter provider
-    pub fn new<P>(provider: P) -> Self
+    fn new<P>(provider: P) -> Self
     where
         P: MeterProvider + Send + Sync + 'static,
     {
