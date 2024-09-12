@@ -22,7 +22,7 @@ struct HistogramTracker<T> {
     buckets: Mutex<Buckets<T>>,
 }
 
-impl<T: Number<T>> AtomicTracker<T> for HistogramTracker<T> {
+impl<T: Number> AtomicTracker<T> for HistogramTracker<T> {
     fn update_histogram(&self, index: usize, value: T) {
         let mut buckets = match self.buckets.lock() {
             Ok(guard) => guard,
@@ -34,7 +34,7 @@ impl<T: Number<T>> AtomicTracker<T> for HistogramTracker<T> {
     }
 }
 
-impl<T: Number<T>> AtomicallyUpdate<T> for HistogramTracker<T> {
+impl<T: Number> AtomicallyUpdate<T> for HistogramTracker<T> {
     type AtomicTracker = HistogramTracker<T>;
 
     fn new_atomic_tracker(buckets_count: Option<usize>) -> Self::AtomicTracker {
@@ -54,7 +54,7 @@ struct Buckets<T> {
     max: T,
 }
 
-impl<T: Number<T>> Buckets<T> {
+impl<T: Number> Buckets<T> {
     /// returns buckets with `n` bins.
     fn new(n: usize) -> Buckets<T> {
         Buckets {
@@ -93,7 +93,7 @@ impl<T: Number<T>> Buckets<T> {
 
 /// Summarizes a set of measurements as a histogram with explicitly defined
 /// buckets.
-pub(crate) struct Histogram<T: Number<T>> {
+pub(crate) struct Histogram<T: Number> {
     value_map: ValueMap<HistogramTracker<T>, T, HistogramUpdate>,
     bounds: Vec<f64>,
     record_min_max: bool,
@@ -101,7 +101,7 @@ pub(crate) struct Histogram<T: Number<T>> {
     start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> Histogram<T> {
+impl<T: Number> Histogram<T> {
     pub(crate) fn new(boundaries: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
         let buckets_count = boundaries.len() + 1;
         let mut histogram = Histogram {
