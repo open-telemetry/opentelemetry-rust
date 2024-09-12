@@ -57,7 +57,6 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 struct PipelineInner {
     aggregations: HashMap<Scope, Vec<InstrumentSync>>,
     callbacks: Vec<GenericCallback>,
-    multi_callbacks: Vec<Option<GenericCallback>>,
 }
 
 impl fmt::Debug for PipelineInner {
@@ -107,11 +106,6 @@ impl SdkProducer for Pipeline {
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
             cb();
-        }
-
-        for mcb in inner.multi_callbacks.iter().flatten() {
-            // TODO consider parallel multi callbacks.
-            mcb();
         }
 
         rm.resource = self.resource.clone();
