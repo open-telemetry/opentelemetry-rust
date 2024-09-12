@@ -24,8 +24,7 @@ where
     *global_provider = Arc::new(new_provider);
 }
 
-/// Returns an instance of the currently configured global [`MeterProvider`]
-/// through [`GlobalMeterProvider`].
+/// Returns an instance of the currently configured global [`MeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {
     GLOBAL_METER_PROVIDER
         .read()
@@ -33,7 +32,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
         .clone()
 }
 
-/// Creates a named [`Meter`] via the configured [`GlobalMeterProvider`].
+/// Creates a named [`Meter`] via the currently configured global [`MeterProvider`].
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
