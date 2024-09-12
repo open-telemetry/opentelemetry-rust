@@ -211,7 +211,7 @@ struct Inserter<T> {
 
 impl<T> Inserter<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
         Inserter {
@@ -465,7 +465,7 @@ type AggregateFns<T> = (
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
-fn aggregate_fn<T: Number<T>>(
+fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
@@ -668,7 +668,7 @@ pub(crate) struct Resolver<T> {
 
 impl<T> Resolver<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,
