@@ -64,7 +64,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::KeyValue;
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
@@ -106,11 +106,6 @@ impl AttributeSet {
         values.sort_unstable();
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
-    }
-
-    /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 
     /// Returns the underlying Vec of KeyValue pairs

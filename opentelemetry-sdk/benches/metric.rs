@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
+    global,
     metrics::{Counter, Histogram, MeterProvider as _, Result},
     Key, KeyValue,
 };
@@ -344,7 +345,7 @@ fn counters(c: &mut Criterion) {
 const MAX_BOUND: usize = 100000;
 
 fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
-    let mut bounds = vec![0; bound_count];
+    let mut bounds: Vec<usize> = vec![0; bound_count];
     #[allow(clippy::needless_range_loop)]
     for i in 0..bounds.len() {
         bounds[i] = i * MAX_BOUND / bound_count
@@ -394,22 +395,35 @@ fn histograms(c: &mut Criterion) {
             );
         }
     }
-    group.bench_function("CollectOne", |b| benchmark_collect_histogram(b, 1));
-    group.bench_function("CollectFive", |b| benchmark_collect_histogram(b, 5));
-    group.bench_function("CollectTen", |b| benchmark_collect_histogram(b, 10));
-    group.bench_function("CollectTwentyFive", |b| benchmark_collect_histogram(b, 25));
+    for metrics_size in [1, 5, 20] {
+        for attr_sets in [1, 5, 20, 200] {
+            group.bench_function(
+                format!("Collect{metrics_size}Metric{attr_sets}AttrSets"),
+                |b| benchmark_collect_histogram(b, metrics_size, attr_sets),
+            );
+        }
+    }
 }
 
-fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
+fn benchmark_collect_histogram(b: &mut Bencher, metrics_size: usize, attr_sets: usize) {
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mtr = SdkMeterProvider::builder()
-        .with_reader(r.clone())
-        .build()
-        .meter("sdk/metric/bench/histogram");
+    let provider = SdkMeterProvider::builder().with_reader(r.clone()).build();
+    let mtr = provider.meter("sdk/metric/bench/histogram");
+    global::set_meter_provider(provider);
 
-    for i in 0..n {
-        let h = mtr.u64_histogram(format!("fake_data_{i}")).init();
-        h.record(1, &[]);
+    let mut rng = rand::thread_rng();
+    for m in 0..metrics_size {
+        let h = mtr.u64_histogram(format!("fake_data_{m}")).init();
+        for _att in 0..attr_sets {
+            let mut attributes: Vec<KeyValue> = Vec::new();
+            for _i in 0..rng.gen_range(0..3) {
+                attributes.push(KeyValue::new(
+                    format!("K{}", rng.gen_range::<i32, _>(0..10)),
+                    format!("V{}", rng.gen_range::<i32, _>(0..10)),
+                ))
+            }
+            h.record(1, &attributes)
+        }
     }
 
     let mut rm = ResourceMetrics {
@@ -418,8 +432,8 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     };
 
     b.iter(|| {
-        let _ = r.collect(&mut rm);
-        assert_eq!(rm.scope_metrics[0].metrics.len(), n);
+        r.collect(&mut rm).unwrap();
+        assert_eq!(rm.scope_metrics[0].metrics.len(), metrics_size);
     })
 }
 

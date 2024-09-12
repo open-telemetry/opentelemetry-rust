@@ -1,63 +1,46 @@
-use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
+use std::{f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
 use opentelemetry::{metrics::MetricsError, KeyValue};
 
-use crate::{
-    metrics::data::{self, Aggregation, Temporality},
-    metrics::AttributeSet,
-};
+use crate::metrics::data::{self, Aggregation, Temporality};
 
-use super::Number;
+use super::{
+    attribute_set_aggregation::{Aggregator, AttributeSetAggregation},
+    Number,
+};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
 
+struct HistConfig {
+    max_size: i32,
+    max_scale: i8,
+    record_min_max: bool,
+    record_sum: bool,
+}
+
 /// A single data point in an exponential histogram.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct ExpoHistogramDataPoint<T> {
     count: usize,
     min: T,
     max: T,
     sum: T,
-
-    max_size: i32,
-    record_min_max: bool,
-    record_sum: bool,
-
     scale: i8,
-
     pos_buckets: ExpoBuckets,
     neg_buckets: ExpoBuckets,
     zero_count: u64,
 }
 
 impl<T: Number> ExpoHistogramDataPoint<T> {
-    fn new(max_size: i32, max_scale: i8, record_min_max: bool, record_sum: bool) -> Self {
-        ExpoHistogramDataPoint {
-            count: 0,
-            min: T::max(),
-            max: T::min(),
-            sum: T::default(),
-            max_size,
-            record_min_max,
-            record_sum,
-            scale: max_scale,
-            pos_buckets: ExpoBuckets::default(),
-            neg_buckets: ExpoBuckets::default(),
-            zero_count: 0,
-        }
-    }
-}
-
-impl<T: Number> ExpoHistogramDataPoint<T> {
     /// Adds a new measurement to the histogram.
     ///
     /// It will rescale the buckets if needed.
-    fn record(&mut self, v: T) {
+    fn record(&mut self, config: &HistConfig, v: T) {
         self.count += 1;
 
-        if self.record_min_max {
+        if config.record_min_max {
             if v < self.min {
                 self.min = v;
             }
@@ -65,7 +48,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
                 self.max = v;
             }
         }
-        if self.record_sum {
+        if config.record_sum {
             self.sum += v;
         }
 
@@ -90,7 +73,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             };
 
             scale_change(
-                self.max_size,
+                config.max_size,
                 bin,
                 bucket.start_bin,
                 bucket.counts.len() as i32,
@@ -222,7 +205,7 @@ fn frexp(x: f64) -> (f64, i32) {
 }
 
 /// A set of buckets in an exponential histogram.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Clone)]
 struct ExpoBuckets {
     start_bin: i32,
     counts: Vec<u64>,
@@ -306,19 +289,45 @@ impl ExpoBuckets {
     }
 }
 
+impl<T> Aggregator<T> for ExpoHistogramDataPoint<T>
+where
+    T: Number,
+{
+    type Config = HistConfig;
+
+    fn create(config: &HistConfig) -> Self {
+        ExpoHistogramDataPoint {
+            count: 0,
+            min: T::max(),
+            max: T::min(),
+            sum: T::default(),
+            scale: config.max_scale,
+            pos_buckets: ExpoBuckets::default(),
+            neg_buckets: ExpoBuckets::default(),
+            zero_count: 0,
+        }
+    }
+
+    fn update(&mut self, config: &HistConfig, value: T) {
+        let f_value = value.into_float();
+        // Ignore NaN and infinity.
+        if f_value.is_infinite() || f_value.is_nan() {
+            return;
+        }
+        self.record(config, value);
+    }
+}
+
 /// An aggregator that summarizes a set of measurements as an exponential
 /// histogram.
 ///
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
-pub(crate) struct ExpoHistogram<T> {
-    record_sum: bool,
-    record_min_max: bool,
-    max_size: i32,
-    max_scale: i8,
-
-    values: Mutex<HashMap<AttributeSet, ExpoHistogramDataPoint<T>>>,
-
+pub(crate) struct ExpoHistogram<T>
+where
+    T: Number,
+{
+    aggregators: AttributeSetAggregation<T, ExpoHistogramDataPoint<T>>,
     start: Mutex<SystemTime>,
 }
 
@@ -331,34 +340,18 @@ impl<T: Number> ExpoHistogram<T> {
         record_sum: bool,
     ) -> Self {
         ExpoHistogram {
-            record_sum,
-            record_min_max,
-            max_size: max_size as i32,
-            max_scale,
-            values: Mutex::new(HashMap::default()),
+            aggregators: AttributeSetAggregation::new(HistConfig {
+                max_size: max_size as i32,
+                max_scale,
+                record_min_max,
+                record_sum,
+            }),
             start: Mutex::new(SystemTime::now()),
         }
     }
 
     pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
-        let f_value = value.into_float();
-        // Ignore NaN and infinity.
-        if f_value.is_infinite() || f_value.is_nan() {
-            return;
-        }
-
-        let attrs: AttributeSet = attrs.into();
-        if let Ok(mut values) = self.values.lock() {
-            let v = values.entry(attrs).or_insert_with(|| {
-                ExpoHistogramDataPoint::new(
-                    self.max_size,
-                    self.max_scale,
-                    self.record_min_max,
-                    self.record_sum,
-                )
-            });
-            v.record(value)
-        }
+        self.aggregators.measure(attrs, value);
     }
 
     pub(crate) fn delta(
@@ -383,59 +376,19 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-        h.data_points.clear();
 
-        let mut values = match self.values.lock() {
-            Ok(g) => g,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len();
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
-
-        for (a, b) in values.drain() {
-            h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
-                start_time: start,
-                time: t,
-                count: b.count,
-                min: if self.record_min_max {
-                    Some(b.min)
-                } else {
-                    None
-                },
-                max: if self.record_min_max {
-                    Some(b.max)
-                } else {
-                    None
-                },
-                sum: if self.record_sum { b.sum } else { T::default() },
-                scale: b.scale,
-                zero_count: b.zero_count,
-                positive_bucket: data::ExponentialBucket {
-                    offset: b.pos_buckets.start_bin,
-                    counts: b.pos_buckets.counts.clone(),
-                },
-                negative_bucket: data::ExponentialBucket {
-                    offset: b.neg_buckets.start_bin,
-                    counts: b.neg_buckets.counts.clone(),
-                },
-                zero_threshold: 0.0,
-                exemplars: vec![],
+        let config = self.aggregators.config();
+        self.aggregators
+            .collect_and_reset(&mut h.data_points, |attributes, aggr| {
+                to_data_point(start, t, config, attributes, aggr)
             });
-        }
 
         // The delta collection cycle resets.
         if let Ok(mut start) = self.start.lock() {
             *start = t;
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 
     pub(crate) fn cumulative(
@@ -461,63 +414,64 @@ impl<T: Number> ExpoHistogram<T> {
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
 
-        let values = match self.values.lock() {
-            Ok(g) => g,
-            Err(_) => return (0, None),
-        };
-        h.data_points.clear();
-
-        let n = values.len();
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
-
-        // TODO: This will use an unbounded amount of memory if there
-        // are unbounded number of attribute sets being aggregated. Attribute
-        // sets that become "stale" need to be forgotten so this will not
-        // overload the system.
-        for (a, b) in values.iter() {
-            h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
-                start_time: start,
-                time: t,
-                count: b.count,
-                min: if self.record_min_max {
-                    Some(b.min)
-                } else {
-                    None
-                },
-                max: if self.record_min_max {
-                    Some(b.max)
-                } else {
-                    None
-                },
-                sum: if self.record_sum { b.sum } else { T::default() },
-                scale: b.scale,
-                zero_count: b.zero_count,
-                positive_bucket: data::ExponentialBucket {
-                    offset: b.pos_buckets.start_bin,
-                    counts: b.pos_buckets.counts.clone(),
-                },
-                negative_bucket: data::ExponentialBucket {
-                    offset: b.neg_buckets.start_bin,
-                    counts: b.neg_buckets.counts.clone(),
-                },
-                zero_threshold: 0.0,
-                exemplars: vec![],
+        let config = self.aggregators.config();
+        self.aggregators
+            .collect_readonly(&mut h.data_points, |attributes, aggr| {
+                to_data_point(start, t, config, attributes, aggr)
             });
-        }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+    }
+}
+
+fn to_data_point<T>(
+    start_time: SystemTime,
+    time: SystemTime,
+    config: &HistConfig,
+    attributes: Vec<KeyValue>,
+    aggr: ExpoHistogramDataPoint<T>,
+) -> data::ExponentialHistogramDataPoint<T>
+where
+    T: Default,
+{
+    data::ExponentialHistogramDataPoint {
+        attributes,
+        start_time,
+        time,
+        count: aggr.count,
+        min: if config.record_min_max {
+            Some(aggr.min)
+        } else {
+            None
+        },
+        max: if config.record_min_max {
+            Some(aggr.max)
+        } else {
+            None
+        },
+        sum: if config.record_sum {
+            aggr.sum
+        } else {
+            T::default()
+        },
+        scale: aggr.scale,
+        zero_count: aggr.zero_count,
+        positive_bucket: data::ExponentialBucket {
+            offset: aggr.pos_buckets.start_bin,
+            counts: aggr.pos_buckets.counts,
+        },
+        negative_bucket: data::ExponentialBucket {
+            offset: aggr.neg_buckets.start_bin,
+            counts: aggr.neg_buckets.counts,
+        },
+        zero_threshold: 0.0,
+        exemplars: vec![],
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
+    use std::{collections::HashMap, ops::Neg};
 
     use opentelemetry::KeyValue;
 
@@ -619,12 +573,18 @@ mod tests {
                 expected_scale: -1,
             },
         ];
-
         for test in test_cases {
-            let mut dp = ExpoHistogramDataPoint::<T>::new(test.max_size, 20, true, true);
+            let config = HistConfig {
+                max_size: test.max_size,
+                max_scale: 20,
+                record_min_max: true,
+                record_sum: true,
+            };
+
+            let mut dp = ExpoHistogramDataPoint::<T>::create(&config);
             for v in test.values {
-                dp.record(v);
-                dp.record(-v);
+                dp.record(&config, v);
+                dp.record(&config, -v);
             }
 
             assert_eq!(test.expected_buckets, dp.pos_buckets, "positive buckets");
@@ -684,9 +644,11 @@ mod tests {
             for v in test.values {
                 h.measure(v, alice);
             }
-            let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
-            let dp = values.get(&alice).unwrap();
+            let mut values = Vec::new();
+            h.aggregators
+                .collect_and_reset(&mut values, |attrb, aggr| (attrb, aggr));
+            let values: HashMap<_, _> = values.into_iter().collect();
+            let dp = values.get(alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -736,9 +698,11 @@ mod tests {
             for v in test.values {
                 h.measure(v, alice);
             }
-            let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
-            let dp = values.get(&alice).unwrap();
+            let mut values = Vec::new();
+            h.aggregators
+                .collect_and_reset(&mut values, |attrb, aggr| (attrb, aggr));
+            let values: HashMap<_, _> = values.into_iter().collect();
+            let dp = values.get(alice).unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -821,10 +785,16 @@ mod tests {
             },
         ];
         for test in test_cases {
-            let mut dp = ExpoHistogramDataPoint::new(test.max_size, 20, true, true);
+            let config = HistConfig {
+                max_size: test.max_size,
+                max_scale: 20,
+                record_min_max: true,
+                record_sum: true,
+            };
+            let mut dp = ExpoHistogramDataPoint::create(&config);
             for v in test.values {
-                dp.record(v);
-                dp.record(-v);
+                dp.record(&config, v);
+                dp.record(&config, -v);
             }
 
             assert_eq!(test.expected_buckets, dp.pos_buckets);
@@ -837,25 +807,30 @@ mod tests {
     fn data_point_record_limits() {
         // These bins are calculated from the following formula:
         // floor( log2( value) * 2^20 ) using an arbitrary precision calculator.
-
-        let mut fdp = ExpoHistogramDataPoint::new(4, 20, true, true);
-        fdp.record(f64::MAX);
+        let config = HistConfig {
+            max_size: 4,
+            max_scale: 20,
+            record_min_max: true,
+            record_sum: true,
+        };
+        let mut fdp = ExpoHistogramDataPoint::create(&config);
+        fdp.record(&config, f64::MAX);
 
         assert_eq!(
             fdp.pos_buckets.start_bin, 1073741823,
             "start bin does not match for large f64 values",
         );
 
-        let mut fdp = ExpoHistogramDataPoint::new(4, 20, true, true);
-        fdp.record(f64::MIN_POSITIVE);
+        let mut fdp = ExpoHistogramDataPoint::create(&config);
+        fdp.record(&config, f64::MIN_POSITIVE);
 
         assert_eq!(
             fdp.pos_buckets.start_bin, -1071644673,
             "start bin does not match for small positive values",
         );
 
-        let mut idp = ExpoHistogramDataPoint::new(4, 20, true, true);
-        idp.record(i64::MAX);
+        let mut idp = ExpoHistogramDataPoint::create(&config);
+        idp.record(&config, i64::MAX);
 
         assert_eq!(
             idp.pos_buckets.start_bin, 66060287,
@@ -1184,14 +1159,19 @@ mod tests {
 
     #[test]
     fn sub_normal() {
-        let want = ExpoHistogramDataPoint {
+        let config = HistConfig {
             max_size: 4,
+            max_scale: 20,
+            record_min_max: true,
+            record_sum: true,
+        };
+        let want = ExpoHistogramDataPoint {
             count: 3,
             min: f64::MIN_POSITIVE,
             max: f64::MIN_POSITIVE,
             sum: 3.0 * f64::MIN_POSITIVE,
 
-            scale: 20,
+            scale: config.max_scale,
             pos_buckets: ExpoBuckets {
                 start_bin: -1071644673,
                 counts: vec![3],
@@ -1200,15 +1180,13 @@ mod tests {
                 start_bin: 0,
                 counts: vec![],
             },
-            record_min_max: true,
-            record_sum: true,
             zero_count: 0,
         };
 
-        let mut ehdp = ExpoHistogramDataPoint::new(4, 20, true, true);
-        ehdp.record(f64::MIN_POSITIVE);
-        ehdp.record(f64::MIN_POSITIVE);
-        ehdp.record(f64::MIN_POSITIVE);
+        let mut ehdp = ExpoHistogramDataPoint::create(&config);
+        ehdp.record(&config, f64::MIN_POSITIVE);
+        ehdp.record(&config, f64::MIN_POSITIVE);
+        ehdp.record(&config, f64::MIN_POSITIVE);
 
         assert_eq!(want, ehdp);
     }

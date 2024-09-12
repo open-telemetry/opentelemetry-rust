@@ -13,6 +13,7 @@ use super::{Increment, ValueMap};
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number> {
     value_map: ValueMap<T, T, Increment>,
+    // value_map2: ValueMap2<T, IncrementAggr<T>>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
@@ -26,6 +27,7 @@ impl<T: Number> Sum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         Sum {
             value_map: ValueMap::new(),
+            // value_map2: ValueMap2::new(T::default()),
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
@@ -34,6 +36,7 @@ impl<T: Number> Sum<T> {
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         // The argument index is not applicable to Sum.
         self.value_map.measure(measurement, attrs, 0);
+        // self.value_map2.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -67,6 +70,16 @@ impl<T: Number> Sum<T> {
         }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
+
+        // self.value_map2
+        //     .read_measurements(&mut s_data.data_points, |attributes, tracker| DataPoint {
+        //         attributes,
+        //         start_time: Some(prev_start),
+        //         time: Some(t),
+        //         value: tracker.value.get(),
+        //         exemplars: vec![],
+        //     });
+
         if self
             .value_map
             .has_no_attribute_value

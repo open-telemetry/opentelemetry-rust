@@ -1,4 +1,5 @@
 mod aggregate;
+mod attribute_set_aggregation;
 mod exponential_histogram;
 mod histogram;
 mod last_value;
@@ -20,6 +21,8 @@ use opentelemetry::metrics::MetricsError;
 use opentelemetry::{global, KeyValue};
 
 use crate::metrics::AttributeSet;
+
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES_ERR: &str = "Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.";
 
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
     Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
@@ -80,17 +83,6 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O> ValueMap<AU, T, O> {
             phantom: PhantomData,
         }
     }
-
-    fn new_with_buckets_count(buckets_count: usize) -> Self {
-        ValueMap {
-            trackers: RwLock::new(HashMap::new()),
-            has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: AU::new_atomic_tracker(Some(buckets_count)),
-            count: AtomicUsize::new(0),
-            buckets_count: Some(buckets_count),
-            phantom: PhantomData,
-        }
-    }
 }
 
 impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
@@ -146,7 +138,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             let new_tracker = AU::new_atomic_tracker(self.buckets_count);
             O::update_tracker(&new_tracker, measurement, index);
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
-            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+            global::handle_error(MetricsError::Other(STREAM_OVERFLOW_ATTRIBUTES_ERR.into()));
         }
     }
 }
@@ -162,7 +154,6 @@ pub(crate) trait AtomicTracker<T: Default>: Sync + Send + 'static {
     fn get_and_reset_value(&self) -> T {
         T::default()
     }
-    fn update_histogram(&self, _index: usize, _value: T) {}
 }
 
 /// Marks a type that can have an atomic tracker generated for it
