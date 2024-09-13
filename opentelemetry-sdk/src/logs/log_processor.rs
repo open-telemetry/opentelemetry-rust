@@ -860,7 +860,7 @@ mod tests {
             ));
             record.update_attribute(
                 &Key::from_static_str("processed_by"),
-                &AnyValue::from("SecondProcessor"),
+                AnyValue::from("SecondProcessor"),
             );
             let _ = record.delete_attribute(&Key::from_static_str("key1"));
             assert!(
@@ -895,7 +895,7 @@ mod tests {
             ));
             record.update_attribute(
                 &Key::from_static_str("processed_by"),
-                &AnyValue::from("ThirdProcessor"),
+                AnyValue::from("ThirdProcessor"),
             );
             assert!(!record.attributes_contains(
                 &Key::from_static_str("key1"),

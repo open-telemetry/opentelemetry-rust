@@ -142,7 +142,7 @@ impl LogRecord {
     /// - `Some(AnyValue)`: The old value of the attribute if found and updated.
     /// - `None`: If the attribute was not found, and a new one was added.
     ///
-    pub fn update_attribute(&mut self, key: &Key, value: &AnyValue) -> Option<AnyValue> {
+    pub fn update_attribute(&mut self, key: &Key, value: AnyValue) -> Option<AnyValue> {
         // First, search for the attribute mutably
         if let Some(attr) = self
             .attributes
@@ -151,7 +151,7 @@ impl LogRecord {
         {
             // Take the old value and update the attribute
             let old_value = attr.take().map(|(_, v)| v);
-            *attr = Some((key.clone(), value.clone()));
+            *attr = Some((key.clone(), value));
             return old_value;
         }
 
@@ -372,12 +372,12 @@ mod tests {
         let updated_value = AnyValue::String("updated_value".into());
 
         // Add a new attribute
-        assert!(log_record.update_attribute(&key, &value).is_none());
+        assert!(log_record.update_attribute(&key, value.clone()).is_none());
         assert!(log_record.attributes_contains(&key, &value));
 
         // Update the existing attribute
         assert_eq!(
-            log_record.update_attribute(&key, &updated_value),
+            log_record.update_attribute(&key, updated_value.clone()),
             Some(value)
         );
         assert!(log_record.attributes_contains(&key, &updated_value));
