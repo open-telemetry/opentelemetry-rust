@@ -5,7 +5,17 @@
 - Update `async-std` dependency version to 1.13
 - *Breaking* - Remove support for `MetricProducer` which allowed metrics from
   external sources to be sent through OpenTelemetry.
-  [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)  
+  [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
+- Added Two new methods to the LogRecord struct's public API:
+```rust
+  update_attribute(&Key, &AnyValue) -> Option<AnyValue>
+```
+  - Updates the value of the first occurrence of an attribute with the specified key. 
+  - If the key exists, the old value is returned. If not, the new key-value pair is added, and None is returned.
+```rust
+delete_attribute(&mut self, key: &Key) -> usize
+```
+Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
 
 ## v0.25.0
 
