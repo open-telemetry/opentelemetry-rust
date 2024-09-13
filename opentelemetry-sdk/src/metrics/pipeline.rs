@@ -20,11 +20,13 @@ use crate::{
         internal,
         internal::AggregateBuilder,
         internal::Number,
-        reader::{AggregationSelector, DefaultAggregationSelector, MetricReader, SdkProducer},
+        reader::{MetricReader, SdkProducer},
         view::View,
     },
     Resource,
 };
+
+use super::Aggregation;
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -55,7 +57,6 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 struct PipelineInner {
     aggregations: HashMap<Scope, Vec<InstrumentSync>>,
     callbacks: Vec<GenericCallback>,
-    multi_callbacks: Vec<Option<GenericCallback>>,
 }
 
 impl fmt::Debug for PipelineInner {
@@ -105,11 +106,6 @@ impl SdkProducer for Pipeline {
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
             cb();
-        }
-
-        for mcb in inner.multi_callbacks.iter().flatten() {
-            // TODO consider parallel multi callbacks.
-            mcb();
         }
 
         rm.resource = self.resource.clone();
@@ -215,7 +211,7 @@ struct Inserter<T> {
 
 impl<T> Inserter<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
         Inserter {
@@ -340,11 +336,11 @@ where
         let mut agg = stream
             .aggregation
             .take()
-            .unwrap_or_else(|| self.pipeline.reader.aggregation(kind));
+            .unwrap_or_else(|| default_aggregation_selector(kind));
 
         // Apply default if stream or reader aggregation returns default
         if matches!(agg, aggregation::Aggregation::Default) {
-            agg = DefaultAggregationSelector::new().aggregation(kind);
+            agg = default_aggregation_selector(kind);
         }
 
         if let Err(err) = is_aggregator_compatible(&kind, &agg) {
@@ -430,6 +426,37 @@ where
     }
 }
 
+/// The default aggregation and parameters for an instrument of [InstrumentKind].
+///
+/// This aggregation selector uses the following selection mapping per [the spec]:
+///
+/// * Counter ⇨ Sum
+/// * Observable Counter ⇨ Sum
+/// * UpDownCounter ⇨ Sum
+/// * Observable UpDownCounter ⇨ Sum
+/// * Gauge ⇨ LastValue
+/// * Observable Gauge ⇨ LastValue
+/// * Histogram ⇨ ExplicitBucketHistogram
+///
+/// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/metrics/sdk.md#default-aggregation
+fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
+    match kind {
+        InstrumentKind::Counter
+        | InstrumentKind::UpDownCounter
+        | InstrumentKind::ObservableCounter
+        | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
+        InstrumentKind::Gauge => Aggregation::LastValue,
+        InstrumentKind::ObservableGauge => Aggregation::LastValue,
+        InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
+            boundaries: vec![
+                0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
+                5000.0, 7500.0, 10000.0,
+            ],
+            record_min_max: true,
+        },
+    }
+}
+
 type AggregateFns<T> = (
     Arc<dyn internal::Measure<T>>,
     Box<dyn internal::ComputeAggregation>,
@@ -438,7 +465,7 @@ type AggregateFns<T> = (
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
-fn aggregate_fn<T: Number<T>>(
+fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
@@ -454,11 +481,7 @@ fn aggregate_fn<T: Number<T>>(
     }
 
     match agg {
-        Aggregation::Default => aggregate_fn(
-            b,
-            &DefaultAggregationSelector::new().aggregation(kind),
-            kind,
-        ),
+        Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
         Aggregation::Drop => Ok(None),
         Aggregation::LastValue => Ok(Some(box_val(b.last_value()))),
         Aggregation::Sum => {
@@ -645,7 +668,7 @@ pub(crate) struct Resolver<T> {
 
 impl<T> Resolver<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,

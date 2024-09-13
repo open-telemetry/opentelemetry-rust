@@ -36,7 +36,7 @@ where
     if let Some(arg_str) = args_iter.nth(1) {
         let arg = arg_str.parse::<usize>();
 
-        if !arg.is_ok() {
+        if arg.is_err() {
             eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", arg_str);
             std::process::exit(1);
         }
@@ -50,7 +50,7 @@ where
                     arg_num, num_threads
                 );
             }
-            num_threads = arg_num as usize;
+            num_threads = arg_num;
         } else {
             eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({}).", arg_num, num_threads);
             std::process::exit(1);

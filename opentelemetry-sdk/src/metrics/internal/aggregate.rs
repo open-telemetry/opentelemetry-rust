@@ -71,7 +71,7 @@ pub(crate) struct AggregateBuilder<T> {
 
 type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
-impl<T: Number<T>> AggregateBuilder<T> {
+impl<T: Number> AggregateBuilder<T> {
     pub(crate) fn new(temporality: Option<Temporality>, filter: Option<Filter>) -> Self {
         AggregateBuilder {
             temporality,

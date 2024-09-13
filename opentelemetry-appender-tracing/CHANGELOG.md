@@ -2,6 +2,14 @@
 
 ## vNext
 
+- [2101](https://github.com/open-telemetry/opentelemetry-rust/pull/2101) The `log` events emitted via the `tracing` pipeline using the `log-tracing` crate no longer include the target metadata as attributes. Exporters or backends that rely on this attribute should now access the target directly from the `LogRecord::target` field.
+
+
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
 - Reduce heap allocation by using `&'static str` for `SeverityText`.
 
 ## v0.5.0

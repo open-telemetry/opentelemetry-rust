@@ -49,7 +49,7 @@ impl Operation for Assign {
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
-pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number<T>, O> {
+pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number, O> {
     /// Trackers store the values associated with different attribute sets.
     trackers: RwLock<HashMap<Vec<KeyValue>, Arc<AU::AtomicTracker>>>,
     /// Number of different attribute set stored in the `trackers` map.
@@ -63,13 +63,13 @@ pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number<T>, O> {
     phantom: PhantomData<O>,
 }
 
-impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> Default for ValueMap<AU, T, O> {
+impl<AU: AtomicallyUpdate<T>, T: Number, O> Default for ValueMap<AU, T, O> {
     fn default() -> Self {
         ValueMap::new()
     }
 }
 
-impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
+impl<AU: AtomicallyUpdate<T>, T: Number, O> ValueMap<AU, T, O> {
     fn new() -> Self {
         ValueMap {
             trackers: RwLock::new(HashMap::new()),
@@ -93,7 +93,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number<T>, O> ValueMap<AU, T, O> {
     }
 }
 
-impl<AU: AtomicallyUpdate<T>, T: Number<T>, O: Operation> ValueMap<AU, T, O> {
+impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
     fn measure(&self, measurement: T, attributes: &[KeyValue], index: usize) {
         if attributes.is_empty() {
             O::update_tracker(&self.no_attribute_tracker, measurement, index);
@@ -171,10 +171,10 @@ pub(crate) trait AtomicallyUpdate<T: Default> {
     fn new_atomic_tracker(buckets_count: Option<usize>) -> Self::AtomicTracker;
 }
 
-pub(crate) trait Number<T: Default>:
-    Add<Output = T>
+pub(crate) trait Number:
+    Add<Output = Self>
     + AddAssign
-    + Sub<Output = T>
+    + Sub<Output = Self>
     + PartialOrd
     + fmt::Debug
     + Clone
@@ -184,7 +184,7 @@ pub(crate) trait Number<T: Default>:
     + Send
     + Sync
     + 'static
-    + AtomicallyUpdate<T>
+    + AtomicallyUpdate<Self>
 {
     fn min() -> Self;
     fn max() -> Self;
@@ -192,7 +192,7 @@ pub(crate) trait Number<T: Default>:
     fn into_float(self) -> f64;
 }
 
-impl Number<i64> for i64 {
+impl Number for i64 {
     fn min() -> Self {
         i64::MIN
     }
@@ -206,7 +206,7 @@ impl Number<i64> for i64 {
         self as f64
     }
 }
-impl Number<u64> for u64 {
+impl Number for u64 {
     fn min() -> Self {
         u64::MIN
     }
@@ -220,7 +220,7 @@ impl Number<u64> for u64 {
         self as f64
     }
 }
-impl Number<f64> for f64 {
+impl Number for f64 {
     fn min() -> Self {
         f64::MIN
     }

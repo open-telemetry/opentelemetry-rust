@@ -42,7 +42,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 /// See the [Meter API] docs for usage.
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
-pub struct SdkMeter {
+pub(crate) struct SdkMeter {
     scope: Scope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
@@ -481,7 +481,7 @@ struct InstrumentResolver<'a, T> {
 
 impl<'a, T> InstrumentResolver<'a, T>
 where
-    T: Number<T>,
+    T: Number,
 {
     fn new(meter: &'a SdkMeter, resolve: &'a Resolver<T>) -> Self {
         InstrumentResolver { meter, resolve }
