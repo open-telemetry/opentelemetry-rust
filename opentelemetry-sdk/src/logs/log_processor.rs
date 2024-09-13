@@ -862,7 +862,7 @@ mod tests {
                 &Key::from_static_str("processed_by"),
                 AnyValue::from("SecondProcessor"),
             );
-            let _ = record.delete_attribute(&Key::from_static_str("key1"));
+            let _ = record.remove_attribute(&Key::from_static_str("key1"));
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
@@ -902,7 +902,7 @@ mod tests {
                 &AnyValue::String("value1".into())
             ));
 
-            let _ = record.delete_attribute(&Key::from_static_str("key1"));
+            let _ = record.remove_attribute(&Key::from_static_str("key1"));
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())

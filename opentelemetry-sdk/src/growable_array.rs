@@ -87,40 +87,91 @@ impl<
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
 
-    /// Deletes the element matching the given value from the array while preserving the order.
+    /// Removes the first element matching the given value from the array.
     ///
-    /// This function performs the following operations:
-    ///
-    /// - Searches the internal array (`inline`) for the specified value.
-    /// - If the value is found in the internal array:
-    ///   - Removes the value.
-    ///   - Shifts the remaining elements in the array to the left to fill the gap, preserving the order.
-    ///   - If an overflow vector exists:
-    ///     - Moves the first element from the overflow vector into the last position of the internal array.
-    /// - If the value is not found in the internal array, searches the heap-allocated vector (`overflow`).
-    /// - If the value is found in the overflow vector, it is removed, and the remaining elements in the vector are shifted left to maintain order.
+    /// This function searches both the internal array (`inline`) and the heap-allocated
+    /// vector (`overflow`) for the specified value. If found, it calls `delete_at` to
+    /// perform the deletion and preserve the order of the remaining elements.
     ///
     /// # Arguments
     ///
-    /// - `value`: A reference to the value to be deleted.
+    /// - `item`: A reference to the value to be deleted.
     ///
     /// # Returns
     ///
     /// - `Some(T)`: The deleted value, if found.
-    /// - `None`: If the value was found in neither the array nor the vector
+    /// - `None`: If the value was not found in either the array or the vector.
     ///
     #[allow(dead_code)]
-    pub(crate) fn delete_item(&mut self, item: &T) -> Option<T> {
-        // Search and remove from inline array
-        if let Some(index) = self.inline[..self.count].iter().position(|v| v == item) {
+    pub(crate) fn remove_first(&mut self, item: &T) -> Option<T> {
+        // Search for the item using `iter()` and get its index
+        let index = self.iter().position(|v| v == item)?;
+
+        // Use `delete_at()` to remove the item by index
+        self.remove_at(index)
+    }
+
+    /// Remove all elements matching the given value from the array.
+    ///
+    /// This function searches both the internal array (`inline`) and the heap-allocated
+    /// vector (`overflow`) for the specified value. If found, it removes all occurrences.
+    ///
+    /// # Arguments
+    ///
+    /// - `item`: A reference to the value to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// - The number of deleted occurrences of the value.
+    #[allow(dead_code)]
+    /// Remove all elements matching the given value from the array.
+    pub(crate) fn remove(&mut self, item: &T) -> usize {
+        let mut deleted_count = 0;
+
+        // Loop to find and delete all occurrences
+        while let Some(index) = {
+            let position = self.iter().position(|v| v == item);
+            position
+        } {
+            self.remove_at(index);
+            deleted_count += 1;
+        }
+
+        deleted_count
+    }
+
+    /// Removes the element at a specific position (index) while preserving the order.
+    ///
+    /// This function performs the following operations:
+    ///
+    /// - If the index points to an element in the internal array (`inline`):
+    ///   - Removes the element at the specified index.
+    ///   - Shifts the remaining elements in the internal array to the left to fill the gap, preserving the order.
+    ///   - If an overflow vector exists:
+    ///     - Moves the first element from the overflow vector into the last position of the internal array, if available.
+    /// - If the index points to an element in the overflow vector:
+    ///   - The element is removed directly from the overflow vector.
+    ///
+    /// # Arguments
+    ///
+    /// - `index`: The index of the element to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(T)`: The deleted element, if found.
+    /// - `None`: If the index is out of bounds for both the internal array and the overflow vector.
+    ///
+    #[allow(dead_code)]
+    pub(crate) fn remove_at(&mut self, index: usize) -> Option<T> {
+        if index < self.count {
             let removed_value = self.inline[index].clone();
 
-            // Shift elements to the left to fill the gap
+            // Shift elements in inline array to the left
             for i in index..self.count - 1 {
                 self.inline[i] = self.inline[i + 1].clone();
             }
 
-            // Check if we can move an element from the overflow into the inline array
+            // Handle moving an overflow element to inline, if available
             let moved_from_overflow = if let Some(ref mut overflow) = self.overflow {
                 if let Some(first_from_overflow) = overflow.first().cloned() {
                     self.inline[self.count - 1] = first_from_overflow;
@@ -135,21 +186,22 @@ impl<
                 false
             };
 
-            // Only decrement count if no item was moved from the overflow
+            // Only decrement count if no item was moved from overflow
             if !moved_from_overflow {
                 self.count -= 1;
             }
             return Some(removed_value);
         }
 
-        // Search and remove from overflow vector
+        // Handle removing from the overflow vector
         if let Some(ref mut overflow) = self.overflow {
-            if let Some(index) = overflow.iter().position(|v| v == item) {
-                return Some(overflow.remove(index));
+            let overflow_index = index - MAX_INLINE_CAPACITY;
+            if overflow_index < overflow.len() {
+                return Some(overflow.remove(overflow_index));
             }
         }
 
-        // Value not found
+        // Index out of bounds
         None
     }
 
@@ -497,7 +549,7 @@ mod tests {
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
 
         // Delete a value from the inline array
-        let removed = collection.delete_item(&3);
+        let removed = collection.remove_first(&3);
         assert_eq!(removed, Some(3));
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 1);
 
@@ -510,7 +562,7 @@ mod tests {
         }
 
         // Try to delete a value not in the array
-        let non_existent = collection.delete_item(&99);
+        let non_existent = collection.remove_first(&99);
         assert_eq!(non_existent, None);
     }
 
@@ -528,7 +580,7 @@ mod tests {
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 5);
 
         // Delete a value from the overflow vector
-        let removed = collection.delete_item(&12);
+        let removed = collection.remove_first(&12);
         assert_eq!(removed, Some(12));
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 4);
 
@@ -548,7 +600,7 @@ mod tests {
         assert_eq!(collection.len(), 1);
 
         // Delete the only element in the collection
-        let removed = collection.delete_item(&10);
+        let removed = collection.remove_first(&10);
         assert_eq!(removed, Some(10));
         assert_eq!(collection.len(), 0);
 
@@ -564,9 +616,9 @@ mod tests {
         }
 
         // Delete multiple values
-        assert_eq!(collection.delete_item(&2), Some(2));
+        assert_eq!(collection.remove(&2), 1);
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 1);
-        assert_eq!(collection.delete_item(&4), Some(4));
+        assert_eq!(collection.remove(&4), 1);
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 2);
 
         // Ensure the elements are still correct
@@ -579,7 +631,7 @@ mod tests {
         let mut collection = GrowableArray::<i32>::new();
 
         // Try to delete from an empty array
-        let removed = collection.delete_item(&5);
+        let removed = collection.remove_first(&5);
         assert_eq!(removed, None);
         assert_eq!(collection.len(), 0);
     }
@@ -592,8 +644,8 @@ mod tests {
         collection.push(3);
 
         // Try to delete a value not present
-        let removed = collection.delete_item(&10);
-        assert_eq!(removed, None);
+        let removed = collection.remove(&10);
+        assert_eq!(removed, 0);
         assert_eq!(collection.len(), 3);
     }
 
@@ -614,8 +666,8 @@ mod tests {
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 3);
 
         // Delete an inline value and ensure that an overflow value takes its place
-        let removed = collection.delete_item(&5); // Deleting from inline
-        assert_eq!(removed, Some(5));
+        let removed = collection.remove(&5); // Deleting from inline
+        assert_eq!(removed, 1);
         // [0,1,2,3,4,6,7,8,9,10,11,12]
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 2);
 

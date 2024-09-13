@@ -160,40 +160,37 @@ impl LogRecord {
         None
     }
 
-    /// Deletes the first occurrence of an attribute with the specified key.
+    /// Removes all occurrences of an attribute with the specified key.
     ///
-    /// This method first searches for the attribute with the given key in the `attributes`
-    /// collection. If the attribute is found, it then calls the `delete_item` method from
-    /// the `GrowableArray` to remove it.
+    /// This method searches for all occurrences of the attribute with the given key
+    /// in the `attributes` collection and removes them.
     ///
     /// # Arguments
     ///
-    /// - `key`: A reference to the key of the attribute to delete.
+    /// - `key`: A reference to the key of the attribute to remove.
     ///
     /// # Returns
     ///
-    /// - `Some((Key, AnyValue))`: The deleted key-value pair if found.
-    /// - `None`: If the attribute was not found.
+    /// - The number of removed occurrences of the key.
     ///
-    pub fn delete_attribute(&mut self, key: &Key) -> Option<(Key, AnyValue)> {
-        // First, find the position of the attribute (this is an immutable borrow).
-        let position = self
-            .attributes
-            .iter()
-            .position(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false));
+    pub fn remove_attribute(&mut self, key: &Key) -> usize {
+        let mut deleted_count = 0;
 
-        // Now drop the immutable borrow before we proceed with the mutable borrow.
-        if let Some(position) = position {
-            // Mutably borrow attributes and remove the item
-            if let Some(attribute) = self.attributes.get(position).and_then(|opt| opt.clone()) {
-                // Clone the attribute before passing it to delete_item
-                let cloned_attribute = attribute.clone();
-                // Use delete_item to remove the found attribute
-                self.attributes.delete_item(&Some(attribute));
-                return Some(cloned_attribute);
-            }
+        // Loop to find and remove all occurrences
+        while let Some(index) = {
+            // Isolate the immutable borrow in a block scope
+            let position = self
+                .attributes
+                .iter()
+                .position(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false));
+            position
+        } {
+            // Now proceed with the mutable borrow and remove the item
+            self.attributes.remove_at(index);
+            deleted_count += 1;
         }
-        None
+
+        deleted_count
     }
 }
 
@@ -394,8 +391,8 @@ mod tests {
         assert!(log_record.attributes_contains(&key, &value));
 
         // Delete the attribute
-        let deleted_attribute = log_record.delete_attribute(&key);
-        assert_eq!(deleted_attribute, Some((key.clone(), value.clone())));
+        let del_count = log_record.remove_attribute(&key);
+        assert_eq!(del_count, 1);
 
         // Ensure it is deleted
         assert!(!log_record.attributes_contains(&key, &value));
