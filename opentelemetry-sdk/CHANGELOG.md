@@ -13,9 +13,9 @@
   - Updates the value of the first occurrence of an attribute with the specified key. 
   - If the key exists, the old value is returned. If not, the new key-value pair is added, and None is returned.
 ```rust
-delete_attribute(&mut self, key: &Key) -> usize
+remove_attribute(&mut self, key: &Key) -> usize
 ```
-Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
+- Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
 
 ## v0.25.0
 
