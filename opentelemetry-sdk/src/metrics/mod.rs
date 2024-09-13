@@ -55,7 +55,6 @@ pub(crate) mod view;
 pub use aggregation::*;
 pub use instrument::*;
 pub use manual_reader::*;
-pub use meter::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
 pub use pipeline::Pipeline;
