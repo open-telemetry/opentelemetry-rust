@@ -135,7 +135,7 @@ impl LogRecord {
     /// # Arguments
     ///
     /// - `key`: A reference to the key of the attribute to update.
-    /// - `value`: A reference to the new value for the attribute.
+    /// - `value`: A new value for the attribute.
     ///
     /// # Returns
     ///
