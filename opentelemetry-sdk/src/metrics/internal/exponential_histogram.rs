@@ -32,7 +32,7 @@ struct ExpoHistogramDataPoint<T> {
     zero_count: u64,
 }
 
-impl<T: Number<T>> ExpoHistogramDataPoint<T> {
+impl<T: Number> ExpoHistogramDataPoint<T> {
     fn new(max_size: i32, max_scale: i8, record_min_max: bool, record_sum: bool) -> Self {
         ExpoHistogramDataPoint {
             count: 0,
@@ -50,7 +50,7 @@ impl<T: Number<T>> ExpoHistogramDataPoint<T> {
     }
 }
 
-impl<T: Number<T>> ExpoHistogramDataPoint<T> {
+impl<T: Number> ExpoHistogramDataPoint<T> {
     /// Adds a new measurement to the histogram.
     ///
     /// It will rescale the buckets if needed.
@@ -322,7 +322,7 @@ pub(crate) struct ExpoHistogram<T> {
     start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> ExpoHistogram<T> {
+impl<T: Number> ExpoHistogram<T> {
     /// Create a new exponential histogram.
     pub(crate) fn new(
         max_size: u32,
@@ -535,7 +535,7 @@ mod tests {
         run_data_point_record::<i64>();
     }
 
-    fn run_data_point_record<T: Number<T> + Neg<Output = T> + From<u32>>() {
+    fn run_data_point_record<T: Number + Neg<Output = T> + From<u32>>() {
         struct TestCase<T> {
             max_size: i32,
             values: Vec<T>,
@@ -695,7 +695,7 @@ mod tests {
         }
     }
 
-    fn run_min_max_sum<T: Number<T> + From<u32>>() {
+    fn run_min_max_sum<T: Number + From<u32>>() {
         let alice = &[KeyValue::new("user", "alice")][..];
         struct Expected<T> {
             min: T,
@@ -703,7 +703,7 @@ mod tests {
             sum: T,
             count: usize,
         }
-        impl<T: Number<T>> Expected<T> {
+        impl<T: Number> Expected<T> {
             fn new(min: T, max: T, sum: T, count: usize) -> Self {
                 Expected {
                     min,
@@ -1229,7 +1229,7 @@ mod tests {
         (Box::new(m), Box::new(ca))
     }
 
-    fn hist_aggregation<T: Number<T> + From<u32>>() {
+    fn hist_aggregation<T: Number + From<u32>>() {
         let max_size = 4;
         let max_scale = 20;
         let record_min_max = true;
@@ -1449,7 +1449,7 @@ mod tests {
         }
     }
 
-    fn assert_aggregation_eq<T: Number<T> + PartialEq>(
+    fn assert_aggregation_eq<T: Number + PartialEq>(
         a: Box<dyn Aggregation>,
         b: Box<dyn Aggregation>,
         ignore_timestamp: bool,
@@ -1558,7 +1558,7 @@ mod tests {
         }
     }
 
-    fn assert_data_points_eq<T: Number<T>>(
+    fn assert_data_points_eq<T: Number>(
         a: &data::DataPoint<T>,
         b: &data::DataPoint<T>,
         ignore_timestamp: bool,
@@ -1582,7 +1582,7 @@ mod tests {
         }
     }
 
-    fn assert_hist_data_points_eq<T: Number<T>>(
+    fn assert_hist_data_points_eq<T: Number>(
         a: &data::HistogramDataPoint<T>,
         b: &data::HistogramDataPoint<T>,
         ignore_timestamp: bool,
@@ -1615,7 +1615,7 @@ mod tests {
         }
     }
 
-    fn assert_exponential_hist_data_points_eq<T: Number<T>>(
+    fn assert_exponential_hist_data_points_eq<T: Number>(
         a: &data::ExponentialHistogramDataPoint<T>,
         b: &data::ExponentialHistogramDataPoint<T>,
         ignore_timestamp: bool,
