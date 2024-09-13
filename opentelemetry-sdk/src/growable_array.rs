@@ -107,7 +107,7 @@ impl<
     /// # Returns
     ///
     /// - `Some(T)`: The deleted value, if found.
-    /// - `None`: If the value was not found in either the array or the vector.
+    /// - `None`: If the value was found in neither the array nor the vector
     ///
     #[allow(dead_code)]
     pub(crate) fn delete_item(&mut self, item: &T) -> Option<T> {
