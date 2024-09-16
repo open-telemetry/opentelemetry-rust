@@ -109,7 +109,8 @@ pub struct SimpleSpanProcessor {
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
+    /// Create a new [SimpleSpanProcessor] using the provided exporter.
+    pub fn new(exporter: Box<dyn SpanExporter>) -> Self {
         Self {
             exporter: Mutex::new(exporter),
         }
