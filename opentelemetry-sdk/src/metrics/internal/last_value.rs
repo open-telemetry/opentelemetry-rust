@@ -10,12 +10,12 @@ use opentelemetry::KeyValue;
 use super::{Assign, AtomicTracker, Number, ValueMap};
 
 /// Summarizes a set of measurements as the last one made.
-pub(crate) struct LastValue<T: Number<T>> {
+pub(crate) struct LastValue<T: Number> {
     value_map: ValueMap<T, T, Assign>,
     start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> LastValue<T> {
+impl<T: Number> LastValue<T> {
     pub(crate) fn new() -> Self {
         LastValue {
             value_map: ValueMap::new(),

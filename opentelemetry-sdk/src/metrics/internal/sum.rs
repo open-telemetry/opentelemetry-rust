@@ -12,13 +12,13 @@ use super::{AtomicTracker, Number};
 use super::{Increment, ValueMap};
 
 /// Summarizes a set of measurements made as their arithmetic sum.
-pub(crate) struct Sum<T: Number<T>> {
+pub(crate) struct Sum<T: Number> {
     value_map: ValueMap<T, T, Increment>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
 
-impl<T: Number<T>> Sum<T> {
+impl<T: Number> Sum<T> {
     /// Returns an aggregator that summarizes a set of measurements as their
     /// arithmetic sum.
     ///

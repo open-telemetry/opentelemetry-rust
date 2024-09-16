@@ -18,18 +18,14 @@ use opentelemetry::{
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{
-        exporter::PushMetricsExporter,
-        reader::{MetricProducer, SdkProducer},
-    },
+    metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
     Resource,
 };
 
 use super::{
-    aggregation::Aggregation,
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
-    reader::{AggregationSelector, MetricReader, TemporalitySelector},
+    reader::{MetricReader, TemporalitySelector},
     Pipeline,
 };
 
@@ -58,7 +54,6 @@ pub struct PeriodicReaderBuilder<E, RT> {
     interval: Duration,
     timeout: Duration,
     exporter: E,
-    producers: Vec<Box<dyn MetricProducer>>,
     runtime: RT,
 }
 
@@ -80,7 +75,6 @@ where
         PeriodicReaderBuilder {
             interval,
             timeout,
-            producers: vec![],
             exporter,
             runtime,
         }
@@ -112,15 +106,6 @@ where
         if !timeout.is_zero() {
             self.timeout = timeout;
         }
-        self
-    }
-
-    /// Registers a an external [MetricProducer] with this reader.
-    ///
-    /// The producer is used as a source of aggregated metric data which is
-    /// incorporated into metrics collected from the SDK.
-    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
-        self.producers.push(Box::new(producer));
         self
     }
 
@@ -157,7 +142,6 @@ where
             inner: Arc::new(Mutex::new(PeriodicReaderInner {
                 message_sender,
                 is_shutdown: false,
-                external_producers: self.producers,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
             })),
         }
@@ -227,7 +211,6 @@ impl fmt::Debug for PeriodicReader {
 struct PeriodicReaderInner {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    external_producers: Vec<Box<dyn MetricProducer>>,
     sdk_producer_or_worker: ProducerOrWorker,
 }
 
@@ -300,12 +283,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     }
 }
 
-impl AggregationSelector for PeriodicReader {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.exporter.aggregation(kind)
-    }
-}
-
 impl TemporalitySelector for PeriodicReader {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.exporter.temporality(kind)
@@ -349,19 +326,7 @@ impl MetricReader for PeriodicReader {
             return Err(MetricsError::Other("reader is not registered".into()));
         }
 
-        let mut errs = vec![];
-        for producer in &inner.external_producers {
-            match producer.produce() {
-                Ok(metrics) => rm.scope_metrics.push(metrics),
-                Err(err) => errs.push(err),
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(MetricsError::Other(format!("{:?}", errs)))
-        }
+        Ok(())
     }
 
     fn force_flush(&self) -> Result<()> {

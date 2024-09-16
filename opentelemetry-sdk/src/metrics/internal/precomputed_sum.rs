@@ -13,14 +13,14 @@ use std::{
 };
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
-pub(crate) struct PrecomputedSum<T: Number<T>> {
+pub(crate) struct PrecomputedSum<T: Number> {
     value_map: ValueMap<T, T, Assign>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
-impl<T: Number<T>> PrecomputedSum<T> {
+impl<T: Number> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
             value_map: ValueMap::new(),

@@ -70,7 +70,8 @@ automatically.
 
 ```toml
 [dependencies]
-opentelemetry = { version = "*", features = ["rt-tokio"] }
+opentelemetry = "*"
+opentelemetry_sdk = { version = "*", features = ["rt-tokio"] }
 opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
 ```
 

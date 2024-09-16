@@ -21,7 +21,7 @@ The logrecord event-name is added as an attribute only if the feature flag
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
-- `OtlpMetricPipeline.build()` no longer invoke the
+- **Breaking** `OtlpMetricPipeline.build()` no longer invoke the
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
 - Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.
