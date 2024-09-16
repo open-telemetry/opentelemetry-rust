@@ -28,9 +28,9 @@ impl NoopMeterProvider {
 impl MeterProvider for NoopMeterProvider {
     fn versioned_meter(
         &self,
-        _name: String,
-        _version: Option<String>,
-        _schema_url: Option<String>,
+        _name: &'static str,
+        _version: Option<&'static str>,
+        _schema_url: Option<&'static str>,
         _attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         Meter::new(Arc::new(NoopMeterCore::new()))

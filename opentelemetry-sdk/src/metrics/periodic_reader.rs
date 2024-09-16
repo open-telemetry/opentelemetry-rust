@@ -393,7 +393,7 @@ mod tests {
 
         // Act
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        let meter = meter_provider.meter("test".to_string());
+        let meter = meter_provider.meter("test");
         let _counter = meter
             .u64_observable_counter("testcounter")
             .with_callback(move |_| {

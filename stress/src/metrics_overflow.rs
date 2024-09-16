@@ -24,10 +24,7 @@ lazy_static! {
     static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    static ref COUNTER: Counter<u64> = PROVIDER
-        .meter("test".to_string())
-        .u64_counter("hello")
-        .init();
+    static ref COUNTER: Counter<u64> = PROVIDER.meter("test").u64_counter("hello").init();
 }
 
 thread_local! {

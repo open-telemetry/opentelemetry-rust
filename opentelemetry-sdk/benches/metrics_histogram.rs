@@ -39,7 +39,7 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
         .build();
-    let meter = meter_provider.meter("benchmarks".to_string());
+    let meter = meter_provider.meter("benchmarks");
 
     meter.u64_histogram(name).init()
 }

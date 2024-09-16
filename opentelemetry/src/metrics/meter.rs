@@ -29,17 +29,17 @@ pub trait MeterProvider {
     /// let provider = global::meter_provider();
     ///
     /// // meter used in applications
-    /// let meter = provider.meter("my_app".to_string());
+    /// let meter = provider.meter("my_app");
     ///
     /// // meter used in libraries/crates that optionally includes version and schema url
     /// let meter = provider.versioned_meter(
-    ///     "my_library".to_string(),
-    ///     Some(env!("CARGO_PKG_VERSION").to_string()),
-    ///     Some("https://opentelemetry.io/schema/1.0.0".to_string()),
+    ///     "my_library",
+    ///     Some(env!("CARGO_PKG_VERSION")),
+    ///     Some("https://opentelemetry.io/schema/1.0.0"),
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn meter(&self, name: String) -> Meter {
+    fn meter(&self, name: &'static str) -> Meter {
         self.versioned_meter(name, None, None, None)
     }
 
@@ -51,9 +51,9 @@ pub trait MeterProvider {
     /// default name will be used instead.
     fn versioned_meter(
         &self,
-        name: String,
-        version: Option<String>,
-        schema_url: Option<String>,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }

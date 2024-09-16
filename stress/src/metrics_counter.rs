@@ -31,10 +31,7 @@ lazy_static! {
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
         "value10"
     ];
-    static ref COUNTER: Counter<u64> = PROVIDER
-        .meter("test".to_string())
-        .u64_counter("hello")
-        .init();
+    static ref COUNTER: Counter<u64> = PROVIDER.meter("test").u64_counter("hello").init();
 }
 
 thread_local! {

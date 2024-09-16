@@ -432,7 +432,7 @@ mod tests {
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
-        let meter = meter_provider.meter("test".to_string());
+        let meter = meter_provider.meter("test");
         let counter = meter
             .u64_counter("my_counter")
             .with_unit("my_unit")
@@ -483,8 +483,8 @@ mod tests {
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
-        let meter1 = meter_provider.meter("test.meter1".to_string());
-        let meter2 = meter_provider.meter("test.meter2".to_string());
+        let meter1 = meter_provider.meter("test.meter1");
+        let meter2 = meter_provider.meter("test.meter2");
         let counter1 = meter1
             .u64_counter("my_counter")
             .with_unit("my_unit")
@@ -575,15 +575,15 @@ mod tests {
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
         let meter1 = meter_provider.versioned_meter(
-            "test.meter".to_string(),
-            Some("v0.1.0".to_string()),
-            Some("schema_url".to_string()),
+            "test.meter",
+            Some("v0.1.0"),
+            Some("schema_url"),
             Some(vec![KeyValue::new("key", "value1")]),
         );
         let meter2 = meter_provider.versioned_meter(
-            "test.meter".to_string(),
-            Some("v0.1.0".to_string()),
-            Some("schema_url".to_string()),
+            "test.meter",
+            Some("v0.1.0"),
+            Some("schema_url"),
             Some(vec![KeyValue::new("key", "value2")]),
         );
         let counter1 = meter1
@@ -669,7 +669,7 @@ mod tests {
             .build();
 
         // Act
-        let meter = meter_provider.meter("test".to_string());
+        let meter = meter_provider.meter("test");
         let histogram = meter
             .f64_histogram("test_histogram")
             .with_unit("test_unit")
@@ -714,7 +714,7 @@ mod tests {
             .build();
 
         // Act
-        let meter = meter_provider.meter("test".to_string());
+        let meter = meter_provider.meter("test");
         let _observable_counter = meter
             .u64_observable_counter("my_observable_counter")
             .with_callback(|observer| {
@@ -789,7 +789,7 @@ mod tests {
             .build();
 
         // Act
-        let meter = meter_provider.meter("test".to_string());
+        let meter = meter_provider.meter("test");
         let counter = meter.u64_counter("my_counter").init();
 
         // Normally, this would generate 3 time-series, but since the view
@@ -2276,7 +2276,7 @@ mod tests {
             counter_name: &'static str,
             unit: Option<&'static str>,
         ) -> Counter<u64> {
-            let meter = self.meter_provider.meter(meter_name.to_string());
+            let meter = self.meter_provider.meter(meter_name);
             let mut counter_builder = meter.u64_counter(counter_name);
             if let Some(unit_name) = unit {
                 counter_builder = counter_builder.with_unit(unit_name);
@@ -2290,7 +2290,7 @@ mod tests {
             counter_name: &'static str,
             unit: Option<&'static str>,
         ) -> UpDownCounter<i64> {
-            let meter = self.meter_provider.meter(meter_name.to_string());
+            let meter = self.meter_provider.meter(meter_name);
             let mut updown_counter_builder = meter.i64_up_down_counter(counter_name);
             if let Some(unit_name) = unit {
                 updown_counter_builder = updown_counter_builder.with_unit(unit_name);
@@ -2299,7 +2299,7 @@ mod tests {
         }
 
         fn meter(&self) -> Meter {
-            self.meter_provider.meter("test".to_string())
+            self.meter_provider.meter("test")
         }
 
         fn flush_metrics(&self) {
