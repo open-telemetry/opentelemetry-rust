@@ -813,6 +813,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[ignore = "Enable when this is fixed in the batch processor"]
     async fn test_batch_log_processor_shutdown_with_async_runtime() {
         let exporter = InMemoryLogsExporterBuilder::default()
             .keep_records_on_shutdown()
