@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **BREAKING** Public API changes:
+  - **Removed**: `Key.bool()`, `Key.i64()`, `Key.f64()`, `Key.string()`, `Key.array()` [#2090](https://github.com/open-telemetry/opentelemetry-rust/issues/2090)
+  - **Removed**: `ObjectSafeMeterProvider` and `GlobalMeterProvider` [#2112](https://github.com/open-telemetry/opentelemetry-rust/pull/2112)
+  - **Modified**: `MeterProvider.meter()` and `MeterProvider.versioned_meter()` argument types have been updated to `&'static str` instead of `impl Into<Cow<'static, str>>>` [#2112](https://github.com/open-telemetry/opentelemetry-rust/pull/2112)
+
 ## v0.25.0
 
 - **BREAKING** [#1993](https://github.com/open-telemetry/opentelemetry-rust/pull/1993) Box complex types in AnyValue enum
