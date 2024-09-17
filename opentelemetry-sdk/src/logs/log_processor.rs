@@ -812,6 +812,26 @@ mod tests {
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_log_processor_shutdown_with_async_runtime() {
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
+        let processor = BatchLogProcessor::new(
+            Box::new(exporter.clone()),
+            BatchConfig::default(),
+            runtime::Tokio,
+        );
+
+        //
+        // deadloack happens in shutdown with tokio current_thread runtime
+        //
+        processor.shutdown().unwrap();
+
+        assert!(true);
+    }
+
     #[derive(Debug)]
     struct FirstProcessor {
         pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
