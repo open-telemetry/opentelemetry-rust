@@ -812,7 +812,6 @@ mod tests {
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
 
-
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime() {
         let exporter = InMemoryLogsExporterBuilder::default()
