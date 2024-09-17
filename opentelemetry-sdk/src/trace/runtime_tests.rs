@@ -1,25 +1,32 @@
 // Note that all tests here should be marked as ignore so that it won't be picked up by default We
 // need to run those tests one by one as the GlobalTracerProvider is a shared object between
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::export::trace::{ExportResult, SpanExporter};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime::RuntimeChannel;
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use futures_util::future::BoxFuture;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::global::*;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::trace::Tracer;
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::fmt::Debug;
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::sync::Arc;
 
 #[derive(Debug)]
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 struct SpanCountExporter {
     span_count: Arc<AtomicUsize>,
 }
 
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl SpanExporter for SpanCountExporter {
     fn export(
         &mut self,
