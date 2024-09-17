@@ -827,8 +827,6 @@ mod tests {
         // deadloack happens in shutdown with tokio current_thread runtime
         //
         processor.shutdown().unwrap();
-
-        assert!(true);
     }
 
     #[derive(Debug)]
