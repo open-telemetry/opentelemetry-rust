@@ -244,7 +244,7 @@ impl fmt::Debug for MeterProviderBuilder {
             .finish()
     }
 }
-#[cfg(test)]
+#[cfg(all(test, feature = "testing"))]
 mod tests {
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
