@@ -813,7 +813,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    #[ignore = "Enable when this is fixed in the batch processor"]
+    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
     async fn test_batch_log_processor_shutdown_with_async_runtime() {
         let exporter = InMemoryLogsExporterBuilder::default()
             .keep_records_on_shutdown()
