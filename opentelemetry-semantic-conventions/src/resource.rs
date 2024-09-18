@@ -1,7 +1,7 @@
 // DO NOT EDIT, this is an auto-generated file
 //
 // If you want to update the file:
-// - Edit the template at scripts/templates/registry/rust/attributes.rs.j2
+// - Edit the template at scripts/templates/registry/rust/resource.rs.j2
 // - Run the script at scripts/generate-consts-from-spec.sh
 
 //! # Resource Semantic Conventions
@@ -380,3 +380,4 @@ pub use crate::attribute::WEBENGINE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_VERSION;
+

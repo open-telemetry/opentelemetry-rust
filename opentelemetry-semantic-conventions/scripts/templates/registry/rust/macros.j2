@@ -4,10 +4,10 @@
 
         {% if entity.examples is sequence %}
             {% for example in entity.examples %}
- - {{ example | pprint }}
+ - `{{ example | pprint }}`
             {% endfor %}
         {% else %}
- - {{ entity.examples | pprint }}
+ - `{{ entity.examples | pprint }}`
         {% endif %}
     {% endif %}
 {% endmacro %}
