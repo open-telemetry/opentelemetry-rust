@@ -149,7 +149,7 @@ impl From<&SpanContext> for TraceContext {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
