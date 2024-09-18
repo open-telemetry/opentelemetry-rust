@@ -26,6 +26,7 @@ futures-sink = "0.3"
 once_cell = { workspace = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true }
+tracing = { version = "0.1", optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
@@ -38,6 +39,7 @@ testing = ["trace", "metrics"]
 logs = []
 logs_level_enabled = ["logs"]
 otel_unstable = []
+experimental-internal-debugging = ["tracing"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs_level_enabled"]} # for documentation tests

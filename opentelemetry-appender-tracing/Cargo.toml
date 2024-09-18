@@ -12,16 +12,16 @@ rust-version = "1.65"
 
 [dependencies]
 log = { workspace = true, optional = true }
-opentelemetry = { version = "0.25", path = "../opentelemetry", features = ["logs"] }
+opentelemetry = { version = "0.25", path = "../opentelemetry", features = ["logs","experimental-internal-debugging"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { version = "0.2", optional = true }
-tracing-subscriber = { workspace = true, features = ["registry", "std"] }
+tracing-subscriber = { workspace = true, features = ["registry", "std", "fmt"] }
 
 [dev-dependencies]
 log = { workspace = true }
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testing"]  }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs", "testing", "experimental-internal-debugging"]  }
 tracing-log = "0.2"
 async-trait = { workspace = true }
 criterion = { workspace = true }

@@ -1,5 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use opentelemetry::otel_info;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
@@ -247,6 +248,7 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
+        otel_info!(target: "opentelemetry-internal","emit log record");
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
