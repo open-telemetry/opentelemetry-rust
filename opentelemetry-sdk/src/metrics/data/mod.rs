@@ -255,6 +255,26 @@ pub struct ExponentialHistogramDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
+impl<T: Copy> Clone for ExponentialHistogramDataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            start_time: self.start_time,
+            time: self.time,
+            count: self.count,
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            scale: self.scale,
+            zero_count: self.zero_count,
+            positive_bucket: self.positive_bucket.clone(),
+            negative_bucket: self.negative_bucket.clone(),
+            zero_threshold: self.zero_threshold,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// A set of bucket counts, encoded in a contiguous array of counts.
 #[derive(Debug, PartialEq)]
 pub struct ExponentialBucket {
@@ -266,6 +286,15 @@ pub struct ExponentialBucket {
     /// `counts[i]` is the count of values greater than base^(offset+i) and less than
     /// or equal to base^(offset+i+1).
     pub counts: Vec<u64>,
+}
+
+impl Clone for ExponentialBucket {
+    fn clone(&self) -> Self {
+        Self {
+            offset: self.offset,
+            counts: self.counts.clone(),
+        }
+    }
 }
 
 /// A measurement sampled from a time series providing a typical example.
