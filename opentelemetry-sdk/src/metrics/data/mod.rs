@@ -332,7 +332,7 @@ impl<T: Copy> Clone for Exemplar<T> {
 #[cfg(test)]
 mod tests {
 
-    use super::{DataPoint, ExponentialHistogramDataPoint, HistogramDataPoint};
+    use super::{DataPoint, Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint};
 
     use opentelemetry::KeyValue;
 
@@ -343,7 +343,13 @@ mod tests {
             start_time: Some(std::time::SystemTime::now()),
             time: Some(std::time::SystemTime::now()),
             value: 0u32,
-            exemplars: vec![],
+            exemplars: vec![Exemplar {
+                filtered_attributes: vec![],
+                time: std::time::SystemTime::now(),
+                value: 0u32,
+                span_id: [0; 8],
+                trace_id: [0; 16],
+            }],
         };
         assert_eq!(data_type.clone(), data_type);
 
@@ -357,7 +363,13 @@ mod tests {
             min: None,
             max: None,
             sum: 0u32,
-            exemplars: vec![],
+            exemplars: vec![Exemplar {
+                filtered_attributes: vec![],
+                time: std::time::SystemTime::now(),
+                value: 0u32,
+                span_id: [0; 8],
+                trace_id: [0; 16],
+            }],
         };
         assert_eq!(histogram_data_point.clone(), histogram_data_point);
 
@@ -380,7 +392,13 @@ mod tests {
                 counts: vec![],
             },
             zero_threshold: 0.0,
-            exemplars: vec![],
+            exemplars: vec![Exemplar {
+                filtered_attributes: vec![],
+                time: std::time::SystemTime::now(),
+                value: 0u32,
+                span_id: [0; 8],
+                trace_id: [0; 16],
+            }],
         };
         assert_eq!(
             exponential_histogram_data_point.clone(),
