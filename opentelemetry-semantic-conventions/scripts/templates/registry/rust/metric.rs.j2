@@ -2,7 +2,7 @@
 // DO NOT EDIT, this is an auto-generated file
 //
 // If you want to update the file:
-// - Edit the template at scripts{{template}}
+// - Edit the template at scripts/templates/registry/rust/metric.rs.j2
 // - Run the script at scripts/generate-consts-from-spec.sh
 
 //! # Metric Semantic Conventions
@@ -31,7 +31,7 @@
 
 {% for root_ns in ctx %}
     {% for metric in root_ns.metrics %}
-{{ ["## Description\n\n", metric.brief, concat_if("\n\n# Notes\n\n", metric.note), metric_macros.examples(metric)] | comment }}
+{{ ["## Description\n\n", metric.brief, concat_if("\n\n## Notes\n\n", metric.note), metric_macros.examples(metric)] | comment }}
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -61,7 +61,7 @@
         {% endfor %}
         {% if metric.examples %}
 ///
-/// # Examples
+/// ## Examples
 ///
             {% for example in metric.examples %}
 /// - `{{ example }}`
