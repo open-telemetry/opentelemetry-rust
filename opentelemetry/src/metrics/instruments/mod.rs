@@ -25,7 +25,7 @@ pub trait AsyncInstrument<T>: Send + Sync {
 }
 
 /// Configuration for building a Histogram.
-#[non_exhaustive]
+#[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct HistogramBuilder<'a, T> {
     /// Instrument provider is used to create the instrument.
     pub instrument_provider: &'a dyn InstrumentProvider,
@@ -113,11 +113,20 @@ impl<'a> HistogramBuilder<'a, u64> {
 }
 
 /// Configuration for building a sync instrument.
+#[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct InstrumentBuilder<'a, T> {
-    instrument_provider: &'a dyn InstrumentProvider,
-    name: Cow<'static, str>,
-    description: Option<Cow<'static, str>>,
-    unit: Option<Cow<'static, str>>,
+    /// Instrument provider is used to create the instrument.
+    pub instrument_provider: &'a dyn InstrumentProvider,
+
+    /// Name of the instrument.
+    pub name: Cow<'static, str>,
+
+    /// Description of the instrument.
+    pub description: Option<Cow<'static, str>>,
+
+    /// Unit of the instrument.
+    pub unit: Option<Cow<'static, str>>,
+
     _marker: marker::PhantomData<T>,
 }
 
@@ -171,6 +180,46 @@ where
         T::try_from(self).unwrap()
     }
 }
+
+/*
+impl<'a> InstrumentBuilder<'a, f64> {
+    /// Validate the instrument configuration and creates a new instrument.
+    pub fn try_init(self) -> Result<Counter<f64>> {
+        self.instrument_provider.f64_counter(self)
+    }
+
+    /// Creates a new instrument.
+    ///
+    /// Validate the instrument configuration and crates a new instrument.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    pub fn init(self) -> Counter<f64> {
+        self.try_init().unwrap()
+    }
+}
+
+impl<'a> InstrumentBuilder<'a, u64> {
+    /// Validate the instrument configuration and creates a new instrument.
+    pub fn try_init(self) -> Result<Counter<u64>> {
+        self.instrument_provider.u64_counter(self)
+    }
+
+    /// Creates a new instrument.
+    ///
+    /// Validate the instrument configuration and crates a new instrument.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    pub fn init(self) -> Counter<u64> {
+        self.try_init().unwrap()
+    }
+}
+*/
 
 impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
