@@ -338,6 +338,7 @@ where
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
+    otel_debug!(target: "opentelemetry-sdk", name: "export_with_timeout", signal: "log", "Exporting log batch of size: {}", log_vec.len());
     let export = exporter.export(LogBatch::new(log_vec.as_slice()));
     let timeout = runtime.delay(time_out);
     pin_mut!(export);

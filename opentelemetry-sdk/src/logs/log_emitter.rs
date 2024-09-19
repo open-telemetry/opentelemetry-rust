@@ -256,7 +256,7 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        otel_info!(
+        otel_debug!(
             target: "opentelemetry-sdk",
             name: "log_record_emit_start",
             signal: "log",
