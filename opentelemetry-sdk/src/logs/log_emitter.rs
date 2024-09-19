@@ -1,12 +1,12 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::otel_info;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
+use opentelemetry::{otel_debug, otel_info, otel_warn};
 
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
@@ -84,19 +84,23 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
     pub fn builder() -> Builder {
+        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_builder", signal: "log", "Creating a new LoggerProvider builder.");
         Builder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
+        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_log_processors", signal: "log", "Retrieving {} log processors.", self.inner.processors.len());
         &self.inner.processors
     }
 
     pub(crate) fn resource(&self) -> &Resource {
+        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_resource", signal: "log", "Retrieving {} resource for LoggerProvider.", self.inner.resource.len());
         &self.inner.resource
     }
 
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> Vec<LogResult<()>> {
+        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_force_flush", signal: "log", "Forcing flush for all log processors.");
         self.log_processors()
             .iter()
             .map(|processor| processor.force_flush())
@@ -105,6 +109,7 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
+        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_shutdown", signal: "log", "Shutting down LoggerProvider.");
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -115,6 +120,7 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
+                    otel_warn!(target: "opentelemetry-sdk", name: "logger_provider_shutdown_error", signal: "log", "Error while shutting down a log processor: {:?}", err);
                     errs.push(err);
                 }
             }
@@ -125,6 +131,7 @@ impl LoggerProvider {
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
+            otel_warn!(target: "opentelemetry-sdk", name: "logger_provider_already_shutdown", signal: "log", "LoggerProvider is already shut down.");
             Err(LogError::Other("logger provider already shut down".into()))
         }
     }
@@ -222,6 +229,7 @@ impl Logger {
         instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: LoggerProvider,
     ) -> Self {
+        otel_info!(target: "opentelemetry-sdk", name: "logger_new", signal: "log", "Creating a new Logger.");
         Logger {
             instrumentation_lib,
             provider,
@@ -248,7 +256,12 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        otel_info!(target: "opentelemetry-internal","emit log record");
+        otel_info!(
+            target: "opentelemetry-sdk",
+            name: "log_record_emit_start",
+            signal: "log",
+            "Starting the process of emitting a log record"
+        );
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
@@ -282,6 +295,8 @@ impl opentelemetry::logs::Logger for Logger {
                     self.instrumentation_library().name.as_ref(),
                 );
         }
+        otel_debug!(target: "opentelemetry-sdk", name: "log_record_event_enabled_check", signal: "log", "log event enabled status is {} for target: {} ", enabled, target);
+
         enabled
     }
 }

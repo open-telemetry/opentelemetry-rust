@@ -16,6 +16,7 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     InstrumentationLibrary,
 };
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -87,6 +88,7 @@ pub struct SimpleLogProcessor {
 
 impl SimpleLogProcessor {
     pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
+        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_new", signal: "log", "Initializing SimpleLogProcessor.");
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -98,8 +100,11 @@ impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            otel_warn!(target: "opentelemetry-sdk", name: "simple_log_processor_emit_after_shutdown", signal: "log", "Attempted to emit log after processor shutdown.");
             return;
         }
+
+        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_emit", signal: "log", "Emitting log record.");
 
         let result = self
             .exporter
@@ -110,21 +115,25 @@ impl LogProcessor for SimpleLogProcessor {
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         if let Err(err) = result {
+            otel_error!(target: "opentelemetry-sdk", name: "simple_log_processor_emit_error", signal: "log", "Failed to emit log record: {:?}", err);
             global::handle_error(err);
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
+        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_force_flush", signal: "log", "Forcing flush on log processor.");
         Ok(())
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_shutdown", signal: "log", "Shutting down SimpleLogProcessor.");
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
         } else {
+            otel_error!(target: "opentelemetry-sdk", name: "simple_log_processor_shutdown_error", signal: "log", "Failed to shutdown SimpleLogProcessor.");
             Err(LogError::Other(
                 "simple logprocessor mutex poison during shutdown".into(),
             ))
@@ -132,6 +141,7 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn set_resource(&self, resource: &Resource) {
+        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_set_resource", signal: "log", "Setting resource for SimpleLogProcessor.");
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
         }
@@ -154,17 +164,20 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        otel_info!(target: "opentelemetry-sdk", name: "batch_log_processor_emit", signal: "log", "Emitting log record in BatchLogProcessor.");
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
         )));
 
         if let Err(err) = result {
+            otel_error!(target: "opentelemetry-sdk", name: "batch_log_processor_emit_error", signal: "log", "Failed to send log message to BatchLogProcessor: {:?}", err);
             global::handle_error(LogError::Other(err.into()));
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
+        otel_info!(target: "opentelemetry-sdk", name: "batch_log_processor_force_flush", signal: "log", "Forcing flush in BatchLogProcessor.");
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
@@ -176,6 +189,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        otel_info!(target: "opentelemetry-sdk", name: "batch_log_processor_shutdown", signal: "log", "Shutting down BatchLogProcessor.");
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -187,6 +201,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn set_resource(&self, resource: &Resource) {
+        otel_info!(target: "opentelemetry-sdk", name: "batch_log_processor_set_resource", signal: "log", "Setting resource for BatchLogProcessor.");
         let resource = Arc::new(resource.clone());
         let _ = self
             .message_sender
@@ -217,8 +232,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
+                        otel_debug!(target: "opentelemetry-sdk", name: "batch_log_processor_record_count", signal: "log", "Batching log records. Current batch size: {}", logs.len());
+
 
                         if logs.len() == config.max_export_batch_size {
+                            otel_info!(target: "opentelemetry-sdk", name: "batch_log_processor_export", signal: "log", "Exporting log batch of size: {}", logs.len());
                             let result = export_with_timeout(
                                 config.max_export_timeout,
                                 exporter.as_mut(),
@@ -228,6 +246,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             .await;
 
                             if let Err(err) = result {
+                                otel_error!(target: "opentelemetry-sdk", name: "batch_log_processor_export_error", signal: "log", "Failed to export log batch: {:?}", err);
                                 global::handle_error(err);
                             }
                         }
