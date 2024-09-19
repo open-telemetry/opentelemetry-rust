@@ -3,10 +3,12 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::metrics::{
-    AsyncInstrumentBuilder, Counter, Gauge, Histogram, InstrumentBuilder, InstrumentProvider,
+    AsyncInstrumentBuilder, Counter, Gauge, InstrumentBuilder, InstrumentProvider,
     ObservableCounter, ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
 use crate::KeyValue;
+
+use super::HistogramBuilder;
 
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
@@ -385,19 +387,13 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn f64_histogram(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<'_, Histogram<f64>> {
-        InstrumentBuilder::new(self, name.into())
+    pub fn f64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, f64> {
+        HistogramBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn u64_histogram(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<'_, Histogram<u64>> {
-        InstrumentBuilder::new(self, name.into())
+    pub fn u64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, u64> {
+        HistogramBuilder::new(self, name.into())
     }
 }
 

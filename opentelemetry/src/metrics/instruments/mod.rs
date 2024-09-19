@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::marker;
 use std::sync::Arc;
 
-use super::InstrumentProvider;
+use super::{Histogram, InstrumentProvider};
 
 pub(super) mod counter;
 pub(super) mod gauge;
@@ -22,6 +22,93 @@ pub trait AsyncInstrument<T>: Send + Sync {
 
     /// Used for SDKs to downcast instruments in callbacks.
     fn as_any(&self) -> Arc<dyn Any>;
+}
+
+/// Configuration for building a Histogram.
+#[non_exhaustive]
+pub struct HistogramBuilder<'a, T> {
+    /// Instrument provider is used to create the instrument.
+    pub instrument_provider: &'a dyn InstrumentProvider,
+
+    /// Name of the Histogram.
+    pub name: Cow<'static, str>,
+
+    // Description of the Histogram.
+    // pub description: Option<Cow<'static, str>>,
+    /// Unit of the Histogram.
+    pub unit: Option<Cow<'static, str>>,
+
+    // boundaries: Vec<T>,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T> HistogramBuilder<'a, T> {
+    /// Create a new instrument builder
+    pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
+        HistogramBuilder {
+            instrument_provider: meter.instrument_provider.as_ref(),
+            name,
+            // description: None,
+            unit: None,
+            _marker: marker::PhantomData,
+        }
+    }
+
+    // /// Set the description for this instrument
+    // pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
+    //     self.description = Some(description.into());
+    //     self
+    // }
+
+    /// Set the unit for this instrument.
+    ///
+    /// Unit is case sensitive(`kb` is not the same as `kB`).
+    ///
+    /// Unit must be:
+    /// - ASCII string
+    /// - No longer than 63 characters
+    pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
+        self.unit = Some(unit.into());
+        self
+    }
+}
+
+impl<'a> HistogramBuilder<'a, f64> {
+    /// Validate the instrument configuration and creates a new instrument.
+    pub fn try_init(self) -> Result<Histogram<f64>> {
+        self.instrument_provider.f64_histogram(self)
+    }
+
+    /// Creates a new instrument.
+    ///
+    /// Validate the instrument configuration and crates a new instrument.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    pub fn init(self) -> Histogram<f64> {
+        self.try_init().unwrap()
+    }
+}
+
+impl<'a> HistogramBuilder<'a, u64> {
+    /// Validate the instrument configuration and creates a new instrument.
+    pub fn try_init(self) -> Result<Histogram<u64>> {
+        self.instrument_provider.u64_histogram(self)
+    }
+
+    /// Creates a new instrument.
+    ///
+    /// Validate the instrument configuration and crates a new instrument.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the instrument cannot be created. Use
+    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    pub fn init(self) -> Histogram<u64> {
+        self.try_init().unwrap()
+    }
 }
 
 /// Configuration for building a sync instrument.
@@ -91,6 +178,20 @@ impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
             .field("description", &self.description)
             .field("unit", &self.unit)
             .field("kind", &std::any::type_name::<T>())
+            .finish()
+    }
+}
+
+impl<T> fmt::Debug for HistogramBuilder<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HistogramBuilder")
+            .field("name", &self.name)
+            // .field("description", &self.description)
+            .field("unit", &self.unit)
+            .field(
+                "kind",
+                &format!("Histogram<{}>", &std::any::type_name::<T>()),
+            )
             .finish()
     }
 }
