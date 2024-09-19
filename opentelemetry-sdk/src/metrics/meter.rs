@@ -4,9 +4,9 @@ use std::{borrow::Cow, sync::Arc};
 use opentelemetry::{
     global,
     metrics::{
-        noop::NoopAsyncInstrument, Callback, Counter, Gauge, Histogram, InstrumentProvider,
-        MetricsError, ObservableCounter, ObservableGauge, ObservableUpDownCounter, Result,
-        UpDownCounter,
+        noop::NoopAsyncInstrument, Callback, Counter, Gauge, Histogram, HistogramBuilder,
+        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
+        ObservableUpDownCounter, Result, UpDownCounter,
     },
 };
 
@@ -373,28 +373,28 @@ impl InstrumentProvider for SdkMeter {
         Ok(ObservableGauge::new(observable))
     }
 
-    fn f64_histogram(
-        &self,
-        name: Cow<'static, str>,
-        description: Option<Cow<'static, str>>,
-        unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<f64>> {
-        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
+    fn f64_histogram(&self, builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
+        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(InstrumentKind::Histogram, name, description, unit)
-            .map(|i| Histogram::new(Arc::new(i)))
+        p.lookup(
+            InstrumentKind::Histogram,
+            builder.name,
+            builder.description,
+            builder.unit,
+        )
+        .map(|i| Histogram::new(Arc::new(i)))
     }
 
-    fn u64_histogram(
-        &self,
-        name: Cow<'static, str>,
-        description: Option<Cow<'static, str>>,
-        unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<u64>> {
-        validate_instrument_config(name.as_ref(), &unit, self.validation_policy)?;
+    fn u64_histogram(&self, builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
+        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(InstrumentKind::Histogram, name, description, unit)
-            .map(|i| Histogram::new(Arc::new(i)))
+        p.lookup(
+            InstrumentKind::Histogram,
+            builder.name,
+            builder.description,
+            builder.unit,
+        )
+        .map(|i| Histogram::new(Arc::new(i)))
     }
 }
 
@@ -524,7 +524,10 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use opentelemetry::metrics::{InstrumentProvider, MeterProvider, MetricsError};
+    use opentelemetry::{
+        global,
+        metrics::{InstrumentProvider, MeterProvider, MetricsError},
+    };
 
     use super::{
         InstrumentValidationPolicy, SdkMeter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
@@ -629,8 +632,14 @@ mod tests {
                     .f64_observable_gauge(name.into(), None, None, Vec::new())
                     .map(|_| ()),
             );
-            assert(meter.f64_histogram(name.into(), None, None).map(|_| ()));
-            assert(meter.u64_histogram(name.into(), None, None).map(|_| ()));
+
+            // Get handle to HistogramBuilder for testing
+            let global_meter = global::meter("test");
+            let histogram_builder_f64 = global_meter.f64_histogram(name);
+            let histogram_builder_u64 = global_meter.u64_histogram(name);
+
+            assert(meter.f64_histogram(histogram_builder_f64).map(|_| ()));
+            assert(meter.u64_histogram(histogram_builder_u64).map(|_| ()));
         }
 
         // (unit, expected error)
@@ -713,16 +722,18 @@ mod tests {
                     .f64_observable_gauge("test".into(), None, unit.clone(), Vec::new())
                     .map(|_| ()),
             );
-            assert(
-                meter
-                    .f64_histogram("test".into(), None, unit.clone())
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .u64_histogram("test".into(), None, unit.clone())
-                    .map(|_| ()),
-            );
+
+            // Get handle to HistogramBuilder for testing
+            let global_meter = global::meter("test");
+            let histogram_builder_f64 = global_meter
+                .f64_histogram("test")
+                .with_unit(unit.clone().unwrap());
+            let histogram_builder_u64 = global_meter
+                .u64_histogram("test")
+                .with_unit(unit.clone().unwrap());
+
+            assert(meter.f64_histogram(histogram_builder_f64).map(|_| ()));
+            assert(meter.u64_histogram(histogram_builder_u64).map(|_| ()));
         }
     }
 }

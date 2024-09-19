@@ -17,7 +17,7 @@ pub use instruments::{
     gauge::{Gauge, ObservableGauge, SyncGauge},
     histogram::{Histogram, SyncHistogram},
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
-    AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
+    AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
 };
 pub use meter::{Meter, MeterProvider};
 
@@ -273,22 +273,12 @@ pub trait InstrumentProvider {
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn f64_histogram(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<f64>> {
+    fn f64_histogram(&self, _builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn u64_histogram(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<u64>> {
+    fn u64_histogram(&self, _builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 }
