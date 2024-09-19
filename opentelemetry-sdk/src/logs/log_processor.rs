@@ -104,7 +104,7 @@ impl LogProcessor for SimpleLogProcessor {
             return;
         }
 
-        otel_info!(target: "opentelemetry-sdk", name: "simple_log_processor_emit", signal: "log", "Emitting log record.");
+        otel_debug!(target: "opentelemetry-sdk", name: "simple_log_processor_emit", signal: "log", "Emitting log record.");
 
         let result = self
             .exporter
