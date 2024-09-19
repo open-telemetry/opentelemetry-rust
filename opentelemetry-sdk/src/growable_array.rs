@@ -106,6 +106,21 @@ impl<
                 .chain(self.overflow.as_ref().unwrap().iter())
         }
     }
+
+    /// Provides a mutable iterator over the elements.
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        if self.overflow.is_none() || self.overflow.as_ref().unwrap().is_empty() {
+            self.inline.iter_mut().take(self.count).chain([].iter_mut()) // Chaining with an empty array
+                                                                         // so that both `if` and `else` branch return the same type
+        } else {
+            self.inline
+                .iter_mut()
+                .take(self.count)
+                .chain(self.overflow.as_mut().unwrap().iter_mut())
+        }
+    }
 }
 
 // Implement `IntoIterator` for `GrowableArray`
@@ -182,7 +197,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
 
-    type KeyValuePair = Option<(Key, AnyValue)>;
+    type KeyValuePair<'a> = Option<(Key, AnyValue<'a>)>;
 
     #[test]
     fn test_push_and_get() {
@@ -234,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_key_value_pair_storage_growable_array() {
-        let mut collection = GrowableArray::<KeyValuePair>::new();
+        let mut collection = GrowableArray::<KeyValuePair<'_>>::new();
 
         let key1 = Key::from("key1");
         let value1 = AnyValue::String("value1".into());
@@ -267,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_empty_attributes() {
-        let collection = GrowableArray::<KeyValuePair>::new();
+        let collection = GrowableArray::<KeyValuePair<'_>>::new();
         assert_eq!(collection.len(), 0);
         assert_eq!(collection.get(0), None);
 

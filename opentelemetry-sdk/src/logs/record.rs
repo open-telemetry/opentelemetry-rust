@@ -15,14 +15,14 @@ const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 /// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
 /// The initial attributes are allocated in a fixed-size array of capacity `PREALLOCATED_ATTRIBUTE_CAPACITY`.
 /// If more attributes are added beyond this capacity, additional storage is handled by dynamically growing a vector.
-pub(crate) type LogRecordAttributes =
-    GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
+pub(crate) type LogRecordAttributes<'a> =
+    GrowableArray<Option<(Key, AnyValue<'a>)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
-pub struct LogRecord {
+pub struct LogRecord<'a> {
     /// Event name. Optional as not all the logging API support it.
     pub event_name: Option<&'static str>,
 
@@ -45,13 +45,13 @@ pub struct LogRecord {
     pub severity_number: Option<Severity>,
 
     /// Record body
-    pub body: Option<AnyValue>,
+    pub body: Option<AnyValue<'a>>,
 
     /// Additional attributes associated with this record
-    pub(crate) attributes: LogRecordAttributes,
+    pub(crate) attributes: LogRecordAttributes<'a>,
 }
 
-impl opentelemetry::logs::LogRecord for LogRecord {
+impl<'a> opentelemetry::logs::LogRecord<'a> for LogRecord<'a> {
     fn set_event_name(&mut self, name: &'static str) {
         self.event_name = Some(name);
     }
@@ -80,7 +80,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         self.severity_number = Some(severity_number);
     }
 
-    fn set_body(&mut self, body: AnyValue) {
+    fn set_body(&mut self, body: AnyValue<'a>) {
         self.body = Some(body);
     }
 
@@ -88,7 +88,7 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     where
         I: IntoIterator<Item = (K, V)>,
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
         for (key, value) in attributes.into_iter() {
             self.add_attribute(key, value);
@@ -98,16 +98,21 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
         self.attributes.push(Some((key.into(), value.into())));
     }
 }
 
-impl LogRecord {
+impl<'a> LogRecord<'a> {
     /// Provides an iterator over the attributes.
-    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
+    pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue<'a>)> {
         self.attributes.iter().filter_map(|opt| opt.as_ref())
+    }
+
+    /// Provides a mutable iterator over the attributes.
+    pub fn attributes_iter_mut(&mut self) -> impl Iterator<Item = &mut (Key, AnyValue<'a>)> {
+        self.attributes.iter_mut().filter_map(|opt| opt.as_mut())
     }
 
     #[allow(dead_code)]
@@ -118,11 +123,48 @@ impl LogRecord {
 
     #[allow(dead_code)]
     /// Checks if the `LogRecord` contains the specified attribute.
-    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
+    pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue<'a>) -> bool {
         self.attributes
             .iter()
             .flatten()
             .any(|(k, v)| k == key && v == value)
+    }
+
+    pub fn make_owned(&mut self) {
+        if let Some(ref mut target) = self.target {
+            *target = Cow::Owned(target.clone().into_owned());
+        }
+
+        if let Some(ref mut body) = self.body {
+            body.make_owned(); // Use the `make_owned` method of `AnyValue`
+        }
+
+        // Use the mutable iterator method to convert each attribute value to owned
+        for (_, value) in self.attributes_iter_mut() {
+            value.make_owned(); // Convert each attribute value to owned
+        }
+    }
+
+    pub fn into_owned(self) -> LogRecord<'static> {
+        // Create a new empty GrowableArray with the same capacity settings
+        let mut owned_attributes: LogRecordAttributes<'static> = GrowableArray::new();
+
+        // Iterate over the attributes and convert each to owned
+        for (key, value) in self.attributes_iter() {
+            owned_attributes.push(Some((key.clone(), value.clone().into_owned())));
+        }
+
+        LogRecord {
+            event_name: self.event_name,
+            target: self.target.map(|t| Cow::Owned(t.into_owned())),
+            timestamp: self.timestamp,
+            observed_timestamp: self.observed_timestamp,
+            trace_context: self.trace_context.clone(),
+            severity_text: self.severity_text,
+            severity_number: self.severity_number,
+            body: self.body.map(|b| b.into_owned()), // Convert the body to an owned version
+            attributes: owned_attributes,            // Use the newly created owned attributes
+        }
     }
 }
 

@@ -25,6 +25,8 @@ use std::{
     time::Duration,
 };
 
+use super::record;
+
 /// Delay interval between two consecutive exports.
 const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
@@ -57,7 +59,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// # Parameters
     /// - `record`: A mutable reference to `LogData` representing the log record.
     /// - `instrumentation`: The instrumentation library associated with the log record.
-    fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationLibrary);
+    fn emit<'a>(&self, data: &mut LogRecord<'a>, instrumentation: &InstrumentationLibrary);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -95,7 +97,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    fn emit<'a>(&self, record: &mut LogRecord<'a>, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return;
@@ -106,7 +108,7 @@ impl LogProcessor for SimpleLogProcessor {
             .lock()
             .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
             .and_then(|mut exporter| {
-                let log_tuple = &[(record as &LogRecord, instrumentation)];
+                let log_tuple = &[(record as &LogRecord<'a>, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         if let Err(err) = result {
@@ -153,9 +155,10 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    fn emit<'a>(&self, record: &mut LogRecord<'a>, instrumentation: &InstrumentationLibrary) {
+        let record_static = record.clone().into_owned();
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
-            record.clone(),
+            record_static,
             instrumentation.clone(),
         )));
 
@@ -300,11 +303,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     }
 }
 
-async fn export_with_timeout<R, E>(
+async fn export_with_timeout<'a, R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<(LogRecord, InstrumentationLibrary)>,
+    batch: Vec<(LogRecord<'a>, InstrumentationLibrary)>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -315,7 +318,7 @@ where
     }
 
     // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let log_vec: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
+    let log_vec: Vec<(&LogRecord<'a>, &InstrumentationLibrary)> = batch
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
@@ -499,7 +502,7 @@ where
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog((LogRecord, InstrumentationLibrary)),
+    ExportLog((LogRecord<'static>, InstrumentationLibrary)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),
@@ -777,7 +780,7 @@ mod tests {
             runtime::Tokio,
         );
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord<'_> = Default::default();
         let instrumentation: InstrumentationLibrary = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -795,7 +798,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord<'_> = Default::default();
         let instrumentation: InstrumentationLibrary = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -814,11 +817,11 @@ mod tests {
 
     #[derive(Debug)]
     struct FirstProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord<'static>, InstrumentationLibrary)>>>,
     }
 
-    impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    impl<'b> LogProcessor for FirstProcessor {
+        fn emit<'a>(&self, record: &mut LogRecord<'a>, instrumentation: &InstrumentationLibrary) {
             // add attribute
             record.add_attribute(
                 Key::from_static_str("processed_by"),
@@ -826,11 +829,10 @@ mod tests {
             );
             // update body
             record.body = Some("Updated by FirstProcessor".into());
-
             self.logs
                 .lock()
                 .unwrap()
-                .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
+                .push((record.clone().to_owned(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
         fn force_flush(&self) -> LogResult<()> {
@@ -844,11 +846,11 @@ mod tests {
 
     #[derive(Debug)]
     struct SecondProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord<'static>, InstrumentationLibrary)>>>,
     }
 
-    impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    impl<'b> LogProcessor for SecondProcessor {
+        fn emit<'a>(&self, record: &mut LogRecord<'a>, instrumentation: &InstrumentationLibrary) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
@@ -857,10 +859,22 @@ mod tests {
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
             );
+            // Clone the `LogRecord` to have a `'static` version to store in the log.
+            let static_record: LogRecord<'static> = LogRecord {
+                event_name: record.event_name,
+                target: record.target.clone().map(|t| t.into_owned().into()),
+                timestamp: record.timestamp,
+                observed_timestamp: record.observed_timestamp,
+                trace_context: record.trace_context.clone(),
+                severity_text: record.severity_text,
+                severity_number: record.severity_number,
+                body: record.body.clone().map(AnyValue::to_owned_value),
+                attributes: record.attributes.clone(), // Assuming `attributes` can be cloned
+            };
             self.logs
                 .lock()
                 .unwrap()
-                .push((record.clone(), instrumentation.clone()));
+                .push((static_record, instrumentation.clone()));
         }
 
         fn force_flush(&self) -> LogResult<()> {

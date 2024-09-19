@@ -13,7 +13,7 @@ use tracing_subscriber::Layer;
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 
 /// Visitor to record the fields from the event record.
-struct EventVisitor<'a, LR: LogRecord> {
+struct EventVisitor<'a, LR: LogRecord<'a>> {
     log_record: &'a mut LR,
 }
 
@@ -37,7 +37,7 @@ fn get_filename(filepath: &str) -> &str {
     filepath
 }
 
-impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
+impl<'a, LR: LogRecord<'a>> EventVisitor<'a, LR> {
     fn new(log_record: &'a mut LR) -> Self {
         EventVisitor { log_record }
     }
@@ -69,7 +69,8 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<'a, LR: LogRecord<'a>> tracing::field::Visit for EventVisitor<'a, LR> {
+
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -83,7 +84,8 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
         }
     }
 
-    fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
+    fn record_str(&mut self, field: &tracing_core::Field, value: &str)
+    {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
             return;
@@ -95,8 +97,15 @@ impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
 
         //TODO: Fix heap allocation. Check if lifetime of &str can be used
         // to optimize sync exporter scenario.
+
+        //let v = Cow::Borrowed(value);
+        {
         self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
+            .add_attribute::<Key, AnyValue> (Key::new(field.name()), value.into());
+        }
+
+        /*self.log_record
+            .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));*/
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {

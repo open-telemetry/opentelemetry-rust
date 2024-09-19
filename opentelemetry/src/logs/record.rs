@@ -2,7 +2,7 @@ use crate::{Array, Key, StringValue, Value};
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// SDK implemented trait for managing log records
-pub trait LogRecord {
+pub trait LogRecord<'a> {
     /// Sets the `event_name` of a record
     fn set_event_name(&mut self, name: &'static str);
 
@@ -27,45 +27,45 @@ pub trait LogRecord {
     fn set_severity_number(&mut self, number: Severity);
 
     /// Sets the message body of the log.
-    fn set_body(&mut self, body: AnyValue);
+    fn set_body(&mut self, body: AnyValue<'a>);
 
     /// Adds multiple attributes.
     fn add_attributes<I, K, V>(&mut self, attributes: I)
     where
         I: IntoIterator<Item = (K, V)>,
         K: Into<Key>,
-        V: Into<AnyValue>;
+        V: Into<AnyValue<'a>>;
 
     /// Adds a single attribute.
     fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
-        V: Into<AnyValue>;
+        V: Into<AnyValue<'a>>;
 }
 
 /// Value types for representing arbitrary values in a log record.
 #[derive(Debug, Clone, PartialEq)]
-pub enum AnyValue {
+pub enum AnyValue<'a> {
     /// An integer value
     Int(i64),
     /// A double value
     Double(f64),
     /// A string value
-    String(StringValue),
+    String(Cow<'a, str>),
     /// A boolean value
     Boolean(bool),
     /// A byte array
     Bytes(Box<Vec<u8>>),
     /// An array of `Any` values
-    ListAny(Box<Vec<AnyValue>>),
+    ListAny(Box<Vec<AnyValue<'a>>>),
     /// A map of string keys to `Any` values, arbitrarily nested.
-    Map(Box<HashMap<Key, AnyValue>>),
+    Map(Box<HashMap<Key, AnyValue<'a>>>),
 }
 
 macro_rules! impl_trivial_from {
     ($t:ty, $variant:path) => {
-        impl From<$t> for AnyValue {
-            fn from(val: $t) -> AnyValue {
+        impl<'a> From<$t> for AnyValue<'a> {
+            fn from(val: $t) -> AnyValue<'a> {
                 $variant(val.into())
             }
         }
@@ -84,21 +84,34 @@ impl_trivial_from!(u32, AnyValue::Int);
 impl_trivial_from!(f64, AnyValue::Double);
 impl_trivial_from!(f32, AnyValue::Double);
 
-impl_trivial_from!(String, AnyValue::String);
-impl_trivial_from!(Cow<'static, str>, AnyValue::String);
-impl_trivial_from!(&'static str, AnyValue::String);
-impl_trivial_from!(StringValue, AnyValue::String);
-
 impl_trivial_from!(bool, AnyValue::Boolean);
 
-impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
+impl<'a> From<Cow<'a, str>> for AnyValue<'a> {
+    fn from(val: Cow<'a, str>) -> AnyValue<'a> {
+        AnyValue::String(val)
+    }
+}
+
+impl<'a> From<&'a str> for AnyValue<'a> {
+    fn from(val: &'a str) -> AnyValue<'a> {
+        AnyValue::String(Cow::Borrowed(val))
+    }
+}
+
+impl From<String> for AnyValue<'static> {
+    fn from(val: String) -> AnyValue<'static> {
+        AnyValue::String(Cow::Owned(val))
+    }
+}
+
+impl<'a, T: Into<AnyValue<'a>>> FromIterator<T> for AnyValue<'a> {
     /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         AnyValue::ListAny(Box::new(iter.into_iter().map(Into::into).collect()))
     }
 }
 
-impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
+impl<'a, K: Into<Key>, V: Into<AnyValue<'a>>> FromIterator<(K, V)> for AnyValue<'a> {
     /// Creates an [`AnyValue::Map`] value from a sequence of key-value pairs
     /// that can be converted into a `Key` and `AnyValue` respectively.
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
@@ -108,7 +121,13 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
     }
 }
 
-impl From<Value> for AnyValue {
+impl<'a> From<StringValue> for AnyValue<'a> {
+    fn from(value: StringValue) -> Self {
+        AnyValue::String(Cow::Owned(value.to_string()))
+    }
+}
+
+impl<'a> From<Value> for AnyValue<'a> {
     fn from(value: Value) -> Self {
         match value {
             Value::Bool(b) => b.into(),
@@ -121,6 +140,51 @@ impl From<Value> for AnyValue {
                 Array::I64(i) => AnyValue::from_iter(i),
                 Array::String(s) => AnyValue::from_iter(s),
             },
+        }
+    }
+}
+
+impl<'a> AnyValue<'a> {
+    /// Converts the `AnyValue` into an owned version in place, updating the existing instance.
+    pub fn make_owned(&mut self) {
+        match self {
+            AnyValue::String(ref mut s) => {
+                if let Cow::Borrowed(borrowed_str) = s {
+                    // Replace the borrowed string with an owned string
+                    *s = Cow::Owned(borrowed_str.to_string());
+                }
+            }
+            AnyValue::ListAny(ref mut list) => {
+                // Recursively convert each item in the list to owned
+                for item in list.iter_mut() {
+                    item.make_owned();
+                }
+            }
+            AnyValue::Map(ref mut map) => {
+                // Recursively convert each value in the map to owned
+                for value in map.values_mut() {
+                    value.make_owned();
+                }
+            }
+            // Other variants are inherently owned and do not need to be modified
+            _ => {}
+        }
+    }
+
+    /// Converts the `AnyValue` into an owned version.
+    pub fn into_owned(self) -> AnyValue<'static> {
+        match self {
+            AnyValue::Int(v) => AnyValue::Int(v),
+            AnyValue::Double(v) => AnyValue::Double(v),
+            AnyValue::String(s) => AnyValue::String(Cow::Owned(s.into_owned())),
+            AnyValue::Boolean(v) => AnyValue::Boolean(v),
+            AnyValue::Bytes(b) => AnyValue::Bytes(b), // Assuming this is already owned
+            AnyValue::ListAny(v) => {
+                AnyValue::ListAny(Box::new(v.into_iter().map(AnyValue::into_owned).collect()))
+            }
+            AnyValue::Map(m) => AnyValue::Map(Box::new(
+                m.into_iter().map(|(k, v)| (k, v.into_owned())).collect(),
+            )),
         }
     }
 }
@@ -212,6 +276,44 @@ impl Severity {
             Severity::Fatal2 => "FATAL2",
             Severity::Fatal3 => "FATAL3",
             Severity::Fatal4 => "FATAL4",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum StringType<'a> {
+    Static(&'static str),
+    Dynamic(Cow<'a, str>),
+}
+
+impl<'a> StringType<'a> {
+    // Creates a StringType from a static string slice
+    fn from_static(s: &'static str) -> Self {
+        StringType::Static(s)
+    }
+
+    // Creates a StringType from a borrowed string slice using Cow
+    fn from_borrowed(s: &'a str) -> Self {
+        StringType::Dynamic(Cow::Borrowed(s))
+    }
+
+    // Creates a StringType from an owned String using Cow
+    fn from_owned(s: String) -> Self {
+        StringType::Dynamic(Cow::Owned(s))
+    }
+
+    // Converts the StringType to a fully owned String
+    fn into_owned(self) -> String {
+        match self {
+            StringType::Static(s) => s.to_string(),
+            StringType::Dynamic(cow) => cow.into_owned(),
+        }
+    }
+
+    // Converts the borrowed Cow variant to an owned String if it's not already owned
+    fn to_owned(&mut self) {
+        if let StringType::Dynamic(cow) = self {
+            *cow = Cow::Owned(cow.to_string());
         }
     }
 }

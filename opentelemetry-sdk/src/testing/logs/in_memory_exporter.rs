@@ -54,7 +54,7 @@ impl Default for InMemoryLogsExporter {
 #[derive(Debug, Clone)]
 pub struct OwnedLogData {
     /// Log record, which can be borrowed or owned.
-    pub record: LogRecord,
+    pub record: LogRecord<'static>,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationLibrary,
 }
@@ -64,7 +64,7 @@ pub struct OwnedLogData {
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
-    pub record: LogRecord,
+    pub record: LogRecord<'static>,
     /// Instrumentation details for the emitter who produced this `LogData`.
     pub instrumentation: InstrumentationLibrary,
     /// Resource for the emitter who produced this `LogData`.
@@ -188,7 +188,7 @@ impl LogExporter for InMemoryLogsExporter {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
-                record: (*log_record).clone(),
+                record: (*log_record).clone().into_owned(),
                 instrumentation: (*instrumentation).clone(),
             };
             logs_guard.push(owned_log);

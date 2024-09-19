@@ -38,7 +38,7 @@ impl LoggerProvider for NoopLoggerProvider {
 /// A no-operation log record that implements the LogRecord trait.
 pub struct NoopLogRecord;
 
-impl LogRecord for NoopLogRecord {
+impl<'a> LogRecord<'a> for NoopLogRecord {
     // Implement the LogRecord trait methods with empty bodies.
     #[inline]
     fn set_event_name(&mut self, _name: &'static str) {}
@@ -51,20 +51,20 @@ impl LogRecord for NoopLogRecord {
     #[inline]
     fn set_severity_number(&mut self, _number: Severity) {}
     #[inline]
-    fn set_body(&mut self, _body: AnyValue) {}
+    fn set_body(&mut self, _body: AnyValue<'a>) {}
     #[inline]
     fn add_attributes<I, K, V>(&mut self, _attributes: I)
     where
         I: IntoIterator<Item = (K, V)>,
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
     }
     #[inline]
     fn add_attribute<K, V>(&mut self, _key: K, _value: V)
     where
         K: Into<Key>,
-        V: Into<AnyValue>,
+        V: Into<AnyValue<'a>>,
     {
     }
 
@@ -82,12 +82,12 @@ impl LogRecord for NoopLogRecord {
 pub struct NoopLogger(());
 
 impl Logger for NoopLogger {
-    type LogRecord = NoopLogRecord;
+    type LogRecord<'a> = NoopLogRecord;
 
-    fn create_log_record(&self) -> Self::LogRecord {
+    fn create_log_record<'a>(&self) -> Self::LogRecord<'a> {
         NoopLogRecord {}
     }
-    fn emit(&self, _record: Self::LogRecord) {}
+    fn emit<'a>(&self, _record: Self::LogRecord<'a>) {}
     #[cfg(feature = "logs_level_enabled")]
     fn event_enabled(&self, _level: super::Severity, _target: &str) -> bool {
         false
