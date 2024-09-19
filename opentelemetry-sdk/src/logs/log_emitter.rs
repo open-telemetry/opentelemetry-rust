@@ -50,6 +50,9 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
+        otel_info!(target: "opentelemetry-sdk", name: "logger_versioned_creation", signal: "log", 
+        "Creating a new versioned logger with name: {:?}, version: {:?}, schema_url: {:?}, attributes: {:?}", 
+        name, version, schema_url, attributes);
 
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
@@ -73,6 +76,8 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+        otel_info!(target: "opentelemetry-sdk", name: "logger_library_logger", signal: "log", 
+            "Creating a library logger for library: {:?}", library);
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
@@ -208,6 +213,8 @@ impl Builder {
         };
 
         // invoke set_resource on all the processors
+        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_build", signal: "log", 
+            "Setting resource for logger provider and applying it to processors.");
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }

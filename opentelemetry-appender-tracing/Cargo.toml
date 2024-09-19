@@ -16,7 +16,7 @@ opentelemetry = { version = "0.25", path = "../opentelemetry", features = ["logs
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { version = "0.2", optional = true }
-tracing-subscriber = { workspace = true, features = ["registry", "std", "fmt", "ansi"] }
+tracing-subscriber = { workspace = true, features = ["registry", "std", "fmt", "ansi", "env-filter"] }
 
 [dev-dependencies]
 log = { workspace = true }
