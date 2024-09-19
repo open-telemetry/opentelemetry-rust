@@ -39,13 +39,8 @@ pub trait MeterProvider {
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn meter(&self, name: impl Into<Cow<'static, str>>) -> Meter {
-        self.versioned_meter(
-            name,
-            None::<Cow<'static, str>>,
-            None::<Cow<'static, str>>,
-            None,
-        )
+    fn meter(&self, name: &'static str) -> Meter {
+        self.versioned_meter(name, None, None, None)
     }
 
     /// Returns a new versioned meter with a given name.
@@ -56,9 +51,9 @@ pub trait MeterProvider {
     /// default name will be used instead.
     fn versioned_meter(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }
