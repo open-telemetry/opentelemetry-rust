@@ -181,46 +181,6 @@ where
     }
 }
 
-/*
-impl<'a> InstrumentBuilder<'a, f64> {
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<Counter<f64>> {
-        self.instrument_provider.f64_counter(self)
-    }
-
-    /// Creates a new instrument.
-    ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-    pub fn init(self) -> Counter<f64> {
-        self.try_init().unwrap()
-    }
-}
-
-impl<'a> InstrumentBuilder<'a, u64> {
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<Counter<u64>> {
-        self.instrument_provider.u64_counter(self)
-    }
-
-    /// Creates a new instrument.
-    ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-    pub fn init(self) -> Counter<u64> {
-        self.try_init().unwrap()
-    }
-}
-*/
-
 impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InstrumentBuilder")
