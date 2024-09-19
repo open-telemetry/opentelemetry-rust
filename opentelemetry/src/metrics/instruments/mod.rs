@@ -33,8 +33,9 @@ pub struct HistogramBuilder<'a, T> {
     /// Name of the Histogram.
     pub name: Cow<'static, str>,
 
-    // Description of the Histogram.
-    // pub description: Option<Cow<'static, str>>,
+    /// Description of the Histogram.
+    pub description: Option<Cow<'static, str>>,
+
     /// Unit of the Histogram.
     pub unit: Option<Cow<'static, str>>,
 
@@ -48,17 +49,17 @@ impl<'a, T> HistogramBuilder<'a, T> {
         HistogramBuilder {
             instrument_provider: meter.instrument_provider.as_ref(),
             name,
-            // description: None,
+            description: None,
             unit: None,
             _marker: marker::PhantomData,
         }
     }
 
-    // /// Set the description for this instrument
-    // pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
-    //     self.description = Some(description.into());
-    //     self
-    // }
+    /// Set the description for this instrument
+    pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
+        self.description = Some(description.into());
+        self
+    }
 
     /// Set the unit for this instrument.
     ///
@@ -186,7 +187,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HistogramBuilder")
             .field("name", &self.name)
-            // .field("description", &self.description)
+            .field("description", &self.description)
             .field("unit", &self.unit)
             .field(
                 "kind",

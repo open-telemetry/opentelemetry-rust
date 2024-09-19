@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a Histogram Instrument.
     let histogram = meter
         .f64_histogram("my_histogram")
-        // .with_description("My histogram example description")
+        .with_description("My histogram example description")
         .init();
 
     // Record measurements using the histogram instrument.
