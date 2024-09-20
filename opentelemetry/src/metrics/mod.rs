@@ -3,8 +3,8 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::result;
+use std::sync::Arc;
 use std::sync::PoisonError;
-use std::{borrow::Cow, sync::Arc};
 use thiserror::Error;
 
 mod instruments;
@@ -120,10 +120,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording increasing values via callback.
     fn u64_observable_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<u64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<ObservableCounter<u64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -133,10 +130,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording increasing values via callback.
     fn f64_observable_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<ObservableCounter<f64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -166,10 +160,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn i64_observable_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<i64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -179,10 +170,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value via callback.
     fn f64_observable_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -207,10 +195,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording the current value via callback.
     fn u64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<u64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
     ) -> Result<ObservableGauge<u64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -220,10 +205,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording the current value via callback.
     fn i64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<i64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
     ) -> Result<ObservableGauge<i64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -233,10 +215,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording the current value via callback.
     fn f64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
     ) -> Result<ObservableGauge<f64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
