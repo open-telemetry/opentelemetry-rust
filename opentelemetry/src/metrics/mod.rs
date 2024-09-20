@@ -108,22 +108,12 @@ impl Eq for KeyValue {}
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {
     /// creates an instrument for recording increasing values.
-    fn u64_counter(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Counter<u64>> {
+    fn u64_counter(&self, _builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Counter<u64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording increasing values.
-    fn f64_counter(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Counter<f64>> {
+    fn f64_counter(&self, _builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Counter<f64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
@@ -156,9 +146,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn i64_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
+        _builder: InstrumentBuilder<'_, UpDownCounter<i64>>,
     ) -> Result<UpDownCounter<i64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -168,9 +156,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn f64_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
+        _builder: InstrumentBuilder<'_, UpDownCounter<f64>>,
     ) -> Result<UpDownCounter<f64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -204,32 +190,17 @@ pub trait InstrumentProvider {
     }
 
     /// creates an instrument for recording independent values.
-    fn u64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<u64>> {
+    fn u64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Gauge<u64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording independent values.
-    fn f64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<f64>> {
+    fn f64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Gauge<f64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording independent values.
-    fn i64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<i64>> {
+    fn i64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Gauge<i64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 

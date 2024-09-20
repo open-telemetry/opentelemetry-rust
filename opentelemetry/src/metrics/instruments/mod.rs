@@ -25,7 +25,7 @@ pub trait AsyncInstrument<T>: Send + Sync {
 }
 
 /// Configuration for building a Histogram.
-#[non_exhaustive]
+#[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct HistogramBuilder<'a, T> {
     /// Instrument provider is used to create the instrument.
     pub instrument_provider: &'a dyn InstrumentProvider,
@@ -113,11 +113,20 @@ impl<'a> HistogramBuilder<'a, u64> {
 }
 
 /// Configuration for building a sync instrument.
+#[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct InstrumentBuilder<'a, T> {
-    instrument_provider: &'a dyn InstrumentProvider,
-    name: Cow<'static, str>,
-    description: Option<Cow<'static, str>>,
-    unit: Option<Cow<'static, str>>,
+    /// Instrument provider is used to create the instrument.
+    pub instrument_provider: &'a dyn InstrumentProvider,
+
+    /// Name of the instrument.
+    pub name: Cow<'static, str>,
+
+    /// Description of the instrument.
+    pub description: Option<Cow<'static, str>>,
+
+    /// Unit of the instrument.
+    pub unit: Option<Cow<'static, str>>,
+
     _marker: marker::PhantomData<T>,
 }
 

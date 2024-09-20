@@ -3,12 +3,12 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::metrics::{
-    AsyncInstrumentBuilder, Counter, Gauge, InstrumentBuilder, InstrumentProvider,
-    ObservableCounter, ObservableGauge, ObservableUpDownCounter, UpDownCounter,
+    AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
+    ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
 use crate::KeyValue;
 
-use super::HistogramBuilder;
+use super::{Counter, HistogramBuilder};
 
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
