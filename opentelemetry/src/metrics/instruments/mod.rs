@@ -216,16 +216,27 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
 pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
+#[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct AsyncInstrumentBuilder<'a, I, M>
 where
     I: AsyncInstrument<M>,
 {
-    meter: &'a Meter,
-    name: Cow<'static, str>,
-    description: Option<Cow<'static, str>>,
-    unit: Option<Cow<'static, str>>,
+    /// Instrument provider is used to create the instrument.
+    pub instrument_provider: &'a dyn InstrumentProvider,
+
+    /// Name of the instrument.
+    pub name: Cow<'static, str>,
+
+    /// Description of the instrument.
+    pub description: Option<Cow<'static, str>>,
+
+    /// Unit of the instrument.
+    pub unit: Option<Cow<'static, str>>,
+
+    /// Callbacks to be called for this instrument.
+    pub callbacks: Vec<Callback<M>>,
+
     _inst: marker::PhantomData<I>,
-    callbacks: Vec<Callback<M>>,
 }
 
 impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
@@ -236,7 +247,7 @@ where
     /// Create a new instrument builder
     pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         AsyncInstrumentBuilder {
-            meter,
+            instrument_provider: meter.instrument_provider.as_ref(),
             name,
             description: None,
             unit: None,

@@ -107,12 +107,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>> for Observ
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.u64_observable_counter(builder)
     }
 }
 
@@ -122,11 +117,6 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>> for Observ
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.f64_observable_counter(builder)
     }
 }
