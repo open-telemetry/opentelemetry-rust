@@ -114,14 +114,8 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>>
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
     ) -> Result<Self, Self::Error> {
         builder
-            .meter
             .instrument_provider
-            .i64_observable_up_down_counter(
-                builder.name,
-                builder.description,
-                builder.unit,
-                builder.callbacks,
-            )
+            .i64_observable_up_down_counter(builder)
     }
 }
 
@@ -134,13 +128,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>>
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
     ) -> Result<Self, Self::Error> {
         builder
-            .meter
             .instrument_provider
-            .f64_observable_up_down_counter(
-                builder.name,
-                builder.description,
-                builder.unit,
-                builder.callbacks,
-            )
+            .f64_observable_up_down_counter(builder)
     }
 }
