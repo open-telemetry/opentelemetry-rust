@@ -170,7 +170,11 @@ pub mod tonic {
                         .clone()
                         .map(Into::into)
                         .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target.clone()).into()),
+                    scope: if cfg!(feature = "populate-instrumentation-scope-from-target") {
+                        Some((instrumentation, log_record.target.clone()).into())
+                    } else {
+                        Some((instrumentation, None).into())
+                    },
                     log_records: vec![log_record.into()],
                 }],
             }
@@ -192,10 +196,14 @@ pub mod tonic {
                 )>,
             >,
              (log_record, instrumentation)| {
-                let key = log_record
-                    .target
-                    .clone()
-                    .unwrap_or_else(|| Cow::Owned(instrumentation.name.clone().into_owned()));
+                let key = if cfg!(feature = "populate-instrumentation-scope-from-target") {
+                    log_record
+                        .target
+                        .clone()
+                        .unwrap_or_else(|| Cow::Owned(instrumentation.name.clone().into_owned()))
+                } else {
+                    Cow::Owned(instrumentation.name.clone().into_owned())
+                };
                 scope_map
                     .entry(key)
                     .or_default()
@@ -209,7 +217,11 @@ pub mod tonic {
             .map(|(key, log_data)| ScopeLogs {
                 scope: Some(InstrumentationScope::from((
                     log_data.first().unwrap().1,
-                    Some(key.into_owned().into()),
+                    if cfg!(feature = "populate-instrumentation-scope-from-target") {
+                        Some(key.into_owned().into())
+                    } else {
+                        None
+                    },
                 ))),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 log_records: log_data

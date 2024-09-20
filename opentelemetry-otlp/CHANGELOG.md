@@ -2,6 +2,12 @@
 
 ## vNext
 
+- [2102](https://github.com/open-telemetry/opentelemetry-rust/pull/2102)
+  Added feature flag `populate-instrumentation-scope-from-target`, enabled by default.
+   - This will enable/disable corresponding flag for opentelemetry-proto.
+   - If flag is enabled `scope.name` is populated with `LogRecord.target`. scope.version and other `scope` fields are empty.
+   - If flag is disabled, `scope` is populated from opentelemetry-sdk's `InstrumentatonLibrary` - this includes name, version, url and attribute fields.
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25
