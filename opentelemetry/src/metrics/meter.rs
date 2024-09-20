@@ -3,10 +3,12 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::metrics::{
-    AsyncInstrumentBuilder, Counter, Gauge, Histogram, InstrumentBuilder, InstrumentProvider,
-    ObservableCounter, ObservableGauge, ObservableUpDownCounter, UpDownCounter,
+    AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
+    ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
 use crate::KeyValue;
+
+use super::{Counter, HistogramBuilder};
 
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
@@ -39,13 +41,8 @@ pub trait MeterProvider {
     ///     Some(vec![KeyValue::new("key", "value")]),
     /// );
     /// ```
-    fn meter(&self, name: impl Into<Cow<'static, str>>) -> Meter {
-        self.versioned_meter(
-            name,
-            None::<Cow<'static, str>>,
-            None::<Cow<'static, str>>,
-            None,
-        )
+    fn meter(&self, name: &'static str) -> Meter {
+        self.versioned_meter(name, None, None, None)
     }
 
     /// Returns a new versioned meter with a given name.
@@ -56,9 +53,9 @@ pub trait MeterProvider {
     /// default name will be used instead.
     fn versioned_meter(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter;
 }
@@ -390,19 +387,13 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn f64_histogram(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<'_, Histogram<f64>> {
-        InstrumentBuilder::new(self, name.into())
+    pub fn f64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, f64> {
+        HistogramBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn u64_histogram(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-    ) -> InstrumentBuilder<'_, Histogram<u64>> {
-        InstrumentBuilder::new(self, name.into())
+    pub fn u64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, u64> {
+        HistogramBuilder::new(self, name.into())
     }
 }
 

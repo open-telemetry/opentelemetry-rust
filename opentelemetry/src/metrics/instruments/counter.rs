@@ -1,10 +1,12 @@
 use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
+    metrics::{AsyncInstrument, AsyncInstrumentBuilder, MetricsError},
     KeyValue,
 };
 use core::fmt;
 use std::any::Any;
 use std::sync::Arc;
+
+use super::InstrumentBuilder;
 
 /// An SDK implemented instrument that records increasing values.
 pub trait SyncCounter<T> {
@@ -41,9 +43,7 @@ impl TryFrom<InstrumentBuilder<'_, Counter<u64>>> for Counter<u64> {
     type Error = MetricsError;
 
     fn try_from(builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_counter(builder.name, builder.description, builder.unit)
+        builder.instrument_provider.u64_counter(builder)
     }
 }
 
@@ -51,9 +51,7 @@ impl TryFrom<InstrumentBuilder<'_, Counter<f64>>> for Counter<f64> {
     type Error = MetricsError;
 
     fn try_from(builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_counter(builder.name, builder.description, builder.unit)
+        builder.instrument_provider.f64_counter(builder)
     }
 }
 
@@ -109,12 +107,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>> for Observ
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.u64_observable_counter(builder)
     }
 }
 
@@ -124,11 +117,6 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>> for Observ
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.f64_observable_counter(builder)
     }
 }

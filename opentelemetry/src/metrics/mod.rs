@@ -3,8 +3,8 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::result;
+use std::sync::Arc;
 use std::sync::PoisonError;
-use std::{borrow::Cow, sync::Arc};
 use thiserror::Error;
 
 mod instruments;
@@ -17,7 +17,7 @@ pub use instruments::{
     gauge::{Gauge, ObservableGauge, SyncGauge},
     histogram::{Histogram, SyncHistogram},
     up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
-    AsyncInstrument, AsyncInstrumentBuilder, Callback, InstrumentBuilder,
+    AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
 };
 pub use meter::{Meter, MeterProvider};
 
@@ -108,32 +108,19 @@ impl Eq for KeyValue {}
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {
     /// creates an instrument for recording increasing values.
-    fn u64_counter(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Counter<u64>> {
+    fn u64_counter(&self, _builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Counter<u64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording increasing values.
-    fn f64_counter(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Counter<f64>> {
+    fn f64_counter(&self, _builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Counter<f64>> {
         Ok(Counter::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording increasing values via callback.
     fn u64_observable_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<u64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<ObservableCounter<u64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -143,10 +130,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording increasing values via callback.
     fn f64_observable_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<ObservableCounter<f64>> {
         Ok(ObservableCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -156,9 +140,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn i64_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
+        _builder: InstrumentBuilder<'_, UpDownCounter<i64>>,
     ) -> Result<UpDownCounter<i64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -168,9 +150,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn f64_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
+        _builder: InstrumentBuilder<'_, UpDownCounter<f64>>,
     ) -> Result<UpDownCounter<f64>> {
         Ok(UpDownCounter::new(
             Arc::new(noop::NoopSyncInstrument::new()),
@@ -180,10 +160,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value.
     fn i64_observable_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<i64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
     ) -> Result<ObservableUpDownCounter<i64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -193,10 +170,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording changes of a value via callback.
     fn f64_observable_up_down_counter(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
     ) -> Result<ObservableUpDownCounter<f64>> {
         Ok(ObservableUpDownCounter::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -204,42 +178,24 @@ pub trait InstrumentProvider {
     }
 
     /// creates an instrument for recording independent values.
-    fn u64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<u64>> {
+    fn u64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Gauge<u64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording independent values.
-    fn f64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<f64>> {
+    fn f64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Gauge<f64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording independent values.
-    fn i64_gauge(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Gauge<i64>> {
+    fn i64_gauge(&self, _builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Gauge<i64>> {
         Ok(Gauge::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording the current value via callback.
     fn u64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<u64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
     ) -> Result<ObservableGauge<u64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -249,10 +205,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording the current value via callback.
     fn i64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<i64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
     ) -> Result<ObservableGauge<i64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -262,10 +215,7 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording the current value via callback.
     fn f64_observable_gauge(
         &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-        _callback: Vec<Callback<f64>>,
+        _builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
     ) -> Result<ObservableGauge<f64>> {
         Ok(ObservableGauge::new(Arc::new(
             noop::NoopAsyncInstrument::new(),
@@ -273,22 +223,12 @@ pub trait InstrumentProvider {
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn f64_histogram(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<f64>> {
+    fn f64_histogram(&self, _builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn u64_histogram(
-        &self,
-        _name: Cow<'static, str>,
-        _description: Option<Cow<'static, str>>,
-        _unit: Option<Cow<'static, str>>,
-    ) -> Result<Histogram<u64>> {
+    fn u64_histogram(&self, _builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 }
