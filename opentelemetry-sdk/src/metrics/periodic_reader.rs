@@ -18,18 +18,14 @@ use opentelemetry::{
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{
-        exporter::PushMetricsExporter,
-        reader::{MetricProducer, SdkProducer},
-    },
+    metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
     Resource,
 };
 
 use super::{
-    aggregation::Aggregation,
     data::{ResourceMetrics, Temporality},
     instrument::InstrumentKind,
-    reader::{AggregationSelector, MetricReader, TemporalitySelector},
+    reader::{MetricReader, TemporalitySelector},
     Pipeline,
 };
 
@@ -58,7 +54,6 @@ pub struct PeriodicReaderBuilder<E, RT> {
     interval: Duration,
     timeout: Duration,
     exporter: E,
-    producers: Vec<Box<dyn MetricProducer>>,
     runtime: RT,
 }
 
@@ -80,7 +75,6 @@ where
         PeriodicReaderBuilder {
             interval,
             timeout,
-            producers: vec![],
             exporter,
             runtime,
         }
@@ -115,32 +109,21 @@ where
         self
     }
 
-    /// Registers a an external [MetricProducer] with this reader.
-    ///
-    /// The producer is used as a source of aggregated metric data which is
-    /// incorporated into metrics collected from the SDK.
-    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
-        self.producers.push(Box::new(producer));
-        self
-    }
-
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
         let (message_sender, message_receiver) = mpsc::channel(256);
 
         let worker = move |reader: &PeriodicReader| {
-            let ticker = self
-                .runtime
-                .interval(self.interval)
-                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                .map(|_| Message::Export);
-
-            let messages = Box::pin(stream::select(message_receiver, ticker));
-
             let runtime = self.runtime.clone();
-            self.runtime.spawn(Box::pin(
+            let reader = reader.clone();
+            self.runtime.spawn(Box::pin(async move {
+                let ticker = runtime
+                    .interval(self.interval)
+                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                    .map(|_| Message::Export);
+                let messages = Box::pin(stream::select(message_receiver, ticker));
                 PeriodicReaderWorker {
-                    reader: reader.clone(),
+                    reader,
                     timeout: self.timeout,
                     runtime,
                     rm: ResourceMetrics {
@@ -148,8 +131,9 @@ where
                         scope_metrics: Vec::new(),
                     },
                 }
-                .run(messages),
-            ));
+                .run(messages)
+                .await
+            }));
         };
 
         PeriodicReader {
@@ -157,7 +141,6 @@ where
             inner: Arc::new(Mutex::new(PeriodicReaderInner {
                 message_sender,
                 is_shutdown: false,
-                external_producers: self.producers,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
             })),
         }
@@ -227,7 +210,6 @@ impl fmt::Debug for PeriodicReader {
 struct PeriodicReaderInner {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    external_producers: Vec<Box<dyn MetricProducer>>,
     sdk_producer_or_worker: ProducerOrWorker,
 }
 
@@ -300,12 +282,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     }
 }
 
-impl AggregationSelector for PeriodicReader {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.exporter.aggregation(kind)
-    }
-}
-
 impl TemporalitySelector for PeriodicReader {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.exporter.temporality(kind)
@@ -349,19 +325,7 @@ impl MetricReader for PeriodicReader {
             return Err(MetricsError::Other("reader is not registered".into()));
         }
 
-        let mut errs = vec![];
-        for producer in &inner.external_producers {
-            match producer.produce() {
-                Ok(metrics) => rm.scope_metrics.push(metrics),
-                Err(err) => errs.push(err),
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(MetricsError::Other(format!("{:?}", errs)))
-        }
+        Ok(())
     }
 
     fn force_flush(&self) -> Result<()> {
@@ -413,15 +377,15 @@ mod tests {
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
         runtime, testing::metrics::InMemoryMetricsExporter, Resource,
     };
-    use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::metrics::{MeterProvider, MetricsError};
     use std::sync::mpsc;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn registration_triggers_collection() {
+    #[test]
+    fn collection_triggered_by_interval() {
         // Arrange
         let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::TokioCurrentThread)
             .with_interval(interval)
             .build();
         let (sender, receiver) = mpsc::channel();
@@ -436,16 +400,14 @@ mod tests {
             })
             .init();
 
-        _ = meter_provider.force_flush();
-
         // Assert
         receiver
-            .try_recv()
+            .recv()
             .expect("message should be available in channel, indicating a collection occurred");
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn unregistered_collect() {
+    #[test]
+    fn unregistered_collect() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
@@ -458,6 +420,8 @@ mod tests {
         let result = reader.collect(&mut rm);
 
         // Assert
-        result.expect_err("error expected when reader is not registered");
+        assert!(
+            matches!(result.unwrap_err(), MetricsError::Other(err) if err == "reader is not registered")
+        );
     }
 }

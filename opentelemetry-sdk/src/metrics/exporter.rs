@@ -3,18 +3,13 @@ use async_trait::async_trait;
 
 use opentelemetry::metrics::Result;
 
-use crate::metrics::{
-    data::ResourceMetrics,
-    reader::{AggregationSelector, TemporalitySelector},
-};
+use crate::metrics::{data::ResourceMetrics, reader::TemporalitySelector};
 
 /// Exporter handles the delivery of metric data to external receivers.
 ///
 /// This is the final component in the metric push pipeline.
 #[async_trait]
-pub trait PushMetricsExporter:
-    AggregationSelector + TemporalitySelector + Send + Sync + 'static
-{
+pub trait PushMetricsExporter: TemporalitySelector + Send + Sync + 'static {
     /// Export serializes and transmits metric data to a receiver.
     ///
     /// All retry logic must be contained in this function. The SDK does not

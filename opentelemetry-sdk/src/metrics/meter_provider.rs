@@ -1,6 +1,5 @@
 use core::fmt;
 use std::{
-    borrow::Cow,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -139,9 +138,9 @@ impl Drop for SdkMeterProviderInner {
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
+        name: &'static str,
+        version: Option<&'static str>,
+        schema_url: Option<&'static str>,
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
@@ -245,7 +244,7 @@ impl fmt::Debug for MeterProviderBuilder {
             .finish()
     }
 }
-#[cfg(test)]
+#[cfg(all(test, feature = "testing"))]
 mod tests {
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,

@@ -41,9 +41,7 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<u64>>> for Gauge<u64> {
     type Error = MetricsError;
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_gauge(builder.name, builder.description, builder.unit)
+        builder.instrument_provider.u64_gauge(builder)
     }
 }
 
@@ -51,9 +49,7 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<f64>>> for Gauge<f64> {
     type Error = MetricsError;
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_gauge(builder.name, builder.description, builder.unit)
+        builder.instrument_provider.f64_gauge(builder)
     }
 }
 
@@ -61,9 +57,7 @@ impl TryFrom<InstrumentBuilder<'_, Gauge<i64>>> for Gauge<i64> {
     type Error = MetricsError;
 
     fn try_from(builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .i64_gauge(builder.name, builder.description, builder.unit)
+        builder.instrument_provider.i64_gauge(builder)
     }
 }
 
@@ -122,12 +116,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>> for Observab
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.u64_observable_gauge(builder)
     }
 }
 
@@ -137,12 +126,7 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>> for Observab
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.f64_observable_gauge(builder)
     }
 }
 
@@ -152,11 +136,6 @@ impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>> for Observab
     fn try_from(
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
     ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.i64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+        builder.instrument_provider.i64_observable_gauge(builder)
     }
 }

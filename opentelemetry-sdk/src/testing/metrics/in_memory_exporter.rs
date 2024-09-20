@@ -1,10 +1,7 @@
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
 use crate::metrics::exporter::PushMetricsExporter;
-use crate::metrics::reader::{
-    AggregationSelector, DefaultAggregationSelector, DefaultTemporalitySelector,
-    TemporalitySelector,
-};
-use crate::metrics::{data, Aggregation, InstrumentKind};
+use crate::metrics::reader::{DefaultTemporalitySelector, TemporalitySelector};
+use crate::metrics::{data, InstrumentKind};
 use async_trait::async_trait;
 use opentelemetry::metrics::MetricsError;
 use opentelemetry::metrics::Result;
@@ -44,7 +41,7 @@ use std::sync::{Arc, Mutex};
 ///      .build();
 ///
 ///  // Create and record metrics using the MeterProvider
-///  let meter = meter_provider.meter(std::borrow::Cow::Borrowed("example"));
+///  let meter = meter_provider.meter("example");
 ///  let counter = meter.u64_counter("my_counter").init();
 ///  counter.add(1, &[KeyValue::new("key", "value")]);
 ///
@@ -61,7 +58,6 @@ use std::sync::{Arc, Mutex};
 /// ```
 pub struct InMemoryMetricsExporter {
     metrics: Arc<Mutex<VecDeque<ResourceMetrics>>>,
-    aggregation_selector: Arc<dyn AggregationSelector + Send + Sync>,
     temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
 }
 
@@ -69,7 +65,6 @@ impl Clone for InMemoryMetricsExporter {
     fn clone(&self) -> Self {
         InMemoryMetricsExporter {
             metrics: self.metrics.clone(),
-            aggregation_selector: self.aggregation_selector.clone(),
             temporality_selector: self.temporality_selector.clone(),
         }
     }
@@ -96,7 +91,6 @@ impl Default for InMemoryMetricsExporter {
 /// let exporter = InMemoryMetricsExporterBuilder::new().build();
 /// ```
 pub struct InMemoryMetricsExporterBuilder {
-    aggregation_selector: Option<Arc<dyn AggregationSelector + Send + Sync>>,
     temporality_selector: Option<Arc<dyn TemporalitySelector + Send + Sync>>,
 }
 
@@ -116,18 +110,8 @@ impl InMemoryMetricsExporterBuilder {
     /// Creates a new instance of the `InMemoryMetricsExporterBuilder`.
     pub fn new() -> Self {
         Self {
-            aggregation_selector: None,
             temporality_selector: None,
         }
-    }
-
-    /// Sets the aggregation selector for the exporter.
-    pub fn with_aggregation_selector<T>(mut self, aggregation_selector: T) -> Self
-    where
-        T: AggregationSelector + Send + Sync + 'static,
-    {
-        self.aggregation_selector = Some(Arc::new(aggregation_selector));
-        self
     }
 
     /// Sets the temporality selector for the exporter.
@@ -144,9 +128,6 @@ impl InMemoryMetricsExporterBuilder {
     pub fn build(self) -> InMemoryMetricsExporter {
         InMemoryMetricsExporter {
             metrics: Arc::new(Mutex::new(VecDeque::new())),
-            aggregation_selector: self
-                .aggregation_selector
-                .unwrap_or_else(|| Arc::new(DefaultAggregationSelector::default())),
             temporality_selector: self
                 .temporality_selector
                 .unwrap_or_else(|| Arc::new(DefaultTemporalitySelector::default())),
@@ -267,12 +248,6 @@ impl InMemoryMetricsExporter {
             // unknown data type
             None
         }
-    }
-}
-
-impl AggregationSelector for InMemoryMetricsExporter {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.aggregation_selector.aggregation(kind)
     }
 }
 

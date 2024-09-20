@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Fix JSON serialization of `metrics::Exemplar` and `trace::span::Link` [#2069](https://github.com/open-telemetry/opentelemetry-rust/pull/2069)
+
 ## v0.25.0
 - Update `opentelemetry` dependency version to 0.25
 - Update `opentelemetry_sdk` dependency version to 0.25
