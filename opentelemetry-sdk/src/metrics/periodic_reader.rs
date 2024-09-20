@@ -114,18 +114,16 @@ where
         let (message_sender, message_receiver) = mpsc::channel(256);
 
         let worker = move |reader: &PeriodicReader| {
-            let ticker = self
-                .runtime
-                .interval(self.interval)
-                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                .map(|_| Message::Export);
-
-            let messages = Box::pin(stream::select(message_receiver, ticker));
-
             let runtime = self.runtime.clone();
-            self.runtime.spawn(Box::pin(
+            let reader = reader.clone();
+            self.runtime.spawn(Box::pin(async move {
+                let ticker = runtime
+                    .interval(self.interval)
+                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                    .map(|_| Message::Export);
+                let messages = Box::pin(stream::select(message_receiver, ticker));
                 PeriodicReaderWorker {
-                    reader: reader.clone(),
+                    reader,
                     timeout: self.timeout,
                     runtime,
                     rm: ResourceMetrics {
@@ -133,8 +131,9 @@ where
                         scope_metrics: Vec::new(),
                     },
                 }
-                .run(messages),
-            ));
+                .run(messages)
+                .await
+            }));
         };
 
         PeriodicReader {
@@ -378,15 +377,15 @@ mod tests {
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
         runtime, testing::metrics::InMemoryMetricsExporter, Resource,
     };
-    use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::metrics::{MeterProvider, MetricsError};
     use std::sync::mpsc;
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn registration_triggers_collection() {
+    #[test]
+    fn collection_triggered_by_interval() {
         // Arrange
         let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::TokioCurrentThread)
             .with_interval(interval)
             .build();
         let (sender, receiver) = mpsc::channel();
@@ -401,16 +400,14 @@ mod tests {
             })
             .init();
 
-        _ = meter_provider.force_flush();
-
         // Assert
         receiver
-            .try_recv()
+            .recv()
             .expect("message should be available in channel, indicating a collection occurred");
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn unregistered_collect() {
+    #[test]
+    fn unregistered_collect() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
@@ -423,6 +420,8 @@ mod tests {
         let result = reader.collect(&mut rm);
 
         // Assert
-        result.expect_err("error expected when reader is not registered");
+        assert!(
+            matches!(result.unwrap_err(), MetricsError::Other(err) if err == "reader is not registered")
+        );
     }
 }

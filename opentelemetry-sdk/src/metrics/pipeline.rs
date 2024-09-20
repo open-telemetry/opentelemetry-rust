@@ -470,7 +470,6 @@ fn aggregate_fn<T: Number>(
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> Result<Option<AggregateFns<T>>> {
-    use aggregation::Aggregation;
     fn box_val<T>(
         (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
     ) -> (
@@ -544,7 +543,6 @@ fn aggregate_fn<T: Number>(
 /// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 /// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
 fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
-    use aggregation::Aggregation;
     match agg {
         Aggregation::Default => Ok(()),
         Aggregation::ExplicitBucketHistogram { .. }
