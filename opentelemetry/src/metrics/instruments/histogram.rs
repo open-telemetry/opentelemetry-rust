@@ -1,7 +1,4 @@
-use crate::{
-    metrics::{InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
@@ -33,25 +30,5 @@ impl<T> Histogram<T> {
     /// Adds an additional value to the distribution.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
         self.0.record(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Histogram<f64>>> for Histogram<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_histogram(builder.name, builder.description, builder.unit)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Histogram<u64>>> for Histogram<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_histogram(builder.name, builder.description, builder.unit)
     }
 }
