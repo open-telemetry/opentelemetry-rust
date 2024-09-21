@@ -31,7 +31,7 @@ templates:
       | map(.attributes[])
       | unique_by(.name)
       | sort_by(.name)
-      | map({name, brief, examples, requirement_level, stability, type})
+      | map({name, brief, examples, deprecated, requirement_level, stability, type})
     application_mode: single
   - pattern: trace.rs.j2
     filter: >
@@ -39,7 +39,7 @@ templates:
       | map(.attributes[])
       | unique_by(.name)
       | sort_by(.name)
-      | map({name, brief, examples, requirement_level, stability, type})
+      | map({name, brief, examples, deprecated, requirement_level, stability, type})
     application_mode: single
   - pattern: lib.rs.j2
     filter: .

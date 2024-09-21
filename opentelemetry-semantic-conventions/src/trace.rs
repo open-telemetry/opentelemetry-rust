@@ -225,12 +225,15 @@ pub use crate::attribute::DB_QUERY_TEXT;
 pub use crate::attribute::DB_SYSTEM;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::ENDUSER_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::ENDUSER_ROLE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::ENDUSER_SCOPE;
 
 pub use crate::attribute::ERROR_TYPE;
