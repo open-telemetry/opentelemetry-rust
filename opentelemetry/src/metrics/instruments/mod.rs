@@ -208,6 +208,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
+            .field("boundaries", &self.boundaries)
             .field(
                 "kind",
                 &format!("Histogram<{}>", &std::any::type_name::<T>()),
