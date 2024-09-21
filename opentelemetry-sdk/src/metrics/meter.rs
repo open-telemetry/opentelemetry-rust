@@ -358,7 +358,10 @@ impl InstrumentProvider for SdkMeter {
         Ok(ObservableGauge::new(observable))
     }
 
-    fn f64_histogram(&self, builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
+    fn f64_histogram(
+        &self,
+        builder: HistogramBuilder<'_, Histogram<f64>>,
+    ) -> Result<Histogram<f64>> {
         validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.f64_resolver);
         p.lookup(
@@ -370,7 +373,10 @@ impl InstrumentProvider for SdkMeter {
         .map(|i| Histogram::new(Arc::new(i)))
     }
 
-    fn u64_histogram(&self, builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
+    fn u64_histogram(
+        &self,
+        builder: HistogramBuilder<'_, Histogram<u64>>,
+    ) -> Result<Histogram<u64>> {
         validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
         let p = InstrumentResolver::new(self, &self.u64_resolver);
         p.lookup(

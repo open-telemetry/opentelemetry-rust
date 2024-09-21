@@ -8,7 +8,7 @@ use crate::metrics::{
 };
 use crate::KeyValue;
 
-use super::{Counter, HistogramBuilder};
+use super::{Counter, Histogram, HistogramBuilder};
 
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
@@ -387,12 +387,18 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn f64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, f64> {
+    pub fn f64_histogram(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> HistogramBuilder<'_, Histogram<f64>> {
         HistogramBuilder::new(self, name.into())
     }
 
     /// creates an instrument builder for recording a distribution of values.
-    pub fn u64_histogram(&self, name: impl Into<Cow<'static, str>>) -> HistogramBuilder<'_, u64> {
+    pub fn u64_histogram(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> HistogramBuilder<'_, Histogram<u64>> {
         HistogramBuilder::new(self, name.into())
     }
 }
