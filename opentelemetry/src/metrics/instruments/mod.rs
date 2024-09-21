@@ -39,6 +39,9 @@ pub struct HistogramBuilder<'a, T> {
     /// Unit of the Histogram.
     pub unit: Option<Cow<'static, str>>,
 
+    /// Bucket boundaries for the histogram.
+    pub boundaries: Option<Vec<f64>>,
+
     // boundaries: Vec<T>,
     _marker: marker::PhantomData<T>,
 }
@@ -51,6 +54,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
             name,
             description: None,
             unit: None,
+            boundaries: None,
             _marker: marker::PhantomData,
         }
     }
@@ -70,6 +74,12 @@ impl<'a, T> HistogramBuilder<'a, T> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
+        self
+    }
+
+    /// Set the boundaries for this histogram.
+    pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
+        self.boundaries = Some(boundaries);
         self
     }
 }
