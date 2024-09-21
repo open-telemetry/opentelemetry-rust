@@ -10,6 +10,7 @@ comment_formats:
     prefix: "/// "
     trim: true
     remove_trailing_dots: true
+    escape_square_brackets: true
 default_comment_format: rust
 
 params:

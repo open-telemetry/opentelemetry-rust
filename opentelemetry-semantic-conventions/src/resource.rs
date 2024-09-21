@@ -380,4 +380,3 @@ pub use crate::attribute::WEBENGINE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_VERSION;
-

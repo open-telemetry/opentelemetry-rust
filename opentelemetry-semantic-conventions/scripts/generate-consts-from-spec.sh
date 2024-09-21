@@ -6,7 +6,7 @@ CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
 SPEC_VERSION=1.27.0
-WEAVER_VERSION=v0.9.2
+WEAVER_VERSION=v0.10.0
 
 cd "$CRATE_DIR"
 

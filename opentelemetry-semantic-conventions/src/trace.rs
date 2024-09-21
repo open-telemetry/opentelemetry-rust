@@ -119,9 +119,6 @@ pub use crate::attribute::AWS_S3_PART_NUMBER;
 pub use crate::attribute::AWS_S3_UPLOAD_ID;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::AZ_NAMESPACE;
-
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AZ_SERVICE_REQUEST_ID;
 
 pub use crate::attribute::CLIENT_ADDRESS;
@@ -145,6 +142,24 @@ pub use crate::attribute::CLOUDEVENTS_EVENT_SUBJECT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUDEVENTS_EVENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_COLUMN;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_FILEPATH;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_FUNCTION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_LINENO;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_NAMESPACE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CODE_STACKTRACE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_CASSANDRA_CONSISTENCY_LEVEL;
@@ -208,6 +223,15 @@ pub use crate::attribute::DB_QUERY_TEXT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_SYSTEM;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ENDUSER_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ENDUSER_ROLE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ENDUSER_SCOPE;
 
 pub use crate::attribute::ERROR_TYPE;
 
@@ -406,6 +430,16 @@ pub use crate::attribute::NETWORK_TRANSPORT;
 pub use crate::attribute::NETWORK_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::OPENTRACING_REF_TYPE;
+
+pub use crate::attribute::OTEL_STATUS_CODE;
+
+pub use crate::attribute::OTEL_STATUS_DESCRIPTION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PEER_SERVICE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::RPC_CONNECT_RPC_ERROR_CODE;
 
 #[cfg(feature = "semconv_experimental")]
@@ -460,6 +494,12 @@ pub use crate::attribute::SERVER_ADDRESS;
 
 pub use crate::attribute::SERVER_PORT;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::THREAD_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::THREAD_NAME;
+
 pub use crate::attribute::URL_FULL;
 
 pub use crate::attribute::URL_PATH;
@@ -469,4 +509,3 @@ pub use crate::attribute::URL_QUERY;
 pub use crate::attribute::URL_SCHEME;
 
 pub use crate::attribute::USER_AGENT_ORIGINAL;
-
