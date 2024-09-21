@@ -1,12 +1,9 @@
-use crate::{
-    metrics::{InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
 use std::any::Any;
 use std::sync::Arc;
 
-use super::{AsyncInstrument, AsyncInstrumentBuilder};
+use super::AsyncInstrument;
 
 /// An SDK implemented instrument that records increasing or decreasing values.
 pub trait SyncUpDownCounter<T> {
@@ -39,22 +36,6 @@ impl<T> UpDownCounter<T> {
     /// Records an increment or decrement to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
         self.0.add(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<i64>>> for UpDownCounter<i64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<i64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.i64_up_down_counter(builder)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<f64>>> for UpDownCounter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<f64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_up_down_counter(builder)
     }
 }
 
@@ -102,33 +83,5 @@ impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {
 
     fn as_any(&self) -> Arc<dyn std::any::Any> {
         self.0.as_any()
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>>
-    for ObservableUpDownCounter<i64>
-{
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
-    ) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .i64_observable_up_down_counter(builder)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>>
-    for ObservableUpDownCounter<f64>
-{
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_observable_up_down_counter(builder)
     }
 }
