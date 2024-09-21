@@ -2,6 +2,10 @@
 
 ## vNext
 
+- **BREAKING** Public API changes:
+  - **Removed**: `SdkMeter` struct [#2113](https://github.com/open-telemetry/opentelemetry-rust/pull/2113). This API is only meant for internal use.
+  - **Removed**: `AggregationSelector` trait and `DefaultAggregationSelector` struct [#2085](https://github.com/open-telemetry/opentelemetry-rust/pull/2085). This API was unnecessary. The feature to customize aggregation for instruments should be offered by `Views` API.
+
 - Update `async-std` dependency version to 1.13
 - *Breaking* - Remove support for `MetricProducer` which allowed metrics from
   external sources to be sent through OpenTelemetry.
