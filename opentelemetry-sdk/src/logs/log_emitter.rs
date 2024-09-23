@@ -6,7 +6,7 @@ use opentelemetry::{
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
-use opentelemetry::{otel_debug, otel_info, otel_warn};
+use opentelemetry::{otel_debug, otel_info, otel_target, otel_warn};
 
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
@@ -50,9 +50,14 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
-        otel_info!(target: "opentelemetry-sdk", name: "logger_versioned_creation", signal: "log", 
-        "Creating a new versioned logger with name: {:?}, version: {:?}, schema_url: {:?}, attributes: {:?}", 
-        name, version, schema_url, attributes);
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_versioned_creation",
+            instr_lib_name= name,
+            version = version.as_deref(),
+            schema_url = schema_url.as_deref(),
+            attributes = attributes
+        );
 
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
@@ -76,8 +81,11 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
-        otel_info!(target: "opentelemetry-sdk", name: "logger_library_logger", signal: "log", 
-            "Creating a library logger for library: {:?}", library);
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_library_logger_creation",
+            library= library
+        );
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
@@ -89,23 +97,37 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
     pub fn builder() -> Builder {
-        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_builder", signal: "log", "Creating a new LoggerProvider builder.");
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_provider_builder"
+        );
         Builder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
-        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_log_processors", signal: "log", "Retrieving {} log processors.", self.inner.processors.len());
+        otel_debug!(
+            target: otel_target!("logs"),
+            name: "logger_provider_log_processors",
+            processor_count= self.inner.processors.len()
+        );
         &self.inner.processors
     }
 
     pub(crate) fn resource(&self) -> &Resource {
-        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_resource", signal: "log", "Retrieving {} resource for LoggerProvider.", self.inner.resource.len());
+        otel_debug!(
+            target: otel_target!("logs"),
+            name: "logger_provider_resource",
+            resource_count= self.inner.resource.len()
+        );
         &self.inner.resource
     }
 
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> Vec<LogResult<()>> {
-        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_force_flush", signal: "log", "Forcing flush for all log processors.");
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_provider_force_flush"
+        );
         self.log_processors()
             .iter()
             .map(|processor| processor.force_flush())
@@ -114,7 +136,10 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
-        otel_info!(target: "opentelemetry-sdk", name: "logger_provider_shutdown", signal: "log", "Shutting down LoggerProvider.");
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_provider_shutdown"
+        );
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -125,7 +150,11 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
-                    otel_warn!(target: "opentelemetry-sdk", name: "logger_provider_shutdown_error", signal: "log", "Error while shutting down a log processor: {:?}", err);
+                    otel_warn!(
+                        target: otel_target!("logs"),
+                        name: "logger_provider_shutdown_error",
+                        error= err
+                    );
                     errs.push(err);
                 }
             }
@@ -136,7 +165,10 @@ impl LoggerProvider {
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
-            otel_warn!(target: "opentelemetry-sdk", name: "logger_provider_already_shutdown", signal: "log", "LoggerProvider is already shut down.");
+            otel_warn!(
+                target: otel_target!("logs"),
+                name: "logger_provider_already_shutdown"
+            );
             Err(LogError::Other("logger provider already shut down".into()))
         }
     }
@@ -213,11 +245,15 @@ impl Builder {
         };
 
         // invoke set_resource on all the processors
-        otel_debug!(target: "opentelemetry-sdk", name: "logger_provider_build", signal: "log", 
-            "Setting resource for logger provider and applying it to processors.");
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }
+        otel_debug!(
+            target: otel_target!("logs"),
+            name: "logger_provider_build",
+            resource_count = logger_provider.resource().len(),
+            processor_count = logger_provider.log_processors().len()
+        );
         logger_provider
     }
 }
@@ -236,7 +272,10 @@ impl Logger {
         instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: LoggerProvider,
     ) -> Self {
-        otel_info!(target: "opentelemetry-sdk", name: "logger_new", signal: "log", "Creating a new Logger.");
+        otel_info!(
+            target: otel_target!("logs"),
+            name: "logger_new"
+        );
         Logger {
             instrumentation_lib,
             provider,
@@ -264,10 +303,9 @@ impl opentelemetry::logs::Logger for Logger {
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
         otel_debug!(
-            target: "opentelemetry-sdk",
+            target: otel_target!("logs"),
             name: "log_record_emit_start",
-            signal: "log",
-            "Starting the process of emitting a log record"
+            record = record
         );
         let provider = self.provider();
         let processors = provider.log_processors();
@@ -302,8 +340,13 @@ impl opentelemetry::logs::Logger for Logger {
                     self.instrumentation_library().name.as_ref(),
                 );
         }
-        otel_debug!(target: "opentelemetry-sdk", name: "log_record_event_enabled_check", signal: "log", "log event enabled status is {} for target: {} ", enabled, target);
-
+        otel_debug!(
+            target: otel_target!("logs"),
+            name: "log_record_event_enabled_check",
+            enabled_status = enabled,
+            level = level,
+            log_target = target
+        );
         enabled
     }
 }

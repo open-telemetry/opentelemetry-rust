@@ -1,26 +1,74 @@
 #![allow(unused_macros)]
-/// Macro for logging messages at the general log level in OpenTelemetry.
+
+/// Macro to dynamically generate the logging `target` string with the format `crate:signal:module`.
+/// The `signal` is optional.
 ///
-/// # Fields:
-/// - `target`: The component or module generating the log. This identifies which crate or system part is logging the message (e.g., "opentelemetry-sdk", "opentelemetry-otlp").
-/// - `name`: The operation or action being logged. This provides context on what the system is doing at the time the log is emitted (e.g., "sdk_initialization", "exporter_start").
-/// - `signal`: The type of telemetry data related to the log. This could be "trace", "metric", or "log", representing the OpenTelemetry signal.
+/// This macro constructs a fully-qualified target string for `otel_*` logging macros by
+/// concatenating the current crate name, the provided `signal`, and the module name (via `module_path!()`).
 ///
 /// # Example:
 /// ```rust
-/// otel_log!(
+/// // If `signal` is passed
+/// otel_target!("log")
+/// ```
+///
+/// If used inside a module called `my_module::sub_module`, the resulting target string would be:
+/// ```
+/// "crate_name:log:my_module::sub_module"
+/// ```
+///
+/// If no `signal` is passed:
+/// ```
+/// "crate_name:my_module::sub_module"
+/// ```
+#[macro_export]
+macro_rules! otel_target {
+    ($signal:expr) => {
+        concat!(env!("CARGO_PKG_NAME"), ".", $signal, ".", module_path!())
+    };
+    () => {
+        concat!(env!("CARGO_PKG_NAME"), ".", module_path!())
+    };
+}
+
+/// Macro for logging informational messages in OpenTelemetry.
+///
+/// # Fields:
+/// - `target`: The component or module generating the log (e.g., "opentelemetry-sdk").
+/// - `name`: The operation or action being logged (e.g., "sdk_start").
+/// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `schema_url`).
+///
+/// # Example:
+/// ```rust
+/// // Without extra attributes
+/// otel_info!(
 ///     target: "opentelemetry-sdk",
-///     name: "sdk_initialization",
-///     signal: "trace",
-///     "Initializing the OpenTelemetry SDK for traces"
+///     name: "sdk_start"
+/// );
+///
+/// // With extra attributes
+/// otel_info!(
+///     target: "opentelemetry-sdk",
+///     name: "sdk_start",
+///     version = "1.0.0",
+///     schema_url = "http://example.com"
 /// );
 /// ```
 #[macro_export]
-macro_rules! otel_log {
-    (target: $target:expr, name: $name:expr, signal: $signal:expr, $($arg:tt)*) => {
+macro_rules! otel_info {
+    // Without extra attributes
+    (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::log!(target: $target, { name = $name, signal = $signal }, $($arg)*);
+            tracing::info!(target: $target, name: $name);
+        }
+    };
+
+    // With additional attributes
+    (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::info!(target: $target, name: $name, $($key: $value),+);
         }
     };
 }
@@ -28,25 +76,41 @@ macro_rules! otel_log {
 /// Macro for logging warning messages in OpenTelemetry.
 ///
 /// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-sdk").
+/// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
 /// - `name`: The operation or action being logged (e.g., "export_warning").
-/// - `signal`: The type of telemetry data related to the log ("trace", "metric", "log").
+/// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `error_code`).
 ///
 /// # Example:
 /// ```rust
+/// // Without extra attributes
+/// otel_warn!(
+///     target: "opentelemetry-otlp",
+///     name: "export_warning"
+/// );
+///
+/// // With extra attributes
 /// otel_warn!(
 ///     target: "opentelemetry-otlp",
 ///     name: "export_warning",
-///     signal: "metric",
-///     "Potential issue detected during metric export"
+///     error_code = 404,
+///     version = "1.0.0"
 /// );
 /// ```
 #[macro_export]
 macro_rules! otel_warn {
-    (target: $target:expr, name: $name:expr, signal: $signal:expr, $($arg:tt)*) => {
+    // Without extra attributes
+    (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::warn!(target: $target, { name = $name, signal = $signal }, $($arg)*);
+            tracing::warn!(target: $target, name: $name );
+        }
+    };
+
+    // With additional attributes
+    (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::warn!(target: $target, name: $name, $($key = $value),+ );
         }
     };
 }
@@ -56,23 +120,39 @@ macro_rules! otel_warn {
 /// # Fields:
 /// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
 /// - `name`: The operation or action being logged (e.g., "debug_operation").
-/// - `signal`: The type of telemetry data ("trace", "metric", "log").
+/// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `debug_level`).
 ///
 /// # Example:
 /// ```rust
+/// // Without extra attributes
 /// otel_debug!(
-///     target: "opentelemetry-metrics",
-///     name: "metrics_debugging",
-///     signal: "metric",
-///     "Debugging metric exporter"
+///     target: "opentelemetry-otlp",
+///     name: "debug_operation"
+/// );
+///
+/// // With extra attributes
+/// otel_debug!(
+///     target: "opentelemetry-otlp",
+///     name: "debug_operation",
+///     debug_level = "high",
+///     version = "1.0.0"
 /// );
 /// ```
 #[macro_export]
 macro_rules! otel_debug {
-    (target: $target:expr, name: $name:expr, signal: $signal:expr, $($arg:tt)*) => {
+    // Without extra attributes
+    (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::debug!(target: $target, { name = $name, signal = $signal }, $($arg)*);
+            tracing::debug!(target: $target, name: $name);
+        }
+    };
+
+    // With additional attributes
+    (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::debug!(target: $target, name = $name, $($key = $value),+ );
         }
     };
 }
@@ -82,49 +162,39 @@ macro_rules! otel_debug {
 /// # Fields:
 /// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
 /// - `name`: The operation or action being logged (e.g., "export_failure").
-/// - `signal`: The type of telemetry data related to the log ("trace", "metric", "log").
+/// - Additional optional key-value pairs can be passed as attributes (e.g., `error_code`, `version`).
 ///
 /// # Example:
 /// ```rust
+/// // Without extra attributes
+/// otel_error!(
+///     target: "opentelemetry-otlp",
+///     name: "export_failure"
+/// );
+///
+/// // With extra attributes
 /// otel_error!(
 ///     target: "opentelemetry-otlp",
 ///     name: "export_failure",
-///     signal: "metric",
-///     "Failed to export metric data to collector"
+///     error_code = 500,
+///     version = "1.0.0"
 /// );
 /// ```
 #[macro_export]
 macro_rules! otel_error {
-    (target: $target:expr, name: $name:expr, signal: $signal:expr, $($arg:tt)*) => {
+    // Without extra attributes
+    (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::error!(target: $target, { name = $name, signal = $signal }, $($arg)*);
+            tracing::error!(target: $target, name: $name);
         }
     };
-}
 
-/// Macro for logging informational messages in OpenTelemetry.
-///
-/// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-sdk").
-/// - `name`: The operation or action being logged (e.g., "sdk_start").
-/// - `signal`: The type of telemetry data related to the log ("trace", "metric", "log").
-///
-/// # Example:
-/// ```rust
-/// otel_info!(
-///     target: "opentelemetry-sdk",
-///     name: "sdk_start",
-///     signal: "trace",
-///     "Starting SDK initialization"
-/// );
-/// ```
-#[macro_export]
-macro_rules! otel_info {
-    (target: $target:expr, name: $name:expr, signal: $signal:expr, $($arg:tt)*) => {
+    // With additional attributes
+    (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::info!(target: $target, { name = $name, signal = $signal }, $($arg)*);
+            tracing::error!(target: $target, name: $name, $($key = $value),+ );
         }
     };
 }
