@@ -9,11 +9,9 @@
       "opentelemetry-appender-log/Cargo.toml",
       "opentelemetry-appender-tracing/Cargo.toml"
     ],
-    "1.70.0": [
-      "opentelemetry-proto/Cargo.toml"
-    ],
     "1.71.1": [
-      "opentelemetry-otlp/Cargo.toml"
+      "opentelemetry-otlp/Cargo.toml",
+      "opentelemetry-proto/Cargo.toml"
     ]
 }
   
