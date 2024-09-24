@@ -84,6 +84,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| Counter::new(Arc::new(i)))
     }
@@ -96,6 +97,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| Counter::new(Arc::new(i)))
     }
@@ -111,6 +113,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -138,6 +141,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
@@ -164,6 +168,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| UpDownCounter::new(Arc::new(i)))
     }
@@ -179,6 +184,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| UpDownCounter::new(Arc::new(i)))
     }
@@ -194,6 +200,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -223,6 +230,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableUpDownCounter::new(Arc::new(
@@ -249,6 +257,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| Gauge::new(Arc::new(i)))
     }
@@ -261,6 +270,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| Gauge::new(Arc::new(i)))
     }
@@ -273,6 +283,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )
         .map(|i| Gauge::new(Arc::new(i)))
     }
@@ -288,6 +299,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -315,6 +327,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -342,6 +355,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            None,
         )?;
         if ms.is_empty() {
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
@@ -366,6 +380,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            builder.boundaries,
         )
         .map(|i| Histogram::new(Arc::new(i)))
     }
@@ -378,6 +393,7 @@ impl InstrumentProvider for SdkMeter {
             builder.name,
             builder.description,
             builder.unit,
+            builder.boundaries,
         )
         .map(|i| Histogram::new(Arc::new(i)))
     }
@@ -479,8 +495,9 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
+        boundaries: Option<Vec<f64>>,
     ) -> Result<ResolvedMeasures<T>> {
-        let aggregators = self.measures(kind, name, description, unit)?;
+        let aggregators = self.measures(kind, name, description, unit, boundaries)?;
         Ok(ResolvedMeasures {
             measures: aggregators,
         })
@@ -492,6 +509,7 @@ where
         name: Cow<'static, str>,
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
+        boundaries: Option<Vec<f64>>,
     ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
@@ -501,7 +519,7 @@ where
             scope: self.meter.scope.clone(),
         };
 
-        self.resolve.measures(inst)
+        self.resolve.measures(inst, boundaries)
     }
 }
 

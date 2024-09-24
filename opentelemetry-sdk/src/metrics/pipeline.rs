@@ -244,7 +244,11 @@ where
     ///
     /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
     /// that instrument is not inserted nor returned.
-    fn instrument(&self, inst: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    fn instrument(
+        &self,
+        inst: Instrument,
+        boundaries: Option<&[f64]>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -288,13 +292,21 @@ where
         }
 
         // Apply implicit default view if no explicit matched.
-        let stream = Stream {
+        let mut stream = Stream {
             name: inst.name,
             description: inst.description,
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
         };
+
+        // Override default histogram boundaries if provided.
+        if let Some(boundaries) = boundaries {
+            stream.aggregation = Some(Aggregation::ExplicitBucketHistogram {
+                boundaries: boundaries.to_vec(),
+                record_min_max: true,
+            });
+        }
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
             Ok(agg) => {
@@ -682,11 +694,15 @@ where
     }
 
     /// The measures that must be updated by the instrument defined by key.
-    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    pub(crate) fn measures(
+        &self,
+        id: Instrument,
+        boundaries: Option<Vec<f64>>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
-            match inserter.instrument(id.clone()) {
+            match inserter.instrument(id.clone(), boundaries.as_deref()) {
                 Ok(ms) => measures.extend(ms),
                 Err(err) => errs.push(err),
             }
