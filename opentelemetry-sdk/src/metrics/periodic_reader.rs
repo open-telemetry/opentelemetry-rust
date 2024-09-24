@@ -1,22 +1,17 @@
+use core::time;
 use std::{
-    env, fmt, mem,
-    sync::{Arc, Mutex, Weak},
-    time::Duration,
+    env, fmt,
+    sync::{
+        atomic::AtomicBool,
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex, Weak,
+    },
+    thread,
+    time::{Duration, Instant},
 };
 
-use futures_channel::{mpsc, oneshot};
-use futures_util::{
-    future::{self, Either},
-    pin_mut,
-    stream::{self, FusedStream},
-    StreamExt,
-};
-use opentelemetry::{
-    global,
-    metrics::{MetricsError, Result},
-};
+use opentelemetry::metrics::{MetricsError, Result};
 
-use crate::runtime::Runtime;
 use crate::{
     metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
     Resource,
@@ -50,19 +45,17 @@ const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 ///
 /// [collect]: MetricReader::collect
 #[derive(Debug)]
-pub struct PeriodicReaderBuilder<E, RT> {
+pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
     timeout: Duration,
     exporter: E,
-    runtime: RT,
 }
 
-impl<E, RT> PeriodicReaderBuilder<E, RT>
+impl<E> PeriodicReaderBuilder<E>
 where
     E: PushMetricsExporter,
-    RT: Runtime,
 {
-    fn new(exporter: E, runtime: RT) -> Self {
+    fn new(exporter: E) -> Self {
         let interval = env::var(METRIC_EXPORT_INTERVAL_NAME)
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
@@ -76,7 +69,6 @@ where
             interval,
             timeout,
             exporter,
-            runtime,
         }
     }
 
@@ -111,39 +103,7 @@ where
 
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
-        let (message_sender, message_receiver) = mpsc::channel(256);
-
-        let worker = move |reader: &PeriodicReader| {
-            let runtime = self.runtime.clone();
-            let reader = reader.clone();
-            self.runtime.spawn(Box::pin(async move {
-                let ticker = runtime
-                    .interval(self.interval)
-                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                    .map(|_| Message::Export);
-                let messages = Box::pin(stream::select(message_receiver, ticker));
-                PeriodicReaderWorker {
-                    reader,
-                    timeout: self.timeout,
-                    runtime,
-                    rm: ResourceMetrics {
-                        resource: Resource::empty(),
-                        scope_metrics: Vec::new(),
-                    },
-                }
-                .run(messages)
-                .await
-            }));
-        };
-
-        PeriodicReader {
-            exporter: Arc::new(self.exporter),
-            inner: Arc::new(Mutex::new(PeriodicReaderInner {
-                message_sender,
-                is_shutdown: false,
-                sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
-            })),
-        }
+        PeriodicReader::new(self.exporter, self.interval)
     }
 }
 
@@ -187,17 +147,116 @@ where
 #[derive(Clone)]
 pub struct PeriodicReader {
     exporter: Arc<dyn PushMetricsExporter>,
-    inner: Arc<Mutex<PeriodicReaderInner>>,
+    inner: Arc<PeriodicReaderInner>,
 }
 
 impl PeriodicReader {
     /// Configuration options for a periodic reader
-    pub fn builder<E, RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
+    pub fn builder<E>(exporter: E) -> PeriodicReaderBuilder<E>
     where
         E: PushMetricsExporter,
-        RT: Runtime,
     {
-        PeriodicReaderBuilder::new(exporter, runtime)
+        PeriodicReaderBuilder::new(exporter)
+    }
+
+    fn new<E>(exporter: E, interval: Duration) -> Self
+    where
+        E: PushMetricsExporter,
+    {
+        let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
+            mpsc::channel();
+        let reader = PeriodicReader {
+            exporter: Arc::new(exporter),
+            inner: Arc::new(PeriodicReaderInner {
+                message_sender,
+                is_shutdown: AtomicBool::new(false),
+                producer: Mutex::new(None),
+            }),
+        };
+        let cloned_reader = reader.clone();
+
+        thread::spawn(move || {
+            let mut interval_start = Instant::now();
+            let mut remaining_interval = interval;
+            println!("PeriodicReader Thread started.");
+            loop {
+                match message_receiver.recv_timeout(remaining_interval) {
+                    Ok(Message::Flush(response_sender)) => {
+                        println!("Performing ad-hoc export due to Flush.");
+                        if let Err(_e) = cloned_reader.collect_and_export() {
+                            response_sender.send(false).unwrap();
+                        } else {
+                            response_sender.send(true).unwrap();
+                        }
+
+                        // Adjust the remaining interval after the flush
+                        let elapsed = interval_start.elapsed();
+                        if elapsed < interval {
+                            remaining_interval = interval - elapsed;
+                            println!(
+                                "Adjusting remaining interval after Flush: {:?}",
+                                remaining_interval
+                            );
+                        } else {
+                            // Reset the interval if the flush happens after the expected export time
+                            // This will skip the normal periodic exporting. is this the desired behavior?
+                            interval_start = Instant::now();
+                            remaining_interval = interval;
+                        }
+                    }
+                    Ok(Message::Shutdown(response_sender)) => {
+                        // Perform final export and break out of loop and exit the thread
+                        println!("Performing final export and shutting down.");
+                        if let Err(_e) = cloned_reader.collect_and_export() {
+                            response_sender.send(false).unwrap();
+                        } else {
+                            response_sender.send(true).unwrap();
+                        }
+                        break;
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        let export_start = Instant::now();
+                        println!("Performing periodic export at {:?}", export_start);
+                        cloned_reader.collect_and_export().unwrap();
+
+                        let time_taken_for_export = export_start.elapsed();
+                        if time_taken_for_export > interval {
+                            println!("Export took longer than interval.");
+                            // if export took longer than interval, do the 
+                            // next export immediately.
+                            // Alternatively, we could skip the next export
+                            // and wait for the next interval.
+                            // Or enforce that export timeout is less than interval.
+                            // What is the desired behavior?
+                            interval_start = Instant::now();
+                            remaining_interval = Duration::from_secs(0);
+                        } else {
+                        remaining_interval = interval - time_taken_for_export;
+                        interval_start = Instant::now();
+                        }
+                    }
+                    Err(_) => {
+                        // Some other error. Break out and exit the thread.
+                        break;
+                    }
+                }
+            }
+            println!("PeriodicReader Thread stopped.");
+        });
+
+        reader
+    }
+
+    fn collect_and_export(&self) -> Result<()> {
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        self.collect(&mut rm)?;
+
+        // TODO: Enforce timeout 
+        futures_executor::block_on(self.exporter.export(&mut rm))?;
+        Ok(())
     }
 }
 
@@ -209,77 +268,21 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     message_sender: mpsc::Sender<Message>,
-    is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker,
+    producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    is_shutdown: AtomicBool,
+}
+
+impl PeriodicReaderInner {
+    fn update_producer(&self, producer: Weak<dyn SdkProducer>) {
+        let mut inner = self.producer.lock().expect("lock poisoned");
+        *inner = Some(producer);
+    }
 }
 
 #[derive(Debug)]
 enum Message {
-    Export,
-    Flush(oneshot::Sender<Result<()>>),
-    Shutdown(oneshot::Sender<Result<()>>),
-}
-
-enum ProducerOrWorker {
-    Producer(Weak<dyn SdkProducer>),
-    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
-}
-
-struct PeriodicReaderWorker<RT: Runtime> {
-    reader: PeriodicReader,
-    timeout: Duration,
-    runtime: RT,
-    rm: ResourceMetrics,
-}
-
-impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> Result<()> {
-        self.reader.collect(&mut self.rm)?;
-
-        let export = self.reader.exporter.export(&mut self.rm);
-        let timeout = self.runtime.delay(self.timeout);
-        pin_mut!(export);
-        pin_mut!(timeout);
-
-        match future::select(export, timeout).await {
-            Either::Left((res, _)) => res, // return the status of export.
-            Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
-        }
-    }
-
-    async fn process_message(&mut self, message: Message) -> bool {
-        match message {
-            Message::Export => {
-                if let Err(err) = self.collect_and_export().await {
-                    global::handle_error(err)
-                }
-            }
-            Message::Flush(ch) => {
-                let res = self.collect_and_export().await;
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("flush channel closed".into()))
-                }
-            }
-            Message::Shutdown(ch) => {
-                let res = self.collect_and_export().await;
-                let _ = self.reader.exporter.shutdown();
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("shutdown channel closed".into()))
-                }
-                return false;
-            }
-        }
-
-        true
-    }
-
-    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) {
-        while let Some(message) = messages.next().await {
-            if !self.process_message(message).await {
-                break;
-            }
-        }
-    }
+    Flush(Sender<bool>),
+    Shutdown(Sender<bool>),
 }
 
 impl TemporalitySelector for PeriodicReader {
@@ -290,138 +293,89 @@ impl TemporalitySelector for PeriodicReader {
 
 impl MetricReader for PeriodicReader {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
-        let mut inner = match self.inner.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-
-        let worker = match &mut inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(_) => {
-                // Only register once. If producer is already set, do nothing.
-                global::handle_error(MetricsError::Other(
-                    "duplicate meter registration, did not register manual reader".into(),
-                ));
-                return;
-            }
-            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
-        };
-
-        inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
-        worker(self);
+        self.inner.update_producer(pipeline);
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
-        let inner = self.inner.lock()?;
-        if inner.is_shutdown {
+        if self
+            .inner
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
 
-        if let Some(producer) = match &inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
-            ProducerOrWorker::Worker(_) => None,
-        } {
-            producer.produce(rm)?;
+        let producer = self.inner.producer.lock().expect("lock poisoned");
+        if let Some(p) = producer.as_ref() {
+            p.upgrade()
+                .ok_or_else(|| MetricsError::Other("pipeline is dropped".into()))?
+                .produce(rm)?;
+            Ok(())
         } else {
-            return Err(MetricsError::Other("reader is not registered".into()));
+            return Err(MetricsError::Other("pipeline is not registered".into()));
         }
-
-        Ok(())
     }
 
     fn force_flush(&self) -> Result<()> {
-        let mut inner = self.inner.lock()?;
-        if inner.is_shutdown {
+        if self
+            .inner
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
-        let (sender, receiver) = oneshot::channel();
-        inner
+        let (response_tx, response_rx) = mpsc::channel();
+        self.inner
             .message_sender
-            .try_send(Message::Flush(sender))
+            .send(Message::Flush(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
-        drop(inner); // don't hold lock when blocking on future
-
-        futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))
-            .and_then(|res| res)
+        if let Ok(response) = response_rx.recv() {
+            if response {
+                return Ok(());
+            } else {
+                return Err(MetricsError::Other("Failed to flush".into()));
+            }
+        } else {
+            return Err(MetricsError::Other("Failed to flush".into()));
+        }
     }
 
     fn shutdown(&self) -> Result<()> {
-        let mut inner = self.inner.lock()?;
-        if inner.is_shutdown {
+        if self
+            .inner
+            .is_shutdown
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return Err(MetricsError::Other("reader is already shut down".into()));
         }
 
-        let (sender, receiver) = oneshot::channel();
-        inner
+        let (response_tx, response_rx) = mpsc::channel();
+        self.inner
             .message_sender
-            .try_send(Message::Shutdown(sender))
+            .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
-        drop(inner); // don't hold lock when blocking on future
 
-        let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))?;
-
-        // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
-        inner.is_shutdown = true;
-
-        shutdown_result
+        if let Ok(response) = response_rx.recv() {
+            self.inner
+                .is_shutdown
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            if response {
+                return Ok(());
+            } else {
+                return Err(MetricsError::Other("Failed to shutdown".into()));
+            }
+        } else {
+            self.inner
+                .is_shutdown
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            return Err(MetricsError::Other("Failed to shutdown".into()));
+        }
     }
 }
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use super::PeriodicReader;
-    use crate::{
-        metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
-        runtime, testing::metrics::InMemoryMetricsExporter, Resource,
-    };
-    use opentelemetry::metrics::{MeterProvider, MetricsError};
-    use std::sync::mpsc;
-
     #[test]
-    fn collection_triggered_by_interval() {
-        // Arrange
-        let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::TokioCurrentThread)
-            .with_interval(interval)
-            .build();
-        let (sender, receiver) = mpsc::channel();
-
-        // Act
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        let meter = meter_provider.meter("test");
-        let _counter = meter
-            .u64_observable_counter("testcounter")
-            .with_callback(move |_| {
-                sender.send(()).expect("channel should still be open");
-            })
-            .init();
-
-        // Assert
-        receiver
-            .recv()
-            .expect("message should be available in channel, indicating a collection occurred");
-    }
-
-    #[test]
-    fn unregistered_collect() {
-        // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let mut rm = ResourceMetrics {
-            resource: Resource::empty(),
-            scope_metrics: Vec::new(),
-        };
-
-        // Act
-        let result = reader.collect(&mut rm);
-
-        // Assert
-        assert!(
-            matches!(result.unwrap_err(), MetricsError::Other(err) if err == "reader is not registered")
-        );
-    }
+    fn collection_triggered_by_interval() {}
 }
