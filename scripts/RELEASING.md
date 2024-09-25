@@ -14,10 +14,10 @@ releases. Perhaps once we've established a 1.0 we can consider adopting a consis
 
 A draft PR can be created, but before releasing consider the following:
 
-* Are there any pending pull requests which should be included in the next release?
-  * Are they blockers?
-* Are there any unresolved issues which should be resolved before the next release? Check the release [blockers milestone](https://github.com/open-telemetry/opentelemetry-rust/milestones) for every release
-* Bring it up at a SIG meeting, this can usually get some of these questions answered sooner than later. It will also
+- Are there any pending pull requests which should be included in the next release?
+  - Are they blockers?
+- Are there any unresolved issues which should be resolved before the next release? Check the release [blockers milestone](https://github.com/open-telemetry/opentelemetry-rust/milestones) for every release
+- Bring it up at a SIG meeting, this can usually get some of these questions answered sooner than later. It will also
   help establish a person to perform the release. Ideally this can be someone different each time to ensure that the
   process is documented.
 
@@ -25,12 +25,13 @@ A draft PR can be created, but before releasing consider the following:
 
 1. Create a release PR
 
-* For each crate
-  * Bump appropriate version
-  * Update change logs to reflect release version.
-  * Update API/SDK version as necessary
-  * Attach `integration test` label to the PR to run integration tests
-* If there's a large enough set of changes, consider writing a migration guide.
+- For each crate
+  - Bump appropriate version
+  - Update change logs to reflect release version.
+  - Update API/SDK version as necessary
+  - Attach `integration test` label to the PR to run integration tests
+- If there's a large enough set of changes, consider writing a migration guide.
+- Perform a dryrun of the publish using `cargo xtask publish`. This will validate that crates are valid for publishing.
 
 2. Merge the PR
 
@@ -38,11 +39,11 @@ A draft PR can be created, but before releasing consider the following:
 * Ensure that there haven't been any interfering PRs
 
 3. Tag the release commit based on the [tagging convention](#tagging-convention). It should usually be a bump on minor version before 1.0
-4. Create Github Release
-5. [Publish](#publishing-crates) to crates.io using the version as of the release commit
+4. [Publish](#publishing-crates) to crates.io using the version as of the release commit
+5. Create Github Release
 6. Post to [#otel-rust](https://cloud-native.slack.com/archives/C03GDP0H023) on CNCF Slack.
 
-[Publish.sh](./publish.sh) may be used to automate steps 3 and 5.
+[`cargo xtask publish --force`](../xtask) may be used to automate steps 3 and 4.
 
 ## Tagging Convention
 
