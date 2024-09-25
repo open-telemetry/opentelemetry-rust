@@ -341,6 +341,12 @@ impl MetricReader for PeriodicReader {
         }
     }
 
+    // TODO: Can we offer async version of shutdown
+    // so users can await the shutdown completion,
+    // and also to avoid blocking the current thread.
+    // The default shutdown on drop can still use blocking
+    // call.
+    // This could be tricky due to https://github.com/seanmonstar/reqwest/issues/1215#issuecomment-796959957
     fn shutdown(&self) -> Result<()> {
         if self
             .inner
