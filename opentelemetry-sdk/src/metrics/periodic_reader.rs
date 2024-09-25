@@ -383,7 +383,7 @@ mod tests {
     #[test]
     fn collection_triggered_by_interval_tokio_current() {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }    
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio() {
@@ -396,12 +396,14 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current() {
+    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current()
+    {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current() {
+    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current()
+    {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
@@ -435,8 +437,9 @@ mod tests {
         );
     }
 
-    fn collection_triggered_by_interval_helper<RT>(runtime: RT) 
-    where RT: crate::runtime::Runtime
+    fn collection_triggered_by_interval_helper<RT>(runtime: RT)
+    where
+        RT: crate::runtime::Runtime,
     {
         let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricsExporter::default();
