@@ -60,7 +60,7 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
                 .tonic()
                 .with_endpoint("http://localhost:4317"),
         )
-        .install_batch(runtime::Tokio)
+        .install_batch()
 }
 
 #[tokio::main]
