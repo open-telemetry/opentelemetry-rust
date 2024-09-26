@@ -5,11 +5,12 @@ mod last_value;
 mod precomputed_sum;
 mod sum;
 
+use atomic_shim::{AtomicI64, AtomicU64};
 use core::fmt;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Sub};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 
 use aggregate::is_under_cardinality_limit;

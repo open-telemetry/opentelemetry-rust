@@ -28,6 +28,7 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+atomic-shim = "0.2.0"
 
 [package.metadata.docs.rs]
 all-features = true
