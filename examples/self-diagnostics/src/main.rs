@@ -2,8 +2,8 @@ use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
+use tracing_subscriber::filter::{filter_fn, EnvFilter};
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use std::error::Error;
 use tracing::error;
@@ -32,6 +32,7 @@ impl ErrorState {
 }
 
 static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
+static SEEN_EVENT_NAMES: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 fn custom_error_handler(err: OtelError) {
     if GLOBAL_ERROR_STATE.mark_as_seen(&err) {
@@ -72,10 +73,29 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
+    let unique_event_name_filter = filter_fn(|meta| {
+        if let Some(name) = meta.fields().iter().find(|field| field.name() == "name") {
+            let event_name = name.to_string();
+            let mut seen_events = SEEN_EVENT_NAMES.lock().unwrap();
+
+            if seen_events.contains(&event_name) {
+                // Drop subsequent events with the same name
+                false
+            } else {
+                // Allow the first event with this name and mark it as seen
+                seen_events.insert(event_name);
+                true
+            }
+        } else {
+            true // Allow events without a "name" field
+        }
+    });
+
     let cloned_provider = provider.clone();
     let layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider);
     tracing_subscriber::registry()
         .with(filter)
+        .with(unique_event_name_filter)
         .with(layer)
         .init();
     provider
