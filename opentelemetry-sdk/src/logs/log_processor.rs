@@ -101,6 +101,13 @@ impl LogProcessor for SimpleLogProcessor {
             return;
         }
 
+        #[cfg(all(feature = "experimental-internal-logs"))]
+        tracing::debug!(
+            name: "simple_log_processor_emit",
+            target: "opentelemetry-sdk",
+            event_name = record.event_name
+        );
+
         let result = self
             .exporter
             .lock()
@@ -217,6 +224,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
+                        #[cfg(feature = "experimental-internal-logs")]
+                        tracing::debug!(
+                            name: "batch_log_processor_record_count",
+                            current_batch_size = logs.len()
+                        );
 
                         if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(

@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"]}
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio", "experimental-internal-logs"]}
 opentelemetry-stdout = { path = "../../opentelemetry-stdout"}
 opentelemetry-appender-tracing = { path = "../../opentelemetry-appender-tracing"}
 tokio = { workspace = true, features = ["full"] }
