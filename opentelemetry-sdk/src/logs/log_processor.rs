@@ -16,7 +16,7 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     InstrumentationLibrary,
 };
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_target, otel_warn};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -89,7 +89,6 @@ pub struct SimpleLogProcessor {
 impl SimpleLogProcessor {
     pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
         otel_info!(
-            target: otel_target!("logs"),
             name: "simple_log_processor_new"
         );
         SimpleLogProcessor {
@@ -111,7 +110,6 @@ impl LogProcessor for SimpleLogProcessor {
         }
 
         otel_debug!(
-            target: otel_target!("logs"),
             name: "simple_log_processor_emit"
         );
         let result = self
@@ -124,7 +122,6 @@ impl LogProcessor for SimpleLogProcessor {
             });
         if let Err(err) = result {
             otel_error!(
-                target: otel_target!("logs"),
                 name: "simple_log_processor_emit_error",
                 error = format!("{:?}", err)
             );
@@ -134,7 +131,6 @@ impl LogProcessor for SimpleLogProcessor {
 
     fn force_flush(&self) -> LogResult<()> {
         otel_info!(
-            target: otel_target!("logs"),
             name: "simple_log_processor_force_flush"
         );
         Ok(())
@@ -142,7 +138,6 @@ impl LogProcessor for SimpleLogProcessor {
 
     fn shutdown(&self) -> LogResult<()> {
         otel_info!(
-            target: otel_target!("logs"),
             name: "simple_log_processor_shutdown"
         );
         self.is_shutdown
@@ -152,7 +147,6 @@ impl LogProcessor for SimpleLogProcessor {
             Ok(())
         } else {
             otel_error!(
-                target: otel_target!("logs"),
                 name: "simple_log_processor_shutdown_error"
             );
             Err(LogError::Other(
@@ -163,7 +157,6 @@ impl LogProcessor for SimpleLogProcessor {
 
     fn set_resource(&self, resource: &Resource) {
         otel_info!(
-            target: otel_target!("logs"),
             name: "simple_log_processor_set_resource"
         );
         if let Ok(mut exporter) = self.exporter.lock() {
@@ -189,7 +182,6 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         otel_info!(
-            target: otel_target!("logs"),
             name: "batch_log_processor_emit"
         );
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
@@ -199,7 +191,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
         if let Err(err) = result {
             otel_error!(
-                target: otel_target!("logs"),
                 name: "batch_log_processor_emit_error",
                 error = format!("{:?}", err)
             );
@@ -208,10 +199,8 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        otel_error!(
-            target: otel_target!("logs"),
-            name: "batch_log_processor_emit_error",
-            error = format!("{:?}", err)
+        otel_info!(
+            name: "batch_log_processor_force_flush"
         );
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
@@ -225,7 +214,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
     fn shutdown(&self) -> LogResult<()> {
         otel_info!(
-            target: otel_target!("logs"),
             name: "batch_log_processor_shutdown"
         );
         let (res_sender, res_receiver) = oneshot::channel();
@@ -240,7 +228,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
     fn set_resource(&self, resource: &Resource) {
         otel_info!(
-            target: otel_target!("logs"),
             name: "batch_log_processor_set_resource"
         );
         let resource = Arc::new(resource.clone());
@@ -269,12 +256,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
             let mut messages = Box::pin(stream::select(message_receiver, ticker));
 
             otel_info!(
-                target: otel_target!("logs"),
                 name: "batch_log_processor_started",
                 max_queue_size = config.max_queue_size,
                 max_export_batch_size = config.max_export_batch_size,
-                scheduled_delay = config.scheduled_delay,
-                max_export_timeout = config.max_export_timeout
+                scheduled_delay = config.scheduled_delay.as_millis(),
+                max_export_timeout = config.max_export_timeout.as_millis()
             );
 
             while let Some(message) = messages.next().await {
@@ -283,14 +269,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
                         otel_debug!(
-                            target: otel_target!("logs"),
                             name: "batch_log_processor_record_count",
                             current_batch_size = logs.len()
                         );
 
                         if logs.len() == config.max_export_batch_size {
                             otel_info!(
-                                target: otel_target!("logs"),
                                 name: "batch_log_processor_export",
                                 batch_size = logs.len()
                             );
@@ -304,9 +288,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                             if let Err(err) = result {
                                 otel_error!(
-                                    target: otel_target!("logs"),
                                     name: "batch_log_processor_export_error",
-                                    error = err
+                                    error = format!("{:?}", err)
                                 );
                                 global::handle_error(err);
                             }
@@ -329,26 +312,23 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                     result
                                 )));
                                 otel_error!(
-                                    target: otel_target!("logs"),
                                     name: "batch_log_processor_flush_error",
-                                    error = result,
+                                    error = format!("{:?}", result),
                                     message = "Failed to send flush result"
                                 );
                             }
                         } else if let Err(err) = result {
-                            global::handle_error(err);
                             otel_error!(
-                                target: otel_target!("logs"),
                                 name: "batch_log_processor_flush_error",
-                                error = err,
+                                error = format!("{:?}", err),
                                 message = "Flush failed"
                             );
+                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown(ch) => {
                         otel_info!(
-                            target: otel_target!("logs"),
                             name: "batch_log_processor_shutdown",
                             remaining_batch_size = logs.len()
                         );
@@ -364,28 +344,15 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Err(result) = ch.send(result) {
                             otel_error!(
-                                target: otel_target!("logs"),
                                 name: "batch_log_processor_shutdown_error",
-                                error = result,
+                                error = format!("{:?}", result),
                                 message = "Failed to send shutdown result"
                             );
                             global::handle_error(LogError::from(format!(
                                 "failed to send batch processor shutdown result: {:?}",
                                 result
                             )));
-                        } else if let Err(err) = result {
-                            otel_error!(
-                                target: otel_target!("logs"),
-                                name: "batch_log_processor_shutdown_error",
-                                error = err,
-                                message = "Shutdown failed"
-                            );
-                            global::handle_error(err);
                         }
-                        otel_info!(
-                            target: otel_target!("logs"),
-                            name: "batch_log_processor_shutdown_complete"
-                        );
 
                         break;
                     }
@@ -393,10 +360,9 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
                         otel_info!(
-                            target: otel_target!("logs"),
                             name: "batch_log_processor_set_resource",
                             resource_keys_count = resource.len(),
-                            resource = resource
+                            resource = format!("{:?}", resource)
                         );
                         exporter.set_resource(&resource);
                     }
@@ -405,7 +371,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         }));
 
         otel_info!(
-            target: otel_target!("logs"),
             name: "batch_log_processor_initialized"
         );
         // Return batch processor with link to worker
@@ -437,7 +402,6 @@ where
 {
     if batch.is_empty() {
         otel_debug!(
-            target: otel_target!("logs"),
             name: "batch_log_processor_empty_batch"
         );
         return Ok(());
@@ -449,10 +413,9 @@ where
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
     otel_debug!(
-        target: otel_target!("logs"),
         name: "export_with_timeout",
         batch_size = log_vec.len(),
-        timeout = time_out
+        timeout = time_out.as_millis()
     );
     let export = exporter.export(LogBatch::new(log_vec.as_slice()));
     let timeout = runtime.delay(time_out);
@@ -462,9 +425,8 @@ where
         Either::Left((export_res, _)) => export_res,
         Either::Right((_, _)) => {
             otel_error!(
-                target: otel_target!("logs"),
                 name: "export_with_timeout_timeout",
-                timeout_duration = time_out
+                timeout_duration = time_out.as_millis()
             );
             ExportResult::Err(LogError::ExportTimedOut(time_out))
         }

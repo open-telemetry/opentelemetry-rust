@@ -1,40 +1,10 @@
 #![allow(unused_macros)]
 
-/// Macro to dynamically generate the logging `target` string with the format `crate:signal:module`.
-/// The `signal` is optional.
-///
-/// This macro constructs a fully-qualified target string for `otel_*` logging macros by
-/// concatenating the current crate name, the provided `signal`, and the module name (via `module_path!()`).
-///
-/// # Example:
-/// ```rust
-/// // If `signal` is passed
-/// otel_target!("log")
-/// ```
-///
-/// If used inside a module called `my_module::sub_module`, the resulting target string would be:
-/// ```
-/// "crate_name:log:my_module::sub_module"
-/// ```
-///
-/// If no `signal` is passed:
-/// ```
-/// "crate_name:my_module::sub_module"
-/// ```
-#[macro_export]
-macro_rules! otel_target {
-    ($signal:expr) => {
-        concat!(env!("CARGO_PKG_NAME"), ".", $signal, ".", module_path!())
-    };
-    () => {
-        concat!(env!("CARGO_PKG_NAME"), ".", module_path!())
-    };
-}
-
 /// Macro for logging informational messages in OpenTelemetry.
+/// The `target` is optional and defaults to `"opentelemetry"` if not provided.
 ///
 /// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-sdk").
+/// - `target`: The component or module generating the log (optional, default: "opentelemetry").
 /// - `name`: The operation or action being logged (e.g., "sdk_start").
 /// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `schema_url`).
 ///
@@ -42,11 +12,10 @@ macro_rules! otel_target {
 /// ```rust
 /// // Without extra attributes
 /// otel_info!(
-///     target: "opentelemetry-sdk",
 ///     name: "sdk_start"
 /// );
 ///
-/// // With extra attributes
+/// // With explicit target and extra attributes
 /// otel_info!(
 ///     target: "opentelemetry-sdk",
 ///     name: "sdk_start",
@@ -56,27 +25,41 @@ macro_rules! otel_target {
 /// ```
 #[macro_export]
 macro_rules! otel_info {
-    // Without extra attributes
+    // Without extra attributes, default target
+    (name: $name:expr) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::info!(target: "opentelemetry", name = $name);
+        }
+    };
+    // With explicit target
     (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::info!(target: $target, name: $name);
+            tracing::info!(target: $target, name = $name);
         }
     };
-
-    // With additional attributes
+    // With additional attributes, default target
+    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::info!(target: "opentelemetry", name = $name, $($key= $value),+);
+        }
+    };
+    // With explicit target and additional attributes
     (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::info!(target: $target, name: $name, $($key: $value),+);
+            tracing::info!(target: $target, name = $name, $($key= $value),+);
         }
     };
 }
 
 /// Macro for logging warning messages in OpenTelemetry.
+/// The `target` is optional and defaults to `"opentelemetry"` if not provided.
 ///
 /// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
+/// - `target`: The component or module generating the log (optional, default: "opentelemetry").
 /// - `name`: The operation or action being logged (e.g., "export_warning").
 /// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `error_code`).
 ///
@@ -84,11 +67,10 @@ macro_rules! otel_info {
 /// ```rust
 /// // Without extra attributes
 /// otel_warn!(
-///     target: "opentelemetry-otlp",
 ///     name: "export_warning"
 /// );
 ///
-/// // With extra attributes
+/// // With explicit target and extra attributes
 /// otel_warn!(
 ///     target: "opentelemetry-otlp",
 ///     name: "export_warning",
@@ -98,27 +80,41 @@ macro_rules! otel_info {
 /// ```
 #[macro_export]
 macro_rules! otel_warn {
-    // Without extra attributes
+    // Without extra attributes, default target
+    (name: $name:expr) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::warn!(target: "opentelemetry", name = $name );
+        }
+    };
+    // With explicit target
     (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::warn!(target: $target, name: $name );
+            tracing::warn!(target: $target, name = $name );
         }
     };
-
-    // With additional attributes
+    // With additional attributes, default target
+    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::warn!(target: "opentelemetry", name = $name , $($key= $value),+ );
+        }
+    };
+    // With explicit target and additional attributes
     (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::warn!(target: $target, name: $name, $($key = $value),+ );
+            tracing::warn!(target: $target, name = $name , $($key= $value),+ );
         }
     };
 }
 
 /// Macro for logging debug messages in OpenTelemetry.
+/// The `target` is optional and defaults to `"opentelemetry"` if not provided.
 ///
 /// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
+/// - `target`: The component or module generating the log (optional, default: "opentelemetry").
 /// - `name`: The operation or action being logged (e.g., "debug_operation").
 /// - Additional optional key-value pairs can be passed as attributes (e.g., `version`, `debug_level`).
 ///
@@ -126,11 +122,10 @@ macro_rules! otel_warn {
 /// ```rust
 /// // Without extra attributes
 /// otel_debug!(
-///     target: "opentelemetry-otlp",
 ///     name: "debug_operation"
 /// );
 ///
-/// // With extra attributes
+/// // With explicit target and extra attributes
 /// otel_debug!(
 ///     target: "opentelemetry-otlp",
 ///     name: "debug_operation",
@@ -140,27 +135,41 @@ macro_rules! otel_warn {
 /// ```
 #[macro_export]
 macro_rules! otel_debug {
-    // Without extra attributes
+    // Without extra attributes, default target
+    (name: $name:expr) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::debug!(target: "opentelemetry", name = $name );
+        }
+    };
+    // With explicit target
     (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::debug!(target: $target, name: $name);
+            tracing::debug!(target: $target, name = $name );
         }
     };
-
-    // With additional attributes
+    // With additional attributes, default target
+    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::debug!(target: "opentelemetry", name = $name , $($key = $value),+ );
+        }
+    };
+    // With explicit target and additional attributes
     (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::debug!(target: $target, name = $name, $($key = $value),+ );
+            tracing::debug!(target: $target, name = $name , $($key = $value),+ );
         }
     };
 }
 
 /// Macro for logging error messages in OpenTelemetry.
+/// The `target` is optional and defaults to `"opentelemetry"` if not provided.
 ///
 /// # Fields:
-/// - `target`: The component or module generating the log (e.g., "opentelemetry-otlp").
+/// - `target`: The component or module generating the log (optional, default: "opentelemetry").
 /// - `name`: The operation or action being logged (e.g., "export_failure").
 /// - Additional optional key-value pairs can be passed as attributes (e.g., `error_code`, `version`).
 ///
@@ -168,11 +177,10 @@ macro_rules! otel_debug {
 /// ```rust
 /// // Without extra attributes
 /// otel_error!(
-///     target: "opentelemetry-otlp",
 ///     name: "export_failure"
 /// );
 ///
-/// // With extra attributes
+/// // With explicit target and extra attributes
 /// otel_error!(
 ///     target: "opentelemetry-otlp",
 ///     name: "export_failure",
@@ -182,19 +190,32 @@ macro_rules! otel_debug {
 /// ```
 #[macro_export]
 macro_rules! otel_error {
-    // Without extra attributes
+    // Without extra attributes, default target
+    (name: $name:expr) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::error!(target: "opentelemetry", name = $name );
+        }
+    };
+    // With explicit target
     (target: $target:expr, name: $name:expr) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::error!(target: $target, name: $name);
+            tracing::error!(target: $target, name = $name);
         }
     };
-
-    // With additional attributes
+    // With additional attributes, default target
+    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+        #[cfg(all(feature = "experimental-internal-debugging"))]
+        {
+            tracing::error!(target: "opentelemetry", name = $name , $($key= $value),+ );
+        }
+    };
+    // With explicit target and additional attributes
     (target: $target:expr, name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(all(feature = "experimental-internal-debugging"))]
         {
-            tracing::error!(target: $target, name: $name, $($key = $value),+ );
+            tracing::error!(target: $target, name = $name, $($key= $value),+ );
         }
     };
 }
