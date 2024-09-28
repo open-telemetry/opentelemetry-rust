@@ -2,8 +2,9 @@ use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use std::error::Error;
 use tracing::error;
@@ -59,6 +60,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap();
+    let cloned_provider = provider.clone();
 
     // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
     // The filter levels are set as follows:
@@ -72,11 +74,22 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
-    let cloned_provider = provider.clone();
-    let layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider);
+    let opentelemetry_filter =
+        tracing_subscriber::filter::filter_fn(|metadata| metadata.target() == "opentelemetry");
+
+    let non_opentelemetry_filter =
+        tracing_subscriber::filter::filter_fn(|metadata| metadata.target() != "opentelemetry");
+
+    let fmt_opentelemetry_layer = fmt::layer()
+        .with_filter(LevelFilter::DEBUG)
+        .with_filter(opentelemetry_filter);
+    let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
+        .with_filter(non_opentelemetry_filter.clone());
+
     tracing_subscriber::registry()
-        .with(filter)
-        .with(layer)
+        .with(fmt_opentelemetry_layer)
+        .with(fmt::layer().with_filter(filter))
+        .with(otel_layer)
         .init();
     provider
 }

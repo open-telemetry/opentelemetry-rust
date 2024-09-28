@@ -104,7 +104,7 @@ impl LogProcessor for SimpleLogProcessor {
         #[cfg(all(feature = "experimental-internal-logs"))]
         tracing::debug!(
             name: "simple_log_processor_emit",
-            target: "opentelemetry-sdk",
+            target: "opentelemetry",
             event_name = record.event_name
         );
 
@@ -227,6 +227,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         #[cfg(feature = "experimental-internal-logs")]
                         tracing::debug!(
                             name: "batch_log_processor_record_count",
+                            target: "opentelemetry",
                             current_batch_size = logs.len()
                         );
 
