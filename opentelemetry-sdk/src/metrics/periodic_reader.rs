@@ -235,7 +235,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
         self.reader.collect(&mut self.rm)?;
-        if self.rm.scope_metrics.len() == 0 {
+        if self.rm.scope_metrics.is_empty() {
             // No metrics to export.
             return Ok(());
         }
