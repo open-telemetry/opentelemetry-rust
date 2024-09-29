@@ -235,7 +235,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
         #[cfg(feature = "experimental-internal-logs")]
-        tracing::debug!(name: "collect_and_export", target: "opentelemetry-sdk", status = "started");
+        tracing::debug!(name: "metrics_collect_and_export", target: "opentelemetry-sdk", status = "started");
         self.reader.collect(&mut self.rm)?;
 
         let export = self.reader.exporter.export(&mut self.rm);
