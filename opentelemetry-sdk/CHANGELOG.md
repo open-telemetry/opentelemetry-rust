@@ -11,6 +11,9 @@
   external sources to be sent through OpenTelemetry.
   [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
 - Feature: `SimpleSpanProcessor::new` is now public [#2119](https://github.com/open-telemetry/opentelemetry-rust/pull/2119)
+- `MeterProvider` modified to not invoke shutdown on `Drop`, if user has already
+  called `shutdown()`.
+  [#2156](https://github.com/open-telemetry/opentelemetry-rust/pull/2156)
 
 ## v0.25.0
 
