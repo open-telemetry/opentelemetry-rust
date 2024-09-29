@@ -199,7 +199,7 @@ pub trait MeterProvider {
 ///     KeyValue::new("mykey2", "myvalue2"),
 /// ],
 /// );
-/// 
+///
 /// // u64 Gauge
 /// let gauge = meter.u64_gauge("my_gauge").init();
 /// gauge.record(
@@ -209,7 +209,7 @@ pub trait MeterProvider {
 ///     KeyValue::new("mykey2", "myvalue2"),
 /// ],
 /// );
-/// 
+///
 /// // f64 Gauge
 /// let gauge = meter.f64_gauge("my_gauge").init();
 /// gauge.record(
