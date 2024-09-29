@@ -255,6 +255,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 res // return the status of export.
             }
             Either::Right(_) => {
+                #[cfg(feature = "experimental-internal-logs")]
                 tracing::error!(
                     name = "collect_and_export",
                     target = "opentelemetry-sdk",
@@ -268,12 +269,14 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
+                #[cfg(feature = "experimental-internal-logs")]
                 tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "export");
                 if let Err(err) = self.collect_and_export().await {
                     global::handle_error(err)
                 }
             }
             Message::Flush(ch) => {
+                #[cfg(feature = "experimental-internal-logs")]
                 tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "flush");
                 let res = self.collect_and_export().await;
                 if ch.send(res).is_err() {
@@ -281,6 +284,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 }
             }
             Message::Shutdown(ch) => {
+                #[cfg(feature = "experimental-internal-logs")]
                 tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "shutdown");
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();

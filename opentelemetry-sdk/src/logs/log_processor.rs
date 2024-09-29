@@ -101,7 +101,7 @@ impl LogProcessor for SimpleLogProcessor {
             return;
         }
 
-        #[cfg(all(feature = "experimental-internal-logs"))]
+        #[cfg(feature = "experimental-internal-logs")]
         tracing::debug!(
             name: "simple_log_processor_emit",
             target: "opentelemetry-sdk",
