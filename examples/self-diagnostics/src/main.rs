@@ -74,15 +74,27 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
-    let opentelemetry_filter =
-        tracing_subscriber::filter::filter_fn(|metadata| metadata.target() == "opentelemetry");
 
-    let non_opentelemetry_filter =
-        tracing_subscriber::filter::filter_fn(|metadata| metadata.target() != "opentelemetry");
+    // Configuring the formatting layer specifically for OpenTelemetry internal logs.
+    // These logs starts with "opentelemetry" prefix in target. This allows specific logs
+    // from the OpenTelemetry-related components to be filtered and handled separately
+    // from the application logs
+
+    let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        metadata.target().starts_with("opentelemetry")
+    });
 
     let fmt_opentelemetry_layer = fmt::layer()
         .with_filter(LevelFilter::DEBUG)
         .with_filter(opentelemetry_filter);
+
+    // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
+    // to prevent infinite logging loops.
+
+    let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        !metadata.target().starts_with("opentelemetry")
+    });
+
     let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
         .with_filter(non_opentelemetry_filter.clone());
 

@@ -235,7 +235,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
         #[cfg(feature = "experimental-internal-logs")]
-        tracing::debug!(name: "collect_and_export", target: "opentelemetry", message ="Periodic export triggered.");
+        tracing::debug!(name: "collect_and_export", target: "opentelemetry-sdk", status = "started");
         self.reader.collect(&mut self.rm)?;
 
         let export = self.reader.exporter.export(&mut self.rm);
@@ -244,25 +244,44 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         pin_mut!(timeout);
 
         match future::select(export, timeout).await {
-            Either::Left((res, _)) => res, // return the status of export.
-            Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
+            Either::Left((res, _)) => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::debug!(
+                    name = "collect_and_export",
+                    target = "opentelemetry-sdk",
+                    status = "completed",
+                    result = ?res
+                );
+                res // return the status of export.
+            }
+            Either::Right(_) => {
+                tracing::error!(
+                    name = "collect_and_export",
+                    target = "opentelemetry-sdk",
+                    status = "timed_out"
+                );
+                Err(MetricsError::Other("export timed out".into()))
+            }
         }
     }
 
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "export");
                 if let Err(err) = self.collect_and_export().await {
                     global::handle_error(err)
                 }
             }
             Message::Flush(ch) => {
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "flush");
                 let res = self.collect_and_export().await;
                 if ch.send(res).is_err() {
                     global::handle_error(MetricsError::Other("flush channel closed".into()))
                 }
             }
             Message::Shutdown(ch) => {
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "shutdown");
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if ch.send(res).is_err() {
