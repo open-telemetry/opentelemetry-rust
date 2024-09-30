@@ -135,7 +135,7 @@ impl Drop for SdkMeterProviderInner {
         if !self.is_shutdown.load(Ordering::Relaxed) {
             if let Err(err) = self.shutdown() {
                 global::handle_error(err);
-            }   
+            }
         }
     }
 }
