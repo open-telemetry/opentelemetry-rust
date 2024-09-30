@@ -19,16 +19,6 @@ pub struct ResourceMetrics {
     pub scope_metrics: Vec<ScopeMetrics>,
 }
 
-impl ResourceMetrics {
-    /// Returns the total number of metrics across all `ScopeMetrics`.
-    pub fn metrics_count(&self) -> usize {
-        self.scope_metrics
-            .iter()
-            .map(|scope| scope.metrics.len())
-            .sum()
-    }
-}
-
 /// A collection of metrics produced by a meter.
 #[derive(Default, Debug)]
 pub struct ScopeMetrics {

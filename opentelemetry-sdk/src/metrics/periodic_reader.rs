@@ -238,6 +238,14 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         tracing::debug!(name: "metrics_collect_and_export", target: "opentelemetry-sdk", status = "started");
         self.reader.collect(&mut self.rm)?;
 
+        #[cfg(feature = "experimental-internal-logs")]
+        let metrics_count = self
+            .rm
+            .scope_metrics
+            .iter()
+            .map(|scope| scope.metrics.len())
+            .sum::<usize>();
+
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);
@@ -247,9 +255,10 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 #[cfg(feature = "experimental-internal-logs")]
                 tracing::debug!(
-                    name = "collect_and_export",
-                    target = "opentelemetry-sdk",
+                    name: "collect_and_export",
+                    target: "opentelemetry-sdk",
                     status = "completed",
+                    count = metrics_count,
                     result = ?res
                 );
                 res // return the status of export.
