@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{noop::NoopMeterCore, Meter, MeterProvider, MetricsError, Result},
+    metrics::{noop::NoopMeter, Meter, MeterProvider, MetricsError, Result},
     KeyValue,
 };
 
@@ -21,8 +21,11 @@ use super::{meter::SdkMeter, pipeline::Pipelines, reader::MetricReader, view::Vi
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
 /// [Resource], have the same [View]s applied to them, and have their produced
-/// metric telemetry passed to the configured [MetricReader]s.
-///
+/// metric telemetry passed to the configured [MetricReader]s. This is a
+/// clonable handle to the MeterProvider implementation itself, and cloning it
+/// will create a new reference, not a new instance of a MeterProvider. Dropping
+/// the last reference to it will trigger shutdown of the provider. Shutdown can
+/// also be triggered manually by calling the `shutdown` method.
 /// [Meter]: opentelemetry::metrics::Meter
 #[derive(Clone, Debug)]
 pub struct SdkMeterProvider {
@@ -149,7 +152,7 @@ impl MeterProvider for SdkMeterProvider {
         attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Meter::new(Arc::new(NoopMeterCore::new()));
+            return Meter::new(Arc::new(NoopMeter::new()));
         }
 
         let mut builder = Scope::builder(name);
@@ -175,7 +178,7 @@ impl MeterProvider for SdkMeterProvider {
                 .clone();
             Meter::new(meter)
         } else {
-            Meter::new(Arc::new(NoopMeterCore::new()))
+            Meter::new(Arc::new(NoopMeter::new()))
         }
     }
 }
