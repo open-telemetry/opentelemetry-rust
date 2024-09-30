@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+
 ## v0.17.0
 
 ### Changed

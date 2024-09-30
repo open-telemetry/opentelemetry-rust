@@ -2,6 +2,11 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.25
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25

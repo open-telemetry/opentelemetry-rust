@@ -31,7 +31,7 @@ observability tools.
 | Logs-SDK              | Beta               |
 | Logs-OTLP Exporter    | Beta               |
 | Logs-Appender-Tracing | Beta               |
-| Metrics-API           | Alpha              |
+| Metrics-API           | Beta               |
 | Metrics-SDK           | Alpha              |
 | Metrics-OTLP Exporter | Alpha              |
 | Traces-API            | Beta               |

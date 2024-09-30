@@ -2,6 +2,9 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
 - **BREAKING** Public API changes:
   - **Removed**: `Key.bool()`, `Key.i64()`, `Key.f64()`, `Key.string()`, `Key.array()` [#2090](https://github.com/open-telemetry/opentelemetry-rust/issues/2090).     These APIs were redundant as they didn't offer any additional functionality. The existing `KeyValue::new()` API covers all the scenarios offered by these APIs.
 
