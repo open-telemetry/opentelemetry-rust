@@ -11,7 +11,7 @@ categories = [
     "api-bindings",
     "asynchronous",
 ]
-keywords = ["opentelemetry", "logging", "tracing", "metrics", "async"]
+keywords = ["opentelemetry", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
