@@ -33,24 +33,24 @@ impl MeterProvider for NoopMeterProvider {
         _schema_url: Option<&'static str>,
         _attributes: Option<Vec<KeyValue>>,
     ) -> Meter {
-        Meter::new(Arc::new(NoopMeterCore::new()))
+        Meter::new(Arc::new(NoopMeter::new()))
     }
 }
 
 /// A no-op instance of a `Meter`
 #[derive(Debug, Default)]
-pub struct NoopMeterCore {
+pub struct NoopMeter {
     _private: (),
 }
 
-impl NoopMeterCore {
+impl NoopMeter {
     /// Create a new no-op meter core.
     pub fn new() -> Self {
-        NoopMeterCore { _private: () }
+        NoopMeter { _private: () }
     }
 }
 
-impl InstrumentProvider for NoopMeterCore {}
+impl InstrumentProvider for NoopMeter {}
 
 /// A no-op sync instrument
 #[derive(Debug, Default)]
