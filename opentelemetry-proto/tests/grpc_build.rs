@@ -125,7 +125,7 @@ fn build_tonic() {
 
     builder
         .out_dir(out_dir.path())
-        .compile(TONIC_PROTO_FILES, TONIC_INCLUDES)
+        .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
     let after_build = build_content_map(out_dir.path(), true);

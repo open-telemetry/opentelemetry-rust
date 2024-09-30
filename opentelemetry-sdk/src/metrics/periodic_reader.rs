@@ -237,6 +237,10 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         #[cfg(feature = "experimental-internal-logs")]
         tracing::debug!(name: "metrics_collect_and_export", target: "opentelemetry-sdk", status = "started");
         self.reader.collect(&mut self.rm)?;
+        if self.rm.scope_metrics.is_empty() {
+            // No metrics to export.
+            return Ok(());
+        }
 
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
