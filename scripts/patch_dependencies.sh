@@ -11,7 +11,6 @@ rust_version=$(rustc --version | cut -d' ' -f2)
 # Target version (Rust 1.71.1)
 target_version="1.71.1"
 
-# Check if the current Rust version is less than the target version
   function patch_version() {
     local latest_version=$(cargo search --limit 1 $1 | head -1 | cut -d'"' -f2)
     echo "patching $1 from $latest_version to $2"
