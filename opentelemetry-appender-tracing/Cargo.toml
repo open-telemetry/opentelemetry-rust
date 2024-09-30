@@ -12,7 +12,7 @@ rust-version = "1.65"
 
 [dependencies]
 log = { workspace = true, optional = true }
-opentelemetry = { version = "0.25", path = "../opentelemetry", features = ["logs"] }
+opentelemetry = { version = "0.26", path = "../opentelemetry", features = ["logs"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { version = "0.2", optional = true }
