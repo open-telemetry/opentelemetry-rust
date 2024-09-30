@@ -298,7 +298,11 @@ impl PushMetricsExporter for MetricsExporter {
         tracing::debug!(
             name = "export_metrics",
             target = "opentelemetry-otlp",
-            metrics_count = metrics.metrics_count(),
+            metrics_count = metrics
+                .scope_metrics
+                .iter()
+                .map(|scope| scope.metrics.len())
+                .sum::<usize>(),
             status = "started"
         );
         let result = self.client.export(metrics).await;
