@@ -15,8 +15,8 @@
   measurements since the last collect/export.
   [#2153](https://github.com/open-telemetry/opentelemetry-rust/pull/2153)
 - `MeterProvider` modified to not invoke shutdown on `Drop`, if user has already
-called `shutdown()`.
-[#2156](https://github.com/open-telemetry/opentelemetry-rust/pull/2156)
+  called `shutdown()`.
+  [#2156](https://github.com/open-telemetry/opentelemetry-rust/pull/2156)
 
 ## v0.25.0
 
