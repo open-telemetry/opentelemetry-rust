@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
 - **BREAKING** Public API changes:
   - **Removed**: `SdkMeter` struct [#2113](https://github.com/open-telemetry/opentelemetry-rust/pull/2113). This API is only meant for internal use.
   - **Removed**: `AggregationSelector` trait and `DefaultAggregationSelector` struct [#2085](https://github.com/open-telemetry/opentelemetry-rust/pull/2085). This API was unnecessary. The feature to customize aggregation for instruments should be offered by `Views` API.
@@ -11,6 +15,12 @@
   external sources to be sent through OpenTelemetry.
   [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
 - Feature: `SimpleSpanProcessor::new` is now public [#2119](https://github.com/open-telemetry/opentelemetry-rust/pull/2119)
+- For Delta Temporality, exporters are not invoked unless there were new
+  measurements since the last collect/export.
+  [#2153](https://github.com/open-telemetry/opentelemetry-rust/pull/2153)
+- `MeterProvider` modified to not invoke shutdown on `Drop`, if user has already
+  called `shutdown()`.
+  [#2156](https://github.com/open-telemetry/opentelemetry-rust/pull/2156)
 
 ## v0.25.0
 

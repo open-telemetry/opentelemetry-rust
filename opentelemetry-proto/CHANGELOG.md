@@ -2,7 +2,13 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- Update `opentelemetry_sdk` dependency version to 0.26
 - Fix JSON serialization of `metrics::Exemplar` and `trace::span::Link` [#2069](https://github.com/open-telemetry/opentelemetry-rust/pull/2069)
+- Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
 
 ## v0.25.0
 - Update `opentelemetry` dependency version to 0.25
