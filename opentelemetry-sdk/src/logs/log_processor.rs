@@ -152,7 +152,7 @@ impl LogProcessor for SimpleLogProcessor {
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor {
-    sender: SyncSender<Box<LogData>>,   
+    sender: SyncSender<BatchMessage>,
     handle: thread::JoinHandle<()>,
 }
 
@@ -166,14 +166,14 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
-        // let result = self.sender.send(BatchMessage::ExportLog((
-        //     record.clone(),
-        //     instrumentation.clone(),
-        // )));
+        let result = self.sender.send(BatchMessage::ExportLog((
+            record.clone(),
+            instrumentation.clone(),
+        )));
 
-        // if let Err(err) = result {
-        //     global::handle_error(LogError::Other(err.into()));
-        // }
+        if let Err(err) = result {
+            global::handle_error(LogError::Other(err.into()));
+        }
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -202,17 +202,51 @@ impl BatchLogProcessor {
         let (sender, receiver) = mpsc::sync_channel(config.max_queue_size);
         let handle = thread::spawn(move || {
             let mut batch: Vec<Box<LogData>> = Vec::new();
-            match receiver.try_recv() {
-                Ok(data) => batch.push(data),
-                // TODO: handle error
+            match receiver.recv() {
+                Ok(BatchMessage::ExportLog((data, instrumentation))) => {
+                    batch.push(Box::new(LogData { record: data, instrumentation }));
+                }
+                Ok(BatchMessage::Flush(sender)) => {
+                    // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
+                    // let result = futures_executor::block_on(export);
+                    // match sender {
+                    //     Some(sender) => {
+                    //         let _ = sender.send(result);
+                    //     }
+                    //     None => {
+                    //         match result {
+                    //             Ok(_) => {}
+                    //             Err(err) => global::handle_error(err),
+                    //         }
+                    //     }
+                    // }
+                }
+                Ok(BatchMessage::Shutdown(sender)) => {
+                    // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
+                    // let result = futures_executor::block_on(export);
+                    // match sender {
+                    //     Some(sender) => {
+                    //         let _ = sender.send(result);
+                    //     }
+                    //     None => {
+                    //         match result {
+                    //             Ok(_) => {}
+                    //             Err(err) => global::handle_error(err),
+                    //         }
+                    //     }
+                    // }
+                }
+                Ok(BatchMessage::SetResource(resource)) => {
+                    // exporter.set_resource(&resource);
+                }
                 Err(_) => {}
             }
-            // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
-            // let result = futures_executor::block_on(export);
-            // match result {
-            //     Ok(_) => {}
-            //     Err(err) => global::handle_error(err),
-            // }
+            let export = exporter.export(batch.into_iter().collect());
+            let result = futures_executor::block_on(export);
+            match result {
+                Ok(_) => {}
+                Err(err) => global::handle_error(err),
+            }
         });
 
         // Return batch processor with link to worker
@@ -395,19 +429,6 @@ where
 }
 
 /// Messages sent between application thread and batch log processor's work thread.
-// #[allow(clippy::large_enum_variant)]
-// #[derive(Debug)]
-// enum BatchMessage {
-//     /// Export logs, usually called when the log is emitted.
-//     ExportLog(LogData),
-//     /// Flush the current buffer to the backend, it can be triggered by
-//     /// pre configured interval or a call to `force_push` function.
-//     Flush(Option<oneshot::Sender<ExportResult>>),
-//     /// Shut down the worker thread, push all logs in buffer to the backend.
-//     Shutdown(oneshot::Sender<ExportResult>),
-//     /// Set the resource for the exporter.
-//     SetResource(Arc<Resource>),
-// }
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum BatchMessage {
@@ -731,7 +752,7 @@ mod tests {
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
-            runtime::Tokio,
+            // runtime::Tokio,
         );
 
         //
@@ -748,7 +769,7 @@ mod tests {
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
-            runtime::TokioCurrentThread,
+            // runtime::TokioCurrentThread,
         );
 
         processor.shutdown().unwrap();
@@ -762,7 +783,7 @@ mod tests {
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
-            runtime::Tokio,
+            // runtime::Tokio,
         );
 
         processor.shutdown().unwrap();
@@ -776,7 +797,7 @@ mod tests {
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
-            runtime::TokioCurrentThread,
+            // runtime::TokioCurrentThread,
         );
 
         processor.shutdown().unwrap();
