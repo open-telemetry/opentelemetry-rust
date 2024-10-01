@@ -20,7 +20,7 @@ body:
   - type: textarea
     id: api-version
     attributes:
-      label: OpenTelemetry API Version (i.e verion of `opentelemetry` crate)
+      label: OpenTelemetry API Version (i.e version of `opentelemetry` crate)
       description: What version of the `opentelemetry` crate are you using?
       placeholder: 0.x, 1.x, etc.
     validations:
