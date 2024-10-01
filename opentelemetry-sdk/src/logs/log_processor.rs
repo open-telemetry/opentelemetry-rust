@@ -103,7 +103,6 @@ impl LogProcessor for SimpleLogProcessor {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             otel_warn!(
-                target: "opentelemetry-sdk",
                 name: "simple_log_processor_emit_after_shutdown"
             );
             return;
