@@ -28,7 +28,7 @@ body:
   - type: textarea
     id: sdk-version
     attributes:
-      label: label: OpenTelemetry SDK Version (i.e verion of `opentelemetry_sdk` crate)
+      label: label: OpenTelemetry SDK Version (i.e version of `opentelemetry_sdk` crate)
       description: What version of the `opentelemetry_sdk` crate are you using?
       placeholder: 0.x, 1.x, etc.
     validations:
