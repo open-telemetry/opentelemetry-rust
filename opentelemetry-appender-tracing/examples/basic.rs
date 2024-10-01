@@ -4,9 +4,6 @@ use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::{logs::LoggerProvider, Resource};
 use tracing::error;
-use tracing_subscriber::filter::{filter_fn, EnvFilter};
-use tracing_subscriber::fmt;
-use tracing_subscriber::layer::Layer;
 use tracing_subscriber::prelude::*;
 
 fn main() {
@@ -18,19 +15,9 @@ fn main() {
         )]))
         .with_simple_exporter(exporter)
         .build();
-    let env_filter = EnvFilter::from_default_env();
-    let otel_layer = layer::OpenTelemetryTracingBridge::new(&provider);
-    let internal_log_layer = fmt::Layer::default()
-        .with_writer(std::io::stdout) // Writes to stdout
-        .pretty()
-        .with_filter(filter_fn(|meta| meta.target().starts_with("opentelemetry"))) // Custom filter function
-        .with_filter(env_filter);
-    tracing_subscriber::registry()
-        .with(internal_log_layer)
-        .with(otel_layer)
-        .init();
-    for i in 0..3 {
-        error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message", iteration = i);
-    }
+    let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+    tracing_subscriber::registry().with(layer).init();
+
+    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     let _ = provider.shutdown();
 }
