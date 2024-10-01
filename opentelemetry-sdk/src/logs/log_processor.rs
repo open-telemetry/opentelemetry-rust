@@ -1,12 +1,15 @@
 use crate::{
     export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::LogData,
     logs::LogRecord,
     Resource,
 };
 use std::sync::mpsc::{self, SyncSender};
 use futures_channel::oneshot;
-use std::borrow::Cow;
+use futures_util::{
+    // future::{self, Either},
+    {pin_mut, /*stream, StreamExt as _*/},
+};
+// use std::borrow::Cow;
 
 // use futures_util::{
 //     future::{self, Either},
@@ -153,7 +156,7 @@ impl LogProcessor for SimpleLogProcessor {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor {
     sender: SyncSender<BatchMessage>,
-    handle: thread::JoinHandle<()>,
+    handle: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 impl Debug for BatchLogProcessor {
@@ -177,23 +180,27 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        // TODO, implement force_flush
+        let _result = self.sender.send(BatchMessage::Flush(None));
         LogResult::Ok(())
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        let (res_sender, _res_receiver) = oneshot::channel();
+        let _result = self.sender.send(BatchMessage::Shutdown(res_sender));
         // TODO, implement shutdown
         // self.handle.join().unwrap();
         // let result = self.handle.join();
         // if let Err(err) = result {
         //     global::handle_error(err: LogError::Other(err.into()));
         // }
-        // // TODO, implement shutdown
+        if let Some(handle) = self.handle.lock().unwrap().take() {
+            handle.join().unwrap();
+        }
         LogResult::Ok(())
     }
 
     fn set_resource(&self, _resource: &Resource) {
-        // TODO, implement set_resource
+        let _result = self.sender.send(BatchMessage::SetResource(Arc::new(_resource.clone())));
     }
 }
 
@@ -201,12 +208,12 @@ impl BatchLogProcessor {
     pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig) -> Self {
         let (sender, receiver) = mpsc::sync_channel(config.max_queue_size);
         let handle = thread::spawn(move || {
-            let mut batch: Vec<Box<LogData>> = Vec::new();
+            let mut logs = Vec::new();
             match receiver.recv() {
-                Ok(BatchMessage::ExportLog((data, instrumentation))) => {
-                    batch.push(Box::new(LogData { record: data, instrumentation }));
+                Ok(BatchMessage::ExportLog(data)) => {
+                    logs.push(data);
                 }
-                Ok(BatchMessage::Flush(sender)) => {
+                Ok(BatchMessage::Flush(_sender)) => {
                     // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
                     // let result = futures_executor::block_on(export);
                     // match sender {
@@ -221,7 +228,7 @@ impl BatchLogProcessor {
                     //     }
                     // }
                 }
-                Ok(BatchMessage::Shutdown(sender)) => {
+                Ok(BatchMessage::Shutdown(_sender)) => {
                     // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
                     // let result = futures_executor::block_on(export);
                     // match sender {
@@ -236,12 +243,12 @@ impl BatchLogProcessor {
                     //     }
                     // }
                 }
-                Ok(BatchMessage::SetResource(resource)) => {
+                Ok(BatchMessage::SetResource(_resource)) => {
                     // exporter.set_resource(&resource);
                 }
                 Err(_) => {}
             }
-            let export = exporter.export(batch.into_iter().collect());
+            let export = export_with_timeout(config.max_export_timeout, exporter.as_mut(), logs.split_off(0));
             let result = futures_executor::block_on(export);
             match result {
                 Ok(_) => {}
@@ -250,7 +257,7 @@ impl BatchLogProcessor {
         });
 
         // Return batch processor with link to worker
-        BatchLogProcessor { sender, handle }
+        BatchLogProcessor { sender, handle: Mutex::new(Some(handle)) }
     }
 
     /// Create a new batch processor builder
@@ -263,6 +270,34 @@ impl BatchLogProcessor {
             config: Default::default(),
         }
     }
+}
+
+async fn export_with_timeout<E>(
+    _time_out: Duration,
+    exporter: &mut E,
+    batch: Vec<(LogRecord, InstrumentationLibrary)>,
+) -> ExportResult
+where
+    E: LogExporter + ?Sized,
+{
+    if batch.is_empty() {
+        return Ok(());
+    }
+
+    // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
+    let log_vec: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
+        .iter()
+        .map(|log_data| (&log_data.0, &log_data.1))
+        .collect();
+    let _export = exporter.export(LogBatch::new(log_vec.as_slice()));
+    // let timeout = runtime.delay(time_out);
+    pin_mut!(_export);
+    // pin_mut!(timeout);
+    // match future::select(export, export).await {
+    //     Either::Left((export_res, _)) => export_res,
+    //     Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+    // }
+    ExportResult::Ok(())
 }
 
 /// Batch log processor configuration.
