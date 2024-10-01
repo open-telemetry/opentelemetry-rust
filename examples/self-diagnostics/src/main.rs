@@ -2,7 +2,8 @@ use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
-use tracing_subscriber::filter::{filter_fn, EnvFilter};
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
 use std::error::Error;
@@ -60,6 +61,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap();
+    let cloned_provider = provider.clone();
 
     // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
     // The filter levels are set as follows:
@@ -73,30 +75,34 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
-    let unique_event_name_filter = filter_fn(|meta| {
-        if let Some(name) = meta.fields().iter().find(|field| field.name() == "name") {
-            let event_name = name.to_string();
-            let mut seen_events = SEEN_EVENT_NAMES.lock().unwrap();
 
-            if seen_events.contains(&event_name) {
-                // Drop subsequent events with the same name
-                false
-            } else {
-                // Allow the first event with this name and mark it as seen
-                seen_events.insert(event_name);
-                true
-            }
-        } else {
-            true // Allow events without a "name" field
-        }
+    // Configuring the formatting layer specifically for OpenTelemetry internal logs.
+    // These logs starts with "opentelemetry" prefix in target. This allows specific logs
+    // from the OpenTelemetry-related components to be filtered and handled separately
+    // from the application logs
+
+    let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        metadata.target().starts_with("opentelemetry")
     });
 
-    let cloned_provider = provider.clone();
-    let layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider);
+    let fmt_opentelemetry_layer = fmt::layer()
+        .with_filter(LevelFilter::DEBUG)
+        .with_filter(opentelemetry_filter);
+
+    // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
+    // to prevent infinite logging loops.
+
+    let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        !metadata.target().starts_with("opentelemetry")
+    });
+
+    let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
+        .with_filter(non_opentelemetry_filter.clone());
+
     tracing_subscriber::registry()
-        .with(filter)
-        .with(unique_event_name_filter)
-        .with(layer)
+        .with(fmt_opentelemetry_layer)
+        .with(fmt::layer().with_filter(filter))
+        .with(otel_layer)
         .init();
     provider
 }

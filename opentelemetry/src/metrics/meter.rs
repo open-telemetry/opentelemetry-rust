@@ -71,10 +71,10 @@ pub trait MeterProvider {
 ///   your application's processing logic. For example, you might use a Counter
 ///   to record the number of HTTP requests received.
 ///
-/// - **Asynchronous Instruments** (e.g., Gauge): These allow you to register a
-///   callback function that is invoked during export. For instance, you could
-///   use an asynchronous gauge to monitor temperature from a sensor every time
-///   metrics are exported.
+/// - **Asynchronous Instruments** (e.g., ObservableGauge): These allow you to
+///   register a callback function that is invoked during export. For instance,
+///   you could use an asynchronous gauge to monitor temperature from a sensor
+///   every time metrics are exported.
 ///
 /// # Example Usage
 ///
@@ -105,7 +105,6 @@ pub trait MeterProvider {
 ///     ],
 /// );
 ///
-/// // Asynchronous Instruments
 ///
 /// // u64 Observable Counter
 /// let _observable_u64_counter = meter
@@ -190,6 +189,36 @@ pub trait MeterProvider {
 ///         )
 ///     })
 ///     .init();
+///
+/// // i64 Gauge
+/// let gauge = meter.i64_gauge("my_gauge").init();
+/// gauge.record(
+/// -10,
+/// &[
+///     KeyValue::new("mykey1", "myvalue1"),
+///     KeyValue::new("mykey2", "myvalue2"),
+/// ],
+/// );
+///
+/// // u64 Gauge
+/// let gauge = meter.u64_gauge("my_gauge").init();
+/// gauge.record(
+/// 101,
+/// &[
+///     KeyValue::new("mykey1", "myvalue1"),
+///     KeyValue::new("mykey2", "myvalue2"),
+/// ],
+/// );
+///
+/// // f64 Gauge
+/// let gauge = meter.f64_gauge("my_gauge").init();
+/// gauge.record(
+/// 12.5,
+/// &[
+///     KeyValue::new("mykey1", "myvalue1"),
+///     KeyValue::new("mykey2", "myvalue2"),
+/// ],
+/// );
 ///
 /// // u64 Observable Gauge
 /// let _observable_u64_gauge = meter

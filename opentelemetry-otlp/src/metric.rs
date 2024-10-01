@@ -294,7 +294,29 @@ impl TemporalitySelector for MetricsExporter {
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
-        self.client.export(metrics).await
+        #[cfg(feature = "experimental-internal-logs")]
+        tracing::debug!(
+            name = "export_metrics",
+            target = "opentelemetry-otlp",
+            metrics_count = metrics
+                .scope_metrics
+                .iter()
+                .map(|scope| scope.metrics.len())
+                .sum::<usize>(),
+            status = "started"
+        );
+        let result = self.client.export(metrics).await;
+        #[cfg(feature = "experimental-internal-logs")]
+        tracing::debug!(
+            name = "export_metrics",
+            target = "opentelemetry-otlp",
+            status = if result.is_ok() {
+                "completed"
+            } else {
+                "failed"
+            }
+        );
+        result
     }
 
     async fn force_flush(&self) -> Result<()> {
