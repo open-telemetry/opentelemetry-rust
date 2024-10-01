@@ -2,8 +2,9 @@ use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use std::error::Error;
 use tracing::error;
@@ -59,6 +60,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         )
         .install_batch()
         .unwrap();
+    let cloned_provider = provider.clone();
 
     // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
     // The filter levels are set as follows:
@@ -72,11 +74,34 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("hyper=error".parse().unwrap())
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
-    let cloned_provider = provider.clone();
-    let layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider);
+
+    // Configuring the formatting layer specifically for OpenTelemetry internal logs.
+    // These logs starts with "opentelemetry" prefix in target. This allows specific logs
+    // from the OpenTelemetry-related components to be filtered and handled separately
+    // from the application logs
+
+    let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        metadata.target().starts_with("opentelemetry")
+    });
+
+    let fmt_opentelemetry_layer = fmt::layer()
+        .with_filter(LevelFilter::DEBUG)
+        .with_filter(opentelemetry_filter);
+
+    // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
+    // to prevent infinite logging loops.
+
+    let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        !metadata.target().starts_with("opentelemetry")
+    });
+
+    let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
+        .with_filter(non_opentelemetry_filter.clone());
+
     tracing_subscriber::registry()
-        .with(filter)
-        .with(layer)
+        .with(fmt_opentelemetry_layer)
+        .with(fmt::layer().with_filter(filter))
+        .with(otel_layer)
         .init();
     provider
 }

@@ -234,7 +234,13 @@ struct PeriodicReaderWorker<RT: Runtime> {
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
+        #[cfg(feature = "experimental-internal-logs")]
+        tracing::debug!(name: "metrics_collect_and_export", target: "opentelemetry-sdk", status = "started");
         self.reader.collect(&mut self.rm)?;
+        if self.rm.scope_metrics.is_empty() {
+            // No metrics to export.
+            return Ok(());
+        }
 
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
@@ -242,25 +248,48 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         pin_mut!(timeout);
 
         match future::select(export, timeout).await {
-            Either::Left((res, _)) => res, // return the status of export.
-            Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
+            Either::Left((res, _)) => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::debug!(
+                    name: "collect_and_export",
+                    target: "opentelemetry-sdk",
+                    status = "completed",
+                    result = ?res
+                );
+                res // return the status of export.
+            }
+            Either::Right(_) => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::error!(
+                    name = "collect_and_export",
+                    target = "opentelemetry-sdk",
+                    status = "timed_out"
+                );
+                Err(MetricsError::Other("export timed out".into()))
+            }
         }
     }
 
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "export");
                 if let Err(err) = self.collect_and_export().await {
                     global::handle_error(err)
                 }
             }
             Message::Flush(ch) => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "flush");
                 let res = self.collect_and_export().await;
                 if ch.send(res).is_err() {
                     global::handle_error(MetricsError::Other("flush channel closed".into()))
                 }
             }
             Message::Shutdown(ch) => {
+                #[cfg(feature = "experimental-internal-logs")]
+                tracing::debug!(name: "process_message", target: "opentelemetry-sdk", message_type = "shutdown");
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if ch.send(res).is_err() {
@@ -381,29 +410,41 @@ mod tests {
     use std::sync::mpsc;
 
     #[test]
-    fn collection_triggered_by_interval() {
-        // Arrange
-        let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::TokioCurrentThread)
-            .with_interval(interval)
-            .build();
-        let (sender, receiver) = mpsc::channel();
+    fn collection_triggered_by_interval_tokio_current() {
+        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
+    }
 
-        // Act
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        let meter = meter_provider.meter("test");
-        let _counter = meter
-            .u64_observable_counter("testcounter")
-            .with_callback(move |_| {
-                sender.send(()).expect("channel should still be open");
-            })
-            .init();
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio() {
+        collection_triggered_by_interval_helper(runtime::Tokio);
+    }
 
-        // Assert
-        receiver
-            .recv()
-            .expect("message should be available in channel, indicating a collection occurred");
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio() {
+        collection_triggered_by_interval_helper(runtime::Tokio);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current()
+    {
+        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current()
+    {
+        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/2056"]
+    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio() {
+        collection_triggered_by_interval_helper(runtime::Tokio);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio_current() {
+        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
     #[test]
@@ -423,5 +464,32 @@ mod tests {
         assert!(
             matches!(result.unwrap_err(), MetricsError::Other(err) if err == "reader is not registered")
         );
+    }
+
+    fn collection_triggered_by_interval_helper<RT>(runtime: RT)
+    where
+        RT: crate::runtime::Runtime,
+    {
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime)
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .init();
+
+        // Assert
+        receiver
+            .recv()
+            .expect("message should be available in channel, indicating a collection occurred");
     }
 }

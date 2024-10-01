@@ -9,6 +9,10 @@
 
   - **Modified**: `MeterProvider.meter()` and `MeterProvider.versioned_meter()` argument types have been updated to `&'static str` instead of `impl Into<Cow<'static, str>>>` [#2112](https://github.com/open-telemetry/opentelemetry-rust/pull/2112). These APIs were modified to enforce the Meter `name`, `version`, and `schema_url` to be `&'static str`.
 
+  - **Renamed**: `NoopMeterCore` to `NoopMeter`
+
+- Added `with_boundaries` API to allow users to provide custom bounds for Histogram instruments. [#2135](https://github.com/open-telemetry/opentelemetry-rust/pull/2135)
+
 ## v0.25.0
 
 - **BREAKING** [#1993](https://github.com/open-telemetry/opentelemetry-rust/pull/1993) Box complex types in AnyValue enum
