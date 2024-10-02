@@ -4,9 +4,10 @@ use std::{borrow::Cow, sync::Arc};
 use opentelemetry::{
     global,
     metrics::{
-        noop::NoopAsyncInstrument, AsyncInstrumentBuilder, Counter, Gauge, Histogram,
-        HistogramBuilder, InstrumentBuilder, InstrumentProvider, MetricsError, ObservableCounter,
-        ObservableGauge, ObservableUpDownCounter, Result, UpDownCounter,
+        noop::{NoopAsyncInstrument, NoopSyncInstrument},
+        AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
+        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
+        ObservableUpDownCounter, Result, UpDownCounter,
     },
 };
 
@@ -48,7 +49,6 @@ pub(crate) struct SdkMeter {
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
     f64_resolver: Resolver<f64>,
-    validation_policy: InstrumentValidationPolicy,
 }
 
 impl SdkMeter {
@@ -61,15 +61,249 @@ impl SdkMeter {
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             f64_resolver: Resolver::new(pipes, view_cache),
-            validation_policy: InstrumentValidationPolicy::HandleGlobalAndIgnore,
         }
     }
 
-    #[cfg(test)]
-    fn with_validation_policy(self, validation_policy: InstrumentValidationPolicy) -> Self {
-        Self {
-            validation_policy,
-            ..self
+    fn create_counter<T>(
+        &self,
+        builder: InstrumentBuilder<'_, Counter<T>>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<Counter<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(Counter::new(Arc::new(NoopSyncInstrument::new())));
+        }
+
+        match resolver
+            .lookup(
+                InstrumentKind::Counter,
+                builder.name,
+                builder.description,
+                builder.unit,
+                None,
+            )
+            .map(|i| Counter::new(Arc::new(i)))
+        {
+            Ok(counter) => Ok(counter),
+            Err(err) => {
+                global::handle_error(err);
+                Ok(Counter::new(Arc::new(NoopSyncInstrument::new())))
+            }
+        }
+    }
+
+    fn create_observable_counter<T>(
+        &self,
+        builder: AsyncInstrumentBuilder<'_, ObservableCounter<T>, T>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<ObservableCounter<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+        }
+
+        let ms = resolver.measures(
+            InstrumentKind::ObservableCounter,
+            builder.name,
+            builder.description,
+            builder.unit,
+            None,
+        )?;
+
+        if ms.is_empty() {
+            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+        }
+
+        let observable = Arc::new(Observable::new(ms));
+
+        for callback in builder.callbacks {
+            let cb_inst = Arc::clone(&observable);
+            self.pipes
+                .register_callback(move || callback(cb_inst.as_ref()));
+        }
+
+        Ok(ObservableCounter::new(observable))
+    }
+
+    fn create_observable_updown_counter<T>(
+        &self,
+        builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<T>, T>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<ObservableUpDownCounter<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(ObservableUpDownCounter::new(Arc::new(
+                NoopAsyncInstrument::new(),
+            )));
+        }
+
+        let ms = resolver.measures(
+            InstrumentKind::ObservableUpDownCounter,
+            builder.name,
+            builder.description,
+            builder.unit,
+            None,
+        )?;
+
+        if ms.is_empty() {
+            return Ok(ObservableUpDownCounter::new(Arc::new(
+                NoopAsyncInstrument::new(),
+            )));
+        }
+
+        let observable = Arc::new(Observable::new(ms));
+
+        for callback in builder.callbacks {
+            let cb_inst = Arc::clone(&observable);
+            self.pipes
+                .register_callback(move || callback(cb_inst.as_ref()));
+        }
+
+        Ok(ObservableUpDownCounter::new(observable))
+    }
+
+    fn create_observable_gauge<T>(
+        &self,
+        builder: AsyncInstrumentBuilder<'_, ObservableGauge<T>, T>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<ObservableGauge<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+        }
+
+        let ms = resolver.measures(
+            InstrumentKind::ObservableGauge,
+            builder.name,
+            builder.description,
+            builder.unit,
+            None,
+        )?;
+
+        if ms.is_empty() {
+            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+        }
+
+        let observable = Arc::new(Observable::new(ms));
+
+        for callback in builder.callbacks {
+            let cb_inst = Arc::clone(&observable);
+            self.pipes
+                .register_callback(move || callback(cb_inst.as_ref()));
+        }
+
+        Ok(ObservableGauge::new(observable))
+    }
+
+    fn create_updown_counter<T>(
+        &self,
+        builder: InstrumentBuilder<'_, UpDownCounter<T>>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<UpDownCounter<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())));
+        }
+
+        match resolver
+            .lookup(
+                InstrumentKind::UpDownCounter,
+                builder.name,
+                builder.description,
+                builder.unit,
+                None,
+            )
+            .map(|i| UpDownCounter::new(Arc::new(i)))
+        {
+            Ok(updown_counter) => Ok(updown_counter),
+            Err(err) => {
+                global::handle_error(err);
+                Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())))
+            }
+        }
+    }
+
+    fn create_gauge<T>(
+        &self,
+        builder: InstrumentBuilder<'_, Gauge<T>>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<Gauge<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())));
+        }
+
+        match resolver
+            .lookup(
+                InstrumentKind::Gauge,
+                builder.name,
+                builder.description,
+                builder.unit,
+                None,
+            )
+            .map(|i| Gauge::new(Arc::new(i)))
+        {
+            Ok(gauge) => Ok(gauge),
+            Err(err) => {
+                global::handle_error(err);
+                Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())))
+            }
+        }
+    }
+
+    fn create_histogram<T>(
+        &self,
+        builder: HistogramBuilder<'_, T>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> Result<Histogram<T>>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            global::handle_error(err);
+            return Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())));
+        }
+
+        match resolver
+            .lookup(
+                InstrumentKind::Histogram,
+                builder.name,
+                builder.description,
+                builder.unit,
+                builder.boundaries,
+            )
+            .map(|i| Histogram::new(Arc::new(i)))
+        {
+            Ok(histogram) => Ok(histogram),
+            Err(err) => {
+                global::handle_error(err);
+                Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())))
+            }
         }
     }
 }
@@ -77,353 +311,115 @@ impl SdkMeter {
 #[doc(hidden)]
 impl InstrumentProvider for SdkMeter {
     fn u64_counter(&self, builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Counter<u64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Counter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| Counter::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_counter(builder, &resolver)
     }
 
     fn f64_counter(&self, builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Counter<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Counter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| Counter::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_counter(builder, &resolver)
     }
 
     fn u64_observable_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<ObservableCounter<u64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.u64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableCounter::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_observable_counter(builder, &resolver)
     }
 
     fn f64_observable_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<ObservableCounter<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
-        }
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableCounter::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_observable_counter(builder, &resolver)
     }
 
     fn i64_up_down_counter(
         &self,
         builder: InstrumentBuilder<'_, UpDownCounter<i64>>,
     ) -> Result<UpDownCounter<i64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.i64_resolver);
-        p.lookup(
-            InstrumentKind::UpDownCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| UpDownCounter::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.i64_resolver);
+        self.create_updown_counter(builder, &resolver)
     }
 
     fn f64_up_down_counter(
         &self,
         builder: InstrumentBuilder<'_, UpDownCounter<f64>>,
     ) -> Result<UpDownCounter<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::UpDownCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| UpDownCounter::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_updown_counter(builder, &resolver)
     }
 
     fn i64_observable_up_down_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
     ) -> Result<ObservableUpDownCounter<i64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.i64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableUpDownCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableUpDownCounter::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.i64_resolver);
+        self.create_observable_updown_counter(builder, &resolver)
     }
 
     fn f64_observable_up_down_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
     ) -> Result<ObservableUpDownCounter<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableUpDownCounter,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableUpDownCounter::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_observable_updown_counter(builder, &resolver)
     }
 
     fn u64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Gauge<u64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_gauge(builder, &resolver)
     }
 
     fn f64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Gauge<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_gauge(builder, &resolver)
     }
 
     fn i64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Gauge<i64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.i64_resolver);
-        p.lookup(
-            InstrumentKind::Gauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )
-        .map(|i| Gauge::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.i64_resolver);
+        self.create_gauge(builder, &resolver)
     }
 
     fn u64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
     ) -> Result<ObservableGauge<u64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.u64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableGauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableGauge::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_observable_gauge(builder, &resolver)
     }
 
     fn i64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
     ) -> Result<ObservableGauge<i64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.i64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableGauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableGauge::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.i64_resolver);
+        self.create_observable_gauge(builder, &resolver)
     }
 
     fn f64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
     ) -> Result<ObservableGauge<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        let ms = p.measures(
-            InstrumentKind::ObservableGauge,
-            builder.name,
-            builder.description,
-            builder.unit,
-            None,
-        )?;
-        if ms.is_empty() {
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
-        }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableGauge::new(observable))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_observable_gauge(builder, &resolver)
     }
 
     fn f64_histogram(&self, builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.f64_resolver);
-        p.lookup(
-            InstrumentKind::Histogram,
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.boundaries,
-        )
-        .map(|i| Histogram::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_histogram(builder, &resolver)
     }
 
     fn u64_histogram(&self, builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
-        validate_instrument_config(builder.name.as_ref(), &builder.unit, self.validation_policy)?;
-        let p = InstrumentResolver::new(self, &self.u64_resolver);
-        p.lookup(
-            InstrumentKind::Histogram,
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.boundaries,
-        )
-        .map(|i| Histogram::new(Arc::new(i)))
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_histogram(builder, &resolver)
     }
 }
 
-/// Validation policy for instrument
-#[derive(Clone, Copy)]
-enum InstrumentValidationPolicy {
-    HandleGlobalAndIgnore,
-    /// Currently only for test
-    #[cfg(test)]
-    Strict,
-}
-
-fn validate_instrument_config(
-    name: &str,
-    unit: &Option<Cow<'static, str>>,
-    policy: InstrumentValidationPolicy,
-) -> Result<()> {
-    match validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit)) {
-        Ok(_) => Ok(()),
-        Err(err) => match policy {
-            InstrumentValidationPolicy::HandleGlobalAndIgnore => {
-                global::handle_error(err);
-                Ok(())
-            }
-            #[cfg(test)]
-            InstrumentValidationPolicy::Strict => Err(err),
-        },
-    }
+fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> Result<()> {
+    validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit))
 }
 
 fn validate_instrument_name(name: &str) -> Result<()> {
@@ -525,42 +521,18 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{borrow::Cow, sync::Arc};
+    use std::borrow::Cow;
 
-    use opentelemetry::{
-        global,
-        metrics::{InstrumentProvider, MeterProvider, MetricsError},
-    };
+    use opentelemetry::metrics::MetricsError;
 
     use super::{
-        InstrumentValidationPolicy, SdkMeter, INSTRUMENT_NAME_FIRST_ALPHABETIC,
+        validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_FIRST_ALPHABETIC,
         INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
         INSTRUMENT_UNIT_LENGTH,
     };
-    use crate::{
-        metrics::{pipeline::Pipelines, SdkMeterProvider},
-        Resource, Scope,
-    };
 
     #[test]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1699"]
-    fn test_instrument_creation() {
-        let provider = SdkMeterProvider::builder().build();
-        let meter = provider.meter("test");
-        assert!(meter.u64_counter("test").try_init().is_ok());
-        let result = meter.u64_counter("test with invalid name").try_init();
-        // this assert fails, as result is always ok variant.
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_instrument_config_validation() {
-        // scope and pipelines are not related to test
-        let meter = SdkMeter::new(
-            Scope::default(),
-            Arc::new(Pipelines::new(Resource::default(), Vec::new(), Vec::new())),
-        )
-        .with_validation_policy(InstrumentValidationPolicy::Strict);
+    fn instrument_name_validation() {
         // (name, expected error)
         let instrument_name_test_cases = vec![
             ("validateName", ""),
@@ -585,84 +557,12 @@ mod tests {
                 }
             };
 
-            // Get handle to InstrumentBuilder for testing
-            let global_meter = global::meter("test");
-            let counter_builder_u64 = global_meter.u64_counter(name);
-            let counter_builder_f64 = global_meter.f64_counter(name);
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_counter_u64 = global_meter.u64_observable_counter(name);
-            let observable_counter_f64 = global_meter.f64_observable_counter(name);
-
-            assert(meter.u64_counter(counter_builder_u64).map(|_| ()));
-            assert(meter.f64_counter(counter_builder_f64).map(|_| ()));
-            assert(
-                meter
-                    .u64_observable_counter(observable_counter_u64)
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .f64_observable_counter(observable_counter_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to InstrumentBuilder for testing
-            let up_down_counter_builder_i64 = global_meter.i64_up_down_counter(name);
-            let up_down_counter_builder_f64 = global_meter.f64_up_down_counter(name);
-
-            assert(
-                meter
-                    .i64_up_down_counter(up_down_counter_builder_i64)
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .f64_up_down_counter(up_down_counter_builder_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_up_down_counter_i64 = global_meter.i64_observable_up_down_counter(name);
-            let observable_up_down_counter_f64 = global_meter.f64_observable_up_down_counter(name);
-
-            assert(
-                meter
-                    .i64_observable_up_down_counter(observable_up_down_counter_i64)
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .f64_observable_up_down_counter(observable_up_down_counter_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to InstrumentBuilder for testing
-            let gauge_builder_u64 = global_meter.u64_gauge(name);
-            let gauge_builder_f64 = global_meter.f64_gauge(name);
-            let gauge_builder_i64 = global_meter.i64_gauge(name);
-
-            assert(meter.u64_gauge(gauge_builder_u64).map(|_| ()));
-            assert(meter.f64_gauge(gauge_builder_f64).map(|_| ()));
-            assert(meter.i64_gauge(gauge_builder_i64).map(|_| ()));
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_gauge_u64 = global_meter.u64_observable_gauge(name);
-            let observable_gauge_i64 = global_meter.i64_observable_gauge(name);
-            let observable_gauge_f64 = global_meter.f64_observable_gauge(name);
-
-            assert(meter.u64_observable_gauge(observable_gauge_u64).map(|_| ()));
-            assert(meter.i64_observable_gauge(observable_gauge_i64).map(|_| ()));
-            assert(meter.f64_observable_gauge(observable_gauge_f64).map(|_| ()));
-
-            // Get handle to HistogramBuilder for testing
-            let histogram_builder_f64 = global_meter.f64_histogram(name);
-            let histogram_builder_u64 = global_meter.u64_histogram(name);
-
-            assert(meter.f64_histogram(histogram_builder_f64).map(|_| ()));
-            assert(meter.u64_histogram(histogram_builder_u64).map(|_| ()));
+            assert(validate_instrument_name(name).map(|_| ()));
         }
+    }
 
+    #[test]
+    fn instrument_unit_validation() {
         // (unit, expected error)
         let instrument_unit_test_cases = vec![
             (
@@ -689,101 +589,7 @@ mod tests {
             };
             let unit: Option<Cow<'static, str>> = Some(unit.into());
 
-            // Get handle to InstrumentBuilder for testing
-            let global_meter = global::meter("test");
-            let counter_builder_u64 = global_meter
-                .u64_counter("test")
-                .with_unit(unit.clone().unwrap());
-            let counter_builder_f64 = global_meter
-                .f64_counter("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(meter.u64_counter(counter_builder_u64).map(|_| ()));
-            assert(meter.f64_counter(counter_builder_f64).map(|_| ()));
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_counter_u64 = global_meter
-                .u64_observable_counter("test")
-                .with_unit(unit.clone().unwrap());
-            let observable_counter_f64 = global_meter
-                .f64_observable_counter("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(
-                meter
-                    .u64_observable_counter(observable_counter_u64)
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .f64_observable_counter(observable_counter_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to InstrumentBuilder for testing
-            let up_down_counter_builder_i64 = global_meter
-                .i64_up_down_counter("test")
-                .with_unit(unit.clone().unwrap());
-            let up_down_counter_builder_f64 = global_meter
-                .f64_up_down_counter("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(
-                meter
-                    .i64_up_down_counter(up_down_counter_builder_i64)
-                    .map(|_| ()),
-            );
-
-            assert(
-                meter
-                    .f64_up_down_counter(up_down_counter_builder_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_up_down_counter_i64 = global_meter
-                .i64_observable_up_down_counter("test")
-                .with_unit(unit.clone().unwrap());
-            let observable_up_down_counter_f64 = global_meter
-                .f64_observable_up_down_counter("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(
-                meter
-                    .i64_observable_up_down_counter(observable_up_down_counter_i64)
-                    .map(|_| ()),
-            );
-            assert(
-                meter
-                    .f64_observable_up_down_counter(observable_up_down_counter_f64)
-                    .map(|_| ()),
-            );
-
-            // Get handle to AsyncInstrumentBuilder for testing
-            let observable_gauge_u64 = global_meter
-                .u64_observable_gauge("test")
-                .with_unit(unit.clone().unwrap());
-            let observable_gauge_i64 = global_meter
-                .i64_observable_gauge("test")
-                .with_unit(unit.clone().unwrap());
-            let observable_gauge_f64 = global_meter
-                .f64_observable_gauge("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(meter.u64_observable_gauge(observable_gauge_u64).map(|_| ()));
-            assert(meter.i64_observable_gauge(observable_gauge_i64).map(|_| ()));
-            assert(meter.f64_observable_gauge(observable_gauge_f64).map(|_| ()));
-
-            // Get handle to HistogramBuilder for testing
-            let histogram_builder_f64 = global_meter
-                .f64_histogram("test")
-                .with_unit(unit.clone().unwrap());
-            let histogram_builder_u64 = global_meter
-                .u64_histogram("test")
-                .with_unit(unit.clone().unwrap());
-
-            assert(meter.f64_histogram(histogram_builder_f64).map(|_| ()));
-            assert(meter.u64_histogram(histogram_builder_u64).map(|_| ()));
+            assert(validate_instrument_unit(&unit).map(|_| ()));
         }
     }
 }
