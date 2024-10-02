@@ -96,12 +96,9 @@ impl<'a> HistogramBuilder<'a, f64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, an instrument that is no-op is returned
+    /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<f64> {
         self.try_init().unwrap()
     }
@@ -115,7 +112,7 @@ impl<'a> HistogramBuilder<'a, u64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument. In
+    /// Validates the instrument configuration and creates a new instrument. In
     /// case of invalid configuration, an instrument that is no-op is returned
     /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<u64> {
@@ -181,7 +178,7 @@ where
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument. In
+    /// Validates the instrument configuration and creates a new instrument. In
     /// case of invalid configuration, an instrument that is no-op is returned
     /// and an error is logged using internal logging.
     pub fn init(self) -> T {
@@ -300,7 +297,7 @@ where
     /// Creates a new instrument.
     ///
     ///
-    /// Validate the instrument configuration and crates a new instrument. In
+    /// Validates the instrument configuration and creates a new instrument. In
     /// case of invalid configuration, an instrument that is no-op is returned
     /// and an error is logged using internal logging.
     pub fn init(self) -> I {
