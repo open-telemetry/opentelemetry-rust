@@ -709,6 +709,10 @@ where
         }
 
         if errs.is_empty() {
+            if measures.is_empty() {
+                // TODO: Emit internal log that measurements from the instrument
+                // are being dropped due to view configuration
+            }
             Ok(measures)
         } else {
             Err(MetricsError::Other(format!("{errs:?}")))
