@@ -209,6 +209,9 @@ impl BatchLogProcessor {
         let (sender, receiver) = mpsc::sync_channel(config.max_queue_size);
         let handle = thread::spawn(move || {
             let mut logs = Vec::new();
+            logs.reserve(config.max_export_batch_size);
+            loop {
+                logs.clear();
             match receiver.recv() {
                 Ok(BatchMessage::ExportLog(data)) => {
                     logs.push(data);
@@ -229,6 +232,8 @@ impl BatchLogProcessor {
                     // }
                 }
                 Ok(BatchMessage::Shutdown(_sender)) => {
+                    exporter.shutdown();
+                    break;
                     // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
                     // let result = futures_executor::block_on(export);
                     // match sender {
@@ -248,13 +253,14 @@ impl BatchLogProcessor {
                 }
                 Err(_) => {}
             }
+
             let export = export_with_timeout(config.max_export_timeout, exporter.as_mut(), logs.split_off(0));
             let result = futures_executor::block_on(export);
             match result {
                 Ok(_) => {}
                 Err(err) => global::handle_error(err),
             }
-        });
+        }});
 
         // Return batch processor with link to worker
         BatchLogProcessor { sender, handle: Mutex::new(Some(handle)) }
