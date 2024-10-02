@@ -70,7 +70,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<Counter<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -102,7 +102,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<ObservableCounter<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -139,7 +139,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<ObservableUpDownCounter<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -180,7 +180,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<ObservableGauge<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -217,7 +217,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<UpDownCounter<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -249,7 +249,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<Gauge<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
@@ -281,7 +281,7 @@ impl SdkMeter {
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<Histogram<T>>
     where
-        T: 'static + Send + Sync + Number,
+        T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
