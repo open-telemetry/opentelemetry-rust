@@ -12,13 +12,11 @@
 #[macro_export]
 macro_rules! otel_info {
     (name: $name:expr $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"),"");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
         }
@@ -38,13 +36,11 @@ macro_rules! otel_info {
 #[macro_export]
 macro_rules! otel_warn {
     (name: $name:expr $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
         }
@@ -64,13 +60,11 @@ macro_rules! otel_warn {
 #[macro_export]
 macro_rules! otel_debug {
     (name: $name:expr $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
-        #[cfg(all(feature = "experimental-internal-debugging"))]
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
         }

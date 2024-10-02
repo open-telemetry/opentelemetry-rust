@@ -134,6 +134,7 @@ mod propagation;
 #[cfg(feature = "trace")]
 mod trace;
 
+pub use crate::{otel_debug, otel_error, otel_info, otel_warn};
 pub use error_handler::{handle_error, set_error_handler, Error};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

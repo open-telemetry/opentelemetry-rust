@@ -14,9 +14,9 @@ use opentelemetry::logs::Severity;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
-    InstrumentationLibrary,
+    otel_debug, otel_error, otel_info, otel_warn, InstrumentationLibrary,
 };
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
+
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -108,10 +108,8 @@ impl LogProcessor for SimpleLogProcessor {
             return;
         }
 
-        #[cfg(feature = "experimental-internal-logs")]
         tracing::debug!(
             name: "simple_log_processor_emit",
-            target: "opentelemetry-sdk",
             event_name = record.event_name
         );
 
@@ -271,10 +269,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
-                        #[cfg(feature = "experimental-internal-logs")]
                         tracing::debug!(
                             name: "batch_log_processor_record_count",
-                            target: "opentelemetry-sdk",
                             current_batch_size = logs.len()
                         );
 
@@ -312,10 +308,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Some(channel) = res_channel {
                             if let Err(result) = channel.send(result) {
-                                global::handle_error(LogError::from(format!(
-                                    "failed to send flush result: {:?}",
-                                    result
-                                )));
                                 otel_error!(
                                     name: "batch_log_processor_flush_error",
                                     error = format!("{:?}", result),
@@ -328,7 +320,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 error = format!("{:?}", err),
                                 message = "Flush failed"
                             );
-                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
