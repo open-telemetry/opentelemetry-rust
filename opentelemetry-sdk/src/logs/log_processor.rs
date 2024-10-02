@@ -211,56 +211,34 @@ impl BatchLogProcessor {
             let mut logs = Vec::new();
             logs.reserve(config.max_export_batch_size);
             loop {
-                logs.clear();
-            match receiver.recv() {
-                Ok(BatchMessage::ExportLog(data)) => {
-                    logs.push(data);
-                }
-                Ok(BatchMessage::Flush(_sender)) => {
-                    // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
-                    // let result = futures_executor::block_on(export);
-                    // match sender {
-                    //     Some(sender) => {
-                    //         let _ = sender.send(result);
-                    //     }
-                    //     None => {
-                    //         match result {
-                    //             Ok(_) => {}
-                    //             Err(err) => global::handle_error(err),
-                    //         }
-                    //     }
-                    // }
-                }
-                Ok(BatchMessage::Shutdown(_sender)) => {
-                    exporter.shutdown();
-                    break;
-                    // let export = exporter.export(batch.into_iter().map(|data| Cow::Owned(*data)).collect());
-                    // let result = futures_executor::block_on(export);
-                    // match sender {
-                    //     Some(sender) => {
-                    //         let _ = sender.send(result);
-                    //     }
-                    //     None => {
-                    //         match result {
-                    //             Ok(_) => {}
-                    //             Err(err) => global::handle_error(err),
-                    //         }
-                    //     }
-                    // }
-                }
-                Ok(BatchMessage::SetResource(_resource)) => {
-                    // exporter.set_resource(&resource);
-                }
-                Err(_) => {}
-            }
+                match receiver.recv() {
+                    Ok(BatchMessage::ExportLog(data)) => {
+                        logs.push(data);
 
-            let export = export_with_timeout(config.max_export_timeout, exporter.as_mut(), logs.split_off(0));
-            let result = futures_executor::block_on(export);
-            match result {
-                Ok(_) => {}
-                Err(err) => global::handle_error(err),
+                        if logs.len() == config.max_export_batch_size {
+                            let export = export_with_timeout(config.max_export_timeout, exporter.as_mut(), logs.split_off(0));
+                            let result = futures_executor::block_on(export);
+                            match result {
+                                Ok(_) => {}
+                                Err(err) => global::handle_error(err),
+                            }
+                            logs.clear();
+                        }
+                    }
+                    Ok(BatchMessage::Flush(_sender)) => {
+                        // TODO: Implement flush
+                    }
+                    Ok(BatchMessage::Shutdown(_sender)) => {
+                        exporter.shutdown();
+                        break;
+                    }
+                    Ok(BatchMessage::SetResource(resource)) => {
+                        exporter.set_resource(&resource);
+                    }
+                    Err(_) => {}
+                }
             }
-        }});
+        });
 
         // Return batch processor with link to worker
         BatchLogProcessor { sender, handle: Mutex::new(Some(handle)) }
