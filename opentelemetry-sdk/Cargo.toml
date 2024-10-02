@@ -28,7 +28,7 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true}
+tracing = {workspace = true}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -52,7 +52,6 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
-experimental-internal-logs = ["tracing"]
 
 [[bench]]
 name = "context"

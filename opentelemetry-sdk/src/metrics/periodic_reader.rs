@@ -14,7 +14,7 @@ use futures_util::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    otel_debug, otel_error, otel_info,
+    otel_debug, otel_info,
 };
 
 use crate::runtime::Runtime;
