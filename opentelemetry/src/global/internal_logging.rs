@@ -1,4 +1,10 @@
 #![allow(unused_macros)]
+///
+/// **Note**: These macros (`otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!`) are intended to be used
+/// **internally within OpenTelemetry code** or for **custom exporters and processors**. They are not designed
+/// for general application logging and should not be used for that purpose.
+///
+
 /// Macro for logging informational messages in OpenTelemetry.
 ///
 /// # Fields:
@@ -13,12 +19,12 @@
 macro_rules! otel_info {
     (name: $name:expr $(,)?) => {
         {
-            tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"),"");
+            tracing::info!( target: env!("CARGO_PKG_NAME"), name= $name,"");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         {
-            tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::info!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
         }
     };
 }
@@ -37,12 +43,12 @@ macro_rules! otel_info {
 macro_rules! otel_warn {
     (name: $name:expr $(,)?) => {
         {
-            tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), "");
+            tracing::warn!(target: env!("CARGO_PKG_NAME"), name= $name, "");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         {
-            tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::warn!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
         }
     };
 }
@@ -61,12 +67,12 @@ macro_rules! otel_warn {
 macro_rules! otel_debug {
     (name: $name:expr $(,)?) => {
         {
-            tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), "");
+            tracing::debug!(target: env!("CARGO_PKG_NAME"), name= $name,"");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         {
-            tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::debug!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
         }
     };
 }
@@ -85,12 +91,12 @@ macro_rules! otel_debug {
 macro_rules! otel_error {
     (name: $name:expr $(,)?) => {
         {
-            tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), "");
+            tracing::error!(target: env!("CARGO_PKG_NAME"), name= $name, "");
         }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         {
-            tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::error!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
         }
     };
 }

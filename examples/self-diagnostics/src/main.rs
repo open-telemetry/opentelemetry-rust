@@ -33,7 +33,6 @@ impl ErrorState {
 }
 
 static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
-static SEEN_EVENT_NAMES: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 fn custom_error_handler(err: OtelError) {
     if GLOBAL_ERROR_STATE.mark_as_seen(&err) {

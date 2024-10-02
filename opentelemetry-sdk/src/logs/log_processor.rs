@@ -182,8 +182,9 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
-        otel_info!(
-            name: "batch_log_processor_emit"
+        otel_debug!(
+            name: "batch_log_processor_emit",
+            record_count = record.attributes.len()
         );
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
@@ -269,7 +270,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
-                        tracing::debug!(
+                        otel_debug!(
                             name: "batch_log_processor_record_count",
                             current_batch_size = logs.len()
                         );

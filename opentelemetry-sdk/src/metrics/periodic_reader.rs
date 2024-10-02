@@ -14,7 +14,7 @@ use futures_util::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    otel_debug, otel_info,
+    otel_debug, otel_error, otel_info,
 };
 
 use crate::runtime::Runtime;
@@ -235,7 +235,6 @@ struct PeriodicReaderWorker<RT: Runtime> {
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
-        #[cfg(feature = "experimental-internal-logs")]
         otel_debug!(name: "metrics_collect_and_export", status = "started");
         self.reader.collect(&mut self.rm)?;
         if self.rm.scope_metrics.is_empty() {
@@ -250,7 +249,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
 
         match future::select(export, timeout).await {
             Either::Left((res, _)) => {
-                #[cfg(feature = "experimental-internal-logs")]
                 otel_debug!(
                     name: "collect_and_export",
                     status = "completed",
@@ -259,7 +257,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 res // return the status of export.
             }
             Either::Right(_) => {
-                #[cfg(feature = "experimental-internal-logs")]
                 otel_error!(
                     name: "collect_and_export",
                     status = "timed_out"
