@@ -308,17 +308,17 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         .await;
 
                         if let Some(channel) = res_channel {
-                            if let Err(result) = channel.send(result) {
+                            if let Err(_result) = channel.send(result) {
                                 otel_error!(
                                     name: "batch_log_processor_flush_error",
-                                    error = format!("{:?}", result),
+                                    error = format!("{:?}", _result),
                                     message = "Failed to send flush result"
                                 );
                             }
-                        } else if let Err(err) = result {
+                        } else if let Err(_err) = result {
                             otel_error!(
                                 name: "batch_log_processor_flush_error",
-                                error = format!("{:?}", err),
+                                error = format!("{:?}", _err),
                                 message = "Flush failed"
                             );
                         }
