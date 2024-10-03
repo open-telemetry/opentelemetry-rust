@@ -108,7 +108,7 @@ impl LogProcessor for SimpleLogProcessor {
             return;
         }
 
-        tracing::debug!(
+        otel_debug!(
             name: "simple_log_processor_emit",
             event_name = record.event_name
         );
