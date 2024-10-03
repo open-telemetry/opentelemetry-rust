@@ -28,7 +28,7 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-tracing = {workspace = true}
+tracing = {workspace = true, optional = true}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -42,7 +42,7 @@ temp-env = { workspace = true }
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
-default = ["trace", "metrics", "logs"]
+default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "async-trait", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
 logs = ["opentelemetry/logs", "async-trait", "serde_json"]
@@ -52,6 +52,7 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", 
 rt-tokio = ["tokio", "tokio-stream"]
 rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
+internal-logs = ["tracing"]
 
 [[bench]]
 name = "context"
