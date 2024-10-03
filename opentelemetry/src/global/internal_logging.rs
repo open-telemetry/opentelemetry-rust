@@ -13,7 +13,8 @@
 ///
 /// # Example:
 /// ```rust
-/// otel_info!("sdk_start", version = "1.0.0", schema_url = "http://example.com");
+/// use opentelemetry::otel_info;
+/// otel_info!(name: "sdk_start", version = "1.0.0", schema_url = "http://example.com");
 /// ```
 #[macro_export]
 macro_rules! otel_info {
@@ -37,7 +38,8 @@ macro_rules! otel_info {
 ///
 /// # Example:
 /// ```rust
-/// otel_warn!("export_warning", error_code = 404, version = "1.0.0");
+/// use opentelemetry::otel_warn;
+/// otel_warn!(name: "export_warning", error_code = 404, version = "1.0.0");
 /// ```
 #[macro_export]
 macro_rules! otel_warn {
@@ -61,7 +63,8 @@ macro_rules! otel_warn {
 ///
 /// # Example:
 /// ```rust
-/// otel_debug!("debug_operation", debug_level = "high", version = "1.0.0");
+/// use opentelemetry::otel_debug;
+/// otel_debug!(name: "debug_operation", debug_level = "high", version = "1.0.0");
 /// ```
 #[macro_export]
 macro_rules! otel_debug {
@@ -85,7 +88,8 @@ macro_rules! otel_debug {
 ///
 /// # Example:
 /// ```rust
-/// otel_error!("export_failure", error_code = 500, version = "1.0.0");
+/// use opentelemetry::otel_error;
+/// otel_error!(name: "export_failure", error_code = 500, version = "1.0.0");
 /// ```
 #[macro_export]
 macro_rules! otel_error {
