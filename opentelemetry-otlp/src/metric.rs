@@ -304,6 +304,7 @@ impl PushMetricsExporter for MetricsExporter {
                 .sum::<usize>(),
             status = "started"
         );
+        #[allow(clippy::let_and_return)] // for scenario where internal logs is disabled
         let result = self.client.export(metrics).await;
         otel_debug!(
             name: "export_metrics",
