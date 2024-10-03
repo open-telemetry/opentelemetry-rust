@@ -14,7 +14,7 @@ use futures_util::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    otel_debug, otel_error, otel_info,
+    otel_error,
 };
 
 use crate::runtime::Runtime;
@@ -235,7 +235,6 @@ struct PeriodicReaderWorker<RT: Runtime> {
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> Result<()> {
-        otel_debug!(name: "metrics_collect_and_export", status = "started");
         self.reader.collect(&mut self.rm)?;
         if self.rm.scope_metrics.is_empty() {
             // No metrics to export.
@@ -249,11 +248,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
 
         match future::select(export, timeout).await {
             Either::Left((res, _)) => {
-                otel_debug!(
-                    name: "collect_and_export",
-                    status = "completed",
-                    result = format!("{:?}", res),
-                );
                 res // return the status of export.
             }
             Either::Right(_) => {
@@ -269,20 +263,17 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
-                otel_debug!(name: "process_message", message_type = "export");
                 if let Err(err) = self.collect_and_export().await {
                     global::handle_error(err)
                 }
             }
             Message::Flush(ch) => {
-                otel_info!(name: "process_message", message_type = "flush");
                 let res = self.collect_and_export().await;
                 if ch.send(res).is_err() {
                     global::handle_error(MetricsError::Other("flush channel closed".into()))
                 }
             }
             Message::Shutdown(ch) => {
-                otel_info!(name: "process_message", message_type = "shutdown");
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if ch.send(res).is_err() {

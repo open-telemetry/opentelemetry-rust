@@ -1,12 +1,12 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use opentelemetry::otel_warn;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
-use opentelemetry::{otel_debug, otel_info, otel_warn};
 
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
@@ -50,13 +50,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
-        otel_info!(
-            name: "logger_versioned_creation",
-            instr_lib_name= &*name,
-            version = version.as_deref(),
-            schema_url = schema_url.as_deref(),
-        );
-
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
@@ -79,9 +72,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
-        otel_info!(
-            name: "logger_library_logger_creation"
-        );
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
@@ -93,33 +83,19 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
     pub fn builder() -> Builder {
-        otel_info!(
-            name: "logger_provider_builder"
-        );
         Builder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
-        otel_debug!(
-            name: "logger_provider_log_processors",
-            processor_count= self.inner.processors.len()
-        );
         &self.inner.processors
     }
 
     pub(crate) fn resource(&self) -> &Resource {
-        otel_debug!(
-            name: "logger_provider_resource",
-            resource_count= self.inner.resource.len()
-        );
         &self.inner.resource
     }
 
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> Vec<LogResult<()>> {
-        otel_info!(
-            name: "logger_provider_force_flush"
-        );
         self.log_processors()
             .iter()
             .map(|processor| processor.force_flush())
@@ -128,9 +104,6 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
-        otel_info!(
-            name: "logger_provider_shutdown"
-        );
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -237,11 +210,6 @@ impl Builder {
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }
-        otel_debug!(
-            name: "logger_provider_build",
-            resource_count = logger_provider.resource().len(),
-            processor_count = logger_provider.log_processors().len()
-        );
         logger_provider
     }
 }
@@ -260,9 +228,6 @@ impl Logger {
         instrumentation_lib: Arc<InstrumentationLibrary>,
         provider: LoggerProvider,
     ) -> Self {
-        otel_info!(
-            name: "logger_new"
-        );
         Logger {
             instrumentation_lib,
             provider,
@@ -289,10 +254,6 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        otel_debug!(
-            name: "log_record_emit_start",
-            record = format!("{:?}", record)
-        );
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
@@ -326,12 +287,6 @@ impl opentelemetry::logs::Logger for Logger {
                     self.instrumentation_library().name.as_ref(),
                 );
         }
-        otel_debug!(
-            name: "log_record_event_enabled_check",
-            enabled_status = enabled,
-            level = level.name(),
-            log_target = target
-        );
         enabled
     }
 }

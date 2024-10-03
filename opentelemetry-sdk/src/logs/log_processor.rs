@@ -14,7 +14,7 @@ use opentelemetry::logs::Severity;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
-    otel_debug, otel_error, otel_info, otel_warn, InstrumentationLibrary,
+    otel_error, otel_warn, InstrumentationLibrary,
 };
 
 use std::sync::atomic::AtomicBool;
@@ -88,9 +88,6 @@ pub struct SimpleLogProcessor {
 
 impl SimpleLogProcessor {
     pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
-        otel_info!(
-            name: "simple_log_processor_new"
-        );
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -107,11 +104,6 @@ impl LogProcessor for SimpleLogProcessor {
             );
             return;
         }
-
-        otel_debug!(
-            name: "simple_log_processor_emit",
-            event_name = record.event_name
-        );
 
         let result = self
             .exporter
@@ -131,16 +123,10 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        otel_info!(
-            name: "simple_log_processor_force_flush"
-        );
         Ok(())
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        otel_info!(
-            name: "simple_log_processor_shutdown"
-        );
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
@@ -157,9 +143,6 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn set_resource(&self, resource: &Resource) {
-        otel_info!(
-            name: "simple_log_processor_set_resource"
-        );
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
         }
@@ -182,10 +165,6 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
-        otel_debug!(
-            name: "batch_log_processor_emit",
-            record_count = record.attributes.len()
-        );
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -201,9 +180,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        otel_info!(
-            name: "batch_log_processor_force_flush"
-        );
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
@@ -215,9 +191,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        otel_info!(
-            name: "batch_log_processor_shutdown"
-        );
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -229,9 +202,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn set_resource(&self, resource: &Resource) {
-        otel_info!(
-            name: "batch_log_processor_set_resource"
-        );
         let resource = Arc::new(resource.clone());
         let _ = self
             .message_sender
@@ -257,29 +227,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
             let mut logs = Vec::new();
             let mut messages = Box::pin(stream::select(message_receiver, ticker));
 
-            otel_info!(
-                name: "batch_log_processor_started",
-                max_queue_size = config.max_queue_size,
-                max_export_batch_size = config.max_export_batch_size,
-                scheduled_delay = config.scheduled_delay.as_millis(),
-                max_export_timeout = config.max_export_timeout.as_millis()
-            );
-
             while let Some(message) = messages.next().await {
                 match message {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
-                        otel_debug!(
-                            name: "batch_log_processor_record_count",
-                            current_batch_size = logs.len()
-                        );
-
                         if logs.len() == config.max_export_batch_size {
-                            otel_info!(
-                                name: "batch_log_processor_export",
-                                batch_size = logs.len()
-                            );
                             let result = export_with_timeout(
                                 config.max_export_timeout,
                                 exporter.as_mut(),
@@ -330,10 +283,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown(ch) => {
-                        otel_info!(
-                            name: "batch_log_processor_shutdown",
-                            remaining_batch_size = logs.len()
-                        );
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             exporter.as_mut(),
@@ -361,20 +310,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
-                        otel_info!(
-                            name: "batch_log_processor_set_resource",
-                            resource_keys_count = resource.len(),
-                            resource = format!("{:?}", resource)
-                        );
                         exporter.set_resource(&resource);
                     }
                 }
             }
         }));
-
-        otel_info!(
-            name: "batch_log_processor_initialized"
-        );
         // Return batch processor with link to worker
         BatchLogProcessor { message_sender }
     }
@@ -403,9 +343,6 @@ where
     E: LogExporter + ?Sized,
 {
     if batch.is_empty() {
-        otel_debug!(
-            name: "batch_log_processor_empty_batch"
-        );
         return Ok(());
     }
 
@@ -414,11 +351,6 @@ where
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
-    otel_debug!(
-        name: "export_with_timeout",
-        batch_size = log_vec.len(),
-        timeout = time_out.as_millis()
-    );
     let export = exporter.export(LogBatch::new(log_vec.as_slice()));
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
