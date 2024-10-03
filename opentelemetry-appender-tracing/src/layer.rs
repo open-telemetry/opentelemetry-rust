@@ -217,7 +217,8 @@ mod tests {
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -234,7 +235,11 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+            !metadata.target().starts_with("opentelemetry")
+        }); // filter internal logs
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
+            .with_filter(non_opentelemetry_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         // avoiding setting tracing subscriber as global as that does not
@@ -315,7 +320,11 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+            !metadata.target().starts_with("opentelemetry")
+        }); // filter internal logs
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
+            .with_filter(non_opentelemetry_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         // avoiding setting tracing subscriber as global as that does not
@@ -427,7 +436,11 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+            !metadata.target().starts_with("opentelemetry")
+        }); // filter internal logs
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
+            .with_filter(non_opentelemetry_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         // avoiding setting tracing subscriber as global as that does not
@@ -436,7 +449,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!("log from log crate");
+        log::error!(target: "my-system", "log from log crate");
         logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
@@ -493,7 +506,11 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+            !metadata.target().starts_with("opentelemetry")
+        }); // filter internal logs
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
+            .with_filter(non_opentelemetry_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
 
         // avoiding setting tracing subscriber as global as that does not
@@ -513,7 +530,7 @@ mod tests {
             let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
-            log::error!("log from log crate");
+            log::error!(target: "my-system", "log from log crate");
             (trace_id, span_id)
         });
 
