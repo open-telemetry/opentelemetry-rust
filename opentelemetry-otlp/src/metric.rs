@@ -7,7 +7,6 @@ use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry::metrics::Result;
-use opentelemetry::otel_debug;
 
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
@@ -295,26 +294,7 @@ impl TemporalitySelector for MetricsExporter {
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
-        otel_debug!(
-            name: "export_metrics",
-            metrics_count = metrics
-                .scope_metrics
-                .iter()
-                .map(|scope| scope.metrics.len())
-                .sum::<usize>(),
-            status = "started"
-        );
-        #[allow(clippy::let_and_return)] // for scenario where internal logs is disabled
-        let result = self.client.export(metrics).await;
-        otel_debug!(
-            name: "export_metrics",
-            status = if result.is_ok() {
-                "completed"
-            } else {
-                "failed"
-            }
-        );
-        result
+        self.client.export(metrics).await
     }
 
     async fn force_flush(&self) -> Result<()> {
