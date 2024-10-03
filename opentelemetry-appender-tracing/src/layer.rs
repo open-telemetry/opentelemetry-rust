@@ -226,6 +226,17 @@ mod tests {
             .any(|(k, v)| k == key && v == value)
     }
 
+    fn create_tracing_subscriber(
+        _exporter: InMemoryLogsExporter,
+        logger_provider: &LoggerProvider,
+    ) -> impl tracing::Subscriber {
+        let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
+        let layer =
+            layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
+
+        tracing_subscriber::registry().with(layer)
+    }
+
     // cargo test --features=testing
     #[test]
     fn tracing_appender_standalone() {
@@ -235,12 +246,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-            !metadata.target().starts_with("opentelemetry")
-        }); // filter internal logs
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
-            .with_filter(non_opentelemetry_filter);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -320,12 +326,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-            !metadata.target().starts_with("opentelemetry")
-        }); // filter internal logs
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
-            .with_filter(non_opentelemetry_filter);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -436,12 +437,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-            !metadata.target().starts_with("opentelemetry")
-        }); // filter internal logs
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
-            .with_filter(non_opentelemetry_filter);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -506,12 +502,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-            !metadata.target().starts_with("opentelemetry")
-        }); // filter internal logs
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider)
-            .with_filter(non_opentelemetry_filter);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.

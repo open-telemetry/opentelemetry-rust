@@ -308,19 +308,24 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         .await;
 
                         if let Some(channel) = res_channel {
-                            if let Err(_result) = channel.send(result) {
+                            if let Err(result) = channel.send(result) {
+                                global::handle_error(LogError::from(format!(
+                                    "failed to send flush result: {:?}",
+                                    result
+                                )));
                                 otel_error!(
                                     name: "batch_log_processor_flush_error",
-                                    error = format!("{:?}", _result),
+                                    error = format!("{:?}", result),
                                     message = "Failed to send flush result"
                                 );
                             }
-                        } else if let Err(_err) = result {
+                        } else if let Err(err) = result {
                             otel_error!(
                                 name: "batch_log_processor_flush_error",
-                                error = format!("{:?}", _err),
+                                error = format!("{:?}", err),
                                 message = "Flush failed"
                             );
+                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.

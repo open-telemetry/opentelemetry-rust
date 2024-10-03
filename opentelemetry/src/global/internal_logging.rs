@@ -50,25 +50,11 @@ macro_rules! otel_warn {
         {
             tracing::warn!(target: env!("CARGO_PKG_NAME"), name= $name, "");
         }
-        #[cfg(not(feature = "internal-logs"))]
-        {
-            eprintln!("[WARN] {}: {}", env!("CARGO_PKG_NAME"), $name);
-        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::warn!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
-        }
-        #[cfg(not(feature = "internal-logs"))]
-        {
-            let msg = format!(
-                "[WARN] {}: {} ({})",
-                env!("CARGO_PKG_NAME"),
-                $name,
-                format!(concat!($(stringify!($key), "={}, "),+), $($value),+).trim_end_matches(", ")
-            );
-            eprintln!("{}", msg);
         }
     };
 }
@@ -118,25 +104,11 @@ macro_rules! otel_error {
         {
             tracing::error!(target: env!("CARGO_PKG_NAME"), name= $name, "");
         }
-        #[cfg(not(feature = "internal-logs"))]
-        {
-            eprintln!("[ERROR] {}: {}", env!("CARGO_PKG_NAME"), $name);
-        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::error!(target: env!("CARGO_PKG_NAME"), name= $name, $($key = $value),+, "");
-        }
-        #[cfg(not(feature = "internal-logs"))]
-        {
-            let msg = format!(
-                "[ERROR] {}: {} ({})",
-                env!("CARGO_PKG_NAME"),
-                $name,
-                format!(concat!($(stringify!($key), "={}, "),+), $($value),+).trim_end_matches(", ")
-            );
-            eprintln!("{}", msg);
         }
     };
 }
