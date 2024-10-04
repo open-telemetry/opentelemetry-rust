@@ -12,6 +12,7 @@ use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
     otel_error,
+    otel_error,
 };
 
 use crate::{
@@ -297,6 +298,10 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             // No metrics to export.
             return Ok(());
         }
+        if self.rm.scope_metrics.is_empty() {
+            // No metrics to export.
+            return Ok(());
+        }
 
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
@@ -304,6 +309,16 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         pin_mut!(timeout);
 
         match future::select(export, timeout).await {
+            Either::Left((res, _)) => {
+                res // return the status of export.
+            }
+            Either::Right(_) => {
+                otel_error!(
+                    name: "collect_and_export",
+                    status = "timed_out"
+                );
+                Err(MetricsError::Other("export timed out".into()))
+            }
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
