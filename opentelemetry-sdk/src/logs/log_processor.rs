@@ -14,8 +14,9 @@ use opentelemetry::logs::Severity;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
-    InstrumentationLibrary,
+    otel_error, otel_warn, InstrumentationLibrary,
 };
+
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -98,15 +99,11 @@ impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            otel_warn!(
+                name: "simple_log_processor_emit_after_shutdown"
+            );
             return;
         }
-
-        #[cfg(feature = "experimental-internal-logs")]
-        tracing::debug!(
-            name: "simple_log_processor_emit",
-            target: "opentelemetry-sdk",
-            event_name = record.event_name
-        );
 
         let result = self
             .exporter
@@ -117,6 +114,10 @@ impl LogProcessor for SimpleLogProcessor {
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         if let Err(err) = result {
+            otel_error!(
+                name: "simple_log_processor_emit_error",
+                error = format!("{:?}", err)
+            );
             global::handle_error(err);
         }
     }
@@ -132,6 +133,9 @@ impl LogProcessor for SimpleLogProcessor {
             exporter.shutdown();
             Ok(())
         } else {
+            otel_error!(
+                name: "simple_log_processor_shutdown_error"
+            );
             Err(LogError::Other(
                 "simple logprocessor mutex poison during shutdown".into(),
             ))
@@ -167,6 +171,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         )));
 
         if let Err(err) = result {
+            otel_error!(
+                name: "batch_log_processor_emit_error",
+                error = format!("{:?}", err)
+            );
             global::handle_error(LogError::Other(err.into()));
         }
     }
@@ -224,13 +232,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     // Log has finished, add to buffer of pending logs.
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
-                        #[cfg(feature = "experimental-internal-logs")]
-                        tracing::debug!(
-                            name: "batch_log_processor_record_count",
-                            target: "opentelemetry-sdk",
-                            current_batch_size = logs.len()
-                        );
-
                         if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(
                                 config.max_export_timeout,
@@ -241,6 +242,10 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             .await;
 
                             if let Err(err) = result {
+                                otel_error!(
+                                    name: "batch_log_processor_export_error",
+                                    error = format!("{:?}", err)
+                                );
                                 global::handle_error(err);
                             }
                         }
@@ -261,8 +266,18 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                     "failed to send flush result: {:?}",
                                     result
                                 )));
+                                otel_error!(
+                                    name: "batch_log_processor_flush_error",
+                                    error = format!("{:?}", result),
+                                    message = "Failed to send flush result"
+                                );
                             }
                         } else if let Err(err) = result {
+                            otel_error!(
+                                name: "batch_log_processor_flush_error",
+                                error = format!("{:?}", err),
+                                message = "Flush failed"
+                            );
                             global::handle_error(err);
                         }
                     }
@@ -279,6 +294,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         exporter.shutdown();
 
                         if let Err(result) = ch.send(result) {
+                            otel_error!(
+                                name: "batch_log_processor_shutdown_error",
+                                error = format!("{:?}", result),
+                                message = "Failed to send shutdown result"
+                            );
                             global::handle_error(LogError::from(format!(
                                 "failed to send batch processor shutdown result: {:?}",
                                 result
@@ -295,7 +315,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 }
             }
         }));
-
         // Return batch processor with link to worker
         BatchLogProcessor { message_sender }
     }
@@ -338,7 +357,13 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+        Either::Right((_, _)) => {
+            otel_error!(
+                name: "export_with_timeout_timeout",
+                timeout_duration = time_out.as_millis()
+            );
+            ExportResult::Err(LogError::ExportTimedOut(time_out))
+        }
     }
 }
 
