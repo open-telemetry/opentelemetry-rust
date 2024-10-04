@@ -58,12 +58,12 @@ trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 populate-logs-event-name = ["opentelemetry-proto/populate-logs-event-name"]
-experimental-internal-logs = ["tracing"]
+internal-logs = ["tracing"]
 
 # add ons
 serialize = ["serde", "serde_json"]
 
-default = ["grpc-tonic", "trace", "metrics", "logs"]
+default = ["grpc-tonic", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
