@@ -17,7 +17,6 @@ use opentelemetry_sdk::{
         reader::{DefaultTemporalitySelector, TemporalitySelector},
         InstrumentKind, PeriodicReader, SdkMeterProvider,
     },
-    runtime::Runtime,
     Resource,
 };
 use std::time;
@@ -44,12 +43,8 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 impl OtlpPipeline {
     /// Create a OTLP metrics pipeline.
-    pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT, NoExporterConfig>
-    where
-        RT: Runtime,
-    {
+    pub fn metrics(self) -> OtlpMetricPipeline<NoExporterConfig> {
         OtlpMetricPipeline {
-            rt,
             temporality_selector: None,
             exporter_pipeline: NoExporterConfig(()),
             resource: None,
@@ -120,8 +115,7 @@ impl From<HttpExporterBuilder> for MetricsExporterBuilder {
 ///
 /// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
 /// runtime.
-pub struct OtlpMetricPipeline<RT, EB> {
-    rt: RT,
+pub struct OtlpMetricPipeline<EB> {
     temporality_selector: Option<Box<dyn TemporalitySelector>>,
     exporter_pipeline: EB,
     resource: Option<Resource>,
@@ -129,10 +123,7 @@ pub struct OtlpMetricPipeline<RT, EB> {
     timeout: Option<time::Duration>,
 }
 
-impl<RT, EB> OtlpMetricPipeline<RT, EB>
-where
-    RT: Runtime,
-{
+impl<EB> OtlpMetricPipeline<EB> {
     /// Build with resource key value pairs.
     pub fn with_resource(self, resource: Resource) -> Self {
         OtlpMetricPipeline {
@@ -176,18 +167,14 @@ where
     }
 }
 
-impl<RT> OtlpMetricPipeline<RT, NoExporterConfig>
-where
-    RT: Runtime,
-{
+impl OtlpMetricPipeline<NoExporterConfig> {
     /// Build with the exporter
     pub fn with_exporter<B: Into<MetricsExporterBuilder>>(
         self,
         pipeline: B,
-    ) -> OtlpMetricPipeline<RT, MetricsExporterBuilder> {
+    ) -> OtlpMetricPipeline<MetricsExporterBuilder> {
         OtlpMetricPipeline {
             exporter_pipeline: pipeline.into(),
-            rt: self.rt,
             temporality_selector: self.temporality_selector,
             resource: self.resource,
             period: self.period,
@@ -196,10 +183,7 @@ where
     }
 }
 
-impl<RT> OtlpMetricPipeline<RT, MetricsExporterBuilder>
-where
-    RT: Runtime,
-{
+impl OtlpMetricPipeline<MetricsExporterBuilder> {
     /// Build MeterProvider
     pub fn build(self) -> Result<SdkMeterProvider> {
         let exporter = self.exporter_pipeline.build_metrics_exporter(
@@ -207,7 +191,7 @@ where
                 .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
         )?;
 
-        let mut builder = PeriodicReader::builder(exporter, self.rt);
+        let mut builder = PeriodicReader::builder(exporter);
 
         if let Some(period) = self.period {
             builder = builder.with_interval(period);
@@ -229,7 +213,7 @@ where
     }
 }
 
-impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
+impl<EB: Debug> Debug for OtlpMetricPipeline<EB> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OtlpMetricPipeline")
             .field("exporter_pipeline", &self.exporter_pipeline)

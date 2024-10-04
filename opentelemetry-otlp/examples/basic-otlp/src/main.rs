@@ -41,7 +41,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         ..ExportConfig::default()
     };
     opentelemetry_otlp::new_pipeline()
-        .metrics(runtime::Tokio)
+        .metrics()
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()

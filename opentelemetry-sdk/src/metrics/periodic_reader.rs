@@ -272,14 +272,14 @@ impl PeriodicReader {
                 );
             });
 
+        // TODO: Should we fail-fast here and bubble up the error to user?
         if let Err(e) = result_thread_creation {
-            // TODO: Should we fail-fast here and bubble up the error to user?
             otel_error!(
                 name: "PeriodReaderThreadStartError",
+                event_name =  "PeriodReaderThreadStartError",
                 error = format!("{:?}", e)
             );
         }
-
         reader
     }
 
@@ -323,7 +323,7 @@ impl PeriodicReaderInner {
                 .produce(rm)?;
             Ok(())
         } else {
-            return Err(MetricsError::Other("pipeline is not registered".into()));
+            Err(MetricsError::Other("pipeline is not registered".into()))
         }
     }
 
@@ -371,12 +371,12 @@ impl PeriodicReaderInner {
 
         if let Ok(response) = response_rx.recv() {
             if response {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(MetricsError::Other("Failed to flush".into()));
+                Err(MetricsError::Other("Failed to flush".into()))
             }
         } else {
-            return Err(MetricsError::Other("Failed to flush".into()));
+            Err(MetricsError::Other("Failed to flush".into()))
         }
     }
 
@@ -394,14 +394,14 @@ impl PeriodicReaderInner {
             self.is_shutdown
                 .store(true, std::sync::atomic::Ordering::Relaxed);
             if response {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(MetricsError::Other("Failed to shutdown".into()));
+                Err(MetricsError::Other("Failed to shutdown".into()))
             }
         } else {
             self.is_shutdown
                 .store(true, std::sync::atomic::Ordering::Relaxed);
-            return Err(MetricsError::Other("Failed to shutdown".into()));
+            Err(MetricsError::Other("Failed to shutdown".into()))
         }
     }
 }
