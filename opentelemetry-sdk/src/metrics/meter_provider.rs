@@ -142,7 +142,6 @@ impl Drop for SdkMeterProviderInner {
         }
     }
 }
-
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,

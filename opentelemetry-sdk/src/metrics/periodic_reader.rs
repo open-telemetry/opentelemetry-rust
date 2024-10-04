@@ -8,12 +8,8 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use opentelemetry::{
-    global,
-    metrics::{MetricsError, Result},
-    otel_error,
-    otel_error,
-};
+
+use opentelemetry::metrics::{MetricsError, Result};
 
 use crate::{
     metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
@@ -279,92 +275,101 @@ struct PeriodicReaderInner {
     is_shutdown: AtomicBool,
 }
 
-enum ProducerOrWorker {
-    Producer(Weak<dyn SdkProducer>),
-    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
+impl PeriodicReaderInner {
+    fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
+        let mut inner = self.producer.lock().expect("lock poisoned");
+        *inner = Some(producer);
+    }
+
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        self.exporter.temporality(kind)
+    }
+
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(MetricsError::Other("reader is shut down".into()));
+        }
+
+        let producer = self.producer.lock().expect("lock poisoned");
+        if let Some(p) = producer.as_ref() {
+            p.upgrade()
+                .ok_or_else(|| MetricsError::Other("pipeline is dropped".into()))?
+                .produce(rm)?;
+            Ok(())
+        } else {
+            return Err(MetricsError::Other("pipeline is not registered".into()));
+        }
+    }
+
+    fn collect_and_export(&self, timeout: Duration) -> Result<()> {
+        // TODO: Reuse the internal vectors. Or refactor to avoid needing any
+        // owned data structures to be passed to exporters.
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        self.collect(&mut rm)?;
+
+        // TODO: substract the time taken for collect from the timeout. collect
+        // involves observable callbacks too, which are user defined and can
+        // take arbitrary time.
+        //
+        // Relying on futures executor to execute asyc call. No timeout is
+        // enforced here. The exporter is responsible for enforcing the timeout.
+        futures_executor::block_on(self.exporter.export(&mut rm, timeout))?;
+        Ok(())
+    }
+
+    fn force_flush(&self) -> Result<()> {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(MetricsError::Other("reader is shut down".into()));
+        }
+        let (response_tx, response_rx) = mpsc::channel();
+        self.message_sender
+            .send(Message::Flush(response_tx))
+            .map_err(|e| MetricsError::Other(e.to_string()))?;
+
+        if let Ok(response) = response_rx.recv() {
+            if response {
+                return Ok(());
+            } else {
+                return Err(MetricsError::Other("Failed to flush".into()));
+            }
+        } else {
+            return Err(MetricsError::Other("Failed to flush".into()));
+        }
+    }
+
+    fn shutdown(&self) -> Result<()> {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(MetricsError::Other("reader is already shut down".into()));
+        }
+
+        let (response_tx, response_rx) = mpsc::channel();
+        self.message_sender
+            .send(Message::Shutdown(response_tx))
+            .map_err(|e| MetricsError::Other(e.to_string()))?;
+
+        if let Ok(response) = response_rx.recv() {
+            self.is_shutdown
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            if response {
+                return Ok(());
+            } else {
+                return Err(MetricsError::Other("Failed to shutdown".into()));
+            }
+        } else {
+            self.is_shutdown
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            return Err(MetricsError::Other("Failed to shutdown".into()));
+        }
+    }
 }
 
-struct PeriodicReaderWorker<RT: Runtime> {
-    reader: PeriodicReader,
-    timeout: Duration,
-    runtime: RT,
-    rm: ResourceMetrics,
-}
-
-impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> Result<()> {
-        self.reader.collect(&mut self.rm)?;
-        if self.rm.scope_metrics.is_empty() {
-            // No metrics to export.
-            return Ok(());
-        }
-        if self.rm.scope_metrics.is_empty() {
-            // No metrics to export.
-            return Ok(());
-        }
-
-        let export = self.reader.exporter.export(&mut self.rm);
-        let timeout = self.runtime.delay(self.timeout);
-        pin_mut!(export);
-        pin_mut!(timeout);
-
-        match future::select(export, timeout).await {
-            Either::Left((res, _)) => {
-                res // return the status of export.
-            }
-            Either::Right(_) => {
-                otel_error!(
-                    name: "collect_and_export",
-                    status = "timed_out"
-                );
-                Err(MetricsError::Other("export timed out".into()))
-            }
-            Either::Left((res, _)) => {
-                res // return the status of export.
-            }
-            Either::Right(_) => {
-                otel_error!(
-                    name: "collect_and_export",
-                    status = "timed_out"
-                );
-                Err(MetricsError::Other("export timed out".into()))
-            }
-        }
-    }
-
-    async fn process_message(&mut self, message: Message) -> bool {
-        match message {
-            Message::Export => {
-                if let Err(err) = self.collect_and_export().await {
-                    global::handle_error(err)
-                }
-            }
-            Message::Flush(ch) => {
-                let res = self.collect_and_export().await;
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("flush channel closed".into()))
-                }
-            }
-            Message::Shutdown(ch) => {
-                let res = self.collect_and_export().await;
-                let _ = self.reader.exporter.shutdown();
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("shutdown channel closed".into()))
-                }
-                return false;
-            }
-        }
-
-        true
-    }
-
-    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) {
-        while let Some(message) = messages.next().await {
-            if !self.process_message(message).await {
-                break;
-            }
-        }
-    }
+#[derive(Debug)]
+enum Message {
+    Flush(Sender<bool>),
+    Shutdown(Sender<bool>),
 }
 
 impl TemporalitySelector for PeriodicReader {
