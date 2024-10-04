@@ -1,5 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use opentelemetry::otel_warn;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
@@ -49,7 +50,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
-
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
@@ -114,6 +114,10 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
+                    otel_warn!(
+                        name: "logger_provider_shutdown_error",
+                        error = format!("{:?}", err)
+                    );
                     errs.push(err);
                 }
             }
@@ -124,6 +128,9 @@ impl LoggerProvider {
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
+            otel_warn!(
+                name: "logger_provider_already_shutdown"
+            );
             Err(LogError::Other("logger provider already shut down".into()))
         }
     }
