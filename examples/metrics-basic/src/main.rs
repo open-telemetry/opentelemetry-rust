@@ -7,9 +7,6 @@ use std::vec;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
-        // uncomment the below lines to pretty print output.
-        //  .with_encoder(|writer, data|
-        //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
