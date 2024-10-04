@@ -20,8 +20,11 @@ use opentelemetry_sdk::{
     runtime::Runtime,
     Resource,
 };
-use std::fmt::{Debug, Formatter};
 use std::time;
+use std::{
+    fmt::{Debug, Formatter},
+    time::Duration,
+};
 
 #[cfg(feature = "http-proto")]
 use crate::exporter::http::HttpExporterBuilder;
@@ -293,7 +296,8 @@ impl TemporalitySelector for MetricsExporter {
 
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics, _timeout: Duration) -> Result<()> {
+        //TODO: Pass timeout to client
         self.client.export(metrics).await
     }
 

@@ -1,7 +1,7 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 use std::vec;
 

@@ -8,6 +8,7 @@ use opentelemetry::metrics::Result;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -259,7 +260,7 @@ impl TemporalitySelector for InMemoryMetricsExporter {
 
 #[async_trait]
 impl PushMetricsExporter for InMemoryMetricsExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics, _timeout: Duration) -> Result<()> {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {

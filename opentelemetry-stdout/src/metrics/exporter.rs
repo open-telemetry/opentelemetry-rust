@@ -8,8 +8,8 @@ use opentelemetry_sdk::metrics::{
     reader::{DefaultTemporalitySelector, TemporalitySelector},
     InstrumentKind,
 };
-use std::{fmt::Debug, time::Duration};
 use std::sync::atomic;
+use std::{fmt::Debug, time::Duration};
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricsExporter {

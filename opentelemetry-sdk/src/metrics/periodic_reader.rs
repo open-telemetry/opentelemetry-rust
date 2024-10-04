@@ -1,4 +1,3 @@
-use core::time;
 use std::{
     env, fmt,
     sync::{
@@ -36,8 +35,9 @@ const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 /// to the exporter at a defined interval.
 ///
 /// By default, the returned [MetricReader] will collect and export data every
-/// 60 seconds, and will cancel export attempts that exceed 30 seconds. The
-/// export time is not counted towards the interval between attempts.
+/// 60 seconds. The export time is not counted towards the interval between
+/// attempts. PeriodicReader itself does not enforce timeouts. Instead timeout
+/// is passed on to the exporter for each export attempt.
 ///
 /// The [collect] method of the returned [MetricReader] continues to gather and
 /// return metric data to the user. It will not automatically send that data to
@@ -86,8 +86,9 @@ where
         self
     }
 
-    /// Configures the time a [PeriodicReader] waits for an export to complete
-    /// before canceling it.
+    /// Configures the timeout for an export to complete. PeriodicReader itself
+    /// does not enforce timeouts. Instead timeout is passed on to the exporter
+    /// for each export attempt.
     ///
     /// This option overrides any value set for the `OTEL_METRIC_EXPORT_TIMEOUT`
     /// environment variable.
@@ -110,43 +111,38 @@ where
 /// A [MetricReader] that continuously collects and exports metric data at a set
 /// interval.
 ///
-/// By default it will collect and export data every 60 seconds, and will cancel
-/// export attempts that exceed 30 seconds. The export time is not counted
-/// towards the interval between attempts.
+/// By default, PeriodicReader will collect and export data every
+/// 60 seconds. The export time is not counted towards the interval between
+/// attempts. PeriodicReader itself does not enforce timeouts. Instead timeout
+/// is passed on to the exporter for each export attempt.
 ///
 /// The [collect] method of the returned continues to gather and
 /// return metric data to the user. It will not automatically send that data to
 /// the exporter outside of the predefined interval.
 ///
-/// The [runtime] can be selected based on feature flags set for this crate.
-///
 /// The exporter can be any exporter that implements [PushMetricsExporter] such
 /// as [opentelemetry-otlp].
 ///
 /// [collect]: MetricReader::collect
-/// [runtime]: crate::runtime
 /// [opentelemetry-otlp]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
 ///
 /// # Example
 ///
 /// ```no_run
 /// use opentelemetry_sdk::metrics::PeriodicReader;
-/// # fn example<E, R>(get_exporter: impl Fn() -> E, get_runtime: impl Fn() -> R)
+/// # fn example<E>(get_exporter: impl Fn() -> E)
 /// # where
 /// #     E: opentelemetry_sdk::metrics::exporter::PushMetricsExporter,
-/// #     R: opentelemetry_sdk::runtime::Runtime,
 /// # {
 ///
 /// let exporter = get_exporter(); // set up a push exporter like OTLP
-/// let runtime = get_runtime(); // select runtime: e.g. opentelemetry_sdk:runtime::Tokio
 ///
-/// let reader = PeriodicReader::builder(exporter, runtime).build();
+/// let reader = PeriodicReader::builder(exporter).build();
 /// # drop(reader);
 /// # }
 /// ```
 #[derive(Clone)]
 pub struct PeriodicReader {
-    exporter: Arc<dyn PushMetricsExporter>,
     inner: Arc<PeriodicReaderInner>,
 }
 
@@ -166,103 +162,103 @@ impl PeriodicReader {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
         let reader = PeriodicReader {
-            exporter: Arc::new(exporter),
             inner: Arc::new(PeriodicReaderInner {
                 message_sender,
                 is_shutdown: AtomicBool::new(false),
                 producer: Mutex::new(None),
+                exporter: Box::new(exporter),
             }),
         };
         let cloned_reader = reader.clone();
 
-        thread::spawn(move || {
-            let mut interval_start = Instant::now();
-            let mut remaining_interval = interval;
-            println!("PeriodicReader Thread started.");
-            loop {
-                match message_receiver.recv_timeout(remaining_interval) {
-                    Ok(Message::Flush(response_sender)) => {
-                        println!("Performing ad-hoc export due to Flush.");
-                        if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                            response_sender.send(false).unwrap();
-                        } else {
-                            response_sender.send(true).unwrap();
-                        }
+        let result_thread_creation = thread::Builder::new()
+            .name("OpenTelemetry.Metrics.PeriodicReader".to_string())
+            .spawn(move || {
+                let mut interval_start = Instant::now();
+                let mut remaining_interval = interval;
+                println!("PeriodicReader Thread started.");
+                loop {
+                    match message_receiver.recv_timeout(remaining_interval) {
+                        Ok(Message::Flush(response_sender)) => {
+                            println!("Performing ad-hoc export due to Flush.");
+                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                                response_sender.send(false).unwrap();
+                            } else {
+                                response_sender.send(true).unwrap();
+                            }
 
-                        // Adjust the remaining interval after the flush
-                        let elapsed = interval_start.elapsed();
-                        if elapsed < interval {
-                            remaining_interval = interval - elapsed;
-                            println!(
-                                "Adjusting remaining interval after Flush: {:?}",
-                                remaining_interval
-                            );
-                        } else {
-                            // Reset the interval if the flush finishes after the expected export time
-                            // effectively missing the normal export.
-                            // Should we attempt to do the missed export immediately?
-                            // Or do the next export at the next interval?
-                            // Currently this attempts the next export immediately.
-                            // i.e calling Flush can affect the regularity.
-                            interval_start = Instant::now();
-                            remaining_interval = Duration::ZERO;
+                            // Adjust the remaining interval after the flush
+                            let elapsed = interval_start.elapsed();
+                            if elapsed < interval {
+                                remaining_interval = interval - elapsed;
+                                println!(
+                                    "Adjusting remaining interval after Flush: {:?}",
+                                    remaining_interval
+                                );
+                            } else {
+                                // Reset the interval if the flush finishes after the expected export time
+                                // effectively missing the normal export.
+                                // Should we attempt to do the missed export immediately?
+                                // Or do the next export at the next interval?
+                                // Currently this attempts the next export immediately.
+                                // i.e calling Flush can affect the regularity.
+                                interval_start = Instant::now();
+                                remaining_interval = Duration::ZERO;
+                            }
                         }
-                    }
-                    Ok(Message::Shutdown(response_sender)) => {
-                        // Perform final export and break out of loop and exit the thread
-                        println!("Performing final export and shutting down.");
-                        if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                            response_sender.send(false).unwrap();
-                        } else {
-                            response_sender.send(true).unwrap();
+                        Ok(Message::Shutdown(response_sender)) => {
+                            // Perform final export and break out of loop and exit the thread
+                            println!("Performing final export and shutting down.");
+                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                                response_sender.send(false).unwrap();
+                            } else {
+                                response_sender.send(true).unwrap();
+                            }
+                            break;
                         }
-                        break;
-                    }
-                    Err(mpsc::RecvTimeoutError::Timeout) => {
-                        let export_start = Instant::now();
-                        println!("Performing periodic export at {:?}", export_start);
-                        cloned_reader.collect_and_export(timeout).unwrap();
+                        Err(mpsc::RecvTimeoutError::Timeout) => {
+                            let export_start = Instant::now();
+                            println!("Performing periodic export at {:?}", export_start);
+                            cloned_reader.collect_and_export(timeout).unwrap();
 
-                        let time_taken_for_export = export_start.elapsed();
-                        if time_taken_for_export > interval {
-                            println!("Export took longer than interval.");
-                            // if export took longer than interval, do the 
-                            // next export immediately.
-                            // Alternatively, we could skip the next export
-                            // and wait for the next interval.
-                            // Or enforce that export timeout is less than interval.
-                            // What is the desired behavior?
-                            interval_start = Instant::now();
-                            remaining_interval = Duration::ZERO;
-                        } else {
-                        remaining_interval = interval - time_taken_for_export;
-                        interval_start = Instant::now();
+                            let time_taken_for_export = export_start.elapsed();
+                            if time_taken_for_export > interval {
+                                println!("Export took longer than interval.");
+                                // if export took longer than interval, do the
+                                // next export immediately.
+                                // Alternatively, we could skip the next export
+                                // and wait for the next interval.
+                                // Or enforce that export timeout is less than interval.
+                                // What is the desired behavior?
+                                interval_start = Instant::now();
+                                remaining_interval = Duration::ZERO;
+                            } else {
+                                remaining_interval = interval - time_taken_for_export;
+                                interval_start = Instant::now();
+                            }
                         }
-                    }
-                    Err(_) => {
-                        // Some other error. Break out and exit the thread.
-                        break;
+                        Err(_) => {
+                            // Some other error. Break out and exit the thread.
+                            break;
+                        }
                     }
                 }
-            }
-            println!("PeriodicReader Thread stopped.");
-        });
+                println!("PeriodicReader Thread stopped.");
+            });
+
+        if let Err(e) = result_thread_creation {
+            // TODO: Should we fail-fast here and bubble up the error to user?
+            println!(
+                "Failed to start PeriodicReader thread: {:?}. Metrics will not be exported.",
+                e
+            );
+        }
 
         reader
     }
 
     fn collect_and_export(&self, timeout: Duration) -> Result<()> {
-        let mut rm = ResourceMetrics {
-            resource: Resource::empty(),
-            scope_metrics: Vec::new(),
-        };
-        self.collect(&mut rm)?;
-
-        // TODO: substract the time taken for collect from the timeout
-        // collect involves observable callbacks too, which are user 
-        // defined and can take arbitrary time.
-        futures_executor::block_on(self.exporter.export(&mut rm, timeout))?;
-        Ok(())
+        self.inner.collect_and_export(timeout)
     }
 }
 
@@ -273,45 +269,28 @@ impl fmt::Debug for PeriodicReader {
 }
 
 struct PeriodicReaderInner {
+    exporter: Box<dyn PushMetricsExporter>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
     is_shutdown: AtomicBool,
 }
 
 impl PeriodicReaderInner {
-    fn update_producer(&self, producer: Weak<dyn SdkProducer>) {
+    fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
         let mut inner = self.producer.lock().expect("lock poisoned");
         *inner = Some(producer);
     }
-}
 
-#[derive(Debug)]
-enum Message {
-    Flush(Sender<bool>),
-    Shutdown(Sender<bool>),
-}
-
-impl TemporalitySelector for PeriodicReader {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.exporter.temporality(kind)
     }
-}
-
-impl MetricReader for PeriodicReader {
-    fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
-        self.inner.update_producer(pipeline);
-    }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
-        if self
-            .inner
-            .is_shutdown
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
 
-        let producer = self.inner.producer.lock().expect("lock poisoned");
+        let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
                 .ok_or_else(|| MetricsError::Other("pipeline is dropped".into()))?
@@ -322,17 +301,31 @@ impl MetricReader for PeriodicReader {
         }
     }
 
+    fn collect_and_export(&self, timeout: Duration) -> Result<()> {
+        // TODO: Reuse the internal vectors. Or refactor to avoid needing any
+        // owned data structures to be passed to exporters.
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        self.collect(&mut rm)?;
+
+        // TODO: substract the time taken for collect from the timeout. collect
+        // involves observable callbacks too, which are user defined and can
+        // take arbitrary time. 
+        //
+        // Relying on futures executor to execute asyc call. No timeout is
+        // enforced here. The exporter is responsible for enforcing the timeout.
+        futures_executor::block_on(self.exporter.export(&mut rm, timeout))?;
+        Ok(())
+    }
+
     fn force_flush(&self) -> Result<()> {
-        if self
-            .inner
-            .is_shutdown
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
         let (response_tx, response_rx) = mpsc::channel();
-        self.inner
-            .message_sender
+        self.message_sender
             .send(Message::Flush(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
@@ -347,30 +340,18 @@ impl MetricReader for PeriodicReader {
         }
     }
 
-    // TODO: Can we offer async version of shutdown
-    // so users can await the shutdown completion,
-    // and also to avoid blocking the current thread.
-    // The default shutdown on drop can still use blocking
-    // call.
-    // This could be tricky due to https://github.com/seanmonstar/reqwest/issues/1215#issuecomment-796959957
     fn shutdown(&self) -> Result<()> {
-        if self
-            .inner
-            .is_shutdown
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(MetricsError::Other("reader is already shut down".into()));
         }
 
         let (response_tx, response_rx) = mpsc::channel();
-        self.inner
-            .message_sender
+        self.message_sender
             .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
         if let Ok(response) = response_rx.recv() {
-            self.inner
-                .is_shutdown
+            self.is_shutdown
                 .store(true, std::sync::atomic::Ordering::Relaxed);
             if response {
                 return Ok(());
@@ -378,11 +359,44 @@ impl MetricReader for PeriodicReader {
                 return Err(MetricsError::Other("Failed to shutdown".into()));
             }
         } else {
-            self.inner
-                .is_shutdown
+            self.is_shutdown
                 .store(true, std::sync::atomic::Ordering::Relaxed);
             return Err(MetricsError::Other("Failed to shutdown".into()));
         }
+    }
+}
+
+#[derive(Debug)]
+enum Message {
+    Flush(Sender<bool>),
+    Shutdown(Sender<bool>),
+}
+
+impl TemporalitySelector for PeriodicReader {
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        self.inner.temporality(kind)
+    }
+}
+
+impl MetricReader for PeriodicReader {
+    fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
+        self.inner.register_pipeline(pipeline);
+    }
+
+    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+        self.inner.collect(rm)
+    }
+
+    fn force_flush(&self) -> Result<()> {
+        self.inner.force_flush()
+    }
+
+    // TODO: Offer an async version of shutdown so users can await the shutdown
+    // completion, and avoid blocking the thread. The default shutdown on drop
+    // can still use blocking call. If user already explicitly called shutdown,
+    // drop won't call shutdown again.
+    fn shutdown(&self) -> Result<()> {
+        self.inner.shutdown()
     }
 }
 
