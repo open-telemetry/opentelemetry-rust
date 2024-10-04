@@ -10,6 +10,7 @@ use std::{
 };
 
 use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
     metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
@@ -176,11 +177,20 @@ impl PeriodicReader {
             .spawn(move || {
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
-                println!("PeriodicReader Thread started.");
+                otel_info!(
+                    name: "PeriodReaderThreadStarted",
+                    interval = interval.as_secs(),
+                    timeout = timeout.as_secs()
+                );
                 loop {
+                    otel_debug!(
+                        name: "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval = remaining_interval.as_secs()
+                    );
                     match message_receiver.recv_timeout(remaining_interval) {
                         Ok(Message::Flush(response_sender)) => {
-                            println!("Performing ad-hoc export due to Flush.");
+                            otel_debug!(
+                                name: "PeriodReaderThreadExportingDueToFlush"
+                            );
                             if let Err(_e) = cloned_reader.collect_and_export(timeout) {
                                 response_sender.send(false).unwrap();
                             } else {
@@ -191,11 +201,16 @@ impl PeriodicReader {
                             let elapsed = interval_start.elapsed();
                             if elapsed < interval {
                                 remaining_interval = interval - elapsed;
-                                println!(
-                                    "Adjusting remaining interval after Flush: {:?}",
-                                    remaining_interval
+                                otel_debug!(
+                                    name: "PeriodReaderThreadAdjustingRemainingIntervalAfterFlush",
+                                    event_name = "PeriodReaderThreadAdjustingRemainingIntervalAfterFlush",
+                                    remaining_interval = remaining_interval.as_secs()
                                 );
                             } else {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadAdjustingExportAfterFlush",
+                                    event_name = "PeriodReaderThreadAdjustingExportAfterFlush",
+                                );
                                 // Reset the interval if the flush finishes after the expected export time
                                 // effectively missing the normal export.
                                 // Should we attempt to do the missed export immediately?
@@ -208,7 +223,9 @@ impl PeriodicReader {
                         }
                         Ok(Message::Shutdown(response_sender)) => {
                             // Perform final export and break out of loop and exit the thread
-                            println!("Performing final export and shutting down.");
+                            otel_debug!(
+                                name: "PeriodReaderThreadExportingDueToShutdown", event_name =  "PeriodReaderThreadExportingDueToShutdown"
+                            );
                             if let Err(_e) = cloned_reader.collect_and_export(timeout) {
                                 response_sender.send(false).unwrap();
                             } else {
@@ -218,12 +235,18 @@ impl PeriodicReader {
                         }
                         Err(mpsc::RecvTimeoutError::Timeout) => {
                             let export_start = Instant::now();
-                            println!("Performing periodic export at {:?}", export_start);
+                            otel_debug!(
+                                name: "PeriodReaderThreadExportingDueToTimer",
+                                event_name = "PeriodReaderThreadExportingDueToTimer"
+                            );
                             cloned_reader.collect_and_export(timeout).unwrap();
 
                             let time_taken_for_export = export_start.elapsed();
                             if time_taken_for_export > interval {
-                                println!("Export took longer than interval.");
+                                otel_debug!(
+                                    name: "PeriodReaderThreadExportTookLongerThanInterval",
+                                    event_name = "PeriodReaderThreadExportTookLongerThanInterval"
+                                );
                                 // if export took longer than interval, do the
                                 // next export immediately.
                                 // Alternatively, we could skip the next export
@@ -243,14 +266,17 @@ impl PeriodicReader {
                         }
                     }
                 }
-                println!("PeriodicReader Thread stopped.");
+                otel_info!(
+                    name: "PeriodReaderThreadStopped",
+                    event_name = "PeriodReaderThreadStopped"
+                );
             });
 
         if let Err(e) = result_thread_creation {
             // TODO: Should we fail-fast here and bubble up the error to user?
-            println!(
-                "Failed to start PeriodicReader thread: {:?}. Metrics will not be exported.",
-                e
+            otel_error!(
+                name: "PeriodReaderThreadStartError",
+                error = format!("{:?}", e)
             );
         }
 
@@ -308,7 +334,21 @@ impl PeriodicReaderInner {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };
-        self.collect(&mut rm)?;
+
+        let collect_result = self.collect(&mut rm);
+        if let Err(e) = collect_result {
+            otel_warn!(
+                name: "PeriodReaderCollectError",
+                event_name = "PeriodReaderCollectError",
+                error = format!("{:?}", e)
+            );
+            return Err(e);
+        }
+
+        if rm.scope_metrics.is_empty() {
+            otel_debug!(name: "NoMetricsCollected");
+            return Ok(());
+        }
 
         // TODO: substract the time taken for collect from the timeout. collect
         // involves observable callbacks too, which are user defined and can
