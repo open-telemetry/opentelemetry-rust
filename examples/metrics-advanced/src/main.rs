@@ -44,8 +44,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         }
     };
 
-    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
-        .build();
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default().build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
