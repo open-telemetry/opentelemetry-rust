@@ -131,8 +131,8 @@ mod tests {
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
     use crate::metrics::reader::TemporalitySelector;
+    use crate::testing::metrics::InMemoryMetricsExporter;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
@@ -436,7 +436,7 @@ mod tests {
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -487,7 +487,7 @@ mod tests {
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -576,7 +576,7 @@ mod tests {
     async fn instrumentation_scope_identity_test() {
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -659,7 +659,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
             .aggregation(Aggregation::ExplicitBucketHistogram {
@@ -709,7 +709,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -784,7 +784,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -2319,7 +2319,7 @@ mod tests {
             exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
 
             let exporter = exporter.build();
-            let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+            let reader = PeriodicReader::builder(exporter.clone()).build();
             let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
             TestContext {

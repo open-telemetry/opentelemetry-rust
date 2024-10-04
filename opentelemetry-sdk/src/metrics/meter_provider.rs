@@ -130,11 +130,16 @@ impl SdkMeterProviderInner {
 
 impl Drop for SdkMeterProviderInner {
     fn drop(&mut self) {
-        if let Err(err) = self.shutdown() {
-            global::handle_error(err);
+        // If user has already shutdown the provider manually by calling
+        // shutdown(), then we don't need to call shutdown again.
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            if let Err(err) = self.shutdown() {
+                global::handle_error(err);
+            }
         }
     }
 }
+
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,

@@ -312,7 +312,7 @@ impl PeriodicReaderInner {
 
         // TODO: substract the time taken for collect from the timeout. collect
         // involves observable callbacks too, which are user defined and can
-        // take arbitrary time. 
+        // take arbitrary time.
         //
         // Relying on futures executor to execute asyc call. No timeout is
         // enforced here. The exporter is responsible for enforcing the timeout.
@@ -402,6 +402,174 @@ impl MetricReader for PeriodicReader {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use super::PeriodicReader;
+    use crate::{
+        metrics::{data::ResourceMetrics, reader::MetricReader, SdkMeterProvider},
+        testing::metrics::InMemoryMetricsExporter,
+        Resource,
+    };
+    use opentelemetry::metrics::MeterProvider;
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            mpsc, Arc,
+        },
+        time::Duration,
+    };
+
+    // use below command to run all tests
+    // cargo test metrics::periodic_reader::tests --features=testing -- --nocapture
+
     #[test]
-    fn collection_triggered_by_interval() {}
+    fn collection_triggered_by_interval() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1000);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .init();
+
+        // Sleep for a duration longer than the interval to ensure at least one collection
+        std::thread::sleep(interval * 2);
+
+        // Assert
+        receiver
+            .recv_timeout(Duration::ZERO)
+            .expect("message should be available in channel, indicating a collection occurred");
+    }
+
+    #[test]
+    fn collection_triggered_by_interval_multiple() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+        let i = Arc::new(AtomicUsize::new(0));
+        let i_clone = i.clone();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                i_clone.fetch_add(1, Ordering::Relaxed);
+            })
+            .init();
+
+        // Sleep for a duration 5X (plus buffer) the interval to ensure multiple collection
+        std::thread::sleep(interval * 5 * 2);
+
+        // Assert
+        assert!(i.load(Ordering::Relaxed) >= 5);
+    }
+
+    #[test]
+    fn shutdown_repeat() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+
+        // calling shutdown again should return Err
+        let result = meter_provider.shutdown();
+        assert!(result.is_err());
+
+        // calling shutdown again should return Err
+        let result = meter_provider.shutdown();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flush_after_shutdown() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+
+        // calling force_flush after shutdown should return Err
+        let result = meter_provider.force_flush();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flush_repeat() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+
+        // calling force_flush again should return Ok
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn periodic_reader_without_pipeline() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let rm = &mut ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        // Pipeline is not registered, so collect should return an error
+        let result = reader.collect(rm);
+        assert!(result.is_err());
+
+        // Pipeline is not registered, so flush should return an error
+        let result = reader.force_flush();
+        assert!(result.is_err());
+
+        // Adding reader to meter provider should register the pipeline
+        // TODO: This part might benefit from a different design.
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+
+        // Now collect and flush should succeed
+        let result = reader.collect(rm);
+        assert!(result.is_ok());
+
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+    }
 }
