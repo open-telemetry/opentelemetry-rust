@@ -6,7 +6,7 @@ pub(crate) mod serializers {
     use crate::tonic::common::v1::any_value::{self, Value};
     use crate::tonic::common::v1::AnyValue;
     use serde::de::{self, MapAccess, Visitor};
-    use serde::ser::SerializeStruct;
+    use serde::ser::{SerializeMap, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
 
@@ -45,35 +45,23 @@ pub(crate) mod serializers {
     }
 
     // AnyValue <-> KeyValue conversion
-    pub fn serialize_to_value<S>(value: &Option<AnyValue>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize_to_value<S>(value: &Option<Value>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        match value {
-            Some(any_value) => match &any_value.value {
-                Some(Value::IntValue(i)) => {
-                    // Attempt to create a struct to wrap the intValue
-                    let mut state = match serializer.serialize_struct("Value", 1) {
-                        Ok(s) => s,
-                        Err(e) => return Err(e), // Handle the error or return it
-                    };
-
-                    // Attempt to serialize the intValue field
-                    if let Err(e) = state.serialize_field("intValue", &i.to_string()) {
-                        return Err(e); // Handle the error or return it
-                    }
-
-                    // Finalize the struct serialization
-                    state.end()
-                }
-                Some(value) => value.serialize(serializer),
-                None => serializer.serialize_none(),
-            },
+        match &value {
+            Some(Value::IntValue(i)) => {
+                // Attempt to serialize the intValue field
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("intValue", &i.to_string());
+                map.end()
+            }
+            Some(value) => value.serialize(serializer),
             None => serializer.serialize_none(),
         }
     }
 
-    pub fn deserialize_from_value<'de, D>(deserializer: D) -> Result<Option<AnyValue>, D::Error>
+    pub fn deserialize_from_value<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -99,13 +87,13 @@ pub(crate) mod serializers {
         }
 
         impl<'de> de::Visitor<'de> for ValueVisitor {
-            type Value = AnyValue;
+            type Value = Option<Value>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a JSON object for AnyValue")
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<AnyValue, V::Error>
+            fn visit_map<V>(self, mut map: V) -> Result<Option<Value>, V::Error>
             where
                 V: de::MapAccess<'de>,
             {
@@ -150,17 +138,17 @@ pub(crate) mod serializers {
                 }
 
                 if let Some(v) = value {
-                    Ok(AnyValue { value: Some(v) })
+                    Ok(Some(v))
                 } else {
                     Err(de::Error::custom(
-                        "Invalid data for AnyValue, no known keys found",
+                        "Invalid data for Value, no known keys found",
                     ))
                 }
             }
         }
 
         let value = deserializer.deserialize_map(ValueVisitor)?;
-        Ok(Some(value))
+        Ok(value)
     }
 
     pub fn serialize_u64_to_string<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>

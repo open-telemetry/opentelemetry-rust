@@ -518,14 +518,10 @@ mod json_serde {
   "arrayValue": {
     "values": [
       {
-        "value": {
-          "stringValue": "foo"
-        }
+        "stringValue": "foo"
       },
       {
-        "value": {
-          "stringValue": "bar"
-        }
+        "stringValue": "bar"
       }
     ]
   }
@@ -557,14 +553,10 @@ mod json_serde {
   "arrayValue": {
     "values": [
       {
-        "value": {
-          "stringValue": "foo"
-        }
+        "stringValue": "foo"
       },
       {
-        "value": {
-          "intValue": 1337
-        }
+        "intValue": "1337"
       }
     ]
   }
@@ -1339,14 +1331,10 @@ mod json_serde {
                     "arrayValue": {
                       "values": [
                         {
-                          "value": {
-                            "stringValue": "many"
-                          }
+                          "stringValue": "many"
                         },
                         {
-                          "value": {
-                            "stringValue": "values"
-                          }
+                          "stringValue": "values"
                         }
                       ]
                     }
@@ -1453,14 +1441,10 @@ mod json_serde {
                     "arrayValue": {
                       "values": [
                         {
-                          "value": {
-                            "stringValue": "many"
-                          }
+                          "stringValue": "many"
                         },
                         {
-                          "value": {
-                            "stringValue": "values"
-                          }
+                          "stringValue": "values"
                         }
                       ]
                     }
