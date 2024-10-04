@@ -103,7 +103,7 @@ where
 
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
-        PeriodicReader::new(self.exporter, self.interval)
+        PeriodicReader::new(self.exporter, self.interval, self.timeout)
     }
 }
 
@@ -159,7 +159,7 @@ impl PeriodicReader {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new<E>(exporter: E, interval: Duration) -> Self
+    fn new<E>(exporter: E, interval: Duration, timeout: Duration) -> Self
     where
         E: PushMetricsExporter,
     {
@@ -183,7 +183,7 @@ impl PeriodicReader {
                 match message_receiver.recv_timeout(remaining_interval) {
                     Ok(Message::Flush(response_sender)) => {
                         println!("Performing ad-hoc export due to Flush.");
-                        if let Err(_e) = cloned_reader.collect_and_export() {
+                        if let Err(_e) = cloned_reader.collect_and_export(timeout) {
                             response_sender.send(false).unwrap();
                         } else {
                             response_sender.send(true).unwrap();
@@ -198,16 +198,20 @@ impl PeriodicReader {
                                 remaining_interval
                             );
                         } else {
-                            // Reset the interval if the flush happens after the expected export time
-                            // This will skip the normal periodic exporting. is this the desired behavior?
+                            // Reset the interval if the flush finishes after the expected export time
+                            // effectively missing the normal export.
+                            // Should we attempt to do the missed export immediately?
+                            // Or do the next export at the next interval?
+                            // Currently this attempts the next export immediately.
+                            // i.e calling Flush can affect the regularity.
                             interval_start = Instant::now();
-                            remaining_interval = interval;
+                            remaining_interval = Duration::ZERO;
                         }
                     }
                     Ok(Message::Shutdown(response_sender)) => {
                         // Perform final export and break out of loop and exit the thread
                         println!("Performing final export and shutting down.");
-                        if let Err(_e) = cloned_reader.collect_and_export() {
+                        if let Err(_e) = cloned_reader.collect_and_export(timeout) {
                             response_sender.send(false).unwrap();
                         } else {
                             response_sender.send(true).unwrap();
@@ -217,7 +221,7 @@ impl PeriodicReader {
                     Err(mpsc::RecvTimeoutError::Timeout) => {
                         let export_start = Instant::now();
                         println!("Performing periodic export at {:?}", export_start);
-                        cloned_reader.collect_and_export().unwrap();
+                        cloned_reader.collect_and_export(timeout).unwrap();
 
                         let time_taken_for_export = export_start.elapsed();
                         if time_taken_for_export > interval {
@@ -229,7 +233,7 @@ impl PeriodicReader {
                             // Or enforce that export timeout is less than interval.
                             // What is the desired behavior?
                             interval_start = Instant::now();
-                            remaining_interval = Duration::from_secs(0);
+                            remaining_interval = Duration::ZERO;
                         } else {
                         remaining_interval = interval - time_taken_for_export;
                         interval_start = Instant::now();
@@ -247,15 +251,17 @@ impl PeriodicReader {
         reader
     }
 
-    fn collect_and_export(&self) -> Result<()> {
+    fn collect_and_export(&self, timeout: Duration) -> Result<()> {
         let mut rm = ResourceMetrics {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };
         self.collect(&mut rm)?;
 
-        // TODO: Enforce timeout 
-        futures_executor::block_on(self.exporter.export(&mut rm))?;
+        // TODO: substract the time taken for collect from the timeout
+        // collect involves observable callbacks too, which are user 
+        // defined and can take arbitrary time.
+        futures_executor::block_on(self.exporter.export(&mut rm, timeout))?;
         Ok(())
     }
 }

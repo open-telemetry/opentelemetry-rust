@@ -1,4 +1,6 @@
 //! Interfaces for exporting metrics
+use std::time::Duration;
+
 use async_trait::async_trait;
 
 use opentelemetry::metrics::Result;
@@ -16,7 +18,7 @@ pub trait PushMetricsExporter: TemporalitySelector + Send + Sync + 'static {
     /// implement any retry logic. All errors returned by this function are
     /// considered unrecoverable and will be reported to a configured error
     /// Handler.
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()>;
+    async fn export(&self, metrics: &mut ResourceMetrics, timeout: Duration) -> Result<()>;
 
     /// Flushes any metric data held by an exporter.
     async fn force_flush(&self) -> Result<()>;

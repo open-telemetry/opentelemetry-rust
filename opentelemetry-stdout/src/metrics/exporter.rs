@@ -8,7 +8,7 @@ use opentelemetry_sdk::metrics::{
     reader::{DefaultTemporalitySelector, TemporalitySelector},
     InstrumentKind,
 };
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
@@ -44,7 +44,7 @@ impl TemporalitySelector for MetricsExporter {
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut data::ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut data::ResourceMetrics, _timeout: Duration) -> Result<()> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Err(MetricsError::Other("exporter is shut down".into()))
         } else {
