@@ -167,7 +167,7 @@ impl PeriodicReader {
                 message_sender,
                 is_shutdown: AtomicBool::new(false),
                 producer: Mutex::new(None),
-                exporter: Box::new(exporter),
+                exporter: Arc::new(exporter),
             }),
         };
         let cloned_reader = reader.clone();
@@ -273,6 +273,7 @@ impl PeriodicReader {
             });
 
         // TODO: Should we fail-fast here and bubble up the error to user?
+        #[allow(unused_variables)]
         if let Err(e) = result_thread_creation {
             otel_error!(
                 name: "PeriodReaderThreadStartError",
@@ -295,7 +296,7 @@ impl fmt::Debug for PeriodicReader {
 }
 
 struct PeriodicReaderInner {
-    exporter: Box<dyn PushMetricsExporter>,
+    exporter: Arc<dyn PushMetricsExporter>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
     is_shutdown: AtomicBool,
@@ -336,6 +337,7 @@ impl PeriodicReaderInner {
         };
 
         let collect_result = self.collect(&mut rm);
+        #[allow(clippy::question_mark)]
         if let Err(e) = collect_result {
             otel_warn!(
                 name: "PeriodReaderCollectError",
