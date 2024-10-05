@@ -164,7 +164,7 @@ impl PeriodicReader {
             mpsc::channel();
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender,
+                message_sender: Arc::new(message_sender),
                 is_shutdown: AtomicBool::new(false),
                 producer: Mutex::new(None),
                 exporter: Arc::new(exporter),
@@ -297,7 +297,7 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     exporter: Arc<dyn PushMetricsExporter>,
-    message_sender: mpsc::Sender<Message>,
+    message_sender: Arc<mpsc::Sender<Message>>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
     is_shutdown: AtomicBool,
 }
