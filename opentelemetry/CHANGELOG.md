@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add `LogRecord::set_trace_context`; an optional method conditional on the `trace` feature for setting trace context on a log record.
+
 ## v0.26.0
 Released 2024-Sep-30
 
