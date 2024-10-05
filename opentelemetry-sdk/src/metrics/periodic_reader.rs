@@ -461,36 +461,6 @@ mod tests {
 
     // use below command to run all tests
     // cargo test metrics::periodic_reader::tests --features=testing -- --nocapture
-
-    #[test]
-    fn collection_triggered_by_interval() {
-        // Arrange
-        let interval = std::time::Duration::from_millis(1000);
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
-        let (sender, receiver) = mpsc::channel();
-
-        // Act
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        let meter = meter_provider.meter("test");
-        let _counter = meter
-            .u64_observable_counter("testcounter")
-            .with_callback(move |_| {
-                sender.send(()).expect("channel should still be open");
-            })
-            .init();
-
-        // Sleep for a duration longer than the interval to ensure at least one collection
-        std::thread::sleep(interval * 2);
-
-        // Assert
-        receiver
-            .recv_timeout(Duration::ZERO)
-            .expect("message should be available in channel, indicating a collection occurred");
-    }
-
     #[test]
     fn collection_triggered_by_interval_multiple() {
         // Arrange
@@ -614,5 +584,84 @@ mod tests {
 
         let result = meter_provider.force_flush();
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn collection() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn collection_from_tokio_multi_with_one_worker() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_from_tokio_with_two_worker() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn collection_from_tokio_current() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+    }
+
+    fn collection_triggered_by_interval_helper() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1000);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .init();
+
+        // Sleep for a duration longer than the interval to ensure at least one collection
+        std::thread::sleep(interval * 2);
+
+        // Assert
+        receiver
+            .recv_timeout(Duration::ZERO)
+            .expect("message should be available in channel, indicating a collection occurred");
+    }
+
+    fn collection_triggered_by_flush_helper() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1000);
+        let exporter = InMemoryMetricsExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        // Act
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                sender.send(()).expect("channel should still be open");
+            })
+            .init();
+
+        meter_provider.force_flush().expect("flush should succeed");
+
+        // Assert
+        receiver
+            .recv_timeout(Duration::ZERO)
+            .expect("message should be available in channel, indicating a collection occurred");
     }
 }
