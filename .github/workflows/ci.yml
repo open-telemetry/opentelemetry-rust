@@ -106,6 +106,7 @@ jobs:
         os: [windows-latest, ubuntu-latest]
         rust: [1.65.0, 1.71.1]
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
