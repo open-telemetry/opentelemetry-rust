@@ -512,8 +512,9 @@ mod tests {
             })
             .init();
 
-        // Sleep for a duration 5X (plus buffer) the interval to ensure multiple collection
-        std::thread::sleep(interval * 5 * 2);
+        // Sleep for a duration 5X (plus liberal buffer to account for potential
+        // CI slowness) the interval to ensure multiple collection
+        std::thread::sleep(interval * 5 * 20);
 
         // Assert
         assert!(i.load(Ordering::Relaxed) >= 5);
