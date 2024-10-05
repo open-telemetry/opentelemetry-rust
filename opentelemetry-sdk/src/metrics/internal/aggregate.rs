@@ -1,26 +1,15 @@
 use std::{marker, sync::Arc};
 
-use once_cell::sync::Lazy;
 use opentelemetry::KeyValue;
 
-use crate::metrics::{
-    data::{Aggregation, Gauge, Temporality},
-    AttributeSet,
-};
+use crate::metrics::data::{Aggregation, Gauge, Temporality};
 
 use super::{
-    exponential_histogram::ExpoHistogram,
-    histogram::Histogram,
-    last_value::LastValue,
-    sum::{PrecomputedSum, Sum},
-    Number,
+    exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
+    precomputed_sum::PrecomputedSum, sum::Sum, Number,
 };
 
 const STREAM_CARDINALITY_LIMIT: u32 = 2000;
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTE_SET: Lazy<AttributeSet> = Lazy::new(|| {
-    let key_values: [KeyValue; 1] = [KeyValue::new("otel.metric.overflow", "true")];
-    AttributeSet::from(&key_values[..])
-});
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
@@ -82,7 +71,7 @@ pub(crate) struct AggregateBuilder<T> {
 
 type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
-impl<T: Number<T>> AggregateBuilder<T> {
+impl<T: Number> AggregateBuilder<T> {
     pub(crate) fn new(temporality: Option<Temporality>, filter: Option<Filter>) -> Self {
         AggregateBuilder {
             temporality,

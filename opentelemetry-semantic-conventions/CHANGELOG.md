@@ -2,8 +2,21 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
 ### Changed
 
+- Starting with this version, this crate will use Weaver for the generation of
+  the semantic conventions.
+- **Breaking** Introduced a new feature `semconv_experimental` to enable experimental semantic conventions.
+  This feature is disabled by default.
+
+## v0.25.0
+### Changed
+
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
 - Update to [v1.27.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.27.0) of the semantic conventions.
   [#2000](https://github.com/open-telemetry/opentelemetry-rust/pull/2000)
 

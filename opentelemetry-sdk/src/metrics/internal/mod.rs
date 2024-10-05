@@ -2,6 +2,7 @@ mod aggregate;
 mod exponential_histogram;
 mod histogram;
 mod last_value;
+mod precomputed_sum;
 mod sum;
 
 use core::fmt;
@@ -16,7 +17,7 @@ pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
 use opentelemetry::metrics::MetricsError;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{global, otel_warn, KeyValue};
 
 use crate::metrics::AttributeSet;
 
@@ -25,13 +26,13 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
 
 /// Abstracts the update operation for a measurement.
 pub(crate) trait Operation {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T);
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize);
 }
 
 struct Increment;
 
 impl Operation for Increment {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T) {
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
         tracker.add(value);
     }
 }
@@ -39,7 +40,7 @@ impl Operation for Increment {
 struct Assign;
 
 impl Operation for Assign {
-    fn update_tracker<T: 'static, AT: AtomicTracker<T>>(tracker: &AT, value: T) {
+    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, _: usize) {
         tracker.store(value);
     }
 }
@@ -48,40 +49,54 @@ impl Operation for Assign {
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
-pub(crate) struct ValueMap<T: Number<T>, O> {
+pub(crate) struct ValueMap<AU: AtomicallyUpdate<T>, T: Number, O> {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<T::AtomicTracker>>>,
+    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<AU::AtomicTracker>>>,
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Indicates whether a value with no attributes has been stored.
     has_no_attribute_value: AtomicBool,
     /// Tracker for values with no attributes attached.
-    no_attribute_tracker: T::AtomicTracker,
+    no_attribute_tracker: AU::AtomicTracker,
+    /// Buckets Count is only used by Histogram.
+    buckets_count: Option<usize>,
     phantom: PhantomData<O>,
 }
 
-impl<T: Number<T>, O> Default for ValueMap<T, O> {
+impl<AU: AtomicallyUpdate<T>, T: Number, O> Default for ValueMap<AU, T, O> {
     fn default() -> Self {
         ValueMap::new()
     }
 }
 
-impl<T: Number<T>, O> ValueMap<T, O> {
+impl<AU: AtomicallyUpdate<T>, T: Number, O> ValueMap<AU, T, O> {
     fn new() -> Self {
         ValueMap {
             trackers: RwLock::new(HashMap::new()),
             has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: T::new_atomic_tracker(),
+            no_attribute_tracker: AU::new_atomic_tracker(None),
             count: AtomicUsize::new(0),
+            buckets_count: None,
+            phantom: PhantomData,
+        }
+    }
+
+    fn new_with_buckets_count(buckets_count: usize) -> Self {
+        ValueMap {
+            trackers: RwLock::new(HashMap::new()),
+            has_no_attribute_value: AtomicBool::new(false),
+            no_attribute_tracker: AU::new_atomic_tracker(Some(buckets_count)),
+            count: AtomicUsize::new(0),
+            buckets_count: Some(buckets_count),
             phantom: PhantomData,
         }
     }
 }
 
-impl<T: Number<T>, O: Operation> ValueMap<T, O> {
-    fn measure(&self, measurement: T, attributes: &[KeyValue]) {
+impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
+    fn measure(&self, measurement: T, attributes: &[KeyValue], index: usize) {
         if attributes.is_empty() {
-            O::update_tracker(&self.no_attribute_tracker, measurement);
+            O::update_tracker(&self.no_attribute_tracker, measurement, index);
             self.has_no_attribute_value.store(true, Ordering::Release);
             return;
         }
@@ -92,14 +107,14 @@ impl<T: Number<T>, O: Operation> ValueMap<T, O> {
 
         // Try to retrieve and update the tracker with the attributes in the provided order first
         if let Some(tracker) = trackers.get(attributes) {
-            O::update_tracker(&**tracker, measurement);
+            O::update_tracker(&**tracker, measurement, index);
             return;
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
         let sorted_attrs = AttributeSet::from(attributes).into_vec();
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            O::update_tracker(&**tracker, measurement);
+            O::update_tracker(&**tracker, measurement, index);
             return;
         }
 
@@ -113,12 +128,12 @@ impl<T: Number<T>, O: Operation> ValueMap<T, O> {
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
         if let Some(tracker) = trackers.get(attributes) {
-            O::update_tracker(&**tracker, measurement);
+            O::update_tracker(&**tracker, measurement, index);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            O::update_tracker(&**tracker, measurement);
+            O::update_tracker(&**tracker, measurement, index);
         } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
-            let new_tracker = Arc::new(T::new_atomic_tracker());
-            O::update_tracker(&*new_tracker, measurement);
+            let new_tracker = Arc::new(AU::new_atomic_tracker(self.buckets_count));
+            O::update_tracker(&*new_tracker, measurement, index);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
@@ -126,35 +141,43 @@ impl<T: Number<T>, O: Operation> ValueMap<T, O> {
 
             self.count.fetch_add(1, Ordering::SeqCst);
         } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
-            O::update_tracker(&**overflow_value, measurement);
+            O::update_tracker(&**overflow_value, measurement, index);
         } else {
-            let new_tracker = T::new_atomic_tracker();
-            O::update_tracker(&new_tracker, measurement);
+            let new_tracker = AU::new_atomic_tracker(self.buckets_count);
+            O::update_tracker(&new_tracker, measurement, index);
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
             global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+            otel_warn!( name: "ValueMap.measure",
+                message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
+            );
         }
     }
 }
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
 /// different types have different backing atomic mechanisms
-pub(crate) trait AtomicTracker<T>: Sync + Send + 'static {
-    fn store(&self, value: T);
-    fn add(&self, value: T);
-    fn get_value(&self) -> T;
-    fn get_and_reset_value(&self) -> T;
+pub(crate) trait AtomicTracker<T: Default>: Sync + Send + 'static {
+    fn store(&self, _value: T) {}
+    fn add(&self, _value: T) {}
+    fn get_value(&self) -> T {
+        T::default()
+    }
+    fn get_and_reset_value(&self) -> T {
+        T::default()
+    }
+    fn update_histogram(&self, _index: usize, _value: T) {}
 }
 
 /// Marks a type that can have an atomic tracker generated for it
-pub(crate) trait AtomicallyUpdate<T> {
+pub(crate) trait AtomicallyUpdate<T: Default> {
     type AtomicTracker: AtomicTracker<T>;
-    fn new_atomic_tracker() -> Self::AtomicTracker;
+    fn new_atomic_tracker(buckets_count: Option<usize>) -> Self::AtomicTracker;
 }
 
-pub(crate) trait Number<T>:
-    Add<Output = T>
+pub(crate) trait Number:
+    Add<Output = Self>
     + AddAssign
-    + Sub<Output = T>
+    + Sub<Output = Self>
     + PartialOrd
     + fmt::Debug
     + Clone
@@ -164,7 +187,7 @@ pub(crate) trait Number<T>:
     + Send
     + Sync
     + 'static
-    + AtomicallyUpdate<T>
+    + AtomicallyUpdate<Self>
 {
     fn min() -> Self;
     fn max() -> Self;
@@ -172,7 +195,7 @@ pub(crate) trait Number<T>:
     fn into_float(self) -> f64;
 }
 
-impl Number<i64> for i64 {
+impl Number for i64 {
     fn min() -> Self {
         i64::MIN
     }
@@ -186,7 +209,7 @@ impl Number<i64> for i64 {
         self as f64
     }
 }
-impl Number<u64> for u64 {
+impl Number for u64 {
     fn min() -> Self {
         u64::MIN
     }
@@ -200,7 +223,7 @@ impl Number<u64> for u64 {
         self as f64
     }
 }
-impl Number<f64> for f64 {
+impl Number for f64 {
     fn min() -> Self {
         f64::MIN
     }
@@ -235,7 +258,7 @@ impl AtomicTracker<u64> for AtomicU64 {
 impl AtomicallyUpdate<u64> for u64 {
     type AtomicTracker = AtomicU64;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
+    fn new_atomic_tracker(_: Option<usize>) -> Self::AtomicTracker {
         AtomicU64::new(0)
     }
 }
@@ -261,7 +284,7 @@ impl AtomicTracker<i64> for AtomicI64 {
 impl AtomicallyUpdate<i64> for i64 {
     type AtomicTracker = AtomicI64;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
+    fn new_atomic_tracker(_: Option<usize>) -> Self::AtomicTracker {
         AtomicI64::new(0)
     }
 }
@@ -323,7 +346,7 @@ impl AtomicTracker<f64> for F64AtomicTracker {
 impl AtomicallyUpdate<f64> for f64 {
     type AtomicTracker = F64AtomicTracker;
 
-    fn new_atomic_tracker() -> Self::AtomicTracker {
+    fn new_atomic_tracker(_: Option<usize>) -> Self::AtomicTracker {
         F64AtomicTracker::new()
     }
 }
@@ -334,7 +357,7 @@ mod tests {
 
     #[test]
     fn can_store_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker();
+        let atomic = u64::new_atomic_tracker(None);
         let atomic_tracker = &atomic as &dyn AtomicTracker<u64>;
 
         let value = atomic.get_value();
@@ -347,7 +370,7 @@ mod tests {
 
     #[test]
     fn can_add_and_get_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker();
+        let atomic = u64::new_atomic_tracker(None);
         atomic.add(15);
         atomic.add(10);
 
@@ -357,7 +380,7 @@ mod tests {
 
     #[test]
     fn can_reset_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker();
+        let atomic = u64::new_atomic_tracker(None);
         atomic.add(15);
 
         let value = atomic.get_and_reset_value();
@@ -369,7 +392,7 @@ mod tests {
 
     #[test]
     fn can_store_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker();
+        let atomic = i64::new_atomic_tracker(None);
         let atomic_tracker = &atomic as &dyn AtomicTracker<i64>;
 
         let value = atomic.get_value();
@@ -386,7 +409,7 @@ mod tests {
 
     #[test]
     fn can_add_and_get_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker();
+        let atomic = i64::new_atomic_tracker(None);
         atomic.add(15);
         atomic.add(-10);
 
@@ -396,7 +419,7 @@ mod tests {
 
     #[test]
     fn can_reset_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker();
+        let atomic = i64::new_atomic_tracker(None);
         atomic.add(15);
 
         let value = atomic.get_and_reset_value();
@@ -408,7 +431,7 @@ mod tests {
 
     #[test]
     fn can_store_f64_atomic_value() {
-        let atomic = f64::new_atomic_tracker();
+        let atomic = f64::new_atomic_tracker(None);
         let atomic_tracker = &atomic as &dyn AtomicTracker<f64>;
 
         let value = atomic.get_value();
@@ -425,7 +448,7 @@ mod tests {
 
     #[test]
     fn can_add_and_get_f64_atomic_value() {
-        let atomic = f64::new_atomic_tracker();
+        let atomic = f64::new_atomic_tracker(None);
         atomic.add(15.3);
         atomic.add(10.4);
 
@@ -436,7 +459,7 @@ mod tests {
 
     #[test]
     fn can_reset_f64_atomic_value() {
-        let atomic = f64::new_atomic_tracker();
+        let atomic = f64::new_atomic_tracker(None);
         atomic.add(15.5);
 
         let value = atomic.get_and_reset_value();

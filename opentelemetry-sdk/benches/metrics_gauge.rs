@@ -32,7 +32,7 @@ static ATTRIBUTE_VALUES: [&str; 10] = [
 ];
 
 // Run this benchmark with:
-// cargo bench --bench metric_gauge
+// cargo bench --bench metrics_gauge
 fn create_gauge() -> Gauge<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())

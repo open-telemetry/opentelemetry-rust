@@ -10,16 +10,16 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 250 ns      |
+    | ot_layer_enabled            | 196 ns      |
 */
 
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LogResult;
-use opentelemetry::KeyValue;
+use opentelemetry::{InstrumentationLibrary, KeyValue};
 use opentelemetry_appender_tracing::layer as tracing_layer;
-use opentelemetry_sdk::export::logs::{LogData, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
@@ -34,7 +34,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export<'a>(&mut self, _: Vec<std::borrow::Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export(&mut self, _: LogBatch<'_>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
@@ -55,7 +55,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogData) {
+    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
         // no-op
     }
 

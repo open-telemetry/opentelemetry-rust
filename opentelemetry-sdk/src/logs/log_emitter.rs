@@ -1,9 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{
-    export::logs::{LogData, LogExporter},
-    runtime::RuntimeChannel,
-    Resource,
-};
+use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use opentelemetry::otel_warn;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
@@ -40,10 +37,6 @@ pub struct LoggerProvider {
 
 /// Default logger name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-// According to a Go-specific study mentioned on https://go.dev/blog/slog,
-// up to 5 attributes is the most common case. We have chosen 8 as the default
-// capacity for attributes to avoid reallocation in common scenarios.
-const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 8;
 
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
@@ -57,7 +50,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
-
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
@@ -122,6 +114,10 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
+                    otel_warn!(
+                        name: "logger_provider_shutdown_error",
+                        error = format!("{:?}", err)
+                    );
                     errs.push(err);
                 }
             }
@@ -132,6 +128,9 @@ impl LoggerProvider {
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
+            otel_warn!(
+                name: "logger_provider_already_shutdown"
+            );
             Err(LogError::Other("logger provider already shut down".into()))
         }
     }
@@ -250,36 +249,28 @@ impl opentelemetry::logs::Logger for Logger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        // Reserve attributes memory for perf optimization. This may change in future.
-        LogRecord {
-            attributes: Some(Vec::with_capacity(PREALLOCATED_ATTRIBUTE_CAPACITY)),
-            ..Default::default()
-        }
+        LogRecord::default()
     }
 
     /// Emit a `LogRecord`.
-    fn emit(&self, record: Self::LogRecord) {
+    fn emit(&self, mut record: Self::LogRecord) {
         let provider = self.provider();
         let processors = provider.log_processors();
         let trace_context = Context::map_current(|cx| {
             cx.has_active_span()
                 .then(|| TraceContext::from(cx.span().span_context()))
         });
-        let mut log_record = record;
-        if let Some(ref trace_context) = trace_context {
-            log_record.trace_context = Some(trace_context.clone());
-        }
-        if log_record.observed_timestamp.is_none() {
-            log_record.observed_timestamp = Some(SystemTime::now());
-        }
 
-        let mut data = LogData {
-            record: log_record,
-            instrumentation: self.instrumentation_library().clone(),
-        };
+        //let mut log_record = record;
+        if let Some(ref trace_context) = trace_context {
+            record.trace_context = Some(trace_context.clone());
+        }
+        if record.observed_timestamp.is_none() {
+            record.observed_timestamp = Some(SystemTime::now());
+        }
 
         for p in processors {
-            p.emit(&mut data);
+            p.emit(&mut record, self.instrumentation_library());
         }
     }
 
@@ -336,7 +327,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogData) {
+        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -566,7 +557,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogData) {
+        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
             // nothing to do.
         }
 

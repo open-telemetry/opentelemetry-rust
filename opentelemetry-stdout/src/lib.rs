@@ -7,7 +7,7 @@
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
 //!
-//! * `trace`: Includes the trace exporters (enabled by default).
+//! * `trace`: Includes the trace exporters.
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
@@ -56,12 +56,14 @@
 //!
 //! // recorded traces, metrics and logs will now be sent to stdout:
 //!
-//! // {"resourceMetrics":{"resource":{"attributes":[{"key":"service.name","value":{"str..
-//! // {"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stri..
-//! // {"resourceLogs": [{"resource": {"attributes": [{"key": "service.name", "value": {"str..
 //! # }
 //! ```
 #![warn(missing_debug_implementations, missing_docs)]
+#![cfg_attr(
+    docsrs,
+    feature(doc_cfg, doc_auto_cfg),
+    deny(rustdoc::broken_intra_doc_links)
+)]
 
 pub(crate) mod common;
 

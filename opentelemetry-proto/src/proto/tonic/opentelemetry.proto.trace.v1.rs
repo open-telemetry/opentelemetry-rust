@@ -12,7 +12,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TracesData {
     /// An array of ResourceSpans.
@@ -28,7 +27,6 @@ pub struct TracesData {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
@@ -51,7 +49,6 @@ pub struct ResourceSpans {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeSpans {
     /// The instrumentation scope information for the spans in this message.
@@ -76,7 +73,6 @@ pub struct ScopeSpans {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
@@ -243,7 +239,6 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
         /// time_unix_nano is the time the event occurred.
@@ -280,15 +275,28 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
         /// 16-byte array.
         #[prost(bytes = "vec", tag = "1")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+                deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+            )
+        )]
         pub trace_id: ::prost::alloc::vec::Vec<u8>,
         /// A unique identifier for the linked span. The ID is an 8-byte array.
         #[prost(bytes = "vec", tag = "2")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+                deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+            )
+        )]
         pub span_id: ::prost::alloc::vec::Vec<u8>,
         /// The trace_state associated with the link.
         #[prost(string, tag = "3")]
@@ -370,12 +378,12 @@ pub mod span {
         /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
-                SpanKind::Unspecified => "SPAN_KIND_UNSPECIFIED",
-                SpanKind::Internal => "SPAN_KIND_INTERNAL",
-                SpanKind::Server => "SPAN_KIND_SERVER",
-                SpanKind::Client => "SPAN_KIND_CLIENT",
-                SpanKind::Producer => "SPAN_KIND_PRODUCER",
-                SpanKind::Consumer => "SPAN_KIND_CONSUMER",
+                Self::Unspecified => "SPAN_KIND_UNSPECIFIED",
+                Self::Internal => "SPAN_KIND_INTERNAL",
+                Self::Server => "SPAN_KIND_SERVER",
+                Self::Client => "SPAN_KIND_CLIENT",
+                Self::Producer => "SPAN_KIND_PRODUCER",
+                Self::Consumer => "SPAN_KIND_CONSUMER",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -398,7 +406,6 @@ pub mod span {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
@@ -443,9 +450,9 @@ pub mod status {
         /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
-                StatusCode::Unset => "STATUS_CODE_UNSET",
-                StatusCode::Ok => "STATUS_CODE_OK",
-                StatusCode::Error => "STATUS_CODE_ERROR",
+                Self::Unset => "STATUS_CODE_UNSET",
+                Self::Ok => "STATUS_CODE_OK",
+                Self::Error => "STATUS_CODE_ERROR",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -497,10 +504,10 @@ impl SpanFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SpanFlags::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
-            SpanFlags::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
-            SpanFlags::ContextHasIsRemoteMask => "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK",
-            SpanFlags::ContextIsRemoteMask => "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK",
+            Self::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
+            Self::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
+            Self::ContextHasIsRemoteMask => "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK",
+            Self::ContextIsRemoteMask => "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

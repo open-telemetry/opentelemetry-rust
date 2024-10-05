@@ -20,11 +20,13 @@ use crate::{
         internal,
         internal::AggregateBuilder,
         internal::Number,
-        reader::{AggregationSelector, DefaultAggregationSelector, MetricReader, SdkProducer},
+        reader::{MetricReader, SdkProducer},
         view::View,
     },
     Resource,
 };
+
+use super::Aggregation;
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -55,7 +57,6 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 struct PipelineInner {
     aggregations: HashMap<Scope, Vec<InstrumentSync>>,
     callbacks: Vec<GenericCallback>,
-    multi_callbacks: Vec<Option<GenericCallback>>,
 }
 
 impl fmt::Debug for PipelineInner {
@@ -105,11 +106,6 @@ impl SdkProducer for Pipeline {
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
             cb();
-        }
-
-        for mcb in inner.multi_callbacks.iter().flatten() {
-            // TODO consider parallel multi callbacks.
-            mcb();
         }
 
         rm.resource = self.resource.clone();
@@ -215,7 +211,7 @@ struct Inserter<T> {
 
 impl<T> Inserter<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
         Inserter {
@@ -248,7 +244,11 @@ where
     ///
     /// If an instrument is determined to use a [aggregation::Aggregation::Drop],
     /// that instrument is not inserted nor returned.
-    fn instrument(&self, inst: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    fn instrument(
+        &self,
+        inst: Instrument,
+        boundaries: Option<&[f64]>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -292,13 +292,21 @@ where
         }
 
         // Apply implicit default view if no explicit matched.
-        let stream = Stream {
+        let mut stream = Stream {
             name: inst.name,
             description: inst.description,
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
         };
+
+        // Override default histogram boundaries if provided.
+        if let Some(boundaries) = boundaries {
+            stream.aggregation = Some(Aggregation::ExplicitBucketHistogram {
+                boundaries: boundaries.to_vec(),
+                record_min_max: true,
+            });
+        }
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
             Ok(agg) => {
@@ -340,11 +348,11 @@ where
         let mut agg = stream
             .aggregation
             .take()
-            .unwrap_or_else(|| self.pipeline.reader.aggregation(kind));
+            .unwrap_or_else(|| default_aggregation_selector(kind));
 
         // Apply default if stream or reader aggregation returns default
         if matches!(agg, aggregation::Aggregation::Default) {
-            agg = DefaultAggregationSelector::new().aggregation(kind);
+            agg = default_aggregation_selector(kind);
         }
 
         if let Err(err) = is_aggregator_compatible(&kind, &agg) {
@@ -430,6 +438,37 @@ where
     }
 }
 
+/// The default aggregation and parameters for an instrument of [InstrumentKind].
+///
+/// This aggregation selector uses the following selection mapping per [the spec]:
+///
+/// * Counter ⇨ Sum
+/// * Observable Counter ⇨ Sum
+/// * UpDownCounter ⇨ Sum
+/// * Observable UpDownCounter ⇨ Sum
+/// * Gauge ⇨ LastValue
+/// * Observable Gauge ⇨ LastValue
+/// * Histogram ⇨ ExplicitBucketHistogram
+///
+/// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/metrics/sdk.md#default-aggregation
+fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
+    match kind {
+        InstrumentKind::Counter
+        | InstrumentKind::UpDownCounter
+        | InstrumentKind::ObservableCounter
+        | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
+        InstrumentKind::Gauge => Aggregation::LastValue,
+        InstrumentKind::ObservableGauge => Aggregation::LastValue,
+        InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
+            boundaries: vec![
+                0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
+                5000.0, 7500.0, 10000.0,
+            ],
+            record_min_max: true,
+        },
+    }
+}
+
 type AggregateFns<T> = (
     Arc<dyn internal::Measure<T>>,
     Box<dyn internal::ComputeAggregation>,
@@ -438,12 +477,11 @@ type AggregateFns<T> = (
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
-fn aggregate_fn<T: Number<T>>(
+fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> Result<Option<AggregateFns<T>>> {
-    use aggregation::Aggregation;
     fn box_val<T>(
         (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
     ) -> (
@@ -454,11 +492,7 @@ fn aggregate_fn<T: Number<T>>(
     }
 
     match agg {
-        Aggregation::Default => aggregate_fn(
-            b,
-            &DefaultAggregationSelector::new().aggregation(kind),
-            kind,
-        ),
+        Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
         Aggregation::Drop => Ok(None),
         Aggregation::LastValue => Ok(Some(box_val(b.last_value()))),
         Aggregation::Sum => {
@@ -521,7 +555,6 @@ fn aggregate_fn<T: Number<T>>(
 /// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 /// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
 fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
-    use aggregation::Aggregation;
     match agg {
         Aggregation::Default => Ok(()),
         Aggregation::ExplicitBucketHistogram { .. }
@@ -645,7 +678,7 @@ pub(crate) struct Resolver<T> {
 
 impl<T> Resolver<T>
 where
-    T: Number<T>,
+    T: Number,
 {
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,
@@ -661,17 +694,25 @@ where
     }
 
     /// The measures that must be updated by the instrument defined by key.
-    pub(crate) fn measures(&self, id: Instrument) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    pub(crate) fn measures(
+        &self,
+        id: Instrument,
+        boundaries: Option<Vec<f64>>,
+    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
-            match inserter.instrument(id.clone()) {
+            match inserter.instrument(id.clone(), boundaries.as_deref()) {
                 Ok(ms) => measures.extend(ms),
                 Err(err) => errs.push(err),
             }
         }
 
         if errs.is_empty() {
+            if measures.is_empty() {
+                // TODO: Emit internal log that measurements from the instrument
+                // are being dropped due to view configuration
+            }
             Ok(measures)
         } else {
             Err(MetricsError::Other(format!("{errs:?}")))

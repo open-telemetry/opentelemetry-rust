@@ -14,7 +14,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
-use opentelemetry_sdk::export::logs::LogData;
+use opentelemetry_sdk::export::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::export::trace::SpanData;
 #[cfg(feature = "metrics")]
@@ -78,7 +78,7 @@ impl Default for HttpConfig {
 /// ```
 /// # #[cfg(feature="metrics")]
 /// use opentelemetry_sdk::metrics::reader::{
-///     DefaultAggregationSelector, DefaultTemporalitySelector,
+///     DefaultTemporalitySelector,
 /// };
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -91,7 +91,6 @@ impl Default for HttpConfig {
 /// let metrics_exporter = opentelemetry_otlp::new_exporter()
 ///     .http()
 ///     .build_metrics_exporter(
-///         Box::new(DefaultAggregationSelector::new()),
 ///         Box::new(DefaultTemporalitySelector::new()),
 ///     )?;
 ///
@@ -252,7 +251,6 @@ impl HttpExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         mut self,
-        aggregation_selector: Box<dyn opentelemetry_sdk::metrics::reader::AggregationSelector>,
         temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::{
@@ -267,11 +265,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
-        Ok(crate::MetricsExporter::new(
-            client,
-            temporality_selector,
-            aggregation_selector,
-        ))
+        Ok(crate::MetricsExporter::new(client, temporality_selector))
     }
 }
 
@@ -328,7 +322,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "logs")]
     fn build_logs_export_body(
         &self,
-        logs: Vec<LogData>,
+        logs: LogBatch<'_>,
     ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);

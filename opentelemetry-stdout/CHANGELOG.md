@@ -2,8 +2,24 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- Update `opentelemetry_sdk` dependency version to 0.26
+
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Update `opentelemetry_sdk` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
 - **Breaking** [1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994) The logrecord event-name is added as attribute with
 key `name` only if the feature flag `populate-logs-event-name` is enabled.
+- **Breaking** [2040](https://github.com/open-telemetry/opentelemetry-rust/pull/2040) Simplified stdout exporter:
+  - Now only supports writing to stdout, removing ability to send telemetry to other streams.
+  - Output format improved for better human readability.
+  - Note: This exporter is intended for learning and debugging purposes only. Not recommended for production use or automated parsing.
 
 ## v0.5.0
 

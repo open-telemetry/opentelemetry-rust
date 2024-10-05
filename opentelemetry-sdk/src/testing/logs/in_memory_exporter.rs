@@ -1,4 +1,4 @@
-use crate::export::logs::{LogData, LogExporter};
+use crate::export::logs::{LogBatch, LogExporter};
 use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
@@ -39,7 +39,7 @@ use std::sync::{Arc, Mutex};
 ///
 #[derive(Clone, Debug)]
 pub struct InMemoryLogsExporter {
-    logs: Arc<Mutex<Vec<LogData>>>,
+    logs: Arc<Mutex<Vec<OwnedLogData>>>,
     resource: Arc<Mutex<Resource>>,
     should_reset_on_shutdown: bool,
 }
@@ -48,6 +48,15 @@ impl Default for InMemoryLogsExporter {
     fn default() -> Self {
         InMemoryLogsExporterBuilder::new().build()
     }
+}
+
+/// `OwnedLogData` represents a single log event without resource context.
+#[derive(Debug, Clone)]
+pub struct OwnedLogData {
+    /// Log record, which can be borrowed or owned.
+    pub record: LogRecord,
+    /// Instrumentation details for the emitter who produced this `LogEvent`.
+    pub instrumentation: InstrumentationLibrary,
 }
 
 /// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
@@ -175,10 +184,14 @@ impl InMemoryLogsExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogsExporter {
-    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
-        for log in batch.into_iter() {
-            logs_guard.push(log.into_owned());
+        for (log_record, instrumentation) in batch.iter() {
+            let owned_log = OwnedLogData {
+                record: (*log_record).clone(),
+                instrumentation: (*instrumentation).clone(),
+            };
+            logs_guard.push(owned_log);
         }
         Ok(())
     }

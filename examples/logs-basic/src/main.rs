@@ -7,11 +7,7 @@ use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 
 fn main() {
     // Setup LoggerProvider with a stdout exporter
-    let exporter = opentelemetry_stdout::LogExporterBuilder::default()
-        // uncomment the below lines to pretty print output.
-        // .with_encoder(|writer, data|
-        //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
-        .build();
+    let exporter = opentelemetry_stdout::LogExporter::default();
     let logger_provider = LoggerProvider::builder()
         .with_resource(Resource::new([KeyValue::new(
             SERVICE_NAME,

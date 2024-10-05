@@ -2,6 +2,16 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+- Update `opentelemetry` dependency version to 0.26
+
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
+
 ## v0.5.0
 
 - [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Utilize the `LogRecord::set_target()` method to pass the log target to the SDK.

@@ -126,7 +126,7 @@
 //! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
-//! use opentelemetry_sdk::metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector};
+//! use opentelemetry_sdk::metrics::reader::DefaultTemporalitySelector;
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
@@ -160,8 +160,8 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-//!         global::set_tracer_provider(tracer_provider);
-//!         let tracer = global::tracer("tracer-name");
+//!     global::set_tracer_provider(tracer_provider);
+//!     let tracer = global::tracer("tracer-name");
 //!         # tracer
 //!     # };
 //!
@@ -184,7 +184,6 @@
 //!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
 //!         .with_period(Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
-//!         .with_aggregation_selector(DefaultAggregationSelector::new())
 //!         .with_temporality_selector(DefaultTemporalitySelector::new())
 //!         .build();
 //!     # }

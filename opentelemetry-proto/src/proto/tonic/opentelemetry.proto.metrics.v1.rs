@@ -12,7 +12,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MetricsData {
     /// An array of ResourceMetrics.
@@ -27,7 +26,7 @@ pub struct MetricsData {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceMetrics {
     /// The resource for the metrics in this message.
@@ -49,7 +48,7 @@ pub struct ResourceMetrics {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeMetrics {
     /// The instrumentation scope information for the metrics in this message.
@@ -155,7 +154,7 @@ pub struct ScopeMetrics {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Metric {
     /// name of the metric.
@@ -192,7 +191,6 @@ pub mod metric {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         #[prost(message, tag = "5")]
@@ -219,7 +217,7 @@ pub mod metric {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Gauge {
     #[prost(message, repeated, tag = "1")]
@@ -230,7 +228,7 @@ pub struct Gauge {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sum {
     #[prost(message, repeated, tag = "1")]
@@ -248,7 +246,7 @@ pub struct Sum {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Histogram {
     #[prost(message, repeated, tag = "1")]
@@ -263,7 +261,7 @@ pub struct Histogram {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogram {
     #[prost(message, repeated, tag = "1")]
@@ -282,7 +280,7 @@ pub struct ExponentialHistogram {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Summary {
     #[prost(message, repeated, tag = "1")]
@@ -293,7 +291,7 @@ pub struct Summary {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NumberDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -350,7 +348,6 @@ pub mod number_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "4")]
@@ -372,7 +369,7 @@ pub mod number_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -470,7 +467,6 @@ pub struct HistogramDataPoint {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -570,7 +566,6 @@ pub mod exponential_histogram_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Buckets {
         /// Offset is the bucket index of the first entry in the bucket_counts array.
@@ -596,7 +591,6 @@ pub mod exponential_histogram_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SummaryDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -653,7 +647,6 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
@@ -674,7 +667,6 @@ pub mod summary_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but
@@ -694,11 +686,25 @@ pub struct Exemplar {
     /// span_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
     #[prost(bytes = "vec", tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
     /// (Optional) Trace ID of the exemplar trace.
     /// trace_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
     #[prost(bytes = "vec", tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+        )
+    )]
     pub trace_id: ::prost::alloc::vec::Vec<u8>,
     /// The value of the measurement that was recorded. An exemplar is
     /// considered invalid when one of the recognized value fields is not present
@@ -714,7 +720,6 @@ pub mod exemplar {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "3")]
@@ -803,9 +808,9 @@ impl AggregationTemporality {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            AggregationTemporality::Unspecified => "AGGREGATION_TEMPORALITY_UNSPECIFIED",
-            AggregationTemporality::Delta => "AGGREGATION_TEMPORALITY_DELTA",
-            AggregationTemporality::Cumulative => "AGGREGATION_TEMPORALITY_CUMULATIVE",
+            Self::Unspecified => "AGGREGATION_TEMPORALITY_UNSPECIFIED",
+            Self::Delta => "AGGREGATION_TEMPORALITY_DELTA",
+            Self::Cumulative => "AGGREGATION_TEMPORALITY_CUMULATIVE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -846,10 +851,8 @@ impl DataPointFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            DataPointFlags::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
-            DataPointFlags::NoRecordedValueMask => {
-                "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK"
-            }
+            Self::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
+            Self::NoRecordedValueMask => "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

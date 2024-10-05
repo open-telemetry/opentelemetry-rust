@@ -44,11 +44,6 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
 
     #[cfg(feature = "experimental_metadata_attributes")]
     fn visit_experimental_metadata(&mut self, meta: &Metadata) {
-        self.log_record.add_attribute(
-            Key::new("log.target"),
-            AnyValue::from(meta.target().to_owned()),
-        );
-
         if let Some(module_path) = meta.module_path() {
             self.log_record.add_attribute(
                 Key::new("code.namespace"),
@@ -164,6 +159,7 @@ where
     ) {
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
+
         #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
 
@@ -221,12 +217,24 @@ mod tests {
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
             .attributes_iter()
             .any(|(k, v)| k == key && v == value)
+    }
+
+    fn create_tracing_subscriber(
+        _exporter: InMemoryLogsExporter,
+        logger_provider: &LoggerProvider,
+    ) -> impl tracing::Subscriber {
+        let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
+        let layer =
+            layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
+
+        tracing_subscriber::registry().with(layer)
     }
 
     // cargo test --features=testing
@@ -238,8 +246,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -269,7 +276,7 @@ mod tests {
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 7);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -307,7 +314,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -319,8 +326,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -381,7 +387,7 @@ mod tests {
         #[cfg(not(feature = "experimental_metadata_attributes"))]
         assert_eq!(log.record.attributes_iter().count(), 3);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 7);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -419,7 +425,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -431,8 +437,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -440,7 +445,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!("log from log crate");
+        log::error!(target: "my-system", "log from log crate");
         logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
@@ -461,7 +466,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 4);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -485,7 +490,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 
@@ -497,8 +502,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -517,7 +521,7 @@ mod tests {
             let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
-            log::error!("log from log crate");
+            log::error!(target: "my-system", "log from log crate");
             (trace_id, span_id)
         });
 
@@ -558,7 +562,7 @@ mod tests {
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 5);
+        assert_eq!(log.record.attributes_iter().count(), 4);
 
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -582,7 +586,7 @@ mod tests {
                 .collect();
             assert!(attributes_key.contains(&Key::new("code.filepath")));
             assert!(attributes_key.contains(&Key::new("code.lineno")));
-            assert!(attributes_key.contains(&Key::new("log.target")));
+            assert!(!attributes_key.contains(&Key::new("log.target")));
         }
     }
 }

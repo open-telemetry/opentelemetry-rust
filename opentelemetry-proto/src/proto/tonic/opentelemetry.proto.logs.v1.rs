@@ -12,7 +12,6 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogsData {
     /// An array of ResourceLogs.
@@ -28,7 +27,6 @@ pub struct LogsData {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceLogs {
     /// The resource for the logs in this message.
@@ -51,7 +49,6 @@ pub struct ResourceLogs {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScopeLogs {
     /// The instrumentation scope information for the logs in this message.
@@ -75,7 +72,6 @@ pub struct ScopeLogs {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LogRecord {
     /// time_unix_nano is the time when the event occurred.
@@ -231,31 +227,31 @@ impl SeverityNumber {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SeverityNumber::Unspecified => "SEVERITY_NUMBER_UNSPECIFIED",
-            SeverityNumber::Trace => "SEVERITY_NUMBER_TRACE",
-            SeverityNumber::Trace2 => "SEVERITY_NUMBER_TRACE2",
-            SeverityNumber::Trace3 => "SEVERITY_NUMBER_TRACE3",
-            SeverityNumber::Trace4 => "SEVERITY_NUMBER_TRACE4",
-            SeverityNumber::Debug => "SEVERITY_NUMBER_DEBUG",
-            SeverityNumber::Debug2 => "SEVERITY_NUMBER_DEBUG2",
-            SeverityNumber::Debug3 => "SEVERITY_NUMBER_DEBUG3",
-            SeverityNumber::Debug4 => "SEVERITY_NUMBER_DEBUG4",
-            SeverityNumber::Info => "SEVERITY_NUMBER_INFO",
-            SeverityNumber::Info2 => "SEVERITY_NUMBER_INFO2",
-            SeverityNumber::Info3 => "SEVERITY_NUMBER_INFO3",
-            SeverityNumber::Info4 => "SEVERITY_NUMBER_INFO4",
-            SeverityNumber::Warn => "SEVERITY_NUMBER_WARN",
-            SeverityNumber::Warn2 => "SEVERITY_NUMBER_WARN2",
-            SeverityNumber::Warn3 => "SEVERITY_NUMBER_WARN3",
-            SeverityNumber::Warn4 => "SEVERITY_NUMBER_WARN4",
-            SeverityNumber::Error => "SEVERITY_NUMBER_ERROR",
-            SeverityNumber::Error2 => "SEVERITY_NUMBER_ERROR2",
-            SeverityNumber::Error3 => "SEVERITY_NUMBER_ERROR3",
-            SeverityNumber::Error4 => "SEVERITY_NUMBER_ERROR4",
-            SeverityNumber::Fatal => "SEVERITY_NUMBER_FATAL",
-            SeverityNumber::Fatal2 => "SEVERITY_NUMBER_FATAL2",
-            SeverityNumber::Fatal3 => "SEVERITY_NUMBER_FATAL3",
-            SeverityNumber::Fatal4 => "SEVERITY_NUMBER_FATAL4",
+            Self::Unspecified => "SEVERITY_NUMBER_UNSPECIFIED",
+            Self::Trace => "SEVERITY_NUMBER_TRACE",
+            Self::Trace2 => "SEVERITY_NUMBER_TRACE2",
+            Self::Trace3 => "SEVERITY_NUMBER_TRACE3",
+            Self::Trace4 => "SEVERITY_NUMBER_TRACE4",
+            Self::Debug => "SEVERITY_NUMBER_DEBUG",
+            Self::Debug2 => "SEVERITY_NUMBER_DEBUG2",
+            Self::Debug3 => "SEVERITY_NUMBER_DEBUG3",
+            Self::Debug4 => "SEVERITY_NUMBER_DEBUG4",
+            Self::Info => "SEVERITY_NUMBER_INFO",
+            Self::Info2 => "SEVERITY_NUMBER_INFO2",
+            Self::Info3 => "SEVERITY_NUMBER_INFO3",
+            Self::Info4 => "SEVERITY_NUMBER_INFO4",
+            Self::Warn => "SEVERITY_NUMBER_WARN",
+            Self::Warn2 => "SEVERITY_NUMBER_WARN2",
+            Self::Warn3 => "SEVERITY_NUMBER_WARN3",
+            Self::Warn4 => "SEVERITY_NUMBER_WARN4",
+            Self::Error => "SEVERITY_NUMBER_ERROR",
+            Self::Error2 => "SEVERITY_NUMBER_ERROR2",
+            Self::Error3 => "SEVERITY_NUMBER_ERROR3",
+            Self::Error4 => "SEVERITY_NUMBER_ERROR4",
+            Self::Fatal => "SEVERITY_NUMBER_FATAL",
+            Self::Fatal2 => "SEVERITY_NUMBER_FATAL2",
+            Self::Fatal3 => "SEVERITY_NUMBER_FATAL3",
+            Self::Fatal4 => "SEVERITY_NUMBER_FATAL4",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -317,8 +313,8 @@ impl LogRecordFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            LogRecordFlags::DoNotUse => "LOG_RECORD_FLAGS_DO_NOT_USE",
-            LogRecordFlags::TraceFlagsMask => "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK",
+            Self::DoNotUse => "LOG_RECORD_FLAGS_DO_NOT_USE",
+            Self::TraceFlagsMask => "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

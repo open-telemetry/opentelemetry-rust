@@ -2,14 +2,35 @@
 
 ## vNext
 
-- **Breaking** [1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994) The logrecord event-name is added as attribute with
-key `name` only if the feature flag `populate-logs-event-name` is enabled.
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- Update `opentelemetry_sdk` dependency version to 0.26
+- Update `opentelemetry-http` dependency version to 0.26
+- Update `opentelemetry-proto` dependency version to 0.26
+- Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
+
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Update `opentelemetry_sdk` dependency version to 0.25
+- Update `opentelemetry-http` dependency version to 0.25
+- Update `opentelemetry-proto` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
+- **Breaking**
+The logrecord event-name is added as an attribute only if the feature flag
+`populate-logs-event-name` is enabled. The name of the attribute is changed from
+"name" to "event.name".
+[1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994),
+[2050](https://github.com/open-telemetry/opentelemetry-rust/pull/2050)
 
 ## v0.17.0
 
 - Add "metrics", "logs" to default features. With this, default feature list is
   "trace", "metrics" and "logs".
-- `OtlpMetricPipeline.build()` no longer invoke the
+- **Breaking** `OtlpMetricPipeline.build()` no longer invoke the
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
 - Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.7.0"
+version = "0.26.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71.1"
 autotests = false
 
 [lib]
@@ -24,8 +24,8 @@ name = "grpc_build"
 path = "tests/grpc_build.rs"
 
 [[test]]
-name = "json_deserialize"
-path = "tests/json_deserialize.rs"
+name = "json_serde"
+path = "tests/json_serde.rs"
 
 
 [features]
@@ -51,14 +51,14 @@ populate-logs-event-name = []
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
-opentelemetry = { version = "0.24", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.24", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.26", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.26", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { version = "0.8", optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }
 
 [dev-dependencies]
-opentelemetry = { version = "0.24", features = ["testing"], path = "../opentelemetry" }
+opentelemetry = { features = ["testing"], path = "../opentelemetry" }
 tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"

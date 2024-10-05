@@ -1,9 +1,22 @@
+use crate::growable_array::GrowableArray;
 use opentelemetry::{
     logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
     Key,
 };
 use std::{borrow::Cow, time::SystemTime};
+
+// According to a Go-specific study mentioned on https://go.dev/blog/slog,
+// up to 5 attributes is the most common case.
+const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
+
+/// Represents a collection of log record attributes with a predefined capacity.
+///
+/// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
+/// The initial attributes are allocated in a fixed-size array of capacity `PREALLOCATED_ATTRIBUTE_CAPACITY`.
+/// If more attributes are added beyond this capacity, additional storage is handled by dynamically growing a vector.
+pub(crate) type LogRecordAttributes =
+    GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 #[non_exhaustive]
@@ -35,7 +48,7 @@ pub struct LogRecord {
     pub body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
-    pub(crate) attributes: Option<Vec<(Key, AnyValue)>>,
+    pub(crate) attributes: LogRecordAttributes,
 }
 
 impl opentelemetry::logs::LogRecord for LogRecord {
@@ -87,34 +100,29 @@ impl opentelemetry::logs::LogRecord for LogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        if let Some(ref mut attrs) = self.attributes {
-            attrs.push((key.into(), value.into()));
-        } else {
-            self.attributes = Some(vec![(key.into(), value.into())]);
-        }
+        self.attributes.push(Some((key.into(), value.into())));
     }
 }
 
 impl LogRecord {
-    /// Provides an iterator over the attributes in the `LogRecord`.
+    /// Provides an iterator over the attributes.
     pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
-        self.attributes
-            .as_ref()
-            .map_or_else(|| [].iter(), |attrs| attrs.iter())
+        self.attributes.iter().filter_map(|opt| opt.as_ref())
     }
 
     #[allow(dead_code)]
     /// Returns the number of attributes in the `LogRecord`.
     pub(crate) fn attributes_len(&self) -> usize {
-        self.attributes.as_ref().map_or(0, |attrs| attrs.len())
+        self.attributes.len()
     }
 
     #[allow(dead_code)]
-    /// Returns true if the `LogRecord` contains the specified attribute.
+    /// Checks if the `LogRecord` contains the specified attribute.
     pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {
-        self.attributes.as_ref().map_or(false, |attrs| {
-            attrs.iter().any(|(k, v)| k == key && v == value)
-        })
+        self.attributes
+            .iter()
+            .flatten()
+            .any(|(k, v)| k == key && v == value)
     }
 }
 
@@ -141,7 +149,7 @@ impl From<&SpanContext> for TraceContext {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
@@ -243,7 +251,7 @@ mod tests {
 
     #[test]
     fn compare_log_record() {
-        let log_record = LogRecord {
+        let mut log_record = LogRecord {
             event_name: Some("test_event"),
             target: Some(Cow::Borrowed("foo::bar")),
             timestamp: Some(SystemTime::now()),
@@ -251,13 +259,14 @@ mod tests {
             severity_text: Some("ERROR"),
             severity_number: Some(Severity::Error),
             body: Some(AnyValue::String("Test body".into())),
-            attributes: Some(vec![(Key::new("key"), AnyValue::String("value".into()))]),
+            attributes: LogRecordAttributes::new(),
             trace_context: Some(TraceContext {
                 trace_id: TraceId::from_u128(1),
                 span_id: SpanId::from_u64(1),
                 trace_flags: Some(TraceFlags::default()),
             }),
         };
+        log_record.add_attribute(Key::new("key"), AnyValue::String("value".into()));
 
         let log_record_cloned = log_record.clone();
 

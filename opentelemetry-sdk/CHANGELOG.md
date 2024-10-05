@@ -2,6 +2,36 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- **BREAKING** Public API changes:
+  - **Removed**: `SdkMeter` struct [#2113](https://github.com/open-telemetry/opentelemetry-rust/pull/2113). This API is only meant for internal use.
+  - **Removed**: `AggregationSelector` trait and `DefaultAggregationSelector` struct [#2085](https://github.com/open-telemetry/opentelemetry-rust/pull/2085). This API was unnecessary. The feature to customize aggregation for instruments should be offered by `Views` API.
+
+- Update `async-std` dependency version to 1.13
+- *Breaking* - Remove support for `MetricProducer` which allowed metrics from
+  external sources to be sent through OpenTelemetry.
+  [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
+- Feature: `SimpleSpanProcessor::new` is now public [#2119](https://github.com/open-telemetry/opentelemetry-rust/pull/2119)
+- For Delta Temporality, exporters are not invoked unless there were new
+  measurements since the last collect/export.
+  [#2153](https://github.com/open-telemetry/opentelemetry-rust/pull/2153)
+- `MeterProvider` modified to not invoke shutdown on `Drop`, if user has already
+  called `shutdown()`.
+  [#2156](https://github.com/open-telemetry/opentelemetry-rust/pull/2156)
+
+## v0.25.0
+
+- Update `opentelemetry` dependency version to 0.25
+- Starting with this version, this crate will align with `opentelemetry` crate
+  on major,minor versions.
+- Perf improvements for all metric instruments (except `ExponentialHistogram`) that led to **faster metric updates** and **higher throughput** [#1740](https://github.com/open-telemetry/opentelemetry-rust/pull/1740):
+  - **Zero allocations when recording measurements**: Once a measurement for a given attribute combination is reported, the SDK would not allocate additional memory for subsquent measurements reported for the same combination.
+  - **Minimized thread contention**: Threads reporting measurements for the same instrument no longer contest for the same `Mutex`. The internal aggregation data structure now uses a combination of `RwLock` and atomics. Consequently, threads reporting measurements now only have to acquire a read lock.
+  - **Lock-free floating point updates**: Measurements reported for `f64` based metrics no longer need to acquire a `Mutex` to update the `f64` value. They use a CAS-based loop instead.
+
 - `opentelemetry_sdk::logs::record::LogRecord` and `opentelemetry_sdk::logs::record::TraceContext` derive from `PartialEq` to facilitate Unit Testing.
 - Fixed an issue causing a panic during shutdown when using the
   `TokioCurrentThread` in BatchExportProcessor for traces and logs.
@@ -25,6 +55,27 @@
   [#2021](https://github.com/open-telemetry/opentelemetry-rust/pull/2021)
 - Provide default implementation for `event_enabled` method in `LogProcessor`
   trait that returns `true` always.
+- **Breaking** [#2041](https://github.com/open-telemetry/opentelemetry-rust/pull/2041)
+  and [#2057](https://github.com/open-telemetry/opentelemetry-rust/pull/2057)
+  - The Exporter::export() interface is modified as below:
+    Previous Signature:
+    ```rust
+    async fn export<'a>(&mut self, batch: Vec<Cow<'a, LogData>>) -> LogResult<()>;
+    ```
+
+    Updated Signature:
+    ```rust
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
+    ```
+
+    where
+    ```rust
+    pub struct LogBatch<'a> {
+
+      data: &'a [(&'a LogRecord, &'a InstrumentationLibrary)],
+    }
+    ```
+    This change enhances performance by reducing unnecessary heap allocations and maintains object safety, allowing for more efficient handling of log records. It also simplifies the processing required by exporters. Exporters no longer need to determine if the LogData is borrowed or owned, as they now work directly with references. As a result, exporters must explicitly create a copy of LogRecord and/or InstrumentationLibrary when needed, as the new interface only provides references to these structures.
 
 ## v0.24.1
 

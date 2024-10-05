@@ -12,9 +12,10 @@ use crate::{NoExporterConfig, OtlpPipeline};
 use async_trait::async_trait;
 use std::fmt::Debug;
 
-use opentelemetry::logs::LogError;
+use opentelemetry::logs::{LogError, LogResult};
 
-use opentelemetry_sdk::{export::logs::LogData, runtime::RuntimeChannel, Resource};
+use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::{runtime::RuntimeChannel, Resource};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -98,10 +99,7 @@ impl LogExporter {
 
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    async fn export<'a>(
-        &mut self,
-        batch: Vec<std::borrow::Cow<'a, LogData>>,
-    ) -> opentelemetry::logs::LogResult<()> {
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
         self.client.export(batch).await
     }
 
