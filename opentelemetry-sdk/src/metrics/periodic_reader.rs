@@ -623,7 +623,7 @@ mod tests {
             // Not a fan of such tests, but this seems to be the only way to test
             // if periodic reader is doing its job.
             // TODO: Decide if this should be ignored in CI
-            std::thread::sleep(Duration::from_millis(5000));
+            std::thread::sleep(Duration::from_millis(500));
         });
     }
 
@@ -641,7 +641,7 @@ mod tests {
 
     fn collection_helper(trigger: fn(&SdkMeterProvider)) {
         // Arrange
-        let interval = std::time::Duration::from_millis(1000);
+        let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricsExporter::default();
         let reader = PeriodicReader::builder(exporter.clone())
             .with_interval(interval)
@@ -652,7 +652,8 @@ mod tests {
         let meter = meter_provider.meter("test");
         let _counter = meter
             .u64_observable_counter("testcounter")
-            .with_callback(move |_| {
+            .with_callback(move |observer| {
+                observer.observe(1, &[]);
                 sender.send(()).expect("channel should still be open");
             })
             .init();
@@ -663,6 +664,14 @@ mod tests {
         // Assert
         receiver
             .recv_timeout(Duration::ZERO)
-            .expect("message should be available in channel, indicating a collection occurred");
+            .expect("message should be available in channel, indicating a collection occurred, which should trigger observable callback");
+
+        let exported_metrics = exporter
+            .get_finished_metrics()
+            .expect("this should not fail");
+        assert!(
+            !exported_metrics.is_empty(),
+            "Metrics should be available in exporter."
+        );
     }
 }
