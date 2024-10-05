@@ -483,7 +483,10 @@ mod tests {
             .init();
 
         // Sleep for a duration 5X (plus liberal buffer to account for potential
-        // CI slowness) the interval to ensure multiple collection
+        // CI slowness) the interval to ensure multiple collection.
+        // Not a fan of such tests, but this seems to be the only way to test
+        // if periodic reader is doing its job.
+        // TODO: Decide if this should be ignored in CI
         std::thread::sleep(interval * 5 * 20);
 
         // Assert
@@ -590,55 +593,53 @@ mod tests {
     fn collection() {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn collection_from_tokio_multi_with_one_worker() {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn collection_from_tokio_with_two_worker() {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn collection_from_tokio_current() {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
     }
 
     fn collection_triggered_by_interval_helper() {
-        // Arrange
-        let interval = std::time::Duration::from_millis(1000);
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
-        let (sender, receiver) = mpsc::channel();
-
-        // Act
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
-        let meter = meter_provider.meter("test");
-        let _counter = meter
-            .u64_observable_counter("testcounter")
-            .with_callback(move |_| {
-                sender.send(()).expect("channel should still be open");
-            })
-            .init();
-
-        // Sleep for a duration longer than the interval to ensure at least one collection
-        std::thread::sleep(interval * 2);
-
-        // Assert
-        receiver
-            .recv_timeout(Duration::ZERO)
-            .expect("message should be available in channel, indicating a collection occurred");
+        collection_helper(|_| {
+            // Sleep for a duration longer than the interval to ensure at least one collection
+            // Not a fan of such tests, but this seems to be the only way to test
+            // if periodic reader is doing its job.
+            // TODO: Decide if this should be ignored in CI
+            std::thread::sleep(Duration::from_millis(5000));
+        });
     }
 
     fn collection_triggered_by_flush_helper() {
+        collection_helper(|meter_provider| {
+            meter_provider.force_flush().expect("flush should succeed");
+        });
+    }
+
+    fn collection_triggered_by_shutdown_helper() {
+        collection_helper(|meter_provider| {
+            meter_provider.shutdown().expect("shutdown should succeed");
+        });
+    }
+
+    fn collection_helper(trigger: fn(&SdkMeterProvider)) {
         // Arrange
         let interval = std::time::Duration::from_millis(1000);
         let exporter = InMemoryMetricsExporter::default();
@@ -647,7 +648,6 @@ mod tests {
             .build();
         let (sender, receiver) = mpsc::channel();
 
-        // Act
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
         let _counter = meter
@@ -657,7 +657,8 @@ mod tests {
             })
             .init();
 
-        meter_provider.force_flush().expect("flush should succeed");
+        // Act
+        trigger(&meter_provider);
 
         // Assert
         receiver
