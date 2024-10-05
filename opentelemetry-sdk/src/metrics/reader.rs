@@ -23,7 +23,7 @@ use super::{
 ///
 /// Pull-based exporters will typically implement `MetricReader` themselves,
 /// since they read on demand.
-pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static {
+pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + 'static {
     /// Registers a [MetricReader] with a [Pipeline].
     ///
     /// The pipeline argument allows the `MetricReader` to signal the sdk to collect
