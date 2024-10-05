@@ -25,7 +25,6 @@
 //! use opentelemetry::{Context, KeyValue};
 //!
 //! use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
-//! use opentelemetry_sdk::runtime;
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! use opentelemetry_sdk::logs::LoggerProvider;
@@ -39,7 +38,7 @@
 //!
 //! fn init_metrics() -> SdkMeterProvider {
 //!     let exporter = opentelemetry_stdout::MetricsExporter::default();
-//!     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+//!     let reader = PeriodicReader::builder(exporter).build();
 //!     SdkMeterProvider::builder().with_reader(reader).build()
 //! }
 //!
