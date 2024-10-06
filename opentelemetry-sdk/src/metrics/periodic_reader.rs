@@ -164,7 +164,7 @@ impl PeriodicReader {
             mpsc::channel();
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender: Arc::new(message_sender),
+                message_sender: Arc::new(Mutex::new(message_sender)),
                 is_shutdown: AtomicBool::new(false),
                 producer: Mutex::new(None),
                 exporter: Arc::new(exporter),
@@ -179,12 +179,13 @@ impl PeriodicReader {
                 let mut remaining_interval = interval;
                 otel_info!(
                     name: "PeriodReaderThreadStarted",
+                    event_name = "PeriodReaderThreadStarted",
                     interval = interval.as_secs(),
                     timeout = timeout.as_secs()
                 );
                 loop {
                     otel_debug!(
-                        name: "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval = remaining_interval.as_secs()
+                        name: "PeriodReaderThreadLoopAlive", event_name = "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval = remaining_interval.as_secs()
                     );
                     match message_receiver.recv_timeout(remaining_interval) {
                         Ok(Message::Flush(response_sender)) => {
@@ -297,7 +298,7 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     exporter: Arc<dyn PushMetricsExporter>,
-    message_sender: Arc<mpsc::Sender<Message>>,
+    message_sender: Arc<Mutex<mpsc::Sender<Message>>>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
     is_shutdown: AtomicBool,
 }
@@ -368,6 +369,8 @@ impl PeriodicReaderInner {
         }
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
+            .lock()
+            .expect("lock poisoned")
             .send(Message::Flush(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 
@@ -389,6 +392,8 @@ impl PeriodicReaderInner {
 
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
+            .lock()
+            .expect("lock poisoned")
             .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricsError::Other(e.to_string()))?;
 

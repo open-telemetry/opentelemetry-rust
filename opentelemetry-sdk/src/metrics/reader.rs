@@ -23,7 +23,7 @@ use super::{
 ///
 /// Pull-based exporters will typically implement `MetricReader` themselves,
 /// since they read on demand.
-pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + 'static {
+pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static {
     /// Registers a [MetricReader] with a [Pipeline].
     ///
     /// The pipeline argument allows the `MetricReader` to signal the sdk to collect
@@ -54,13 +54,13 @@ pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + 'static {
 }
 
 /// Produces metrics for a [MetricReader].
-pub(crate) trait SdkProducer: fmt::Debug + Send {
+pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
     fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
 }
 
 /// An interface for selecting the temporality for an [InstrumentKind].
-pub trait TemporalitySelector: Send {
+pub trait TemporalitySelector: Send + Sync {
     /// Selects the temporality to use based on the [InstrumentKind].
     fn temporality(&self, kind: InstrumentKind) -> Temporality;
 }
