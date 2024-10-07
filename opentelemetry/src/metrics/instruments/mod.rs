@@ -177,14 +177,12 @@ impl<'a, T> InstrumentBuilder<'a, T> {
 macro_rules! build_instrument {
     ($name:ident, $inst:ty) => {
         impl<'a> InstrumentBuilder<'a, $inst> {
-            /// Validates the instrument configuration and creates a new instrument.
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             pub fn try_init(self) -> Result<$inst> {
                 self.instrument_provider.$name(self)
             }
 
-            /// Creates a new instrument.
-            ///
-            /// Validates the instrument configuration and crates a new instrument.
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             ///
             /// # Panics
             ///
@@ -311,14 +309,12 @@ where
 macro_rules! build_async_instrument {
     ($name:ident, $inst:ty, $measurement:ty) => {
         impl<'a> AsyncInstrumentBuilder<'a, $inst, $measurement> {
-            /// Validates the instrument configuration and creates a new instrument.
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             pub fn try_init(self) -> Result<$inst> {
                 self.instrument_provider.$name(self)
             }
 
-            /// Creates a new instrument.
-            ///
-            /// Validates the instrument configuration and creates a new instrument.
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             ///
             /// # Panics
             ///
