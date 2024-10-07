@@ -240,7 +240,13 @@ impl PeriodicReader {
                                 name: "PeriodReaderThreadExportingDueToTimer",
                                 event_name = "PeriodReaderThreadExportingDueToTimer"
                             );
-                            cloned_reader.collect_and_export(timeout).unwrap();
+
+                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadExportingDueToTimerFailed",
+                                    event_name = "PeriodReaderThreadExportingDueToTimerFailed"
+                                );
+                            }
 
                             let time_taken_for_export = export_start.elapsed();
                             if time_taken_for_export > interval {
@@ -359,7 +365,15 @@ impl PeriodicReaderInner {
         //
         // Relying on futures executor to execute asyc call. No timeout is
         // enforced here. The exporter is responsible for enforcing the timeout.
-        futures_executor::block_on(self.exporter.export(&mut rm, timeout))?;
+        if let Err(e) = futures_executor::block_on(self.exporter.export(&mut rm, timeout)) {
+            otel_warn!(
+                name: "PeriodReaderExportingFailed",
+                event_name = "PeriodReaderExportingFailed",
+                error = format!("{:?}", e)
+            );
+            return Err(e);
+        }
+
         Ok(())
     }
 
@@ -368,11 +382,21 @@ impl PeriodicReaderInner {
             return Err(MetricsError::Other("reader is shut down".into()));
         }
         let (response_tx, response_rx) = mpsc::channel();
-        self.message_sender
-            .lock()
-            .expect("lock poisoned")
-            .send(Message::Flush(response_tx))
-            .map_err(|e| MetricsError::Other(e.to_string()))?;
+        match self.message_sender.lock() {
+            Ok(sender) => {
+                sender
+                    .send(Message::Flush(response_tx))
+                    .map_err(|e| MetricsError::Other(e.to_string()))?;
+            }
+            Err(e) => {
+                otel_error!(
+                    name: "PeriodReaderForceFlushError",
+                    event_name = "PeriodReaderForceFlushError",
+                    error = format!("{:?}", e)
+                );
+                return Err(MetricsError::Other(e.to_string()));
+            }
+        }
 
         if let Ok(response) = response_rx.recv() {
             if response {
@@ -391,11 +415,21 @@ impl PeriodicReaderInner {
         }
 
         let (response_tx, response_rx) = mpsc::channel();
-        self.message_sender
-            .lock()
-            .expect("lock poisoned")
-            .send(Message::Shutdown(response_tx))
-            .map_err(|e| MetricsError::Other(e.to_string()))?;
+        match self.message_sender.lock() {
+            Ok(sender) => {
+                sender
+                    .send(Message::Shutdown(response_tx))
+                    .map_err(|e| MetricsError::Other(e.to_string()))?;
+            }
+            Err(e) => {
+                otel_error!(
+                    name: "PeriodReaderShutdownError",
+                    event_name = "PeriodReaderShutdownError",
+                    error = format!("{:?}", e)
+                );
+                return Err(MetricsError::Other(e.to_string()));
+            }
+        }
 
         if let Ok(response) = response_rx.recv() {
             self.is_shutdown
@@ -451,11 +485,18 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        metrics::{data::ResourceMetrics, reader::MetricReader, SdkMeterProvider},
+        metrics::{
+            data::{ResourceMetrics, Temporality},
+            exporter::PushMetricsExporter,
+            reader::{MetricReader, TemporalitySelector},
+            InstrumentKind, SdkMeterProvider,
+        },
         testing::metrics::InMemoryMetricsExporter,
         Resource,
     };
-    use opentelemetry::metrics::MeterProvider;
+    use async_trait::async_trait;
+    use opentelemetry::metrics::Result;
+    use opentelemetry::metrics::{MeterProvider, MetricsError};
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},
@@ -466,6 +507,51 @@ mod tests {
 
     // use below command to run all tests
     // cargo test metrics::periodic_reader::tests --features=testing -- --nocapture
+
+    #[derive(Debug, Clone)]
+    struct MetricExporterThatFailsOnlyOnFirst {
+        count: Arc<AtomicUsize>,
+    }
+
+    impl Default for MetricExporterThatFailsOnlyOnFirst {
+        fn default() -> Self {
+            MetricExporterThatFailsOnlyOnFirst {
+                count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    impl MetricExporterThatFailsOnlyOnFirst {
+        fn get_count(&self) -> usize {
+            self.count.load(Ordering::Relaxed)
+        }
+    }
+
+    impl TemporalitySelector for MetricExporterThatFailsOnlyOnFirst {
+        fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[async_trait]
+    impl PushMetricsExporter for MetricExporterThatFailsOnlyOnFirst {
+        async fn export(&self, _metrics: &mut ResourceMetrics, _timeout: Duration) -> Result<()> {
+            if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
+                Err(MetricsError::Other("export failed".into()))
+            } else {
+                Ok(())
+            }
+        }
+
+        async fn force_flush(&self) -> Result<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> Result<()> {
+            Ok(())
+        }
+    }
+
     #[test]
     fn collection_triggered_by_interval_multiple() {
         // Arrange
@@ -592,6 +678,40 @@ mod tests {
 
         let result = meter_provider.force_flush();
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn exporter_failures_are_handled() {
+        // create a mock exporter that fails 1st time and succeeds 2nd time
+        // Validate using this exporter that periodic reader can handle exporter failure
+        // and continue to export metrics.
+        // Arrange
+        let interval = std::time::Duration::from_millis(10);
+        let exporter = MetricExporterThatFailsOnlyOnFirst::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("sync_counter").init();
+        counter.add(1, &[]);
+        let _obs_counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |observer| {
+                observer.observe(1, &[]);
+            })
+            .init();
+
+        // Sleep for a duration much longer than the interval to trigger
+        // multiple exports, including failures.
+        // Not a fan of such tests, but this seems to be the
+        // only way to test if periodic reader is doing its job. TODO: Decide if
+        // this should be ignored in CI
+        std::thread::sleep(Duration::from_millis(500));
+
+        // Assert that atleast 2 exports are attempted given the 1st one fails.
+        assert!(exporter.get_count() >= 2);
     }
 
     #[test]
