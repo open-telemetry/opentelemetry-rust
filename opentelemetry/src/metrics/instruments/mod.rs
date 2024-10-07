@@ -44,6 +44,9 @@ pub struct HistogramBuilder<'a, T> {
     /// Unit of the Histogram.
     pub unit: Option<Cow<'static, str>>,
 
+    /// Bucket boundaries for the histogram.
+    pub boundaries: Option<Vec<f64>>,
+
     // boundaries: Vec<T>,
     _marker: marker::PhantomData<T>,
 }
@@ -56,6 +59,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
             name,
             description: None,
             unit: None,
+            boundaries: None,
             _marker: marker::PhantomData,
         }
     }
@@ -77,6 +81,16 @@ impl<'a, T> HistogramBuilder<'a, T> {
         self.unit = Some(unit.into());
         self
     }
+
+    /// Set the boundaries for this histogram.
+    ///
+    /// Setting boundaries is optional. By default, the boundaries are set to:
+    ///
+    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0, 5000.0, 7500.0, 10000.0]`
+    pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
+        self.boundaries = Some(boundaries);
+        self
+    }
 }
 
 impl<'a> HistogramBuilder<'a, f64> {
@@ -87,12 +101,9 @@ impl<'a> HistogramBuilder<'a, f64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, an instrument that is no-op is returned
+    /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<f64> {
         self.try_init().unwrap()
     }
@@ -106,12 +117,9 @@ impl<'a> HistogramBuilder<'a, u64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, an instrument that is no-op is returned
+    /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<u64> {
         self.try_init().unwrap()
     }
@@ -169,14 +177,14 @@ impl<'a, T> InstrumentBuilder<'a, T> {
 macro_rules! build_instrument {
     ($name:ident, $inst:ty) => {
         impl<'a> InstrumentBuilder<'a, $inst> {
-            /// Validate the instrument configuration and creates a new instrument.
+            /// Validates the instrument configuration and creates a new instrument.
             pub fn try_init(self) -> Result<$inst> {
                 self.instrument_provider.$name(self)
             }
 
             /// Creates a new instrument.
             ///
-            /// Validate the instrument configuration and crates a new instrument.
+            /// Validates the instrument configuration and crates a new instrument.
             ///
             /// # Panics
             ///
@@ -214,6 +222,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
+            .field("boundaries", &self.boundaries)
             .field(
                 "kind",
                 &format!("Histogram<{}>", &std::any::type_name::<T>()),
@@ -302,14 +311,14 @@ where
 macro_rules! build_async_instrument {
     ($name:ident, $inst:ty, $measurement:ty) => {
         impl<'a> AsyncInstrumentBuilder<'a, $inst, $measurement> {
-            /// Validate the instrument configuration and creates a new instrument.
+            /// Validates the instrument configuration and creates a new instrument.
             pub fn try_init(self) -> Result<$inst> {
                 self.instrument_provider.$name(self)
             }
 
             /// Creates a new instrument.
             ///
-            /// Validate the instrument configuration and crates a new instrument.
+            /// Validates the instrument configuration and creates a new instrument.
             ///
             /// # Panics
             ///

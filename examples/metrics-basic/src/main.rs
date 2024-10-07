@@ -3,13 +3,10 @@ use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
+use std::vec;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
-        // uncomment the below lines to pretty print output.
-        //  .with_encoder(|writer, data|
-        //    Ok(serde_json::to_writer_pretty(writer, &data).unwrap()))
-        .build();
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default().build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
@@ -90,6 +87,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let histogram = meter
         .f64_histogram("my_histogram")
         .with_description("My histogram example description")
+        // Setting boundaries is optional. By default, the boundaries are set to
+        // [0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0, 5000.0, 7500.0, 10000.0]
+        .with_boundaries(vec![0.0, 5.0, 10.0, 15.0, 20.0, 25.0])
         .init();
 
     // Record measurements using the histogram instrument.

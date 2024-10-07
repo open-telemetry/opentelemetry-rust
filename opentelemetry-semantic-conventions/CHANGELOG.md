@@ -2,6 +2,16 @@
 
 ## vNext
 
+## v0.26.0
+Released 2024-Sep-30
+
+### Changed
+
+- Starting with this version, this crate will use Weaver for the generation of
+  the semantic conventions.
+- **Breaking** Introduced a new feature `semconv_experimental` to enable experimental semantic conventions.
+  This feature is disabled by default.
+
 ## v0.25.0
 ### Changed
 
