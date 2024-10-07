@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust"
 keywords = ["opentelemetry", "tracing", "context", "propagation"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [features]
 hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
