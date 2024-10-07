@@ -102,6 +102,19 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     {
         self.attributes.push(Some((key.into(), value.into())));
     }
+
+    fn set_trace_context(
+        &mut self,
+        trace_id: TraceId,
+        span_id: SpanId,
+        trace_flags: Option<TraceFlags>,
+    ) {
+        self.trace_context = Some(TraceContext {
+            trace_id,
+            span_id,
+            trace_flags,
+        });
+    }
 }
 
 impl LogRecord {
