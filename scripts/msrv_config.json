@@ -1,5 +1,5 @@
 {
-  "1.65.0": [
+  "1.70.0": [
     "opentelemetry/Cargo.toml",
     "opentelemetry-sdk/Cargo.toml",
     "opentelemetry-stdout/Cargo.toml",
