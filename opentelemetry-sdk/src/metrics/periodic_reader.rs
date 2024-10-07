@@ -185,7 +185,7 @@ impl PeriodicReader {
                 );
                 loop {
                     otel_debug!(
-                        name: "PeriodReaderThreadLoopAlive", event_name = "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval = remaining_interval.as_secs()
+                        name: "PeriodReaderThreadLoopAlive", event_name = "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval = remaining_interval.as_millis()
                     );
                     match message_receiver.recv_timeout(remaining_interval) {
                         Ok(Message::Flush(response_sender)) => {
