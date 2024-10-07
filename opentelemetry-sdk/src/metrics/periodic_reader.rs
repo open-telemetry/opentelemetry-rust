@@ -365,11 +365,12 @@ impl PeriodicReaderInner {
         //
         // Relying on futures executor to execute asyc call. No timeout is
         // enforced here. The exporter is responsible for enforcing the timeout.
+        let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm, timeout));
         #[allow(clippy::question_mark)]
-        if let Err(e) = futures_executor::block_on(self.exporter.export(&mut rm, timeout)) {
+        if let Err(e) = exporter_result {
             otel_warn!(
-                name: "PeriodReaderExportingFailed",
-                event_name = "PeriodReaderExportingFailed",
+                name: "PeriodReaderExportError",
+                event_name = "PeriodReaderExportError",
                 error = format!("{:?}", e)
             );
             return Err(e);
