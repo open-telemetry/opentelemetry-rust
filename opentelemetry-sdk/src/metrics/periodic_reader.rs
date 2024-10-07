@@ -37,7 +37,7 @@ const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 ///
 /// By default, the returned [MetricReader] will collect and export data every
 /// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeouts. Instead timeout
+/// attempts. PeriodicReader itself does not enforce timeout. Instead timeout
 /// is passed on to the exporter for each export attempt.
 ///
 /// The [collect] method of the returned [MetricReader] continues to gather and
@@ -88,7 +88,7 @@ where
     }
 
     /// Configures the timeout for an export to complete. PeriodicReader itself
-    /// does not enforce timeouts. Instead timeout is passed on to the exporter
+    /// does not enforce timeout. Instead timeout is passed on to the exporter
     /// for each export attempt.
     ///
     /// This option overrides any value set for the `OTEL_METRIC_EXPORT_TIMEOUT`
@@ -114,7 +114,7 @@ where
 ///
 /// By default, PeriodicReader will collect and export data every
 /// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeouts. Instead timeout
+/// attempts. PeriodicReader itself does not enforce timeout. Instead timeout
 /// is passed on to the exporter for each export attempt.
 ///
 /// The [collect] method of the returned continues to gather and
