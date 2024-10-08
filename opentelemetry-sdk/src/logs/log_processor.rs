@@ -12,7 +12,6 @@ use futures_util::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
     otel_error, otel_warn, InstrumentationLibrary,
 };
@@ -172,7 +171,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 name: "BatchLogProcessor.Export.Error",
                 error = err
             );
-            global::handle_error(LogError::Other(err.into()));
         }
     }
 
@@ -277,18 +275,14 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         exporter.shutdown();
 
-                        if let Err(result) = ch.send(result) {
-                            if let Err(err) = result {
-                                otel_error!(
-                                    name: "BatchLogProcessor.Shutdown.SendResultError",
-                                    error = err
-                                );
-                            }
+                        if let Err(send_error) = ch.send(result) {
+                            otel_error!(
+                                name: "BatchLogProcessor.Shutdown.SendResultError",
+                                error = format!("{:?}", send_error),
+                            );
                         }
-
                         break;
                     }
-
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
                         exporter.set_resource(&resource);

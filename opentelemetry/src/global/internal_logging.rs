@@ -50,6 +50,13 @@ macro_rules! otel_warn {
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            #[allow(unused_variables)]
+            {
+
+            }
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
@@ -61,6 +68,12 @@ macro_rules! otel_warn {
                             }),+,
                             ""
                     )
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            {
+                let _ = ($name, $($value),+);
+            }
         }
     };
 }
@@ -110,6 +123,13 @@ macro_rules! otel_error {
         {
             tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            #[allow(unused_variables)]
+            {
+
+            }
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
@@ -121,6 +141,13 @@ macro_rules! otel_error {
                             }),+,
                             ""
                     )
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            {
+                let _ = ($name, $($value),+);
+
+            }
         }
     };
 }

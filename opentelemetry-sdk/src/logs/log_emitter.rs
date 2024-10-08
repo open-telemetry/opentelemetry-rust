@@ -115,7 +115,7 @@ impl LoggerProvider {
                 if let Err(err) = processor.shutdown() {
                     otel_error!(
                         name: "LoggerProvider.Shutdown.Error",
-                        error = err
+                        error = format!("{err}")
                     );
                     errs.push(err);
                 }
@@ -128,10 +128,8 @@ impl LoggerProvider {
             }
         } else {
             let error = LogError::Other("logger provider already shut down".into());
-
             otel_warn!(
                 name: "LoggerProvider.Shutdown.AlreadyShutdown",
-                error = error
             );
             Err(error)
         }
@@ -149,7 +147,7 @@ impl Drop for LoggerProviderInner {
         for processor in &mut self.processors {
             if let Err(err) = processor.shutdown() {
                 otel_warn!(
-                    name: "LoggerProvider.Drop.AlreadyShutdown",
+                    name: "LoggerProvider.Drop.ShutdownError",
                     error = err
                 );
             }
