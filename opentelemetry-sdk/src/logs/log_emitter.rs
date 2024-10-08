@@ -1,9 +1,8 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::otel_warn;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
+    otel_error, otel_warn,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -114,9 +113,9 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
-                    otel_warn!(
-                        name: "logger_provider_shutdown_error",
-                        error = format!("{:?}", err)
+                    otel_error!(
+                        name: "LoggerProvider.Shutdown.Error",
+                        error = err
                     );
                     errs.push(err);
                 }
@@ -128,10 +127,13 @@ impl LoggerProvider {
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
+            let error = LogError::Other("logger provider already shut down".into());
+
             otel_warn!(
-                name: "logger_provider_already_shutdown"
+                name: "LoggerProvider.Shutdown.AlreadyShutdown",
+                error = error
             );
-            Err(LogError::Other("logger provider already shut down".into()))
+            Err(error)
         }
     }
 }
@@ -146,7 +148,10 @@ impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
             if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+                otel_warn!(
+                    name: "LoggerProvider.Drop.AlreadyShutdown",
+                    error = err
+                );
             }
         }
     }
