@@ -101,7 +101,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
                 // With a scale of -10 there is only two buckets for the whole range of f64 values.
                 // This can only happen if there is a max size of 1.
                 otel_error!(
-                    name: "ExpoHistogramDataPoint.Scale.Underflow",
+                    name: "ExponentialHistogramDataPoint.Scale.Underflow",
                     current_scale = self.scale,
                     scale_delta = scale_delta,
                     max_size = self.max_size,
