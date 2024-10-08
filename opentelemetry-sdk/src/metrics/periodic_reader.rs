@@ -12,7 +12,6 @@ use futures_util::{
     StreamExt,
 };
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
     otel_error,
 };
@@ -264,20 +263,26 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         match message {
             Message::Export => {
                 if let Err(err) = self.collect_and_export().await {
-                    global::handle_error(err)
+                    otel_error!(name: "PeriodicReaderWorker.Export.Error",error = err);
                 }
             }
             Message::Flush(ch) => {
                 let res = self.collect_and_export().await;
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("flush channel closed".into()))
+                if let Err(e) = ch.send(res) {
+                    otel_error!(
+                        name: "PeriodicReaderWorker.Flush.ResponseSendError",
+                        error = format!("{:?}", e),
+                    );
                 }
             }
             Message::Shutdown(ch) => {
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("shutdown channel closed".into()))
+                if let Err(e) = ch.send(res) {
+                    otel_error!(
+                        name: "PeriodicReaderWorker.Shutdown.ResponseSendError",
+                        error = format!("{:?}", e),
+                    );
                 }
                 return false;
             }
@@ -311,9 +316,7 @@ impl MetricReader for PeriodicReader {
         let worker = match &mut inner.sdk_producer_or_worker {
             ProducerOrWorker::Producer(_) => {
                 // Only register once. If producer is already set, do nothing.
-                global::handle_error(MetricsError::Other(
-                    "duplicate meter registration, did not register manual reader".into(),
-                ));
+                otel_error!(name: "PeriodicReader.RegisterPipeline.DuplicateRegistration");
                 return;
             }
             ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),

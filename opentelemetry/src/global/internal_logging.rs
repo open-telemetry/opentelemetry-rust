@@ -50,11 +50,29 @@ macro_rules! otel_warn {
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            #[allow(unused_variables)]
+            {
+
+            }
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::warn!(name: $name,
+                target: env!("CARGO_PKG_NAME"),
+                $($key = {
+                        $crate::format_value!($value)
+                }),+,
+                ""
+        )        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            {
+                let _ = ($name, $($value),+);
+            }
         }
     };
 }
@@ -104,11 +122,34 @@ macro_rules! otel_error {
         {
             tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[allow(unused_variables)]
+        {
+
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+            tracing::error!(name: $name,
+                target: env!("CARGO_PKG_NAME"),
+                $($key = {
+                        $crate::format_value!($value)
+                }),+,
+                ""
+        )        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            {
+                let _ = ($name, $($value),+);
+            }
         }
     };
+}
+
+/// Helper macro to format a value
+#[macro_export]
+macro_rules! format_value {
+    ($value:expr) => {{
+        format!("{:?}", $value)
+    }};
 }

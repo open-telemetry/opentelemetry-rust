@@ -2,13 +2,13 @@ use core::fmt;
 use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
-    global,
     metrics::{
         noop::{NoopAsyncInstrument, NoopSyncInstrument},
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
     },
+    otel_error,
 };
 
 use crate::instrumentation::Scope;
@@ -74,7 +74,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateCounter.ValidationError", error = err);
             return Ok(Counter::new(Arc::new(NoopSyncInstrument::new())));
         }
 
@@ -90,7 +90,7 @@ impl SdkMeter {
         {
             Ok(counter) => Ok(counter),
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(name: "SdkMeter.CreateCounter.Error", error = err);
                 Ok(Counter::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -106,7 +106,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateObservableCounter.ValidationError", error = err);
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -119,6 +119,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
+            otel_error!(name: "SdkMeter.CreateObservableCounter.Error", error = MetricsError::Other("no measures found".into()));
             return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -143,7 +144,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.ValidationError", error = err);
             return Ok(ObservableUpDownCounter::new(Arc::new(
                 NoopAsyncInstrument::new(),
             )));
@@ -158,6 +159,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
+            otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.Error", error = MetricsError::Other("no measures found".into()));
             return Ok(ObservableUpDownCounter::new(Arc::new(
                 NoopAsyncInstrument::new(),
             )));
@@ -184,7 +186,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateObservableGauge.ValidationError", error = err);
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -197,6 +199,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
+            otel_error!(name: "SdkMeter.CreateObservableGauge.Error", error = MetricsError::Other("no measures found".into()));
             return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
         }
 
@@ -221,7 +224,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateUpDownCounter.ValidationError", error = err);
             return Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())));
         }
 
@@ -237,7 +240,7 @@ impl SdkMeter {
         {
             Ok(updown_counter) => Ok(updown_counter),
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(name: "SdkMeter.CreateUpDownCounter.Error", error = err);
                 Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -253,7 +256,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateGauge.ValidationError", error = err);
             return Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())));
         }
 
@@ -269,7 +272,7 @@ impl SdkMeter {
         {
             Ok(gauge) => Ok(gauge),
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(name: "SdkMeter.CreateGauge.Error", error = err);
                 Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -285,7 +288,7 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(name: "SdkMeter.CreateHistogram.ValidationError", error = err);
             return Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())));
         }
 
@@ -301,7 +304,7 @@ impl SdkMeter {
         {
             Ok(histogram) => Ok(histogram),
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(name: "SdkMeter.CreateHistogram.Error", error = err);
                 Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())))
             }
         }

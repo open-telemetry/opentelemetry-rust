@@ -8,9 +8,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{noop::NoopMeter, Meter, MeterProvider, MetricsError, Result},
-    KeyValue,
+    otel_error, KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -137,7 +136,7 @@ impl Drop for SdkMeterProviderInner {
         // shutdown(), then we don't need to call shutdown again.
         if !self.is_shutdown.load(Ordering::Relaxed) {
             if let Err(err) = self.shutdown() {
-                global::handle_error(err);
+                otel_error!(name: "SdkMeterProvider.Drop.ShutdownError", error = err);
             }
         }
     }

@@ -6,9 +6,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
-    KeyValue,
+    otel_warn, KeyValue,
 };
 
 use crate::{
@@ -414,15 +413,13 @@ where
                 if existing == id {
                     return;
                 }
-
-                global::handle_error(MetricsError::Other(format!(
-                    "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
-                    existing.name, id.name,
-                    existing.description, id.description,
-                    existing.kind, id.kind,
-                    existing.unit, id.unit,
-                    existing.number, id.number,
-               )))
+                otel_warn!(name: "InstrumentSync.AddSync.DuplicateMetricStreamDefinitions",
+                    name = id.name.clone(),
+                    description = id.description.clone(),
+                    kind = id.kind,
+                    unit = id.unit.clone(),
+                    number = id.number.clone(),
+                );
             }
         }
     }
