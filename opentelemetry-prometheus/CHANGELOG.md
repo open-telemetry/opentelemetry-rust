@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+
 ## v0.17.0
 
 ### Changed

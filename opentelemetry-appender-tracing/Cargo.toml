@@ -8,7 +8,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/ope
 readme = "README.md"
 keywords = ["opentelemetry", "log", "logs", "tracing"]
 license = "Apache-2.0"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [dependencies]
 log = { workspace = true, optional = true }
