@@ -5,7 +5,7 @@ use crate::trace::{Sampler, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
 use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
-use opentelemetry::{global, Context, KeyValue};
+use opentelemetry::{otel_error, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -203,7 +203,9 @@ impl JaegerRemoteSampler {
                     // send request
                     match Self::request_new_strategy(&client, endpoint.clone()).await {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
-                        Err(err_msg) => global::handle_error(TraceError::Other(err_msg.into())),
+                        Err(err_msg) => {
+                            otel_error!(name: "JaegerRemoteSampler.update", otel_name = "JaegerRemoteSampler.update", error = format!("{:?}", TraceError::Other(err_msg.into())));
+                        }
                     };
                 } else {
                     // shutdown

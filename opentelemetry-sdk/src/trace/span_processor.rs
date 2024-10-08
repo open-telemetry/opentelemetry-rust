@@ -45,7 +45,7 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::global;
+use opentelemetry::otel_error;
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
@@ -134,7 +134,9 @@ impl SpanProcessor for SimpleSpanProcessor {
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            otel_error!(name: "SimpleSpanProcessor.on_end", 
+                otel_name= "SimpleSpanProcessor.on_end",
+                error= err.to_string());
         }
     }
 
@@ -246,7 +248,9 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
-            global::handle_error(TraceError::Other(err.into()));
+            otel_error!(name: "BatchSpanProcessor.on_end", 
+                otel_name= "BatchSpanProcessor.on_end",
+                error= err.to_string());
         }
     }
 
@@ -314,15 +318,15 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
 
             if let Some(channel) = res_channel {
                 if let Err(result) = channel.send(result) {
-                    global::handle_error(TraceError::from(format!(
-                        "failed to send flush result: {:?}",
-                        result
-                    )));
+                    otel_error!(name: "BatchSpanProcessorInternal.flush",
+                        otel_name= "BatchSpanProcessorInternal.flush",
+                        error= format!("{:?}", result));
                 }
             } else if let Err(err) = result {
-                global::handle_error(err);
+                otel_error!(name: "BatchSpanProcessorInternal.flush",
+                    otel_name= "BatchSpanProcessorInternal.flush",
+                    error= format!("{:?}", err));
             }
-
             Ok(())
         });
 
@@ -354,7 +358,9 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                     let export_task = self.export();
                     let task = async move {
                         if let Err(err) = export_task.await {
-                            global::handle_error(err);
+                            otel_error!( name: "BatchSpanProcessorInternal.process_message",
+                                otel_name= "BatchSpanProcessorInternal.process_message",
+                                error= format!("{:?}", err));
                         }
 
                         Ok(())

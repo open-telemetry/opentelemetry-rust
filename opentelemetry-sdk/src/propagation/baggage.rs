@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 use opentelemetry::propagation::PropagationError;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
-    global,
+    otel_error,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
 };
@@ -120,24 +120,30 @@ impl TextMapPropagator for BaggagePropagator {
                                 decoded_props.as_str(),
                             ))
                         } else {
-                            global::handle_error(PropagationError::extract(
+                            otel_error!(name: "BaggagePropagator.extract_with_context",
+                            otel_name = "BaggagePropagator.extract_with_context",
+                            error = format!("{:?}", PropagationError::extract(
                                 "invalid UTF8 string in key values",
                                 "BaggagePropagator",
-                            ));
+                            )));
                             None
                         }
                     } else {
-                        global::handle_error(PropagationError::extract(
+                        otel_error!(name: "BaggagePropagator.extract_with_context",
+                        otel_name = "BaggagePropagator.extract_with_context",
+                        error = format!("{:?}", PropagationError::extract(
                             "invalid baggage key-value format",
                             "BaggagePropagator",
-                        ));
+                        )));
                         None
                     }
                 } else {
-                    global::handle_error(PropagationError::extract(
+                    otel_error!(name: "BaggagePropagator.extract_with_context",
+                    otel_name = "BaggagePropagator.extract_with_context",
+                    error = format!("{:?}", PropagationError::extract(
                         "invalid baggage format",
                         "BaggagePropagator",
-                    ));
+                    )));
                     None
                 }
             });

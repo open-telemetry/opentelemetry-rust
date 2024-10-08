@@ -1,6 +1,6 @@
 //! Context extensions for tracing
 use crate::{
-    global,
+    global, otel_error,
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
@@ -55,7 +55,9 @@ impl SpanRef<'_> {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
                 Ok(mut locked) => f(&mut locked),
-                Err(err) => global::handle_error(err),
+                Err(_err) => {
+                    otel_error!(name: "SpanRef.with_inner_mut", otel_name = "SpanRef.with_inner_mut", error = format!("{:?}", _err));
+                }
             }
         }
     }

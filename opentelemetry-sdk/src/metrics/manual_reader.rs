@@ -4,8 +4,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
+    otel_error,
 };
 
 use super::{
@@ -84,9 +84,10 @@ impl MetricReader for ManualReader {
             if inner.sdk_producer.is_none() {
                 inner.sdk_producer = Some(pipeline);
             } else {
-                global::handle_error(MetricsError::Config(
-                    "duplicate reader registration, did not register manual reader".into(),
-                ))
+                otel_error!(name: "ManualReader.register_pipeline", 
+                otel_name= "ManualReader.register_pipeline", 
+                error = format!("{:?}", MetricsError::Config(
+                    "duplicate reader registration, did not register manual reader".into())));
             }
         });
     }

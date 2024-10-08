@@ -1,4 +1,4 @@
-use opentelemetry::global::{self, set_error_handler, Error as OtelError};
+use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::WithExportConfig;
@@ -7,48 +7,8 @@ use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
 use std::error::Error;
-use tracing::error;
-
-use once_cell::sync::Lazy;
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
 
 use std::sync::mpsc::channel;
-
-struct ErrorState {
-    seen_errors: Mutex<HashSet<String>>,
-}
-
-impl ErrorState {
-    fn new() -> Self {
-        ErrorState {
-            seen_errors: Mutex::new(HashSet::new()),
-        }
-    }
-
-    fn mark_as_seen(&self, err: &OtelError) -> bool {
-        let mut seen_errors = self.seen_errors.lock().unwrap();
-        seen_errors.insert(err.to_string())
-    }
-}
-
-static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
-
-fn custom_error_handler(err: OtelError) {
-    if GLOBAL_ERROR_STATE.mark_as_seen(&err) {
-        // log error not already seen
-        match err {
-            OtelError::Metric(err) => error!("OpenTelemetry metrics error occurred: {}", err),
-            OtelError::Trace(err) => error!("OpenTelemetry trace error occurred: {}", err),
-            OtelError::Log(err) => error!("OpenTelemetry log error occurred: {}", err),
-            OtelError::Propagation(err) => {
-                error!("OpenTelemetry propagation error occurred: {}", err)
-            }
-            OtelError::Other(err_msg) => error!("OpenTelemetry error occurred: {}", err_msg),
-            _ => error!("OpenTelemetry error occurred: {:?}", err),
-        }
-    }
-}
 
 fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
     let provider = opentelemetry_otlp::new_pipeline()
@@ -124,11 +84,6 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // Set the custom error handler
-    if let Err(err) = set_error_handler(custom_error_handler) {
-        eprintln!("Failed to set custom error handler: {}", err);
-    }
-
     let logger_provider = init_logger_provider();
 
     // Initialize the MeterProvider with the stdout Exporter.

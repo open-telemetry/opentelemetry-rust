@@ -1,3 +1,4 @@
+use opentelemetry::otel_error;
 use opentelemetry::trace::TraceError;
 use std::time::SystemTime;
 
@@ -54,9 +55,7 @@ impl LeakyBucket {
                     }
                 }
                 Err(_) => {
-                    opentelemetry::global::handle_error(TraceError::Other(
-                        "jaeger remote sampler gets rewinded timestamp".into(),
-                    ));
+                    otel_error!(name: "LeakyBucket.check_availability", otel_name = "LeakyBucket.check_availability", error = format!("{:?}", TraceError::Other("jaeger remote sampler gets rewinded timestamp".into())));
                     true
                 }
             }
