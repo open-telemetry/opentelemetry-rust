@@ -1,7 +1,4 @@
-use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
 use std::any::Any;
 use std::sync::Arc;
@@ -34,30 +31,6 @@ impl<T> Gauge<T> {
     /// Records an independent value.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
         self.0.record(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<u64>>> for Gauge<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.u64_gauge(builder)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<f64>>> for Gauge<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_gauge(builder)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<i64>>> for Gauge<i64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.i64_gauge(builder)
     }
 }
 
@@ -107,35 +80,5 @@ impl<T> ObservableGauge<T> {
     /// Create a new gauge
     pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
         ObservableGauge(inner)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>> for ObservableGauge<u64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
-    ) -> Result<Self, Self::Error> {
-        builder.instrument_provider.u64_observable_gauge(builder)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>> for ObservableGauge<f64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_observable_gauge(builder)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>> for ObservableGauge<i64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
-    ) -> Result<Self, Self::Error> {
-        builder.instrument_provider.i64_observable_gauge(builder)
     }
 }
