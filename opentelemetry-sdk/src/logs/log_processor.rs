@@ -13,7 +13,7 @@ use futures_util::{
 use opentelemetry::logs::Severity;
 use opentelemetry::{
     logs::{LogError, LogResult},
-    otel_error, otel_warn, InstrumentationLibrary,
+    otel_debug, otel_error, otel_warn, InstrumentationLibrary,
 };
 
 use std::sync::atomic::AtomicBool;
@@ -256,7 +256,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Some(channel) = res_channel {
                             if let Err(send_error) = channel.send(result) {
-                                otel_warn!(
+                                otel_debug!(
                                     name: "BatchLogProcessor.Flush.SendResultError",
                                     error = format!("{:?}", send_error),
                                 );
