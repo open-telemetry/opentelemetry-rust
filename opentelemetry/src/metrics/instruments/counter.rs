@@ -1,6 +1,5 @@
 use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
 /// An SDK implemented instrument that records increasing values.
@@ -63,19 +62,10 @@ impl<T> ObservableCounter<T> {
     pub fn observe(&self, value: T, attributes: &[KeyValue]) {
         self.0.observe(value, attributes)
     }
-
-    /// Used for SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
 }
 
 impl<T> AsyncInstrument<T> for ObservableCounter<T> {
     fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
     }
 }

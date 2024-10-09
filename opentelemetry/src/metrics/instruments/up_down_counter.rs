@@ -1,6 +1,5 @@
 use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
 use super::AsyncInstrument;
@@ -69,19 +68,10 @@ impl<T> ObservableUpDownCounter<T> {
     pub fn observe(&self, value: T, attributes: &[KeyValue]) {
         self.0.observe(value, attributes)
     }
-
-    /// Used for SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
 }
 
 impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {
     fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn std::any::Any> {
-        self.0.as_any()
     }
 }
