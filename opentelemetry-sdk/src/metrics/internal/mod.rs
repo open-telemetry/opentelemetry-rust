@@ -146,7 +146,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             let new_tracker = AU::new_atomic_tracker(self.buckets_count);
             O::update_tracker(&new_tracker, measurement, index);
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
-            otel_error!( name: "ValueMap.Measure.Overflow",
+            otel_error!( name: "MetricCardinalityLimitReached",
                 error = MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into())
             );
         }
