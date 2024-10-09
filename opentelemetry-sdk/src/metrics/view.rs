@@ -1,8 +1,8 @@
 use super::instrument::{Instrument, Stream};
 use glob::Pattern;
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
+    otel_error,
 };
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
@@ -102,9 +102,7 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
-        global::handle_error(MetricsError::Config(format!(
-            "no criteria provided, dropping view. mask: {mask:?}"
-        )));
+        otel_error!(name: "new_view", otel_name= "new_view", error = format!("no criteria provided, dropping view. mask: {mask:?}"));
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
@@ -112,9 +110,12 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            global::handle_error(MetricsError::Config(format!(
-				"name replacement for multiple instruments, dropping view, criteria: {criteria:?}, mask: {mask:?}"
-			)));
+            otel_error!(name: "new_view",
+            otel_name= "new_view",
+            error = format!("{:?}", MetricsError::Config("name replacement for wildcard instrument, dropping view, criteria".into())),
+            criteria = format!("{:?}", criteria),
+            mask = format!("{:?}", criteria),
+            );
             return Ok(Box::new(empty_view));
         }
 
@@ -138,10 +139,13 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
-                global::handle_error(MetricsError::Other(format!(
-                    "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
-                    err, err_msg_criteria, mask
-                )));
+                otel_error!(
+                    name: "new_view", 
+                    otel_name= "new_view", 
+                    error = format!("{:?} Error : {:?}", MetricsError::Other("Proceeding as if view did not exist. Error:".into()), err),
+                    criteria = format!("{:?}", err_msg_criteria),
+                    mask = format!("{:?}", mask));
+
                 return Ok(Box::new(empty_view));
             }
         }
