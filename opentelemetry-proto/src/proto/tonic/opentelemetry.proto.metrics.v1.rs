@@ -808,9 +808,9 @@ impl AggregationTemporality {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            AggregationTemporality::Unspecified => "AGGREGATION_TEMPORALITY_UNSPECIFIED",
-            AggregationTemporality::Delta => "AGGREGATION_TEMPORALITY_DELTA",
-            AggregationTemporality::Cumulative => "AGGREGATION_TEMPORALITY_CUMULATIVE",
+            Self::Unspecified => "AGGREGATION_TEMPORALITY_UNSPECIFIED",
+            Self::Delta => "AGGREGATION_TEMPORALITY_DELTA",
+            Self::Cumulative => "AGGREGATION_TEMPORALITY_CUMULATIVE",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -851,10 +851,8 @@ impl DataPointFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            DataPointFlags::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
-            DataPointFlags::NoRecordedValueMask => {
-                "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK"
-            }
+            Self::DoNotUse => "DATA_POINT_FLAGS_DO_NOT_USE",
+            Self::NoRecordedValueMask => "DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

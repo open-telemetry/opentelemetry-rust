@@ -150,6 +150,61 @@ mod tests {
     // be able to make progress!
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn invalid_instrument_config_noops() {
+        // Run this test with stdout enabled to see output.
+        // cargo test invalid_instrument_config_noops --features=testing -- --nocapture
+        let invalid_instrument_names = vec![
+            "_startWithNoneAlphabet",
+            "utf8char锈",
+            "a".repeat(256).leak(),
+            "invalid name",
+        ];
+        for name in invalid_instrument_names {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let counter = test_context.meter().u64_counter(name).init();
+            counter.add(1, &[]);
+
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).init();
+            up_down_counter.add(1, &[]);
+
+            let gauge = test_context.meter().f64_gauge(name).init();
+            gauge.record(1.9, &[]);
+
+            let histogram = test_context.meter().f64_histogram(name).init();
+            histogram.record(1.0, &[]);
+
+            let _observable_counter = test_context
+                .meter()
+                .u64_observable_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .init();
+
+            let _observable_gauge = test_context
+                .meter()
+                .f64_observable_gauge(name)
+                .with_callback(move |observer| {
+                    observer.observe(1.0, &[]);
+                })
+                .init();
+
+            let _observable_up_down_counter = test_context
+                .meter()
+                .i64_observable_up_down_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .init();
+
+            test_context.flush_metrics();
+
+            // As instrument name is invalid, no metrics should be exported
+            test_context.check_no_metrics();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_delta() {
         // Run this test with stdout enabled to see output.
         // cargo test counter_aggregation_delta --features=testing -- --nocapture
@@ -257,6 +312,14 @@ mod tests {
         // Run this test with stdout enabled to see output.
         // cargo test histogram_aggregation_delta --features=testing -- --nocapture
         histogram_aggregation_helper(Temporality::Delta);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_with_custom_bounds() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_with_custom_bounds --features=testing -- --nocapture
+        histogram_aggregation_with_custom_bounds_helper(Temporality::Delta);
+        histogram_aggregation_with_custom_bounds_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -965,7 +1028,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "Known bug: https://github.com/open-telemetry/opentelemetry-rust/issues/1598"]
     async fn delta_memory_efficiency_test() {
         // Run this test with stdout enabled to see output.
         // cargo test delta_memory_efficiency_test --features=testing -- --nocapture
@@ -1790,6 +1852,57 @@ mod tests {
         }
     }
 
+    fn histogram_aggregation_with_custom_bounds_helper(temporality: Temporality) {
+        let mut test_context = TestContext::new(temporality);
+        let histogram = test_context
+            .meter()
+            .u64_histogram("test_histogram")
+            .with_boundaries(vec![1.0, 2.5, 5.5])
+            .init();
+        histogram.record(1, &[KeyValue::new("key1", "value1")]);
+        histogram.record(2, &[KeyValue::new("key1", "value1")]);
+        histogram.record(3, &[KeyValue::new("key1", "value1")]);
+        histogram.record(4, &[KeyValue::new("key1", "value1")]);
+        histogram.record(5, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let histogram_data =
+            test_context.get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+        // Expecting 2 time-series.
+        assert_eq!(histogram_data.data_points.len(), 1);
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                histogram_data.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(
+                histogram_data.temporality,
+                Temporality::Delta,
+                "Should produce delta"
+            );
+        }
+
+        // find and validate key1=value1 datapoint
+        let data_point =
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+
+        assert_eq!(data_point.count, 5);
+        assert_eq!(data_point.sum, 15);
+
+        // Check the bucket counts
+        // -∞ to 1.0: 1
+        // 1.0 to 2.5: 1
+        // 2.5 to 5.5: 3
+        // 5.5 to +∞: 0
+
+        assert_eq!(vec![1.0, 2.5, 5.5], data_point.bounds);
+        assert_eq!(vec![1, 1, 3, 0], data_point.bucket_counts);
+    }
     fn gauge_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
@@ -2308,6 +2421,15 @@ mod tests {
 
         fn reset_metrics(&self) {
             self.exporter.reset();
+        }
+
+        fn check_no_metrics(&self) {
+            let resource_metrics = self
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricsExporter to return None.
+
+            assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
 
         fn get_aggregation<T: data::Aggregation>(

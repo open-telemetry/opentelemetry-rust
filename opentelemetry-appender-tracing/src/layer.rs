@@ -217,12 +217,24 @@ mod tests {
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::error;
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
             .attributes_iter()
             .any(|(k, v)| k == key && v == value)
+    }
+
+    fn create_tracing_subscriber(
+        _exporter: InMemoryLogsExporter,
+        logger_provider: &LoggerProvider,
+    ) -> impl tracing::Subscriber {
+        let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
+        let layer =
+            layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
+
+        tracing_subscriber::registry().with(layer)
     }
 
     // cargo test --features=testing
@@ -234,8 +246,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -315,8 +326,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -427,8 +437,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -436,7 +445,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!("log from log crate");
+        log::error!(target: "my-system", "log from log crate");
         logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
@@ -493,8 +502,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -513,7 +521,7 @@ mod tests {
             let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
-            log::error!("log from log crate");
+            log::error!(target: "my-system", "log from log crate");
             (trace_id, span_id)
         });
 

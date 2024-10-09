@@ -1,4 +1,8 @@
 use crate::{Key, StringValue};
+
+#[cfg(feature = "trace")]
+use crate::trace::{SpanId, TraceFlags, TraceId};
+
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// SDK implemented trait for managing log records
@@ -41,6 +45,19 @@ pub trait LogRecord {
     where
         K: Into<Key>,
         V: Into<AnyValue>;
+
+    /// Sets the trace context of the log.
+    #[cfg(feature = "trace")]
+    fn set_trace_context(
+        &mut self,
+        trace_id: TraceId,
+        span_id: SpanId,
+        trace_flags: Option<TraceFlags>,
+    ) {
+        let _ = trace_id;
+        let _ = span_id;
+        let _ = trace_flags;
+    }
 }
 
 /// Value types for representing arbitrary values in a log record.
