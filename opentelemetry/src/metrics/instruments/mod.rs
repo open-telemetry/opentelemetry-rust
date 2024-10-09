@@ -3,10 +3,8 @@ use gauge::{Gauge, ObservableGauge};
 use crate::metrics::{Meter, Result};
 use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::borrow::Cow;
 use std::marker;
-use std::sync::Arc;
 
 use super::{
     Counter, Histogram, InstrumentProvider, ObservableCounter, ObservableUpDownCounter,
@@ -24,9 +22,6 @@ pub trait AsyncInstrument<T>: Send + Sync {
     ///
     /// It is only valid to call this within a callback.
     fn observe(&self, measurement: T, attributes: &[KeyValue]);
-
-    /// Used for SDKs to downcast instruments in callbacks.
-    fn as_any(&self) -> Arc<dyn Any>;
 }
 
 /// Configuration for building a Histogram.
@@ -93,7 +88,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, f64> {
+impl<'a> HistogramBuilder<'a, Histogram<f64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<f64>> {
         self.instrument_provider.f64_histogram(self)
@@ -109,7 +104,7 @@ impl<'a> HistogramBuilder<'a, f64> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, u64> {
+impl<'a> HistogramBuilder<'a, Histogram<u64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<u64>> {
         self.instrument_provider.u64_histogram(self)
