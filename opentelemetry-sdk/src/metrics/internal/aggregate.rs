@@ -16,6 +16,11 @@ pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
     size < STREAM_CARDINALITY_LIMIT as usize
 }
 
+/// Checks whether aggregator has hit cardinality limit for metric streams
+pub(crate) fn cardinality_limit() -> usize {
+    STREAM_CARDINALITY_LIMIT as usize
+}
+
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);

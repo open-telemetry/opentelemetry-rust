@@ -12,12 +12,12 @@ use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 
-use aggregate::is_under_cardinality_limit;
+use aggregate::{cardinality_limit, is_under_cardinality_limit};
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
 use opentelemetry::metrics::MetricsError;
-use opentelemetry::{otel_error, KeyValue};
+use opentelemetry::{otel_warn, KeyValue};
 
 use crate::metrics::AttributeSet;
 
@@ -146,8 +146,10 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             let new_tracker = AU::new_atomic_tracker(self.buckets_count);
             O::update_tracker(&new_tracker, measurement, index);
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
-            otel_error!( name: "MetricCardinalityLimitReached",
-                error = MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into())
+            //TODO -  include name of meter, instrument
+            otel_warn!( name: "MetricCardinalityLimitReached",
+                error = MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()),
+                cardinality_limit = cardinality_limit()
             );
         }
     }
