@@ -413,12 +413,17 @@ where
                 if existing == id {
                     return;
                 }
-                otel_warn!(name: "InstrumentSync.AddSync.DuplicateMetricStreamDefinitions",
+                otel_warn!(name: "Instrument.DuplicateMetricStreamDefinitions",
                     name = id.name.clone(),
                     description = id.description.clone(),
                     kind = id.kind,
                     unit = id.unit.clone(),
                     number = id.number.clone(),
+                    existing_name = existing.name.clone(),
+                    existing_desc = existing.description.clone(),
+                    existing_kind = existing.kind,
+                    existing_unit = existing.unit,
+                    existing_number = existing.number
                 );
             }
         }
