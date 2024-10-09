@@ -422,8 +422,8 @@ where
                     existing_name = existing.name.clone(),
                     existing_desc = existing.description.clone(),
                     existing_kind = existing.kind,
-                    existing_unit = existing.unit,
-                    existing_number = existing.number
+                    existing_unit = existing.unit.clone(),
+                    existing_number = existing.number.clone()
                 );
             }
         }
