@@ -93,7 +93,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, f64> {
+impl<'a> HistogramBuilder<'a, Histogram<f64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<f64>> {
         self.instrument_provider.f64_histogram(self)
@@ -109,7 +109,7 @@ impl<'a> HistogramBuilder<'a, f64> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, u64> {
+impl<'a> HistogramBuilder<'a, Histogram<u64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<u64>> {
         self.instrument_provider.u64_histogram(self)
