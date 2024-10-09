@@ -2,7 +2,7 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::{
     logs::{LogError, LogResult},
-    otel_error, otel_warn,
+    otel_debug, otel_error, otel_warn,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -113,10 +113,23 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
-                    otel_error!(
-                        name: "LoggerProvider.Shutdown.Error",
-                        error = format!("{err}")
-                    );
+                    if let Err(err) = processor.shutdown() {
+                        match err {
+                            // Specific handling for mutex poisoning
+                            LogError::MutexPoisoned(_) => {
+                                otel_debug!(
+                                    name: "LoggerProvider.Shutdown.MutexPoisoned",
+                                );
+                            }
+                            _ => {
+                                otel_error!(
+                                    name: "LoggerProvider.Shutdown.Error",
+                                    error = format!("{err}")
+                                );
+                            }
+                        }
+                        errs.push(err);
+                    }
                     errs.push(err);
                 }
             }
@@ -124,10 +137,11 @@ impl LoggerProvider {
             if errs.is_empty() {
                 Ok(())
             } else {
+                // consolidate errors from all the processors - not all may be user errors
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
-            let error = LogError::Other("logger provider already shut down".into());
+            let error = LogError::AlreadyShutdown("LoggerProvider".to_string());
             otel_warn!(
                 name: "LoggerProvider.Shutdown.AlreadyShutdown",
             );
@@ -148,7 +162,7 @@ impl Drop for LoggerProviderInner {
             if let Err(err) = processor.shutdown() {
                 otel_warn!(
                     name: "LoggerProvider.Drop.ShutdownError",
-                    error = err
+                    error = format!("{}", err)
                 );
             }
         }

@@ -13,7 +13,7 @@ use futures_util::{
 use opentelemetry::logs::Severity;
 use opentelemetry::{
     logs::{LogError, LogResult},
-    otel_error, otel_warn, InstrumentationLibrary,
+    otel_debug, otel_error, otel_warn, InstrumentationLibrary,
 };
 
 use std::sync::atomic::AtomicBool;
@@ -98,9 +98,9 @@ impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            // this is a warning, as the user is trying to log after the processor has been shutdown
             otel_warn!(
-                name: "SimpleLogProcessor.Export.AfterShutdown",
-                error = LogError::Other("Attempted to export a log after processor shutdown".into())
+                name: "SimpleLogProcessor.Emit.ProcessorShutdown",
             );
             return;
         }
@@ -108,16 +108,26 @@ impl LogProcessor for SimpleLogProcessor {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
+            .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
             .and_then(|mut exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
-        if let Err(err) = result {
-            otel_error!(
-                name: "SimpleLogProcessor.Export.Error",
-                error = err
-            );
+        // Handle errors with specific static names
+        match result {
+            Err(LogError::MutexPoisoned(_)) => {
+                // logging as debug as this is not a user error
+                otel_debug!(
+                    name: "SimpleLogProcessor.Emit.MutexPoisoning",
+                );
+            }
+            Err(err) => {
+                otel_error!(
+                    name: "SimpleLogProcessor.Emit.ExportError",
+                    error = format!("{}",err)
+                );
+            }
+            _ => {}
         }
     }
 
@@ -132,9 +142,7 @@ impl LogProcessor for SimpleLogProcessor {
             exporter.shutdown();
             Ok(())
         } else {
-            Err(LogError::Other(
-                "simple logprocessor mutex poison during shutdown".into(),
-            ))
+            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
         }
     }
 
@@ -169,7 +177,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         if let Err(err) = result {
             otel_error!(
                 name: "BatchLogProcessor.Export.Error",
-                error = err
+                error = format!("{}", err)
             );
         }
     }
@@ -239,7 +247,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             if let Err(err) = result {
                                 otel_error!(
                                     name: "BatchLogProcessor.Export.Error",
-                                    error = err
+                                    error = format!("{}", err)
                                 );
                             }
                         }
