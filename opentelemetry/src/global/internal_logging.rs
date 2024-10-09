@@ -152,17 +152,10 @@ macro_rules! otel_error {
     };
 }
 
-/// Helper macro to format a value using Debug if available, falling back to Display
+/// Helper macro to format a value
 #[macro_export]
 macro_rules! format_value {
     ($value:expr) => {{
-        // Try Debug first
-        let debug_result = std::fmt::format(format_args!("{:?}", $value));
-        if debug_result.starts_with('<') || debug_result.contains("::") {
-            // Contains module path or starts with generic angle brackets
-            format!("{}", $value)
-        } else {
-            debug_result
-        }
+        format!("{:?}", $value)
     }};
 }
