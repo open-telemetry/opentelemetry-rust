@@ -264,7 +264,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Some(channel) = res_channel {
                             if let Err(send_error) = channel.send(result) {
-                                otel_warn!(
+                                otel_debug!(
                                     name: "BatchLogProcessor.Flush.SendResultError",
                                     error = format!("{:?}", send_error),
                                 );
