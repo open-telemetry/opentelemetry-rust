@@ -113,22 +113,19 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
-                    if let Err(err) = processor.shutdown() {
-                        match err {
-                            // Specific handling for mutex poisoning
-                            LogError::MutexPoisoned(_) => {
-                                otel_debug!(
-                                    name: "LoggerProvider.Shutdown.MutexPoisoned",
-                                );
-                            }
-                            _ => {
-                                otel_error!(
-                                    name: "LoggerProvider.Shutdown.Error",
-                                    error = format!("{err}")
-                                );
-                            }
+                    match err {
+                        // Specific handling for mutex poisoning
+                        LogError::MutexPoisoned(_) => {
+                            otel_debug!(
+                                name: "LoggerProvider.Shutdown.MutexPoisoned",
+                            );
                         }
-                        errs.push(err);
+                        _ => {
+                            otel_debug!(
+                                name: "LoggerProvider.Shutdown.Error",
+                                error = format!("{err}")
+                            );
+                        }
                     }
                     errs.push(err);
                 }
@@ -142,7 +139,7 @@ impl LoggerProvider {
             }
         } else {
             let error = LogError::AlreadyShutdown("LoggerProvider".to_string());
-            otel_warn!(
+            otel_debug!(
                 name: "LoggerProvider.Shutdown.AlreadyShutdown",
             );
             Err(error)
@@ -160,7 +157,7 @@ impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
             if let Err(err) = processor.shutdown() {
-                otel_warn!(
+                otel_debug!(
                     name: "LoggerProvider.Drop.ShutdownError",
                     error = format!("{}", err)
                 );

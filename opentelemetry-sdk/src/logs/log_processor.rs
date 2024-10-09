@@ -284,7 +284,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         exporter.shutdown();
 
                         if let Err(send_error) = ch.send(result) {
-                            otel_warn!(
+                            otel_debug!(
                                 name: "BatchLogProcessor.Shutdown.SendResultError",
                                 error = format!("{:?}", send_error),
                             );
