@@ -174,6 +174,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             instrumentation.clone(),
         )));
 
+        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if let Err(err) = result {
             otel_error!(
                 name: "BatchLogProcessor.Export.Error",
