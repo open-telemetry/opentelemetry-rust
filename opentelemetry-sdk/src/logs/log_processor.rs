@@ -256,7 +256,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Some(channel) = res_channel {
                             if let Err(send_error) = channel.send(result) {
-                                otel_error!(
+                                otel_warn!(
                                     name: "BatchLogProcessor.Flush.SendResultError",
                                     error = format!("{:?}", send_error),
                                 );
@@ -276,7 +276,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         exporter.shutdown();
 
                         if let Err(send_error) = ch.send(result) {
-                            otel_error!(
+                            otel_warn!(
                                 name: "BatchLogProcessor.Shutdown.SendResultError",
                                 error = format!("{:?}", send_error),
                             );
