@@ -1,12 +1,7 @@
-use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
 use std::any::Any;
 use std::sync::Arc;
-
-use super::InstrumentBuilder;
 
 /// An SDK implemented instrument that records increasing values.
 pub trait SyncCounter<T> {
@@ -36,22 +31,6 @@ impl<T> Counter<T> {
     /// Records an increment to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
         self.0.add(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Counter<u64>>> for Counter<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.u64_counter(builder)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Counter<f64>>> for Counter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_counter(builder)
     }
 }
 
@@ -98,25 +77,5 @@ impl<T> AsyncInstrument<T> for ObservableCounter<T> {
 
     fn as_any(&self) -> Arc<dyn Any> {
         self.0.as_any()
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>> for ObservableCounter<u64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
-    ) -> Result<Self, Self::Error> {
-        builder.instrument_provider.u64_observable_counter(builder)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>> for ObservableCounter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_observable_counter(builder)
     }
 }
