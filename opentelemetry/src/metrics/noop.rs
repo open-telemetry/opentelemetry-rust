@@ -10,7 +10,7 @@ use crate::{
     },
     KeyValue,
 };
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
@@ -105,9 +105,5 @@ impl NoopAsyncInstrument {
 impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
     fn observe(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        Arc::new(())
     }
 }

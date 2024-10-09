@@ -1,6 +1,5 @@
 use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
 /// An SDK implemented instrument that records independent values
@@ -59,20 +58,11 @@ impl<T> ObservableGauge<T> {
     pub fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
     }
-
-    /// Used by SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
 }
 
 impl<M> AsyncInstrument<M> for ObservableGauge<M> {
     fn observe(&self, measurement: M, attributes: &[KeyValue]) {
         self.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
     }
 }
 
