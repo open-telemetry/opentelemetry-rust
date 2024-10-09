@@ -2,7 +2,7 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::{
     logs::{LogError, LogResult},
-    otel_debug, otel_error, otel_warn,
+    otel_debug,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
