@@ -1,13 +1,18 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 use std::vec;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::fmt;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default().build();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new([KeyValue::new(
@@ -21,6 +26,14 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    tracing_subscriber::registry()
+        .with(
+            fmt::layer()
+                .with_thread_names(true)
+                .with_filter(LevelFilter::DEBUG),
+        )
+        .init();
+
     // Initialize the MeterProvider with the stdout Exporter.
     let meter_provider = init_meter_provider();
 

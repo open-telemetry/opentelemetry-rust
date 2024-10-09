@@ -174,7 +174,7 @@
 //!     };
 //!
 //!     let meter = opentelemetry_otlp::new_pipeline()
-//!         .metrics(opentelemetry_sdk::runtime::Tokio)
+//!         .metrics()
 //!         .with_exporter(
 //!             opentelemetry_otlp::new_exporter()
 //!                 .tonic()
