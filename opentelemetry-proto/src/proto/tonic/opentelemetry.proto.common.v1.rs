@@ -10,6 +10,14 @@ pub struct AnyValue {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
     /// in which case this AnyValue is considered to be "empty".
     #[prost(oneof = "any_value::Value", tags = "1, 2, 3, 4, 5, 6, 7")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            flatten,
+            serialize_with = "crate::proto::serializers::serialize_to_value",
+            deserialize_with = "crate::proto::serializers::deserialize_from_value"
+        )
+    )]
     pub value: ::core::option::Option<any_value::Value>,
 }
 /// Nested message and enum types in `AnyValue`.
@@ -75,13 +83,6 @@ pub struct KeyValue {
     #[prost(string, tag = "1")]
     pub key: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::serializers::serialize_to_value",
-            deserialize_with = "crate::proto::serializers::deserialize_from_value"
-        )
-    )]
     pub value: ::core::option::Option<AnyValue>,
 }
 /// InstrumentationScope is a message representing the instrumentation scope information
