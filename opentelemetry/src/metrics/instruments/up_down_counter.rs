@@ -59,15 +59,6 @@ impl<T> ObservableUpDownCounter<T> {
     pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
         ObservableUpDownCounter(inner)
     }
-
-    /// Records the increment or decrement to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
-    }
 }
 
 impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {

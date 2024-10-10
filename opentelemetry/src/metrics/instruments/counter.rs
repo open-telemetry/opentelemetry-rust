@@ -53,17 +53,6 @@ impl<T> fmt::Debug for ObservableCounter<T> {
     }
 }
 
-impl<T> ObservableCounter<T> {
-    /// Records an increment to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
-    }
-}
-
 impl<T> AsyncInstrument<T> for ObservableCounter<T> {
     fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
