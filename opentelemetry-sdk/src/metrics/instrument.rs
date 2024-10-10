@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
@@ -300,9 +300,5 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
         for measure in &self.measures {
             measure.call(measurement, attrs)
         }
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        Arc::new(self.clone())
     }
 }

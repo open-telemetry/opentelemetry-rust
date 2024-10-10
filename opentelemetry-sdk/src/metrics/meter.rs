@@ -277,7 +277,7 @@ impl SdkMeter {
 
     fn create_histogram<T>(
         &self,
-        builder: HistogramBuilder<'_, T>,
+        builder: HistogramBuilder<'_, Histogram<T>>,
         resolver: &InstrumentResolver<'_, T>,
     ) -> Result<Histogram<T>>
     where
@@ -407,12 +407,18 @@ impl InstrumentProvider for SdkMeter {
         self.create_observable_gauge(builder, &resolver)
     }
 
-    fn f64_histogram(&self, builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
+    fn f64_histogram(
+        &self,
+        builder: HistogramBuilder<'_, Histogram<f64>>,
+    ) -> Result<Histogram<f64>> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_histogram(builder, &resolver)
     }
 
-    fn u64_histogram(&self, builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
+    fn u64_histogram(
+        &self,
+        builder: HistogramBuilder<'_, Histogram<u64>>,
+    ) -> Result<Histogram<u64>> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_histogram(builder, &resolver)
     }

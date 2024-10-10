@@ -223,12 +223,18 @@ pub trait InstrumentProvider {
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn f64_histogram(&self, _builder: HistogramBuilder<'_, f64>) -> Result<Histogram<f64>> {
+    fn f64_histogram(
+        &self,
+        _builder: HistogramBuilder<'_, Histogram<f64>>,
+    ) -> Result<Histogram<f64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 
     /// creates an instrument for recording a distribution of values.
-    fn u64_histogram(&self, _builder: HistogramBuilder<'_, u64>) -> Result<Histogram<u64>> {
+    fn u64_histogram(
+        &self,
+        _builder: HistogramBuilder<'_, Histogram<u64>>,
+    ) -> Result<Histogram<u64>> {
         Ok(Histogram::new(Arc::new(noop::NoopSyncInstrument::new())))
     }
 }
