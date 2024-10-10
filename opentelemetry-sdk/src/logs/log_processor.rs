@@ -12,9 +12,8 @@ use futures_util::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
-    otel_error, otel_warn, InstrumentationLibrary,
+    otel_debug, otel_error, otel_warn, InstrumentationLibrary,
 };
 
 use std::sync::atomic::AtomicBool;
@@ -99,8 +98,9 @@ impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            // this is a warning, as the user is trying to log after the processor has been shutdown
             otel_warn!(
-                name: "simple_log_processor_emit_after_shutdown"
+                name: "SimpleLogProcessor.Emit.ProcessorShutdown",
             );
             return;
         }
@@ -108,17 +108,26 @@ impl LogProcessor for SimpleLogProcessor {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| LogError::Other("simple logprocessor mutex poison".into()))
+            .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
             .and_then(|mut exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
-        if let Err(err) = result {
-            otel_error!(
-                name: "simple_log_processor_emit_error",
-                error = format!("{:?}", err)
-            );
-            global::handle_error(err);
+        // Handle errors with specific static names
+        match result {
+            Err(LogError::MutexPoisoned(_)) => {
+                // logging as debug as this is not a user error
+                otel_debug!(
+                    name: "SimpleLogProcessor.Emit.MutexPoisoning",
+                );
+            }
+            Err(err) => {
+                otel_error!(
+                    name: "SimpleLogProcessor.Emit.ExportError",
+                    error = format!("{}",err)
+                );
+            }
+            _ => {}
         }
     }
 
@@ -133,12 +142,7 @@ impl LogProcessor for SimpleLogProcessor {
             exporter.shutdown();
             Ok(())
         } else {
-            otel_error!(
-                name: "simple_log_processor_shutdown_error"
-            );
-            Err(LogError::Other(
-                "simple logprocessor mutex poison during shutdown".into(),
-            ))
+            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
         }
     }
 
@@ -170,12 +174,12 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             instrumentation.clone(),
         )));
 
+        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if let Err(err) = result {
             otel_error!(
-                name: "batch_log_processor_emit_error",
-                error = format!("{:?}", err)
+                name: "BatchLogProcessor.Export.Error",
+                error = format!("{}", err)
             );
-            global::handle_error(LogError::Other(err.into()));
         }
     }
 
@@ -243,10 +247,9 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                             if let Err(err) = result {
                                 otel_error!(
-                                    name: "batch_log_processor_export_error",
-                                    error = format!("{:?}", err)
+                                    name: "BatchLogProcessor.Export.Error",
+                                    error = format!("{}", err)
                                 );
-                                global::handle_error(err);
                             }
                         }
                     }
@@ -261,24 +264,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         .await;
 
                         if let Some(channel) = res_channel {
-                            if let Err(result) = channel.send(result) {
-                                global::handle_error(LogError::from(format!(
-                                    "failed to send flush result: {:?}",
-                                    result
-                                )));
-                                otel_error!(
-                                    name: "batch_log_processor_flush_error",
-                                    error = format!("{:?}", result),
-                                    message = "Failed to send flush result"
+                            if let Err(send_error) = channel.send(result) {
+                                otel_debug!(
+                                    name: "BatchLogProcessor.Flush.SendResultError",
+                                    error = format!("{:?}", send_error),
                                 );
                             }
-                        } else if let Err(err) = result {
-                            otel_error!(
-                                name: "batch_log_processor_flush_error",
-                                error = format!("{:?}", err),
-                                message = "Flush failed"
-                            );
-                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -293,21 +284,14 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         exporter.shutdown();
 
-                        if let Err(result) = ch.send(result) {
-                            otel_error!(
-                                name: "batch_log_processor_shutdown_error",
-                                error = format!("{:?}", result),
-                                message = "Failed to send shutdown result"
+                        if let Err(send_error) = ch.send(result) {
+                            otel_debug!(
+                                name: "BatchLogProcessor.Shutdown.SendResultError",
+                                error = format!("{:?}", send_error),
                             );
-                            global::handle_error(LogError::from(format!(
-                                "failed to send batch processor shutdown result: {:?}",
-                                result
-                            )));
                         }
-
                         break;
                     }
-
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
                         exporter.set_resource(&resource);
@@ -357,13 +341,7 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => {
-            otel_error!(
-                name: "export_with_timeout_timeout",
-                timeout_duration = time_out.as_millis()
-            );
-            ExportResult::Err(LogError::ExportTimedOut(time_out))
-        }
+        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
     }
 }
 

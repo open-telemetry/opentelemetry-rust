@@ -1,9 +1,8 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::otel_warn;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
+    otel_debug,
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
@@ -24,15 +23,14 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
         resource: Resource::empty(),
+        is_shutdown: AtomicBool::new(true),
     }),
-    is_shutdown: Arc::new(AtomicBool::new(true)),
 });
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
-    is_shutdown: Arc<AtomicBool>,
 }
 
 /// Default logger name if empty string is provided.
@@ -73,7 +71,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
         }
         Logger::new(library, self.clone())
@@ -105,6 +103,7 @@ impl LoggerProvider {
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
         if self
+            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
@@ -114,10 +113,20 @@ impl LoggerProvider {
             let mut errs = vec![];
             for processor in &self.inner.processors {
                 if let Err(err) = processor.shutdown() {
-                    otel_warn!(
-                        name: "logger_provider_shutdown_error",
-                        error = format!("{:?}", err)
-                    );
+                    match err {
+                        // Specific handling for mutex poisoning
+                        LogError::MutexPoisoned(_) => {
+                            otel_debug!(
+                                name: "LoggerProvider.Shutdown.MutexPoisoned",
+                            );
+                        }
+                        _ => {
+                            otel_debug!(
+                                name: "LoggerProvider.Shutdown.Error",
+                                error = format!("{err}")
+                            );
+                        }
+                    }
                     errs.push(err);
                 }
             }
@@ -125,13 +134,15 @@ impl LoggerProvider {
             if errs.is_empty() {
                 Ok(())
             } else {
+                // consolidate errors from all the processors - not all may be user errors
                 Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
-            otel_warn!(
-                name: "logger_provider_already_shutdown"
+            let error = LogError::AlreadyShutdown("LoggerProvider".to_string());
+            otel_debug!(
+                name: "LoggerProvider.Shutdown.AlreadyShutdown",
             );
-            Err(LogError::Other("logger provider already shut down".into()))
+            Err(error)
         }
     }
 }
@@ -140,14 +151,38 @@ impl LoggerProvider {
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Resource,
+    is_shutdown: AtomicBool,
 }
 
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            for processor in &mut self.processors {
+                if let Err(err) = processor.shutdown() {
+                    match err {
+                        // Specific handling for mutex poisoning
+                        LogError::MutexPoisoned(_) => {
+                            otel_debug!(
+                                name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
+                            );
+                        }
+                        _ => {
+                            otel_debug!(
+                                name: "LoggerProvider.Drop.ShutdownError",
+                                error = format!("{err}")
+                            );
+                        }
+                    }
+                }
             }
+        } else {
+            otel_debug!(
+                name: "LoggerProvider.Drop.AlreadyShutdown",
+            );
         }
     }
 }
@@ -202,8 +237,8 @@ impl Builder {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 resource,
+                is_shutdown: AtomicBool::new(false),
             }),
-            is_shutdown: Arc::new(AtomicBool::new(false)),
         };
 
         // invoke set_resource on all the processors

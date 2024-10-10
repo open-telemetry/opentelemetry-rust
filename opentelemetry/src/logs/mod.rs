@@ -30,6 +30,14 @@ pub enum LogError {
     #[error("Exporter timed out after {} seconds", .0.as_secs())]
     ExportTimedOut(Duration),
 
+    /// Processor is already shutdown
+    #[error("{0} already shutdown")]
+    AlreadyShutdown(String),
+
+    /// Mutex lock poisoning
+    #[error("mutex lock poisioning for {0}")]
+    MutexPoisoned(String),
+
     /// Other errors propagated from log SDK that weren't covered above.
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
