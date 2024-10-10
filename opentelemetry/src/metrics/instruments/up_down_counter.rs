@@ -1,12 +1,8 @@
-use crate::{
-    metrics::{InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
-use super::{AsyncInstrument, AsyncInstrumentBuilder};
+use super::AsyncInstrument;
 
 /// An SDK implemented instrument that records increasing or decreasing values.
 pub trait SyncUpDownCounter<T> {
@@ -42,22 +38,6 @@ impl<T> UpDownCounter<T> {
     }
 }
 
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<i64>>> for UpDownCounter<i64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<i64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.i64_up_down_counter(builder)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, UpDownCounter<f64>>> for UpDownCounter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, UpDownCounter<f64>>) -> Result<Self, Self::Error> {
-        builder.instrument_provider.f64_up_down_counter(builder)
-    }
-}
-
 /// An async instrument that records increasing or decreasing values.
 #[derive(Clone)]
 pub struct ObservableUpDownCounter<T>(Arc<dyn AsyncInstrument<T>>);
@@ -79,56 +59,10 @@ impl<T> ObservableUpDownCounter<T> {
     pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
         ObservableUpDownCounter(inner)
     }
-
-    /// Records the increment or decrement to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
-    }
-
-    /// Used for SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
 }
 
 impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {
     fn observe(&self, measurement: T, attributes: &[KeyValue]) {
         self.0.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn std::any::Any> {
-        self.0.as_any()
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>>
-    for ObservableUpDownCounter<i64>
-{
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
-    ) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .i64_observable_up_down_counter(builder)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>>
-    for ObservableUpDownCounter<f64>
-{
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_observable_up_down_counter(builder)
     }
 }
