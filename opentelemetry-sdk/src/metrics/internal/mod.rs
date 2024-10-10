@@ -148,8 +148,8 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
             //TODO -  include name of meter, instrument
             otel_warn!( name: "MetricCardinalityLimitReached",
-                error = MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()),
-                cardinality_limit = cardinality_limit()
+                error = format!("{}", MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into())),
+                cardinality_limit = cardinality_limit() as u64,
             );
         }
     }

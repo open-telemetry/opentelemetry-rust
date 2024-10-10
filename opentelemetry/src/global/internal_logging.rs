@@ -64,7 +64,7 @@ macro_rules! otel_warn {
             tracing::warn!(name: $name,
                 target: env!("CARGO_PKG_NAME"),
                 $($key = {
-                        $crate::format_value!($value)
+                        $value
                 }),+,
                 ""
         )        }
@@ -133,7 +133,7 @@ macro_rules! otel_error {
             tracing::error!(name: $name,
                 target: env!("CARGO_PKG_NAME"),
                 $($key = {
-                        $crate::format_value!($value)
+                        $value
                 }),+,
                 ""
         )        }
@@ -144,12 +144,4 @@ macro_rules! otel_error {
             }
         }
     };
-}
-
-/// Helper macro to format a value
-#[macro_export]
-macro_rules! format_value {
-    ($value:expr) => {{
-        format!("{:?}", $value)
-    }};
 }

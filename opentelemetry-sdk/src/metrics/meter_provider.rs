@@ -136,7 +136,7 @@ impl Drop for SdkMeterProviderInner {
         // shutdown(), then we don't need to call shutdown again.
         if !self.is_shutdown.load(Ordering::Relaxed) {
             if let Err(err) = self.shutdown() {
-                otel_error!(name: "SdkMeterProvider.Drop.ShutdownError", error = err);
+                otel_error!(name: "SdkMeterProvider.Drop.ShutdownError", error = format!("{}",err));
             }
         }
     }

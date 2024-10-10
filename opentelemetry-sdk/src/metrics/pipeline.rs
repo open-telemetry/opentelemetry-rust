@@ -414,16 +414,16 @@ where
                     return;
                 }
                 otel_warn!(name: "Instrument.DuplicateMetricStreamDefinitions",
-                    name = id.name.clone(),
-                    description = id.description.clone(),
-                    kind = id.kind,
-                    unit = id.unit.clone(),
-                    number = id.number.clone(),
-                    existing_name = existing.name.clone(),
-                    existing_desc = existing.description.clone(),
-                    existing_kind = existing.kind,
-                    existing_unit = existing.unit.clone(),
-                    existing_number = existing.number.clone()
+                    name = format!("{}",id.name),
+                    description = format!("{}", id.description),
+                    kind = format!("{:?}", id.kind),
+                    unit = format!("{}",id.unit),
+                    number = format!("{}", id.number),
+                    existing_name = format!("{}", existing.name),
+                    existing_desc = format!("{}", existing.description),
+                    existing_kind = format!("{:?}", existing.kind),
+                    existing_unit = format!("{}", existing.unit),
+                    existing_number = format!("{}", existing.number),
                 );
             }
         }

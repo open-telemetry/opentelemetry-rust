@@ -102,10 +102,10 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
-        otel_error!(name: "CreateView.ValidationError", error = MetricsError::Config(
-            "no criteria provided, dropping view".to_string()),
-            criteria = criteria,
-            mask = mask
+        otel_error!(name: "CreateView.ValidationError", error = format!("{}",MetricsError::Config(
+            "no criteria provided, dropping view".to_string())),
+            criteria = format!("{:?}", criteria),
+            mask = format!("{:?}", mask)
         );
         return Ok(Box::new(empty_view));
     }
@@ -114,10 +114,10 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            otel_error!(name: "CreateView.ValidationError", error = MetricsError::Config(
-                "name replacement for wildcard instrument, dropping view".to_string()),
-                criteria = criteria,
-                mask = mask
+            otel_error!(name: "CreateView.ValidationError", error = format!("{}", MetricsError::Config(
+                "name replacement for wildcard instrument, dropping view".to_string())),
+                criteria = format!("{:?}", criteria),
+                mask = format!("{:?}", mask)
             );
             return Ok(Box::new(empty_view));
         }
@@ -143,10 +143,9 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
                 otel_error!(name: "CreateView.ValidationError",
-                    error = MetricsError::Config("invalid aggregation, dropping view".to_string()),
-                    criteria = err_msg_criteria,
-                    mask = mask,
-                    error = err
+                    error = format!("{}",err),
+                    criteria = format!("{:?}", err_msg_criteria),
+                    mask = format!("{:?}", mask),
                 );
                 return Ok(Box::new(empty_view));
             }
