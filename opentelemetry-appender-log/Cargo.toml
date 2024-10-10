@@ -11,17 +11,26 @@ rust-version = "1.70"
 edition = "2021"
 
 [dependencies]
-opentelemetry = { version = "0.26", path = "../opentelemetry", features = ["logs"]}
-log = { workspace = true, features = ["kv", "std"]}
+opentelemetry = { version = "0.26", path = "../opentelemetry", features = [
+  "logs",
+] }
+log = { workspace = true, features = ["kv", "std"] }
 serde = { workspace = true, optional = true, features = ["std"] }
+opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions", optional = true, features = [
+  "semconv_experimental",
+] }
 
 [features]
 logs_level_enabled = ["opentelemetry/logs_level_enabled"]
 with-serde = ["log/kv_serde", "serde"]
+experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [ "testing", "logs_level_enabled" ] }
-opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"]}
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [
+  "testing",
+  "logs_level_enabled",
+] }
+opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["std", "derive"] }
