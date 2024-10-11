@@ -24,7 +24,7 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
         resource: Resource::empty(),
-        is_shutdown: AtomicBool::new(false),
+        is_shutdown: AtomicBool::new(true),
     }),
 });
 
@@ -620,56 +620,85 @@ mod tests {
     }
 
     #[test]
-    fn drop_test() {
+    fn drop_test_with_multiple_providers() {
         let shutdown_called = Arc::new(Mutex::new(false));
         let flush_called = Arc::new(Mutex::new(false));
-
-        // scope to test drop behavior
         {
-            let logger_provider: LoggerProvider = LoggerProvider::builder()
-                .with_log_processor(LazyLogProcessor::new(
+            // Create a shared LoggerProviderInner and use it across multiple providers
+            let shared_inner = Arc::new(LoggerProviderInner {
+                processors: vec![Box::new(LazyLogProcessor::new(
                     shutdown_called.clone(),
                     flush_called.clone(),
-                ))
-                .build();
+                ))],
+                resource: Resource::empty(),
+                is_shutdown: AtomicBool::new(false),
+            });
 
-            let logger = logger_provider.logger("test-logger");
-            logger.emit(logger.create_log_record());
+            {
+                let logger_provider1 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
+                let logger_provider2 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
 
-            // LoggerProvider be dropped here.
+                let logger1 = logger_provider1.logger("test-logger1");
+                let logger2 = logger_provider2.logger("test-logger2");
+
+                logger1.emit(logger1.create_log_record());
+                logger2.emit(logger1.create_log_record());
+
+                // LoggerProviderInner should not be dropped yet, since both providers and `shared_inner`
+                // are still holding a reference.
+            }
+            // At this point, both `logger_provider1` and `logger_provider2` are dropped,
+            // but `shared_inner` still holds a reference, so `LoggerProviderInner` is NOT dropped yet.
         }
-
-        // Verify shutdown was called during drop
+        // Verify shutdown was called during the drop of the shared LoggerProviderInner
         assert!(*shutdown_called.lock().unwrap());
         // Verify flush was not called during drop
         assert!(!*flush_called.lock().unwrap());
     }
 
     #[test]
-    fn drop_after_shutdown_test() {
-        let shutdown_called = Arc::new(Mutex::new(0));
+    fn drop_after_shutdown_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
         let flush_called = Arc::new(Mutex::new(false));
 
-        // Create a new scope to test drop behavior
-        {
-            let logger_provider = LoggerProvider::builder()
-                .with_log_processor(CountingShutdownProcessor::new(
-                    shutdown_called.clone(),
-                    flush_called.clone(),
-                ))
-                .build();
+        // Create a shared LoggerProviderInner and use it across multiple providers
+        let shared_inner = Arc::new(LoggerProviderInner {
+            processors: vec![Box::new(CountingShutdownProcessor::new(
+                shutdown_called.clone(),
+                flush_called.clone(),
+            ))],
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(false),
+        });
 
-            // Explicitly shutdown first
-            let shutdown_result = logger_provider.shutdown();
+        // Create a scope to test behavior when providers are dropped
+        {
+            let logger_provider1 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+            let logger_provider2 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+
+            // Explicitly shut down the logger provider
+            let shutdown_result = logger_provider1.shutdown();
             assert!(shutdown_result.is_ok());
 
-            // Verify first shutdown succeeded
+            // Verify that shutdown was called exactly once
             assert_eq!(*shutdown_called.lock().unwrap(), 1);
 
-            // Logger provider will be dropped here, attempting second shutdown
+            // LoggerProvider2 should observe the shutdown state but not trigger another shutdown
+            let shutdown_result2 = logger_provider2.shutdown();
+            assert!(shutdown_result2.is_err());
+
+            // Both logger providers will be dropped at the end of this scope
         }
 
-        // Verify shutdown was only called once total
+        // Verify that shutdown was only called once, even after drop
         assert_eq!(*shutdown_called.lock().unwrap(), 1);
     }
 
