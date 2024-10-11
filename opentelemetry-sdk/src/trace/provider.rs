@@ -36,8 +36,8 @@ static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider 
             span_limits: SpanLimits::default(),
             resource: Cow::Owned(Resource::empty()),
         },
+        is_shutdown: AtomicBool::new(true),
     }),
-    is_shutdown: Arc::new(AtomicBool::new(true)),
 });
 
 /// TracerProvider inner type
@@ -45,13 +45,20 @@ static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider 
 pub(crate) struct TracerProviderInner {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
+    is_shutdown: AtomicBool,
 }
 
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            for processor in &self.processors {
+                if let Err(err) = processor.shutdown() {
+                    global::handle_error(err);
+                }
             }
         }
     }
@@ -65,7 +72,6 @@ impl Drop for TracerProviderInner {
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
     inner: Arc<TracerProviderInner>,
-    is_shutdown: Arc<AtomicBool>,
 }
 
 impl Default for TracerProvider {
@@ -79,7 +85,6 @@ impl TracerProvider {
     pub(crate) fn new(inner: TracerProviderInner) -> Self {
         TracerProvider {
             inner: Arc::new(inner),
-            is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -101,7 +106,7 @@ impl TracerProvider {
     /// true if the provider has been shutdown
     /// Don't start span or export spans when provider is shutdown
     pub(crate) fn is_shutdown(&self) -> bool {
-        self.is_shutdown.load(Ordering::Relaxed)
+        self.inner.is_shutdown.load(Ordering::Relaxed)
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -153,6 +158,7 @@ impl TracerProvider {
     /// Note that shut down doesn't means the TracerProvider has dropped
     pub fn shutdown(&self) -> TraceResult<()> {
         if self
+            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
@@ -215,7 +221,7 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
     }
 
     fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Tracer::new(library, NOOP_TRACER_PROVIDER.clone());
         }
         Tracer::new(library, self.clone())
@@ -292,7 +298,12 @@ impl Builder {
             p.set_resource(config.resource.as_ref());
         }
 
-        TracerProvider::new(TracerProviderInner { processors, config })
+        let is_shutdown = AtomicBool::new(false);
+        TracerProvider::new(TracerProviderInner {
+            processors,
+            config,
+            is_shutdown,
+        })
     }
 }
 
@@ -391,6 +402,7 @@ mod tests {
                 Box::from(TestSpanProcessor::new(false)),
             ],
             config: Default::default(),
+            is_shutdown: AtomicBool::new(false),
         });
 
         let results = tracer_provider.force_flush();
@@ -534,6 +546,7 @@ mod tests {
         let tracer_provider = super::TracerProvider::new(TracerProviderInner {
             processors: vec![Box::from(processor)],
             config: Default::default(),
+            is_shutdown: AtomicBool::new(false),
         });
 
         let test_tracer_1 = tracer_provider.tracer("test1");
@@ -554,14 +567,69 @@ mod tests {
 
         // after shutdown we should get noop tracer
         let noop_tracer = tracer_provider.tracer("noop");
+
         // noop tracer cannot start anything
         let _ = noop_tracer.start("test");
         assert!(assert_handle.started_span_count(2));
         // noop tracer's tracer provider should be shutdown
-        assert!(noop_tracer.provider().is_shutdown.load(Ordering::SeqCst));
+        assert!(noop_tracer.provider().is_shutdown());
 
         // existing tracer becomes noops after shutdown
         let _ = test_tracer_1.start("test");
         assert!(assert_handle.started_span_count(2));
+    }
+
+    #[test]
+    fn test_tracer_provider_inner_drop_shutdown() {
+        // Test 1: Already shutdown case
+        {
+            let processor = TestSpanProcessor::new(true);
+            let assert_handle = processor.assert_info();
+            let provider = super::TracerProvider::new(TracerProviderInner {
+                processors: vec![Box::from(processor)],
+                config: Default::default(),
+                is_shutdown: AtomicBool::new(false),
+            });
+
+            // Create multiple providers sharing same inner
+            let provider2 = provider.clone();
+            let provider3 = provider.clone();
+
+            // Shutdown explicitly first
+            assert!(provider.shutdown().is_ok());
+
+            // Drop all providers - should not trigger another shutdown in TracerProviderInner::drop
+            drop(provider);
+            drop(provider2);
+            drop(provider3);
+
+            // Verify shutdown was called exactly once
+            assert!(assert_handle.0.is_shutdown.load(Ordering::SeqCst));
+        }
+
+        // Test 2: Not shutdown case
+        {
+            let processor = TestSpanProcessor::new(true);
+            let assert_handle = processor.assert_info();
+            let provider = super::TracerProvider::new(TracerProviderInner {
+                processors: vec![Box::from(processor)],
+                config: Default::default(),
+                is_shutdown: AtomicBool::new(false),
+            });
+
+            // Create multiple providers sharing same inner
+            let provider2 = provider.clone();
+            let provider3 = provider.clone();
+
+            // Drop providers without explicit shutdown
+            drop(provider);
+            drop(provider2);
+
+            // Last drop should trigger shutdown in TracerProviderInner::drop
+            drop(provider3);
+
+            // Verify shutdown was called exactly once
+            assert!(assert_handle.0.is_shutdown.load(Ordering::SeqCst));
+        }
     }
 }
