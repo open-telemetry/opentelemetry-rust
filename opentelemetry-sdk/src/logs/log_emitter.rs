@@ -2,6 +2,7 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::otel_warn;
 use opentelemetry::{
+    global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
@@ -23,15 +24,14 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
         resource: Resource::empty(),
+        is_shutdown: AtomicBool::new(false),
     }),
-    is_shutdown: Arc::new(AtomicBool::new(true)),
 });
 
 #[derive(Debug, Clone)]
 /// Creator for `Logger` instances.
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
-    is_shutdown: Arc<AtomicBool>,
 }
 
 /// Default logger name if empty string is provided.
@@ -72,7 +72,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
         }
         Logger::new(library, self.clone())
@@ -104,6 +104,7 @@ impl LoggerProvider {
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
         if self
+            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
@@ -135,23 +136,27 @@ impl LoggerProvider {
     }
 }
 
-impl Drop for LoggerProvider {
-    fn drop(&mut self) {
-        if let Err(_err) = self.shutdown() {
-            // TODO - error handling would be improved/fixed
-            //in PR: #2184
-            otel_warn!(
-                name: "logger_provider_drop_error",
-                error = format!("{:?}", _err)
-            );
-        }
-    }
-}
-
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Resource,
+    is_shutdown: AtomicBool,
+}
+
+impl Drop for LoggerProviderInner {
+    fn drop(&mut self) {
+        if self
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            for processor in &mut self.processors {
+                if let Err(err) = processor.shutdown() {
+                    global::handle_error(err);
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -203,9 +208,9 @@ impl Builder {
         let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                resource,
+                resource: resource,
+                is_shutdown: AtomicBool::new(false),
             }),
-            is_shutdown: Arc::new(AtomicBool::new(false)),
         };
 
         // invoke set_resource on all the processors
