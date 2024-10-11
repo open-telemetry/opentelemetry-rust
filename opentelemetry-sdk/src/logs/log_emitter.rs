@@ -31,7 +31,7 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
 /// Handles the creation and coordination of [`Logger`]s.
 ///
 /// All `Logger`s created by a `LoggerProvider` will share the same
-/// [`Resource`] and have their produced log records processed by the
+/// [`Resource`] and have their created log records processed by the
 /// configured log processors. This is a clonable handle to the `LoggerProvider`
 /// itself, and cloning it will create a new reference, not a new instance of a
 /// `LoggerProvider`. Dropping the last reference will trigger the shutdown of
