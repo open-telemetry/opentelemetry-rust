@@ -28,7 +28,19 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
 });
 
 #[derive(Debug, Clone)]
-/// Creator for `Logger` instances.
+/// Handles the creation and coordination of [`Logger`]s.
+///
+/// All `Logger`s created by a `LoggerProvider` will share the same
+/// [`Resource`] and have their produced log records processed by the
+/// configured log processors. This is a clonable handle to the `LoggerProvider`
+/// itself, and cloning it will create a new reference, not a new instance of a
+/// `LoggerProvider`. Dropping the last reference will trigger the shutdown of
+/// the provider, ensuring that all remaining logs are flushed and no further
+/// logs are processed. Shutdown can also be triggered manually by calling
+/// the [`shutdown`](LoggerProvider::shutdown) method.
+///
+/// [`Logger`]: opentelemetry::logs::Logger
+/// [`Resource`]: crate::Resource
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
