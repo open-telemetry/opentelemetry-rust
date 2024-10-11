@@ -96,6 +96,36 @@ pub use crate::attribute::CLOUD_REGION;
 pub use crate::attribute::CLOUD_RESOURCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_APP_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_APP_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_ORG_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_ORG_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_PROCESS_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_PROCESS_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SPACE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SPACE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SYSTEM_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SYSTEM_INSTANCE_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CONTAINER_COMMAND;
 
 #[cfg(feature = "semconv_experimental")]
