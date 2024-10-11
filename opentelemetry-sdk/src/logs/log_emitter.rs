@@ -208,7 +208,7 @@ impl Builder {
         let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
-                resource: resource,
+                resource,
                 is_shutdown: AtomicBool::new(false),
             }),
         };
