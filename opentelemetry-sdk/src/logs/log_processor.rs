@@ -1,16 +1,14 @@
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
+    export::{logs::{ExportResult, LogBatch, LogExporter}},
     logs::LogRecord,
     Resource,
 };
-use std::sync::mpsc::{self, SyncSender};
-use futures_channel::oneshot;
+use std::sync::mpsc::{self, SyncSender, RecvTimeoutError};
+// use futures_channel::oneshot;
 use futures_util::{
     // future::{self, Either},
     {pin_mut, /*stream, StreamExt as _*/},
 };
-// use std::borrow::Cow;
-
 // use futures_util::{
 //     future::{self, Either},
 //     {pin_mut, stream, StreamExt as _},
@@ -29,6 +27,7 @@ use std::{
     str::FromStr,
     sync::Arc,
     time::Duration,
+    time::Instant,
 };
 use std::thread;
 
@@ -48,6 +47,14 @@ const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
 const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size.
 const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+
+/// Default timeout for forceflush and shutdown.
+const OTEL_LOGS_DEFAULT_FORCEFLUSH_TIMEOUT: Duration = Duration::from_secs(1);
+const OTEL_LOGS_DEFAULT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// environment variable name for forceflush and shutdown timeout.
+const OTEL_LOGS_FORCEFLUSH_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
+const OTEL_LOGS_SHUTDOWN_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 
 /// The interface for plugging into a [`Logger`].
 ///
@@ -157,6 +164,8 @@ impl LogProcessor for SimpleLogProcessor {
 pub struct BatchLogProcessor {
     sender: SyncSender<BatchMessage>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
+    forceflush_timeout: Duration,
+    shutdown_timeout: Duration,
 }
 
 impl Debug for BatchLogProcessor {
@@ -180,19 +189,32 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        let _result = self.sender.send(BatchMessage::Flush(None));
-        LogResult::Ok(())
+        let (sender, receiver) = mpsc::sync_channel(1);
+        self.sender.try_send(BatchMessage::ForceFlush(sender))
+                    .map_err(|err| LogError::Other(err.into()))?;
+
+        receiver.recv_timeout(self.forceflush_timeout).map_err(|err| {
+            if err == RecvTimeoutError::Timeout {
+                LogError::ExportTimedOut(self.forceflush_timeout)
+            } else {
+                LogError::Other(err.into())
+            }
+        })?
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        let (res_sender, _res_receiver) = oneshot::channel();
-        let _result = self.sender.send(BatchMessage::Shutdown(res_sender));
-        // TODO, implement shutdown
-        // self.handle.join().unwrap();
-        // let result = self.handle.join();
-        // if let Err(err) = result {
-        //     global::handle_error(err: LogError::Other(err.into()));
-        // }
+        let (sender, receiver) = mpsc::sync_channel(1);
+        self.sender.try_send(BatchMessage::Shutdown(sender))
+                    .map_err(|err| LogError::Other(err.into()))?;
+
+        receiver.recv_timeout(self.shutdown_timeout).map_err(|err| {
+            if err == RecvTimeoutError::Timeout {
+                LogError::ExportTimedOut(self.shutdown_timeout)
+            } else {
+                LogError::Other(err.into())
+            }
+        })??;
+
         if let Some(handle) = self.handle.lock().unwrap().take() {
             handle.join().unwrap();
         }
@@ -208,40 +230,66 @@ impl BatchLogProcessor {
     pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig) -> Self {
         let (sender, receiver) = mpsc::sync_channel(config.max_queue_size);
         let handle = thread::spawn(move || {
+            let mut last_export_time = Instant::now();
+
             let mut logs = Vec::new();
             logs.reserve(config.max_export_batch_size);
+
             loop {
-                match receiver.recv() {
+                let remaining_time_option = config.scheduled_delay.checked_sub(last_export_time.elapsed());
+                let remaining_time = match remaining_time_option {
+                    Some(remaining_time) => remaining_time,
+                    None => config.scheduled_delay,
+                };
+
+                match receiver.recv_timeout(remaining_time) {
                     Ok(BatchMessage::ExportLog(data)) => {
                         logs.push(data);
 
-                        if logs.len() == config.max_export_batch_size {
-                            let export = export_with_timeout(config.max_export_timeout, exporter.as_mut(), logs.split_off(0));
-                            let result = futures_executor::block_on(export);
-                            match result {
-                                Ok(_) => {}
-                                Err(err) => global::handle_error(err),
-                            }
-                            logs.clear();
+                        if logs.len() == config.max_export_batch_size || last_export_time.elapsed() >= config.scheduled_delay {
+                            last_export_time = Instant::now();
+                            export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
                         }
                     }
-                    Ok(BatchMessage::Flush(_sender)) => {
-                        // TODO: Implement flush
+                    Ok(BatchMessage::ForceFlush(_sender)) => {
+                        export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+
+                        match _sender.send(Ok(())) {
+                            Ok(_) => {}
+                            Err(err) => global::handle_error(LogError::Other(err.into())),
+                        }
                     }
                     Ok(BatchMessage::Shutdown(_sender)) => {
+                        export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
                         exporter.shutdown();
+                        match _sender.send(Ok(())) {
+                            Ok(_) => {}
+                            Err(err) => global::handle_error(LogError::Other(err.into())),
+                        }
                         break;
                     }
                     Ok(BatchMessage::SetResource(resource)) => {
                         exporter.set_resource(&resource);
                     }
-                    Err(_) => {}
+                    Err(RecvTimeoutError::Timeout) => {
+                        export_with_timeout_sync(config.max_export_timeout, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                    }
+                    Err(err) => global::handle_error(LogError::Other(err.into())),
                 }
             }
         });
 
+        let forceflush_timeout = env::var(OTEL_LOGS_FORCEFLUSH_TIMEOUT_NAME)
+            .ok()
+            .and_then(|v| v.parse().map(Duration::from_millis).ok())
+            .unwrap_or(OTEL_LOGS_DEFAULT_FORCEFLUSH_TIMEOUT);
+        let shutdown_timeout = env::var(OTEL_LOGS_SHUTDOWN_TIMEOUT_NAME)
+            .ok()
+            .and_then(|v| v.parse().map(Duration::from_millis).ok())
+            .unwrap_or(OTEL_LOGS_DEFAULT_SHUTDOWN_TIMEOUT);
+
         // Return batch processor with link to worker
-        BatchLogProcessor { sender, handle: Mutex::new(Some(handle)) }
+        BatchLogProcessor { sender, handle: Mutex::new(Some(handle)), forceflush_timeout, shutdown_timeout }
     }
 
     /// Create a new batch processor builder
@@ -254,6 +302,30 @@ impl BatchLogProcessor {
             config: Default::default(),
         }
     }
+}
+
+fn export_with_timeout_sync<E>(
+    timeout: Duration,
+    exporter: &mut E,
+    batch: Vec<(LogRecord, InstrumentationLibrary)>,
+    last_export_time: &mut Instant,
+)
+where
+    E: LogExporter + ?Sized,
+{
+    *last_export_time = Instant::now();
+
+    if batch.is_empty() {
+        return ();
+    }
+
+    let export = export_with_timeout(timeout, exporter, batch);
+    let result = futures_executor::block_on(export);
+    // batch.clear();
+    match result {
+        Ok(_) => {}
+        Err(err) => global::handle_error(err),
+    };
 }
 
 async fn export_with_timeout<E>(
@@ -453,11 +525,10 @@ where
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
     ExportLog((LogRecord, InstrumentationLibrary)),
-    /// Flush the current buffer to the backend, it can be triggered by
-    /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    /// ForceFlush flush the current buffer to the backend
+    ForceFlush(mpsc::SyncSender<ExportResult>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(mpsc::SyncSender<ExportResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
