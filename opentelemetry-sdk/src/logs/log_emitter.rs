@@ -2,7 +2,6 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::otel_warn;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
@@ -103,8 +102,20 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
+        self.inner.shutdown()
+    }
+}
+
+#[derive(Debug)]
+struct LoggerProviderInner {
+    processors: Vec<Box<dyn LogProcessor>>,
+    resource: Resource,
+    is_shutdown: AtomicBool,
+}
+
+impl LoggerProviderInner {
+    pub(crate) fn shutdown(&self) -> LogResult<()> {
         if self
-            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
@@ -112,7 +123,7 @@ impl LoggerProvider {
             // propagate the shutdown signal to processors
             // it's up to the processor to properly block new logs after shutdown
             let mut errs = vec![];
-            for processor in &self.inner.processors {
+            for processor in &self.processors {
                 if let Err(err) = processor.shutdown() {
                     otel_warn!(
                         name: "logger_provider_shutdown_error",
@@ -136,26 +147,10 @@ impl LoggerProvider {
     }
 }
 
-#[derive(Debug)]
-struct LoggerProviderInner {
-    processors: Vec<Box<dyn LogProcessor>>,
-    resource: Resource,
-    is_shutdown: AtomicBool,
-}
-
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            for processor in &mut self.processors {
-                if let Err(err) = processor.shutdown() {
-                    global::handle_error(err);
-                }
-            }
-        }
+        let _ = self.shutdown();
+        //TODO - handle error during shutdown
     }
 }
 
