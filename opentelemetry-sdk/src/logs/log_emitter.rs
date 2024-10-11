@@ -2,7 +2,6 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::otel_warn;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
@@ -136,20 +135,23 @@ impl LoggerProvider {
     }
 }
 
+impl Drop for LoggerProvider {
+    fn drop(&mut self) {
+        if let Err(_err) = self.shutdown() {
+            // TODO - This would be improved in #2184 to keep the scope limited
+            // to prevent the shutdown if already called.
+            otel_warn!(
+                name: "logger_provider_drop_error",
+                error = format!("{:?}", _err)
+            );
+        }
+    }
+}
+
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Resource,
-}
-
-impl Drop for LoggerProviderInner {
-    fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
-            }
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -612,6 +614,60 @@ mod tests {
         assert!(!*flush_called.lock().unwrap());
     }
 
+    #[test]
+    fn drop_test() {
+        let shutdown_called = Arc::new(Mutex::new(false));
+        let flush_called = Arc::new(Mutex::new(false));
+
+        // scope to test drop behavior
+        {
+            let logger_provider: LoggerProvider = LoggerProvider::builder()
+                .with_log_processor(LazyLogProcessor::new(
+                    shutdown_called.clone(),
+                    flush_called.clone(),
+                ))
+                .build();
+
+            let logger = logger_provider.logger("test-logger");
+            logger.emit(logger.create_log_record());
+
+            // LoggerProvider be dropped here.
+        }
+
+        // Verify shutdown was called during drop
+        assert!(*shutdown_called.lock().unwrap());
+        // Verify flush was not called during drop
+        assert!(!*flush_called.lock().unwrap());
+    }
+
+    #[test]
+    fn drop_after_shutdown_test() {
+        let shutdown_called = Arc::new(Mutex::new(0));
+        let flush_called = Arc::new(Mutex::new(false));
+
+        // Create a new scope to test drop behavior
+        {
+            let logger_provider = LoggerProvider::builder()
+                .with_log_processor(CountingShutdownProcessor::new(
+                    shutdown_called.clone(),
+                    flush_called.clone(),
+                ))
+                .build();
+
+            // Explicitly shutdown first
+            let shutdown_result = logger_provider.shutdown();
+            assert!(shutdown_result.is_ok());
+
+            // Verify first shutdown succeeded
+            assert_eq!(*shutdown_called.lock().unwrap(), 1);
+
+            // Logger provider will be dropped here, attempting second shutdown
+        }
+
+        // Verify shutdown was only called once total
+        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
     #[derive(Debug)]
     pub(crate) struct LazyLogProcessor {
         shutdown_called: Arc<Mutex<bool>>,
@@ -642,6 +698,38 @@ mod tests {
 
         fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct CountingShutdownProcessor {
+        shutdown_count: Arc<Mutex<i32>>,
+        flush_called: Arc<Mutex<bool>>,
+    }
+
+    impl CountingShutdownProcessor {
+        fn new(shutdown_count: Arc<Mutex<i32>>, flush_called: Arc<Mutex<bool>>) -> Self {
+            CountingShutdownProcessor {
+                shutdown_count,
+                flush_called,
+            }
+        }
+    }
+
+    impl LogProcessor for CountingShutdownProcessor {
+        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+            // nothing to do
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            *self.flush_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            let mut count = self.shutdown_count.lock().unwrap();
+            *count += 1;
             Ok(())
         }
     }
