@@ -23,6 +23,7 @@ pub const ANDROID_OS_API_LEVEL: &str = "android.os.api_level";
 ///
 /// The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `device.app.lifecycle`.")]
 pub const ANDROID_STATE: &str = "android.state";
 
 /// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations) specification for more information.
@@ -166,7 +167,9 @@ pub const ASPNETCORE_ROUTING_MATCH_STATUS: &str = "aspnetcore.routing.match_stat
 ///
 /// # Examples
 ///
-/// - `"{ \"AttributeName\": \"string\", \"AttributeType\": \"string\" }"`
+/// - `[
+///  "{ \"AttributeName\": \"string\", \"AttributeType\": \"string\" }",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_definitions";
 
@@ -174,8 +177,10 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_def
 ///
 /// # Examples
 ///
-/// - `"lives"`
-/// - `"id"`
+/// - `[
+///  "lives",
+///  "id",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_ATTRIBUTES_TO_GET: &str = "aws.dynamodb.attributes_to_get";
 
@@ -187,7 +192,9 @@ pub const AWS_DYNAMODB_CONSISTENT_READ: &str = "aws.dynamodb.consistent_read";
 ///
 /// # Examples
 ///
-/// - `"{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"`
+/// - `[
+///  "{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_CONSUMED_CAPACITY: &str = "aws.dynamodb.consumed_capacity";
 
@@ -212,7 +219,9 @@ pub const AWS_DYNAMODB_EXCLUSIVE_START_TABLE: &str = "aws.dynamodb.exclusive_sta
 ///
 /// # Examples
 ///
-/// - `"{ \"Create\": { \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }"`
+/// - `[
+///  "{ \"Create\": { \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str =
     "aws.dynamodb.global_secondary_index_updates";
@@ -221,7 +230,9 @@ pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str =
 ///
 /// # Examples
 ///
-/// - `"{ \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }"`
+/// - `[
+///  "{ \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: &str = "aws.dynamodb.global_secondary_indexes";
 
@@ -253,7 +264,9 @@ pub const AWS_DYNAMODB_LIMIT: &str = "aws.dynamodb.limit";
 ///
 /// # Examples
 ///
-/// - `"{ \"IndexArn\": \"string\", \"IndexName\": \"string\", \"IndexSizeBytes\": number, \"ItemCount\": number, \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" } }"`
+/// - `[
+///  "{ \"IndexArn\": \"string\", \"IndexName\": \"string\", \"IndexSizeBytes\": number, \"ItemCount\": number, \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" } }",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: &str = "aws.dynamodb.local_secondary_indexes";
 
@@ -326,8 +339,10 @@ pub const AWS_DYNAMODB_TABLE_COUNT: &str = "aws.dynamodb.table_count";
 ///
 /// # Examples
 ///
-/// - `"Users"`
-/// - `"Cats"`
+/// - `[
+///  "Users",
+///  "Cats",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 
@@ -422,7 +437,9 @@ pub const AWS_LAMBDA_INVOKED_ARN: &str = "aws.lambda.invoked_arn";
 ///
 /// # Examples
 ///
-/// - `"arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*"`
+/// - `[
+///  "arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LOG_GROUP_ARNS: &str = "aws.log.group.arns";
 
@@ -434,8 +451,10 @@ pub const AWS_LOG_GROUP_ARNS: &str = "aws.log.group.arns";
 ///
 /// # Examples
 ///
-/// - `"/aws/lambda/my-function"`
-/// - `"opentelemetry-service"`
+/// - `[
+///  "/aws/lambda/my-function",
+///  "opentelemetry-service",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LOG_GROUP_NAMES: &str = "aws.log.group.names";
 
@@ -447,7 +466,9 @@ pub const AWS_LOG_GROUP_NAMES: &str = "aws.log.group.names";
 ///
 /// # Examples
 ///
-/// - `"arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b"`
+/// - `[
+///  "arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
 
@@ -455,7 +476,9 @@ pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
 ///
 /// # Examples
 ///
-/// - `"logs/main/10838bed-421f-43ef-870a-f43feacbbb5b"`
+/// - `[
+///  "logs/main/10838bed-421f-43ef-870a-f43feacbbb5b",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
 
@@ -574,6 +597,16 @@ pub const AWS_S3_PART_NUMBER: &str = "aws.s3.part_number";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 
+/// [Azure Resource Provider Namespace](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-services-resource-providers) as recognized by the client.
+///
+/// # Examples
+///
+/// - `"Microsoft.Storage"`
+/// - `"Microsoft.KeyVault"`
+/// - `"Microsoft.ServiceBus"`
+#[cfg(feature = "semconv_experimental")]
+pub const AZ_NAMESPACE: &str = "az.namespace";
+
 /// The unique identifier of the service request. It's generated by the Azure service and returned with the response.
 ///
 /// # Examples
@@ -590,9 +623,11 @@ pub const AZ_SERVICE_REQUEST_ID: &str = "az.service_request_id";
 ///
 /// # Examples
 ///
-/// - `" Not A;Brand 99"`
-/// - `"Chromium 99"`
-/// - `"Chrome 99"`
+/// - `[
+///  " Not A;Brand 99",
+///  "Chromium 99",
+///  "Chrome 99",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const BROWSER_BRANDS: &str = "browser.brands";
 
@@ -778,7 +813,7 @@ pub const CLOUD_REGION: &str = "cloud.region";
 /// - **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
 /// - **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/rest/api/resources/resources/get-by-id) of the invoked function,
 ///   *not* the function app, having the form
-///   `/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>`.
+///   `/subscriptions/<SUBSCRIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>`.
 ///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
 ///   a TracerProvider.
 ///
@@ -786,7 +821,7 @@ pub const CLOUD_REGION: &str = "cloud.region";
 ///
 /// - `"arn:aws:lambda:REGION:ACCOUNT_ID:function:my-function"`
 /// - `"//run.googleapis.com/projects/PROJECT_ID/locations/LOCATION_ID/services/SERVICE_ID"`
-/// - `"/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>"`
+/// - `"/subscriptions/<SUBSCRIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>"`
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUD_RESOURCE_ID: &str = "cloud.resource_id";
 
@@ -834,6 +869,176 @@ pub const CLOUDEVENTS_EVENT_SUBJECT: &str = "cloudevents.event_subject";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDEVENTS_EVENT_TYPE: &str = "cloudevents.event_type";
 
+/// The guid of the application.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.application_id`. This is the same value as
+/// reported by `cf app <app-name> --guid`.
+///
+/// # Examples
+///
+/// - `"218fc5a9-a5f1-4b54-aa05-46717d0ab26d"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_APP_ID: &str = "cloudfoundry.app.id";
+
+/// The index of the application instance. 0 when just one instance is active.
+///
+/// ## Notes
+///
+/// CloudFoundry defines the `instance_id` in the [Loggegator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
+/// It is used for logs and metrics emitted by CloudFoundry. It is
+/// supposed to contain the application instance index for applications
+/// deployed on the runtime.
+///
+/// Application instrumentation should use the value from environment
+/// variable `CF_INSTANCE_INDEX`.
+///
+/// # Examples
+///
+/// - `"0"`
+/// - `"1"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_APP_INSTANCE_ID: &str = "cloudfoundry.app.instance.id";
+
+/// The name of the application.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.application_name`. This is the same value
+/// as reported by `cf apps`.
+///
+/// # Examples
+///
+/// - `"my-app-name"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_APP_NAME: &str = "cloudfoundry.app.name";
+
+/// The guid of the CloudFoundry org the application is running in.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.org_id`. This is the same value as
+/// reported by `cf org <org-name> --guid`.
+///
+/// # Examples
+///
+/// - `"218fc5a9-a5f1-4b54-aa05-46717d0ab26d"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_ORG_ID: &str = "cloudfoundry.org.id";
+
+/// The name of the CloudFoundry organization the app is running in.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.org_name`. This is the same value as
+/// reported by `cf orgs`.
+///
+/// # Examples
+///
+/// - `"my-org-name"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_ORG_NAME: &str = "cloudfoundry.org.name";
+
+/// The UID identifying the process.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.process_id`. It is supposed to be equal to
+/// `VCAP_APPLICATION.app_id` for applications deployed to the runtime.
+/// For system components, this could be the actual PID.
+///
+/// # Examples
+///
+/// - `"218fc5a9-a5f1-4b54-aa05-46717d0ab26d"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_PROCESS_ID: &str = "cloudfoundry.process.id";
+
+/// The type of process.
+///
+/// ## Notes
+///
+/// CloudFoundry applications can consist of multiple jobs. Usually the
+/// main process will be of type `web`. There can be additional background
+/// tasks or side-cars with different process types.
+///
+/// # Examples
+///
+/// - `"web"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_PROCESS_TYPE: &str = "cloudfoundry.process.type";
+
+/// The guid of the CloudFoundry space the application is running in.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.space_id`. This is the same value as
+/// reported by `cf space <space-name> --guid`.
+///
+/// # Examples
+///
+/// - `"218fc5a9-a5f1-4b54-aa05-46717d0ab26d"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_SPACE_ID: &str = "cloudfoundry.space.id";
+
+/// The name of the CloudFoundry space the application is running in.
+///
+/// ## Notes
+///
+/// Application instrumentation should use the value from environment
+/// variable `VCAP_APPLICATION.space_name`. This is the same value as
+/// reported by `cf spaces`.
+///
+/// # Examples
+///
+/// - `"my-space-name"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_SPACE_NAME: &str = "cloudfoundry.space.name";
+
+/// A guid or another name describing the event source.
+///
+/// ## Notes
+///
+/// CloudFoundry defines the `source_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
+/// It is used for logs and metrics emitted by CloudFoundry. It is
+/// supposed to contain the component name, e.g. "gorouter", for
+/// CloudFoundry components.
+///
+/// When system components are instrumented, values from the
+/// [Bosh spec](https://bosh.io/docs/jobs/#properties-spec)
+/// should be used. The `system.id` should be set to
+/// `spec.deployment/spec.name`.
+///
+/// # Examples
+///
+/// - `"cf/gorouter"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_SYSTEM_ID: &str = "cloudfoundry.system.id";
+
+/// A guid describing the concrete instance of the event source.
+///
+/// ## Notes
+///
+/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
+/// It is used for logs and metrics emitted by CloudFoundry. It is
+/// supposed to contain the vm id for CloudFoundry components.
+///
+/// When system components are instrumented, values from the
+/// [Bosh spec](https://bosh.io/docs/jobs/#properties-spec)
+/// should be used. The `system.instance.id` should be set to `spec.id`.
+///
+/// # Examples
+///
+/// - `"218fc5a9-a5f1-4b54-aa05-46717d0ab26d"`
+#[cfg(feature = "semconv_experimental")]
+pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.id";
+
 /// The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
 ///
 /// # Examples
@@ -878,7 +1083,7 @@ pub const CODE_NAMESPACE: &str = "code.namespace";
 ///
 /// # Examples
 ///
-/// - `"at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)"`
+/// - `"at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)\n"`
 #[cfg(feature = "semconv_experimental")]
 pub const CODE_STACKTRACE: &str = "code.stacktrace";
 
@@ -894,15 +1099,19 @@ pub const CODE_STACKTRACE: &str = "code.stacktrace";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_COMMAND: &str = "container.command";
 
-/// All the command arguments (including the command/executable itself) run by the container. \[2\]
+/// All the command arguments (including the command/executable itself) run by the container.
 ///
 /// # Examples
 ///
-/// - `"otelcontribcol, --config, config.yaml"`
+/// - `[
+///  "otelcontribcol",
+///  "--config",
+///  "config.yaml",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_COMMAND_ARGS: &str = "container.command_args";
 
-/// The full command run by the container as a single string representing the full command. \[2\]
+/// The full command run by the container as a single string representing the full command.
 ///
 /// # Examples
 ///
@@ -920,7 +1129,31 @@ pub const CONTAINER_COMMAND_LINE: &str = "container.command_line";
 #[deprecated(note = "Replaced by `cpu.mode`")]
 pub const CONTAINER_CPU_STATE: &str = "container.cpu.state";
 
-/// Container ID. Usually a UUID, as for example used to [identify Docker containers](https://docs.docker.com/engine/reference/run/#container-identification). The UUID might be abbreviated.
+/// The name of the CSI ([Container Storage Interface](https://github.com/container-storage-interface/spec)) plugin used by the volume.
+///
+/// ## Notes
+///
+/// This can sometimes be referred to as a "driver" in CSI implementations. This should represent the `name` field of the GetPluginInfo RPC.
+///
+/// # Examples
+///
+/// - `"pd.csi.storage.gke.io"`
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_CSI_PLUGIN_NAME: &str = "container.csi.plugin.name";
+
+/// The unique volume ID returned by the CSI ([Container Storage Interface](https://github.com/container-storage-interface/spec)) plugin.
+///
+/// ## Notes
+///
+/// This can sometimes be referred to as a "volume handle" in CSI implementations. This should represent the `Volume.volume_id` field in CSI spec.
+///
+/// # Examples
+///
+/// - `"projects/my-gcp-project/zones/my-gcp-zone/disks/my-gcp-disk"`
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_CSI_VOLUME_ID: &str = "container.csi.volume.id";
+
+/// Container ID. Usually a UUID, as for example used to [identify Docker containers](https://docs.docker.com/engine/containers/run/#container-identification). The UUID might be abbreviated.
 ///
 /// # Examples
 ///
@@ -958,8 +1191,10 @@ pub const CONTAINER_IMAGE_NAME: &str = "container.image.name";
 ///
 /// # Examples
 ///
-/// - `"example@sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb"`
-/// - `"internal.registry.example.com:5000/example@sha256:b69959407d21e8a062e0416bf13405bb2b71ed7a84dde4158ebafacfa06f5578"`
+/// - `[
+///  "example@sha256:afcc7f1ac1b49db317a7196c902e61c6c3c4607d63599ee1a82d702d249a0ccb",
+///  "internal.registry.example.com:5000/example@sha256:b69959407d21e8a062e0416bf13405bb2b71ed7a84dde4158ebafacfa06f5578",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 
@@ -967,8 +1202,10 @@ pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 ///
 /// # Examples
 ///
-/// - `"v1.27.1"`
-/// - `"3.5.7-0"`
+/// - `[
+///  "v1.27.1",
+///  "3.5.7-0",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_IMAGE_TAGS: &str = "container.image.tags";
 
@@ -1108,6 +1345,7 @@ pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
 /// If the collection name is parsed from the query text, it SHOULD be the first collection name found in the query and it SHOULD match the value provided in the query text including any schema and database name prefix.
 /// For batch operations, if the individual operations are known to have the same collection name then that collection name SHOULD be used, otherwise `db.collection.name` SHOULD NOT be captured.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1146,7 +1384,7 @@ pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 #[deprecated(note = "Replaced by `db.collection.name`.")]
 pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
-/// CosmosDB Operation Type
+/// Cosmos DB Operation Type
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 
@@ -1163,13 +1401,14 @@ pub const DB_COSMOSDB_REQUEST_CHARGE: &str = "db.cosmosdb.request_charge";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_content_length";
 
-/// Cosmos DB status code.
+/// Deprecated, use `db.response.status_code` instead.
 ///
 /// # Examples
 ///
 /// - `200`
 /// - `201`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `db.response.status_code`.")]
 pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 
 /// Cosmos DB sub status code.
@@ -1267,6 +1506,7 @@ pub const DB_NAME: &str = "db.name";
 /// If a database system has multiple namespace components, they SHOULD be concatenated (potentially using database system specific conventions) from most general to most specific namespace component, and more specific namespaces SHOULD NOT be captured without the more general namespaces, to ensure that "startswith" queries for the more general namespaces will be valid.
 /// Semantic conventions for individual database systems SHOULD document what `db.namespace` means in the context of that system.
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1286,11 +1526,12 @@ pub const DB_NAMESPACE: &str = "db.namespace";
 #[deprecated(note = "Replaced by `db.operation.name`.")]
 pub const DB_OPERATION: &str = "db.operation";
 
-/// The number of queries included in a [batch operation](/docs/database/database-spans.md#batch-operations).
+/// The number of queries included in a batch operation.
 ///
 /// ## Notes
 ///
 /// Operations are only considered batches when they contain two or more operations, and so `db.operation.batch.size` SHOULD never be `1`.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1307,6 +1548,7 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
 /// If the operation name is parsed from the query text, it SHOULD be the first operation name found in the query.
 /// For batch operations, if the individual operations are known to have the same operation name then that operation name SHOULD be used prepended by `BATCH `, otherwise `db.operation.name` SHOULD be `BATCH` or some other database system specific term if more applicable.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1322,6 +1564,7 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 ///
 /// Query parameters should only be captured when `db.query.text` is parameterized with placeholders.
 /// If a parameter has no name and instead is referenced only by index, then `<key>` SHOULD be the 0-based index.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1337,6 +1580,7 @@ pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
 /// For sanitization see [Sanitization of `db.query.text`](../../docs/database/database-spans.md#sanitization-of-dbquerytext).
 /// For batch operations, if the individual operations are known to have the same query text then that query text SHOULD be used, otherwise all of the individual query texts SHOULD be concatenated with separator `; ` or some other database system specific separator if more applicable.
 /// Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
+/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1355,6 +1599,23 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `db.namespace`.")]
 pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
+
+/// Database response status code.
+///
+/// ## Notes
+///
+/// The status code returned by the database. Usually it represents an error code, but may also represent partial success, warning, or differentiate between various types of successful outcomes.
+/// Semantic conventions for individual database systems SHOULD document what `db.response.status_code` means in the context of that system.
+/// This attribute has stability level RELEASE CANDIDATE.
+///
+/// # Examples
+///
+/// - `"102"`
+/// - `"ORA-17002"`
+/// - `"08P01"`
+/// - `"404"`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 
 /// Deprecated, use `db.collection.name` instead.
 ///
@@ -1379,7 +1640,8 @@ pub const DB_STATEMENT: &str = "db.statement";
 ///
 /// ## Notes
 ///
-/// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system` is set to `postgresql` based on the instrumentation's best knowledge
+/// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system` is set to `postgresql` based on the instrumentation's best knowledge.
+/// This attribute has stability level RELEASE CANDIDATE
 #[cfg(feature = "semconv_experimental")]
 pub const DB_SYSTEM: &str = "db.system";
 
@@ -1538,6 +1800,16 @@ pub const DISK_IO_DIRECTION: &str = "disk.io.direction";
 #[cfg(feature = "semconv_experimental")]
 pub const DNS_QUESTION_NAME: &str = "dns.question.name";
 
+/// Name of the garbage collector managed heap generation.
+///
+/// # Examples
+///
+/// - `"gen0"`
+/// - `"gen1"`
+/// - `"gen2"`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_HEAP_GENERATION: &str = "dotnet.gc.heap.generation";
+
 /// Deprecated, use `user.id` instead.
 ///
 /// # Examples
@@ -1644,7 +1916,7 @@ pub const EXCEPTION_MESSAGE: &str = "exception.message";
 ///
 /// # Examples
 ///
-/// - `"Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)"`
+/// - `"Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)\n"`
 pub const EXCEPTION_STACKTRACE: &str = "exception.stacktrace";
 
 /// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
@@ -1859,6 +2131,57 @@ pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_VARIANT: &str = "feature_flag.variant";
 
+/// Time when the file was last accessed, in ISO 8601 format.
+///
+/// ## Notes
+///
+/// This attribute might not be supported by some file systems — NFS, FAT32, in embedded OS, etc.
+///
+/// # Examples
+///
+/// - `"2021-01-01T12:00:00Z"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_ACCESSED: &str = "file.accessed";
+
+/// Array of file attributes.
+///
+/// ## Notes
+///
+/// Attributes names depend on the OS or file system. Here’s a non-exhaustive list of values expected for this attribute: `archive`, `compressed`, `directory`, `encrypted`, `execute`, `hidden`, `immutable`, `journaled`, `read`, `readonly`, `symbolic link`, `system`, `temporary`, `write`.
+///
+/// # Examples
+///
+/// - `[
+///  "readonly",
+///  "hidden",
+/// ]`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_ATTRIBUTES: &str = "file.attributes";
+
+/// Time when the file attributes or metadata was last changed, in ISO 8601 format.
+///
+/// ## Notes
+///
+/// `file.changed` captures the time when any of the file's properties or attributes (including the content) are changed, while `file.modified` captures the timestamp when the file content is modified.
+///
+/// # Examples
+///
+/// - `"2021-01-01T12:00:00Z"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_CHANGED: &str = "file.changed";
+
+/// Time when the file was created, in ISO 8601 format.
+///
+/// ## Notes
+///
+/// This attribute might not be supported by some file systems — NFS, FAT32, in embedded OS, etc.
+///
+/// # Examples
+///
+/// - `"2021-01-01T12:00:00Z"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_CREATED: &str = "file.created";
+
 /// Directory where the file is located. It should include the drive letter, when appropriate.
 ///
 /// # Examples
@@ -1881,6 +2204,59 @@ pub const FILE_DIRECTORY: &str = "file.directory";
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_EXTENSION: &str = "file.extension";
 
+/// Name of the fork. A fork is additional data associated with a filesystem object.
+///
+/// ## Notes
+///
+/// On Linux, a resource fork is used to store additional data with a filesystem object. A file always has at least one fork for the data portion, and additional forks may exist.
+/// On NTFS, this is analogous to an Alternate Data Stream (ADS), and the default data stream for a file is just called $DATA. Zone.Identifier is commonly used by Windows to track contents downloaded from the Internet. An ADS is typically of the form: C:\path\to\filename.extension:some_fork_name, and some_fork_name is the value that should populate `fork_name`. `filename.extension` should populate `file.name`, and `extension` should populate `file.extension`. The full path, `file.path`, will include the fork name.
+///
+/// # Examples
+///
+/// - `"Zone.Identifer"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_FORK_NAME: &str = "file.fork_name";
+
+/// Primary Group ID (GID) of the file.
+///
+/// # Examples
+///
+/// - `"1000"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_GROUP_ID: &str = "file.group.id";
+
+/// Primary group name of the file.
+///
+/// # Examples
+///
+/// - `"users"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_GROUP_NAME: &str = "file.group.name";
+
+/// Inode representing the file in the filesystem.
+///
+/// # Examples
+///
+/// - `"256383"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_INODE: &str = "file.inode";
+
+/// Mode of the file in octal representation.
+///
+/// # Examples
+///
+/// - `"0640"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_MODE: &str = "file.mode";
+
+/// Time when the file content was last modified, in ISO 8601 format.
+///
+/// # Examples
+///
+/// - `"2021-01-01T12:00:00Z"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_MODIFIED: &str = "file.modified";
+
 /// Name of the file including the extension, without the directory.
 ///
 /// # Examples
@@ -1888,6 +2264,22 @@ pub const FILE_EXTENSION: &str = "file.extension";
 /// - `"example.png"`
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_NAME: &str = "file.name";
+
+/// The user ID (UID) or security identifier (SID) of the file owner.
+///
+/// # Examples
+///
+/// - `"1000"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_OWNER_ID: &str = "file.owner.id";
+
+/// Username of the file owner.
+///
+/// # Examples
+///
+/// - `"root"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_OWNER_NAME: &str = "file.owner.name";
 
 /// Full path to the file, including the file name. It should include the drive letter, when appropriate.
 ///
@@ -1901,6 +2293,18 @@ pub const FILE_PATH: &str = "file.path";
 /// File size in bytes
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_SIZE: &str = "file.size";
+
+/// Path to the target of a symbolic link.
+///
+/// ## Notes
+///
+/// This attribute is only applicable to symbolic links.
+///
+/// # Examples
+///
+/// - `"/usr/bin/python3"`
+#[cfg(feature = "semconv_experimental")]
+pub const FILE_SYMBOLIC_LINK_TARGET_PATH: &str = "file.symbolic_link.target_path";
 
 /// Identifies the Google Cloud service for which the official client library is intended.
 ///
@@ -1954,17 +2358,48 @@ pub const GCP_GCE_INSTANCE_HOSTNAME: &str = "gcp.gce.instance.hostname";
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_GCE_INSTANCE_NAME: &str = "gcp.gce.instance.name";
 
-/// The full response received from the GenAI model.
-///
-/// ## Notes
-///
-/// It's RECOMMENDED to format completions as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+/// Deprecated, use Event API to report completions contents.
 ///
 /// # Examples
 ///
 /// - `"[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Removed, no replacement at this time.")]
 pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
+
+/// The response format that is requested.
+///
+/// # Examples
+///
+/// - `"json"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.response_format";
+
+/// Requests with same seed value more likely to return same result.
+///
+/// # Examples
+///
+/// - `100`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_OPENAI_REQUEST_SEED: &str = "gen_ai.openai.request.seed";
+
+/// The service tier requested. May be a specific tier, detault, or auto.
+///
+/// # Examples
+///
+/// - `"auto"`
+/// - `"default"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_OPENAI_REQUEST_SERVICE_TIER: &str = "gen_ai.openai.request.service_tier";
+
+/// The service tier used for the response.
+///
+/// # Examples
+///
+/// - `"scale"`
+/// - `"detault"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_OPENAI_RESPONSE_SERVICE_TIER: &str = "gen_ai.openai.response.service_tier";
 
 /// The name of the operation being performed.
 ///
@@ -1974,16 +2409,13 @@ pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_OPERATION_NAME: &str = "gen_ai.operation.name";
 
-/// The full prompt sent to the GenAI model.
-///
-/// ## Notes
-///
-/// It's RECOMMENDED to format prompts as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+/// Deprecated, use Event API to report prompt contents.
 ///
 /// # Examples
 ///
 /// - `"[{'role': 'user', 'content': 'What is the capital of France?'}]"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Removed, no replacement at this time.")]
 pub const GEN_AI_PROMPT: &str = "gen_ai.prompt";
 
 /// The frequency penalty setting for the GenAI request.
@@ -2022,8 +2454,10 @@ pub const GEN_AI_REQUEST_PRESENCE_PENALTY: &str = "gen_ai.request.presence_penal
 ///
 /// # Examples
 ///
-/// - `"forest"`
-/// - `"lived"`
+/// - `[
+///  "forest",
+///  "lived",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_REQUEST_STOP_SEQUENCES: &str = "gen_ai.request.stop_sequences";
 
@@ -2055,7 +2489,13 @@ pub const GEN_AI_REQUEST_TOP_P: &str = "gen_ai.request.top_p";
 ///
 /// # Examples
 ///
-/// - `"stop"`
+/// - `[
+///  "stop",
+/// ]`
+/// - `[
+///  "stop",
+///  "length",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_RESPONSE_FINISH_REASONS: &str = "gen_ai.response.finish_reasons";
 
@@ -2301,8 +2741,10 @@ pub const HOST_IMAGE_VERSION: &str = "host.image.version";
 ///
 /// # Examples
 ///
-/// - `"192.168.1.140"`
-/// - `"fe80::abc2:4a28:737a:609e"`
+/// - `[
+///  "192.168.1.140",
+///  "fe80::abc2:4a28:737a:609e",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const HOST_IP: &str = "host.ip";
 
@@ -2314,8 +2756,10 @@ pub const HOST_IP: &str = "host.ip";
 ///
 /// # Examples
 ///
-/// - `"AC-DE-48-23-45-67"`
-/// - `"AC-DE-48-23-45-67-01-9F"`
+/// - `[
+///  "AC-DE-48-23-45-67",
+///  "AC-DE-48-23-45-67-01-9F",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const HOST_MAC: &str = "host.mac";
 
@@ -2456,13 +2900,13 @@ pub const HTTP_REQUEST_RESEND_COUNT: &str = "http.request.resend_count";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 
-/// Deprecated, use `http.request.header.content-length` instead.
+/// Deprecated, use `http.request.header.<key>` instead.
 ///
 /// # Examples
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `http.request.header.content-length`.")]
+#[deprecated(note = "Replaced by `http.request.header.<key>`.")]
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.request.body.size` instead.
@@ -2512,13 +2956,13 @@ pub const HTTP_RESPONSE_SIZE: &str = "http.response.size";
 /// - `200`
 pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
-/// Deprecated, use `http.response.header.content-length` instead.
+/// Deprecated, use `http.response.header.<key>` instead.
 ///
 /// # Examples
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `http.response.header.content-length`.")]
+#[deprecated(note = "Replaced by `http.response.header.<key>`.")]
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
@@ -2599,6 +3043,42 @@ pub const HTTP_URL: &str = "http.url";
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `user_agent.original`.")]
 pub const HTTP_USER_AGENT: &str = "http.user_agent";
+
+/// An identifier for the hardware component, unique within the monitored host
+///
+/// # Examples
+///
+/// - `"win32battery_battery_testsysa33_1"`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_ID: &str = "hw.id";
+
+/// An easily-recognizable name for the hardware component
+///
+/// # Examples
+///
+/// - `"eth0"`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NAME: &str = "hw.name";
+
+/// Unique identifier of the parent component (typically the `hw.id` attribute of the enclosure, or disk controller)
+///
+/// # Examples
+///
+/// - `"dellStorage_perc_0"`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_PARENT: &str = "hw.parent";
+
+/// The current state of the component
+#[cfg(feature = "semconv_experimental")]
+pub const HW_STATE: &str = "hw.state";
+
+/// Type of the component
+///
+/// ## Notes
+///
+/// Describes the category of the hardware component for which `hw.state` is being reported. For example, `hw.type=temperature` along with `hw.state=degraded` would indicate that the temperature of the hardware component has been reported as `degraded`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_TYPE: &str = "hw.type";
 
 /// Deprecated use the `device.app.lifecycle` event definition including `ios.state` as a payload field instead.
 ///
@@ -2906,6 +3386,23 @@ pub const K8S_STATEFULSET_NAME: &str = "k8s.statefulset.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_STATEFULSET_UID: &str = "k8s.statefulset.uid";
 
+/// The name of the K8s volume.
+///
+/// # Examples
+///
+/// - `"volume0"`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_VOLUME_NAME: &str = "k8s.volume.name";
+
+/// The type of the K8s volume.
+///
+/// # Examples
+///
+/// - `"emptyDir"`
+/// - `"persistentVolumeClaim"`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_VOLUME_TYPE: &str = "k8s.volume.type";
+
 /// The Linux Slab memory state
 ///
 /// # Examples
@@ -2951,7 +3448,7 @@ pub const LOG_FILE_PATH_RESOLVED: &str = "log.file.path_resolved";
 #[cfg(feature = "semconv_experimental")]
 pub const LOG_IOSTREAM: &str = "log.iostream";
 
-/// The complete orignal Log Record.
+/// The complete original Log Record.
 ///
 /// ## Notes
 ///
@@ -3339,8 +3836,10 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_GROUP: &str = "messaging.rocketmq.message.g
 ///
 /// # Examples
 ///
-/// - `"keyA"`
-/// - `"keyB"`
+/// - `[
+///  "keyA",
+///  "keyB",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_ROCKETMQ_MESSAGE_KEYS: &str = "messaging.rocketmq.message.keys";
 
@@ -3364,13 +3863,13 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: &str = "messaging.rocketmq.message.ty
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 
-/// Deprecated, use `messaging.servicebus.destination.subscription_name` instead.
+/// Deprecated, use `messaging.destination.subscription.name` instead.
 ///
 /// # Examples
 ///
 /// - `"subscription-a"`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.servicebus.destination.subscription_name`.")]
+#[deprecated(note = "Replaced by `messaging.destination.subscription.name`.")]
 pub const MESSAGING_SERVICEBUS_DESTINATION_SUBSCRIPTION_NAME: &str =
     "messaging.servicebus.destination.subscription_name";
 
@@ -3674,6 +4173,10 @@ pub const NETWORK_TRANSPORT: &str = "network.transport";
 /// - `"ipv6"`
 pub const NETWORK_TYPE: &str = "network.type";
 
+/// The state of event loop time
+#[cfg(feature = "semconv_experimental")]
+pub const NODEJS_EVENTLOOP_STATE: &str = "nodejs.eventloop.state";
+
 /// The digest of the OCI image manifest. For container images specifically is the digest by which the container image is known.
 ///
 /// ## Notes
@@ -3737,18 +4240,22 @@ pub const OS_TYPE: &str = "os.type";
 #[cfg(feature = "semconv_experimental")]
 pub const OS_VERSION: &str = "os.version";
 
+/// Deprecated. Use the `otel.scope.name` attribute
+///
 /// # Examples
 ///
 /// - `"io.opentelemetry.contrib.mongodb"`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "use the `otel.scope.name` attribute.")]
+#[deprecated(note = "Use the `otel.scope.name` attribute.")]
 pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
 
+/// Deprecated. Use the `otel.scope.version` attribute.
+///
 /// # Examples
 ///
 /// - `"1.0.0"`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "use the `otel.scope.version` attribute.")]
+#[deprecated(note = "Use the `otel.scope.version` attribute.")]
 pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
@@ -3801,6 +4308,18 @@ pub const PEER_SERVICE: &str = "peer.service";
 #[deprecated(note = "Replaced by `db.client.connection.pool.name`.")]
 pub const POOL_NAME: &str = "pool.name";
 
+/// Length of the process.command_args array
+///
+/// ## Notes
+///
+/// This field can be useful for querying or performing bucket analysis on how many arguments were provided to start a process. More arguments may be an indication of suspicious activity.
+///
+/// # Examples
+///
+/// - `4`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_ARGS_COUNT: &str = "process.args_count";
+
 /// The command used to launch the process (i.e. the command name). On Linux based systems, can be set to the zeroth string in `proc/[pid]/cmdline`. On Windows, can be set to the first parameter extracted from `GetCommandLineW`.
 ///
 /// # Examples
@@ -3813,8 +4332,10 @@ pub const PROCESS_COMMAND: &str = "process.command";
 ///
 /// # Examples
 ///
-/// - `"cmd/otecol"`
-/// - `"--config=config.yaml"`
+/// - `[
+///  "cmd/otecol",
+///  "--config=config.yaml",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_COMMAND_ARGS: &str = "process.command_args";
 
@@ -3842,6 +4363,30 @@ pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 /// - `"2023-11-21T09:25:34.853Z"`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
+
+/// The GNU build ID as found in the `.note.gnu.build-id` ELF section (hex string).
+///
+/// # Examples
+///
+/// - `"c89b11207f6479603b0d49bf291c092c2b719293"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_EXECUTABLE_BUILD_ID_GNU: &str = "process.executable.build_id.gnu";
+
+/// The Go build ID as retrieved by `go tool buildid <go executable>`.
+///
+/// # Examples
+///
+/// - `"foh3mEXu7BLZjsN9pOwG/kATcXlYVCDEFouRMQed_/WwRFB1hPo9LBkekthSPG/x8hMC8emW2cCjXD0_1aY"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_EXECUTABLE_BUILD_ID_GO: &str = "process.executable.build_id.go";
+
+/// Profiling specific build ID for executables. See the OTel specification for Profiles for more information.
+///
+/// # Examples
+///
+/// - `"600DCAFE4A110000F2BF38C493F5FB92"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_EXECUTABLE_BUILD_ID_PROFILING: &str = "process.executable.build_id.profiling";
 
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
 ///
@@ -3979,6 +4524,20 @@ pub const PROCESS_SAVED_USER_NAME: &str = "process.saved_user.name";
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_SESSION_LEADER_PID: &str = "process.session_leader.pid";
 
+/// Process title (proctitle)
+///
+/// ## Notes
+///
+/// In many Unix-like systems, process title (proctitle), is the string that represents the name or command line of a running process, displayed by system monitoring tools like ps, top, and htop.
+///
+/// # Examples
+///
+/// - `"cat /etc/hostname"`
+/// - `"xfce4-session"`
+/// - `"bash"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_TITLE: &str = "process.title";
+
 /// The effective user ID (EUID) of the process.
 ///
 /// # Examples
@@ -4006,6 +4565,22 @@ pub const PROCESS_USER_NAME: &str = "process.user.name";
 /// - `12`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_VPID: &str = "process.vpid";
+
+/// The working directory of the process.
+///
+/// # Examples
+///
+/// - `"/root"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_WORKING_DIRECTORY: &str = "process.working_directory";
+
+/// Describes the interpreter or compiler of a single frame.
+///
+/// # Examples
+///
+/// - `"cpython"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROFILE_FRAME_TYPE: &str = "profile.frame.type";
 
 /// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values
 #[cfg(feature = "semconv_experimental")]
@@ -4541,8 +5116,10 @@ pub const TLS_CLIENT_CERTIFICATE: &str = "tls.client.certificate";
 ///
 /// # Examples
 ///
-/// - `"MII..."`
-/// - `"MI..."`
+/// - `[
+///  "MII...",
+///  "MI...",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_CLIENT_CERTIFICATE_CHAIN: &str = "tls.client.certificate_chain";
 
@@ -4608,7 +5185,7 @@ pub const TLS_CLIENT_NOT_BEFORE: &str = "tls.client.not_before";
 ///
 /// - `"opentelemetry.io"`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `server.address.")]
+#[deprecated(note = "Replaced by `server.address`.")]
 pub const TLS_CLIENT_SERVER_NAME: &str = "tls.client.server_name";
 
 /// Distinguished name of subject of the x.509 certificate presented by the client.
@@ -4623,9 +5200,10 @@ pub const TLS_CLIENT_SUBJECT: &str = "tls.client.subject";
 ///
 /// # Examples
 ///
-/// - `"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"`
-/// - `"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"`
-/// - `"..."`
+/// - `[
+///  "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+///  "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_CLIENT_SUPPORTED_CIPHERS: &str = "tls.client.supported_ciphers";
 
@@ -4686,8 +5264,10 @@ pub const TLS_SERVER_CERTIFICATE: &str = "tls.server.certificate";
 ///
 /// # Examples
 ///
-/// - `"MII..."`
-/// - `"MI..."`
+/// - `[
+///  "MII...",
+///  "MI...",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_SERVER_CERTIFICATE_CHAIN: &str = "tls.server.certificate_chain";
 
@@ -4954,8 +5534,10 @@ pub const USER_NAME: &str = "user.name";
 ///
 /// # Examples
 ///
-/// - `"admin"`
-/// - `"reporting_user"`
+/// - `[
+///  "admin",
+///  "reporting_user",
+/// ]`
 #[cfg(feature = "semconv_experimental")]
 pub const USER_ROLES: &str = "user.roles";
 
