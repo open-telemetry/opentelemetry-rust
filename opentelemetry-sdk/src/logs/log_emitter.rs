@@ -138,8 +138,8 @@ impl LoggerProvider {
 impl Drop for LoggerProvider {
     fn drop(&mut self) {
         if let Err(_err) = self.shutdown() {
-            // TODO - This would be improved in #2184 to keep the scope limited
-            // to prevent the shutdown if already called.
+            // TODO - error handling would be improved/fixed
+            //in PR: #2184
             otel_warn!(
                 name: "logger_provider_drop_error",
                 error = format!("{:?}", _err)
