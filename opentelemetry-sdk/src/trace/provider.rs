@@ -48,27 +48,52 @@ pub(crate) struct TracerProviderInner {
     is_shutdown: AtomicBool,
 }
 
-impl Drop for TracerProviderInner {
-    fn drop(&mut self) {
+impl TracerProviderInner {
+    /// Crate-private shutdown method to be called both from explicit shutdown
+    /// and from Drop when the last reference is released.
+    pub(crate) fn shutdown(&self) -> TraceResult<()> {
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
+            // propagate the shutdown signal to processors
+            // it's up to the processor to properly block new spans after shutdown
+            let mut errs = vec![];
             for processor in &self.processors {
                 if let Err(err) = processor.shutdown() {
-                    global::handle_error(err);
+                    errs.push(err);
                 }
             }
+
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                Err(TraceError::Other(format!("{errs:?}").into()))
+            }
+        } else {
+            Err(TraceError::Other(
+                "tracer provider already shut down".into(),
+            ))
+        }
+    }
+}
+
+impl Drop for TracerProviderInner {
+    fn drop(&mut self) {
+        if let Err(err) = self.shutdown() {
+            global::handle_error(err);
         }
     }
 }
 
 /// Creator and registry of named [`Tracer`] instances.
 ///
-/// `TracerProvider` is lightweight container holding pointers to `SpanProcessor` and other components.
-/// Cloning and dropping them will not stop the span processing. To stop span processing, users
-/// must either call `shutdown` method explicitly, or drop every clone of `TracerProvider`.
+/// `TracerProvider` is a lightweight container holding pointers to `SpanProcessor` and other components.
+/// Cloning a `TracerProvider` instance will not stop span processing. To stop span processing, users
+/// must either call the `shutdown` method explicitly or allow the last reference to the `TracerProvider`
+/// to be dropped. When the last reference is dropped, the shutdown process will be automatically triggered
+/// to ensure proper cleanup.
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
     inner: Arc<TracerProviderInner>,
@@ -157,31 +182,7 @@ impl TracerProvider {
     ///
     /// Note that shut down doesn't means the TracerProvider has dropped
     pub fn shutdown(&self) -> TraceResult<()> {
-        if self
-            .inner
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new spans after shutdown
-            let mut errs = vec![];
-            for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
-                    errs.push(err);
-                }
-            }
-
-            if errs.is_empty() {
-                Ok(())
-            } else {
-                Err(TraceError::Other(format!("{errs:?}").into()))
-            }
-        } else {
-            Err(TraceError::Other(
-                "tracer provider already shut down".into(),
-            ))
-        }
+        self.inner.shutdown()
     }
 }
 
