@@ -12,7 +12,6 @@ use futures_util::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
     otel_error, otel_warn, InstrumentationLibrary,
 };
@@ -118,7 +117,7 @@ impl LogProcessor for SimpleLogProcessor {
                 name: "simple_log_processor_emit_error",
                 error = format!("{:?}", err)
             );
-            global::handle_error(err);
+            otel_error!(name: "SimpleLogProcessor.emit", otel_error = "SimpleLogProcessor.emit", error = format!("{:?}", err));
         }
     }
 
@@ -175,7 +174,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 name: "batch_log_processor_emit_error",
                 error = format!("{:?}", err)
             );
-            global::handle_error(LogError::Other(err.into()));
+            otel_error!(name: "BatchLogProcessor.emit", otel_error = "BatchLogProcessor.emit", error = format!("{:?}", LogError::Other(err.into())));
         }
     }
 
@@ -246,7 +245,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                     name: "batch_log_processor_export_error",
                                     error = format!("{:?}", err)
                                 );
-                                global::handle_error(err);
+                                otel_error!(name: "BatchLogProcessor.export", otel_error = "BatchLogProcessor.export", error = format!("{:?}", err));
                             }
                         }
                     }
@@ -262,10 +261,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
 
                         if let Some(channel) = res_channel {
                             if let Err(result) = channel.send(result) {
-                                global::handle_error(LogError::from(format!(
-                                    "failed to send flush result: {:?}",
-                                    result
-                                )));
                                 otel_error!(
                                     name: "batch_log_processor_flush_error",
                                     error = format!("{:?}", result),
@@ -278,7 +273,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 error = format!("{:?}", err),
                                 message = "Flush failed"
                             );
-                            global::handle_error(err);
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
@@ -299,10 +293,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                                 error = format!("{:?}", result),
                                 message = "Failed to send shutdown result"
                             );
-                            global::handle_error(LogError::from(format!(
-                                "failed to send batch processor shutdown result: {:?}",
-                                result
-                            )));
                         }
 
                         break;

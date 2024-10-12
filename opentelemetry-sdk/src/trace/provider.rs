@@ -16,7 +16,7 @@ use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, trace::TraceResult};
+use opentelemetry::{otel_error, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -51,7 +51,7 @@ impl Drop for TracerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
             if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+                otel_error!(name: "TracerProviderInner.drop", otel_name = "TracerProviderInner.drop", error = format!("{:?}", err));
             }
         }
     }

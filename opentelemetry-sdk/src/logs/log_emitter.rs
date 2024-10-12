@@ -1,12 +1,11 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::otel_warn;
 use opentelemetry::{
-    global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
 };
+use opentelemetry::{otel_error, otel_warn};
 
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
@@ -146,7 +145,7 @@ impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         for processor in &mut self.processors {
             if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+                otel_error!(name: "LoggerProviderInner.Drop",  otel_name = "LoggerProviderInner.Drop", error = format!("{:?}", err));
             }
         }
     }
