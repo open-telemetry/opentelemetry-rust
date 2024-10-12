@@ -4,7 +4,6 @@ use std::{borrow::Cow, sync::Arc};
 use opentelemetry::{
     global,
     metrics::{
-        noop::{NoopAsyncInstrument, NoopSyncInstrument},
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
@@ -17,6 +16,8 @@ use crate::metrics::{
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
+
+use super::noop::{NoopAsyncInstrument, NoopSyncInstrument};
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
