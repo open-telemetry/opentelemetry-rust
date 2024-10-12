@@ -2,6 +2,7 @@ use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, Trac
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::otel_warn;
 use opentelemetry::{
+    global,
     logs::{LogError, LogResult},
     trace::TraceContextExt,
     Context, InstrumentationLibrary,
@@ -114,7 +115,29 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
-        self.inner.shutdown()
+        if self
+            .inner
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // propagate the shutdown signal to processors
+            let errs = self.inner.shutdown();
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                otel_warn!(
+                    name: "logger_provider_shutdown_error",
+                    error = format!("{:?}", errs)
+                );
+                Err(LogError::Other(format!("{:?}", errs).into()))
+            }
+        } else {
+            otel_warn!(
+                name: "logger_provider_already_shutdown"
+            );
+            Err(LogError::Other("logger provider already shut down".into()))
+        }
     }
 }
 
@@ -126,43 +149,26 @@ struct LoggerProviderInner {
 }
 
 impl LoggerProviderInner {
-    pub(crate) fn shutdown(&self) -> LogResult<()> {
-        if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new logs after shutdown
-            let mut errs = vec![];
-            for processor in &self.processors {
-                if let Err(err) = processor.shutdown() {
-                    otel_warn!(
-                        name: "logger_provider_shutdown_error",
-                        error = format!("{:?}", err)
-                    );
-                    errs.push(err);
-                }
+    /// Shuts down the `LoggerProviderInner` and returns any errors.
+    pub(crate) fn shutdown(&self) -> Vec<LogError> {
+        let mut errs = vec![];
+        for processor in &self.processors {
+            if let Err(err) = processor.shutdown() {
+                errs.push(err);
             }
-
-            if errs.is_empty() {
-                Ok(())
-            } else {
-                Err(LogError::Other(format!("{errs:?}").into()))
-            }
-        } else {
-            otel_warn!(
-                name: "logger_provider_already_shutdown"
-            );
-            Err(LogError::Other("logger provider already shut down".into()))
         }
+        errs
     }
 }
 
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        let _ = self.shutdown();
-        //TODO - handle error during shutdown
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            let errs = self.shutdown();
+            if !errs.is_empty() {
+                global::handle_error(LogError::Other(format!("{:?}", errs).into()));
+            }
+        }
     }
 }
 
