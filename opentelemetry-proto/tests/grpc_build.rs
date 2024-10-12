@@ -111,11 +111,10 @@ fn build_tonic() {
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
 
-    // add custom serializer and deserializer for AnyValue
-    for path in ["common.v1.KeyValue.value", "logs.v1.LogRecord.body"] {
-        builder = builder
-        .field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
-    }
+    // special serializer and deserializer for value
+    // The Value::value field must be hidden
+    builder = builder
+        .field_attribute("common.v1.AnyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
 
     // flatten
     for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
