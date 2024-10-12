@@ -113,10 +113,8 @@ fn build_tonic() {
 
     // special serializer and deserializer for value
     // The Value::value field must be hidden
-    for path in ["common.v1.AnyValue.value"] {
-        builder = builder
-        .field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
-    }
+    builder = builder
+        .field_attribute("common.v1.AnyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
 
     // flatten
     for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
