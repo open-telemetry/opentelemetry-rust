@@ -258,7 +258,7 @@ mod tests {
     #[test]
     #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
     fn simple_processor_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter::default();
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
     fn simple_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter::default();
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -293,8 +293,8 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    async fn batch_processor_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter::default();
+    async fn batch_processor_no_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
             .with_batch_exporter(exporter.clone(), opentelemetry_sdk::runtime::Tokio)
             .build();
