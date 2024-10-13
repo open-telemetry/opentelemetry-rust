@@ -28,7 +28,19 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
 });
 
 #[derive(Debug, Clone)]
-/// Creator for `Logger` instances.
+/// Handles the creation and coordination of [`Logger`]s.
+///
+/// All `Logger`s created by a `LoggerProvider` will share the same
+/// [`Resource`] and have their created log records processed by the
+/// configured log processors. This is a clonable handle to the `LoggerProvider`
+/// itself, and cloning it will create a new reference, not a new instance of a
+/// `LoggerProvider`. Dropping the last reference will trigger the shutdown of
+/// the provider, ensuring that all remaining logs are flushed and no further
+/// logs are processed. Shutdown can also be triggered manually by calling
+/// the [`shutdown`](LoggerProvider::shutdown) method.
+///
+/// [`Logger`]: opentelemetry::logs::Logger
+/// [`Resource`]: crate::Resource
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
@@ -109,33 +121,15 @@ impl LoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new logs after shutdown
-            let mut errs = vec![];
-            for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
-                    match err {
-                        // Specific handling for mutex poisoning
-                        LogError::MutexPoisoned(_) => {
-                            otel_debug!(
-                                name: "LoggerProvider.Shutdown.MutexPoisoned",
-                            );
-                        }
-                        _ => {
-                            otel_debug!(
-                                name: "LoggerProvider.Shutdown.Error",
-                                error = format!("{err}")
-                            );
-                        }
-                    }
-                    errs.push(err);
-                }
-            }
-
+            let errs = self.inner.shutdown();
             if errs.is_empty() {
                 Ok(())
             } else {
-                // consolidate errors from all the processors - not all may be user errors
-                Err(LogError::Other(format!("{errs:?}").into()))
+                otel_warn!(
+                    name: "logger_provider_shutdown_error",
+                    error = format!("{:?}", errs)
+                );
+                Err(LogError::Other(format!("{:?}", errs).into()))
             }
         } else {
             let error = LogError::AlreadyShutdown("LoggerProvider".to_string());
@@ -154,30 +148,25 @@ struct LoggerProviderInner {
     is_shutdown: AtomicBool,
 }
 
+impl LoggerProviderInner {
+    /// Shuts down the `LoggerProviderInner` and returns any errors.
+    pub(crate) fn shutdown(&self) -> Vec<LogError> {
+        let mut errs = vec![];
+        for processor in &self.processors {
+            if let Err(err) = processor.shutdown() {
+                errs.push(err);
+            }
+        }
+        errs
+    }
+}
+
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            for processor in &mut self.processors {
-                if let Err(err) = processor.shutdown() {
-                    match err {
-                        // Specific handling for mutex poisoning
-                        LogError::MutexPoisoned(_) => {
-                            otel_debug!(
-                                name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
-                            );
-                        }
-                        _ => {
-                            otel_debug!(
-                                name: "LoggerProvider.Drop.ShutdownError",
-                                error = format!("{err}")
-                            );
-                        }
-                    }
-                }
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            let errs = self.shutdown();
+            if !errs.is_empty() {
+                global::handle_error(LogError::Other(format!("{:?}", errs).into()));
             }
         } else {
             otel_debug!(
@@ -647,6 +636,89 @@ mod tests {
         assert!(!*flush_called.lock().unwrap());
     }
 
+    #[test]
+    fn drop_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(false));
+        let flush_called = Arc::new(Mutex::new(false));
+        {
+            // Create a shared LoggerProviderInner and use it across multiple providers
+            let shared_inner = Arc::new(LoggerProviderInner {
+                processors: vec![Box::new(LazyLogProcessor::new(
+                    shutdown_called.clone(),
+                    flush_called.clone(),
+                ))],
+                resource: Resource::empty(),
+                is_shutdown: AtomicBool::new(false),
+            });
+
+            {
+                let logger_provider1 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
+                let logger_provider2 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
+
+                let logger1 = logger_provider1.logger("test-logger1");
+                let logger2 = logger_provider2.logger("test-logger2");
+
+                logger1.emit(logger1.create_log_record());
+                logger2.emit(logger1.create_log_record());
+
+                // LoggerProviderInner should not be dropped yet, since both providers and `shared_inner`
+                // are still holding a reference.
+            }
+            // At this point, both `logger_provider1` and `logger_provider2` are dropped,
+            // but `shared_inner` still holds a reference, so `LoggerProviderInner` is NOT dropped yet.
+        }
+        // Verify shutdown was called during the drop of the shared LoggerProviderInner
+        assert!(*shutdown_called.lock().unwrap());
+        // Verify flush was not called during drop
+        assert!(!*flush_called.lock().unwrap());
+    }
+
+    #[test]
+    fn drop_after_shutdown_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
+        let flush_called = Arc::new(Mutex::new(false));
+
+        // Create a shared LoggerProviderInner and use it across multiple providers
+        let shared_inner = Arc::new(LoggerProviderInner {
+            processors: vec![Box::new(CountingShutdownProcessor::new(
+                shutdown_called.clone(),
+                flush_called.clone(),
+            ))],
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(false),
+        });
+
+        // Create a scope to test behavior when providers are dropped
+        {
+            let logger_provider1 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+            let logger_provider2 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+
+            // Explicitly shut down the logger provider
+            let shutdown_result = logger_provider1.shutdown();
+            assert!(shutdown_result.is_ok());
+
+            // Verify that shutdown was called exactly once
+            assert_eq!(*shutdown_called.lock().unwrap(), 1);
+
+            // LoggerProvider2 should observe the shutdown state but not trigger another shutdown
+            let shutdown_result2 = logger_provider2.shutdown();
+            assert!(shutdown_result2.is_err());
+
+            // Both logger providers will be dropped at the end of this scope
+        }
+
+        // Verify that shutdown was only called once, even after drop
+        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
     #[derive(Debug)]
     pub(crate) struct LazyLogProcessor {
         shutdown_called: Arc<Mutex<bool>>,
@@ -677,6 +749,38 @@ mod tests {
 
         fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct CountingShutdownProcessor {
+        shutdown_count: Arc<Mutex<i32>>,
+        flush_called: Arc<Mutex<bool>>,
+    }
+
+    impl CountingShutdownProcessor {
+        fn new(shutdown_count: Arc<Mutex<i32>>, flush_called: Arc<Mutex<bool>>) -> Self {
+            CountingShutdownProcessor {
+                shutdown_count,
+                flush_called,
+            }
+        }
+    }
+
+    impl LogProcessor for CountingShutdownProcessor {
+        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+            // nothing to do
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            *self.flush_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            let mut count = self.shutdown_count.lock().unwrap();
+            *count += 1;
             Ok(())
         }
     }

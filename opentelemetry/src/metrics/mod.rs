@@ -9,7 +9,7 @@ use thiserror::Error;
 
 mod instruments;
 mod meter;
-pub mod noop;
+pub(crate) mod noop;
 
 use crate::{Array, ExportError, KeyValue, Value};
 pub use instruments::{

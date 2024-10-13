@@ -10,6 +10,7 @@ pub trait SyncGauge<T> {
 
 /// An instrument that records independent values
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Gauge<T>(Arc<dyn SyncGauge<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Gauge<T>
@@ -35,6 +36,7 @@ impl<T> Gauge<T> {
 
 /// An async instrument that records independent readings.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableGauge<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> fmt::Debug for ObservableGauge<T>
