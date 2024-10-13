@@ -10,6 +10,7 @@ pub trait SyncCounter<T> {
 
 /// An instrument that records increasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Counter<T>(Arc<dyn SyncCounter<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Counter<T>
@@ -35,6 +36,7 @@ impl<T> Counter<T> {
 
 /// An async instrument that records increasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableCounter<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> ObservableCounter<T> {

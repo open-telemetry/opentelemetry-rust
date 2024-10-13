@@ -10,6 +10,7 @@ pub trait SyncHistogram<T> {
 
 /// An instrument that records a distribution of values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Histogram<T>(Arc<dyn SyncHistogram<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Histogram<T>
