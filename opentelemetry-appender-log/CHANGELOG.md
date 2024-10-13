@@ -3,7 +3,6 @@
 ## vNext
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
-- [2193](https://github.com/open-telemetry/opentelemetry-rust/pull/2193) `opentelemetry-appender-log`: Output experimental code attributes 
 
 ## v0.26.0
 Released 2024-Sep-30
