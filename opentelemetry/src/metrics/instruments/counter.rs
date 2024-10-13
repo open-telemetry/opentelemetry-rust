@@ -10,6 +10,7 @@ pub trait SyncCounter<T> {
 
 /// An instrument that records increasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Counter<T>(Arc<dyn SyncCounter<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Counter<T>
@@ -35,6 +36,7 @@ impl<T> Counter<T> {
 
 /// An async instrument that records increasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableCounter<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> ObservableCounter<T> {
@@ -50,17 +52,6 @@ impl<T> fmt::Debug for ObservableCounter<T> {
             "ObservableCounter<{}>",
             std::any::type_name::<T>()
         ))
-    }
-}
-
-impl<T> ObservableCounter<T> {
-    /// Records an increment to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
     }
 }
 

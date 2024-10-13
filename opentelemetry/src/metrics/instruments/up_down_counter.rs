@@ -12,6 +12,7 @@ pub trait SyncUpDownCounter<T> {
 
 /// An instrument that records increasing or decreasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct UpDownCounter<T>(Arc<dyn SyncUpDownCounter<T> + Send + Sync>);
 
 impl<T> fmt::Debug for UpDownCounter<T>
@@ -40,6 +41,7 @@ impl<T> UpDownCounter<T> {
 
 /// An async instrument that records increasing or decreasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableUpDownCounter<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> fmt::Debug for ObservableUpDownCounter<T>
@@ -58,15 +60,6 @@ impl<T> ObservableUpDownCounter<T> {
     /// Create a new observable up down counter.
     pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
         ObservableUpDownCounter(inner)
-    }
-
-    /// Records the increment or decrement to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
     }
 }
 

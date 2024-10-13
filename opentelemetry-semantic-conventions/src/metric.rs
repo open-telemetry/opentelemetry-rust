@@ -200,9 +200,30 @@ pub const ASPNETCORE_ROUTING_MATCH_ATTEMPTS: &str = "aspnetcore.routing.match_at
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Opt_in`
+/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API.
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_CPU_TIME: &str = "container.cpu.time";
+
+/// ## Description
+///
+/// Container's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+///
+/// ## Notes
+///
+/// CPU usage of the specific container on all available CPU cores, averaged over the sample window
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API.
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_CPU_USAGE: &str = "container.cpu.usage";
 
 /// ## Description
 ///
@@ -352,7 +373,7 @@ pub const DB_CLIENT_CONNECTION_MAX: &str = "db.client.connection.max";
 
 /// ## Description
 ///
-/// The number of pending requests for an open connection, cumulative for the entire pool
+/// The number of current pending requests for an open connection
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -609,6 +630,7 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available. The operation name MAY be parsed from the query text, in which case it SHOULD be the first operation name found in the query.
 
+/// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::DB_SYSTEM`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
@@ -635,6 +657,356 @@ pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
 #[cfg(feature = "semconv_experimental")]
 pub const DNS_LOOKUP_DURATION: &str = "dns.lookup.duration";
+
+/// ## Description
+///
+/// The number of .NET assemblies that are currently loaded.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`AppDomain.CurrentDomain.GetAssemblies().Length`](https://learn.microsoft.com/dotnet/api/system.appdomain.getassemblies)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{assembly}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_ASSEMBLY_COUNT: &str = "dotnet.assembly.count";
+
+/// ## Description
+///
+/// The number of exceptions that have been thrown in managed code.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as counting calls to [`AppDomain.CurrentDomain.FirstChanceException`](https://learn.microsoft.com/dotnet/api/system.appdomain.firstchanceexception)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{exception}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_EXCEPTIONS: &str = "dotnet.exceptions";
+
+/// ## Description
+///
+/// The number of garbage collections that have occurred since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric uses the [`GC.CollectionCount(int generation)`](https://learn.microsoft.com/dotnet/api/system.gc.collectioncount) API to calculate exclusive collections per generation
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{collection}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_COLLECTIONS: &str = "dotnet.gc.collections";
+
+/// ## Description
+///
+/// The *approximate* number of bytes allocated on the managed GC heap since the process has started. The returned value does not include any native allocations.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`GC.GetTotalAllocatedBytes()`](https://learn.microsoft.com/dotnet/api/system.gc.gettotalallocatedbytes)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_HEAP_TOTAL_ALLOCATED: &str = "dotnet.gc.heap.total_allocated";
+
+/// ## Description
+///
+/// The heap fragmentation, as observed during the latest garbage collection.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.FragmentationAfterBytes`](https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.fragmentationafterbytes)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_LAST_COLLECTION_HEAP_FRAGMENTATION_SIZE: &str =
+    "dotnet.gc.last_collection.heap.fragmentation.size";
+
+/// ## Description
+///
+/// The managed GC heap size (including fragmentation), as observed during the latest garbage collection.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.SizeAfterBytes`](https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.sizeafterbytes)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_LAST_COLLECTION_HEAP_SIZE: &str = "dotnet.gc.last_collection.heap.size";
+
+/// ## Description
+///
+/// The amount of committed virtual memory in use by the .NET GC, as observed during the latest garbage collection.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().TotalCommittedBytes`](https://learn.microsoft.com/dotnet/api/system.gcmemoryinfo.totalcommittedbytes). Committed virtual memory may be larger than the heap size because it includes both memory for storing existing objects (the heap size) and some extra memory that is ready to handle newly allocated objects in the future
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_LAST_COLLECTION_MEMORY_COMMITTED_SIZE: &str =
+    "dotnet.gc.last_collection.memory.committed_size";
+
+/// ## Description
+///
+/// The total amount of time paused in GC since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`GC.GetTotalPauseDuration()`](https://learn.microsoft.com/dotnet/api/system.gc.gettotalpauseduration)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_GC_PAUSE_TIME: &str = "dotnet.gc.pause.time";
+
+/// ## Description
+///
+/// The amount of time the JIT compiler has spent compiling methods since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`JitInfo.GetCompilationTime()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompilationtime)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_JIT_COMPILATION_TIME: &str = "dotnet.jit.compilation.time";
+
+/// ## Description
+///
+/// Count of bytes of intermediate language that have been compiled since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`JitInfo.GetCompiledILBytes()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledilbytes)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_JIT_COMPILED_IL_SIZE: &str = "dotnet.jit.compiled_il.size";
+
+/// ## Description
+///
+/// The number of times the JIT compiler (re)compiled methods since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`JitInfo.GetCompiledMethodCount()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledmethodcount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{method}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_JIT_COMPILED_METHODS: &str = "dotnet.jit.compiled_methods";
+
+/// ## Description
+///
+/// The number of times there was contention when trying to acquire a monitor lock since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`Monitor.LockContentionCount`](https://learn.microsoft.com/dotnet/api/system.threading.monitor.lockcontentioncount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{contention}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_MONITOR_LOCK_CONTENTIONS: &str = "dotnet.monitor.lock_contentions";
+
+/// ## Description
+///
+/// The number of processors available to the process.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as accessing [`Environment.ProcessorCount`](https://learn.microsoft.com/dotnet/api/system.environment.processorcount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_PROCESS_CPU_COUNT: &str = "dotnet.process.cpu.count";
+
+/// ## Description
+///
+/// CPU time used by the process.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as accessing the corresponding processor time properties on [`System.Diagnostics.Process`](https://learn.microsoft.com/dotnet/api/system.diagnostics.process)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPU_MODE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_PROCESS_CPU_TIME: &str = "dotnet.process.cpu.time";
+
+/// ## Description
+///
+/// The number of bytes of physical memory mapped to the process context.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`Environment.WorkingSet`](https://learn.microsoft.com/dotnet/api/system.environment.workingset)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_PROCESS_MEMORY_WORKING_SET: &str = "dotnet.process.memory.working_set";
+
+/// ## Description
+///
+/// The number of work items that are currently queued to be processed by the thread pool.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`ThreadPool.PendingWorkItemCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.pendingworkitemcount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{work_item}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_THREAD_POOL_QUEUE_LENGTH: &str = "dotnet.thread_pool.queue.length";
+
+/// ## Description
+///
+/// The number of thread pool threads that currently exist.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`ThreadPool.ThreadCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.threadcount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{thread}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_THREAD_POOL_THREAD_COUNT: &str = "dotnet.thread_pool.thread.count";
+
+/// ## Description
+///
+/// The number of work items that the thread pool has completed since the process has started.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`ThreadPool.CompletedWorkItemCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.completedworkitemcount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{work_item}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_THREAD_POOL_WORK_ITEM_COUNT: &str = "dotnet.thread_pool.work_item.count";
+
+/// ## Description
+///
+/// The number of timer instances that are currently active.
+///
+/// ## Notes
+///
+/// Meter name: `System.Runtime`; Added in: .NET 9.0.
+/// This metric reports the same values as calling [`Timer.ActiveCount`](https://learn.microsoft.com/dotnet/api/system.threading.timer.activecount)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{timer}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const DOTNET_TIMER_COUNT: &str = "dotnet.timer.count";
 
 /// ## Description
 ///
@@ -1300,6 +1672,96 @@ pub const HTTP_SERVER_RESPONSE_BODY_SIZE: &str = "http.server.response.body.size
 
 /// ## Description
 ///
+/// Energy consumed by the component
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `J` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_ENERGY: &str = "hw.energy";
+
+/// ## Description
+///
+/// Number of errors encountered by the component
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{error}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_ERRORS: &str = "hw.errors";
+
+/// ## Description
+///
+/// Instantaneous power consumed by the component
+///
+/// ## Notes
+///
+/// It is recommended to report `hw.energy` instead of `hw.power` when possible
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `W` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_POWER: &str = "hw.power";
+
+/// ## Description
+///
+/// Operational status: `1` (true) or `0` (false) for each of the possible states
+///
+/// ## Notes
+///
+/// `hw.status` is currently specified as an *UpDownCounter* but would ideally be represented using a [*StateSet* as defined in OpenMetrics](https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset). This semantic convention will be updated once *StateSet* is specified in OpenTelemetry. This planned change is not expected to have any consequence on the way users query their timeseries backend to retrieve the values of `hw.status` over time
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `1` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_STATE`] | `Required`
+/// | [`crate::attribute::HW_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_STATUS: &str = "hw.status";
+
+/// ## Description
+///
 /// Number of buffers in the pool
 /// ## Metadata
 /// | | |
@@ -1591,6 +2053,102 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 
 /// ## Description
 ///
+/// Total CPU time consumed
+///
+/// ## Notes
+///
+/// Total CPU time consumed by the specific Node on all available CPU cores
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_CPU_TIME: &str = "k8s.node.cpu.time";
+
+/// ## Description
+///
+/// Node's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+///
+/// ## Notes
+///
+/// CPU usage of the specific Node on all available CPU cores, averaged over the sample window
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_CPU_USAGE: &str = "k8s.node.cpu.usage";
+
+/// ## Description
+///
+/// Memory usage of the Node
+///
+/// ## Notes
+///
+/// Total memory usage of the Node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_USAGE: &str = "k8s.node.memory.usage";
+
+/// ## Description
+///
+/// Total CPU time consumed
+///
+/// ## Notes
+///
+/// Total CPU time consumed by the specific Pod on all available CPU cores
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_CPU_TIME: &str = "k8s.pod.cpu.time";
+
+/// ## Description
+///
+/// Pod's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+///
+/// ## Notes
+///
+/// CPU usage of the specific Pod on all available CPU cores, averaged over the sample window
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
+
+/// ## Description
+///
+/// Memory usage of the Pod
+///
+/// ## Notes
+///
+/// Total memory usage of the Pod
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_MEMORY_USAGE: &str = "k8s.pod.memory.usage";
+
+/// ## Description
+///
 /// Number of connections that are currently active on the server.
 ///
 /// ## Notes
@@ -1848,11 +2406,7 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 
 /// ## Description
 ///
-/// Number of messages producer attempted to publish to the broker.
-///
-/// ## Notes
-///
-/// This metric MUST NOT count messages that were created haven't yet been attempted to be published
+/// Deprecated. Use `messaging.client.sent.messages` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1872,7 +2426,36 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `messaging.client.sent.messages`.")]
 pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.published.messages";
+
+/// ## Description
+///
+/// Number of messages producer attempted to send to the broker.
+///
+/// ## Notes
+///
+/// This metric MUST NOT count messages that were created but haven't yet been sent
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{message}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the messaging operation has failed.
+/// | [`crate::attribute::MESSAGING_DESTINATION_NAME`] | `Conditionally_required`: if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated.
+/// | [`crate::attribute::MESSAGING_DESTINATION_PARTITION_ID`] | `Recommended`
+/// | [`crate::attribute::MESSAGING_DESTINATION_TEMPLATE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::MESSAGING_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::MESSAGING_SYSTEM`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const MESSAGING_CLIENT_SENT_MESSAGES: &str = "messaging.client.sent.messages";
 
 /// ## Description
 ///
@@ -2123,11 +2706,32 @@ pub const NODEJS_EVENTLOOP_DELAY_STDDEV: &str = "nodejs.eventloop.delay.stddev";
 
 /// ## Description
 ///
+/// Cumulative duration of time the event loop has been in each state.
+///
+/// ## Notes
+///
+/// Value can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NODEJS_EVENTLOOP_STATE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const NODEJS_EVENTLOOP_TIME: &str = "nodejs.eventloop.time";
+
+/// ## Description
+///
 /// Event loop utilization.
 ///
 /// ## Notes
 ///
-/// The value range is \\[0.0,1.0\\] and can be retrieved from value [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
+/// The value range is \[0.0, 1.0\] and can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2286,6 +2890,22 @@ pub const PROCESS_PAGING_FAULTS: &str = "process.paging.faults";
 /// | Status: | `Experimental`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
+
+/// ## Description
+///
+/// The time the process has been running.
+///
+/// ## Notes
+///
+/// Instrumentations SHOULD use counter with type `double` and measure uptime with at least millisecond precision
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_UPTIME: &str = "process.uptime";
 
 /// ## Description
 ///
@@ -2623,6 +3243,23 @@ pub const SYSTEM_DISK_IO: &str = "system.disk.io";
 pub const SYSTEM_DISK_IO_TIME: &str = "system.disk.io_time";
 
 /// ## Description
+///
+/// The total storage capacity of the disk
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_DISK_LIMIT: &str = "system.disk.limit";
+
+/// ## Description
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2680,6 +3317,33 @@ pub const SYSTEM_DISK_OPERATION_TIME: &str = "system.disk.operation_time";
 pub const SYSTEM_DISK_OPERATIONS: &str = "system.disk.operations";
 
 /// ## Description
+///
+/// The total storage capacity of the filesystem
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_FILESYSTEM_MODE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_FILESYSTEM_MOUNTPOINT`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_FILESYSTEM_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_FILESYSTEM_LIMIT: &str = "system.filesystem.limit";
+
+/// ## Description
+///
+/// Reports a filesystem's space usage across different states.
+///
+/// ## Notes
+///
+/// The sum of all `system.filesystem.usage` values over the different `system.filesystem.state` attributes
+/// SHOULD equal the total storage capacity of the filesystem, that is `system.filesystem.limit`
 /// ## Metadata
 /// | | |
 /// |:-|:-

@@ -10,6 +10,7 @@ pub trait SyncGauge<T> {
 
 /// An instrument that records independent values
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Gauge<T>(Arc<dyn SyncGauge<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Gauge<T>
@@ -35,6 +36,7 @@ impl<T> Gauge<T> {
 
 /// An async instrument that records independent readings.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableGauge<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> fmt::Debug for ObservableGauge<T>
@@ -49,20 +51,9 @@ where
     }
 }
 
-impl<T> ObservableGauge<T> {
-    /// Records the state of the instrument.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
-    }
-}
-
 impl<M> AsyncInstrument<M> for ObservableGauge<M> {
     fn observe(&self, measurement: M, attributes: &[KeyValue]) {
-        self.observe(measurement, attributes)
+        self.0.observe(measurement, attributes)
     }
 }
 
