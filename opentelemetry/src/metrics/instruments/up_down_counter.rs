@@ -12,6 +12,7 @@ pub trait SyncUpDownCounter<T> {
 
 /// An instrument that records increasing or decreasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct UpDownCounter<T>(Arc<dyn SyncUpDownCounter<T> + Send + Sync>);
 
 impl<T> fmt::Debug for UpDownCounter<T>
@@ -40,6 +41,7 @@ impl<T> UpDownCounter<T> {
 
 /// An async instrument that records increasing or decreasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableUpDownCounter<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> fmt::Debug for ObservableUpDownCounter<T>
