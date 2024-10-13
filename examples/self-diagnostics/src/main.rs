@@ -108,7 +108,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let provider = opentelemetry_otlp::new_pipeline()
-        .metrics(opentelemetry_sdk::runtime::Tokio)
+        .metrics()
         .with_period(std::time::Duration::from_secs(1))
         .with_exporter(
             opentelemetry_otlp::new_exporter()

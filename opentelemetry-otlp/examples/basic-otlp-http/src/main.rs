@@ -61,7 +61,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
     opentelemetry_otlp::new_pipeline()
-        .metrics(opentelemetry_sdk::runtime::Tokio)
+        .metrics()
         .with_exporter(
             http_exporter()
                 .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
