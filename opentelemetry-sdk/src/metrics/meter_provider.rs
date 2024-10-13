@@ -9,13 +9,15 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{noop::NoopMeter, Meter, MeterProvider, MetricsError, Result},
+    metrics::{Meter, MeterProvider, MetricsError, Result},
     KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
 
-use super::{meter::SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
+use super::{
+    meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
+};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
