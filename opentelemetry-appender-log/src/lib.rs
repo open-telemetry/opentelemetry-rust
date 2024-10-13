@@ -1154,7 +1154,7 @@ mod tests {
     #[cfg(feature = "experimental_metadata_attributes")]
     #[test]
     fn logbridge_code_attributes() {
-        use opentelemetry_semantic_conventions::trace::{
+        use opentelemetry_semantic_conventions::attribute::{
             CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
         };
 
