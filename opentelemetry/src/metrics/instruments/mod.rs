@@ -258,7 +258,7 @@ where
     pub unit: Option<Cow<'static, str>>,
 
     /// Callbacks to be called for this instrument.
-    pub callbacks: Vec<Callback<M>>,
+    pub callback: Option<Callback<M>>,
 
     _inst: marker::PhantomData<I>,
 }
@@ -275,7 +275,7 @@ where
             description: None,
             unit: None,
             _inst: marker::PhantomData,
-            callbacks: Vec::new(),
+            callback: None,
         }
     }
 
@@ -302,7 +302,7 @@ where
     where
         F: Fn(&dyn AsyncInstrument<M>) + Send + Sync + 'static,
     {
-        self.callbacks.push(Box::new(callback));
+        self.callback = Some(Box::new(callback));
         self
     }
 }
@@ -354,7 +354,7 @@ where
             .field("description", &self.description)
             .field("unit", &self.unit)
             .field("kind", &std::any::type_name::<I>())
-            .field("callbacks_len", &self.callbacks.len())
+            .field("has callback", &self.callback.is_some())
             .finish()
     }
 }

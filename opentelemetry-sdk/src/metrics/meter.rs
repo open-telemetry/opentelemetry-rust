@@ -125,7 +125,7 @@ impl SdkMeter {
 
         let observable = Arc::new(Observable::new(ms));
 
-        for callback in builder.callbacks {
+        if let Some(callback) = builder.callback {
             let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
@@ -166,7 +166,7 @@ impl SdkMeter {
 
         let observable = Arc::new(Observable::new(ms));
 
-        for callback in builder.callbacks {
+        if let Some(callback) = builder.callback {
             let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
@@ -203,7 +203,7 @@ impl SdkMeter {
 
         let observable = Arc::new(Observable::new(ms));
 
-        for callback in builder.callbacks {
+        if let Some(callback) = builder.callback {
             let cb_inst = Arc::clone(&observable);
             self.pipes
                 .register_callback(move || callback(cb_inst.as_ref()));
