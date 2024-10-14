@@ -4,13 +4,12 @@
 //! has been set. It is expected to have minimal resource utilization and
 //! runtime impact.
 use crate::{
-    metrics::{
-        AsyncInstrument, InstrumentProvider, Meter, MeterProvider, SyncCounter, SyncGauge,
-        SyncHistogram, SyncUpDownCounter,
-    },
+    metrics::{AsyncInstrument, InstrumentProvider, Meter, MeterProvider},
     KeyValue,
 };
 use std::sync::Arc;
+
+use super::instruments::SyncInstrument;
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
@@ -65,26 +64,8 @@ impl NoopSyncInstrument {
     }
 }
 
-impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncHistogram<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncGauge<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+impl<T> SyncInstrument<T> for NoopSyncInstrument {
+    fn measure(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }

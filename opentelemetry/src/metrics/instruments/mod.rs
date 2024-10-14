@@ -24,6 +24,12 @@ pub trait AsyncInstrument<T>: Send + Sync {
     fn observe(&self, measurement: T, attributes: &[KeyValue]);
 }
 
+/// An SDK implemented instrument that records measurements synchronously.
+pub trait SyncInstrument<T>: Send + Sync {
+    /// Records a measurement synchronously.
+    fn measure(&self, measurement: T, attributes: &[KeyValue]);
+}
+
 /// Configuration for building a Histogram.
 #[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct HistogramBuilder<'a, T> {
