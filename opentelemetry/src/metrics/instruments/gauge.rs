@@ -2,15 +2,12 @@ use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
 use std::sync::Arc;
 
-/// An SDK implemented instrument that records independent values
-pub trait SyncGauge<T> {
-    /// Records an independent value.
-    fn record(&self, value: T, attributes: &[KeyValue]);
-}
+use super::SyncInstrument;
 
 /// An instrument that records independent values
 #[derive(Clone)]
-pub struct Gauge<T>(Arc<dyn SyncGauge<T> + Send + Sync>);
+#[non_exhaustive]
+pub struct Gauge<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Gauge<T>
 where
@@ -23,18 +20,19 @@ where
 
 impl<T> Gauge<T> {
     /// Create a new gauge.
-    pub fn new(inner: Arc<dyn SyncGauge<T> + Send + Sync>) -> Self {
+    pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
         Gauge(inner)
     }
 
     /// Records an independent value.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
-        self.0.record(value, attributes)
+        self.0.measure(value, attributes)
     }
 }
 
 /// An async instrument that records independent readings.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableGauge<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> fmt::Debug for ObservableGauge<T>

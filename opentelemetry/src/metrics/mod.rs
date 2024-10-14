@@ -9,15 +9,16 @@ use thiserror::Error;
 
 mod instruments;
 mod meter;
-pub mod noop;
+pub(crate) mod noop;
 
 use crate::{Array, ExportError, KeyValue, Value};
 pub use instruments::{
-    counter::{Counter, ObservableCounter, SyncCounter},
-    gauge::{Gauge, ObservableGauge, SyncGauge},
-    histogram::{Histogram, SyncHistogram},
-    up_down_counter::{ObservableUpDownCounter, SyncUpDownCounter, UpDownCounter},
+    counter::{Counter, ObservableCounter},
+    gauge::{Gauge, ObservableGauge},
+    histogram::Histogram,
+    up_down_counter::{ObservableUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
+    SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
 

@@ -26,6 +26,7 @@ tracing-subscriber = { workspace = true, features = ["registry", "std", "env-fil
 tracing-log = "0.2"
 async-trait = { workspace = true }
 criterion = { workspace = true }
+tokio = { workspace = true, features = ["full"]}
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }

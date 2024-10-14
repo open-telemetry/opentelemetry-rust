@@ -23,11 +23,19 @@ macro_rules! otel_info {
         {
             tracing::info!( name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = $name; // Compiler will optimize this out as it's unused.
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = ($name, $($value),+); // Compiler will optimize this out as it's unused.
         }
     };
 }
@@ -50,11 +58,19 @@ macro_rules! otel_warn {
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = $name; // Compiler will optimize this out as it's unused.
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = ($name, $($value),+); // Compiler will optimize this out as it's unused.
         }
     };
 }
@@ -77,11 +93,19 @@ macro_rules! otel_debug {
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"),"");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = $name; // Compiler will optimize this out as it's unused.
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = ($name, $($value),+); // Compiler will optimize this out as it's unused.
         }
     };
 }
@@ -104,11 +128,19 @@ macro_rules! otel_error {
         {
             tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), "");
         }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = $name; // Compiler will optimize this out as it's unused.
+        }
     };
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), $($key = $value),+, "");
+        }
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = ($name, $($value),+); // Compiler will optimize this out as it's unused.
         }
     };
 }

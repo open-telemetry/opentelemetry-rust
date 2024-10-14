@@ -47,6 +47,7 @@ pub(crate) mod internal;
 pub(crate) mod manual_reader;
 pub(crate) mod meter;
 mod meter_provider;
+pub(crate) mod noop;
 pub(crate) mod periodic_reader;
 pub(crate) mod pipeline;
 pub mod reader;
