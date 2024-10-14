@@ -5,7 +5,7 @@ use log::{info, Level};
 use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
+use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
@@ -18,7 +18,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
             opentelemetry_semantic_conventions::resource::SERVICE_NAME,
             "logs-integration-test",
         )]))
-        .install_batch(runtime::Tokio)
+        .install_batch()
 }
 
 pub async fn logs() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {

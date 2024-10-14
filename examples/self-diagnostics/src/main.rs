@@ -58,7 +58,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
                 .http()
                 .with_endpoint("http://localhost:4318/v1/logs"),
         )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .install_batch()
         .unwrap();
     let cloned_provider = provider.clone();
 
