@@ -86,3 +86,41 @@ impl TemporalitySelector for DefaultTemporalitySelector {
         Temporality::Cumulative
     }
 }
+
+/// A temporality selector that returns [`Delta`][Temporality::Delta] for all
+/// instruments except `UpDownCounter` and `ObservableUpDownCounter`.
+///
+/// This temporality selector is equivalent to OTLP Metrics Exporter's
+/// `Delta` temporality preference (see [its documentation][exporter-docs]).
+///
+/// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+#[derive(Clone, Default, Debug)]
+pub struct DeltaTemporalitySelector {
+    pub(crate) _private: (),
+}
+
+impl DeltaTemporalitySelector {
+    /// Create a new default temporality selector.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl TemporalitySelector for DeltaTemporalitySelector {
+    #[rustfmt::skip]
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        match kind {
+            InstrumentKind::Counter
+            | InstrumentKind::Histogram
+            | InstrumentKind::ObservableCounter
+            | InstrumentKind::Gauge
+            | InstrumentKind::ObservableGauge => {
+                Temporality::Delta
+            }
+            InstrumentKind::UpDownCounter
+            | InstrumentKind::ObservableUpDownCounter => {
+                Temporality::Cumulative
+            }
+        }
+    }
+}
