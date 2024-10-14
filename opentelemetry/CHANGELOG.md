@@ -4,7 +4,8 @@
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Add `LogRecord::set_trace_context`; an optional method conditional on the `trace` feature for setting trace context on a log record.
-- Remove unnecessary public methods named `as_any` from `AsyncInstrument` trait and the implementing instruments: `ObservableCounter`, `ObservableGauge`, and `ObservableUpDownCounter` [#2187](https://github.com/open-telemetry/opentelemetry-rust/issues/2187)
+- Removed unnecessary public methods named `as_any` from `AsyncInstrument` trait and the implementing instruments: `ObservableCounter`, `ObservableGauge`, and `ObservableUpDownCounter` [#2187](https://github.com/open-telemetry/opentelemetry-rust/issues/2187)
+- Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/issues/2207)
 
 ## v0.26.0
 Released 2024-Sep-30
