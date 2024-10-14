@@ -1,13 +1,73 @@
-//! # Trace Provider SDK
-//!
-//! ## Tracer Creation
-//!
-//! New [`Tracer`] instances are always created through a [`TracerProvider`].
-//!
-//! All configuration objects and extension points (span processors,
-//! propagators) are provided by the [`TracerProvider`]. [`Tracer`] instances do
-//! not duplicate this data to avoid that different [`Tracer`] instances
-//! of the [`TracerProvider`] have different versions of these data.
+/// # Trace Provider SDK
+///
+/// The `TracerProvider` handles the creation and management of [`Tracer`] instances and coordinates
+/// span processing. It serves as the central configuration point for tracing, ensuring consistency
+/// across all [`Tracer`] instances it creates.
+///
+/// ## Tracer Creation
+///
+/// New [`Tracer`] instances are always created through a `TracerProvider`. These `Tracer`s share
+/// a common configuration, which includes the [`Resource`], span processors, sampling strategies,
+/// and span limits. This avoids the need for each `Tracer` to maintain its own version of these
+/// configurations, ensuring uniform behavior across all instances.
+///
+/// ## Cloning and Shutdown
+///
+/// The `TracerProvider` is designed to be lightweight and clonable. Cloning a `TracerProvider`
+/// creates a new reference to the same provider, not a new instance. Dropping the last reference
+/// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
+/// will flush all remaining spans for **batch processors**, ensuring they are exported to the configured
+/// exporters. However, **simple processors** do not require a flush, as they export spans immediately
+/// when they end. Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
+/// method, which will ensure the same behavior (flushing for batch processors, but no additional action
+/// for simple processors).
+///
+/// Once shut down, the `TracerProvider` transitions into a disabled state. In this state, further
+/// operations on its associated `Tracer` instances will result in no-ops, ensuring that no spans
+/// are processed or exported after shutdown.
+///
+/// ## Span Processing and Force Flush
+///
+/// The `TracerProvider` manages the lifecycle of span processors, which are responsible for
+/// collecting, processing, and exporting spans. To ensure all spans are processed before shutdown,
+/// users can call the [`force_flush`](TracerProvider::force_flush) method at any time to trigger
+/// an immediate flush of all pending spans for **batch processors** to the exporters. Note that
+/// calling [`force_flush`](TracerProvider::force_flush) is optional before shutdown, as `shutdown`
+/// will automatically trigger a flush for batch processors, but not for simple processors.
+///
+/// # Examples
+///
+/// ```
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::trace::TracerProvider;
+///
+/// fn init_tracing() -> TracerProvider {
+///     let provider = TracerProvider::default();
+///
+///     // Set the provider to be used globally
+///     let _ = global::set_tracer_provider(provider.clone());
+///
+///     provider
+/// }
+///
+/// fn main() {
+///     let provider = init_tracing();
+///
+///     // create spans...
+///
+///     // Flush all spans before shutdown (optional for batch processors)
+///     for result in provider.force_flush() {
+///         if let Err(err) = result {
+///             // Handle flush error...
+///         }
+///     }
+///
+///     // Dropping the provider ensures remaining spans are flushed for batch processors
+///     // and shuts down the global tracer provider.
+///     drop(provider);
+///     global::shutdown_tracer_provider();
+/// }
+/// ```
 use crate::runtime::RuntimeChannel;
 use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
@@ -16,7 +76,7 @@ use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, trace::TraceResult};
+use opentelemetry::{otel_debug, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -51,38 +111,31 @@ pub(crate) struct TracerProviderInner {
 impl TracerProviderInner {
     /// Crate-private shutdown method to be called both from explicit shutdown
     /// and from Drop when the last reference is released.
-    pub(crate) fn shutdown(&self) -> TraceResult<()> {
-        if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
-            // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new spans after shutdown
-            let mut errs = vec![];
-            for processor in &self.processors {
-                if let Err(err) = processor.shutdown() {
-                    errs.push(err);
-                }
+    pub(crate) fn shutdown(&self) -> Vec<TraceError> {
+        let mut errs = vec![];
+        for processor in &self.processors {
+            if let Err(err) = processor.shutdown() {
+                // Log at debug level because:
+                //  - The error is also returned to the user for handling (if applicable)
+                //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
+                //    which is non-actionable by the user
+                otel_debug!(name: "TracerProvider.Drop.ShutdownError",
+                        error = format!("{err}"));
+                errs.push(err);
             }
-
-            if errs.is_empty() {
-                Ok(())
-            } else {
-                Err(TraceError::Other(format!("{errs:?}").into()))
-            }
-        } else {
-            Err(TraceError::Other(
-                "tracer provider already shut down".into(),
-            ))
         }
+        errs
     }
 }
 
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
-        if let Err(err) = self.shutdown() {
-            global::handle_error(err);
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            let _ = self.shutdown(); // errors are handled within shutdown
+        } else {
+            otel_debug!(
+                name: "TracerProviderProvider.Drop.AlreadyShutdown"
+            );
         }
     }
 }
@@ -182,7 +235,22 @@ impl TracerProvider {
     ///
     /// Note that shut down doesn't means the TracerProvider has dropped
     pub fn shutdown(&self) -> TraceResult<()> {
-        self.inner.shutdown()
+        if self
+            .inner
+            .is_shutdown
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            // propagate the shutdown signal to processors
+            let errs = self.inner.shutdown();
+            if errs.is_empty() {
+                Ok(())
+            } else {
+                Err(TraceError::Other(format!("{errs:?}").into()))
+            }
+        } else {
+            Err(TraceError::AlreadyShutdown("TracerProvider".to_string()))
+        }
     }
 }
 
