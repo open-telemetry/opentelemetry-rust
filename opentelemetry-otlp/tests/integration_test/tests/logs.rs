@@ -18,7 +18,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
             opentelemetry_semantic_conventions::resource::SERVICE_NAME,
             "logs-integration-test",
         )]))
-        .install_batch(runtime::Tokio)
+        .install_batch()
 }
 
 pub async fn logs() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
