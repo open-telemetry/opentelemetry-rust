@@ -227,7 +227,7 @@ pub enum Value {
 }
 
 /// Wrapper for string-like values
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct StringValue(OtelString);
 
 impl fmt::Debug for StringValue {

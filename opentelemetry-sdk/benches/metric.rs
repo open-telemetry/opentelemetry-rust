@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{MetricReader, TemporalitySelector},
+        reader::{DeltaTemporalitySelector, MetricReader, TemporalitySelector},
         Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         View,
     },
@@ -41,28 +41,6 @@ impl MetricReader for SharedReader {
 
     fn shutdown(&self) -> Result<()> {
         self.0.shutdown()
-    }
-}
-
-/// Configure delta temporality for all [InstrumentKind]
-///
-/// [Temporality::Delta] will be used for all instrument kinds if this
-/// [TemporalitySelector] is used.
-#[derive(Clone, Default, Debug)]
-pub struct DeltaTemporalitySelector {
-    pub(crate) _private: (),
-}
-
-impl DeltaTemporalitySelector {
-    /// Create a new default temporality selector.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl TemporalitySelector for DeltaTemporalitySelector {
-    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Delta
     }
 }
 

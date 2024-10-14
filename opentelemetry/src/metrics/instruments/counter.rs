@@ -2,15 +2,12 @@ use crate::{metrics::AsyncInstrument, KeyValue};
 use core::fmt;
 use std::sync::Arc;
 
-/// An SDK implemented instrument that records increasing values.
-pub trait SyncCounter<T> {
-    /// Records an increment to the counter.
-    fn add(&self, value: T, attributes: &[KeyValue]);
-}
+use super::SyncInstrument;
 
 /// An instrument that records increasing values.
 #[derive(Clone)]
-pub struct Counter<T>(Arc<dyn SyncCounter<T> + Send + Sync>);
+#[non_exhaustive]
+pub struct Counter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Counter<T>
 where
@@ -23,18 +20,19 @@ where
 
 impl<T> Counter<T> {
     /// Create a new counter.
-    pub fn new(inner: Arc<dyn SyncCounter<T> + Send + Sync>) -> Self {
+    pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
         Counter(inner)
     }
 
     /// Records an increment to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
-        self.0.add(value, attributes)
+        self.0.measure(value, attributes)
     }
 }
 
 /// An async instrument that records increasing values.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ObservableCounter<T>(Arc<dyn AsyncInstrument<T>>);
 
 impl<T> ObservableCounter<T> {

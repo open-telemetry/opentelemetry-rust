@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
-    metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
+    metrics::{AsyncInstrument, SyncInstrument},
     Key, KeyValue,
 };
 
@@ -252,32 +252,8 @@ pub(crate) struct ResolvedMeasures<T> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
+impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
+    fn measure(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
