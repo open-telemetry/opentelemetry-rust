@@ -125,18 +125,10 @@ impl LoggerProvider {
             if errs.is_empty() {
                 Ok(())
             } else {
-                otel_warn!(
-                    name: "logger_provider_shutdown_error",
-                    error = format!("{:?}", errs)
-                );
-                Err(LogError::Other(format!("{:?}", errs).into()))
+                Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
-            let error = LogError::AlreadyShutdown("LoggerProvider".to_string());
-            otel_debug!(
-                name: "LoggerProvider.Shutdown.AlreadyShutdown",
-            );
-            Err(error)
+            Err(LogError::AlreadyShutdown("LoggerProvider".to_string()))
         }
     }
 }
@@ -154,6 +146,24 @@ impl LoggerProviderInner {
         let mut errs = vec![];
         for processor in &self.processors {
             if let Err(err) = processor.shutdown() {
+                // Log at debug level because:
+                //  - The error is also returned to the user for handling (if applicable)
+                //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
+                //    which is non-actionable by the user
+                match err {
+                    // specific handling for mutex poisioning
+                    LogError::MutexPoisoned(_) => {
+                        otel_debug!(
+                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
+                        );
+                    }
+                    _ => {
+                        otel_debug!(
+                            name: "LoggerProvider.Drop.ShutdownError",
+                            error = format!("{err}")
+                        );
+                    }
+                }
                 errs.push(err);
             }
         }
@@ -164,13 +174,10 @@ impl LoggerProviderInner {
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         if !self.is_shutdown.load(Ordering::Relaxed) {
-            let errs = self.shutdown();
-            if !errs.is_empty() {
-                global::handle_error(LogError::Other(format!("{:?}", errs).into()));
-            }
+            let _ = self.shutdown(); // errors are handled within shutdown
         } else {
             otel_debug!(
-                name: "LoggerProvider.Drop.AlreadyShutdown",
+                name: "LoggerProvider.Drop.AlreadyShutdown"
             );
         }
     }
