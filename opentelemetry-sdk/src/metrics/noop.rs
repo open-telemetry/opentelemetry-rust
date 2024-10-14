@@ -1,8 +1,5 @@
 use opentelemetry::{
-    metrics::{
-        AsyncInstrument, InstrumentProvider, SyncCounter, SyncGauge, SyncHistogram,
-        SyncUpDownCounter,
-    },
+    metrics::{AsyncInstrument, InstrumentProvider, SyncInstrument},
     KeyValue,
 };
 
@@ -34,26 +31,8 @@ impl NoopSyncInstrument {
     }
 }
 
-impl<T> SyncCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncUpDownCounter<T> for NoopSyncInstrument {
-    fn add(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncHistogram<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-impl<T> SyncGauge<T> for NoopSyncInstrument {
-    fn record(&self, _value: T, _attributes: &[KeyValue]) {
+impl<T> SyncInstrument<T> for NoopSyncInstrument {
+    fn measure(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
