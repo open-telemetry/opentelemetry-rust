@@ -47,6 +47,7 @@ pub(crate) mod internal;
 pub(crate) mod manual_reader;
 pub(crate) mod meter;
 mod meter_provider;
+pub(crate) mod noop;
 pub(crate) mod periodic_reader;
 pub(crate) mod pipeline;
 pub mod reader;
@@ -148,6 +149,61 @@ mod tests {
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn invalid_instrument_config_noops() {
+        // Run this test with stdout enabled to see output.
+        // cargo test invalid_instrument_config_noops --features=testing -- --nocapture
+        let invalid_instrument_names = vec![
+            "_startWithNoneAlphabet",
+            "utf8char锈",
+            "a".repeat(256).leak(),
+            "invalid name",
+        ];
+        for name in invalid_instrument_names {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let counter = test_context.meter().u64_counter(name).init();
+            counter.add(1, &[]);
+
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).init();
+            up_down_counter.add(1, &[]);
+
+            let gauge = test_context.meter().f64_gauge(name).init();
+            gauge.record(1.9, &[]);
+
+            let histogram = test_context.meter().f64_histogram(name).init();
+            histogram.record(1.0, &[]);
+
+            let _observable_counter = test_context
+                .meter()
+                .u64_observable_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .init();
+
+            let _observable_gauge = test_context
+                .meter()
+                .f64_observable_gauge(name)
+                .with_callback(move |observer| {
+                    observer.observe(1.0, &[]);
+                })
+                .init();
+
+            let _observable_up_down_counter = test_context
+                .meter()
+                .i64_observable_up_down_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .init();
+
+            test_context.flush_metrics();
+
+            // As instrument name is invalid, no metrics should be exported
+            test_context.check_no_metrics();
+        }
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_delta() {
@@ -2366,6 +2422,15 @@ mod tests {
 
         fn reset_metrics(&self) {
             self.exporter.reset();
+        }
+
+        fn check_no_metrics(&self) {
+            let resource_metrics = self
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricsExporter to return None.
+
+            assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
 
         fn get_aggregation<T: data::Aggregation>(

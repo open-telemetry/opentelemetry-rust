@@ -1,12 +1,15 @@
-use crate::metrics::{Meter, MetricsError, Result};
+use gauge::{Gauge, ObservableGauge};
+
+use crate::metrics::{Meter, Result};
 use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::borrow::Cow;
 use std::marker;
-use std::sync::Arc;
 
-use super::{Histogram, InstrumentProvider};
+use super::{
+    Counter, Histogram, InstrumentProvider, ObservableCounter, ObservableUpDownCounter,
+    UpDownCounter,
+};
 
 pub(super) mod counter;
 pub(super) mod gauge;
@@ -19,9 +22,12 @@ pub trait AsyncInstrument<T>: Send + Sync {
     ///
     /// It is only valid to call this within a callback.
     fn observe(&self, measurement: T, attributes: &[KeyValue]);
+}
 
-    /// Used for SDKs to downcast instruments in callbacks.
-    fn as_any(&self) -> Arc<dyn Any>;
+/// An SDK implemented instrument that records measurements synchronously.
+pub trait SyncInstrument<T>: Send + Sync {
+    /// Records a measurement synchronously.
+    fn measure(&self, measurement: T, attributes: &[KeyValue]);
 }
 
 /// Configuration for building a Histogram.
@@ -88,7 +94,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, f64> {
+impl<'a> HistogramBuilder<'a, Histogram<f64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<f64>> {
         self.instrument_provider.f64_histogram(self)
@@ -96,18 +102,15 @@ impl<'a> HistogramBuilder<'a, f64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, an instrument that is no-op is returned
+    /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<f64> {
         self.try_init().unwrap()
     }
 }
 
-impl<'a> HistogramBuilder<'a, u64> {
+impl<'a> HistogramBuilder<'a, Histogram<u64>> {
     /// Validate the instrument configuration and creates a new instrument.
     pub fn try_init(self) -> Result<Histogram<u64>> {
         self.instrument_provider.u64_histogram(self)
@@ -115,12 +118,9 @@ impl<'a> HistogramBuilder<'a, u64> {
 
     /// Creates a new instrument.
     ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, an instrument that is no-op is returned
+    /// and an error is logged using internal logging.
     pub fn init(self) -> Histogram<u64> {
         self.try_init().unwrap()
     }
@@ -144,10 +144,7 @@ pub struct InstrumentBuilder<'a, T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl<'a, T> InstrumentBuilder<'a, T>
-where
-    T: TryFrom<Self, Error = MetricsError>,
-{
+impl<'a, T> InstrumentBuilder<'a, T> {
     /// Create a new instrument builder
     pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         InstrumentBuilder {
@@ -176,24 +173,36 @@ where
         self.unit = Some(unit.into());
         self
     }
-
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<T> {
-        T::try_from(self)
-    }
-
-    /// Creates a new instrument.
-    ///
-    /// Validate the instrument configuration and crates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-    pub fn init(self) -> T {
-        T::try_from(self).unwrap()
-    }
 }
+
+macro_rules! build_instrument {
+    ($name:ident, $inst:ty) => {
+        impl<'a> InstrumentBuilder<'a, $inst> {
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
+            pub fn try_init(self) -> Result<$inst> {
+                self.instrument_provider.$name(self)
+            }
+
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
+            ///
+            /// # Panics
+            ///
+            /// Panics if the instrument cannot be created. Use
+            /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+            pub fn init(self) -> $inst {
+                self.try_init().unwrap()
+            }
+        }
+    };
+}
+
+build_instrument!(u64_counter, Counter<u64>);
+build_instrument!(f64_counter, Counter<f64>);
+build_instrument!(u64_gauge, Gauge<u64>);
+build_instrument!(f64_gauge, Gauge<f64>);
+build_instrument!(i64_gauge, Gauge<i64>);
+build_instrument!(i64_up_down_counter, UpDownCounter<i64>);
+build_instrument!(f64_up_down_counter, UpDownCounter<f64>);
 
 impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -256,7 +265,6 @@ where
 
 impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
 where
-    I: TryFrom<Self, Error = MetricsError>,
     I: AsyncInstrument<M>,
 {
     /// Create a new instrument builder
@@ -297,24 +305,44 @@ where
         self.callbacks.push(Box::new(callback));
         self
     }
-
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<I> {
-        I::try_from(self)
-    }
-
-    /// Creates a new instrument.
-    ///
-    /// Validate the instrument configuration and creates a new instrument.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the instrument cannot be created. Use
-    /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-    pub fn init(self) -> I {
-        I::try_from(self).unwrap()
-    }
 }
+
+macro_rules! build_async_instrument {
+    ($name:ident, $inst:ty, $measurement:ty) => {
+        impl<'a> AsyncInstrumentBuilder<'a, $inst, $measurement> {
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
+            pub fn try_init(self) -> Result<$inst> {
+                self.instrument_provider.$name(self)
+            }
+
+            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
+            ///
+            /// # Panics
+            ///
+            /// Panics if the instrument cannot be created. Use
+            /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
+            pub fn init(self) -> $inst {
+                self.try_init().unwrap()
+            }
+        }
+    };
+}
+
+build_async_instrument!(u64_observable_counter, ObservableCounter<u64>, u64);
+build_async_instrument!(f64_observable_counter, ObservableCounter<f64>, f64);
+build_async_instrument!(u64_observable_gauge, ObservableGauge<u64>, u64);
+build_async_instrument!(f64_observable_gauge, ObservableGauge<f64>, f64);
+build_async_instrument!(i64_observable_gauge, ObservableGauge<i64>, i64);
+build_async_instrument!(
+    i64_observable_up_down_counter,
+    ObservableUpDownCounter<i64>,
+    i64
+);
+build_async_instrument!(
+    f64_observable_up_down_counter,
+    ObservableUpDownCounter<f64>,
+    f64
+);
 
 impl<I, M> fmt::Debug for AsyncInstrumentBuilder<'_, I, M>
 where

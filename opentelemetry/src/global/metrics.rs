@@ -7,7 +7,7 @@ type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
 
 /// The global `MeterProvider` singleton.
 static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> =
-    Lazy::new(|| RwLock::new(Arc::new(metrics::noop::NoopMeterProvider::new())));
+    Lazy::new(|| RwLock::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new())));
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.

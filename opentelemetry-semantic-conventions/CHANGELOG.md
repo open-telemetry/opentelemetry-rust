@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+- Update to [v1.28.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.28.0) of the semantic conventions.
+
+## v0.26.0
+Released 2024-Sep-30
+
 ### Changed
 
 - Starting with this version, this crate will use Weaver for the generation of

@@ -1,5 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, Resource};
+use opentelemetry::otel_warn;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
@@ -23,15 +24,26 @@ static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider 
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
         resource: Resource::empty(),
+        is_shutdown: AtomicBool::new(true),
     }),
-    is_shutdown: Arc::new(AtomicBool::new(true)),
 });
 
 #[derive(Debug, Clone)]
-/// Creator for `Logger` instances.
+/// Handles the creation and coordination of [`Logger`]s.
+///
+/// All `Logger`s created by a `LoggerProvider` will share the same
+/// [`Resource`] and have their created log records processed by the
+/// configured log processors. This is a clonable handle to the `LoggerProvider`
+/// itself, and cloning it will create a new reference, not a new instance of a
+/// `LoggerProvider`. Dropping the last reference will trigger the shutdown of
+/// the provider, ensuring that all remaining logs are flushed and no further
+/// logs are processed. Shutdown can also be triggered manually by calling
+/// the [`shutdown`](LoggerProvider::shutdown) method.
+///
+/// [`Logger`]: opentelemetry::logs::Logger
+/// [`Resource`]: crate::Resource
 pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
-    is_shutdown: Arc<AtomicBool>,
 }
 
 /// Default logger name if empty string is provided.
@@ -49,7 +61,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         attributes: Option<Vec<opentelemetry::KeyValue>>,
     ) -> Logger {
         let name = name.into();
-
         let component_name = if name.is_empty() {
             Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         } else {
@@ -73,7 +84,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
         }
         Logger::new(library, self.clone())
@@ -105,25 +116,26 @@ impl LoggerProvider {
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
         if self
+            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new logs after shutdown
-            let mut errs = vec![];
-            for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
-                    errs.push(err);
-                }
-            }
-
+            let errs = self.inner.shutdown();
             if errs.is_empty() {
                 Ok(())
             } else {
-                Err(LogError::Other(format!("{errs:?}").into()))
+                otel_warn!(
+                    name: "logger_provider_shutdown_error",
+                    error = format!("{:?}", errs)
+                );
+                Err(LogError::Other(format!("{:?}", errs).into()))
             }
         } else {
+            otel_warn!(
+                name: "logger_provider_already_shutdown"
+            );
             Err(LogError::Other("logger provider already shut down".into()))
         }
     }
@@ -133,13 +145,28 @@ impl LoggerProvider {
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Resource,
+    is_shutdown: AtomicBool,
+}
+
+impl LoggerProviderInner {
+    /// Shuts down the `LoggerProviderInner` and returns any errors.
+    pub(crate) fn shutdown(&self) -> Vec<LogError> {
+        let mut errs = vec![];
+        for processor in &self.processors {
+            if let Err(err) = processor.shutdown() {
+                errs.push(err);
+            }
+        }
+        errs
+    }
 }
 
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            let errs = self.shutdown();
+            if !errs.is_empty() {
+                global::handle_error(LogError::Other(format!("{:?}", errs).into()));
             }
         }
     }
@@ -194,8 +221,8 @@ impl Builder {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 resource,
+                is_shutdown: AtomicBool::new(false),
             }),
-            is_shutdown: Arc::new(AtomicBool::new(false)),
         };
 
         // invoke set_resource on all the processors
@@ -248,14 +275,17 @@ impl opentelemetry::logs::Logger for Logger {
     fn emit(&self, mut record: Self::LogRecord) {
         let provider = self.provider();
         let processors = provider.log_processors();
-        let trace_context = Context::map_current(|cx| {
-            cx.has_active_span()
-                .then(|| TraceContext::from(cx.span().span_context()))
-        });
 
         //let mut log_record = record;
-        if let Some(ref trace_context) = trace_context {
-            record.trace_context = Some(trace_context.clone());
+        if record.trace_context.is_none() {
+            let trace_context = Context::map_current(|cx| {
+                cx.has_active_span()
+                    .then(|| TraceContext::from(cx.span().span_context()))
+            });
+
+            if let Some(ref trace_context) = trace_context {
+                record.trace_context = Some(trace_context.clone());
+            }
         }
         if record.observed_timestamp.is_none() {
             record.observed_timestamp = Some(SystemTime::now());
@@ -285,13 +315,18 @@ impl opentelemetry::logs::Logger for Logger {
 
 #[cfg(test)]
 mod tests {
-    use crate::resource::{
-        SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
+    use crate::{
+        resource::{
+            SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
+        },
+        testing::logs::InMemoryLogsExporter,
+        trace::TracerProvider,
+        Resource,
     };
-    use crate::Resource;
 
     use super::*;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _};
+    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
@@ -454,6 +489,72 @@ mod tests {
     }
 
     #[test]
+    fn trace_context_test() {
+        let exporter = InMemoryLogsExporter::default();
+
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let logger = logger_provider.logger("test-logger");
+
+        let tracer_provider = TracerProvider::builder().build();
+
+        let tracer = tracer_provider.tracer("test-tracer");
+
+        tracer.in_span("test-span", |cx| {
+            let ambient_ctxt = cx.span().span_context().clone();
+            let explicit_ctxt = TraceContext {
+                trace_id: TraceId::from_u128(13),
+                span_id: SpanId::from_u64(14),
+                trace_flags: None,
+            };
+
+            let mut ambient_ctxt_record = logger.create_log_record();
+            ambient_ctxt_record.set_body(AnyValue::String("ambient".into()));
+
+            let mut explicit_ctxt_record = logger.create_log_record();
+            explicit_ctxt_record.set_body(AnyValue::String("explicit".into()));
+            explicit_ctxt_record.set_trace_context(
+                explicit_ctxt.trace_id,
+                explicit_ctxt.span_id,
+                explicit_ctxt.trace_flags,
+            );
+
+            logger.emit(ambient_ctxt_record);
+            logger.emit(explicit_ctxt_record);
+
+            let emitted = exporter.get_emitted_logs().unwrap();
+
+            assert_eq!(
+                Some(AnyValue::String("ambient".into())),
+                emitted[0].record.body
+            );
+            assert_eq!(
+                ambient_ctxt.trace_id(),
+                emitted[0].record.trace_context.as_ref().unwrap().trace_id
+            );
+            assert_eq!(
+                ambient_ctxt.span_id(),
+                emitted[0].record.trace_context.as_ref().unwrap().span_id
+            );
+
+            assert_eq!(
+                Some(AnyValue::String("explicit".into())),
+                emitted[1].record.body
+            );
+            assert_eq!(
+                explicit_ctxt.trace_id,
+                emitted[1].record.trace_context.as_ref().unwrap().trace_id
+            );
+            assert_eq!(
+                explicit_ctxt.span_id,
+                emitted[1].record.trace_context.as_ref().unwrap().span_id
+            );
+        });
+    }
+
+    #[test]
     fn shutdown_test() {
         let counter = Arc::new(AtomicU64::new(0));
         let logger_provider = LoggerProvider::builder()
@@ -530,6 +631,89 @@ mod tests {
         assert!(!*flush_called.lock().unwrap());
     }
 
+    #[test]
+    fn drop_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(false));
+        let flush_called = Arc::new(Mutex::new(false));
+        {
+            // Create a shared LoggerProviderInner and use it across multiple providers
+            let shared_inner = Arc::new(LoggerProviderInner {
+                processors: vec![Box::new(LazyLogProcessor::new(
+                    shutdown_called.clone(),
+                    flush_called.clone(),
+                ))],
+                resource: Resource::empty(),
+                is_shutdown: AtomicBool::new(false),
+            });
+
+            {
+                let logger_provider1 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
+                let logger_provider2 = LoggerProvider {
+                    inner: shared_inner.clone(),
+                };
+
+                let logger1 = logger_provider1.logger("test-logger1");
+                let logger2 = logger_provider2.logger("test-logger2");
+
+                logger1.emit(logger1.create_log_record());
+                logger2.emit(logger1.create_log_record());
+
+                // LoggerProviderInner should not be dropped yet, since both providers and `shared_inner`
+                // are still holding a reference.
+            }
+            // At this point, both `logger_provider1` and `logger_provider2` are dropped,
+            // but `shared_inner` still holds a reference, so `LoggerProviderInner` is NOT dropped yet.
+        }
+        // Verify shutdown was called during the drop of the shared LoggerProviderInner
+        assert!(*shutdown_called.lock().unwrap());
+        // Verify flush was not called during drop
+        assert!(!*flush_called.lock().unwrap());
+    }
+
+    #[test]
+    fn drop_after_shutdown_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
+        let flush_called = Arc::new(Mutex::new(false));
+
+        // Create a shared LoggerProviderInner and use it across multiple providers
+        let shared_inner = Arc::new(LoggerProviderInner {
+            processors: vec![Box::new(CountingShutdownProcessor::new(
+                shutdown_called.clone(),
+                flush_called.clone(),
+            ))],
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(false),
+        });
+
+        // Create a scope to test behavior when providers are dropped
+        {
+            let logger_provider1 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+            let logger_provider2 = LoggerProvider {
+                inner: shared_inner.clone(),
+            };
+
+            // Explicitly shut down the logger provider
+            let shutdown_result = logger_provider1.shutdown();
+            assert!(shutdown_result.is_ok());
+
+            // Verify that shutdown was called exactly once
+            assert_eq!(*shutdown_called.lock().unwrap(), 1);
+
+            // LoggerProvider2 should observe the shutdown state but not trigger another shutdown
+            let shutdown_result2 = logger_provider2.shutdown();
+            assert!(shutdown_result2.is_err());
+
+            // Both logger providers will be dropped at the end of this scope
+        }
+
+        // Verify that shutdown was only called once, even after drop
+        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
     #[derive(Debug)]
     pub(crate) struct LazyLogProcessor {
         shutdown_called: Arc<Mutex<bool>>,
@@ -560,6 +744,38 @@ mod tests {
 
         fn shutdown(&self) -> LogResult<()> {
             *self.shutdown_called.lock().unwrap() = true;
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct CountingShutdownProcessor {
+        shutdown_count: Arc<Mutex<i32>>,
+        flush_called: Arc<Mutex<bool>>,
+    }
+
+    impl CountingShutdownProcessor {
+        fn new(shutdown_count: Arc<Mutex<i32>>, flush_called: Arc<Mutex<bool>>) -> Self {
+            CountingShutdownProcessor {
+                shutdown_count,
+                flush_called,
+            }
+        }
+    }
+
+    impl LogProcessor for CountingShutdownProcessor {
+        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+            // nothing to do
+        }
+
+        fn force_flush(&self) -> LogResult<()> {
+            *self.flush_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            let mut count = self.shutdown_count.lock().unwrap();
+            *count += 1;
             Ok(())
         }
     }

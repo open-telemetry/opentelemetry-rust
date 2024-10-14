@@ -208,16 +208,20 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
-    use opentelemetry::logs::Severity;
+    use async_trait::async_trait;
+    use opentelemetry::logs::{LogResult, Severity};
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
-    use tracing::error;
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing::{error, warn};
+    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::{EnvFilter, Layer};
 
     pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -225,7 +229,82 @@ mod tests {
             .any(|(k, v)| k == key && v == value)
     }
 
+    fn create_tracing_subscriber(
+        _exporter: InMemoryLogsExporter,
+        logger_provider: &LoggerProvider,
+    ) -> impl tracing::Subscriber {
+        let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
+        let layer =
+            layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
+
+        tracing_subscriber::registry().with(layer)
+    }
+
     // cargo test --features=testing
+
+    #[derive(Clone, Debug, Default)]
+    struct ReentrantLogExporter;
+
+    #[async_trait]
+    impl LogExporter for ReentrantLogExporter {
+        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
+            // This will cause a deadlock as the export itself creates a log
+            // while still within the lock of the SimpleLogProcessor.
+            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
+    fn simple_processor_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+        // Setting subscriber as global as that is the only way to test this scenario.
+        tracing_subscriber::registry().with(layer).init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[test]
+    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
+    fn simple_processor_no_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+        // This filter will prevent the deadlock as the reentrant log will be
+        // ignored.
+        let filter = EnvFilter::new("debug").add_directive("reentrant=error".parse().unwrap());
+        // Setting subscriber as global as that is the only way to test this scenario.
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(layer)
+            .init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
+    async fn batch_processor_no_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
+        let logger_provider = LoggerProvider::builder()
+            .with_batch_exporter(exporter.clone(), opentelemetry_sdk::runtime::Tokio)
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+        tracing_subscriber::registry().with(layer).init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
@@ -234,8 +313,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -315,8 +393,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -427,8 +504,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -436,7 +512,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!("log from log crate");
+        log::error!(target: "my-system", "log from log crate");
         logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
@@ -493,8 +569,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -513,7 +588,7 @@ mod tests {
             let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
-            log::error!("log from log crate");
+            log::error!(target: "my-system", "log from log crate");
             (trace_id, span_id)
         });
 

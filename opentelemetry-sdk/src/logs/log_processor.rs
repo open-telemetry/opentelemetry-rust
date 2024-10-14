@@ -18,8 +18,9 @@ use opentelemetry::logs::Severity;
 use opentelemetry::{
     global,
     logs::{LogError, LogResult},
-    InstrumentationLibrary,
+    otel_error, otel_warn, InstrumentationLibrary,
 };
+
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -112,15 +113,11 @@ impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            otel_warn!(
+                name: "simple_log_processor_emit_after_shutdown"
+            );
             return;
         }
-
-        #[cfg(feature = "experimental-internal-logs")]
-        tracing::debug!(
-            name: "simple_log_processor_emit",
-            target: "opentelemetry-sdk",
-            event_name = record.event_name
-        );
 
         let result = self
             .exporter
@@ -131,6 +128,10 @@ impl LogProcessor for SimpleLogProcessor {
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         if let Err(err) = result {
+            otel_error!(
+                name: "simple_log_processor_emit_error",
+                error = format!("{:?}", err)
+            );
             global::handle_error(err);
         }
     }
@@ -146,6 +147,9 @@ impl LogProcessor for SimpleLogProcessor {
             exporter.shutdown();
             Ok(())
         } else {
+            otel_error!(
+                name: "simple_log_processor_shutdown_error"
+            );
             Err(LogError::Other(
                 "simple logprocessor mutex poison during shutdown".into(),
             ))
@@ -184,6 +188,10 @@ impl LogProcessor for BatchLogProcessor {
         )));
 
         if let Err(err) = result {
+            otel_error!(
+                name: "batch_log_processor_emit_error",
+                error = format!("{:?}", err)
+            );
             global::handle_error(LogError::Other(err.into()));
         }
     }

@@ -160,8 +160,8 @@
 //!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-//!         global::set_tracer_provider(tracer_provider);
-//!         let tracer = global::tracer("tracer-name");
+//!     global::set_tracer_provider(tracer_provider);
+//!     let tracer = global::tracer("tracer-name");
 //!         # tracer
 //!     # };
 //!
