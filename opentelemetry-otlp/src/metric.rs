@@ -14,7 +14,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         exporter::PushMetricsExporter,
-        reader::{DefaultTemporalitySelector, TemporalitySelector},
+        reader::{DefaultTemporalitySelector, DeltaTemporalitySelector, TemporalitySelector},
         InstrumentKind, PeriodicReader, SdkMeterProvider,
     },
     runtime::Runtime,
@@ -169,7 +169,7 @@ where
     ///
     /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
     pub fn with_delta_temporality(self) -> Self {
-        self.with_temporality_selector(DeltaTemporalitySelector)
+        self.with_temporality_selector(DeltaTemporalitySelector::new())
     }
 }
 
@@ -234,35 +234,6 @@ impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
             .field("period", &self.period)
             .field("timeout", &self.timeout)
             .finish()
-    }
-}
-
-/// A temporality selector that returns [`Delta`][Temporality::Delta] for all
-/// instruments except `UpDownCounter` and `ObservableUpDownCounter`.
-///
-/// This temporality selector is equivalent to OTLP Metrics Exporter's
-/// `Delta` temporality preference (see [its documentation][exporter-docs]).
-///
-/// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
-#[derive(Debug)]
-struct DeltaTemporalitySelector;
-
-impl TemporalitySelector for DeltaTemporalitySelector {
-    #[rustfmt::skip]
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        match kind {
-            InstrumentKind::Counter
-            | InstrumentKind::Histogram
-            | InstrumentKind::ObservableCounter
-            | InstrumentKind::Gauge
-            | InstrumentKind::ObservableGauge => {
-                Temporality::Delta
-            }
-            InstrumentKind::UpDownCounter
-            | InstrumentKind::ObservableUpDownCounter => {
-                Temporality::Cumulative
-            }
-        }
     }
 }
 
