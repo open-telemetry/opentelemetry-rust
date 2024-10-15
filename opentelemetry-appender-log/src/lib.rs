@@ -99,6 +99,8 @@ use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     Key,
 };
+#[cfg(feature = "experimental_metadata_attributes")]
+use opentelemetry_semantic_conventions::attribute::{CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE};
 use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -130,6 +132,28 @@ where
             log_record.set_severity_number(severity_of_level(record.level()));
             log_record.set_severity_text(record.level().as_str());
             log_record.set_body(AnyValue::from(record.args().to_string()));
+
+            #[cfg(feature = "experimental_metadata_attributes")]
+            {
+                if let Some(filepath) = record.file() {
+                    log_record.add_attribute(
+                        Key::new(CODE_FILEPATH),
+                        AnyValue::from(filepath.to_string()),
+                    );
+                }
+
+                if let Some(line_no) = record.line() {
+                    log_record.add_attribute(Key::new(CODE_LINENO), AnyValue::from(line_no));
+                }
+
+                if let Some(module) = record.module_path() {
+                    log_record.add_attribute(
+                        Key::new(CODE_NAMESPACE),
+                        AnyValue::from(module.to_string()),
+                    );
+                }
+            }
+
             log_record.add_attributes(log_attributes(record.key_values()));
             log_record.set_target(record.metadata().target().to_string());
 
@@ -1125,6 +1149,54 @@ mod tests {
                 get("tuple_variant_value").unwrap()
             );
         }
+    }
+
+    #[cfg(feature = "experimental_metadata_attributes")]
+    #[test]
+    fn logbridge_code_attributes() {
+        use opentelemetry_semantic_conventions::attribute::{
+            CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
+        };
+
+        let exporter = InMemoryLogsExporter::default();
+
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+
+        otel_log_appender.log(
+            &log::RecordBuilder::new()
+                .level(log::Level::Warn)
+                .args(format_args!("WARN"))
+                .file(Some("src/main.rs"))
+                .module_path(Some("service"))
+                .line(Some(101))
+                .build(),
+        );
+
+        let logs = exporter.get_emitted_logs().unwrap();
+
+        let get = |needle: &str| -> Option<AnyValue> {
+            logs[0].record.attributes_iter().find_map(|(k, v)| {
+                if k.as_str() == needle {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+        };
+
+        assert_eq!(
+            Some(AnyValue::String(StringValue::from("src/main.rs"))),
+            get(CODE_FILEPATH)
+        );
+        assert_eq!(
+            Some(AnyValue::String(StringValue::from("service"))),
+            get(CODE_NAMESPACE)
+        );
+        assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINENO));
     }
 
     #[test]
