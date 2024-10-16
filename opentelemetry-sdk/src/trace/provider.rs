@@ -143,7 +143,7 @@ impl Drop for TracerProviderInner {
 /// Creator and registry of named [`Tracer`] instances.
 ///
 /// `TracerProvider` is a lightweight container holding pointers to `SpanProcessor` and other components.
-/// Cloning a `TracerProvider` instance will not stop span processing. To stop span processing, users
+/// Cloning a `TracerProvider` instance and dropping it will not stop span processing. To stop span processing, users
 /// must either call the `shutdown` method explicitly or allow the last reference to the `TracerProvider`
 /// to be dropped. When the last reference is dropped, the shutdown process will be automatically triggered
 /// to ensure proper cleanup.
