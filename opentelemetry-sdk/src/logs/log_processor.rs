@@ -163,13 +163,13 @@ impl LogProcessor for SimpleLogProcessor {
     }
 }
 
-/// A [`LogProcessor`] that asynchronously buffers log records and reports
-/// them at a pre-configured interval.
+/// A [`LogProcessor`] that buffers log records and reports them at a pre-configured interval.
 pub struct BatchLogProcessor {
     sender: SyncSender<BatchMessage>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
+    is_shutdown: AtomicBool,
 }
 
 impl Debug for BatchLogProcessor {
@@ -182,6 +182,14 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        // noop after shutdown
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            otel_warn!(
+                name: "batch_log_processor_emit_after_shutdown"
+            );
+            return;
+        }
+
         let result = self.sender.send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -192,11 +200,17 @@ impl LogProcessor for BatchLogProcessor {
                 name: "batch_log_processor_emit_error",
                 error = format!("{:?}", err)
             );
-            global::handle_error(LogError::Other(err.into()));
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
+        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            otel_warn!(
+                name: "batch_log_processor_force_flush_after_shutdown"
+            );
+            return LogResult::Err(LogError::Other("batch log processor is already shutdown".into()));
+        }
+
         let (sender, receiver) = mpsc::sync_channel(1);
         self.sender.try_send(BatchMessage::ForceFlush(sender))
                     .map_err(|err| LogError::Other(err.into()))?;
@@ -211,6 +225,11 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        // test and set is_shutdown flag is it is not set.
+        if self.is_shutdown.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            return Ok(());
+        }
+
         let (sender, receiver) = mpsc::sync_channel(1);
         self.sender.try_send(BatchMessage::Shutdown(sender))
                     .map_err(|err| LogError::Other(err.into()))?;
@@ -297,7 +316,7 @@ impl BatchLogProcessor {
             .unwrap_or(OTEL_LOGS_DEFAULT_SHUTDOWN_TIMEOUT);
 
         // Return batch processor with link to worker
-        BatchLogProcessor { sender, handle: Mutex::new(Some(handle)), forceflush_timeout, shutdown_timeout }
+        BatchLogProcessor { sender, handle: Mutex::new(Some(handle)), forceflush_timeout, shutdown_timeout, is_shutdown: AtomicBool::new(false) }
     }
 
     /// Create a new batch processor builder
