@@ -134,7 +134,7 @@ impl Drop for TracerProviderInner {
             let _ = self.shutdown(); // errors are handled within shutdown
         } else {
             otel_debug!(
-                name: "TracerProviderProvider.Drop.AlreadyShutdown"
+                name: "TracerProvider.Drop.AlreadyShutdown"
             );
         }
     }
