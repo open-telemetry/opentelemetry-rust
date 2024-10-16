@@ -7,6 +7,7 @@
 - Removed unnecessary public methods named `as_any` from `AsyncInstrument` trait and the implementing instruments: `ObservableCounter`, `ObservableGauge`, and `ObservableUpDownCounter` [#2187](https://github.com/open-telemetry/opentelemetry-rust/pull/2187)
 - Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/pull/2207)
 - Ensured that `observe` method on asynchronous instruments can only be called inside a callback. This was done by removing the implementation of `AsyncInstrument` trait for each of the asynchronous instruments. [#2210](https://github.com/open-telemetry/opentelemetry-rust/pull/2210)
+- Removed `PartialOrd` and `Ord` implementations for `KeyValue`. [#2215](https://github.com/open-telemetry/opentelemetry-rust/pull/2215)
 
 ## v0.26.0
 Released 2024-Sep-30
