@@ -6,7 +6,16 @@ use std::error::Error;
 use std::vec;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default().build();
+    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+        // Build exporter using Default (Cumulative) Temporality Selector.
+        .with_temporality_selector(
+            opentelemetry_sdk::metrics::reader::DefaultTemporalitySelector::new(),
+        )
+        // Build exporter using Delta Temporality Selector.
+        // .with_temporality_selector(
+        //     opentelemetry_sdk::metrics::reader::DeltaTemporalitySelector::new(),
+        // )
+        .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
