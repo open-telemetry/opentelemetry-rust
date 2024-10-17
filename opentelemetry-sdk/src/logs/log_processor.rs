@@ -1074,14 +1074,14 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
-    struct AsyncLogExporter {
+    struct LogExporterThatRequiresTokioSpawn {
         logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
     }
 
-    impl AsyncLogExporter {
-        /// Creates a new instance of `AsyncLogExporter`.
+    impl LogExporterThatRequiresTokioSpawn {
+        /// Creates a new instance of `LogExporterThatRequiresTokioSpawn`.
         pub(crate) fn new() -> Self {
-            AsyncLogExporter {
+            LogExporterThatRequiresTokioSpawn {
                 logs: Arc::new(Mutex::new(Vec::new())),
             }
         }
@@ -1096,7 +1096,7 @@ mod tests {
     use tokio::time::sleep;
 
     #[async_trait::async_trait]
-    impl LogExporter for AsyncLogExporter {
+    impl LogExporter for LogExporterThatRequiresTokioSpawn {
         async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
             println!("Exporting...");
 
@@ -1118,7 +1118,7 @@ mod tests {
     fn test_simple_processor_async_exporter_without_runtime() {
         // Use `catch_unwind` to catch the panic caused by missing Tokio runtime
         let result = std::panic::catch_unwind(|| {
-            let exporter = AsyncLogExporter::new();
+            let exporter = LogExporterThatRequiresTokioSpawn::new();
             let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
             let mut record: LogRecord = Default::default();
@@ -1153,7 +1153,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_async_exporter_with_runtime() {
-        let exporter = AsyncLogExporter::new();
+        let exporter = LogExporterThatRequiresTokioSpawn::new();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1166,7 +1166,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
-        let exporter = AsyncLogExporter::new();
+        let exporter = LogExporterThatRequiresTokioSpawn::new();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
             exporter.clone(),
         ))));
@@ -1195,7 +1195,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[ignore] // This test hangs as of now.
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
-        let exporter = AsyncLogExporter::new();
+        let exporter = LogExporterThatRequiresTokioSpawn::new();
 
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
