@@ -100,7 +100,6 @@
 //! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
-//! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
 //! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
 //!

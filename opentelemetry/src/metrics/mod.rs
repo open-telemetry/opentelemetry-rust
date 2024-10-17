@@ -1,6 +1,5 @@
 //! # OpenTelemetry Metrics API
 
-use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::result;
 use std::sync::Arc;
@@ -91,19 +90,6 @@ impl Hash for KeyValue {
     }
 }
 
-impl PartialOrd for KeyValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Ordering is based on the key only.
-impl Ord for KeyValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.key.cmp(&other.key)
-    }
-}
-
 impl Eq for KeyValue {}
 
 /// SDK implemented trait for creating instruments
@@ -123,9 +109,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
     ) -> Result<ObservableCounter<u64>> {
-        Ok(ObservableCounter::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableCounter::new())
     }
 
     /// creates an instrument for recording increasing values via callback.
@@ -133,9 +117,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
     ) -> Result<ObservableCounter<f64>> {
-        Ok(ObservableCounter::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableCounter::new())
     }
 
     /// creates an instrument for recording changes of a value.
@@ -163,9 +145,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
     ) -> Result<ObservableUpDownCounter<i64>> {
-        Ok(ObservableUpDownCounter::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableUpDownCounter::new())
     }
 
     /// creates an instrument for recording changes of a value via callback.
@@ -173,9 +153,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
     ) -> Result<ObservableUpDownCounter<f64>> {
-        Ok(ObservableUpDownCounter::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableUpDownCounter::new())
     }
 
     /// creates an instrument for recording independent values.
@@ -198,9 +176,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
     ) -> Result<ObservableGauge<u64>> {
-        Ok(ObservableGauge::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableGauge::new())
     }
 
     /// creates an instrument for recording the current value via callback.
@@ -208,9 +184,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
     ) -> Result<ObservableGauge<i64>> {
-        Ok(ObservableGauge::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableGauge::new())
     }
 
     /// creates an instrument for recording the current value via callback.
@@ -218,9 +192,7 @@ pub trait InstrumentProvider {
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
     ) -> Result<ObservableGauge<f64>> {
-        Ok(ObservableGauge::new(Arc::new(
-            noop::NoopAsyncInstrument::new(),
-        )))
+        Ok(ObservableGauge::new())
     }
 
     /// creates an instrument for recording a distribution of values.
@@ -311,27 +283,6 @@ mod tests {
             let kv1 = KeyValue::new("key", random_value);
             let kv2 = KeyValue::new("key", random_value);
             assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
-        }
-    }
-
-    #[test]
-    fn kv_float_order() {
-        // TODO: Extend this test to all value types, not just F64
-        let float_vals = [
-            0.0,
-            1.0,
-            -1.0,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::NAN,
-            f64::MIN,
-            f64::MAX,
-        ];
-
-        for v in float_vals {
-            let kv1 = KeyValue::new("a", v);
-            let kv2 = KeyValue::new("b", v);
-            assert!(kv1 < kv2, "Order is solely based on key!");
         }
     }
 
