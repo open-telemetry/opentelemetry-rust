@@ -105,8 +105,8 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     metrics::{
         data::{self, ResourceMetrics, Temporality},
-        reader::{AggregationSelector, MetricReader, TemporalitySelector},
-        Aggregation, InstrumentKind, ManualReader, Pipeline,
+        reader::{MetricReader, TemporalitySelector},
+        InstrumentKind, ManualReader, Pipeline,
     },
     Resource, Scope,
 };
@@ -157,12 +157,6 @@ impl TemporalitySelector for PrometheusExporter {
     /// [Temporality::Cumulative].
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         self.reader.temporality(kind)
-    }
-}
-
-impl AggregationSelector for PrometheusExporter {
-    fn aggregation(&self, kind: InstrumentKind) -> Aggregation {
-        self.reader.aggregation(kind)
     }
 }
 
