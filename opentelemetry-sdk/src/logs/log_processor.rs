@@ -994,4 +994,175 @@ mod tests {
                 == AnyValue::String("Updated by FirstProcessor".into())
         );
     }
+
+    #[derive(Debug, Clone)]
+    struct SyncLogExporter {
+        logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl LogExporter for SyncLogExporter {
+        async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+            let mut logs = self.logs.lock().unwrap();
+            for (log_record, instrumentation) in batch.iter() {
+                logs.push((log_record.clone(), instrumentation.clone()));
+            }
+            Ok(())
+        }
+
+        fn shutdown(&mut self) {}
+
+        fn set_resource(&mut self, _resource: &Resource) {}
+    }
+
+    #[test]
+    fn test_sync_exporter_without_runtime() {
+        let exporter = SyncLogExporter {
+            logs: Arc::new(Mutex::new(Vec::new())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_sync_exporter_with_runtime() {
+        let exporter = SyncLogExporter {
+            logs: Arc::new(Mutex::new(Vec::new())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_sync_exporter_with_current_thread_runtime() {
+        let exporter = SyncLogExporter {
+            logs: Arc::new(Mutex::new(Vec::new())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+    }
+
+    #[derive(Debug, Clone)]
+    struct AsyncLogExporter {
+        logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl LogExporter for AsyncLogExporter {
+        async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+            println!("received..");
+            let logs = Arc::clone(&self.logs);
+
+            // Collect batch into an owned Vec to ensure the data can be moved into the tokio::spawn task
+            let batch_owned: Vec<(LogRecord, InstrumentationLibrary)> = batch
+                .iter()
+                .map(|(log_record, instrumentation)| (log_record.clone(), instrumentation.clone()))
+                .collect();
+
+            // Spawn a Tokio task to process the log batch asynchronously
+            tokio::spawn(async move {
+                let mut logs_lock = logs.lock().unwrap();
+                for (log_record, instrumentation) in batch_owned {
+                    logs_lock.push((log_record, instrumentation));
+                }
+            })
+            .await
+            .expect("Task failed"); // Await the task completion.
+
+            Ok(())
+        }
+
+        fn shutdown(&mut self) {}
+
+        fn set_resource(&mut self, _resource: &Resource) {}
+    }
+
+    use std::panic;
+
+    #[test]
+    fn test_async_exporter_without_runtime() {
+        // Use `catch_unwind` to catch the panic caused by missing Tokio runtime
+        let result = panic::catch_unwind(|| {
+            let exporter = AsyncLogExporter {
+                logs: Arc::new(Mutex::new(Vec::new())),
+            };
+            let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+            let mut record: LogRecord = Default::default();
+            let instrumentation: InstrumentationLibrary = Default::default();
+
+            // This will panic because `tokio::spawn` is called without a runtime
+            processor.emit(&mut record, &instrumentation);
+            processor.force_flush().unwrap();
+            processor.shutdown().unwrap();
+
+            // Assert to make sure the failure occurs
+            assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+        });
+
+        // Verify that the panic occurred, indicating the absence of a Tokio runtime
+        assert!(
+            result.is_err(),
+            "The test should fail due to missing Tokio runtime, but it did not."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_async_exporter_with_runtime() {
+        let exporter = AsyncLogExporter {
+            logs: Arc::new(Mutex::new(Vec::new())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[ignore] // This test hangs as of now.
+    async fn test_async_exporter_with_current_thread_runtime() {
+        let exporter = AsyncLogExporter {
+            logs: Arc::new(Mutex::new(Vec::new())),
+        };
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+    }
 }
