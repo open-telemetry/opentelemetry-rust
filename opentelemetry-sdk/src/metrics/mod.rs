@@ -104,7 +104,7 @@ fn calculate_hash(values: &[KeyValue]) -> u64 {
 
 impl AttributeSet {
     fn new(mut values: Vec<KeyValue>) -> Self {
-        values.sort_unstable();
+        values.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
     }
