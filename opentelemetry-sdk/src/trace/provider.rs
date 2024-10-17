@@ -16,7 +16,7 @@
 /// The `TracerProvider` is designed to be lightweight and clonable. Cloning a `TracerProvider`
 /// creates a new reference to the same provider, not a new instance. Dropping the last reference
 /// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
-/// will flush all remaining spans, ensuring they are exported to the configured exporters.
+/// will flush all remaining spans, ensuring they are passed to the configured exporters.
 /// Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
 /// method, which will ensure the same behavior.
 ///
@@ -27,9 +27,9 @@
 /// ## Span Processing and Force Flush
 ///
 /// The `TracerProvider` manages the lifecycle of span processors, which are responsible for
-/// collecting, processing, and exporting spans. To ensure all spans are processed before shutdown,
-/// users can call the [`force_flush`](TracerProvider::force_flush) method at any time to trigger
-/// an immediate flush of all pending spans to the exporters.
+/// collecting, processing, and exporting spans. The [`force_flush`](TracerProvider::force_flush) method
+/// invoked at any time will trigger an immediate flush of all pending spans (if any) to the exporters.
+/// This will block the user thread till all the spans are passed to exporters.
 ///
 /// # Examples
 ///
