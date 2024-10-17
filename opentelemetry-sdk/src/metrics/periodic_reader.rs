@@ -23,12 +23,7 @@ use crate::{
     Resource,
 };
 
-use super::{
-    data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
-    reader::{MetricReader, TemporalitySelector},
-    Pipeline,
-};
+use super::{data::ResourceMetrics, reader::MetricReader, InstrumentKind, Pipeline};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -295,12 +290,6 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     }
 }
 
-impl TemporalitySelector for PeriodicReader {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.exporter.temporality(kind)
-    }
-}
-
 impl MetricReader for PeriodicReader {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         let mut inner = match self.inner.lock() {
@@ -380,6 +369,17 @@ impl MetricReader for PeriodicReader {
         inner.is_shutdown = true;
 
         shutdown_result
+    }
+
+    /// To construct a MetricReader when setting up an SDK,
+    /// The output temporality (optional), a function of instrument kind.
+    /// This function SHOULD be obtained from the exporter.
+    ///
+    /// If not configured, the Cumulative temporality SHOULD be used.
+    ///  
+    /// https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
+    fn temporality(&self, kind: InstrumentKind) -> super::data::Temporality {
+        kind.temporality_preference(self.exporter.temporality())
     }
 }
 

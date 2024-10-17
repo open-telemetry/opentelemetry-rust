@@ -131,7 +131,6 @@ mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::metrics::reader::TemporalitySelector;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
@@ -2363,15 +2362,7 @@ mod tests {
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            struct TestTemporalitySelector(Temporality);
-            impl TemporalitySelector for TestTemporalitySelector {
-                fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-                    self.0
-                }
-            }
-
-            let mut exporter = InMemoryMetricsExporterBuilder::new();
-            exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
+            let exporter = InMemoryMetricsExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
             let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();

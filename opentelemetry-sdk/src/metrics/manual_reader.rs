@@ -10,9 +10,8 @@ use opentelemetry::{
 
 use super::{
     data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
     pipeline::Pipeline,
-    reader::{DefaultTemporalitySelector, MetricReader, SdkProducer, TemporalitySelector},
+    reader::{MetricReader, SdkProducer},
 };
 
 /// A simple [MetricReader] that allows an application to read metrics on demand.
@@ -30,7 +29,7 @@ use super::{
 /// ```
 pub struct ManualReader {
     inner: Box<Mutex<ManualReaderInner>>,
-    temporality_selector: Box<dyn TemporalitySelector>,
+    temporality: Temporality,
 }
 
 impl Default for ManualReader {
@@ -58,20 +57,14 @@ impl ManualReader {
     }
 
     /// A [MetricReader] which is directly called to collect metrics.
-    pub(crate) fn new(temporality_selector: Box<dyn TemporalitySelector>) -> Self {
+    pub(crate) fn new(temporality: Temporality) -> Self {
         ManualReader {
             inner: Box::new(Mutex::new(ManualReaderInner {
                 sdk_producer: None,
                 is_shutdown: false,
             })),
-            temporality_selector,
+            temporality,
         }
-    }
-}
-
-impl TemporalitySelector for ManualReader {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.temporality_selector.temporality(kind)
     }
 }
 
@@ -124,24 +117,21 @@ impl MetricReader for ManualReader {
 
         Ok(())
     }
+
+    fn temporality(&self, kind: super::InstrumentKind) -> Temporality {
+        kind.temporality_preference(self.temporality)
+    }
 }
 
 /// Configuration for a [ManualReader]
+#[derive(Default)]
 pub struct ManualReaderBuilder {
-    temporality_selector: Box<dyn TemporalitySelector>,
+    temporality: Temporality,
 }
 
 impl fmt::Debug for ManualReaderBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("ManualReaderBuilder")
-    }
-}
-
-impl Default for ManualReaderBuilder {
-    fn default() -> Self {
-        ManualReaderBuilder {
-            temporality_selector: Box::new(DefaultTemporalitySelector { _private: () }),
-        }
     }
 }
 
@@ -151,19 +141,14 @@ impl ManualReaderBuilder {
         Default::default()
     }
 
-    /// Sets the [TemporalitySelector] a reader will use to determine the [Temporality] of
-    /// an instrument based on its kind. If this option is not used, the reader will use
-    /// the default temporality selector.
-    pub fn with_temporality_selector(
-        mut self,
-        temporality_selector: impl TemporalitySelector + 'static,
-    ) -> Self {
-        self.temporality_selector = Box::new(temporality_selector);
+    /// Set the [Temporality] of the exporter.
+    pub fn with_temporality(mut self, temporality: Temporality) -> Self {
+        self.temporality = temporality;
         self
     }
 
     /// Create a new [ManualReader] from this configuration.
     pub fn build(self) -> ManualReader {
-        ManualReader::new(self.temporality_selector)
+        ManualReader::new(self.temporality)
     }
 }
