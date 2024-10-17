@@ -16,11 +16,9 @@
 /// The `TracerProvider` is designed to be lightweight and clonable. Cloning a `TracerProvider`
 /// creates a new reference to the same provider, not a new instance. Dropping the last reference
 /// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
-/// will flush all remaining spans for **batch processors**, ensuring they are exported to the configured
-/// exporters. However, **simple processors** do not require a flush, as they export spans immediately
-/// when they end. Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
-/// method, which will ensure the same behavior (flushing for batch processors, but no additional action
-/// for simple processors).
+/// will flush all remaining spans, ensuring they are exported to the configured exporters.
+/// Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
+/// method, which will ensure the same behavior.
 ///
 /// Once shut down, the `TracerProvider` transitions into a disabled state. In this state, further
 /// operations on its associated `Tracer` instances will result in no-ops, ensuring that no spans
@@ -31,15 +29,14 @@
 /// The `TracerProvider` manages the lifecycle of span processors, which are responsible for
 /// collecting, processing, and exporting spans. To ensure all spans are processed before shutdown,
 /// users can call the [`force_flush`](TracerProvider::force_flush) method at any time to trigger
-/// an immediate flush of all pending spans for **batch processors** to the exporters. Note that
-/// calling [`force_flush`](TracerProvider::force_flush) is optional before shutdown, as `shutdown`
-/// will automatically trigger a flush for batch processors, but not for simple processors.
+/// an immediate flush of all pending spans to the exporters.
 ///
 /// # Examples
 ///
 /// ```
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::trace::TracerProvider;
+/// use opentelemetry::trace::Tracer;
 ///
 /// fn init_tracing() -> TracerProvider {
 ///     let provider = TracerProvider::default();
@@ -53,19 +50,16 @@
 /// fn main() {
 ///     let provider = init_tracing();
 ///
-///     // create spans...
+///     // create tracer..
+///     let tracer = global::tracer("example/client");
 ///
-///     // Flush all spans before shutdown (optional for batch processors)
-///     for result in provider.force_flush() {
-///         if let Err(err) = result {
-///             // Handle flush error...
-///         }
-///     }
+///     // create span...
+///     let span = tracer
+///         .span_builder("test_span")
+///         .start(&tracer);
 ///
-///     // Dropping the provider ensures remaining spans are flushed for batch processors
-///     // and shuts down the global tracer provider.
-///     drop(provider);
-///     global::shutdown_tracer_provider();
+///     // Explicitly shut down the provider
+///     provider.shutdown();
 /// }
 /// ```
 use crate::runtime::RuntimeChannel;
@@ -249,7 +243,7 @@ impl TracerProvider {
                 Err(TraceError::Other(format!("{errs:?}").into()))
             }
         } else {
-            Err(TraceError::AlreadyShutdown("TracerProvider".to_string()))
+            Err(TraceError::AlreadyShutdown)
         }
     }
 }
@@ -391,6 +385,7 @@ mod tests {
     use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::Mutex;
 
     // fields below is wrapped with Arc so we can assert it
     #[derive(Default, Debug)]
@@ -648,57 +643,124 @@ mod tests {
         assert!(assert_handle.started_span_count(2));
     }
 
+    #[derive(Debug)]
+    struct CountingShutdownProcessor {
+        shutdown_count: Arc<Mutex<i32>>,
+        flush_called: Arc<Mutex<bool>>,
+    }
+
+    impl CountingShutdownProcessor {
+        fn new(shutdown_count: Arc<Mutex<i32>>, flush_called: Arc<Mutex<bool>>) -> Self {
+            CountingShutdownProcessor {
+                shutdown_count,
+                flush_called,
+            }
+        }
+    }
+
+    impl SpanProcessor for CountingShutdownProcessor {
+        fn on_start(&self, _span: &mut Span, _cx: &Context) {
+            // No operation needed for this processor
+        }
+
+        fn on_end(&self, _span: SpanData) {
+            // No operation needed for this processor
+        }
+
+        fn force_flush(&self) -> TraceResult<()> {
+            *self.flush_called.lock().unwrap() = true;
+            Ok(())
+        }
+
+        fn shutdown(&self) -> TraceResult<()> {
+            let mut count = self.shutdown_count.lock().unwrap();
+            *count += 1;
+            Ok(())
+        }
+    }
+
     #[test]
-    fn test_tracer_provider_inner_drop_shutdown() {
-        // Test 1: Already shutdown case
+    fn drop_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(0));
+        let flush_called = Arc::new(Mutex::new(false));
+
         {
-            let processor = TestSpanProcessor::new(true);
-            let assert_handle = processor.assert_info();
-            let provider = super::TracerProvider::new(TracerProviderInner {
-                processors: vec![Box::from(processor)],
-                config: Default::default(),
+            // Create a shared TracerProviderInner and use it across multiple providers
+            let shared_inner = Arc::new(TracerProviderInner {
+                processors: vec![Box::new(CountingShutdownProcessor::new(
+                    shutdown_called.clone(),
+                    flush_called.clone(),
+                ))],
+                config: Config::default(),
                 is_shutdown: AtomicBool::new(false),
             });
 
-            // Create multiple providers sharing same inner
-            let provider2 = provider.clone();
-            let provider3 = provider.clone();
+            {
+                let tracer_provider1 = super::TracerProvider {
+                    inner: shared_inner.clone(),
+                };
+                let tracer_provider2 = super::TracerProvider {
+                    inner: shared_inner.clone(),
+                };
 
-            // Shutdown explicitly first
-            assert!(provider.shutdown().is_ok());
+                let tracer1 = tracer_provider1.tracer("test-tracer1");
+                let tracer2 = tracer_provider2.tracer("test-tracer2");
 
-            // Drop all providers - should not trigger another shutdown in TracerProviderInner::drop
-            drop(provider);
-            drop(provider2);
-            drop(provider3);
+                let _span1 = tracer1.start("span1");
+                let _span2 = tracer2.start("span2");
 
-            // Verify shutdown was called exactly once
-            assert!(assert_handle.0.is_shutdown.load(Ordering::SeqCst));
+                // TracerProviderInner should not be dropped yet, since both providers and `shared_inner`
+                // are still holding a reference.
+            }
+            // At this point, both `tracer_provider1` and `tracer_provider2` are dropped,
+            // but `shared_inner` still holds a reference, so `TracerProviderInner` is NOT dropped yet.
+            assert_eq!(*shutdown_called.lock().unwrap(), 0);
         }
+        // Verify shutdown was called during the drop of the shared TracerProviderInner
+        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+        // Verify flush was not called during drop
+        assert!(!*flush_called.lock().unwrap());
+    }
 
-        // Test 2: Not shutdown case
+    #[test]
+    fn drop_after_shutdown_test_with_multiple_providers() {
+        let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
+        let flush_called = Arc::new(Mutex::new(false));
+
+        // Create a shared TracerProviderInner and use it across multiple providers
+        let shared_inner = Arc::new(TracerProviderInner {
+            processors: vec![Box::new(CountingShutdownProcessor::new(
+                shutdown_called.clone(),
+                flush_called.clone(),
+            ))],
+            config: Config::default(),
+            is_shutdown: AtomicBool::new(false),
+        });
+
+        // Create a scope to test behavior when providers are dropped
         {
-            let processor = TestSpanProcessor::new(true);
-            let assert_handle = processor.assert_info();
-            let provider = super::TracerProvider::new(TracerProviderInner {
-                processors: vec![Box::from(processor)],
-                config: Default::default(),
-                is_shutdown: AtomicBool::new(false),
-            });
+            let tracer_provider1 = super::TracerProvider {
+                inner: shared_inner.clone(),
+            };
+            let tracer_provider2 = super::TracerProvider {
+                inner: shared_inner.clone(),
+            };
 
-            // Create multiple providers sharing same inner
-            let provider2 = provider.clone();
-            let provider3 = provider.clone();
+            // Explicitly shut down the tracer provider
+            let shutdown_result = tracer_provider1.shutdown();
+            assert!(shutdown_result.is_ok());
 
-            // Drop providers without explicit shutdown
-            drop(provider);
-            drop(provider2);
+            // Verify that shutdown was called exactly once
+            assert_eq!(*shutdown_called.lock().unwrap(), 1);
 
-            // Last drop should trigger shutdown in TracerProviderInner::drop
-            drop(provider3);
+            // TracerProvider2 should observe the shutdown state but not trigger another shutdown
+            let shutdown_result2 = tracer_provider2.shutdown();
+            assert!(shutdown_result2.is_err());
 
-            // Verify shutdown was called exactly once
-            assert!(assert_handle.0.is_shutdown.load(Ordering::SeqCst));
+            // Both tracer providers will be dropped at the end of this scope
         }
+
+        // Verify that shutdown was only called once, even after drop
+        assert_eq!(*shutdown_called.lock().unwrap(), 1);
     }
 }

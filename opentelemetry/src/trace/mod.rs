@@ -201,8 +201,8 @@ pub enum TraceError {
     ExportTimedOut(time::Duration),
 
     /// already shutdown error
-    #[error("{0} already shutdown")]
-    AlreadyShutdown(String),
+    #[error("TracerProvider already shutdown")]
+    AlreadyShutdown,
 
     /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]
