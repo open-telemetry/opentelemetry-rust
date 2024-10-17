@@ -385,7 +385,6 @@ mod tests {
     use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
-    use std::sync::Mutex;
 
     // fields below is wrapped with Arc so we can assert it
     #[derive(Default, Debug)]
@@ -645,12 +644,12 @@ mod tests {
 
     #[derive(Debug)]
     struct CountingShutdownProcessor {
-        shutdown_count: Arc<Mutex<i32>>,
-        flush_called: Arc<Mutex<bool>>,
+        shutdown_count: Arc<AtomicU32>,
+        flush_called: Arc<AtomicBool>,
     }
 
     impl CountingShutdownProcessor {
-        fn new(shutdown_count: Arc<Mutex<i32>>, flush_called: Arc<Mutex<bool>>) -> Self {
+        fn new(shutdown_count: Arc<AtomicU32>, flush_called: Arc<AtomicBool>) -> Self {
             CountingShutdownProcessor {
                 shutdown_count,
                 flush_called,
@@ -668,27 +667,26 @@ mod tests {
         }
 
         fn force_flush(&self) -> TraceResult<()> {
-            *self.flush_called.lock().unwrap() = true;
+            self.flush_called.store(true, Ordering::SeqCst);
             Ok(())
         }
 
         fn shutdown(&self) -> TraceResult<()> {
-            let mut count = self.shutdown_count.lock().unwrap();
-            *count += 1;
+            self.shutdown_count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
     }
 
     #[test]
     fn drop_test_with_multiple_providers() {
-        let shutdown_called = Arc::new(Mutex::new(0));
-        let flush_called = Arc::new(Mutex::new(false));
+        let shutdown_count = Arc::new(AtomicU32::new(0));
+        let flush_called = Arc::new(AtomicBool::new(false));
 
         {
             // Create a shared TracerProviderInner and use it across multiple providers
             let shared_inner = Arc::new(TracerProviderInner {
                 processors: vec![Box::new(CountingShutdownProcessor::new(
-                    shutdown_called.clone(),
+                    shutdown_count.clone(),
                     flush_called.clone(),
                 ))],
                 config: Config::default(),
@@ -714,23 +712,23 @@ mod tests {
             }
             // At this point, both `tracer_provider1` and `tracer_provider2` are dropped,
             // but `shared_inner` still holds a reference, so `TracerProviderInner` is NOT dropped yet.
-            assert_eq!(*shutdown_called.lock().unwrap(), 0);
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 0);
         }
         // Verify shutdown was called during the drop of the shared TracerProviderInner
-        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+        assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
         // Verify flush was not called during drop
-        assert!(!*flush_called.lock().unwrap());
+        assert!(!flush_called.load(Ordering::SeqCst));
     }
 
     #[test]
     fn drop_after_shutdown_test_with_multiple_providers() {
-        let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
-        let flush_called = Arc::new(Mutex::new(false));
+        let shutdown_count = Arc::new(AtomicU32::new(0));
+        let flush_called = Arc::new(AtomicBool::new(false));
 
         // Create a shared TracerProviderInner and use it across multiple providers
         let shared_inner = Arc::new(TracerProviderInner {
             processors: vec![Box::new(CountingShutdownProcessor::new(
-                shutdown_called.clone(),
+                shutdown_count.clone(),
                 flush_called.clone(),
             ))],
             config: Config::default(),
@@ -751,7 +749,7 @@ mod tests {
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
-            assert_eq!(*shutdown_called.lock().unwrap(), 1);
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
 
             // TracerProvider2 should observe the shutdown state but not trigger another shutdown
             let shutdown_result2 = tracer_provider2.shutdown();
@@ -761,6 +759,6 @@ mod tests {
         }
 
         // Verify that shutdown was only called once, even after drop
-        assert_eq!(*shutdown_called.lock().unwrap(), 1);
+        assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
     }
 }
