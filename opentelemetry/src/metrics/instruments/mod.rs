@@ -241,10 +241,7 @@ pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
 #[non_exhaustive] // We expect to add more configuration fields in the future
-pub struct AsyncInstrumentBuilder<'a, I, M>
-where
-    I: AsyncInstrument<M>,
-{
+pub struct AsyncInstrumentBuilder<'a, I, M> {
     /// Instrument provider is used to create the instrument.
     pub instrument_provider: &'a dyn InstrumentProvider,
 
@@ -263,10 +260,7 @@ where
     _inst: marker::PhantomData<I>,
 }
 
-impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
-where
-    I: AsyncInstrument<M>,
-{
+impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
     /// Create a new instrument builder
     pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         AsyncInstrumentBuilder {
