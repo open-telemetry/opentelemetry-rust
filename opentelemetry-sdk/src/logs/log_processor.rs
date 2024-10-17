@@ -553,6 +553,7 @@ mod tests {
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
+    use std::panic;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -1016,7 +1017,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sync_exporter_without_runtime() {
+    fn test_simple_processor_sync_exporter_without_runtime() {
         let exporter = SyncLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
         };
@@ -1033,7 +1034,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_sync_exporter_with_runtime() {
+    async fn test_simple_processor_sync_exporter_with_runtime() {
         let exporter = SyncLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
         };
@@ -1050,7 +1051,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_sync_exporter_with_current_thread_runtime() {
+    async fn test_simple_processor_sync_exporter_with_current_thread_runtime() {
         let exporter = SyncLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
         };
@@ -1100,10 +1101,8 @@ mod tests {
         fn set_resource(&mut self, _resource: &Resource) {}
     }
 
-    use std::panic;
-
     #[test]
-    fn test_async_exporter_without_runtime() {
+    fn test_simple_processor_async_exporter_without_runtime() {
         // Use `catch_unwind` to catch the panic caused by missing Tokio runtime
         let result = panic::catch_unwind(|| {
             let exporter = AsyncLogExporter {
@@ -1131,7 +1130,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_async_exporter_with_runtime() {
+    async fn test_simple_processor_async_exporter_with_runtime() {
         let exporter = AsyncLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
         };
@@ -1149,7 +1148,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     #[ignore] // This test hangs as of now.
-    async fn test_async_exporter_with_current_thread_runtime() {
+    async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
         let exporter = AsyncLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
         };
