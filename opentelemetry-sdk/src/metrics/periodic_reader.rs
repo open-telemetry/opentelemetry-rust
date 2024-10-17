@@ -371,13 +371,13 @@ impl MetricReader for PeriodicReader {
         shutdown_result
     }
 
-    /// To construct a MetricReader when setting up an SDK,
+    /// To construct a [MetricReader][metric-reader] when setting up an SDK,
     /// The output temporality (optional), a function of instrument kind.
     /// This function SHOULD be obtained from the exporter.
     ///
     /// If not configured, the Cumulative temporality SHOULD be used.
     ///  
-    /// https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
+    /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
     fn temporality(&self, kind: InstrumentKind) -> super::data::Temporality {
         kind.temporality_preference(self.exporter.temporality())
     }
