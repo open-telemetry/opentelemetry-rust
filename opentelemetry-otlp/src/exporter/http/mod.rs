@@ -17,8 +17,6 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 use opentelemetry_sdk::export::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::export::trace::SpanData;
-#[cfg(feature = "metrics")]
-use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
@@ -77,9 +75,7 @@ impl Default for HttpConfig {
 ///
 /// ```
 /// # #[cfg(feature="metrics")]
-/// use opentelemetry_sdk::metrics::reader::{
-///     DefaultTemporalitySelector,
-/// };
+/// use opentelemetry_sdk::metrics::data::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
@@ -91,7 +87,7 @@ impl Default for HttpConfig {
 /// let metrics_exporter = opentelemetry_otlp::new_exporter()
 ///     .http()
 ///     .build_metrics_exporter(
-///         Box::new(DefaultTemporalitySelector::new()),
+///         Temporality::default(),
 ///     )?;
 ///
 /// // Create a log exporter you can use when configuring logger providers
@@ -251,7 +247,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         mut self,
-        temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
+        temporality: opentelemetry_sdk::metrics::data::Temporality,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
@@ -265,7 +261,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
-        Ok(crate::MetricsExporter::new(client, temporality_selector))
+        Ok(crate::MetricsExporter::new(client, temporality))
     }
 }
 
@@ -341,7 +337,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
     ) -> opentelemetry::metrics::Result<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 

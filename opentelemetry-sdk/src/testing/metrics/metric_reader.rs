@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex, Weak};
 
 use crate::metrics::{
     data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
     pipeline::Pipeline,
-    reader::{MetricReader, TemporalitySelector},
+    reader::MetricReader,
+    InstrumentKind,
 };
 use opentelemetry::metrics::Result;
 
@@ -52,10 +52,8 @@ impl MetricReader for TestMetricReader {
         }
         result
     }
-}
 
-impl TemporalitySelector for TestMetricReader {
     fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Cumulative
+        Temporality::default()
     }
 }

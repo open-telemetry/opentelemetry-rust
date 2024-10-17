@@ -1,7 +1,6 @@
+use crate::metrics::data;
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
 use crate::metrics::exporter::PushMetricsExporter;
-use crate::metrics::reader::{DefaultTemporalitySelector, TemporalitySelector};
-use crate::metrics::{data, InstrumentKind};
 use async_trait::async_trait;
 use opentelemetry::metrics::MetricsError;
 use opentelemetry::metrics::Result;
@@ -58,14 +57,14 @@ use std::sync::{Arc, Mutex};
 /// ```
 pub struct InMemoryMetricsExporter {
     metrics: Arc<Mutex<VecDeque<ResourceMetrics>>>,
-    temporality_selector: Arc<dyn TemporalitySelector + Send + Sync>,
+    temporality: Temporality,
 }
 
 impl Clone for InMemoryMetricsExporter {
     fn clone(&self) -> Self {
         InMemoryMetricsExporter {
             metrics: self.metrics.clone(),
-            temporality_selector: self.temporality_selector.clone(),
+            temporality: self.temporality,
         }
     }
 }
@@ -91,7 +90,7 @@ impl Default for InMemoryMetricsExporter {
 /// let exporter = InMemoryMetricsExporterBuilder::new().build();
 /// ```
 pub struct InMemoryMetricsExporterBuilder {
-    temporality_selector: Option<Arc<dyn TemporalitySelector + Send + Sync>>,
+    temporality: Option<Temporality>,
 }
 
 impl fmt::Debug for InMemoryMetricsExporterBuilder {
@@ -109,17 +108,12 @@ impl Default for InMemoryMetricsExporterBuilder {
 impl InMemoryMetricsExporterBuilder {
     /// Creates a new instance of the `InMemoryMetricsExporterBuilder`.
     pub fn new() -> Self {
-        Self {
-            temporality_selector: None,
-        }
+        Self { temporality: None }
     }
 
-    /// Sets the temporality selector for the exporter.
-    pub fn with_temporality_selector<T>(mut self, temporality_selector: T) -> Self
-    where
-        T: TemporalitySelector + Send + Sync + 'static,
-    {
-        self.temporality_selector = Some(Arc::new(temporality_selector));
+    /// Set the [Temporality] of the exporter.
+    pub fn with_temporality(mut self, temporality: Temporality) -> Self {
+        self.temporality = Some(temporality);
         self
     }
 
@@ -128,9 +122,7 @@ impl InMemoryMetricsExporterBuilder {
     pub fn build(self) -> InMemoryMetricsExporter {
         InMemoryMetricsExporter {
             metrics: Arc::new(Mutex::new(VecDeque::new())),
-            temporality_selector: self
-                .temporality_selector
-                .unwrap_or_else(|| Arc::new(DefaultTemporalitySelector::default())),
+            temporality: self.temporality.unwrap_or_default(),
         }
     }
 }
@@ -251,12 +243,6 @@ impl InMemoryMetricsExporter {
     }
 }
 
-impl TemporalitySelector for InMemoryMetricsExporter {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.temporality_selector.temporality(kind)
-    }
-}
-
 #[async_trait]
 impl PushMetricsExporter for InMemoryMetricsExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
@@ -279,5 +265,9 @@ impl PushMetricsExporter for InMemoryMetricsExporter {
             .map_err(MetricsError::from)?;
 
         Ok(())
+    }
+
+    fn temporality(&self) -> Temporality {
+        self.temporality
     }
 }
