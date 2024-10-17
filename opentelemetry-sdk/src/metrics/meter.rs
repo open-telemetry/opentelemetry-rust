@@ -17,7 +17,7 @@ use crate::metrics::{
     pipeline::{Pipelines, Resolver},
 };
 
-use super::noop::{NoopAsyncInstrument, NoopSyncInstrument};
+use super::noop::NoopSyncInstrument;
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
@@ -108,7 +108,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             global::handle_error(err);
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableCounter::new());
         }
 
         let ms = resolver.measures(
@@ -120,7 +120,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableCounter::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -131,7 +131,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableCounter::new(observable))
+        Ok(ObservableCounter::new())
     }
 
     fn create_observable_updown_counter<T>(
@@ -145,9 +145,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             global::handle_error(err);
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
+            return Ok(ObservableUpDownCounter::new());
         }
 
         let ms = resolver.measures(
@@ -159,9 +157,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
+            return Ok(ObservableUpDownCounter::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -172,7 +168,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableUpDownCounter::new(observable))
+        Ok(ObservableUpDownCounter::new())
     }
 
     fn create_observable_gauge<T>(
@@ -186,7 +182,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             global::handle_error(err);
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableGauge::new());
         }
 
         let ms = resolver.measures(
@@ -198,7 +194,7 @@ impl SdkMeter {
         )?;
 
         if ms.is_empty() {
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableGauge::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -209,7 +205,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableGauge::new(observable))
+        Ok(ObservableGauge::new())
     }
 
     fn create_updown_counter<T>(

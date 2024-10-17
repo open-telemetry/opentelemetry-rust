@@ -1,4 +1,4 @@
-use crate::{metrics::AsyncInstrument, KeyValue};
+use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
@@ -33,7 +33,9 @@ impl<T> Gauge<T> {
 /// An async instrument that records independent readings.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct ObservableGauge<T>(Arc<dyn AsyncInstrument<T>>);
+pub struct ObservableGauge<T> {
+    _marker: std::marker::PhantomData<T>,
+}
 
 impl<T> fmt::Debug for ObservableGauge<T>
 where
@@ -47,15 +49,12 @@ where
     }
 }
 
-impl<M> AsyncInstrument<M> for ObservableGauge<M> {
-    fn observe(&self, measurement: M, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
-    }
-}
-
 impl<T> ObservableGauge<T> {
     /// Create a new gauge
-    pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
-        ObservableGauge(inner)
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableGauge {
+            _marker: std::marker::PhantomData,
+        }
     }
 }

@@ -2,7 +2,7 @@ use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
-use super::{AsyncInstrument, SyncInstrument};
+use super::SyncInstrument;
 
 /// An instrument that records increasing or decreasing values.
 #[derive(Clone)]
@@ -36,7 +36,9 @@ impl<T> UpDownCounter<T> {
 /// An async instrument that records increasing or decreasing values.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct ObservableUpDownCounter<T>(Arc<dyn AsyncInstrument<T>>);
+pub struct ObservableUpDownCounter<T> {
+    _marker: std::marker::PhantomData<T>,
+}
 
 impl<T> fmt::Debug for ObservableUpDownCounter<T>
 where
@@ -52,13 +54,10 @@ where
 
 impl<T> ObservableUpDownCounter<T> {
     /// Create a new observable up down counter.
-    pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
-        ObservableUpDownCounter(inner)
-    }
-}
-
-impl<T> AsyncInstrument<T> for ObservableUpDownCounter<T> {
-    fn observe(&self, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableUpDownCounter {
+            _marker: std::marker::PhantomData,
+        }
     }
 }

@@ -4,7 +4,7 @@
 //! has been set. It is expected to have minimal resource utilization and
 //! runtime impact.
 use crate::{
-    metrics::{AsyncInstrument, InstrumentProvider, Meter, MeterProvider},
+    metrics::{InstrumentProvider, Meter, MeterProvider},
     KeyValue,
 };
 use std::sync::Arc;
@@ -66,25 +66,6 @@ impl NoopSyncInstrument {
 
 impl<T> SyncInstrument<T> for NoopSyncInstrument {
     fn measure(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-/// A no-op async instrument.
-#[derive(Debug, Default)]
-pub(crate) struct NoopAsyncInstrument {
-    _private: (),
-}
-
-impl NoopAsyncInstrument {
-    /// Create a new no-op async instrument
-    pub(crate) fn new() -> Self {
-        NoopAsyncInstrument { _private: () }
-    }
-}
-
-impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
-    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }
