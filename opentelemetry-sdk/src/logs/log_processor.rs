@@ -1074,7 +1074,6 @@ mod tests {
     #[async_trait::async_trait]
     impl LogExporter for AsyncLogExporter {
         async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-            println!("received..");
             let logs = Arc::clone(&self.logs);
 
             // Collect batch into an owned Vec to ensure the data can be moved into the tokio::spawn task
