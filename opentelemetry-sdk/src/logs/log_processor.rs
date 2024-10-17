@@ -996,31 +996,11 @@ mod tests {
         );
     }
 
-    #[derive(Debug, Clone)]
-    struct SyncLogExporter {
-        logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
-    }
-
-    #[async_trait::async_trait]
-    impl LogExporter for SyncLogExporter {
-        async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-            let mut logs = self.logs.lock().unwrap();
-            for (log_record, instrumentation) in batch.iter() {
-                logs.push((log_record.clone(), instrumentation.clone()));
-            }
-            Ok(())
-        }
-
-        fn shutdown(&mut self) {}
-
-        fn set_resource(&mut self, _resource: &Resource) {}
-    }
-
     #[test]
     fn test_simple_processor_sync_exporter_without_runtime() {
-        let exporter = SyncLogExporter {
-            logs: Arc::new(Mutex::new(Vec::new())),
-        };
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1030,14 +1010,14 @@ mod tests {
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
-        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+        assert_eq!(exporter.get_emitted_logs().unwrap().len(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_sync_exporter_with_runtime() {
-        let exporter = SyncLogExporter {
-            logs: Arc::new(Mutex::new(Vec::new())),
-        };
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1047,14 +1027,14 @@ mod tests {
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
-        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+        assert_eq!(exporter.get_emitted_logs().unwrap().len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_simple_processor_sync_exporter_with_current_thread_runtime() {
-        let exporter = SyncLogExporter {
-            logs: Arc::new(Mutex::new(Vec::new())),
-        };
+        let exporter = InMemoryLogsExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1064,7 +1044,7 @@ mod tests {
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
-        assert_eq!(exporter.logs.lock().unwrap().len(), 1);
+        assert_eq!(exporter.get_emitted_logs().unwrap().len(), 1);
     }
 
     #[derive(Debug, Clone)]
@@ -1095,10 +1075,6 @@ mod tests {
 
             Ok(())
         }
-
-        fn shutdown(&mut self) {}
-
-        fn set_resource(&mut self, _resource: &Resource) {}
     }
 
     #[test]
