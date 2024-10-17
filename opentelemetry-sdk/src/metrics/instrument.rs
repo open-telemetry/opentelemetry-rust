@@ -43,7 +43,7 @@ impl InstrumentKind {
     /// Select the [Temporality] preference based on [InstrumentKind]
     ///
     /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
-    pub fn temporality_preference(&self, temporality: Temporality) -> Temporality {
+    pub(crate) fn temporality_preference(&self, temporality: Temporality) -> Temporality {
         match temporality {
             Temporality::Cumulative => Temporality::Cumulative,
             Temporality::Delta => match self {
