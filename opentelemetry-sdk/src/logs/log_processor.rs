@@ -553,7 +553,6 @@ mod tests {
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    // use std::panic;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -1098,8 +1097,6 @@ mod tests {
     #[async_trait::async_trait]
     impl LogExporter for LogExporterThatRequiresTokioSpawn {
         async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-            println!("Exporting...");
-
             // Simulate minimal dependency on tokio by sleeping for a short duration
             sleep(Duration::from_millis(50)).await;
 
@@ -1108,8 +1105,6 @@ mod tests {
             for (log_record, instrumentation) in batch.iter() {
                 logs_lock.push((log_record.clone(), instrumentation.clone()));
             }
-
-            println!("Export success...");
             Ok(())
         }
     }
@@ -1193,7 +1188,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    #[ignore] // This test hangs as of now.
+    #[ignore] // the current thread is blocked with futures::block_on to
+              // complete the export, and the exporter further needs tokio runtime to progress
+              // on this blocked thread, resulting in deadlock.
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
         let exporter = LogExporterThatRequiresTokioSpawn::new();
 
