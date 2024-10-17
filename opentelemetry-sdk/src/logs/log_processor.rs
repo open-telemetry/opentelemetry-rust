@@ -1133,7 +1133,7 @@ mod tests {
             let panic_message = panic
                 .downcast_ref::<String>()
                 .map(|s| s.as_str())
-                .or_else(|| panic.downcast_ref::<&str>().map(|&s| s))
+                .or_else(|| panic.downcast_ref::<&str>().copied())
                 .unwrap_or("No panic message");
 
             assert!(
