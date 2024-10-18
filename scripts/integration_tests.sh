@@ -1,1 +1,1 @@
-cargo test ./opentelemetry-otlp/tests/integration_test/tests -- --ignored
+cd ./opentelemetry-otlp/tests/integration_test/tests  && cargo test -- --ignored
