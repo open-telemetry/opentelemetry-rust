@@ -1116,7 +1116,7 @@ mod tests {
             let mut record: LogRecord = Default::default();
             let instrumentation: InstrumentationLibrary = Default::default();
 
-            // This will panic because an async operation is called without a runtime.
+            // This will panic because an tokio async operation within exporter without a runtime.
             processor.emit(&mut record, &instrumentation);
         });
 
