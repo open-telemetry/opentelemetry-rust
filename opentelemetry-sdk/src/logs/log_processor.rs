@@ -1184,7 +1184,7 @@ mod tests {
         for handle in handles {
             handle.await.unwrap();
         }
-        assert_eq!(exporter.len(), 2);
+        assert_eq!(exporter.len(), 4);
     }
 
     #[tokio::test(flavor = "multi_thread")]
