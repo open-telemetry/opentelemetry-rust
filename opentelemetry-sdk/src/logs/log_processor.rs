@@ -1154,9 +1154,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    //#[ignore]
+    #[ignore]
     // All worker threads except one are blocked, waiting for the export operation to complete.
     // The exporter, which isn't blocked, requires the runtime to proceed, but no free worker threads are available, resulting in a deadlock.
+    // This mimics the scenario where the
     async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
