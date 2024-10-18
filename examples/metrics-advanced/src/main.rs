@@ -1,9 +1,8 @@
 use opentelemetry::global;
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::metrics::reader::DeltaTemporalitySelector;
 use opentelemetry_sdk::metrics::{
-    Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream,
+    data::Temporality, Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream,
 };
 use opentelemetry_sdk::{runtime, Resource};
 use std::error::Error;
@@ -47,7 +46,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
     // Build exporter using Delta Temporality.
     let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
-        .with_temporality_selector(DeltaTemporalitySelector::new())
+        .with_temporality(Temporality::Delta)
         .build();
 
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
