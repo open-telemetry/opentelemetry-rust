@@ -2,8 +2,8 @@ use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
     metrics::MetricsError,
-    trace::{TraceContextExt, TraceError, Tracer, TracerProvider as _},
-    KeyValue,
+    trace::{TraceContextExt, TraceError, Tracer},
+    InstrumentationLibrary, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
@@ -18,7 +18,7 @@ use opentelemetry_sdk::{
     logs::{self as sdklogs},
     Resource,
 };
-use std::error::Error;
+use std::{error::Error, sync::Arc};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
@@ -128,16 +128,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .init();
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
-    let tracer = global::tracer_provider()
-        .tracer_builder("basic")
-        .with_attributes(common_scope_attributes.clone())
-        .build();
-    let meter = global::meter_with_version(
-        "basic",
-        Some("v1.0"),
-        Some("schema_url"),
-        Some(common_scope_attributes.clone()),
+    let library = Arc::new(
+        InstrumentationLibrary::builder("basic")
+            .with_version("1.0")
+            .with_attributes(common_scope_attributes)
+            .build(),
     );
+    let tracer = global::library_tracer(library.clone());
+    let meter = global::library_meter(library);
 
     let counter = meter
         .u64_counter("test_counter")

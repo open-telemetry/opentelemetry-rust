@@ -1,8 +1,8 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationLibrary, Key,
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_core::Metadata;
@@ -136,11 +136,14 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        OpenTelemetryTracingBridge {
-            logger: provider
-                .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
+        let library = Arc::new(
+            InstrumentationLibrary::builder(INSTRUMENTATION_LIBRARY_NAME)
                 .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
                 .build(),
+        );
+
+        OpenTelemetryTracingBridge {
+            logger: provider.library_logger(library),
             _phantom: Default::default(),
         }
     }

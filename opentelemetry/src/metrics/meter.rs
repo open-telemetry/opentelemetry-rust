@@ -6,13 +6,39 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
     ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
-use crate::KeyValue;
+use crate::InstrumentationLibrary;
 
 use super::{Counter, Histogram, HistogramBuilder};
 
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
 pub trait MeterProvider {
+    /// Returns a new [Meter] with the given instrumentation library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use opentelemetry::InstrumentationLibrary;
+    /// use opentelemetry::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::default();
+    ///
+    /// // logger used in applications/binaries
+    /// let meter = provider.meter("my_app");
+    ///
+    /// // logger used in libraries/crates that optionally includes version and schema url
+    /// let library = std::sync::Arc::new(
+    ///     InstrumentationLibrary::builder(env!("CARGO_PKG_NAME"))
+    ///         .with_version(env!("CARGO_PKG_VERSION"))
+    ///         .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///         .build(),
+    /// );
+    /// let logger = provider.library_meter(library);
+    /// ```
+    fn library_meter(&self, library: Arc<InstrumentationLibrary>) -> Meter;
+
     /// Returns a new [Meter] with the provided name and default configuration.
     ///
     /// A [Meter] should be scoped at most to a single application or crate. The
@@ -32,32 +58,11 @@ pub trait MeterProvider {
     ///
     /// // meter used in applications
     /// let meter = provider.meter("my_app");
-    ///
-    /// // meter used in libraries/crates that optionally includes version and schema url
-    /// let meter = provider.versioned_meter(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
-    ///     Some(vec![KeyValue::new("key", "value")]),
-    /// );
     /// ```
     fn meter(&self, name: &'static str) -> Meter {
-        self.versioned_meter(name, None, None, None)
+        let library = Arc::new(InstrumentationLibrary::builder(name).build());
+        self.library_meter(library)
     }
-
-    /// Returns a new versioned meter with a given name.
-    ///
-    /// The instrumentation name must be the name of the library providing instrumentation. This
-    /// name may be the same as the instrumented code only if that code provides built-in
-    /// instrumentation. If the instrumentation name is empty, then a implementation defined
-    /// default name will be used instead.
-    fn versioned_meter(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter;
 }
 
 /// Provides the ability to create instruments for recording measurements or

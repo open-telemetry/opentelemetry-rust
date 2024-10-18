@@ -395,6 +395,35 @@ pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
     tracer_provider().tracer(name.into())
 }
 
+/// Creates a [`Tracer`] with the given instrumentation library
+/// via the configured [`GlobalTracerProvider`].
+///
+/// This is a shortcut `global::tracer_provider().library_tracer(...)`
+///
+/// # Example
+///
+/// ```
+/// use std::sync::Arc;
+/// use opentelemetry::global::library_tracer;
+/// use opentelemetry::InstrumentationLibrary;
+/// use opentelemetry::KeyValue;
+///
+/// let library = Arc::new(
+///     InstrumentationLibrary::builder("io.opentelemetry")
+///         .with_version("0.17")
+///         .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+///         .with_attributes(vec![(KeyValue::new("key", "value"))])
+///         .build(),
+/// );
+///
+/// let meter = library_tracer(library);
+/// ```
+///
+/// [`Tracer`]: crate::trace::Tracer
+pub fn library_tracer(library: Arc<InstrumentationLibrary>) -> BoxedTracer {
+    tracer_provider().library_tracer(library)
+}
+
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
 /// It returns the [`TracerProvider`] instance that was previously mounted as global provider

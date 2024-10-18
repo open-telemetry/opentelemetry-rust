@@ -1,5 +1,5 @@
 use crate::metrics::{self, Meter, MeterProvider};
-use crate::KeyValue;
+use crate::InstrumentationLibrary;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, RwLock};
 
@@ -38,32 +38,28 @@ pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name)
 }
 
-/// Creates a [`Meter`] with the name, version and schema url.
+/// Creates a [`Meter`] with the given instrumentation library.
 ///
-/// - name SHOULD uniquely identify the instrumentation scope, such as the instrumentation library (e.g. io.opentelemetry.contrib.mongodb), package, module or class name.
-/// - version specifies the version of the instrumentation scope if the scope has a version
-/// - schema url specifies the Schema URL that should be recorded in the emitted telemetry.
-///
-/// This is a convenient way of `global::meter_provider().versioned_meter(...)`
+/// This is a shortcut `global::meter_provider().library_meter(...)`
 ///
 /// # Example
 ///
 /// ```
-/// use opentelemetry::global::meter_with_version;
+/// use std::sync::Arc;
+/// use opentelemetry::global::library_meter;
+/// use opentelemetry::InstrumentationLibrary;
 /// use opentelemetry::KeyValue;
 ///
-/// let meter = meter_with_version(
-///     "io.opentelemetry",
-///     Some("0.17"),
-///     Some("https://opentelemetry.io/schemas/1.2.0"),
-///     Some(vec![KeyValue::new("key", "value")]),
+/// let library = Arc::new(
+///     InstrumentationLibrary::builder("io.opentelemetry")
+///         .with_version("0.17")
+///         .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+///         .with_attributes(vec![(KeyValue::new("key", "value"))])
+///         .build(),
 /// );
+///
+/// let meter = library_meter(library);
 /// ```
-pub fn meter_with_version(
-    name: &'static str,
-    version: Option<&'static str>,
-    schema_url: Option<&'static str>,
-    attributes: Option<Vec<KeyValue>>,
-) -> Meter {
-    meter_provider().versioned_meter(name, version, schema_url, attributes)
+pub fn library_meter(library: Arc<InstrumentationLibrary>) -> Meter {
+    meter_provider().library_meter(library)
 }

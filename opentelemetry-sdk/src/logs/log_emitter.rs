@@ -10,11 +10,11 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::{
-    borrow::Cow,
-    sync::{atomic::Ordering, Arc},
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
-use std::{sync::atomic::AtomicBool, time::SystemTime};
+use std::time::SystemTime;
 
 use once_cell::sync::Lazy;
 
@@ -45,41 +45,8 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default logger name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
-
-    /// Create a new versioned `Logger` instance.
-    fn versioned_logger(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
-    ) -> Logger {
-        let name = name.into();
-        let component_name = if name.is_empty() {
-            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        } else {
-            name
-        };
-
-        let mut builder = self.logger_builder(component_name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        builder.build()
-    }
 
     fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
