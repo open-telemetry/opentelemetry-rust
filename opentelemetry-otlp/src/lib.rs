@@ -183,7 +183,6 @@
 //!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
 //!         .with_period(Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
-//!         .with_temporality(Temporality::default())
 //!         .build();
 //!     # }
 //!
