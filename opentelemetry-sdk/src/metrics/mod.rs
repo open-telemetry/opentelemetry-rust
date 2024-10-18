@@ -933,7 +933,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn no_attr_delta_up_down_counter() {
+    async fn no_attr_up_down_counter_always_cumulative() {
         let mut test_context = TestContext::new(Temporality::Delta);
         let counter = test_context.i64_up_down_counter("test", "my_counter", Some("my_unit"));
 
@@ -947,7 +947,7 @@ mod tests {
         assert_eq!(
             sum.temporality,
             Temporality::Cumulative,
-            "Should produce Cumulative for UpDownCounter"
+            "Should produce Cumulative due to UpDownCounter temporality_preference"
         );
 
         let data_point = &sum.data_points[0];
