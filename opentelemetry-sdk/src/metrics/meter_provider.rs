@@ -10,7 +10,7 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    KeyValue,
+    InstrumentationLibrary,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -145,34 +145,14 @@ impl Drop for SdkMeterProviderInner {
     }
 }
 impl MeterProvider for SdkMeterProvider {
-    fn versioned_meter(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter {
+    fn library_meter(&self, library: Arc<InstrumentationLibrary>) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));
         }
 
-        let mut builder = Scope::builder(name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        let scope = builder.build();
-
         if let Ok(mut meters) = self.inner.meters.lock() {
             let meter = meters
-                .entry(scope)
+                .entry(InstrumentationLibrary::clone(&library))
                 .or_insert_with_key(|scope| {
                     Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()))
                 })
@@ -260,10 +240,11 @@ mod tests {
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
-    use opentelemetry::global;
     use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::{global, InstrumentationLibrary};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
+    use std::sync::Arc;
 
     #[test]
     fn test_meter_provider_resource() {
@@ -454,21 +435,41 @@ mod tests {
         let _meter1 = provider.meter("test");
         let _meter2 = provider.meter("test");
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
-        let _meter3 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter4 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter5 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+
+        let library = Arc::new(
+            InstrumentationLibrary::builder("test")
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build(),
+        );
+
+        let _meter3 = provider.library_meter(library.clone());
+        let _meter4 = provider.library_meter(library.clone());
+        let _meter5 = provider.library_meter(library);
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
-        // the below are different meters, as meter names are case sensitive
-        let _meter6 =
-            provider.versioned_meter("ABC", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter7 =
-            provider.versioned_meter("Abc", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter8 =
-            provider.versioned_meter("abc", Some("1.0.0"), Some("http://example.com"), None);
+        // these are different meters because meter names are case sensitive
+        let library = Arc::new(
+            InstrumentationLibrary::builder("ABC")
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build(),
+        );
+        let _meter6 = provider.library_meter(library);
+        let library = Arc::new(
+            InstrumentationLibrary::builder("Abc")
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build(),
+        );
+        let _meter7 = provider.library_meter(library);
+        let library = Arc::new(
+            InstrumentationLibrary::builder("abc")
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build(),
+        );
+        let _meter8 = provider.library_meter(library);
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }
 }

@@ -44,6 +44,8 @@
 //!
 //! ```
 //! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider}};
+//! use opentelemetry::InstrumentationLibrary;
+//! use std::sync::Arc;
 //!
 //! fn my_library_function() {
 //!     // Use the global tracer provider to get access to the user-specified
@@ -51,10 +53,12 @@
 //!     let tracer_provider = global::tracer_provider();
 //!
 //!     // Get a tracer for this library
-//!     let tracer = tracer_provider.tracer_builder("my_name").
-//!         with_version(env!("CARGO_PKG_VERSION")).
-//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
-//!         build();
+//!     let library = Arc::new(InstrumentationLibrary::builder("my_name")
+//!         .with_version(env!("CARGO_PKG_VERSION"))
+//!         .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+//!         .build()
+//!     );
+//!     let tracer = tracer_provider.library_tracer(library);
 //!
 //!     // Create spans
 //!     let mut span = tracer.start("doing_work");
