@@ -96,6 +96,7 @@ impl SimpleLogProcessor {
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        println!("SimpleLogProcessor::Emit");
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -553,7 +554,10 @@ mod tests {
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    use std::sync::{Arc, Mutex};
+    use std::sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    };
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -1066,44 +1070,37 @@ mod tests {
         let instrumentation: InstrumentationLibrary = Default::default();
 
         processor.emit(&mut record, &instrumentation);
-        processor.force_flush().unwrap();
-        processor.shutdown().unwrap();
 
         assert_eq!(exporter.get_emitted_logs().unwrap().len(), 1);
     }
 
     #[derive(Debug, Clone)]
-    struct LogExporterThatRequiresTokioSpawn {
-        logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+    struct LogExporterThatRequiresTokio {
+        event_count: Arc<AtomicU32>,
     }
 
-    impl LogExporterThatRequiresTokioSpawn {
-        /// Creates a new instance of `LogExporterThatRequiresTokioSpawn`.
-        pub(crate) fn new() -> Self {
-            LogExporterThatRequiresTokioSpawn {
-                logs: Arc::new(Mutex::new(Vec::new())),
+    impl LogExporterThatRequiresTokio {
+        /// Creates a new instance of `LogExporterThatRequiresTokio`.
+        fn new() -> Self {
+            LogExporterThatRequiresTokio {
+                event_count: Arc::new(AtomicU32::new(0)),
             }
         }
 
         /// Returns the number of logs stored in the exporter.
-        pub(crate) async fn len(&self) -> usize {
-            let logs = self.logs.lock().unwrap();
-            logs.len()
+        fn len(&self) -> usize {
+            self.event_count.load(Ordering::Acquire) as usize
         }
     }
 
-    use tokio::time::sleep;
-
     #[async_trait::async_trait]
-    impl LogExporter for LogExporterThatRequiresTokioSpawn {
+    impl LogExporter for LogExporterThatRequiresTokio {
         async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-            // Simulate minimal dependency on tokio by sleeping for a short duration
-            sleep(Duration::from_millis(50)).await;
+            // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
+            tokio::time::sleep(Duration::from_millis(50)).await;
 
-            let logs = Arc::clone(&self.logs);
-            let mut logs_lock = logs.lock().unwrap();
-            for (log_record, instrumentation) in batch.iter() {
-                logs_lock.push((log_record.clone(), instrumentation.clone()));
+            for _ in batch.iter() {
+                self.event_count.fetch_add(1, Ordering::Acquire);
             }
             Ok(())
         }
@@ -1113,13 +1110,13 @@ mod tests {
     fn test_simple_processor_async_exporter_without_runtime() {
         // Use `catch_unwind` to catch the panic caused by missing Tokio runtime
         let result = std::panic::catch_unwind(|| {
-            let exporter = LogExporterThatRequiresTokioSpawn::new();
+            let exporter = LogExporterThatRequiresTokio::new();
             let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
             let mut record: LogRecord = Default::default();
             let instrumentation: InstrumentationLibrary = Default::default();
 
-            // This will panic because `tokio::spawn` or an async operation is called without a runtime.
+            // This will panic because an async operation is called without a runtime.
             processor.emit(&mut record, &instrumentation);
         });
 
@@ -1128,27 +1125,24 @@ mod tests {
             result.is_err(),
             "The test should fail due to missing Tokio runtime, but it did not."
         );
+        let panic_payload = result.unwrap_err();
+        let panic_message = panic_payload
+            .downcast_ref::<String>()
+            .map(|s| s.as_str())
+            .or_else(|| panic_payload.downcast_ref::<&str>().copied())
+            .unwrap_or("No panic message");
 
-        if let Err(panic) = result {
-            let panic_message = panic
-                .downcast_ref::<String>()
-                .map(|s| s.as_str())
-                .or_else(|| panic.downcast_ref::<&str>().copied())
-                .unwrap_or("No panic message");
-
-            assert!(
-                panic_message.contains("no reactor running")
-                    || panic_message
-                        .contains("must be called from the context of a Tokio 1.x runtime"),
-                "Expected panic message about missing Tokio runtime, but got: {}",
-                panic_message
-            );
-        }
+        assert!(
+            panic_message.contains("no reactor running")
+                || panic_message.contains("must be called from the context of a Tokio 1.x runtime"),
+            "Expected panic message about missing Tokio runtime, but got: {}",
+            panic_message
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_async_exporter_with_runtime() {
-        let exporter = LogExporterThatRequiresTokioSpawn::new();
+        let exporter = LogExporterThatRequiresTokio::new();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1156,23 +1150,23 @@ mod tests {
 
         processor.emit(&mut record, &instrumentation);
 
-        assert_eq!(exporter.len().await, 1);
+        assert_eq!(exporter.len(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[ignore]
-    // all threads are blocked running blocked::export(), and the exporter further needs tokio
-    // runtime to progress on this blocked thread, resulting in deadlock.
-    async fn test_simple_processor_async_exporter_with_multi_thread_runtime_all_cores_blocked() {
-        let exporter = LogExporterThatRequiresTokioSpawn::new();
+    //#[ignore]
+    // All worker threads except one are blocked, waiting for the export operation to complete.
+    // The exporter, which isn't blocked, requires the runtime to proceed, but no free worker threads are available, resulting in a deadlock.
+    async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
+        let exporter = LogExporterThatRequiresTokio::new();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
             exporter.clone(),
         ))));
 
-        let concurrent_emit = 5; // number of worker sthreads + 1
+        let concurrent_emit = 5; // number of worker threads + 1
 
         let mut handles = vec![];
-        // send 2 events concurrently
+        // try send `concurrent_emit` events concurrently
         for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
@@ -1189,12 +1183,12 @@ mod tests {
         for handle in handles {
             handle.await.unwrap();
         }
-        assert_eq!(exporter.len().await, 2);
+        assert_eq!(exporter.len(), 2);
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
-        let exporter = LogExporterThatRequiresTokioSpawn::new();
+        let exporter = LogExporterThatRequiresTokio::new();
 
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
@@ -1203,7 +1197,7 @@ mod tests {
 
         processor.emit(&mut record, &instrumentation);
 
-        assert_eq!(exporter.len().await, 1);
+        assert_eq!(exporter.len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -1211,7 +1205,7 @@ mod tests {
               // complete the export, and the exporter further needs tokio runtime to progress
               // on this blocked thread, resulting in deadlock.
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
-        let exporter = LogExporterThatRequiresTokioSpawn::new();
+        let exporter = LogExporterThatRequiresTokio::new();
 
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
@@ -1220,6 +1214,6 @@ mod tests {
 
         processor.emit(&mut record, &instrumentation);
 
-        assert_eq!(exporter.len().await, 1);
+        assert_eq!(exporter.len(), 1);
     }
 }
