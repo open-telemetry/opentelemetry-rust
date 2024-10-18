@@ -25,13 +25,7 @@ impl NoopMeterProvider {
 }
 
 impl MeterProvider for NoopMeterProvider {
-    fn versioned_meter(
-        &self,
-        _name: &'static str,
-        _version: Option<&'static str>,
-        _schema_url: Option<&'static str>,
-        _attributes: Option<Vec<KeyValue>>,
-    ) -> Meter {
+    fn library_meter(&self, _library: Arc<crate::InstrumentationLibrary>) -> Meter {
         Meter::new(Arc::new(NoopMeter::new()))
     }
 }

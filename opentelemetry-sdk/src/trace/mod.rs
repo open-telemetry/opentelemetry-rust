@@ -40,15 +40,17 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         testing::trace::InMemorySpanExporterBuilder,
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
-    use opentelemetry::testing::trace::TestSpan;
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
     };
+    use opentelemetry::{testing::trace::TestSpan, InstrumentationLibrary};
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
@@ -326,35 +328,14 @@ mod tests {
     #[test]
     fn tracer_attributes() {
         let provider = TracerProvider::builder().build();
-        let tracer = provider
-            .tracer_builder("test_tracer")
-            .with_attributes(vec![KeyValue::new("test_k", "test_v")])
-            .build();
+        let library = Arc::new(
+            InstrumentationLibrary::builder("basic")
+                .with_attributes(vec![KeyValue::new("test_k", "test_v")])
+                .build(),
+        );
+        let tracer = provider.library_tracer(library);
         let instrumentation_library = tracer.instrumentation_library();
         let attributes = &instrumentation_library.attributes;
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn versioned_tracer_options() {
-        let provider = TracerProvider::builder().build();
-        let tracer = provider.versioned_tracer(
-            "test_tracer",
-            Some(String::from("v1.2.3")),
-            Some(String::from("https://opentelemetry.io/schema/1.0.0")),
-            Some(vec![(KeyValue::new("test_k", "test_v"))]),
-        );
-        let instrumentation_library = tracer.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.name, "test_tracer");
-        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
-        assert_eq!(
-            instrumentation_library.schema_url,
-            Some("https://opentelemetry.io/schema/1.0.0".into())
-        );
         assert_eq!(attributes.len(), 1);
         assert_eq!(attributes[0].key, "test_k".into());
         assert_eq!(attributes[0].value, "test_v".into());
