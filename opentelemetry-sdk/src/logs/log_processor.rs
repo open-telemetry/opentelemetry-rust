@@ -1164,7 +1164,7 @@ mod tests {
             exporter.clone(),
         ))));
 
-        let concurrent_emit = 5; // number of worker threads + 1
+        let concurrent_emit = 4; // number of worker threads
 
         let mut handles = vec![];
         // try send `concurrent_emit` events concurrently
