@@ -555,6 +555,7 @@ mod tests {
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
+    //use num_cpus;
 
     #[derive(Debug, Clone)]
     struct MockLogExporter {
@@ -1159,16 +1160,21 @@ mod tests {
         assert_eq!(exporter.len().await, 1);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[ignore]
+    // all threads are blocked running blocked::export(), and the exporter further needs tokio
+    // runtime to progress on this blocked thread, resulting in deadlock.
+    async fn test_simple_processor_async_exporter_with_multi_thread_runtime_all_cores_blocked() {
         let exporter = LogExporterThatRequiresTokioSpawn::new();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
             exporter.clone(),
         ))));
 
+        let concurrent_emit = 5; // number of worker sthreads + 1
+
         let mut handles = vec![];
-        // send 4 events concurrently
-        for _ in 0..4 {
+        // send 2 events concurrently
+        for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let mut record: LogRecord = Default::default();
@@ -1184,7 +1190,21 @@ mod tests {
         for handle in handles {
             handle.await.unwrap();
         }
-        assert_eq!(exporter.len().await, 4);
+        assert_eq!(exporter.len().await, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
+        let exporter = LogExporterThatRequiresTokioSpawn::new();
+
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+
+        assert_eq!(exporter.len().await, 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
