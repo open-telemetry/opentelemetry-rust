@@ -16,7 +16,7 @@
 /// The `TracerProvider` is designed to be lightweight and clonable. Cloning a `TracerProvider`
 /// creates a new reference to the same provider, not a new instance. Dropping the last reference
 /// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
-/// will flush all remaining spans, ensuring they are passed to the configured exporters.
+/// will flush all remaining spans, ensuring they are passed to the configured processors.
 /// Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
 /// method, which will ensure the same behavior.
 ///
