@@ -96,9 +96,7 @@ fn resolve_compression(
 ///
 /// ```no_run
 /// # #[cfg(feature="metrics")]
-/// use opentelemetry_sdk::metrics::reader::{
-///     DefaultTemporalitySelector,
-/// };
+/// use opentelemetry_sdk::metrics::data::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
@@ -110,7 +108,7 @@ fn resolve_compression(
 /// let metrics_exporter = opentelemetry_otlp::new_exporter()
 ///     .tonic()
 ///     .build_metrics_exporter(
-///         Box::new(DefaultTemporalitySelector::new()),
+///         Temporality::default(),
 ///     )?;
 ///
 /// // Create a log exporter you can use when configuring logger providers
@@ -331,7 +329,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         self,
-        temporality_selector: Box<dyn opentelemetry_sdk::metrics::reader::TemporalitySelector>,
+        temporality: opentelemetry_sdk::metrics::data::Temporality,
     ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
         use crate::MetricsExporter;
         use metrics::TonicMetricsClient;
@@ -345,7 +343,7 @@ impl TonicExporterBuilder {
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
 
-        Ok(MetricsExporter::new(client, temporality_selector))
+        Ok(MetricsExporter::new(client, temporality))
     }
 
     /// Build a new tonic span exporter
