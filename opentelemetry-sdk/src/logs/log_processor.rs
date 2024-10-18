@@ -555,7 +555,6 @@ mod tests {
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
-    //use num_cpus;
 
     #[derive(Debug, Clone)]
     struct MockLogExporter {
