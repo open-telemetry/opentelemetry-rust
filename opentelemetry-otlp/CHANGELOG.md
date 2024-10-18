@@ -10,6 +10,16 @@ Released 2024-Sep-30
 - Update `opentelemetry-http` dependency version to 0.26
 - Update `opentelemetry-proto` dependency version to 0.26
 - Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
+- **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
+  - **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
+    Previous Signature:
+    ```rust
+    MetricsExporterBuilder::default().with_temporality_selector(DeltaTemporalitySelector::new())
+    ```
+    Updated Signature:
+    ```rust
+    MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    ```
 
 ## v0.25.0
 

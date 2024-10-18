@@ -3,10 +3,8 @@ use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry::metrics::{MetricsError, Result};
 use opentelemetry_sdk::metrics::{
-    data::{self, ScopeMetrics},
+    data::{self, ScopeMetrics, Temporality},
     exporter::PushMetricsExporter,
-    reader::{DefaultTemporalitySelector, TemporalitySelector},
-    InstrumentKind,
 };
 use std::fmt::Debug;
 use std::sync::atomic;
@@ -14,7 +12,7 @@ use std::sync::atomic;
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricsExporter {
     is_shutdown: atomic::AtomicBool,
-    temporality_selector: Box<dyn TemporalitySelector>,
+    temporality: Temporality,
 }
 
 impl MetricsExporter {
@@ -32,12 +30,6 @@ impl Default for MetricsExporter {
 impl fmt::Debug for MetricsExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("MetricsExporter")
-    }
-}
-
-impl TemporalitySelector for MetricsExporter {
-    fn temporality(&self, kind: InstrumentKind) -> data::Temporality {
-        self.temporality_selector.temporality(kind)
     }
 }
 
@@ -70,6 +62,10 @@ impl PushMetricsExporter for MetricsExporter {
     fn shutdown(&self) -> Result<()> {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
+    }
+
+    fn temporality(&self) -> Temporality {
+        self.temporality
     }
 }
 
@@ -223,25 +219,20 @@ fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>])
 /// Configuration for the stdout metrics exporter
 #[derive(Default)]
 pub struct MetricsExporterBuilder {
-    temporality_selector: Option<Box<dyn TemporalitySelector>>,
+    temporality: Option<Temporality>,
 }
 
 impl MetricsExporterBuilder {
-    /// Set the temporality exporter for the exporter
-    pub fn with_temporality_selector(
-        mut self,
-        selector: impl TemporalitySelector + 'static,
-    ) -> Self {
-        self.temporality_selector = Some(Box::new(selector));
+    /// Set the [Temporality] of the exporter.
+    pub fn with_temporality(mut self, temporality: Temporality) -> Self {
+        self.temporality = Some(temporality);
         self
     }
 
     /// Create a metrics exporter with the current configuration
     pub fn build(self) -> MetricsExporter {
         MetricsExporter {
-            temporality_selector: self
-                .temporality_selector
-                .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
+            temporality: self.temporality.unwrap_or_default(),
             is_shutdown: atomic::AtomicBool::new(false),
         }
     }

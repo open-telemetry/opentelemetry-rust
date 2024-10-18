@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{DeltaTemporalitySelector, MetricReader, TemporalitySelector},
+        reader::MetricReader,
         Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         View,
     },
@@ -19,12 +19,6 @@ use opentelemetry_sdk::{
 
 #[derive(Clone, Debug)]
 struct SharedReader(Arc<dyn MetricReader>);
-
-impl TemporalitySelector for SharedReader {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.0.temporality(kind)
-    }
-}
 
 impl MetricReader for SharedReader {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
@@ -41,6 +35,10 @@ impl MetricReader for SharedReader {
 
     fn shutdown(&self) -> Result<()> {
         self.0.shutdown()
+    }
+
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        self.0.temporality(kind)
     }
 }
 
@@ -118,7 +116,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
     } else {
         SharedReader(Arc::new(
             ManualReader::builder()
-                .with_temporality_selector(DeltaTemporalitySelector::new())
+                .with_temporality(Temporality::Delta)
                 .build(),
         ))
     };
