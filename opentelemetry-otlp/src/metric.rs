@@ -3,27 +3,26 @@
 //! Defines a [MetricsExporter] to send metric data to backend via OTLP protocol.
 //!
 
-use crate::{NoExporterConfig, OtlpPipeline};
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+use crate::HasExportConfig;
+
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+use crate::{exporter::http::HttpExporterBuilder, HasHttpConfig, HttpExporterBuilderSet};
+
+#[cfg(feature = "grpc-tonic")]
+use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporterBuilderSet};
+
+use crate::NoExporterBuilderSet;
+
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry::metrics::Result;
 
-#[cfg(feature = "grpc-tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
-use opentelemetry_sdk::{
-    metrics::{
-        data::{ResourceMetrics, Temporality},
-        exporter::PushMetricsExporter,
-        PeriodicReader, SdkMeterProvider,
-    },
-    runtime::Runtime,
-    Resource,
+use opentelemetry_sdk::metrics::{
+    data::{ResourceMetrics, Temporality},
+    exporter::PushMetricsExporter,
 };
 use std::fmt::{Debug, Formatter};
-use std::time;
-
-#[cfg(feature = "http-proto")]
-use crate::exporter::http::HttpExporterBuilder;
 
 /// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
 /// Learn about the relationship between this constant and default/spans/logs at
@@ -38,183 +37,86 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
-impl OtlpPipeline {
-    /// Create a OTLP metrics pipeline.
-    pub fn metrics<RT>(self, rt: RT) -> OtlpMetricPipeline<RT, NoExporterConfig>
-    where
-        RT: Runtime,
-    {
-        OtlpMetricPipeline {
-            rt,
-            temporality: None,
-            exporter_pipeline: NoExporterConfig(()),
-            resource: None,
-            period: None,
-            timeout: None,
-        }
+
+#[derive(Debug, Default, Clone)]
+pub struct MetricsExporterBuilder<C> {
+    client: C,
+    temporality: Temporality,
+}
+
+impl MetricsExporterBuilder<NoExporterBuilderSet> {
+    pub fn new() -> Self {
+        MetricsExporterBuilder::default()
     }
 }
 
-/// OTLP metrics exporter builder.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum MetricsExporterBuilder {
-    /// Tonic metrics exporter builder
+impl<C> MetricsExporterBuilder<C> {
     #[cfg(feature = "grpc-tonic")]
-    Tonic(TonicExporterBuilder),
-    /// Http metrics exporter builder
-    #[cfg(feature = "http-proto")]
-    Http(HttpExporterBuilder),
+    pub fn with_tonic(self) -> MetricsExporterBuilder<TonicExporterBuilderSet> {
+        MetricsExporterBuilder {
+            client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
+            temporality: self.temporality,
+        }
+    }
 
-    /// Missing exporter builder
-    #[doc(hidden)]
-    #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
-    Unconfigured,
-}
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub fn with_http(self) -> MetricsExporterBuilder<HttpExporterBuilderSet> {
+        MetricsExporterBuilder {
+            client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
+            temporality: self.temporality,
+        }
+    }
 
-impl MetricsExporterBuilder {
-    /// Build a OTLP metrics exporter with given configuration.
-    pub fn build_metrics_exporter(self, temporality: Temporality) -> Result<MetricsExporter> {
-        match self {
-            #[cfg(feature = "grpc-tonic")]
-            MetricsExporterBuilder::Tonic(builder) => builder.build_metrics_exporter(temporality),
-            #[cfg(feature = "http-proto")]
-            MetricsExporterBuilder::Http(builder) => builder.build_metrics_exporter(temporality),
-            #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
-            MetricsExporterBuilder::Unconfigured => {
-                let _ = temporality;
-                Err(opentelemetry::metrics::MetricsError::Other(
-                    "no configured metrics exporter, enable `http-proto` or `grpc-tonic` feature to configure a metrics exporter".into(),
-                ))
-            }
+    #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+    pub fn with_temporality(self, temporality: Temporality) -> MetricsExporterBuilder<C> {
+        MetricsExporterBuilder {
+            client: self.client,
+            temporality,
         }
     }
 }
 
 #[cfg(feature = "grpc-tonic")]
-impl From<TonicExporterBuilder> for MetricsExporterBuilder {
-    fn from(exporter: TonicExporterBuilder) -> Self {
-        MetricsExporterBuilder::Tonic(exporter)
+impl MetricsExporterBuilder<TonicExporterBuilderSet> {
+    pub fn build(self) -> Result<MetricsExporter> {
+        let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
+        Ok(exporter)
     }
 }
 
-#[cfg(feature = "http-proto")]
-impl From<HttpExporterBuilder> for MetricsExporterBuilder {
-    fn from(exporter: HttpExporterBuilder) -> Self {
-        MetricsExporterBuilder::Http(exporter)
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl MetricsExporterBuilder<HttpExporterBuilderSet> {
+    pub fn build(self) -> Result<MetricsExporter> {
+        let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
+        Ok(exporter)
     }
 }
 
-/// Pipeline to build OTLP metrics exporter
-///
-/// Note that currently the OTLP metrics exporter only supports tonic as it's grpc layer and tokio as
-/// runtime.
-pub struct OtlpMetricPipeline<RT, EB> {
-    rt: RT,
-    temporality: Option<Temporality>,
-    exporter_pipeline: EB,
-    resource: Option<Resource>,
-    period: Option<time::Duration>,
-    timeout: Option<time::Duration>,
-}
-
-impl<RT, EB> OtlpMetricPipeline<RT, EB>
-where
-    RT: Runtime,
-{
-    /// Build with resource key value pairs.
-    pub fn with_resource(self, resource: Resource) -> Self {
-        OtlpMetricPipeline {
-            resource: Some(resource),
-            ..self
-        }
-    }
-
-    /// Build with timeout
-    pub fn with_timeout(self, timeout: time::Duration) -> Self {
-        OtlpMetricPipeline {
-            timeout: Some(timeout),
-            ..self
-        }
-    }
-
-    /// Build with period, your metrics will be exported with this period
-    pub fn with_period(self, period: time::Duration) -> Self {
-        OtlpMetricPipeline {
-            period: Some(period),
-            ..self
-        }
-    }
-
-    /// Set the [Temporality] of the exporter.
-    pub fn with_temporality(self, temporality: Temporality) -> Self {
-        OtlpMetricPipeline {
-            temporality: Some(temporality),
-            ..self
-        }
+#[cfg(feature = "grpc-tonic")]
+impl HasExportConfig for MetricsExporterBuilder<TonicExporterBuilderSet> {
+    fn export_config(&mut self) -> &mut crate::ExportConfig {
+        &mut self.client.0.exporter_config
     }
 }
 
-impl<RT> OtlpMetricPipeline<RT, NoExporterConfig>
-where
-    RT: Runtime,
-{
-    /// Build with the exporter
-    pub fn with_exporter<B: Into<MetricsExporterBuilder>>(
-        self,
-        pipeline: B,
-    ) -> OtlpMetricPipeline<RT, MetricsExporterBuilder> {
-        OtlpMetricPipeline {
-            exporter_pipeline: pipeline.into(),
-            rt: self.rt,
-            temporality: self.temporality,
-            resource: self.resource,
-            period: self.period,
-            timeout: self.timeout,
-        }
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl HasExportConfig for MetricsExporterBuilder<HttpExporterBuilderSet> {
+    fn export_config(&mut self) -> &mut crate::ExportConfig {
+        &mut self.client.0.exporter_config
     }
 }
 
-impl<RT> OtlpMetricPipeline<RT, MetricsExporterBuilder>
-where
-    RT: Runtime,
-{
-    /// Build MeterProvider
-    pub fn build(self) -> Result<SdkMeterProvider> {
-        let exporter = self
-            .exporter_pipeline
-            .build_metrics_exporter(self.temporality.unwrap_or_default())?;
-
-        let mut builder = PeriodicReader::builder(exporter, self.rt);
-
-        if let Some(period) = self.period {
-            builder = builder.with_interval(period);
-        }
-        if let Some(timeout) = self.timeout {
-            builder = builder.with_timeout(timeout)
-        }
-
-        let reader = builder.build();
-
-        let mut provider = SdkMeterProvider::builder().with_reader(reader);
-
-        if let Some(resource) = self.resource {
-            provider = provider.with_resource(resource);
-        }
-
-        let provider = provider.build();
-        Ok(provider)
+#[cfg(feature = "grpc-tonic")]
+impl HasTonicConfig for MetricsExporterBuilder<TonicExporterBuilderSet> {
+    fn tonic_config(&mut self) -> &mut crate::TonicConfig {
+        &mut self.client.0.tonic_config
     }
 }
 
-impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("OtlpMetricPipeline")
-            .field("exporter_pipeline", &self.exporter_pipeline)
-            .field("resource", &self.resource)
-            .field("period", &self.period)
-            .field("timeout", &self.timeout)
-            .finish()
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl HasHttpConfig for MetricsExporterBuilder<HttpExporterBuilderSet> {
+    fn http_client_config(&mut self) -> &mut crate::exporter::http::HttpConfig {
+        &mut self.client.0.http_config
     }
 }
 
@@ -258,6 +160,11 @@ impl PushMetricsExporter for MetricsExporter {
 }
 
 impl MetricsExporter {
+    /// Obtain a builder to configure a [MetricsExporter].
+    pub fn builder() -> MetricsExporterBuilder<NoExporterBuilderSet> {
+        MetricsExporterBuilder::default()
+    }
+
     /// Create a new metrics exporter
     pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricsExporter {
         MetricsExporter {

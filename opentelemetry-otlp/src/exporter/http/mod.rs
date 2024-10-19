@@ -43,7 +43,7 @@ mod trace;
     ),
     derive(Default)
 )]
-pub(crate) struct HttpConfig {
+pub struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
@@ -80,19 +80,18 @@ impl Default for HttpConfig {
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
 /// # #[cfg(feature="trace")]
-/// let span_exporter = opentelemetry_otlp::new_exporter().http().build_span_exporter()?;
+/// let span_exporter = opentelemetry_otlp::SpanExporter::builder().with_http().build()?;
 ///
 /// // Create a metrics exporter you can use when configuring meter providers
 /// # #[cfg(feature="metrics")]
-/// let metrics_exporter = opentelemetry_otlp::new_exporter()
-///     .http()
-///     .build_metrics_exporter(
-///         Temporality::default(),
-///     )?;
+/// let metrics_exporter = opentelemetry_otlp::MetricsExporter::builder()
+///     .with_http()
+///     .with_temporality(Temporality::default())
+///     .build()?;
 ///
 /// // Create a log exporter you can use when configuring logger providers
 /// # #[cfg(feature="logs")]
-/// let log_exporter = opentelemetry_otlp::new_exporter().http().build_log_exporter()?;
+/// let log_exporter = opentelemetry_otlp::LogExporter::builder().with_http().build()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -119,31 +118,6 @@ impl Default for HttpExporterBuilder {
 }
 
 impl HttpExporterBuilder {
-    /// Specify the OTLP protocol to be used by the exporter
-    pub fn with_protocol(mut self, protocol: Protocol) -> Self {
-        self.exporter_config.protocol = protocol;
-        self
-    }
-
-    /// Assign client implementation
-    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.http_config.client = Some(Arc::new(client));
-        self
-    }
-
-    /// Set additional headers to send to the collector.
-    pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        // headers will be wrapped, so we must do some logic to unwrap first.
-        let mut inst_headers = self.http_config.headers.unwrap_or_default();
-        inst_headers.extend(
-            headers
-                .into_iter()
-                .map(|(key, value)| (key, super::url_decode(&value).unwrap_or(value))),
-        );
-        self.http_config.headers = Some(inst_headers);
-        self
-    }
-
     fn build_client(
         &mut self,
         signal_endpoint_var: &str,
@@ -405,11 +379,66 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
     }));
 }
 
+/// Expose interface for modifying builder config.
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+pub trait HasHttpConfig {
+    /// Return a mutable reference to the config within the exporter builders.
+    fn http_client_config(&mut self) -> &mut HttpConfig;
+}
+
+/// Expose interface for modifying builder config.
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl HasHttpConfig for HttpExporterBuilder {
+    fn http_client_config(&mut self) -> &mut HttpConfig {
+        &mut self.http_config
+    }
+}
+
+/// This trait will be implemented for every struct that implemented [`HasHttpConfig`] trait.
+///
+/// ## Examples
+/// ```
+/// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+/// # {
+/// use crate::opentelemetry_otlp::WithHttpConfig;
+/// let exporter_builder = opentelemetry_otlp::SpanExporter::builder()
+///     .with_http()
+///     .with_headers(std::collections::HashMap::new());
+/// # }
+/// ```
+pub trait WithHttpConfig {
+    /// Assign client implementation
+    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
+
+    /// Set additional headers to send to the collector.
+    fn with_headers(self, headers: HashMap<String, String>) -> Self;
+}
+
+impl<B: HasHttpConfig> WithHttpConfig for B {
+    fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
+        self.http_client_config().client = Some(Arc::new(client));
+        self
+    }
+
+    fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
+        // headers will be wrapped, so we must do some logic to unwrap first.
+        self.http_client_config()
+            .headers
+            .iter_mut()
+            .zip(headers)
+            .for_each(|(http_client_headers, (key, value))| {
+                http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
+            });
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::exporter::http::HttpConfig;
     use crate::exporter::tests::run_env_test;
     use crate::{
-        new_exporter, WithExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+        HttpExporterBuilder, WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     };
 
@@ -615,10 +644,45 @@ mod tests {
     }
 
     #[test]
+    fn test_http_exporter_builder_with_header() {
+        use std::collections::HashMap;
+        // Arrange
+        let initial_headers = [("k1".to_string(), "v1".to_string())];
+        let extra_headers = [("k2".to_string(), "v2".to_string())];
+        let expected_headers = initial_headers.iter().chain(extra_headers.iter()).fold(
+            HashMap::new(),
+            |mut acc, (k, v)| {
+                acc.insert(k.clone(), v.clone());
+                acc
+            },
+        );
+        let builder = HttpExporterBuilder {
+            http_config: HttpConfig {
+                client: None,
+                headers: Some(HashMap::from([("k1".to_string(), "v1".to_string())])),
+            },
+            exporter_config: crate::ExportConfig::default(),
+        };
+
+        // Act
+        let builder = builder.with_headers(HashMap::from([("k2".to_string(), "v2".to_string())]));
+
+        // Assert
+        assert_eq!(
+            builder
+                .http_config
+                .headers
+                .clone()
+                .expect("headers should always be Some"),
+            expected_headers,
+        );
+    }
+
+    #[test]
     fn test_http_exporter_endpoint() {
         // default endpoint should add signal path
         run_env_test(vec![], || {
-            let exporter = new_exporter().http();
+            let exporter = HttpExporterBuilder::default();
 
             let url = resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -632,8 +696,7 @@ mod tests {
 
         // if builder endpoint is set, it should not add signal path
         run_env_test(vec![], || {
-            let exporter = new_exporter()
-                .http()
+            let exporter = HttpExporterBuilder::default()
                 .with_endpoint("http://localhost:4318/v1/tracesbutnotreally");
 
             let url = resolve_http_endpoint(

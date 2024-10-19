@@ -8,7 +8,9 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricsExporter, SpanExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
@@ -24,43 +26,37 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
-        .install_batch(runtime::Tokio)
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+    Ok(sdktrace::TracerProvider::builder()
+        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    let export_config = ExportConfig {
-        endpoint: "http://localhost:4317".to_string(),
-        ..ExportConfig::default()
-    };
-    opentelemetry_otlp::new_pipeline()
-        .metrics(runtime::Tokio)
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_export_config(export_config),
-        )
+    let exporter = MetricsExporter::builder().with_tonic().build()?;
+
+    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+
+    Ok(SdkMeterProvider::builder()
+        .with_reader(reader)
         .with_resource(RESOURCE.clone())
-        .build()
+        .build())
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter = LogExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+
+    Ok(LoggerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .install_batch(runtime::Tokio)
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
 }
 
 #[tokio::main]

@@ -1,7 +1,8 @@
 use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{LogExporter, MetricsExporter, WithExportConfig};
+use opentelemetry_sdk::metrics::PeriodicReader;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
@@ -51,15 +52,16 @@ fn custom_error_handler(err: OtelError) {
 }
 
 fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
-    let provider = opentelemetry_otlp::new_pipeline()
-        .logging()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint("http://localhost:4318/v1/logs"),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
+    let exporter = LogExporter::builder()
+        .with_http()
+        .with_endpoint("http://localhost:4318/v1/logs")
+        .build()
         .unwrap();
+
+    let provider = opentelemetry_sdk::logs::LoggerProvider::builder()
+        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+        .build();
+
     let cloned_provider = provider.clone();
 
     // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
@@ -107,16 +109,20 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 }
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let provider = opentelemetry_otlp::new_pipeline()
-        .metrics(opentelemetry_sdk::runtime::Tokio)
-        .with_period(std::time::Duration::from_secs(1))
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint("http://localhost:4318/v1/metrics"),
-        )
+    let exporter = MetricsExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4318/v1/metrics")
         .build()
         .unwrap();
+
+    let reader = PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio)
+        .with_interval(std::time::Duration::from_secs(1))
+        .build();
+
+    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
+        .with_reader(reader)
+        .build();
+
     let cloned_provider = provider.clone();
     global::set_meter_provider(cloned_provider);
     provider
