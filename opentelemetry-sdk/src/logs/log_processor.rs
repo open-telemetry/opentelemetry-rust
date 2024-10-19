@@ -1140,24 +1140,24 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_simple_processor_async_exporter_with_runtime() {
-        let exporter = LogExporterThatRequiresTokio::new();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
-
-        let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
-
-        processor.emit(&mut record, &instrumentation);
-
-        assert_eq!(exporter.len(), 1);
-    }
-
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[ignore]
-    // All worker threads except one are blocked, waiting for the export operation to complete.
-    // The exporter, which isn't blocked, requires the runtime to proceed, but no free worker threads are available, resulting in a deadlock.
-    // This mimics the scenario where the
+    // This test demonstrates a potential deadlock scenario in a multi-threaded Tokio runtime.
+    // It spawns Tokio tasks equal to the number of runtime worker threads (4) to emit log events.
+    // Each task attempts to acquire a mutex on the SimpleLogProcessor. Only one task obtains the lock,
+    // while the others are blocked, waiting for its release.
+    //
+    // The task holding the lock invokes the LogExporterThatRequiresTokio, which performs an
+    // asynchronous operation (e.g., network I/O simulated by `tokio::sleep`). This operation
+    // requires yielding control back to the Tokio runtime to make progress.
+    //
+    // However, all worker threads are occupied:
+    // - One thread is executing the async exporter operation
+    // - Three threads are blocked waiting for the mutex
+    //
+    // This leads to a deadlock as there are no available threads to drive the async operation
+    // to completion, preventing the mutex from being released. Consequently, neither the blocked
+    // tasks nor the exporter can proceed.
     async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
@@ -1181,13 +1181,37 @@ mod tests {
             handles.push(handle);
         }
 
+        // below code won't get executed
         for handle in handles {
             handle.await.unwrap();
         }
-        assert_eq!(exporter.len(), 4);
+        assert_eq!(exporter.len(), concurrent_emit);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    // This test uses a multi-threaded runtime setup with a single worker thread. Note that even
+    // though only one worker thread is created, it is distinct from the main thread. The processor
+    // emits a log event, and the exporter performs an async operation that requires the runtime.
+    // The single worker thread handles this operation without deadlocking, as long as no other
+    // tasks occupy the runtime.
+    async fn test_simple_processor_async_exporter_with_runtime() {
+        let exporter = LogExporterThatRequiresTokio::new();
+        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+
+        let mut record: LogRecord = Default::default();
+        let instrumentation: InstrumentationLibrary = Default::default();
+
+        processor.emit(&mut record, &instrumentation);
+
+        assert_eq!(exporter.len(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    // This test uses a multi-threaded runtime setup with the default number of worker threads.
+    // The processor emits a log event, and the exporter, which requires the runtime for its async
+    // operations, can access one of the available worker threads to complete its task. As there
+    // are multiple threads, the exporter can proceed without blocking other tasks, ensuring the
+    // test completes successfully.
     async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
 
@@ -1202,9 +1226,12 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    #[ignore] // the current thread is blocked with futures::block_on to
-              // complete the export, and the exporter further needs tokio runtime to progress
-              // on this blocked thread, resulting in deadlock.
+    #[ignore]
+    // This test uses a current-thread runtime, where all operations run on the main thread.
+    // The processor emits a log event while the runtime is blocked using `futures::block_on`
+    // to complete the export operation. The exporter, which performs an async operation and
+    // requires the runtime, cannot progress because the main thread is already blocked.
+    // This results in a deadlock, as the runtime cannot move forward.
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
 
