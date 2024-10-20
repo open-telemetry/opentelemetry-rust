@@ -34,7 +34,6 @@ mod logs;
 mod trace;
 
 /// Configuration of the http transport
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
 #[derive(Debug)]
 #[cfg_attr(
     all(
@@ -380,14 +379,12 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 }
 
 /// Expose interface for modifying builder config.
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub trait HasHttpConfig {
     /// Return a mutable reference to the config within the exporter builders.
     fn http_client_config(&mut self) -> &mut HttpConfig;
 }
 
 /// Expose interface for modifying builder config.
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl HasHttpConfig for HttpExporterBuilder {
     fn http_client_config(&mut self) -> &mut HttpConfig {
         &mut self.http_config

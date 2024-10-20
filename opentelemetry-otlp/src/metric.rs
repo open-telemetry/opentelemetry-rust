@@ -67,7 +67,6 @@ impl<C> MetricsExporterBuilder<C> {
         }
     }
 
-    #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
     pub fn with_temporality(self, temporality: Temporality) -> MetricsExporterBuilder<C> {
         MetricsExporterBuilder {
             client: self.client,

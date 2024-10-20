@@ -496,7 +496,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "grpc-tonic")]
     fn test_convert_compression() {
         #[cfg(feature = "gzip-tonic")]
         assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_ok());
