@@ -131,7 +131,6 @@ mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::metrics::reader::TemporalitySelector;
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
@@ -934,7 +933,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn no_attr_delta_up_down_counter() {
+    async fn no_attr_up_down_counter_always_cumulative() {
         let mut test_context = TestContext::new(Temporality::Delta);
         let counter = test_context.i64_up_down_counter("test", "my_counter", Some("my_unit"));
 
@@ -945,7 +944,11 @@ mod tests {
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
-        assert_eq!(sum.temporality, Temporality::Delta, "Should produce Delta");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce Cumulative due to UpDownCounter temporality_preference"
+        );
 
         let data_point = &sum.data_points[0];
         assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
@@ -2252,15 +2255,11 @@ mod tests {
             !sum.is_monotonic,
             "UpDownCounter should produce non-monotonic."
         );
-        if let Temporality::Cumulative = temporality {
-            assert_eq!(
-                sum.temporality,
-                Temporality::Cumulative,
-                "Should produce cumulative"
-            );
-        } else {
-            assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
-        }
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce Cumulative for UpDownCounter"
+        );
 
         // find and validate key1=value2 datapoint
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
@@ -2289,19 +2288,11 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2);
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
-        if temporality == Temporality::Cumulative {
-            assert_eq!(data_point1.value, 10);
-        } else {
-            assert_eq!(data_point1.value, 5);
-        }
+        assert_eq!(data_point1.value, 10);
 
         let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
-        if temporality == Temporality::Cumulative {
-            assert_eq!(data_point1.value, 14);
-        } else {
-            assert_eq!(data_point1.value, 7);
-        }
+        assert_eq!(data_point1.value, 14);
     }
 
     fn find_datapoint_with_key_value<'a, T>(
@@ -2363,15 +2354,7 @@ mod tests {
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            struct TestTemporalitySelector(Temporality);
-            impl TemporalitySelector for TestTemporalitySelector {
-                fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-                    self.0
-                }
-            }
-
-            let mut exporter = InMemoryMetricsExporterBuilder::new();
-            exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
+            let exporter = InMemoryMetricsExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
             let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
