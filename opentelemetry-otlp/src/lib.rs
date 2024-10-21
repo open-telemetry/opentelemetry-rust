@@ -21,12 +21,15 @@
 //! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
-//! Then install a new pipeline with the recommended defaults to start exporting
-//! telemetry. You will have to build a OTLP exporter first.
+//! Then create a new `Exporter`, and `Provider` with the recommended defaults to start exporting
+//! telemetry.
 //!
-//! Exporting pipelines can be started with `new_pipeline().tracing()` and
-//! `new_pipeline().metrics()`, and `new_pipeline().logging()` respectively for
-//! traces, metrics and logs.
+//! You will have to build a OTLP exporter first. Create the correct exporter based on the signal
+//! you are looking to export `SpanExporter::builder()`, `MetricsExporter::builder()`,
+//! `LogExporter::builder()` respectively for traces, metrics, and logs.
+//!
+//! Once you have the exporter, you can create your `Provider` by starting with `TracerProvider::builder()`,
+//! `SdkMeterProvider::builder()`, and `LoggerProvider::builder()` respectively for traces, metrics, and logs.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
@@ -37,7 +40,7 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
-//!     // Then pass it into pipeline builder
+//!     // Then pass it into provider builder
 //!     let _ = opentelemetry_sdk::trace::TracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
@@ -74,7 +77,7 @@
 //!            opentelemetry_otlp::SpanExporter::builder()
 //!                .with_tonic()
 //!                .build()?,
-//!            opentelemetry_sdk::runtime::AsyncStd,
+//!            opentelemetry_sdk::runtime::Tokio,
 //!         )
 //!        .build();
 //!
