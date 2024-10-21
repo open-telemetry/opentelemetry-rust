@@ -110,7 +110,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = MetricsExporter::builder()
-        .with_tonic()
+        .with_http()
         .with_endpoint("http://localhost:4318/v1/metrics")
         .build()
         .unwrap();
