@@ -96,7 +96,6 @@ impl SimpleLogProcessor {
 
 impl LogProcessor for SimpleLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
-        println!("SimpleLogProcessor::Emit");
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -835,9 +834,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_multi_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -852,9 +849,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -866,9 +861,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -880,9 +873,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -1001,9 +992,7 @@ mod tests {
 
     #[test]
     fn test_simple_processor_sync_exporter_without_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1016,9 +1005,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_sync_exporter_with_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1031,9 +1018,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_sync_exporter_with_multi_thread_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
             exporter.clone(),
         ))));
@@ -1061,9 +1046,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_simple_processor_sync_exporter_with_current_thread_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogsExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1076,20 +1059,20 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct LogExporterThatRequiresTokio {
-        event_count: Arc<AtomicU32>,
+        export_count: Arc<AtomicU32>,
     }
 
     impl LogExporterThatRequiresTokio {
         /// Creates a new instance of `LogExporterThatRequiresTokio`.
         fn new() -> Self {
             LogExporterThatRequiresTokio {
-                event_count: Arc::new(AtomicU32::new(0)),
+                export_count: Arc::new(AtomicU32::new(0)),
             }
         }
 
         /// Returns the number of logs stored in the exporter.
         fn len(&self) -> usize {
-            self.event_count.load(Ordering::Acquire) as usize
+            self.export_count.load(Ordering::Acquire) as usize
         }
     }
 
@@ -1100,7 +1083,7 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(50)).await;
 
             for _ in batch.iter() {
-                self.event_count.fetch_add(1, Ordering::Acquire);
+                self.export_count.fetch_add(1, Ordering::Acquire);
             }
             Ok(())
         }
@@ -1144,8 +1127,8 @@ mod tests {
     #[ignore]
     // This test demonstrates a potential deadlock scenario in a multi-threaded Tokio runtime.
     // It spawns Tokio tasks equal to the number of runtime worker threads (4) to emit log events.
-    // Each task attempts to acquire a mutex on the SimpleLogProcessor. Only one task obtains the lock,
-    // while the others are blocked, waiting for its release.
+    // Each task attempts to acquire a mutex on the exporter in `SimpleLogProcessor::emit`.
+    // Only one task obtains the lock, while the others are blocked, waiting for its release.
     //
     // The task holding the lock invokes the LogExporterThatRequiresTokio, which performs an
     // asynchronous operation (e.g., network I/O simulated by `tokio::sleep`). This operation
@@ -1160,9 +1143,7 @@ mod tests {
     // tasks nor the exporter can proceed.
     async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
         let exporter = LogExporterThatRequiresTokio::new();
-        let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
-            exporter.clone(),
-        ))));
+        let processor = Arc::new(SimpleLogProcessor::new(Box::new(exporter.clone())));
 
         let concurrent_emit = 4; // number of worker threads
 
@@ -1173,10 +1154,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let mut record: LogRecord = Default::default();
                 let instrumentation: InstrumentationLibrary = Default::default();
-                processor_clone
-                    .lock()
-                    .unwrap()
-                    .emit(&mut record, &instrumentation);
+                processor_clone.emit(&mut record, &instrumentation);
             });
             handles.push(handle);
         }
