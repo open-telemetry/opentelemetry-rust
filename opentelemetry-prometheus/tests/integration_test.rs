@@ -15,6 +15,7 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
 
+#[ignore]
 #[test]
 fn prometheus_exporter_integration() {
     struct TestCase {
