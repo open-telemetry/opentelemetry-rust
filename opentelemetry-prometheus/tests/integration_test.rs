@@ -15,7 +15,7 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
 
-#[ignore]
+#[ignore = "https://github.com/open-telemetry/opentelemetry-rust/pull/2224"]
 #[test]
 fn prometheus_exporter_integration() {
     struct TestCase {
