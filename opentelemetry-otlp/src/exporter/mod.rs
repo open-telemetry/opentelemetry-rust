@@ -69,7 +69,7 @@ pub(crate) mod tonic;
 pub struct ExportConfig {
     /// The address of the OTLP collector. If it's not provided via builder or environment variables.
     /// Default address will be used based on the protocol.
-    pub endpoint: String,
+    pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
@@ -83,7 +83,7 @@ impl Default for ExportConfig {
         let protocol = default_protocol();
 
         ExportConfig {
-            endpoint: "".to_string(),
+            endpoint: None,
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
@@ -199,7 +199,7 @@ pub trait WithExportConfig {
 
 impl<B: HasExportConfig> WithExportConfig for B {
     fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
-        self.export_config().endpoint = endpoint.into();
+        self.export_config().endpoint = Some(endpoint.into());
         self
     }
 
@@ -295,7 +295,7 @@ mod tests {
     fn test_default_http_endpoint() {
         let exporter_builder = crate::HttpExporterBuilder::default();
 
-        assert_eq!(exporter_builder.exporter_config.endpoint, "");
+        assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
 
     #[cfg(feature = "grpc-tonic")]
@@ -303,7 +303,7 @@ mod tests {
     fn test_default_tonic_endpoint() {
         let exporter_builder = crate::TonicExporterBuilder::default();
 
-        assert_eq!(exporter_builder.exporter_config.endpoint, "");
+        assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
 
     #[test]

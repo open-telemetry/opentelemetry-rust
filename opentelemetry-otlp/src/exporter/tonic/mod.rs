@@ -188,24 +188,7 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        // resolving endpoint string
-        // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
-        // the path of grpc calls are based on the protobuf service definition
-        // so we won't append one for default grpc endpoints
-        // If users for some reason want to use a custom path, they can use env var or builder to pass it
-        let endpoint = match env::var(signal_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-        {
-            Some(val) => val,
-            None => {
-                if config.endpoint.is_empty() {
-                    OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
-                } else {
-                    config.endpoint
-                }
-            }
-        };
+        let endpoint = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
 
         let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
         let timeout = match env::var(signal_timeout_var)
@@ -233,6 +216,23 @@ impl TonicExporterBuilder {
         let channel = endpoint.timeout(timeout).connect_lazy();
 
         Ok((channel, interceptor, compression))
+    }
+
+    fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
+        // resolving endpoint string
+        // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
+        // the path of grpc calls are based on the protobuf service definition
+        // so we won't append one for default grpc endpoints
+        // If users for some reason want to use a custom path, they can use env var or builder to pass it
+        match env::var(default_endpoint_var)
+            .ok()
+            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
+        {
+            Some(val) => val,
+            None => {
+                provided_endpoint.unwrap_or(OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string())
+            }
+        }
     }
 
     fn resolve_compression(
@@ -441,7 +441,7 @@ mod tests {
     use crate::exporter::tonic::WithTonicConfig;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::TonicExporterBuilder;
+    use crate::{TonicExporterBuilder, WithExportConfig, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
@@ -563,5 +563,32 @@ mod tests {
                 assert_eq!(result.get("k2").unwrap(), MetadataValue::from_static("v2"));
             },
         );
+    }
+
+    #[test]
+    fn test_tonic_exporter_endpoint() {
+        // default endpoint for grpc should not add signal path.
+        run_env_test(vec![], || {
+            let exporter = TonicExporterBuilder::default();
+
+            let url = TonicExporterBuilder::resolve_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                exporter.exporter_config.endpoint,
+            );
+
+            assert_eq!(url, "http://localhost:4317");
+        });
+
+        // if builder endpoint is set, it should not use default.
+        run_env_test(vec![], || {
+            let exporter = TonicExporterBuilder::default().with_endpoint("http://localhost:1234");
+
+            let url = TonicExporterBuilder::resolve_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                exporter.exporter_config.endpoint,
+            );
+
+            assert_eq!(url, "http://localhost:1234");
+        });
     }
 }

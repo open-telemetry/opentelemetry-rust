@@ -127,7 +127,7 @@ impl HttpExporterBuilder {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
-            self.exporter_config.endpoint.as_str(),
+            self.exporter_config.endpoint.clone(),
         )?;
 
         let timeout = match env::var(signal_timeout_var)
@@ -340,7 +340,7 @@ fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, crate::Error> {
 fn resolve_http_endpoint(
     signal_endpoint_var: &str,
     signal_endpoint_path: &str,
-    provided_endpoint: &str,
+    provided_endpoint: Option<String>,
 ) -> Result<Uri, crate::Error> {
     // per signal env var is not modified
     if let Some(endpoint) = env::var(signal_endpoint_var)
@@ -358,14 +358,14 @@ fn resolve_http_endpoint(
         return Ok(endpoint);
     }
 
-    if provided_endpoint.is_empty() {
-        build_endpoint_uri(
-            OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
-            signal_endpoint_path,
-        )
-    } else {
-        provided_endpoint.parse().map_err(From::from)
-    }
+    provided_endpoint
+        .map(|e| e.parse().map_err(From::from))
+        .unwrap_or_else(|| {
+            build_endpoint_uri(
+                OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
+                signal_endpoint_path,
+            )
+        })
 }
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
@@ -449,7 +449,7 @@ mod tests {
                 let endpoint = resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
-                    "http://localhost:4317",
+                    Some("http://localhost:4317".to_string()),
                 )
                 .unwrap();
                 assert_eq!(endpoint, "http://example.com/v1/traces");
@@ -465,7 +465,7 @@ mod tests {
                 let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
-                    "http://localhost:4317",
+                    Some("http://localhost:4317".to_string()),
                 )
                 .unwrap();
                 assert_eq!(endpoint, "http://example.com");
@@ -484,7 +484,7 @@ mod tests {
                 let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
-                    "http://localhost:4317",
+                    Some("http://localhost:4317".to_string()),
                 )
                 .unwrap();
                 assert_eq!(endpoint, "http://example.com");
@@ -498,7 +498,7 @@ mod tests {
             let endpoint = super::resolve_http_endpoint(
                 "NON_EXISTENT_VAR",
                 "/v1/traces",
-                "http://localhost:4317",
+                Some("http://localhost:4317".to_string()),
             )
             .unwrap();
             assert_eq!(endpoint, "http://localhost:4317/");
@@ -533,7 +533,7 @@ mod tests {
                 let endpoint = super::resolve_http_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
-                    "http://localhost:4317",
+                    Some("http://localhost:4317".to_string()),
                 )
                 .unwrap();
                 assert_eq!(endpoint, "http://example.com/v1/traces");
@@ -547,7 +547,7 @@ mod tests {
             let result = super::resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 "/v1/traces",
-                "-*/*-/*-//-/-/yet-another-invalid-uri",
+                Some("-*/*-/*-//-/-/yet-another-invalid-uri".to_string()),
             );
             assert!(result.is_err());
             // You may also want to assert on the specific error type if applicable
@@ -644,8 +644,8 @@ mod tests {
     fn test_http_exporter_builder_with_header() {
         use std::collections::HashMap;
         // Arrange
-        let initial_headers = [("k1".to_string(), "v1".to_string())];
-        let extra_headers = [("k2".to_string(), "v2".to_string())];
+        let initial_headers = HashMap::from([("k1".to_string(), "v1".to_string())]);
+        let extra_headers = HashMap::from([("k2".to_string(), "v2".to_string())]);
         let expected_headers = initial_headers.iter().chain(extra_headers.iter()).fold(
             HashMap::new(),
             |mut acc, (k, v)| {
@@ -656,13 +656,13 @@ mod tests {
         let builder = HttpExporterBuilder {
             http_config: HttpConfig {
                 client: None,
-                headers: Some(HashMap::from([("k1".to_string(), "v1".to_string())])),
+                headers: Some(initial_headers),
             },
             exporter_config: crate::ExportConfig::default(),
         };
 
         // Act
-        let builder = builder.with_headers(HashMap::from([("k2".to_string(), "v2".to_string())]));
+        let builder = builder.with_headers(extra_headers);
 
         // Assert
         assert_eq!(
@@ -684,7 +684,7 @@ mod tests {
             let url = resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 "/v1/traces",
-                exporter.exporter_config.endpoint.as_str(),
+                exporter.exporter_config.endpoint,
             )
             .unwrap();
 
@@ -699,7 +699,7 @@ mod tests {
             let url = resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 "/v1/traces",
-                exporter.exporter_config.endpoint.as_str(),
+                exporter.exporter_config.endpoint,
             )
             .unwrap();
 
