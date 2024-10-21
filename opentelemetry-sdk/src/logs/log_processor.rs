@@ -553,10 +553,8 @@ mod tests {
     use opentelemetry::InstrumentationLibrary;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
-    use std::sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc, Mutex,
-    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -1019,9 +1017,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_sync_exporter_with_multi_thread_runtime() {
         let exporter = InMemoryLogsExporterBuilder::default().build();
-        let processor = Arc::new(Mutex::new(SimpleLogProcessor::new(Box::new(
-            exporter.clone(),
-        ))));
+        let processor = Arc::new(SimpleLogProcessor::new(Box::new(exporter.clone())));
 
         let mut handles = vec![];
         for _ in 0..10 {
@@ -1029,10 +1025,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let mut record: LogRecord = Default::default();
                 let instrumentation: InstrumentationLibrary = Default::default();
-                processor_clone
-                    .lock()
-                    .unwrap()
-                    .emit(&mut record, &instrumentation);
+                processor_clone.emit(&mut record, &instrumentation);
             });
             handles.push(handle);
         }
@@ -1059,20 +1052,20 @@ mod tests {
 
     #[derive(Debug, Clone)]
     struct LogExporterThatRequiresTokio {
-        export_count: Arc<AtomicU32>,
+        export_count: Arc<AtomicUsize>,
     }
 
     impl LogExporterThatRequiresTokio {
         /// Creates a new instance of `LogExporterThatRequiresTokio`.
         fn new() -> Self {
             LogExporterThatRequiresTokio {
-                export_count: Arc::new(AtomicU32::new(0)),
+                export_count: Arc::new(AtomicUsize::new(0)),
             }
         }
 
         /// Returns the number of logs stored in the exporter.
         fn len(&self) -> usize {
-            self.export_count.load(Ordering::Acquire) as usize
+            self.export_count.load(Ordering::Acquire)
         }
     }
 
