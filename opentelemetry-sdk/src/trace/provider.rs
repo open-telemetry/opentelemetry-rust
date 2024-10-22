@@ -243,7 +243,7 @@ impl TracerProvider {
                 Err(TraceError::Other(format!("{errs:?}").into()))
             }
         } else {
-            Err(TraceError::AlreadyShutdown)
+            Err(TraceError::TracerProviderAlreadyShutdown)
         }
     }
 }
