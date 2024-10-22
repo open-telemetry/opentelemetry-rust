@@ -13,7 +13,7 @@ use crate::{
         span::{Span, SpanData},
         IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
     },
-    InstrumentationScope,
+    Scope,
 };
 use opentelemetry::{
     trace::{SamplingDecision, SpanBuilder, SpanContext, SpanKind, TraceContextExt, TraceFlags},
@@ -24,7 +24,7 @@ use std::fmt;
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    scope: InstrumentationScope,
+    scope: Scope,
     provider: TracerProvider,
 }
 
@@ -41,7 +41,7 @@ impl fmt::Debug for Tracer {
 
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
-    pub(crate) fn new(scope: InstrumentationScope, provider: TracerProvider) -> Self {
+    pub(crate) fn new(scope: Scope, provider: TracerProvider) -> Self {
         Tracer { scope, provider }
     }
 
@@ -51,7 +51,7 @@ impl Tracer {
     }
 
     /// Instrumentation library information of this tracer.
-    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
+    pub(crate) fn instrumentation_scope(&self) -> &Scope {
         &self.scope
     }
 

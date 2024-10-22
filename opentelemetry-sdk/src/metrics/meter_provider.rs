@@ -10,10 +10,9 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    InstrumentationScope,
 };
 
-use crate::{instrumentation::Scope, Resource};
+use crate::{Resource, Scope};
 
 use super::{
     meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
@@ -145,7 +144,7 @@ impl Drop for SdkMeterProviderInner {
     }
 }
 impl MeterProvider for SdkMeterProvider {
-    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
+    fn meter_with_scope(&self, scope: Scope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));
         }
@@ -239,9 +238,9 @@ mod tests {
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
-    use crate::Resource;
+    use crate::{Resource, Scope};
+    use opentelemetry::global;
     use opentelemetry::metrics::MeterProvider;
-    use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
 
@@ -435,7 +434,7 @@ mod tests {
         let _meter2 = provider.meter("test");
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
 
-        let scope = InstrumentationScope::builder("test")
+        let scope = Scope::builder("test")
             .with_version("1.0.0")
             .with_schema_url("http://example.com")
             .build();
@@ -446,7 +445,7 @@ mod tests {
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
         // these are different meters because meter names are case sensitive
-        let mut library = InstrumentationScope::builder("ABC")
+        let mut library = Scope::builder("ABC")
             .with_version("1.0.0")
             .with_schema_url("http://example.com")
             .build();

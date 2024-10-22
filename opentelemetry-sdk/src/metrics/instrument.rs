@@ -6,8 +6,8 @@ use opentelemetry::{
 };
 
 use crate::{
-    instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
+    Scope,
 };
 
 use super::data::Temporality;

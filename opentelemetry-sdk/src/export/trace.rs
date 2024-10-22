@@ -96,5 +96,5 @@ pub struct SpanData {
     /// Span status
     pub status: Status,
     /// Instrumentation library that produced this span
-    pub instrumentation_scope: crate::InstrumentationScope,
+    pub instrumentation_scope: crate::Scope,
 }

@@ -12,7 +12,6 @@ use opentelemetry::{
 };
 
 use crate::{
-    instrumentation::Scope,
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
@@ -23,7 +22,7 @@ use crate::{
         reader::{MetricReader, SdkProducer},
         view::View,
     },
-    Resource,
+    Resource, Scope,
 };
 
 use super::Aggregation;

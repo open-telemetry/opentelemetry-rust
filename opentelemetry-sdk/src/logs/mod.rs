@@ -3,6 +3,7 @@ mod log_emitter;
 mod log_processor;
 pub(crate) mod record;
 
+use crate::Scope;
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
@@ -10,14 +11,13 @@ pub use log_processor::{
 };
 pub use record::{LogRecord, TraceContext};
 
-use opentelemetry::InstrumentationScope;
 /// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationScope,
+    pub instrumentation: Scope,
 }
 
 #[cfg(all(test, feature = "testing"))]
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn logger_attributes() {
         let provider = LoggerProvider::builder().build();
-        let scope = InstrumentationScope::builder("test_logger")
+        let scope = Scope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();

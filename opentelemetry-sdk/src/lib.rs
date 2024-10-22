@@ -122,7 +122,7 @@
 
 pub mod export;
 pub(crate) mod growable_array;
-mod instrumentation;
+
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
@@ -146,6 +146,7 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use instrumentation::{InstrumentationScope, Scope};
+#[doc(inline)]
+pub use opentelemetry::InstrumentationScope as Scope;
 #[doc(inline)]
 pub use resource::Resource;

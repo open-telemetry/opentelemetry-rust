@@ -4,7 +4,7 @@ use crate::{
         ExportError,
     },
     trace::{SpanEvents, SpanLinks},
-    InstrumentationScope,
+    Scope,
 };
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
@@ -32,7 +32,7 @@ pub fn new_test_export_span_data() -> SpanData {
         events: SpanEvents::default(),
         links: SpanLinks::default(),
         status: Status::Unset,
-        instrumentation_scope: InstrumentationScope::default(),
+        instrumentation_scope: Scope::default(),
     }
 }
 

@@ -19,8 +19,8 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
-use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
+use opentelemetry_sdk::Scope;
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
@@ -43,7 +43,7 @@ fn create_log_record(logger: &Logger) -> LogRecord {
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
+    fn emit(&self, _data: &mut LogRecord, _scope: &Scope) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
@@ -58,7 +58,7 @@ impl LogProcessor for NoopProcessor {
 struct CloningProcessor;
 
 impl LogProcessor for CloningProcessor {
-    fn emit(&self, data: &mut LogRecord, _scope: &InstrumentationScope) {
+    fn emit(&self, data: &mut LogRecord, _scope: &Scope) {
         let _data_cloned = data.clone();
     }
 
@@ -73,8 +73,8 @@ impl LogProcessor for CloningProcessor {
 
 #[derive(Debug)]
 struct SendToChannelProcessor {
-    sender: std::sync::mpsc::Sender<(LogRecord, InstrumentationScope)>,
-    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(LogRecord, InstrumentationScope)>>>,
+    sender: std::sync::mpsc::Sender<(LogRecord, Scope)>,
+    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(LogRecord, Scope)>>>,
 }
 
 impl SendToChannelProcessor {
@@ -101,7 +101,7 @@ impl SendToChannelProcessor {
 }
 
 impl LogProcessor for SendToChannelProcessor {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
+    fn emit(&self, record: &mut LogRecord, scope: &Scope) {
         let res = self.sender.send((record.clone(), scope.clone()));
         if res.is_err() {
             println!("Error sending log data to channel {0}", res.err().unwrap());

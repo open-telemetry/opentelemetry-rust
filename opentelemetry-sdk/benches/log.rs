@@ -25,16 +25,17 @@ use opentelemetry::logs::{
 };
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::{InstrumentationScope, Key};
+use opentelemetry::Key;
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
+use opentelemetry_sdk::Scope;
 
 #[derive(Debug)]
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
+    fn emit(&self, _data: &mut LogRecord, _scope: &Scope) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())

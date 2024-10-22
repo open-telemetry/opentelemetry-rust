@@ -1,13 +1,11 @@
 //! Log exporters
 use crate::logs::LogRecord;
 use crate::Resource;
+use crate::Scope;
 use async_trait::async_trait;
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    InstrumentationScope,
-};
+use opentelemetry::logs::{LogError, LogResult};
 use std::fmt::Debug;
 
 /// A batch of log records to be exported by a `LogExporter`.
@@ -22,8 +20,8 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct LogBatch<'a> {
     /// The data field contains a slice of tuples, where each tuple consists of a reference to
-    /// a `LogRecord` and a reference to an `InstrumentationScope`.
-    data: &'a [(&'a LogRecord, &'a InstrumentationScope)],
+    /// a `LogRecord` and a reference to an `Scope`.
+    data: &'a [(&'a LogRecord, &'a Scope)],
 }
 
 impl<'a> LogBatch<'a> {
@@ -32,7 +30,7 @@ impl<'a> LogBatch<'a> {
     /// # Arguments
     ///
     /// * `data` - A slice of tuples, where each tuple consists of a reference to a `LogRecord`
-    ///   and a reference to an `InstrumentationScope`. These tuples represent the log records
+    ///   and a reference to an `Scope`. These tuples represent the log records
     ///   and their associated instrumentation libraries to be exported.
     ///
     /// # Returns
@@ -42,7 +40,7 @@ impl<'a> LogBatch<'a> {
     /// Note - this is not a public function, and should not be used directly. This would be
     /// made private in the future.
 
-    pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
+    pub fn new(data: &'a [(&'a LogRecord, &'a Scope)]) -> LogBatch<'a> {
         LogBatch { data }
     }
 }
@@ -51,13 +49,13 @@ impl LogBatch<'_> {
     /// Returns an iterator over the log records and instrumentation libraries in the batch.
     ///
     /// Each item yielded by the iterator is a tuple containing references to a `LogRecord`
-    /// and an `InstrumentationScope`.
+    /// and an `Scope`.
     ///
     /// # Returns
     ///
-    /// An iterator that yields references to the `LogRecord` and `InstrumentationScope` in the batch.
+    /// An iterator that yields references to the `LogRecord` and `Scope` in the batch.
     ///
-    pub fn iter(&self) -> impl Iterator<Item = (&LogRecord, &InstrumentationScope)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&LogRecord, &Scope)> {
         self.data
             .iter()
             .map(|(record, library)| (*record, *library))

@@ -408,7 +408,7 @@ pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
 ///     .with_attributes(vec![(KeyValue::new("key", "value"))])
 ///     .build();
 ///
-/// let meter = tracer_with_scope(scope);
+/// let tracer = tracer_with_scope(scope);
 /// ```
 ///
 /// [`Tracer`]: crate::trace::Tracer
