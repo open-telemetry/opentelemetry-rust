@@ -376,6 +376,7 @@ impl fmt::Display for Value {
 
 /// A key-value pair describing an attribute.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct KeyValue {
     /// The attribute name
     pub key: Key,
