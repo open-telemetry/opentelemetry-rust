@@ -640,6 +640,9 @@ mod tests {
         // existing tracer becomes noops after shutdown
         let _ = test_tracer_1.start("test");
         assert!(assert_handle.started_span_count(2));
+
+        // also existing tracer's tracer provider are in shutdown state
+        assert!(test_tracer_1.provider().is_shutdown());
     }
 
     #[derive(Debug)]
