@@ -74,7 +74,7 @@ pub enum MetricsExporterBuilder {
 
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
-    pub fn build_metrics_exporter(self, temporality: Temporality) -> Result<MetricsExporter> {
+    fn build_metrics_exporter(self, temporality: Temporality) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
             MetricsExporterBuilder::Tonic(builder) => builder.build_metrics_exporter(temporality),

@@ -58,7 +58,7 @@ pub enum LogExporterBuilder {
 
 impl LogExporterBuilder {
     /// Build a OTLP log exporter using the given configuration.
-    pub fn build_log_exporter(self) -> Result<LogExporter, LogError> {
+    fn build_log_exporter(self) -> Result<LogExporter, LogError> {
         match self {
             #[cfg(feature = "grpc-tonic")]
             LogExporterBuilder::Tonic(builder) => builder.build_log_exporter(),
