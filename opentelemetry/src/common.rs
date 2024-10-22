@@ -7,6 +7,7 @@ use std::{fmt, hash};
 /// See the [attribute naming] spec for guidelines.
 ///
 /// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
+#[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
 
@@ -149,6 +150,7 @@ impl hash::Hash for OtelString {
 }
 
 /// A [Value::Array] containing homogeneous values.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
@@ -212,6 +214,7 @@ into_array!(
 );
 
 /// The value part of attribute [KeyValue] pairs.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// bool values
@@ -227,6 +230,7 @@ pub enum Value {
 }
 
 /// Wrapper for string-like values
+#[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct StringValue(OtelString);
 
