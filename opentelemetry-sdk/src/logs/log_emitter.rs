@@ -4,7 +4,7 @@ use opentelemetry::{
     logs::{LogError, LogResult},
     otel_debug,
     trace::TraceContextExt,
-    Context, InstrumentationLibrary,
+    Context, InstrumentationScope,
 };
 
 #[cfg(feature = "logs_level_enabled")]
@@ -48,12 +48,12 @@ pub struct LoggerProvider {
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
-    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+    fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
+            return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
         }
-        Logger::new(library, self.clone())
+        Logger::new(scope, self.clone())
     }
 }
 
@@ -217,19 +217,13 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
-    instrumentation_lib: Arc<InstrumentationLibrary>,
+    scope: InstrumentationScope,
     provider: LoggerProvider,
 }
 
 impl Logger {
-    pub(crate) fn new(
-        instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: LoggerProvider,
-    ) -> Self {
-        Logger {
-            instrumentation_lib,
-            provider,
-        }
+    pub(crate) fn new(scope: InstrumentationScope, provider: LoggerProvider) -> Self {
+        Logger { scope, provider }
     }
 
     /// LoggerProvider associated with this logger.
@@ -238,8 +232,8 @@ impl Logger {
     }
 
     /// Instrumentation library information of this logger.
-    pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
-        &self.instrumentation_lib
+    pub fn instrumentation_scope(&self) -> &InstrumentationScope {
+        &self.scope
     }
 }
 
@@ -271,7 +265,7 @@ impl opentelemetry::logs::Logger for Logger {
         }
 
         for p in processors {
-            p.emit(&mut record, self.instrumentation_library());
+            p.emit(&mut record, self.instrumentation_scope());
         }
     }
 
@@ -285,7 +279,7 @@ impl opentelemetry::logs::Logger for Logger {
                 || processor.event_enabled(
                     level,
                     target,
-                    self.instrumentation_library().name.as_ref(),
+                    self.instrumentation_scope().name.as_ref(),
                 );
         }
         enabled
@@ -333,7 +327,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -712,7 +706,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do.
         }
 
@@ -743,7 +737,7 @@ mod tests {
     }
 
     impl LogProcessor for CountingShutdownProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do
         }
 

@@ -1,5 +1,5 @@
-pub use opentelemetry::InstrumentationLibrary;
+pub use opentelemetry::InstrumentationScope;
 
 /// A logical unit of the application code with which the emitted telemetry can
 /// be associated.
-pub type Scope = InstrumentationLibrary;
+pub type Scope = InstrumentationScope;

@@ -40,7 +40,6 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use std::sync::Arc;
 
     use super::*;
     use crate::{
@@ -50,7 +49,7 @@ mod tests {
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
     };
-    use opentelemetry::{testing::trace::TestSpan, InstrumentationLibrary};
+    use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
@@ -84,7 +83,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name_updated");
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -119,7 +118,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -156,7 +155,7 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.span_kind, SpanKind::Server);
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -328,14 +327,13 @@ mod tests {
     #[test]
     fn tracer_attributes() {
         let provider = TracerProvider::builder().build();
-        let library = Arc::new(
-            InstrumentationLibrary::builder("basic")
-                .with_attributes(vec![KeyValue::new("test_k", "test_v")])
-                .build(),
-        );
-        let tracer = provider.library_tracer(library);
-        let instrumentation_library = tracer.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
+        let scope = InstrumentationScope::builder("basic")
+            .with_attributes(vec![KeyValue::new("test_k", "test_v")])
+            .build();
+
+        let tracer = provider.tracer_with_scope(scope);
+        let instrumentation_scope = tracer.instrumentation_scope();
+        let attributes = &instrumentation_scope.attributes;
         assert_eq!(attributes.len(), 1);
         assert_eq!(attributes[0].key, "test_k".into());
         assert_eq!(attributes[0].value, "test_v".into());

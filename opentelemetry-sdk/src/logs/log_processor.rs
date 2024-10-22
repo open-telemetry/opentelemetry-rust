@@ -13,7 +13,7 @@ use futures_util::{
 use opentelemetry::logs::Severity;
 use opentelemetry::{
     logs::{LogError, LogResult},
-    otel_debug, otel_error, otel_warn, InstrumentationLibrary,
+    otel_debug, otel_error, otel_warn, InstrumentationScope,
 };
 
 use std::sync::atomic::AtomicBool;
@@ -57,7 +57,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// # Parameters
     /// - `record`: A mutable reference to `LogData` representing the log record.
     /// - `instrumentation`: The instrumentation library associated with the log record.
-    fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationLibrary);
+    fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;
     /// Shuts down the processor.
@@ -95,7 +95,7 @@ impl SimpleLogProcessor {
 }
 
 impl LogProcessor for SimpleLogProcessor {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -168,7 +168,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -320,7 +320,7 @@ async fn export_with_timeout<R, E>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<(LogRecord, InstrumentationLibrary)>,
+    batch: Vec<(LogRecord, InstrumentationScope)>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -331,7 +331,7 @@ where
     }
 
     // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let log_vec: Vec<(&LogRecord, &InstrumentationLibrary)> = batch
+    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
@@ -515,7 +515,7 @@ where
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog((LogRecord, InstrumentationLibrary)),
+    ExportLog((LogRecord, InstrumentationScope)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),
@@ -550,7 +550,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
-    use opentelemetry::InstrumentationLibrary;
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::Key;
     use opentelemetry::{logs::LogResult, KeyValue};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -795,7 +795,7 @@ mod tests {
         );
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
         processor.force_flush().unwrap();
@@ -813,7 +813,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -883,11 +883,11 @@ mod tests {
 
     #[derive(Debug)]
     struct FirstProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
             // add attribute
             record.add_attribute(
                 Key::from_static_str("processed_by"),
@@ -913,11 +913,11 @@ mod tests {
 
     #[derive(Debug)]
     struct SecondProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
@@ -994,7 +994,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -1007,7 +1007,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -1024,7 +1024,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let mut record: LogRecord = Default::default();
-                let instrumentation: InstrumentationLibrary = Default::default();
+                let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
             handles.push(handle);
@@ -1043,7 +1043,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -1090,7 +1090,7 @@ mod tests {
             let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
             let mut record: LogRecord = Default::default();
-            let instrumentation: InstrumentationLibrary = Default::default();
+            let instrumentation: InstrumentationScope = Default::default();
 
             // This will panic because an tokio async operation within exporter without a runtime.
             processor.emit(&mut record, &instrumentation);
@@ -1146,7 +1146,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let mut record: LogRecord = Default::default();
-                let instrumentation: InstrumentationLibrary = Default::default();
+                let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
             handles.push(handle);
@@ -1170,7 +1170,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -1189,7 +1189,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 
@@ -1209,7 +1209,7 @@ mod tests {
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationLibrary = Default::default();
+        let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
 

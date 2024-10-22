@@ -146,6 +146,6 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use instrumentation::{InstrumentationLibrary, Scope};
+pub use instrumentation::{InstrumentationScope, Scope};
 #[doc(inline)]
 pub use resource::Resource;

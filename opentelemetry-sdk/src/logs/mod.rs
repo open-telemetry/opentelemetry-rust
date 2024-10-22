@@ -10,14 +10,14 @@ pub use log_processor::{
 };
 pub use record::{LogRecord, TraceContext};
 
-use opentelemetry::InstrumentationLibrary;
+use opentelemetry::InstrumentationScope;
 /// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
+    pub instrumentation: InstrumentationScope,
 }
 
 #[cfg(all(test, feature = "testing"))]
@@ -30,7 +30,6 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;
     use std::collections::HashMap;
-    use std::sync::Arc;
 
     #[test]
     fn logging_sdk_test() {
@@ -105,18 +104,17 @@ mod tests {
     #[test]
     fn logger_attributes() {
         let provider = LoggerProvider::builder().build();
-        let library = Arc::new(
-            InstrumentationLibrary::builder("test_logger")
-                .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-                .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
-                .build(),
-        );
-        let logger = provider.library_logger(library);
-        let instrumentation_library = logger.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.name, "test_logger");
+        let scope = InstrumentationScope::builder("test_logger")
+            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
+            .build();
+
+        let logger = provider.logger_with_scope(scope);
+        let instrumentation_scope = logger.instrumentation_scope();
+        let attributes = &instrumentation_scope.attributes;
+        assert_eq!(instrumentation_scope.name, "test_logger");
         assert_eq!(
-            instrumentation_library.schema_url,
+            instrumentation_scope.schema_url,
             Some("https://opentelemetry.io/schema/1.0.0".into())
         );
         assert_eq!(attributes.len(), 1);

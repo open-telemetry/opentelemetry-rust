@@ -13,19 +13,18 @@ use crate::{
         span::{Span, SpanData},
         IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
     },
-    InstrumentationLibrary,
+    InstrumentationScope,
 };
 use opentelemetry::{
     trace::{SamplingDecision, SpanBuilder, SpanContext, SpanKind, TraceContextExt, TraceFlags},
     Context, KeyValue,
 };
 use std::fmt;
-use std::sync::Arc;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct Tracer {
-    instrumentation_lib: Arc<InstrumentationLibrary>,
+    scope: InstrumentationScope,
     provider: TracerProvider,
 }
 
@@ -34,22 +33,16 @@ impl fmt::Debug for Tracer {
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tracer")
-            .field("name", &self.instrumentation_lib.name)
-            .field("version", &self.instrumentation_lib.version)
+            .field("name", &self.scope.name)
+            .field("version", &self.scope.version)
             .finish()
     }
 }
 
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
-    pub(crate) fn new(
-        instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: TracerProvider,
-    ) -> Self {
-        Tracer {
-            instrumentation_lib,
-            provider,
-        }
+    pub(crate) fn new(scope: InstrumentationScope, provider: TracerProvider) -> Self {
+        Tracer { scope, provider }
     }
 
     /// TracerProvider associated with this tracer.
@@ -58,8 +51,8 @@ impl Tracer {
     }
 
     /// Instrumentation library information of this tracer.
-    pub(crate) fn instrumentation_library(&self) -> &InstrumentationLibrary {
-        &self.instrumentation_lib
+    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
+        &self.scope
     }
 
     fn build_recording_span(

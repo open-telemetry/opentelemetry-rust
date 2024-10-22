@@ -134,7 +134,7 @@ mod tests {
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
-    use opentelemetry::InstrumentationLibrary;
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
@@ -638,23 +638,16 @@ mod tests {
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let library = Arc::new(
-            InstrumentationLibrary::builder("test.meter")
-                .with_version("v0.1.0")
-                .with_schema_url("http://example.com")
-                .with_attributes(vec![KeyValue::new("key", "value1")])
-                .build(),
-        );
-        let meter1 = meter_provider.library_meter(library);
+        let mut scope = InstrumentationScope::builder("test.meter")
+            .with_version("v0.1.0")
+            .with_schema_url("http://example.com")
+            .with_attributes(vec![KeyValue::new("key", "value1")])
+            .build();
 
-        let library = Arc::new(
-            InstrumentationLibrary::builder("test.meter")
-                .with_version("v0.1.0")
-                .with_schema_url("http://example.com")
-                .with_attributes(vec![KeyValue::new("key", "value2")])
-                .build(),
-        );
-        let meter2 = meter_provider.library_meter(library);
+        let meter1 = meter_provider.meter_with_scope(scope.clone());
+
+        scope.attributes = vec![KeyValue::new("key", "value2")];
+        let meter2 = meter_provider.meter_with_scope(scope);
 
         let counter1 = meter1
             .u64_counter("my_counter")

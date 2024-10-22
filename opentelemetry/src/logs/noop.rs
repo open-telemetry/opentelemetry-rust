@@ -1,8 +1,8 @@
-use std::{borrow::Cow, sync::Arc, time::SystemTime};
+use std::{borrow::Cow, time::SystemTime};
 
 use crate::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationLibrary, Key,
+    InstrumentationScope, Key,
 };
 
 /// A no-op implementation of a [`LoggerProvider`].
@@ -19,7 +19,7 @@ impl NoopLoggerProvider {
 impl LoggerProvider for NoopLoggerProvider {
     type Logger = NoopLogger;
 
-    fn library_logger(&self, _library: Arc<InstrumentationLibrary>) -> Self::Logger {
+    fn logger_with_scope(&self, _scope: InstrumentationScope) -> Self::Logger {
         NoopLogger(())
     }
 }

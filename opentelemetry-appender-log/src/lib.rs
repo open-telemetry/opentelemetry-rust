@@ -97,11 +97,10 @@
 use log::{Level, Metadata, Record};
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationLibrary, Key,
+    InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE};
-use std::sync::Arc;
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -170,13 +169,12 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        let library = Arc::new(
-            InstrumentationLibrary::builder("opentelemetry-log-appender")
-                .with_version(env!("CARGO_PKG_VERSION"))
-                .build(),
-        );
+        let scope = InstrumentationScope::builder("opentelemetry-log-appender")
+            .with_version(env!("CARGO_PKG_VERSION"))
+            .build();
+
         OpenTelemetryLogBridge {
-            logger: provider.library_logger(library),
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
         }
     }

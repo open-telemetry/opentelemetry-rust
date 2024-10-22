@@ -1,5 +1,5 @@
 use crate::metrics::{self, Meter, MeterProvider};
-use crate::InstrumentationLibrary;
+use crate::InstrumentationScope;
 use once_cell::sync::Lazy;
 use std::sync::{Arc, RwLock};
 
@@ -40,26 +40,24 @@ pub fn meter(name: &'static str) -> Meter {
 
 /// Creates a [`Meter`] with the given instrumentation library.
 ///
-/// This is a shortcut `global::meter_provider().library_meter(...)`
+/// This is a shortcut `global::meter_provider().meter_with_scope(...)`
 ///
 /// # Example
 ///
 /// ```
 /// use std::sync::Arc;
-/// use opentelemetry::global::library_meter;
-/// use opentelemetry::InstrumentationLibrary;
+/// use opentelemetry::global::meter_with_scope;
+/// use opentelemetry::InstrumentationScope;
 /// use opentelemetry::KeyValue;
 ///
-/// let library = Arc::new(
-///     InstrumentationLibrary::builder("io.opentelemetry")
-///         .with_version("0.17")
-///         .with_schema_url("https://opentelemetry.io/schema/1.2.0")
-///         .with_attributes(vec![(KeyValue::new("key", "value"))])
-///         .build(),
-/// );
+/// let scope = InstrumentationScope::builder("io.opentelemetry")
+///     .with_version("0.17")
+///     .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+///     .with_attributes(vec![(KeyValue::new("key", "value"))])
+///     .build();
 ///
-/// let meter = library_meter(library);
+/// let meter = meter_with_scope(scope);
 /// ```
-pub fn library_meter(library: Arc<InstrumentationLibrary>) -> Meter {
-    meter_provider().library_meter(library)
+pub fn meter_with_scope(scope: InstrumentationScope) -> Meter {
+    meter_provider().meter_with_scope(scope)
 }

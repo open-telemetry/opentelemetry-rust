@@ -64,20 +64,17 @@ fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
 
 #[cfg(feature = "trace")]
 fn emit_span() {
-    use std::sync::Arc;
-
     use opentelemetry::{
-        trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState, TracerProvider},
-        InstrumentationLibrary,
+        trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
+        InstrumentationScope,
     };
 
-    let library = Arc::new(
-        InstrumentationLibrary::builder("stdout-example")
-            .with_version("v1")
-            .with_attributes([KeyValue::new("scope_key", "scope_value")])
-            .build(),
-    );
-    let tracer = global::tracer_provider().library_tracer(library);
+    let scope = InstrumentationScope::builder("stdout-example")
+        .with_version("v1")
+        .with_attributes([KeyValue::new("scope_key", "scope_value")])
+        .build();
+
+    let tracer = global::tracer_with_scope(scope);
     let mut span = tracer.start("example-span");
     span.set_attribute(KeyValue::new("attribute_key1", "attribute_value1"));
     span.set_attribute(KeyValue::new("attribute_key2", "attribute_value2"));

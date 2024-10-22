@@ -67,7 +67,7 @@ use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
-use crate::{InstrumentationLibrary, Resource};
+use crate::{InstrumentationScope, Resource};
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{otel_debug, trace::TraceResult};
@@ -250,11 +250,11 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(library, NOOP_TRACER_PROVIDER.clone());
+            return Tracer::new(scope, NOOP_TRACER_PROVIDER.clone());
         }
-        Tracer::new(library, self.clone())
+        Tracer::new(scope, self.clone())
     }
 }
 

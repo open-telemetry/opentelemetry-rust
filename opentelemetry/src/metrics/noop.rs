@@ -25,7 +25,7 @@ impl NoopMeterProvider {
 }
 
 impl MeterProvider for NoopMeterProvider {
-    fn library_meter(&self, _library: Arc<crate::InstrumentationLibrary>) -> Meter {
+    fn meter_with_scope(&self, _scope: crate::InstrumentationScope) -> Meter {
         Meter::new(Arc::new(NoopMeter::new()))
     }
 }

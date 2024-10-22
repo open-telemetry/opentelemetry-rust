@@ -6,7 +6,7 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
     ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
-use crate::InstrumentationLibrary;
+use crate::InstrumentationScope;
 
 use super::{Counter, Histogram, HistogramBuilder};
 
@@ -19,25 +19,24 @@ pub trait MeterProvider {
     ///
     /// ```
     /// use std::sync::Arc;
-    /// use opentelemetry::InstrumentationLibrary;
+    /// use opentelemetry::InstrumentationScope;
     /// use opentelemetry::metrics::MeterProvider;
     /// use opentelemetry_sdk::metrics::SdkMeterProvider;
     ///
     /// let provider = SdkMeterProvider::default();
     ///
-    /// // logger used in applications/binaries
+    /// // meter used in applications/binaries
     /// let meter = provider.meter("my_app");
     ///
-    /// // logger used in libraries/crates that optionally includes version and schema url
-    /// let library = std::sync::Arc::new(
-    ///     InstrumentationLibrary::builder(env!("CARGO_PKG_NAME"))
-    ///         .with_version(env!("CARGO_PKG_VERSION"))
-    ///         .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///         .build(),
-    /// );
-    /// let logger = provider.library_meter(library);
+    /// // meter used in libraries/crates that optionally includes version and schema url
+    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+    ///     .with_version(env!("CARGO_PKG_VERSION"))
+    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .build();
+    ///
+    /// let meter = provider.meter_with_scope(scope);
     /// ```
-    fn library_meter(&self, library: Arc<InstrumentationLibrary>) -> Meter;
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter;
 
     /// Returns a new [Meter] with the provided name and default configuration.
     ///
@@ -60,8 +59,8 @@ pub trait MeterProvider {
     /// let meter = provider.meter("my_app");
     /// ```
     fn meter(&self, name: &'static str) -> Meter {
-        let library = Arc::new(InstrumentationLibrary::builder(name).build());
-        self.library_meter(library)
+        let scope = InstrumentationScope::builder(name).build();
+        self.meter_with_scope(scope)
     }
 }
 

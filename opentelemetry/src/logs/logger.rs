@@ -1,6 +1,6 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 
-use crate::{logs::LogRecord, InstrumentationLibrary};
+use crate::{logs::LogRecord, InstrumentationScope};
 
 #[cfg(feature = "logs_level_enabled")]
 use super::Severity;
@@ -35,8 +35,7 @@ pub trait LoggerProvider {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::Arc;
-    /// use opentelemetry::InstrumentationLibrary;
+    /// use opentelemetry::InstrumentationScope;
     /// use opentelemetry::logs::LoggerProvider;
     /// use opentelemetry_sdk::logs::LoggerProvider as SdkLoggerProvider;
     ///
@@ -46,15 +45,14 @@ pub trait LoggerProvider {
     /// let logger = provider.logger("my_app");
     ///
     /// // logger used in libraries/crates that optionally includes version and schema url
-    /// let library = Arc::new(
-    ///     InstrumentationLibrary::builder(env!("CARGO_PKG_NAME"))
-    ///         .with_version(env!("CARGO_PKG_VERSION"))
-    ///         .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///         .build(),
-    /// );
-    /// let logger = provider.library_logger(library);
+    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+    ///     .with_version(env!("CARGO_PKG_VERSION"))
+    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .build();
+    ///
+    /// let logger = provider.logger_with_scope(scope);
     /// ```
-    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger;
+    fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger;
 
     /// Returns a new logger with the given name.
     ///
@@ -62,7 +60,7 @@ pub trait LoggerProvider {
     /// providing instrumentation. If the name is empty, then an
     /// implementation-defined default name may be used instead.
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        let library = Arc::new(InstrumentationLibrary::builder(name).build());
-        self.library_logger(library)
+        let scope = InstrumentationScope::builder(name).build();
+        self.logger_with_scope(scope)
     }
 }

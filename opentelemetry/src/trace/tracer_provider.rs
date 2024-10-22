@@ -1,5 +1,5 @@
-use crate::{trace::Tracer, InstrumentationLibrary};
-use std::{borrow::Cow, sync::Arc};
+use crate::{trace::Tracer, InstrumentationScope};
+use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
 ///
@@ -29,8 +29,8 @@ pub trait TracerProvider {
     /// let tracer = provider.tracer("my_app");
     /// ```
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
-        let library = InstrumentationLibrary::builder(name).build();
-        self.library_tracer(Arc::new(library))
+        let scope = InstrumentationScope::builder(name).build();
+        self.tracer_with_scope(scope)
     }
 
     /// Returns a new versioned tracer with the given instrumentation library.
@@ -38,7 +38,7 @@ pub trait TracerProvider {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, InstrumentationLibrary, trace::TracerProvider};
+    /// use opentelemetry::{global, InstrumentationScope, trace::TracerProvider};
     ///
     /// let provider = global::tracer_provider();
     ///
@@ -46,14 +46,13 @@ pub trait TracerProvider {
     /// let tracer = provider.tracer("my_app");
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
-    /// let library = std::sync::Arc::new(
-    ///     InstrumentationLibrary::builder(env!("CARGO_PKG_NAME"))
+    /// let scope =
+    ///     InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
     ///         .with_version(env!("CARGO_PKG_VERSION"))
     ///         .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///         .build(),
-    /// );
+    ///         .build();
     ///
-    /// let tracer = provider.library_tracer(library);
+    /// let tracer = provider.tracer_with_scope(scope);
     /// ```
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer;
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer;
 }

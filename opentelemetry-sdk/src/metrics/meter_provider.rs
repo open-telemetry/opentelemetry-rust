@@ -10,7 +10,7 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    InstrumentationLibrary,
+    InstrumentationScope,
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -145,14 +145,14 @@ impl Drop for SdkMeterProviderInner {
     }
 }
 impl MeterProvider for SdkMeterProvider {
-    fn library_meter(&self, library: Arc<InstrumentationLibrary>) -> Meter {
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));
         }
 
         if let Ok(mut meters) = self.inner.meters.lock() {
             let meter = meters
-                .entry(InstrumentationLibrary::clone(&library))
+                .entry(scope)
                 .or_insert_with_key(|scope| {
                     Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()))
                 })
@@ -241,10 +241,9 @@ mod tests {
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
     use opentelemetry::metrics::MeterProvider;
-    use opentelemetry::{global, InstrumentationLibrary};
+    use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
-    use std::sync::Arc;
 
     #[test]
     fn test_meter_provider_resource() {
@@ -436,40 +435,30 @@ mod tests {
         let _meter2 = provider.meter("test");
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
 
-        let library = Arc::new(
-            InstrumentationLibrary::builder("test")
-                .with_version("1.0.0")
-                .with_schema_url("http://example.com")
-                .build(),
-        );
+        let scope = InstrumentationScope::builder("test")
+            .with_version("1.0.0")
+            .with_schema_url("http://example.com")
+            .build();
 
-        let _meter3 = provider.library_meter(library.clone());
-        let _meter4 = provider.library_meter(library.clone());
-        let _meter5 = provider.library_meter(library);
+        let _meter3 = provider.meter_with_scope(scope.clone());
+        let _meter4 = provider.meter_with_scope(scope.clone());
+        let _meter5 = provider.meter_with_scope(scope);
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
         // these are different meters because meter names are case sensitive
-        let library = Arc::new(
-            InstrumentationLibrary::builder("ABC")
-                .with_version("1.0.0")
-                .with_schema_url("http://example.com")
-                .build(),
-        );
-        let _meter6 = provider.library_meter(library);
-        let library = Arc::new(
-            InstrumentationLibrary::builder("Abc")
-                .with_version("1.0.0")
-                .with_schema_url("http://example.com")
-                .build(),
-        );
-        let _meter7 = provider.library_meter(library);
-        let library = Arc::new(
-            InstrumentationLibrary::builder("abc")
-                .with_version("1.0.0")
-                .with_schema_url("http://example.com")
-                .build(),
-        );
-        let _meter8 = provider.library_meter(library);
+        let mut library = InstrumentationScope::builder("ABC")
+            .with_version("1.0.0")
+            .with_schema_url("http://example.com")
+            .build();
+
+        let _meter6 = provider.meter_with_scope(library.clone());
+
+        library.name = "Abc".into();
+        let _meter7 = provider.meter_with_scope(library.clone());
+
+        library.name = "abc".into();
+        let _meter8 = provider.meter_with_scope(library);
+
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }
 }
