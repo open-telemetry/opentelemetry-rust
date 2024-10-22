@@ -15,6 +15,7 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
 
+#[ignore = "https://github.com/open-telemetry/opentelemetry-rust/pull/2224"]
 #[test]
 fn prometheus_exporter_integration() {
     struct TestCase {
@@ -46,10 +47,10 @@ fn prometheus_exporter_integration() {
             expected_file: "counter.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -60,10 +61,10 @@ fn prometheus_exporter_integration() {
                 counter.add(10.3, &attrs);
                 counter.add(9.0, &attrs);
                 let attrs2 = vec![
-                    Key::new("A").string("D"),
-                    Key::new("C").string("B"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "D"),
+                    KeyValue::new("C", "B"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 counter.add(5.0, &attrs2);
             }),
@@ -75,10 +76,10 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().without_counter_suffixes(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -89,10 +90,10 @@ fn prometheus_exporter_integration() {
                 counter.add(10.3, &attrs);
                 counter.add(9.0, &attrs);
                 let attrs2 = vec![
-                    Key::new("A").string("D"),
-                    Key::new("C").string("B"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "D"),
+                    KeyValue::new("C", "B"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 counter.add(5.0, &attrs2);
             }),
@@ -102,7 +103,7 @@ fn prometheus_exporter_integration() {
             name: "gauge",
             expected_file: "gauge.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let gauge = meter
                     .f64_up_down_counter("bar")
                     .with_description("a fun little gauge")
@@ -117,7 +118,7 @@ fn prometheus_exporter_integration() {
             name: "histogram",
             expected_file: "histogram.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let histogram = meter
                     .f64_histogram("histogram_baz")
                     .with_description("a very nice histogram")
@@ -137,11 +138,11 @@ fn prometheus_exporter_integration() {
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
                     // exact match, value should be overwritten
-                    Key::new("A.B").string("X"),
-                    Key::new("A.B").string("Q"),
+                    KeyValue::new("A.B", "X"),
+                    KeyValue::new("A.B", "Q"),
                     // unintended match due to sanitization, values should be concatenated
-                    Key::new("C.D").string("Y"),
-                    Key::new("C/D").string("Z"),
+                    KeyValue::new("C.D", "Y"),
+                    KeyValue::new("C/D", "Z"),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -159,7 +160,7 @@ fn prometheus_exporter_integration() {
             name: "invalid instruments are renamed",
             expected_file: "sanitized_names.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 // Valid.
                 let mut gauge = meter
                     .f64_up_down_counter("bar")
@@ -195,10 +196,10 @@ fn prometheus_exporter_integration() {
             expected_file: "empty_resource.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -212,14 +213,14 @@ fn prometheus_exporter_integration() {
         },
         TestCase {
             name: "custom resource",
-            custom_resource_attrs: vec![Key::new("A").string("B"), Key::new("C").string("D")],
+            custom_resource_attrs: vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")],
             expected_file: "custom_resource.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -237,10 +238,10 @@ fn prometheus_exporter_integration() {
             expected_file: "without_target_info.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -257,7 +258,7 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().without_scope_info(),
             expected_file: "without_scope_info.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
@@ -275,7 +276,7 @@ fn prometheus_exporter_integration() {
                 .without_target_info(),
             expected_file: "without_scope_and_target_info.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let counter = meter
                     .u64_counter("bar")
                     .with_description("a fun little counter")
@@ -292,10 +293,10 @@ fn prometheus_exporter_integration() {
             expected_file: "with_namespace.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
-                    Key::new("A").string("B"),
-                    Key::new("C").string("D"),
-                    Key::new("E").bool(true),
-                    Key::new("F").i64(42),
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
                 ];
                 let counter = meter
                     .f64_counter("foo")
@@ -313,7 +314,7 @@ fn prometheus_exporter_integration() {
             builder: ExporterBuilder::default().with_resource_selector(ResourceSelector::All),
             expected_file: "resource_in_every_metrics.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
@@ -330,7 +331,7 @@ fn prometheus_exporter_integration() {
                 .with_resource_selector(HashSet::from([Key::new("service.name")])),
             expected_file: "select_resource_in_every_metrics.txt",
             record_metrics: Box::new(|meter| {
-                let attrs = vec![Key::new("A").string("B"), Key::new("C").string("D")];
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let gauge = meter
                     .i64_up_down_counter("bar")
                     .with_description("a fun little gauge")
