@@ -675,7 +675,6 @@ mod tests {
     #[test]
     fn drop_test_with_multiple_providers() {
         let shutdown_count = Arc::new(AtomicU32::new(0));
-        let flush_called = Arc::new(AtomicBool::new(false));
 
         {
             // Create a shared TracerProviderInner and use it across multiple providers
@@ -710,8 +709,6 @@ mod tests {
         }
         // Verify shutdown was called during the drop of the shared TracerProviderInner
         assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
-        // Verify flush was not called during drop
-        assert!(!flush_called.load(Ordering::SeqCst));
     }
 
     #[test]
