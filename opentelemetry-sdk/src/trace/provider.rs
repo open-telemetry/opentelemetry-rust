@@ -13,8 +13,8 @@
 ///
 /// ## Cloning and Shutdown
 ///
-/// The `TracerProvider` is designed to be lightweight and clonable. Cloning a `TracerProvider`
-/// creates a new reference to the same provider, not a new instance. Dropping the last reference
+/// The `TracerProvider` is designed to be clonable. Cloning a `TracerProvider`  creates a
+/// new reference to the same provider, not a new instance. Dropping the last reference
 /// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
 /// will flush all remaining spans, ensuring they are passed to the configured processors.
 /// Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
@@ -136,7 +136,7 @@ impl Drop for TracerProviderInner {
 
 /// Creator and registry of named [`Tracer`] instances.
 ///
-/// `TracerProvider` is a lightweight container holding pointers to `SpanProcessor` and other components.
+/// `TracerProvider` is a container holding pointers to `SpanProcessor` and other components.
 /// Cloning a `TracerProvider` instance and dropping it will not stop span processing. To stop span processing, users
 /// must either call the `shutdown` method explicitly or allow the last reference to the `TracerProvider`
 /// to be dropped. When the last reference is dropped, the shutdown process will be automatically triggered
