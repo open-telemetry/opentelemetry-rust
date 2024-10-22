@@ -202,7 +202,7 @@ pub enum TraceError {
 
     /// already shutdown error
     #[error("TracerProvider already shutdown")]
-    AlreadyShutdown,
+    TracerProviderAlreadyShutdown,
 
     /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]
