@@ -645,15 +645,11 @@ mod tests {
     #[derive(Debug)]
     struct CountingShutdownProcessor {
         shutdown_count: Arc<AtomicU32>,
-        flush_called: Arc<AtomicBool>,
     }
 
     impl CountingShutdownProcessor {
-        fn new(shutdown_count: Arc<AtomicU32>, flush_called: Arc<AtomicBool>) -> Self {
-            CountingShutdownProcessor {
-                shutdown_count,
-                flush_called,
-            }
+        fn new(shutdown_count: Arc<AtomicU32>) -> Self {
+            CountingShutdownProcessor { shutdown_count }
         }
     }
 
@@ -667,7 +663,6 @@ mod tests {
         }
 
         fn force_flush(&self) -> TraceResult<()> {
-            self.flush_called.store(true, Ordering::SeqCst);
             Ok(())
         }
 
@@ -687,7 +682,6 @@ mod tests {
             let shared_inner = Arc::new(TracerProviderInner {
                 processors: vec![Box::new(CountingShutdownProcessor::new(
                     shutdown_count.clone(),
-                    flush_called.clone(),
                 ))],
                 config: Config::default(),
                 is_shutdown: AtomicBool::new(false),
@@ -723,13 +717,11 @@ mod tests {
     #[test]
     fn drop_after_shutdown_test_with_multiple_providers() {
         let shutdown_count = Arc::new(AtomicU32::new(0));
-        let flush_called = Arc::new(AtomicBool::new(false));
 
         // Create a shared TracerProviderInner and use it across multiple providers
         let shared_inner = Arc::new(TracerProviderInner {
             processors: vec![Box::new(CountingShutdownProcessor::new(
                 shutdown_count.clone(),
-                flush_called.clone(),
             ))],
             config: Config::default(),
             is_shutdown: AtomicBool::new(false),
@@ -754,6 +746,7 @@ mod tests {
             // TracerProvider2 should observe the shutdown state but not trigger another shutdown
             let shutdown_result2 = tracer_provider2.shutdown();
             assert!(shutdown_result2.is_err());
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
 
             // Both tracer providers will be dropped at the end of this scope
         }
