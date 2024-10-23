@@ -247,9 +247,23 @@ impl TracerProvider {
     }
 }
 
+/// Default tracer name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
+
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
+
+    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+        let mut name = name.into();
+
+        if name.is_empty() {
+            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
+        };
+
+        let scope = InstrumentationScope::builder(name).build();
+        self.tracer_with_scope(scope)
+    }
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {

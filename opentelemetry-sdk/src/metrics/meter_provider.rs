@@ -144,7 +144,20 @@ impl Drop for SdkMeterProviderInner {
         }
     }
 }
+
+/// Default logger name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/meter";
+
 impl MeterProvider for SdkMeterProvider {
+    fn meter(&self, mut name: &'static str) -> Meter {
+        if name.is_empty() {
+            name = DEFAULT_COMPONENT_NAME
+        };
+
+        let scope = InstrumentationScope::builder(name).build();
+        self.meter_with_scope(scope)
+    }
+
     fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));

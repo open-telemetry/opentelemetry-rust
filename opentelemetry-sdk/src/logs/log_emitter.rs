@@ -10,11 +10,14 @@ use opentelemetry::{
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 use std::time::SystemTime;
+use std::{
+    borrow::Cow,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use once_cell::sync::Lazy;
 
@@ -45,8 +48,22 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
+/// Default logger name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
+
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
+
+    fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
+        let mut name = name.into();
+
+        if name.is_empty() {
+            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
+        };
+
+        let scope = InstrumentationScope::builder(name).build();
+        self.logger_with_scope(scope)
+    }
 
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
