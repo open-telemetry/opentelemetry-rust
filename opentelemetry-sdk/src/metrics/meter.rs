@@ -150,7 +150,7 @@ impl SdkMeter {
                 ObservableCounter::new()
             }
             Err(_err) => {
-                // TBD - Add error handling
+                // TODO - Add error handling
                 ObservableCounter::new()
             }
         }
