@@ -1,5 +1,5 @@
 use opentelemetry::{
-    metrics::{AsyncInstrument, InstrumentProvider, SyncInstrument},
+    metrics::{InstrumentProvider, SyncInstrument},
     KeyValue,
 };
 
@@ -33,25 +33,6 @@ impl NoopSyncInstrument {
 
 impl<T> SyncInstrument<T> for NoopSyncInstrument {
     fn measure(&self, _value: T, _attributes: &[KeyValue]) {
-        // Ignored
-    }
-}
-
-/// A no-op async instrument.
-#[derive(Debug, Default)]
-pub(crate) struct NoopAsyncInstrument {
-    _private: (),
-}
-
-impl NoopAsyncInstrument {
-    /// Create a new no-op async instrument
-    pub(crate) fn new() -> Self {
-        NoopAsyncInstrument { _private: () }
-    }
-}
-
-impl<T> AsyncInstrument<T> for NoopAsyncInstrument {
-    fn observe(&self, _value: T, _attributes: &[KeyValue]) {
         // Ignored
     }
 }

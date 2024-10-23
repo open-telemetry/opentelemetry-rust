@@ -4,8 +4,14 @@
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Add `LogRecord::set_trace_context`; an optional method conditional on the `trace` feature for setting trace context on a log record.
-- Removed unnecessary public methods named `as_any` from `AsyncInstrument` trait and the implementing instruments: `ObservableCounter`, `ObservableGauge`, and `ObservableUpDownCounter` [#2187](https://github.com/open-telemetry/opentelemetry-rust/issues/2187)
-- Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/issues/2207)
+- Removed unnecessary public methods named `as_any` from `AsyncInstrument` trait and the implementing instruments: `ObservableCounter`, `ObservableGauge`, and `ObservableUpDownCounter` [#2187](https://github.com/open-telemetry/opentelemetry-rust/pull/2187)
+- Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/pull/2207)
+- Ensured that `observe` method on asynchronous instruments can only be called inside a callback. This was done by removing the implementation of `AsyncInstrument` trait for each of the asynchronous instruments. [#2210](https://github.com/open-telemetry/opentelemetry-rust/pull/2210)
+- Removed `PartialOrd` and `Ord` implementations for `KeyValue`. [#2215](https://github.com/open-telemetry/opentelemetry-rust/pull/2215)
+- **Breaking change** Removed `try_init` methods from the instrument builders. Users should only use `init` method to create instruments. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
+- Updated the return types of `InstrumentProvider` trait methods to return the instrument instead of a `Result`. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
+- **Breaking change for exporter authors:** Marked `KeyValue` related structs and enums as `non_exhaustive`. [#2228](https://github.com/open-telemetry/opentelemetry-rust/pull/2228)
+- **Breaking change for log exporter authors:** Marked `AnyValue` enum as `non_exhaustive`. [#2230](https://github.com/open-telemetry/opentelemetry-rust/pull/2230)
 
 ## v0.26.0
 Released 2024-Sep-30

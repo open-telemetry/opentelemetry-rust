@@ -144,7 +144,9 @@ impl From<opentelemetry::Value> for Value {
                 opentelemetry::Array::String(s) => {
                     Value::Array(s.into_iter().map(|s| Value::String(s.into())).collect())
                 }
+                _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
             },
+            _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added
         }
     }
 }
@@ -169,6 +171,7 @@ impl From<opentelemetry::logs::AnyValue> for Value {
                     .collect(),
             ),
             opentelemetry::logs::AnyValue::Bytes(b) => Value::BytesValue(*b),
+            _ => unreachable!("Nonexistent value type"),
         }
     }
 }
