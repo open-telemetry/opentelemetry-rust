@@ -16,7 +16,6 @@ use aggregate::{cardinality_limit, is_under_cardinality_limit};
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
-use opentelemetry::metrics::MetricsError;
 use opentelemetry::{otel_warn, KeyValue};
 
 use crate::metrics::AttributeSet;
@@ -148,7 +147,7 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
             //TODO -  include name of meter, instrument
             otel_warn!( name: "MetricCardinalityLimitReached",
-                error = format!("{}", MetricsError::Other("Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into())),
+                message = format!("{}", "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."),
                 cardinality_limit = cardinality_limit() as u64,
             );
         }
