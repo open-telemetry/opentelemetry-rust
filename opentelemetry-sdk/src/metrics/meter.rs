@@ -75,14 +75,18 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateCounter.ValidationError", error = format!("{}", err));
+            otel_error!(
+                name: "SdkMeter.CreateCounter.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(Counter::new(Arc::new(NoopSyncInstrument::new())));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Counter,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -91,7 +95,12 @@ impl SdkMeter {
         {
             Ok(counter) => Ok(counter),
             Err(err) => {
-                otel_error!(name: "SdkMeter.CreateCounter.Error", error = format!("{}", err));
+                otel_error!(
+                    name: "SdkMeter.CreateCounter.InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    error = format!("Measurements from the instrument will be ignored. Reason:  {}", err)
+                );
                 Ok(Counter::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -107,20 +116,29 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateObservableCounter.ValidationError", error = format!("{}", err));
+            otel_error!(
+                    name: "SdkMeter.CreateObservableCounter.InstrumentCreationFailed", 
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(ObservableCounter::new());
         }
 
         let ms = resolver.measures(
             InstrumentKind::ObservableCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         )?;
 
         if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableCounter.Error", error = format!("{}", MetricsError::Other("no measures found".into())));
+            otel_error!(
+                name: "SdkMeter.CreateObservableCounter.InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from the instrument will be ignored. Reason: View Configuration / Drop Aggregation"
+            );
             return Ok(ObservableCounter::new());
         }
 
@@ -145,20 +163,29 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.ValidationError", error = format!("{}", err));
+            otel_error!(
+                name: "SdkMeter.CreateObservableUpDownCounter.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(ObservableUpDownCounter::new());
         }
 
         let ms = resolver.measures(
             InstrumentKind::ObservableUpDownCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         )?;
 
         if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.Error", error = format!("{}",MetricsError::Other("no measures found".into())));
+            otel_error!(
+                name: "SdkMeter.CreateUpDownObservableCounter.InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from the instrument will be ignored. Reason: View Configuration / Drop Aggregation"
+            );
             return Ok(ObservableUpDownCounter::new());
         }
 
@@ -183,20 +210,29 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateObservableGauge.ValidationError", error = format!("{}", err));
+            otel_error!(
+                name: "SdkMeter.CreateObservableGauge.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(ObservableGauge::new());
         }
 
         let ms = resolver.measures(
             InstrumentKind::ObservableGauge,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         )?;
 
         if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableGauge.Error",error = format!("{}", MetricsError::Other("no measures found".into())));
+            otel_error!(
+                name: "SdkMeter.CreateObservableGauge.InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from the instrument will be ignored. Reason: View Configuration / Drop Aggregation"
+            );
             return Ok(ObservableGauge::new());
         }
 
@@ -221,14 +257,18 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateUpDownCounter.ValidationError", error = format!("{}",err));
+            otel_error!(
+                name: "SdkMeter.CreateUpDownCounter.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::UpDownCounter,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -237,7 +277,12 @@ impl SdkMeter {
         {
             Ok(updown_counter) => Ok(updown_counter),
             Err(err) => {
-                otel_error!(name: "SdkMeter.CreateUpDownCounter.Error", error = format!("{}", err));
+                otel_error!(
+                    name: "SdkMeter.CreateUpDownCounter.InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    error = format!("Measurements from the instrument will be ignored. Reason:  {}", err)
+                );
                 Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -253,14 +298,18 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateGauge.ValidationError", error = format!("{}", err));
+            otel_error!(
+                name: "SdkMeter.CreateGauge.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Gauge,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -269,7 +318,12 @@ impl SdkMeter {
         {
             Ok(gauge) => Ok(gauge),
             Err(err) => {
-                otel_error!(name: "SdkMeter.CreateGauge.Error", error = format!("{}",err));
+                otel_error!(
+                    name: "SdkMeter.CreateGauge.InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    error = format!("Measurements from the instrument will be ignored. Reason:  {}", err)
+                );
                 Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())))
             }
         }
@@ -285,14 +339,18 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            otel_error!(name: "SdkMeter.CreateHistogram.ValidationError", error = format!("{}", err));
+            otel_error!(
+                name: "SdkMeter.CreateHistogram.InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
             return Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Histogram,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 builder.boundaries,
@@ -301,7 +359,12 @@ impl SdkMeter {
         {
             Ok(histogram) => Ok(histogram),
             Err(err) => {
-                otel_error!(name: "SdkMeter.CreateHistogram.Error", error = format!("{}",err));
+                otel_error!(
+                    name: "SdkMeter.CreateHistogram.InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    error = format!("Measurements from the instrument will be ignored. Reason:  {}", err)
+                );
                 Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())))
             }
         }

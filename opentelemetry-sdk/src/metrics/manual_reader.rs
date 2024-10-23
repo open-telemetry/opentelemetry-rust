@@ -5,7 +5,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{MetricsError, Result},
-    otel_error,
+    otel_debug,
 };
 
 use super::{
@@ -77,7 +77,7 @@ impl MetricReader for ManualReader {
             if inner.sdk_producer.is_none() {
                 inner.sdk_producer = Some(pipeline);
             } else {
-                otel_error!(name: "ManualReader.RegisterPipeline.DuplicateRegistration");
+                otel_debug!(name: "ManualReader.RegisterPipeline.DuplicateRegistration");
             }
         });
     }
