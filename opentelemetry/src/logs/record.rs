@@ -62,6 +62,7 @@ pub trait LogRecord {
 
 /// Value types for representing arbitrary values in a log record.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum AnyValue {
     /// An integer value
     Int(i64),
