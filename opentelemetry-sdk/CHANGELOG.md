@@ -7,6 +7,7 @@
 - Improved `LoggerProvider` shutdown handling to prevent redundant shutdown calls when `drop` is invoked. [#2195](https://github.com/open-telemetry/opentelemetry-rust/pull/2195)
 - **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
   - **Replaced**: Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricExporterBuilder with different temporalities.
+- When creating new metric instruments, SDK would return a no-op instrument if the validation fails. [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
 
 ## v0.26.0
 Released 2024-Sep-30
