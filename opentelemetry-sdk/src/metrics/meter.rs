@@ -149,7 +149,7 @@ impl SdkMeter {
                 }
                 ObservableCounter::new()
             }
-            Err(err) => {
+            Err(_err) => {
                 // TBD - Add error handling
                 ObservableCounter::new()
             }
@@ -199,7 +199,7 @@ impl SdkMeter {
                 }
                 ObservableUpDownCounter::new()
             }
-            Err(err) => {
+            Err(_err) => {
                 // TBD - Add error handling
                 ObservableUpDownCounter::new()
             }
@@ -249,7 +249,7 @@ impl SdkMeter {
                 }
                 ObservableGauge::new()
             }
-            Err(err) => {
+            Err(_err) => {
                 //TBD - Add error handling
                 ObservableGauge::new()
             }
