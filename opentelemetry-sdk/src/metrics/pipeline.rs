@@ -8,7 +8,7 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    KeyValue,
+    InstrumentationScope, KeyValue,
 };
 
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
         reader::{MetricReader, SdkProducer},
         view::View,
     },
-    Resource, Scope,
+    Resource,
 };
 
 use super::Aggregation;
@@ -54,7 +54,7 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
 #[derive(Default)]
 struct PipelineInner {
-    aggregations: HashMap<Scope, Vec<InstrumentSync>>,
+    aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
     callbacks: Vec<GenericCallback>,
 }
 
@@ -73,7 +73,7 @@ impl Pipeline {
     /// This method is not idempotent. Duplicate calls will result in duplicate
     /// additions, it is the callers responsibility to ensure this is called with
     /// unique values.
-    fn add_sync(&self, scope: Scope, i_sync: InstrumentSync) {
+    fn add_sync(&self, scope: InstrumentationScope, i_sync: InstrumentSync) {
         let _ = self.inner.lock().map(|mut inner| {
             inner.aggregations.entry(scope).or_default().push(i_sync);
         });
@@ -340,7 +340,7 @@ where
     /// is returned.
     fn cached_aggregator(
         &self,
-        scope: &Scope,
+        scope: &InstrumentationScope,
         kind: InstrumentKind,
         mut stream: Stream,
     ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {

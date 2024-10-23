@@ -147,6 +147,4 @@ pub mod trace;
 pub mod util;
 
 #[doc(inline)]
-pub use opentelemetry::InstrumentationScope as Scope;
-#[doc(inline)]
 pub use resource::Resource;

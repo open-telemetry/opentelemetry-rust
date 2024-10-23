@@ -45,12 +45,11 @@ mod tests {
     use crate::{
         testing::trace::InMemorySpanExporterBuilder,
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
-        Scope,
     };
-    use opentelemetry::testing::trace::TestSpan;
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
     };
+    use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
@@ -328,7 +327,7 @@ mod tests {
     #[test]
     fn tracer_attributes() {
         let provider = TracerProvider::builder().build();
-        let scope = Scope::builder("basic")
+        let scope = InstrumentationScope::builder("basic")
             .with_attributes(vec![KeyValue::new("test_k", "test_v")])
             .build();
 

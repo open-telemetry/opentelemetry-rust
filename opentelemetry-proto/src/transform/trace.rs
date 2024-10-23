@@ -158,7 +158,7 @@ pub mod tonic {
         // Group spans by their instrumentation library
         let scope_map = spans.iter().fold(
             HashMap::new(),
-            |mut scope_map: HashMap<&opentelemetry_sdk::Scope, Vec<&SpanData>>, span| {
+            |mut scope_map: HashMap<&opentelemetry::InstrumentationScope, Vec<&SpanData>>, span| {
                 let instrumentation = &span.instrumentation_scope;
                 scope_map.entry(instrumentation).or_default().push(span);
                 scope_map
@@ -197,11 +197,11 @@ mod tests {
     use opentelemetry::trace::{
         SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::export::trace::SpanData;
     use opentelemetry_sdk::resource::Resource;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
-    use opentelemetry_sdk::Scope;
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
 
@@ -226,7 +226,7 @@ mod tests {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_scope: Scope::builder(instrumentation_name).build(),
+            instrumentation_scope: InstrumentationScope::builder(instrumentation_name).build(),
         }
     }
 

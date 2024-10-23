@@ -10,9 +10,10 @@ use std::{
 use opentelemetry::{
     global,
     metrics::{Meter, MeterProvider, MetricsError, Result},
+    InstrumentationScope,
 };
 
-use crate::{Resource, Scope};
+use crate::Resource;
 
 use super::{
     meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
@@ -36,7 +37,7 @@ pub struct SdkMeterProvider {
 #[derive(Debug)]
 struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
-    meters: Mutex<HashMap<Scope, Arc<SdkMeter>>>,
+    meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
     is_shutdown: AtomicBool,
 }
 
@@ -144,7 +145,7 @@ impl Drop for SdkMeterProviderInner {
     }
 }
 impl MeterProvider for SdkMeterProvider {
-    fn meter_with_scope(&self, scope: Scope) -> Meter {
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));
         }
@@ -238,9 +239,9 @@ mod tests {
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
-    use crate::{Resource, Scope};
-    use opentelemetry::global;
+    use crate::Resource;
     use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
 
@@ -434,7 +435,7 @@ mod tests {
         let _meter2 = provider.meter("test");
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
 
-        let scope = Scope::builder("test")
+        let scope = InstrumentationScope::builder("test")
             .with_version("1.0.0")
             .with_schema_url("http://example.com")
             .build();
@@ -445,7 +446,7 @@ mod tests {
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
         // these are different meters because meter names are case sensitive
-        let mut library = Scope::builder("ABC")
+        let mut library = InstrumentationScope::builder("ABC")
             .with_version("1.0.0")
             .with_schema_url("http://example.com")
             .build();

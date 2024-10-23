@@ -8,6 +8,7 @@ use opentelemetry::{
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
     },
+    InstrumentationScope,
 };
 
 use crate::metrics::{
@@ -15,7 +16,6 @@ use crate::metrics::{
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
-use crate::Scope;
 
 use super::noop::NoopSyncInstrument;
 
@@ -45,7 +45,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
 pub(crate) struct SdkMeter {
-    scope: Scope,
+    scope: InstrumentationScope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
@@ -53,7 +53,7 @@ pub(crate) struct SdkMeter {
 }
 
 impl SdkMeter {
-    pub(crate) fn new(scope: Scope, pipes: Arc<Pipelines>) -> Self {
+    pub(crate) fn new(scope: InstrumentationScope, pipes: Arc<Pipelines>) -> Self {
         let view_cache = Default::default();
 
         SdkMeter {

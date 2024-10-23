@@ -42,8 +42,18 @@ pub mod tonic {
     #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
-    impl From<(opentelemetry_sdk::Scope, Option<Cow<'static, str>>)> for InstrumentationScope {
-        fn from(data: (opentelemetry_sdk::Scope, Option<Cow<'static, str>>)) -> Self {
+    impl
+        From<(
+            opentelemetry::InstrumentationScope,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                opentelemetry::InstrumentationScope,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
             let (library, target) = data;
             if let Some(t) = target {
                 InstrumentationScope {
@@ -63,8 +73,18 @@ pub mod tonic {
         }
     }
 
-    impl From<(&opentelemetry_sdk::Scope, Option<Cow<'static, str>>)> for InstrumentationScope {
-        fn from(data: (&opentelemetry_sdk::Scope, Option<Cow<'static, str>>)) -> Self {
+    impl
+        From<(
+            &opentelemetry::InstrumentationScope,
+            Option<Cow<'static, str>>,
+        )> for InstrumentationScope
+    {
+        fn from(
+            data: (
+                &opentelemetry::InstrumentationScope,
+                Option<Cow<'static, str>>,
+            ),
+        ) -> Self {
             let (library, target) = data;
             if let Some(t) = target {
                 InstrumentationScope {

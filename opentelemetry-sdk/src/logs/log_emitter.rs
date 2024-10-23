@@ -1,10 +1,10 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource, Scope};
+use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use opentelemetry::{
     logs::{LogError, LogResult},
     otel_debug,
     trace::TraceContextExt,
-    Context,
+    Context, InstrumentationScope,
 };
 
 #[cfg(feature = "logs_level_enabled")]
@@ -48,7 +48,7 @@ pub struct LoggerProvider {
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
-    fn logger_with_scope(&self, scope: Scope) -> Self::Logger {
+    fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
@@ -217,12 +217,12 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
-    scope: Scope,
+    scope: InstrumentationScope,
     provider: LoggerProvider,
 }
 
 impl Logger {
-    pub(crate) fn new(scope: Scope, provider: LoggerProvider) -> Self {
+    pub(crate) fn new(scope: InstrumentationScope, provider: LoggerProvider) -> Self {
         Logger { scope, provider }
     }
 
@@ -232,7 +232,7 @@ impl Logger {
     }
 
     /// Instrumentation library information of this logger.
-    pub fn instrumentation_scope(&self) -> &Scope {
+    pub fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }
 }
@@ -327,7 +327,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &Scope) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -706,7 +706,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &Scope) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do.
         }
 
@@ -737,7 +737,7 @@ mod tests {
     }
 
     impl LogProcessor for CountingShutdownProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &Scope) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do
         }
 

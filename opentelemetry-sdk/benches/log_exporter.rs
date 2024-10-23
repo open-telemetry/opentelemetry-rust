@@ -18,11 +18,11 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
 
+use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
-use opentelemetry_sdk::Scope;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
@@ -65,7 +65,7 @@ impl ExportingProcessorWithFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &Scope) {
+    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
         let mut exporter = self.exporter.lock().expect("lock error");
         let logs = [(record as &LogRecord, scope)];
         futures_executor::block_on(exporter.export(LogBatch::new(&logs)));
@@ -94,7 +94,7 @@ impl ExportingProcessorWithoutFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &Scope) {
+    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
         let logs = [(record as &LogRecord, scope)];
         self.exporter
             .lock()

@@ -4,12 +4,12 @@ use crate::{
         ExportError,
     },
     trace::{SpanEvents, SpanLinks},
-    Scope,
 };
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
-use opentelemetry::trace::{
-    SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+use opentelemetry::{
+    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
+    InstrumentationScope,
 };
 use std::fmt::{Display, Formatter};
 
@@ -32,7 +32,7 @@ pub fn new_test_export_span_data() -> SpanData {
         events: SpanEvents::default(),
         links: SpanLinks::default(),
         status: Status::Unset,
-        instrumentation_scope: Scope::default(),
+        instrumentation_scope: InstrumentationScope::default(),
     }
 }
 
