@@ -169,6 +169,7 @@ impl From<opentelemetry::logs::AnyValue> for Value {
                     .collect(),
             ),
             opentelemetry::logs::AnyValue::Bytes(b) => Value::BytesValue(*b),
+            _ => unreachable!("Nonexistent value type"),
         }
     }
 }
