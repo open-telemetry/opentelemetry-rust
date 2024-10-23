@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
-    metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
+    metrics::{AsyncInstrument, SyncInstrument},
     Key, KeyValue,
 };
 
@@ -9,6 +9,8 @@ use crate::{
     instrumentation::Scope,
     metrics::{aggregation::Aggregation, internal::Measure},
 };
+
+use super::data::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -35,6 +37,35 @@ pub enum InstrumentKind {
     ///
     /// a group of instruments that record current values in an asynchronous callback.
     ObservableGauge,
+}
+
+impl InstrumentKind {
+    /// Select the [Temporality] preference based on [InstrumentKind]
+    ///
+    /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+    pub(crate) fn temporality_preference(&self, temporality: Temporality) -> Temporality {
+        match temporality {
+            Temporality::Cumulative => Temporality::Cumulative,
+            Temporality::Delta => match self {
+                Self::Counter
+                | Self::Histogram
+                | Self::ObservableCounter
+                | Self::Gauge
+                | Self::ObservableGauge => Temporality::Delta,
+                Self::UpDownCounter | InstrumentKind::ObservableUpDownCounter => {
+                    Temporality::Cumulative
+                }
+            },
+            Temporality::LowMemory => match self {
+                Self::Counter | InstrumentKind::Histogram => Temporality::Delta,
+                Self::ObservableCounter
+                | Self::Gauge
+                | Self::ObservableGauge
+                | Self::UpDownCounter
+                | Self::ObservableUpDownCounter => Temporality::Cumulative,
+            },
+        }
+    }
 }
 
 /// Describes properties an instrument is created with, also used for filtering
@@ -252,32 +283,8 @@ pub(crate) struct ResolvedMeasures<T> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
+impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
+    fn measure(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }

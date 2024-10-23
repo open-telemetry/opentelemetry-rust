@@ -100,7 +100,6 @@
 //! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
-//! * `tls-tonic`: Enable TLS.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
 //! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
 //!
@@ -126,7 +125,7 @@
 //! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
-//! use opentelemetry_sdk::metrics::reader::DefaultTemporalitySelector;
+//! use opentelemetry_sdk::metrics::data::Temporality;
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, ExportConfig};
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
@@ -184,7 +183,6 @@
 //!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
 //!         .with_period(Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
-//!         .with_temporality_selector(DefaultTemporalitySelector::new())
 //!         .build();
 //!     # }
 //!

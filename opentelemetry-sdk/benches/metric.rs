@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         new_view,
-        reader::{MetricReader, TemporalitySelector},
+        reader::MetricReader,
         Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         View,
     },
@@ -19,12 +19,6 @@ use opentelemetry_sdk::{
 
 #[derive(Clone, Debug)]
 struct SharedReader(Arc<dyn MetricReader>);
-
-impl TemporalitySelector for SharedReader {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.0.temporality(kind)
-    }
-}
 
 impl MetricReader for SharedReader {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
@@ -42,27 +36,9 @@ impl MetricReader for SharedReader {
     fn shutdown(&self) -> Result<()> {
         self.0.shutdown()
     }
-}
 
-/// Configure delta temporality for all [InstrumentKind]
-///
-/// [Temporality::Delta] will be used for all instrument kinds if this
-/// [TemporalitySelector] is used.
-#[derive(Clone, Default, Debug)]
-pub struct DeltaTemporalitySelector {
-    pub(crate) _private: (),
-}
-
-impl DeltaTemporalitySelector {
-    /// Create a new default temporality selector.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl TemporalitySelector for DeltaTemporalitySelector {
-    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Delta
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        self.0.temporality(kind)
     }
 }
 
@@ -140,7 +116,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
     } else {
         SharedReader(Arc::new(
             ManualReader::builder()
-                .with_temporality_selector(DeltaTemporalitySelector::new())
+                .with_temporality(Temporality::Delta)
                 .build(),
         ))
     };

@@ -290,6 +290,7 @@ pub trait MeterProvider {
 /// ```
 ///
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Meter {
     pub(crate) instrument_provider: Arc<dyn InstrumentProvider + Send + Sync>,
 }

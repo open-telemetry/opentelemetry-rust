@@ -14,8 +14,7 @@ use opentelemetry_sdk::{
     metrics::{
         data::{ResourceMetrics, Temporality},
         exporter::PushMetricsExporter,
-        reader::{DefaultTemporalitySelector, TemporalitySelector},
-        InstrumentKind, PeriodicReader, SdkMeterProvider,
+        PeriodicReader, SdkMeterProvider,
     },
     runtime::Runtime,
     Resource,
@@ -47,7 +46,7 @@ impl OtlpPipeline {
     {
         OtlpMetricPipeline {
             rt,
-            temporality_selector: None,
+            temporality: None,
             exporter_pipeline: NoExporterConfig(()),
             resource: None,
             period: None,
@@ -75,22 +74,15 @@ pub enum MetricsExporterBuilder {
 
 impl MetricsExporterBuilder {
     /// Build a OTLP metrics exporter with given configuration.
-    pub fn build_metrics_exporter(
-        self,
-        temporality_selector: Box<dyn TemporalitySelector>,
-    ) -> Result<MetricsExporter> {
+    pub fn build_metrics_exporter(self, temporality: Temporality) -> Result<MetricsExporter> {
         match self {
             #[cfg(feature = "grpc-tonic")]
-            MetricsExporterBuilder::Tonic(builder) => {
-                builder.build_metrics_exporter(temporality_selector)
-            }
+            MetricsExporterBuilder::Tonic(builder) => builder.build_metrics_exporter(temporality),
             #[cfg(feature = "http-proto")]
-            MetricsExporterBuilder::Http(builder) => {
-                builder.build_metrics_exporter(temporality_selector)
-            }
+            MetricsExporterBuilder::Http(builder) => builder.build_metrics_exporter(temporality),
             #[cfg(not(any(feature = "http-proto", feature = "grpc-tonic")))]
             MetricsExporterBuilder::Unconfigured => {
-                drop(temporality_selector);
+                let _ = temporality;
                 Err(opentelemetry::metrics::MetricsError::Other(
                     "no configured metrics exporter, enable `http-proto` or `grpc-tonic` feature to configure a metrics exporter".into(),
                 ))
@@ -119,7 +111,7 @@ impl From<HttpExporterBuilder> for MetricsExporterBuilder {
 /// runtime.
 pub struct OtlpMetricPipeline<RT, EB> {
     rt: RT,
-    temporality_selector: Option<Box<dyn TemporalitySelector>>,
+    temporality: Option<Temporality>,
     exporter_pipeline: EB,
     resource: Option<Resource>,
     period: Option<time::Duration>,
@@ -154,22 +146,12 @@ where
         }
     }
 
-    /// Build with the given temporality selector
-    pub fn with_temporality_selector<T: TemporalitySelector + 'static>(self, selector: T) -> Self {
+    /// Set the [Temporality] of the exporter.
+    pub fn with_temporality(self, temporality: Temporality) -> Self {
         OtlpMetricPipeline {
-            temporality_selector: Some(Box::new(selector)),
+            temporality: Some(temporality),
             ..self
         }
-    }
-
-    /// Build with delta temporality selector.
-    ///
-    /// This temporality selector is equivalent to OTLP Metrics Exporter's
-    /// `Delta` temporality preference (see [its documentation][exporter-docs]).
-    ///
-    /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
-    pub fn with_delta_temporality(self) -> Self {
-        self.with_temporality_selector(DeltaTemporalitySelector)
     }
 }
 
@@ -185,7 +167,7 @@ where
         OtlpMetricPipeline {
             exporter_pipeline: pipeline.into(),
             rt: self.rt,
-            temporality_selector: self.temporality_selector,
+            temporality: self.temporality,
             resource: self.resource,
             period: self.period,
             timeout: self.timeout,
@@ -199,10 +181,9 @@ where
 {
     /// Build MeterProvider
     pub fn build(self) -> Result<SdkMeterProvider> {
-        let exporter = self.exporter_pipeline.build_metrics_exporter(
-            self.temporality_selector
-                .unwrap_or_else(|| Box::new(DefaultTemporalitySelector::new())),
-        )?;
+        let exporter = self
+            .exporter_pipeline
+            .build_metrics_exporter(self.temporality.unwrap_or_default())?;
 
         let mut builder = PeriodicReader::builder(exporter, self.rt);
 
@@ -237,35 +218,6 @@ impl<RT, EB: Debug> Debug for OtlpMetricPipeline<RT, EB> {
     }
 }
 
-/// A temporality selector that returns [`Delta`][Temporality::Delta] for all
-/// instruments except `UpDownCounter` and `ObservableUpDownCounter`.
-///
-/// This temporality selector is equivalent to OTLP Metrics Exporter's
-/// `Delta` temporality preference (see [its documentation][exporter-docs]).
-///
-/// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
-#[derive(Debug)]
-struct DeltaTemporalitySelector;
-
-impl TemporalitySelector for DeltaTemporalitySelector {
-    #[rustfmt::skip]
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        match kind {
-            InstrumentKind::Counter
-            | InstrumentKind::Histogram
-            | InstrumentKind::ObservableCounter
-            | InstrumentKind::Gauge
-            | InstrumentKind::ObservableGauge => {
-                Temporality::Delta
-            }
-            InstrumentKind::UpDownCounter
-            | InstrumentKind::ObservableUpDownCounter => {
-                Temporality::Cumulative
-            }
-        }
-    }
-}
-
 /// An interface for OTLP metrics clients
 #[async_trait]
 pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
@@ -276,18 +228,12 @@ pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
 /// Export metrics in OTEL format.
 pub struct MetricsExporter {
     client: Box<dyn MetricsClient>,
-    temporality_selector: Box<dyn TemporalitySelector>,
+    temporality: Temporality,
 }
 
 impl Debug for MetricsExporter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MetricsExporter").finish()
-    }
-}
-
-impl TemporalitySelector for MetricsExporter {
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.temporality_selector.temporality(kind)
     }
 }
 
@@ -305,17 +251,18 @@ impl PushMetricsExporter for MetricsExporter {
     fn shutdown(&self) -> Result<()> {
         self.client.shutdown()
     }
+
+    fn temporality(&self) -> Temporality {
+        self.temporality
+    }
 }
 
 impl MetricsExporter {
     /// Create a new metrics exporter
-    pub fn new(
-        client: impl MetricsClient,
-        temporality_selector: Box<dyn TemporalitySelector>,
-    ) -> MetricsExporter {
+    pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricsExporter {
         MetricsExporter {
             client: Box::new(client),
-            temporality_selector,
+            temporality,
         }
     }
 }

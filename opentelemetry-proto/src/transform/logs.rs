@@ -51,6 +51,7 @@ pub mod tonic {
                         .collect(),
                 }),
                 LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
+                _ => unreachable!("Nonexistent value type"),
             }
         }
     }

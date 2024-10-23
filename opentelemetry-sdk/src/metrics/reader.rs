@@ -5,8 +5,8 @@ use opentelemetry::metrics::Result;
 
 use super::{
     data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
     pipeline::Pipeline,
+    InstrumentKind,
 };
 
 /// The interface used between the SDK and an exporter.
@@ -23,7 +23,7 @@ use super::{
 ///
 /// Pull-based exporters will typically implement `MetricReader` themselves,
 /// since they read on demand.
-pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static {
+pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     /// Registers a [MetricReader] with a [Pipeline].
     ///
     /// The pipeline argument allows the `MetricReader` to signal the sdk to collect
@@ -51,38 +51,16 @@ pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
     fn shutdown(&self) -> Result<()>;
+
+    /// The output temporality, a function of instrument kind.
+    /// This SHOULD be obtained from the exporter.
+    ///
+    /// If not configured, the Cumulative temporality SHOULD be used.
+    fn temporality(&self, kind: InstrumentKind) -> Temporality;
 }
 
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
     fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
-}
-
-/// An interface for selecting the temporality for an [InstrumentKind].
-pub trait TemporalitySelector: Send + Sync {
-    /// Selects the temporality to use based on the [InstrumentKind].
-    fn temporality(&self, kind: InstrumentKind) -> Temporality;
-}
-
-/// The default temporality used if not specified for a given [InstrumentKind].
-///
-/// [Temporality::Cumulative] will be used for all instrument kinds if this
-/// [TemporalitySelector] is used.
-#[derive(Clone, Default, Debug)]
-pub struct DefaultTemporalitySelector {
-    pub(crate) _private: (),
-}
-
-impl DefaultTemporalitySelector {
-    /// Create a new default temporality selector.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl TemporalitySelector for DefaultTemporalitySelector {
-    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Cumulative
-    }
 }

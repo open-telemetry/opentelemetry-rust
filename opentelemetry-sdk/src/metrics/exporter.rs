@@ -3,13 +3,15 @@ use async_trait::async_trait;
 
 use opentelemetry::metrics::Result;
 
-use crate::metrics::{data::ResourceMetrics, reader::TemporalitySelector};
+use crate::metrics::data::ResourceMetrics;
+
+use super::data::Temporality;
 
 /// Exporter handles the delivery of metric data to external receivers.
 ///
 /// This is the final component in the metric push pipeline.
 #[async_trait]
-pub trait PushMetricsExporter: TemporalitySelector + Send + Sync + 'static {
+pub trait PushMetricsExporter: Send + Sync + 'static {
     /// Export serializes and transmits metric data to a receiver.
     ///
     /// All retry logic must be contained in this function. The SDK does not
@@ -26,4 +28,7 @@ pub trait PushMetricsExporter: TemporalitySelector + Send + Sync + 'static {
     /// After Shutdown is called, calls to Export will perform no operation and
     /// instead will return an error indicating the shutdown state.
     fn shutdown(&self) -> Result<()>;
+
+    /// Access the [Temporality] of the MetricExporter.
+    fn temporality(&self) -> Temporality;
 }

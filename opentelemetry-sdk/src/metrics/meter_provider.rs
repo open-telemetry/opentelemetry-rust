@@ -8,13 +8,15 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{noop::NoopMeter, Meter, MeterProvider, MetricsError, Result},
+    metrics::{Meter, MeterProvider, MetricsError, Result},
     otel_error, KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
 
-use super::{meter::SdkMeter, pipeline::Pipelines, reader::MetricReader, view::View};
+use super::{
+    meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
+};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
@@ -31,11 +33,11 @@ pub struct SdkMeterProvider {
     inner: Arc<SdkMeterProviderInner>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
-    meters: Arc<Mutex<HashMap<Scope, Arc<SdkMeter>>>>,
-    is_shutdown: Arc<AtomicBool>,
+    meters: Mutex<HashMap<Scope, Arc<SdkMeter>>>,
+    is_shutdown: AtomicBool,
 }
 
 impl Default for SdkMeterProvider {
@@ -235,7 +237,7 @@ impl MeterProviderBuilder {
                     self.views,
                 )),
                 meters: Default::default(),
-                is_shutdown: Arc::new(AtomicBool::new(false)),
+                is_shutdown: AtomicBool::new(false),
             }),
         }
     }

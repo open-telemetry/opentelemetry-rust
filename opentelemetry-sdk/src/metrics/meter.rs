@@ -3,7 +3,6 @@ use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
     metrics::{
-        noop::{NoopAsyncInstrument, NoopSyncInstrument},
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
@@ -17,6 +16,8 @@ use crate::metrics::{
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
 };
+
+use super::noop::NoopSyncInstrument;
 
 // maximum length of instrument name
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
@@ -107,7 +108,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableCounter.ValidationError", error = format!("{}", err));
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableCounter::new());
         }
 
         let ms = resolver.measures(
@@ -120,7 +121,7 @@ impl SdkMeter {
 
         if ms.is_empty() {
             otel_error!(name: "SdkMeter.CreateObservableCounter.Error", error = format!("{}", MetricsError::Other("no measures found".into())));
-            return Ok(ObservableCounter::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableCounter::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -131,7 +132,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableCounter::new(observable))
+        Ok(ObservableCounter::new())
     }
 
     fn create_observable_updown_counter<T>(
@@ -145,9 +146,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.ValidationError", error = format!("{}", err));
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
+            return Ok(ObservableUpDownCounter::new());
         }
 
         let ms = resolver.measures(
@@ -160,9 +159,7 @@ impl SdkMeter {
 
         if ms.is_empty() {
             otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.Error", error = format!("{}",MetricsError::Other("no measures found".into())));
-            return Ok(ObservableUpDownCounter::new(Arc::new(
-                NoopAsyncInstrument::new(),
-            )));
+            return Ok(ObservableUpDownCounter::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -173,7 +170,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableUpDownCounter::new(observable))
+        Ok(ObservableUpDownCounter::new())
     }
 
     fn create_observable_gauge<T>(
@@ -187,7 +184,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableGauge.ValidationError", error = format!("{}", err));
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableGauge::new());
         }
 
         let ms = resolver.measures(
@@ -200,7 +197,7 @@ impl SdkMeter {
 
         if ms.is_empty() {
             otel_error!(name: "SdkMeter.CreateObservableGauge.Error",error = format!("{}", MetricsError::Other("no measures found".into())));
-            return Ok(ObservableGauge::new(Arc::new(NoopAsyncInstrument::new())));
+            return Ok(ObservableGauge::new());
         }
 
         let observable = Arc::new(Observable::new(ms));
@@ -211,7 +208,7 @@ impl SdkMeter {
                 .register_callback(move || callback(cb_inst.as_ref()));
         }
 
-        Ok(ObservableGauge::new(observable))
+        Ok(ObservableGauge::new())
     }
 
     fn create_updown_counter<T>(
