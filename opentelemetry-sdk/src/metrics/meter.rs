@@ -69,14 +69,14 @@ impl SdkMeter {
         &self,
         builder: InstrumentBuilder<'_, Counter<T>>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<Counter<T>>
+    ) -> Counter<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateCounter.ValidationError", error = format!("{}", err));
-            return Ok(Counter::new(Arc::new(NoopSyncInstrument::new())));
+            return Counter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
@@ -89,10 +89,10 @@ impl SdkMeter {
             )
             .map(|i| Counter::new(Arc::new(i)))
         {
-            Ok(counter) => Ok(counter),
+            Ok(counter) => counter,
             Err(err) => {
                 otel_error!(name: "SdkMeter.CreateCounter.Error", error = format!("{}", err));
-                Ok(Counter::new(Arc::new(NoopSyncInstrument::new())))
+                Counter::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
     }
@@ -101,128 +101,140 @@ impl SdkMeter {
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<T>, T>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<ObservableCounter<T>>
+    ) -> ObservableCounter<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableCounter.ValidationError", error = format!("{}", err));
-            return Ok(ObservableCounter::new());
+            return ObservableCounter::new();
         }
 
-        let ms = resolver.measures(
+        match resolver.measures(
             InstrumentKind::ObservableCounter,
             builder.name,
             builder.description,
             builder.unit,
             None,
-        )?;
+        ) {
+            Ok(ms) => {
+                if ms.is_empty() {
+                    otel_error!(name: "SdkMeter.CreateObservableCounter.Error", error = format!("{}", MetricsError::Other("no measures found".into())));
+                    return ObservableCounter::new();
+                }
+                let observable = Arc::new(Observable::new(ms));
+                for callback in builder.callbacks {
+                    let cb_inst = Arc::clone(&observable);
+                    self.pipes
+                        .register_callback(move || callback(cb_inst.as_ref()));
+                }
 
-        if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableCounter.Error", error = format!("{}", MetricsError::Other("no measures found".into())));
-            return Ok(ObservableCounter::new());
+                ObservableCounter::new()
+            }
+            Err(err) => {
+                global::handle_error(err);
+                ObservableCounter::new()
+            }
         }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableCounter::new())
     }
 
     fn create_observable_updown_counter<T>(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<T>, T>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<ObservableUpDownCounter<T>>
+    ) -> ObservableUpDownCounter<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.ValidationError", error = format!("{}", err));
-            return Ok(ObservableUpDownCounter::new());
+            return ObservableUpDownCounter::new();
         }
 
-        let ms = resolver.measures(
+        match resolver.measures(
             InstrumentKind::ObservableUpDownCounter,
             builder.name,
             builder.description,
             builder.unit,
             None,
-        )?;
+        ) {
+            Ok(ms) => {
+                if ms.is_empty() {
+                    otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.Error", error = format!("{}",MetricsError::Other("no measures found".into())));
+                    return ObservableUpDownCounter::new();
+                }
+                let observable = Arc::new(Observable::new(ms));
+                for callback in builder.callbacks {
+                    let cb_inst = Arc::clone(&observable);
+                    self.pipes
+                        .register_callback(move || callback(cb_inst.as_ref()));
+                }
 
-        if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableUpDownCounter.Error", error = format!("{}",MetricsError::Other("no measures found".into())));
-            return Ok(ObservableUpDownCounter::new());
+                ObservableUpDownCounter::new()
+            }
+            Err(err) => {
+                global::handle_error(err);
+                ObservableUpDownCounter::new()
+            }
         }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableUpDownCounter::new())
     }
 
     fn create_observable_gauge<T>(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<T>, T>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<ObservableGauge<T>>
+    ) -> ObservableGauge<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateObservableGauge.ValidationError", error = format!("{}", err));
-            return Ok(ObservableGauge::new());
+            return ObservableGauge::new();
         }
 
-        let ms = resolver.measures(
+        match resolver.measures(
             InstrumentKind::ObservableGauge,
             builder.name,
             builder.description,
             builder.unit,
             None,
-        )?;
+        ) {
+            Ok(ms) => {
+                if ms.is_empty() {
+                    otel_error!(name: "SdkMeter.CreateObservableGauge.Error",error = format!("{}", MetricsError::Other("no measures found".into())));
+                    return ObservableGauge::new();
+                }
+                let observable = Arc::new(Observable::new(ms));
+                for callback in builder.callbacks {
+                    let cb_inst = Arc::clone(&observable);
+                    self.pipes
+                        .register_callback(move || callback(cb_inst.as_ref()));
+                }
 
-        if ms.is_empty() {
-            otel_error!(name: "SdkMeter.CreateObservableGauge.Error",error = format!("{}", MetricsError::Other("no measures found".into())));
-            return Ok(ObservableGauge::new());
+                ObservableGauge::new()
+            }
+            Err(err) => {
+                global::handle_error(err);
+                ObservableGauge::new()
+            }
         }
-
-        let observable = Arc::new(Observable::new(ms));
-
-        for callback in builder.callbacks {
-            let cb_inst = Arc::clone(&observable);
-            self.pipes
-                .register_callback(move || callback(cb_inst.as_ref()));
-        }
-
-        Ok(ObservableGauge::new())
     }
 
     fn create_updown_counter<T>(
         &self,
         builder: InstrumentBuilder<'_, UpDownCounter<T>>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<UpDownCounter<T>>
+    ) -> UpDownCounter<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateUpDownCounter.ValidationError", error = format!("{}",err));
-            return Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())));
+            return UpDownCounter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
@@ -235,10 +247,10 @@ impl SdkMeter {
             )
             .map(|i| UpDownCounter::new(Arc::new(i)))
         {
-            Ok(updown_counter) => Ok(updown_counter),
+            Ok(updown_counter) => updown_counter,
             Err(err) => {
                 otel_error!(name: "SdkMeter.CreateUpDownCounter.Error", error = format!("{}", err));
-                Ok(UpDownCounter::new(Arc::new(NoopSyncInstrument::new())))
+                UpDownCounter::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
     }
@@ -247,14 +259,14 @@ impl SdkMeter {
         &self,
         builder: InstrumentBuilder<'_, Gauge<T>>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<Gauge<T>>
+    ) -> Gauge<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateGauge.ValidationError", error = format!("{}", err));
-            return Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())));
+            return Gauge::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
@@ -267,10 +279,10 @@ impl SdkMeter {
             )
             .map(|i| Gauge::new(Arc::new(i)))
         {
-            Ok(gauge) => Ok(gauge),
+            Ok(gauge) => gauge,
             Err(err) => {
                 otel_error!(name: "SdkMeter.CreateGauge.Error", error = format!("{}",err));
-                Ok(Gauge::new(Arc::new(NoopSyncInstrument::new())))
+                Gauge::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
     }
@@ -279,14 +291,14 @@ impl SdkMeter {
         &self,
         builder: HistogramBuilder<'_, Histogram<T>>,
         resolver: &InstrumentResolver<'_, T>,
-    ) -> Result<Histogram<T>>
+    ) -> Histogram<T>
     where
         T: Number,
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(name: "SdkMeter.CreateHistogram.ValidationError", error = format!("{}", err));
-            return Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())));
+            return Histogram::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
@@ -299,10 +311,10 @@ impl SdkMeter {
             )
             .map(|i| Histogram::new(Arc::new(i)))
         {
-            Ok(histogram) => Ok(histogram),
+            Ok(histogram) => histogram,
             Err(err) => {
                 otel_error!(name: "SdkMeter.CreateHistogram.Error", error = format!("{}",err));
-                Ok(Histogram::new(Arc::new(NoopSyncInstrument::new())))
+                Histogram::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
     }
@@ -310,12 +322,12 @@ impl SdkMeter {
 
 #[doc(hidden)]
 impl InstrumentProvider for SdkMeter {
-    fn u64_counter(&self, builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Counter<u64>> {
+    fn u64_counter(&self, builder: InstrumentBuilder<'_, Counter<u64>>) -> Counter<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_counter(builder, &resolver)
     }
 
-    fn f64_counter(&self, builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Counter<f64>> {
+    fn f64_counter(&self, builder: InstrumentBuilder<'_, Counter<f64>>) -> Counter<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_counter(builder, &resolver)
     }
@@ -323,7 +335,7 @@ impl InstrumentProvider for SdkMeter {
     fn u64_observable_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
-    ) -> Result<ObservableCounter<u64>> {
+    ) -> ObservableCounter<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_observable_counter(builder, &resolver)
     }
@@ -331,7 +343,7 @@ impl InstrumentProvider for SdkMeter {
     fn f64_observable_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
-    ) -> Result<ObservableCounter<f64>> {
+    ) -> ObservableCounter<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_observable_counter(builder, &resolver)
     }
@@ -339,7 +351,7 @@ impl InstrumentProvider for SdkMeter {
     fn i64_up_down_counter(
         &self,
         builder: InstrumentBuilder<'_, UpDownCounter<i64>>,
-    ) -> Result<UpDownCounter<i64>> {
+    ) -> UpDownCounter<i64> {
         let resolver = InstrumentResolver::new(self, &self.i64_resolver);
         self.create_updown_counter(builder, &resolver)
     }
@@ -347,7 +359,7 @@ impl InstrumentProvider for SdkMeter {
     fn f64_up_down_counter(
         &self,
         builder: InstrumentBuilder<'_, UpDownCounter<f64>>,
-    ) -> Result<UpDownCounter<f64>> {
+    ) -> UpDownCounter<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_updown_counter(builder, &resolver)
     }
@@ -355,7 +367,7 @@ impl InstrumentProvider for SdkMeter {
     fn i64_observable_up_down_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<i64>, i64>,
-    ) -> Result<ObservableUpDownCounter<i64>> {
+    ) -> ObservableUpDownCounter<i64> {
         let resolver = InstrumentResolver::new(self, &self.i64_resolver);
         self.create_observable_updown_counter(builder, &resolver)
     }
@@ -363,22 +375,22 @@ impl InstrumentProvider for SdkMeter {
     fn f64_observable_up_down_counter(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableUpDownCounter<f64>, f64>,
-    ) -> Result<ObservableUpDownCounter<f64>> {
+    ) -> ObservableUpDownCounter<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_observable_updown_counter(builder, &resolver)
     }
 
-    fn u64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Gauge<u64>> {
+    fn u64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<u64>>) -> Gauge<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_gauge(builder, &resolver)
     }
 
-    fn f64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Gauge<f64>> {
+    fn f64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<f64>>) -> Gauge<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_gauge(builder, &resolver)
     }
 
-    fn i64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Gauge<i64>> {
+    fn i64_gauge(&self, builder: InstrumentBuilder<'_, Gauge<i64>>) -> Gauge<i64> {
         let resolver = InstrumentResolver::new(self, &self.i64_resolver);
         self.create_gauge(builder, &resolver)
     }
@@ -386,7 +398,7 @@ impl InstrumentProvider for SdkMeter {
     fn u64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
-    ) -> Result<ObservableGauge<u64>> {
+    ) -> ObservableGauge<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_observable_gauge(builder, &resolver)
     }
@@ -394,7 +406,7 @@ impl InstrumentProvider for SdkMeter {
     fn i64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
-    ) -> Result<ObservableGauge<i64>> {
+    ) -> ObservableGauge<i64> {
         let resolver = InstrumentResolver::new(self, &self.i64_resolver);
         self.create_observable_gauge(builder, &resolver)
     }
@@ -402,23 +414,17 @@ impl InstrumentProvider for SdkMeter {
     fn f64_observable_gauge(
         &self,
         builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
-    ) -> Result<ObservableGauge<f64>> {
+    ) -> ObservableGauge<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_observable_gauge(builder, &resolver)
     }
 
-    fn f64_histogram(
-        &self,
-        builder: HistogramBuilder<'_, Histogram<f64>>,
-    ) -> Result<Histogram<f64>> {
+    fn f64_histogram(&self, builder: HistogramBuilder<'_, Histogram<f64>>) -> Histogram<f64> {
         let resolver = InstrumentResolver::new(self, &self.f64_resolver);
         self.create_histogram(builder, &resolver)
     }
 
-    fn u64_histogram(
-        &self,
-        builder: HistogramBuilder<'_, Histogram<u64>>,
-    ) -> Result<Histogram<u64>> {
+    fn u64_histogram(&self, builder: HistogramBuilder<'_, Histogram<u64>>) -> Histogram<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_histogram(builder, &resolver)
     }
