@@ -152,7 +152,9 @@ pub mod tonic {
                         Array::I64(vals) => array_into_proto(vals),
                         Array::F64(vals) => array_into_proto(vals),
                         Array::String(vals) => array_into_proto(vals),
+                        _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
                     })),
+                    _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added
                 },
             }
         }
