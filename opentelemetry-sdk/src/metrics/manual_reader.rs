@@ -76,8 +76,11 @@ impl MetricReader for ManualReader {
             // Only register once. If producer is already set, do nothing.
             if inner.sdk_producer.is_none() {
                 inner.sdk_producer = Some(pipeline);
-            } else {
-                otel_debug!(name: "ManualReader.RegisterPipeline.DuplicateRegistration");
+            }  else {
+                otel_debug!(
+                    name: "ManualReader.RegisterPipeline.DuplicateRegistration",
+                    error = "The pipeline is already registered to the Reader. Registering pipeline multiple times is not allowed."
+                );
             }
         });
     }

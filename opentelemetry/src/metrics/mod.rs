@@ -1,5 +1,4 @@
 //! # OpenTelemetry Metrics API
-
 use std::hash::{Hash, Hasher};
 use std::result;
 use std::sync::Arc;
@@ -34,9 +33,18 @@ pub enum MetricsError {
     /// Invalid configuration
     #[error("Config error {0}")]
     Config(String),
+    /// Timeout
+    #[error("Metrics reader {0} failed with timeout. Max configured timeout: {1} ns")]
+    ExportTimeout(String, u128),
     /// Fail to export metrics
     #[error("Metrics exporter {} failed with {0}", .0.exporter_name())]
     ExportErr(Box<dyn ExportError>),
+    /// Metrics Reader shutdown
+    #[error("Metrics reader is shutdown")]
+    ReaderShutdown,
+    /// Metrics reader is not registered
+    #[error("Metrics reader is not registered")]
+    ReaderNotRegistered,
     /// Invalid instrument configuration such invalid instrument name, invalid instrument description, invalid instrument unit, etc.
     /// See [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#general-characteristics)
     /// for full list of requirements.
