@@ -79,7 +79,7 @@ impl SdkMeter {
                 name: "SdkMeter.CreateCounter.InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                error = format!("Measurements from the instrument will be ignored. Reason: {}", err));
+                error = format!("Measurements from the counter will be ignored. Reason: {}", err));
             return Counter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
