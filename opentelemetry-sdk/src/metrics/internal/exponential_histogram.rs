@@ -100,7 +100,11 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             if (self.scale - scale_delta as i8) < EXPO_MIN_SCALE {
                 // With a scale of -10 there is only two buckets for the whole range of f64 values.
                 // This can only happen if there is a max size of 1.
-                //TBD - check for throttling requirements if can happen too frequent.
+
+                // This error is logged when a measurement is dropped because its value is either too high
+                // or too low, falling outside the allowable range defined by the scale and max_size.
+                // If these values are expected, the user should adjust the histogram configuration
+                // to accommodate the range.
                 otel_error!(
                     name: "ExponentialHistogramDataPoint.Scale.Underflow",
                     current_scale = self.scale,
@@ -109,6 +113,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
                     min_scale = EXPO_MIN_SCALE,
                     record_min_max = self.record_min_max,
                     record_sum = self.record_sum,
+                    value = format!("{:?}", v),
                     error = format!("The measurement will be dropped due to scale underflow. Check the histogram configuration")
                 );
                 return;
