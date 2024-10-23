@@ -200,6 +200,10 @@ pub enum TraceError {
     #[error("Exporting timed out after {} seconds", .0.as_secs())]
     ExportTimedOut(time::Duration),
 
+    /// already shutdown error
+    #[error("TracerProvider already shutdown")]
+    TracerProviderAlreadyShutdown,
+
     /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
