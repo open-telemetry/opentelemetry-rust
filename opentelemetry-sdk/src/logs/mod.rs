@@ -8,16 +8,16 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
+use opentelemetry::InstrumentationScope;
 pub use record::{LogRecord, TraceContext};
 
-use opentelemetry::InstrumentationLibrary;
 /// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
 pub struct LogData {
     /// Log record
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
+    pub instrumentation: InstrumentationScope,
 }
 
 #[cfg(all(test, feature = "testing"))]
@@ -104,38 +104,17 @@ mod tests {
     #[test]
     fn logger_attributes() {
         let provider = LoggerProvider::builder().build();
-        let logger = provider
-            .logger_builder("test_logger")
+        let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
-        let instrumentation_library = logger.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.name, "test_logger");
-        assert_eq!(
-            instrumentation_library.schema_url,
-            Some("https://opentelemetry.io/schema/1.0.0".into())
-        );
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
-    }
 
-    #[test]
-    #[allow(deprecated)]
-    fn versioned_logger_options() {
-        let provider = LoggerProvider::builder().build();
-        let logger = provider.versioned_logger(
-            "test_logger",
-            Some("v1.2.3".into()),
-            Some("https://opentelemetry.io/schema/1.0.0".into()),
-            Some(vec![(KeyValue::new("test_k", "test_v"))]),
-        );
-        let instrumentation_library = logger.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
+        let logger = provider.logger_with_scope(scope);
+        let instrumentation_scope = logger.instrumentation_scope();
+        let attributes = &instrumentation_scope.attributes;
+        assert_eq!(instrumentation_scope.name, "test_logger");
         assert_eq!(
-            instrumentation_library.schema_url,
+            instrumentation_scope.schema_url,
             Some("https://opentelemetry.io/schema/1.0.0".into())
         );
         assert_eq!(attributes.len(), 1);

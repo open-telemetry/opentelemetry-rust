@@ -32,7 +32,7 @@ fn get_span_data() -> Vec<SpanData> {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_lib: Default::default(),
+            instrumentation_scope: Default::default(),
         })
         .collect::<Vec<SpanData>>()
 }

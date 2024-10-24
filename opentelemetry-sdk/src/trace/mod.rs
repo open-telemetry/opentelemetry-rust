@@ -40,15 +40,16 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+
     use super::*;
     use crate::{
         testing::trace::InMemorySpanExporterBuilder,
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
-    use opentelemetry::testing::trace::TestSpan;
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
     };
+    use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
@@ -82,7 +83,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name_updated");
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -117,7 +118,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -154,7 +155,7 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.span_kind, SpanKind::Server);
-        assert_eq!(span.instrumentation_lib.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name, "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -326,35 +327,13 @@ mod tests {
     #[test]
     fn tracer_attributes() {
         let provider = TracerProvider::builder().build();
-        let tracer = provider
-            .tracer_builder("test_tracer")
+        let scope = InstrumentationScope::builder("basic")
             .with_attributes(vec![KeyValue::new("test_k", "test_v")])
             .build();
-        let instrumentation_library = tracer.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
-    }
 
-    #[test]
-    #[allow(deprecated)]
-    fn versioned_tracer_options() {
-        let provider = TracerProvider::builder().build();
-        let tracer = provider.versioned_tracer(
-            "test_tracer",
-            Some(String::from("v1.2.3")),
-            Some(String::from("https://opentelemetry.io/schema/1.0.0")),
-            Some(vec![(KeyValue::new("test_k", "test_v"))]),
-        );
-        let instrumentation_library = tracer.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.name, "test_tracer");
-        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
-        assert_eq!(
-            instrumentation_library.schema_url,
-            Some("https://opentelemetry.io/schema/1.0.0".into())
-        );
+        let tracer = provider.tracer_with_scope(scope);
+        let instrumentation_scope = tracer.instrumentation_scope();
+        let attributes = &instrumentation_scope.attributes;
         assert_eq!(attributes.len(), 1);
         assert_eq!(attributes[0].key, "test_k".into());
         assert_eq!(attributes[0].value, "test_v".into());

@@ -204,7 +204,7 @@ mod common;
 pub mod testing;
 
 pub use common::{
-    Array, ExportError, InstrumentationLibrary, InstrumentationLibraryBuilder, Key, KeyValue,
+    Array, ExportError, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue,
     StringValue, Value,
 };
 

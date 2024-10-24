@@ -741,7 +741,7 @@ mod tests {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_lib: Default::default(),
+            instrumentation_scope: Default::default(),
         };
         processor.on_end(unsampled);
         assert!(exporter.get_finished_spans().unwrap().is_empty());

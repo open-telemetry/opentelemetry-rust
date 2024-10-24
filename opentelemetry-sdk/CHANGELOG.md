@@ -19,6 +19,12 @@ Now:
 ```rust
 let counter = meter.u64_counter("my_counter").build();
 ```
+- **BREAKING**: [#2220](https://github.com/open-telemetry/opentelemetry-rust/pull/2220)
+  - Removed `InstrumentationLibrary` re-export and its `Scope` alias, use `opentelemetry::InstrumentationLibrary` instead.
+  - Unified builders across signals
+    - Removed deprecated `LoggerProvider::versioned_logger`, `TracerProvider::versioned_tracer`
+    - Removed `MeterProvider::versioned_meter`
+    - Replaced these methods with `LoggerProvider::logger_with_scope`, `TracerProvider::logger_with_scope`, `MeterProvider::meter_with_scope`
 
 ## v0.26.0
 Released 2024-Sep-30

@@ -6,7 +6,7 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
     ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
-use crate::KeyValue;
+use crate::InstrumentationScope;
 
 use super::{Counter, Histogram, HistogramBuilder};
 
@@ -32,32 +32,36 @@ pub trait MeterProvider {
     ///
     /// // meter used in applications
     /// let meter = provider.meter("my_app");
-    ///
-    /// // meter used in libraries/crates that optionally includes version and schema url
-    /// let meter = provider.versioned_meter(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
-    ///     Some(vec![KeyValue::new("key", "value")]),
-    /// );
     /// ```
     fn meter(&self, name: &'static str) -> Meter {
-        self.versioned_meter(name, None, None, None)
+        let scope = InstrumentationScope::builder(name).build();
+        self.meter_with_scope(scope)
     }
 
-    /// Returns a new versioned meter with a given name.
+    /// Returns a new [Meter] with the given instrumentation scope.
     ///
-    /// The instrumentation name must be the name of the library providing instrumentation. This
-    /// name may be the same as the instrumented code only if that code provides built-in
-    /// instrumentation. If the instrumentation name is empty, then a implementation defined
-    /// default name will be used instead.
-    fn versioned_meter(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter;
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use opentelemetry::InstrumentationScope;
+    /// use opentelemetry::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::default();
+    ///
+    /// // meter used in applications/binaries
+    /// let meter = provider.meter("my_app");
+    ///
+    /// // meter used in libraries/crates that optionally includes version and schema url
+    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+    ///     .with_version(env!("CARGO_PKG_VERSION"))
+    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .build();
+    ///
+    /// let meter = provider.meter_with_scope(scope);
+    /// ```
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter;
 }
 
 /// Provides the ability to create instruments for recording measurements or

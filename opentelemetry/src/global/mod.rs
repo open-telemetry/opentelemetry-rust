@@ -50,16 +50,21 @@
 //! ```
 //! # #[cfg(feature="trace")]
 //! # {
-//! use opentelemetry::trace::{Tracer, TracerProvider};
+//! use std::sync::Arc;
+//! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
+//! use opentelemetry::InstrumentationScope;
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
-//!     let tracer = global::tracer_provider().tracer_builder("my-library-name").
-//!         with_version(env!("CARGO_PKG_VERSION")).
-//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
-//!         build();
+//!
+//!     let scope = InstrumentationScope::builder("my_library-name")
+//!         .with_version(env!("CARGO_PKG_VERSION"))
+//!         .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+//!         .build();
+//!
+//!     let tracer = global::tracer_with_scope(scope);
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...

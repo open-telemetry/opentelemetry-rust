@@ -143,7 +143,7 @@ pub mod tonic {
         From<(
             (
                 &opentelemetry_sdk::logs::LogRecord,
-                &opentelemetry::InstrumentationLibrary,
+                &opentelemetry::InstrumentationScope,
             ),
             &ResourceAttributesWithSchema,
         )> for ResourceLogs
@@ -152,7 +152,7 @@ pub mod tonic {
             data: (
                 (
                     &opentelemetry_sdk::logs::LogRecord,
-                    &opentelemetry::InstrumentationLibrary,
+                    &opentelemetry::InstrumentationScope,
                 ),
                 &ResourceAttributesWithSchema,
             ),
@@ -189,7 +189,7 @@ pub mod tonic {
                 Cow<'static, str>,
                 Vec<(
                     &opentelemetry_sdk::logs::LogRecord,
-                    &opentelemetry::InstrumentationLibrary,
+                    &opentelemetry::InstrumentationScope,
                 )>,
             >,
              (log_record, instrumentation)| {
@@ -235,19 +235,19 @@ pub mod tonic {
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::InstrumentationLibrary;
+    use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
     use std::time::SystemTime;
 
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
-    ) -> (LogRecord, InstrumentationLibrary) {
+    ) -> (LogRecord, InstrumentationScope) {
         let mut logrecord = LogRecord::default();
         logrecord.set_timestamp(SystemTime::now());
         logrecord.set_observed_timestamp(SystemTime::now());
         let instrumentation =
-            InstrumentationLibrary::builder(instrumentation_name.to_string()).build();
+            InstrumentationScope::builder(instrumentation_name.to_string()).build();
         (logrecord, instrumentation)
     }
 

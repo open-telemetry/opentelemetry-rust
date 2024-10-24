@@ -6,9 +6,9 @@
 use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{self, TraceContextExt as _},
-    Context, InstrumentationLibrary, KeyValue,
+    Context, InstrumentationScope, KeyValue,
 };
-use std::{borrow::Cow, sync::Arc, time::SystemTime};
+use std::{borrow::Cow, time::SystemTime};
 
 /// A no-op instance of a `TracerProvider`.
 #[derive(Clone, Debug, Default)]
@@ -27,7 +27,7 @@ impl trace::TracerProvider for NoopTracerProvider {
     type Tracer = NoopTracer;
 
     /// Returns a new `NoopTracer` instance.
-    fn library_tracer(&self, _library: Arc<InstrumentationLibrary>) -> Self::Tracer {
+    fn tracer_with_scope(&self, _scope: InstrumentationScope) -> Self::Tracer {
         NoopTracer::new()
     }
 }

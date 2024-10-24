@@ -16,7 +16,7 @@
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::LogResult;
-use opentelemetry::{InstrumentationLibrary, KeyValue};
+use opentelemetry::{InstrumentationScope, KeyValue};
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
@@ -55,7 +55,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
+    fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
         // no-op
     }
 

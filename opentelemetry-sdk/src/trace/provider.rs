@@ -66,17 +66,16 @@ use crate::runtime::RuntimeChannel;
 use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
+use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
-use crate::{InstrumentationLibrary, Resource};
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
+use opentelemetry::InstrumentationScope;
 use opentelemetry::{otel_debug, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// Default tracer name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
@@ -248,46 +247,29 @@ impl TracerProvider {
     }
 }
 
+/// Default tracer name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
+
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
-    /// Create a new versioned `Tracer` instance.
-    fn versioned_tracer(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
-    ) -> Self::Tracer {
-        // Use default value if name is invalid empty string
-        let name = name.into();
-        let component_name = if name.is_empty() {
-            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        } else {
-            name
+    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+        let mut name = name.into();
+
+        if name.is_empty() {
+            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         };
 
-        let mut builder = self.tracer_builder(component_name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        builder.build()
+        let scope = InstrumentationScope::builder(name).build();
+        self.tracer_with_scope(scope)
     }
 
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(library, NOOP_TRACER_PROVIDER.clone());
+            return Tracer::new(scope, NOOP_TRACER_PROVIDER.clone());
         }
-        Tracer::new(library, self.clone())
+        Tracer::new(scope, self.clone())
     }
 }
 
