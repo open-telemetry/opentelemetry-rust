@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    otel_debug, otel_error, KeyValue
+    otel_debug, otel_error, KeyValue,
 };
 
 use crate::{instrumentation::Scope, Resource};
