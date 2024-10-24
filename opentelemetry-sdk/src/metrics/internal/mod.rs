@@ -136,7 +136,6 @@ impl<AU: AtomicallyUpdate<T>, T: Number, O: Operation> ValueMap<AU, T, O> {
             O::update_tracker(&*new_tracker, measurement, index);
 
             // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
