@@ -124,7 +124,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                mesage = "Measurements from this observable counter will be ignored.",
+                message = "Measurements from this observable counter will be ignored.",
                 reason = format!("{}", err));
             return ObservableCounter::new();
         }
