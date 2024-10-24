@@ -5,20 +5,26 @@ use log::{info, Level};
 use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_otlp::{LogExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
 use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+    let exporter = LogExporter::builder()
+        .with_tonic()
+        .with_endpoint("0.0.0.0:4317")
+        .build()?;
+
+    Ok(LoggerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(Resource::new(vec![KeyValue::new(
             opentelemetry_semantic_conventions::resource::SERVICE_NAME,
             "logs-integration-test",
         )]))
-        .install_batch(runtime::Tokio)
+        .build())
 }
 
 pub async fn logs() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {

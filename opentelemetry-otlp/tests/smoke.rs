@@ -2,7 +2,7 @@ use futures_util::StreamExt;
 use opentelemetry::global;
 use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
-use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_server::{TraceService, TraceServiceServer},
     ExportTraceServiceRequest, ExportTraceServiceResponse,
@@ -84,23 +84,26 @@ async fn smoke_tracer() {
         println!("Installing tracer provider...");
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert("x-header-key", "header-value".parse().unwrap());
-        let tracer_provider = opentelemetry_otlp::new_pipeline()
-            .tracing()
-            .with_exporter(
+        let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
+            .with_batch_exporter(
                 #[cfg(feature = "gzip-tonic")]
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
+                opentelemetry_otlp::SpanExporter::builder()
+                    .with_tonic()
                     .with_compression(opentelemetry_otlp::Compression::Gzip)
                     .with_endpoint(format!("http://{}", addr))
-                    .with_metadata(metadata),
+                    .with_metadata(metadata)
+                    .build()
+                    .expect("gzip-tonic SpanExporter failed to build"),
                 #[cfg(not(feature = "gzip-tonic"))]
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
+                opentelemetry_otlp::SpanExporter::builder()
+                    .with_tonic()
                     .with_endpoint(format!("http://{}", addr))
-                    .with_metadata(metadata),
+                    .with_metadata(metadata)
+                    .build()
+                    .expect("NON gzip-tonic SpanExporter failed to build"),
+                opentelemetry_sdk::runtime::Tokio,
             )
-            .install_batch(opentelemetry_sdk::runtime::Tokio)
-            .expect("failed to install");
+            .build();
 
         global::set_tracer_provider(tracer_provider);
 

@@ -10,8 +10,8 @@ Released 2024-Sep-30
 - Update `opentelemetry-http` dependency version to 0.26
 - Update `opentelemetry-proto` dependency version to 0.26
 - Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
-- **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
-  - **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
+- **BREAKING**: 
+  - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
     ```rust
     MetricsExporterBuilder::default().with_temporality_selector(DeltaTemporalitySelector::new())
@@ -19,6 +19,34 @@ Released 2024-Sep-30
     Updated Signature:
     ```rust
     MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    ```
+  - ([#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221)) **Replaced**:
+    - The `opentelemetry_otlp::new_pipeline().{trace,logging,metrics}()` interface is now replaced with `{TracerProvider,SdkMeterProvider,LoggerProvider}::builder()`.
+    - The `opentelemetry_otlp::new_exporter()` interface is now replaced with `{SpanExporter,MetricsExporter,LogExporter}::builder()`.
+
+    Pull request [#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221) has a detailed migration guide in the description. See example below,
+    and [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) for more details:
+
+    Previous Signature:
+    ```rust
+    let logger_provider: LoggerProvider = opentelemetry_otlp::new_pipeline()
+      .logging()
+      .with_exporter(
+          opentelemetry_otlp::new_exporter()
+              .tonic()
+              .with_endpoint("http://localhost:4317")
+      )
+      .install_batch(runtime::Tokio)?;
+    ```
+    Updated Signature:
+    ```rust
+    let logger_provider: LoggerProvider = LoggerProvider::builder()
+      .install_batch_exporter(
+          LogExporter::builder()
+              .with_tonic()
+              .with_endpoint("http://localhost:4317")
+              .build()?,
+      ).build();
     ```
 
 ## v0.25.0

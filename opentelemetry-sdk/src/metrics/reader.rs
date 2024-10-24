@@ -18,7 +18,7 @@ use super::{
 /// flow.
 ///
 /// Typically, push-based exporters that are periodic will implement
-/// `MetricExporter` themselves and construct a `PeriodicReader` to satisfy this
+/// `MetricsExporter` themselves and construct a `PeriodicReader` to satisfy this
 /// interface.
 ///
 /// Pull-based exporters will typically implement `MetricReader` themselves,
