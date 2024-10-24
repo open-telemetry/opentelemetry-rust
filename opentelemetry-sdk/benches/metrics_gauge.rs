@@ -39,7 +39,7 @@ fn create_gauge() -> Gauge<u64> {
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_gauge("gauge_bench").init()
+    meter.u64_gauge("gauge_bench").build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

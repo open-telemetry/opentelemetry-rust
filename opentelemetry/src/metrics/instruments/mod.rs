@@ -100,7 +100,7 @@ impl<'a> HistogramBuilder<'a, Histogram<f64>> {
     /// Validates the instrument configuration and creates a new instrument. In
     /// case of invalid configuration, a no-op instrument is returned
     /// and an error is logged using internal logging.
-    pub fn init(self) -> Histogram<f64> {
+    pub fn build(self) -> Histogram<f64> {
         self.instrument_provider.f64_histogram(self)
     }
 }
@@ -111,7 +111,7 @@ impl<'a> HistogramBuilder<'a, Histogram<u64>> {
     /// Validates the instrument configuration and creates a new instrument. In
     /// case of invalid configuration, a no-op instrument is returned
     /// and an error is logged using internal logging.
-    pub fn init(self) -> Histogram<u64> {
+    pub fn build(self) -> Histogram<u64> {
         self.instrument_provider.u64_histogram(self)
     }
 }
@@ -171,7 +171,7 @@ macro_rules! build_instrument {
             #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             /// In case of invalid configuration, a no-op instrument is returned
             /// and an error is logged using internal logging.
-            pub fn init(self) -> $inst {
+            pub fn build(self) -> $inst {
                 self.instrument_provider.$name(self)
             }
         }
@@ -289,7 +289,7 @@ macro_rules! build_async_instrument {
             #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
             /// In case of invalid configuration, a no-op instrument is returned
             /// and an error is logged using internal logging.
-            pub fn init(self) -> $inst {
+            pub fn build(self) -> $inst {
                 self.instrument_provider.$name(self)
             }
         }
