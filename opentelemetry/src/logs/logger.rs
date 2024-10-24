@@ -30,7 +30,7 @@ pub trait LoggerProvider {
     /// The [`Logger`] type that this provider will return.
     type Logger: Logger;
 
-    /// Returns a new logger with the given instrumentation library.
+    /// Returns a new logger with the given instrumentation scope.
     ///
     /// # Examples
     ///

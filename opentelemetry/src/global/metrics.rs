@@ -38,9 +38,9 @@ pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name)
 }
 
-/// Creates a [`Meter`] with the given instrumentation library.
+/// Creates a [`Meter`] with the given instrumentation scope.
 ///
-/// This is a shortcut `global::meter_provider().meter_with_scope(...)`
+/// This is a simpler alternative to `global::meter_provider().meter_with_scope(...)`
 ///
 /// # Example
 ///

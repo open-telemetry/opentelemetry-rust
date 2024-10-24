@@ -51,7 +51,7 @@
 //! # #[cfg(feature="trace")]
 //! # {
 //! use std::sync::Arc;
-//! use opentelemetry::trace::{Tracer, TracerProvider};
+//! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
 //! use opentelemetry::InstrumentationScope;
 //!
@@ -64,7 +64,7 @@
 //!         .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
 //!         .build();
 //!
-//!     let tracer = global::tracer_provider().tracer_with_scope(scope);
+//!     let tracer = global::tracer_with_scope(scope);
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...

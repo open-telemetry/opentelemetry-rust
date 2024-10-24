@@ -47,7 +47,7 @@ impl Tracer {
         &self.provider
     }
 
-    /// Instrumentation library information of this tracer.
+    /// Instrumentation scope of this tracer.
     pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }

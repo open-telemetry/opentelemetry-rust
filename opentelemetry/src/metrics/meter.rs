@@ -13,31 +13,6 @@ use super::{Counter, Histogram, HistogramBuilder};
 /// Provides access to named [Meter] instances, for instrumenting an application
 /// or crate.
 pub trait MeterProvider {
-    /// Returns a new [Meter] with the given instrumentation library.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use opentelemetry::InstrumentationScope;
-    /// use opentelemetry::metrics::MeterProvider;
-    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
-    ///
-    /// let provider = SdkMeterProvider::default();
-    ///
-    /// // meter used in applications/binaries
-    /// let meter = provider.meter("my_app");
-    ///
-    /// // meter used in libraries/crates that optionally includes version and schema url
-    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
-    ///     .with_version(env!("CARGO_PKG_VERSION"))
-    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///     .build();
-    ///
-    /// let meter = provider.meter_with_scope(scope);
-    /// ```
-    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter;
-
     /// Returns a new [Meter] with the provided name and default configuration.
     ///
     /// A [Meter] should be scoped at most to a single application or crate. The
@@ -62,6 +37,31 @@ pub trait MeterProvider {
         let scope = InstrumentationScope::builder(name).build();
         self.meter_with_scope(scope)
     }
+
+    /// Returns a new [Meter] with the given instrumentation scope.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use opentelemetry::InstrumentationScope;
+    /// use opentelemetry::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::default();
+    ///
+    /// // meter used in applications/binaries
+    /// let meter = provider.meter("my_app");
+    ///
+    /// // meter used in libraries/crates that optionally includes version and schema url
+    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+    ///     .with_version(env!("CARGO_PKG_VERSION"))
+    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .build();
+    ///
+    /// let meter = provider.meter_with_scope(scope);
+    /// ```
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter;
 }
 
 /// Provides the ability to create instruments for recording measurements or

@@ -389,10 +389,10 @@ pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
     tracer_provider().tracer(name.into())
 }
 
-/// Creates a [`Tracer`] with the given instrumentation library
+/// Creates a [`Tracer`] with the given instrumentation scope
 /// via the configured [`GlobalTracerProvider`].
 ///
-/// This is a shortcut `global::tracer_provider().tracer_with_scope(...)`
+/// This is a simpler alternative to `global::tracer_provider().tracer_with_scope(...)`
 ///
 /// # Example
 ///

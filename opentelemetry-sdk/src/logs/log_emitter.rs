@@ -248,7 +248,7 @@ impl Logger {
         &self.provider
     }
 
-    /// Instrumentation library information of this logger.
+    /// Instrumentation scope of this logger.
     pub fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }

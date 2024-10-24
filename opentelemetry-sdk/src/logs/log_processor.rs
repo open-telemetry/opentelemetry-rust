@@ -56,7 +56,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     ///
     /// # Parameters
     /// - `record`: A mutable reference to `LogData` representing the log record.
-    /// - `instrumentation`: The instrumentation library associated with the log record.
+    /// - `instrumentation`: The instrumentation scope associated with the log record.
     fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
     fn force_flush(&self) -> LogResult<()>;

@@ -145,7 +145,7 @@ impl Drop for SdkMeterProviderInner {
     }
 }
 
-/// Default logger name if empty string is provided.
+/// Default meter name if empty string is provided.
 const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/meter";
 
 impl MeterProvider for SdkMeterProvider {

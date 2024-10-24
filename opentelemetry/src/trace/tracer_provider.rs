@@ -33,7 +33,7 @@ pub trait TracerProvider {
         self.tracer_with_scope(scope)
     }
 
-    /// Returns a new versioned tracer with the given instrumentation library.
+    /// Returns a new versioned tracer with the given instrumentation scope.
     ///
     /// # Examples
     ///

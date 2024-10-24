@@ -155,7 +155,7 @@ pub mod tonic {
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
-        // Group spans by their instrumentation library
+        // Group spans by their instrumentation scope
         let scope_map = spans.iter().fold(
             HashMap::new(),
             |mut scope_map: HashMap<&opentelemetry::InstrumentationScope, Vec<&SpanData>>, span| {
