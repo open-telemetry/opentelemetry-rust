@@ -515,7 +515,7 @@ mod tests {
             assert_telemetry_resource(&default_config_provider);
         });
 
-        // If user provided a resource, use that.
+        // If user provided config, use that.
         let custom_config_provider = super::TracerProvider::builder()
             .with_config(Config {
                 resource: Cow::Owned(Resource::new(vec![KeyValue::new(
