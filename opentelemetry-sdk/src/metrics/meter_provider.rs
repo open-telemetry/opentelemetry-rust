@@ -8,9 +8,9 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    InstrumentationScope,
+    otel_debug, otel_error,
+    InstrumentationScope, KeyValue,
 };
 
 use crate::Resource;
@@ -137,10 +137,17 @@ impl Drop for SdkMeterProviderInner {
     fn drop(&mut self) {
         // If user has already shutdown the provider manually by calling
         // shutdown(), then we don't need to call shutdown again.
-        if !self.is_shutdown.load(Ordering::Relaxed) {
-            if let Err(err) = self.shutdown() {
-                global::handle_error(err);
-            }
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            otel_debug!(
+                name: "MeterProvider.AlreadyShutdown",
+                message = "Meter provider was already shut down; drop will not attempt shutdown again."
+            );
+        } else if let Err(err) = self.shutdown() {
+            otel_error!(
+                name: "MeterProvider.ShutdownFailed",
+                message = "Shutdown attempt failed during drop of MeterProvider.",
+                reason = format!("{}", err)
+            );
         }
     }
 }
