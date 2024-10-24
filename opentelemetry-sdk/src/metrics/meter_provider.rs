@@ -141,17 +141,16 @@ impl Drop for SdkMeterProviderInner {
                 name: "MeterProvider.AlreadyShutdown",
                 message = "Meter provider was already shut down; drop will not attempt shutdown again."
             );
-        } else {
-            if let Err(err) = self.shutdown() {
-                otel_debug!(
-                    name: "MeterProvider.ShutdownFailed",
-                    message = "Shutdown attempt failed during drop of MeterProvider.",
-                    reason = format!("{}", err)
-                );
-            }
+        } else if let Err(err) = self.shutdown() {
+            otel_debug!(
+                name: "MeterProvider.ShutdownFailed",
+                message = "Shutdown attempt failed during drop of MeterProvider.",
+                reason = format!("{}", err)
+            );
         }
     }
 }
+
 impl MeterProvider for SdkMeterProvider {
     fn versioned_meter(
         &self,
