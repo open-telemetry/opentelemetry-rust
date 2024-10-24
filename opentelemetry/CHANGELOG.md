@@ -8,6 +8,21 @@
 - Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/pull/2207)
 - Ensured that `observe` method on asynchronous instruments can only be called inside a callback. This was done by removing the implementation of `AsyncInstrument` trait for each of the asynchronous instruments. [#2210](https://github.com/open-telemetry/opentelemetry-rust/pull/2210)
 - Removed `PartialOrd` and `Ord` implementations for `KeyValue`. [#2215](https://github.com/open-telemetry/opentelemetry-rust/pull/2215)
+- **Breaking change** Removed `try_init` methods from the instrument builders. Users should only use `init` method to create instruments. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
+- Updated the return types of `InstrumentProvider` trait methods to return the instrument instead of a `Result`. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
+- **Breaking change for exporter authors:** Marked `KeyValue` related structs and enums as `non_exhaustive`. [#2228](https://github.com/open-telemetry/opentelemetry-rust/pull/2228)
+- **Breaking change for log exporter authors:** Marked `AnyValue` enum as `non_exhaustive`. [#2230](https://github.com/open-telemetry/opentelemetry-rust/pull/2230)
+- **Breaking change for Metrics users:** The `init` method used to create instruments has been renamed to `build`.
+
+Before:
+```rust
+let counter = meter.u64_counter("my_counter").init();
+```
+
+Now:
+```rust
+let counter = meter.u64_counter("my_counter").build();
+```
 
 ## v0.26.0
 Released 2024-Sep-30

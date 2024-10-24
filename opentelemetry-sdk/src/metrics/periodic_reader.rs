@@ -469,7 +469,7 @@ mod tests {
             .with_callback(move |_| {
                 sender.send(()).expect("channel should still be open");
             })
-            .init();
+            .build();
 
         // Assert
         receiver

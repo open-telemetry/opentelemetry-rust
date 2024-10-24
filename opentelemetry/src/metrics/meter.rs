@@ -86,7 +86,7 @@ pub trait MeterProvider {
 /// // Synchronous Instruments
 ///
 /// // u64 Counter
-/// let u64_counter = meter.u64_counter("my_u64_counter").init();
+/// let u64_counter = meter.u64_counter("my_u64_counter").build();
 /// u64_counter.add(
 ///     10,
 ///     &[
@@ -96,7 +96,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 Counter
-/// let f64_counter = meter.f64_counter("my_f64_counter").init();
+/// let f64_counter = meter.f64_counter("my_f64_counter").build();
 /// f64_counter.add(
 ///     3.15,
 ///     &[
@@ -120,7 +120,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable Counter
 /// let _observable_f64_counter = meter
@@ -136,10 +136,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 UpDownCounter
-/// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").init();
+/// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").build();
 /// updown_i64_counter.add(
 ///     -10,
 ///     &[
@@ -149,7 +149,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 UpDownCounter
-/// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").init();
+/// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").build();
 /// updown_f64_counter.add(
 ///     -10.67,
 ///     &[
@@ -172,7 +172,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable UpDownCounter
 /// let _observable_updown_f64_counter = meter
@@ -188,10 +188,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 Gauge
-/// let gauge = meter.i64_gauge("my_gauge").init();
+/// let gauge = meter.i64_gauge("my_gauge").build();
 /// gauge.record(
 /// -10,
 /// &[
@@ -201,7 +201,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // u64 Gauge
-/// let gauge = meter.u64_gauge("my_gauge").init();
+/// let gauge = meter.u64_gauge("my_gauge").build();
 /// gauge.record(
 /// 101,
 /// &[
@@ -211,7 +211,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 Gauge
-/// let gauge = meter.f64_gauge("my_gauge").init();
+/// let gauge = meter.f64_gauge("my_gauge").build();
 /// gauge.record(
 /// 12.5,
 /// &[
@@ -234,7 +234,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable Gauge
 /// let _observable_f64_gauge = meter
@@ -250,7 +250,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 Observable Gauge
 /// let _observable_i64_gauge = meter
@@ -266,10 +266,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Histogram
-/// let f64_histogram = meter.f64_histogram("my_f64_histogram").init();
+/// let f64_histogram = meter.f64_histogram("my_f64_histogram").build();
 /// f64_histogram.record(
 ///     10.5,
 ///     &[
@@ -279,7 +279,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // u64 Histogram
-/// let u64_histogram = meter.u64_histogram("my_u64_histogram").init();
+/// let u64_histogram = meter.u64_histogram("my_u64_histogram").build();
 /// u64_histogram.record(
 ///     12,
 ///     &[

@@ -6,9 +6,14 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::Protocol;
-use opentelemetry_otlp::{HttpExporterBuilder, WithExportConfig};
-use opentelemetry_sdk::trace::{self as sdktrace, Config};
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{LogExporter, MetricsExporter, Protocol, SpanExporter};
+use opentelemetry_sdk::{
+    logs::LoggerProvider,
+    metrics::{PeriodicReader, SdkMeterProvider},
+    runtime,
+    trace::{self as sdktrace, Config, TracerProvider},
+};
 use opentelemetry_sdk::{
     logs::{self as sdklogs},
     Resource,
@@ -17,6 +22,9 @@ use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
+
+#[cfg(feature = "hyper")]
+use opentelemetry_otlp::WithHttpConfig;
 
 #[cfg(feature = "hyper")]
 mod hyper;
@@ -28,47 +36,46 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     )])
 });
 
-fn http_exporter() -> HttpExporterBuilder {
-    let exporter = opentelemetry_otlp::new_exporter().http();
-    #[cfg(feature = "hyper")]
-    let exporter = exporter.with_http_client(hyper::HyperClient::default());
-    exporter
-}
-
 fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter_builder = LogExporter::builder()
+        .with_http()
+        .with_endpoint("http://localhost:4318/v1/logs")
+        .with_protocol(Protocol::HttpBinary);
+
+    #[cfg(feature = "hyper")]
+    let exporter_builder = exporter_builder.with_http_client(hyper::HyperClient::default());
+
+    let exporter = exporter_builder.build()?;
+
+    Ok(LoggerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(RESOURCE.clone())
-        .with_exporter(
-            http_exporter()
-                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
-                .with_endpoint("http://localhost:4318/v1/logs"),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .build())
 }
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            http_exporter()
-                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
-                .with_endpoint("http://localhost:4318/v1/traces"),
-        )
-        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
+    let exporter = SpanExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
+        .with_endpoint("http://localhost:4318/v1/traces")
+        .build()?;
+    Ok(TracerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .build())
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    opentelemetry_otlp::new_pipeline()
-        .metrics(opentelemetry_sdk::runtime::Tokio)
-        .with_exporter(
-            http_exporter()
-                .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
-                .with_endpoint("http://localhost:4318/v1/metrics"),
-        )
+    let exporter = MetricsExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
+        .with_endpoint("http://localhost:4318/v1/metrics")
+        .build()?;
+
+    Ok(SdkMeterProvider::builder()
+        .with_reader(PeriodicReader::builder(exporter, runtime::Tokio).build())
         .with_resource(RESOURCE.clone())
-        .build()
+        .build())
 }
 
 #[tokio::main]
@@ -136,7 +143,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
         .with_unit("my_unit")
-        .init();
+        .build();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
     }
