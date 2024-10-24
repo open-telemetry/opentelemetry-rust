@@ -2,8 +2,8 @@ use crate::metrics::data;
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
 use crate::metrics::exporter::PushMetricsExporter;
 use async_trait::async_trait;
-use opentelemetry::metrics::MetricsError;
-use opentelemetry::metrics::Result;
+use opentelemetry::metrics::MetricError;
+use opentelemetry::metrics::MetricResult;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -132,7 +132,7 @@ impl InMemoryMetricsExporter {
     ///
     /// # Errors
     ///
-    /// Returns a `MetricsError` if the internal lock cannot be acquired.
+    /// Returns a `MetricError` if the internal lock cannot be acquired.
     ///
     /// # Example
     ///
@@ -142,11 +142,11 @@ impl InMemoryMetricsExporter {
     /// let exporter = InMemoryMetricsExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
     /// ```
-    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>> {
+    pub fn get_finished_metrics(&self) -> MetricResult<Vec<ResourceMetrics>> {
         self.metrics
             .lock()
             .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
-            .map_err(MetricsError::from)
+            .map_err(MetricError::from)
     }
 
     /// Clears the internal storage of finished metrics.
@@ -245,24 +245,24 @@ impl InMemoryMetricsExporter {
 
 #[async_trait]
 impl PushMetricsExporter for InMemoryMetricsExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
                 metrics_guard.push_back(InMemoryMetricsExporter::clone_metrics(metrics))
             })
-            .map_err(MetricsError::from)
+            .map_err(MetricError::from)
     }
 
-    async fn force_flush(&self) -> Result<()> {
+    async fn force_flush(&self) -> MetricResult<()> {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.metrics
             .lock()
             .map(|mut metrics_guard| metrics_guard.clear())
-            .map_err(MetricsError::from)?;
+            .map_err(MetricError::from)?;
 
         Ok(())
     }

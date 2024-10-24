@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
 use crate::{metric::MetricsClient, Error};
@@ -11,14 +11,14 @@ use super::OtlpHttpClient;
 
 #[async_trait]
 impl MetricsClient for OtlpHttpClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         let client = self
             .client
             .lock()
             .map_err(Into::into)
             .and_then(|g| match &*g {
                 Some(client) => Ok(Arc::clone(client)),
-                _ => Err(MetricsError::Other("exporter is already shut down".into())),
+                _ => Err(MetricError::Other("exporter is already shut down".into())),
             })?;
 
         let (body, content_type) = self.build_metrics_export_body(metrics)?;
@@ -36,12 +36,12 @@ impl MetricsClient for OtlpHttpClient {
         client
             .send(request)
             .await
-            .map_err(|e| MetricsError::ExportErr(Box::new(Error::RequestFailed(e))))?;
+            .map_err(|e| MetricError::ExportErr(Box::new(Error::RequestFailed(e))))?;
 
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let _ = self.client.lock()?.take();
 
         Ok(())

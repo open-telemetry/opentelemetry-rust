@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, Result},
+    metrics::{Counter, Histogram, MeterProvider as _, MetricResult},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -25,15 +25,15 @@ impl MetricReader for SharedReader {
         self.0.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         self.0.collect(rm)
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.0.force_flush()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.0.shutdown()
     }
 
