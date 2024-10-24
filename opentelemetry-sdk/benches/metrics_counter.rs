@@ -85,7 +85,7 @@ fn counter_add_sorted(c: &mut Criterion) {
                     ],
                 );
             },
-            BatchSize::LargeInput,
+            BatchSize::SmallInput,
         );
     });
 }
@@ -121,7 +121,7 @@ fn counter_add_unsorted(c: &mut Criterion) {
                     ],
                 );
             },
-            BatchSize::LargeInput,
+            BatchSize::SmallInput,
         );
     });
 }
