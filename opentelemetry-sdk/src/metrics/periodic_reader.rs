@@ -305,7 +305,7 @@ impl MetricReader for PeriodicReader {
             ProducerOrWorker::Producer(_) => {
                 // Only register once. If producer is already set, do nothing.
                 otel_debug!(name: "PeriodicReader.DuplicateRegistration",
-                    message = "duplicate registration found, did not regiser periodic reader.");
+                    message = "duplicate registration found, did not register periodic reader.");
                 return;
             }
             ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
