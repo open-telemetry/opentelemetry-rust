@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricResult, MetricsError};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
 use crate::{metric::MetricsClient, Error};
@@ -11,7 +11,7 @@ use super::OtlpHttpClient;
 
 #[async_trait]
 impl MetricsClient for OtlpHttpClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         let client = self
             .client
             .lock()
@@ -41,7 +41,7 @@ impl MetricsClient for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let _ = self.client.lock()?.take();
 
         Ok(())

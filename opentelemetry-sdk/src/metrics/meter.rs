@@ -5,8 +5,8 @@ use opentelemetry::{
     global,
     metrics::{
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
-        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
-        ObservableUpDownCounter, Result, UpDownCounter,
+        InstrumentProvider, MetricResult, MetricsError, ObservableCounter, ObservableGauge,
+        ObservableUpDownCounter, UpDownCounter,
     },
     otel_error, InstrumentationScope,
 };
@@ -493,11 +493,11 @@ impl InstrumentProvider for SdkMeter {
     }
 }
 
-fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> Result<()> {
+fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit))
 }
 
-fn validate_instrument_name(name: &str) -> Result<()> {
+fn validate_instrument_name(name: &str) -> MetricResult<()> {
     if name.is_empty() {
         return Err(MetricsError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_EMPTY,
@@ -523,7 +523,7 @@ fn validate_instrument_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> Result<()> {
+fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     if let Some(unit) = unit {
         if unit.len() > INSTRUMENT_UNIT_NAME_MAX_LENGTH {
             return Err(MetricsError::InvalidInstrumentConfiguration(
@@ -567,7 +567,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<ResolvedMeasures<T>> {
+    ) -> MetricResult<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit, boundaries)?;
         Ok(ResolvedMeasures {
             measures: aggregators,
@@ -581,7 +581,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),

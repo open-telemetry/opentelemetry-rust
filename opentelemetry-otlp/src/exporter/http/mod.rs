@@ -221,7 +221,7 @@ impl HttpExporterBuilder {
     pub fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::MetricResult<crate::MetricsExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -311,7 +311,7 @@ impl OtlpHttpClient {
     fn build_metrics_export_body(
         &self,
         metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
-    ) -> opentelemetry::metrics::Result<(Vec<u8>, &'static str)> {
+    ) -> opentelemetry::metrics::MetricResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = (&*metrics).into();

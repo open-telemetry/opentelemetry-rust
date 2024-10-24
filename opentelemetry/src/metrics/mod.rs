@@ -22,7 +22,7 @@ pub use instruments::{
 pub use meter::{Meter, MeterProvider};
 
 /// A specialized `Result` type for metric operations.
-pub type Result<T> = result::Result<T, MetricsError>;
+pub type MetricResult<T> = result::Result<T, MetricsError>;
 
 /// Errors returned by the metrics API.
 #[derive(Error, Debug)]

@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricResult, MetricsError};
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
@@ -51,7 +51,7 @@ impl TonicMetricsClient {
 
 #[async_trait]
 impl MetricsClient for TonicMetricsClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         let (mut client, metadata, extensions) =
             self.inner
                 .lock()
@@ -84,7 +84,7 @@ impl MetricsClient for TonicMetricsClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let _ = self.inner.lock()?.take();
 
         Ok(())
