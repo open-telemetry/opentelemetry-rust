@@ -77,10 +77,11 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(
-                name: "SdkMeter.CreateCounter.InstrumentCreationFailed",
+                name: "InstrumentCreationFailed",
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                error = format!("Measurements from the counter will be ignored. Reason: {}", err)
+                message = "Measurements from this counter will be ignored.",
+                reason = format!("{}", err)
             );
             return Counter::new(Arc::new(NoopSyncInstrument::new()));
         }
@@ -98,10 +99,11 @@ impl SdkMeter {
             Ok(counter) => counter,
             Err(err) => {
                 otel_error!(
-                    name: "SdkMeter.CreateCounter.InstrumentCreationFailed",
+                    name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    error = format!("Measurements from the counter will be ignored. Reason:  {}", err)
+                    message = "Measurements from this counter will be ignored.",
+                    reason = format!("{}", err)
                 );
                 Counter::new(Arc::new(NoopSyncInstrument::new()))
             }
@@ -119,10 +121,11 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(
-                name: "SdkMeter.CreateObservableCounter.InstrumentCreationFailed", 
+                name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                error = format!("Measurements from the observable counter will be ignored. Reason: {}", err));
+                mesage = "Measurements from this observable counter will be ignored.",
+                reason = format!("{}", err));
             return ObservableCounter::new();
         }
 
@@ -136,10 +139,10 @@ impl SdkMeter {
             Ok(ms) => {
                 if ms.is_empty() {
                     otel_error!(
-                        name: "SdkMeter.CreateObservableCounter.InstrumentCreationFailed",
+                        name: "InstrumentCreationFailed",
                         meter_name = self.scope.name.as_ref(),
                         instrument_name = builder.name.as_ref(),
-                        message = "Measurements from the observable counter will be ignored. Check View Configuration."
+                        message = "Measurements from this observable counter will be ignored. Check View Configuration."
                     );
                     return ObservableCounter::new();
                 }
@@ -156,10 +159,11 @@ impl SdkMeter {
             }
             Err(err) => {
                 otel_error!(
-                    name: "SdkMeter.CreateObservableCounter.InstrumentCreationFailed",
+                    name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = format!("Measurements from the observable counter will be ignored. Reason: {}", err));
+                    message = "Measurements from the observable counter will be ignored.",
+                    reason = format!("{}", err));
                 ObservableCounter::new()
             }
         }
