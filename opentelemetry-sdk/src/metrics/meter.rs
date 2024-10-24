@@ -8,6 +8,7 @@ use opentelemetry::{
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
     },
+    otel_error,
 };
 
 use crate::instrumentation::Scope;
@@ -75,14 +76,20 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from this counter will be ignored.",
+                reason = format!("{}", err)
+            );
             return Counter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Counter,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -91,7 +98,13 @@ impl SdkMeter {
         {
             Ok(counter) => counter,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this counter will be ignored.",
+                    reason = format!("{}", err)
+                );
                 Counter::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
@@ -107,19 +120,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this observable counter will not be invoked.",
+                reason = format!("{}", err));
             return ObservableCounter::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this observable counter will not be invoked. Check View Configuration."
+                    );
                     return ObservableCounter::new();
                 }
 
@@ -134,7 +158,12 @@ impl SdkMeter {
                 ObservableCounter::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this observable counter will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableCounter::new()
             }
         }
