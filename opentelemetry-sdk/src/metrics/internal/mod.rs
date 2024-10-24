@@ -6,8 +6,9 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
-use std::collections::HashMap;
-use std::ops::{Add, AddAssign, Sub};
+use std::collections::{HashMap, HashSet};
+use std::mem::take;
+use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -40,6 +41,9 @@ where
 
     /// Called for each measurement.
     fn update(&self, value: Self::PreComputedValue);
+
+    /// Return current value and reset this instance
+    fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
 }
 
 /// The storage for sums.
@@ -134,6 +138,66 @@ where
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );
         }
+    }
+
+    /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
+    pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
+    where
+        MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
+    {
+        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        if self.has_no_attribute_value.load(Ordering::Acquire) {
+            dest.push(map_fn(vec![], &self.no_attribute_tracker));
+        }
+
+        let Ok(trackers) = self.trackers.read() else {
+            return;
+        };
+
+        let mut seen = HashSet::new();
+        for (attrs, tracker) in trackers.iter() {
+            if seen.insert(Arc::as_ptr(tracker)) {
+                dest.push(map_fn(attrs.clone(), tracker));
+            }
+        }
+    }
+
+    /// Iterate through all attribute sets, populate `DataPoints` and and reset.
+    pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
+    where
+        MapFn: FnMut(Vec<KeyValue>, A) -> Res,
+    {
+        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        if self.has_no_attribute_value.swap(false, Ordering::AcqRel) {
+            dest.push(map_fn(
+                vec![],
+                self.no_attribute_tracker.clone_and_reset(&self.config),
+            ));
+        }
+
+        let trackers = match self.trackers.write() {
+            Ok(mut trackers) => {
+                self.count.store(0, Ordering::SeqCst);
+                take(trackers.deref_mut())
+            }
+            Err(_) => todo!(),
+        };
+
+        let mut seen = HashSet::new();
+        for (attrs, tracker) in trackers.into_iter() {
+            if seen.insert(Arc::as_ptr(&tracker)) {
+                dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
+            }
+        }
+    }
+}
+
+/// Clear and allocate exactly required amount of space for all attribute-sets
+fn prepare_data<T>(data: &mut Vec<T>, list_len: usize) {
+    data.clear();
+    let total_len = list_len + 2; // to account for no_attributes case + overflow state
+    if total_len > data.capacity() {
+        data.reserve_exact(total_len - data.capacity());
     }
 }
 

@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::mem::replace;
+use std::ops::DerefMut;
 use std::vec;
 use std::{sync::Mutex, time::SystemTime};
 
@@ -32,6 +31,12 @@ where
 
     fn update(&self, value: T) {
         self.value.add(value)
+    }
+
+    fn clone_and_reset(&self, _: &()) -> Self {
+        Self {
+            value: T::new_atomic_tracker(self.value.get_and_reset_value()),
+        }
     }
 }
 
@@ -80,59 +85,20 @@ impl<T: Number> Sum<T> {
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
-        s_data.data_points.clear();
 
-        // Max number of data points need to account for the special casing
-        // of the no attribute value + overflow attribute.
-        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
-        if n > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
-
-        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
-        if self
-            .value_map
-            .has_no_attribute_value
-            .swap(false, Ordering::AcqRel)
-        {
-            s_data.data_points.push(DataPoint {
-                attributes: vec![],
+        let prev_start = self
+            .start
+            .lock()
+            .map(|mut start| replace(start.deref_mut(), t))
+            .unwrap_or(t);
+        self.value_map
+            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| DataPoint {
+                attributes,
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self
-                    .value_map
-                    .no_attribute_tracker
-                    .value
-                    .get_and_reset_value(),
+                value: aggr.value.get_value(),
                 exemplars: vec![],
             });
-        }
-
-        let mut trackers = match self.value_map.trackers.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.drain() {
-            if seen.insert(Arc::as_ptr(&tracker)) {
-                s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
-                    start_time: Some(prev_start),
-                    time: Some(t),
-                    value: tracker.value.get_value(),
-                    exemplars: vec![],
-                });
-            }
-        }
-
-        // The delta collection cycle resets.
-        if let Ok(mut start) = self.start.lock() {
-            *start = t;
-        }
-        self.value_map.count.store(0, Ordering::SeqCst);
 
         (
             s_data.data_points.len(),
@@ -159,54 +125,17 @@ impl<T: Number> Sum<T> {
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
-        s_data.data_points.clear();
-
-        // Max number of data points need to account for the special casing
-        // of the no attribute value + overflow attribute.
-        let n = self.value_map.count.load(Ordering::SeqCst) + 2;
-        if n > s_data.data_points.capacity() {
-            s_data
-                .data_points
-                .reserve_exact(n - s_data.data_points.capacity());
-        }
 
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
 
-        if self
-            .value_map
-            .has_no_attribute_value
-            .load(Ordering::Acquire)
-        {
-            s_data.data_points.push(DataPoint {
-                attributes: vec![],
+        self.value_map
+            .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
+                attributes,
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.value.get_value(),
+                value: aggr.value.get_value(),
                 exemplars: vec![],
             });
-        }
-
-        let trackers = match self.value_map.trackers.write() {
-            Ok(v) => v,
-            Err(_) => return (0, None),
-        };
-
-        // TODO: This will use an unbounded amount of memory if there
-        // are unbounded number of attribute sets being aggregated. Attribute
-        // sets that become "stale" need to be forgotten so this will not
-        // overload the system.
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.iter() {
-            if seen.insert(Arc::as_ptr(tracker)) {
-                s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
-                    start_time: Some(prev_start),
-                    time: Some(t),
-                    value: tracker.value.get_value(),
-                    exemplars: vec![],
-                });
-            }
-        }
 
         (
             s_data.data_points.len(),
