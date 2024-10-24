@@ -42,7 +42,7 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_histogram(name).init()
+    meter.u64_histogram(name).build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
