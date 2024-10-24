@@ -8,7 +8,7 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{Meter, MeterProvider, MetricResult, MetricsError},
+    metrics::{Meter, MeterProvider, MetricError, MetricResult},
     otel_debug, otel_error, InstrumentationScope,
 };
 
@@ -125,7 +125,7 @@ impl SdkMeterProviderInner {
         {
             self.pipes.shutdown()
         } else {
-            Err(MetricsError::Other(
+            Err(MetricError::Other(
                 "metrics provider already shut down".into(),
             ))
         }

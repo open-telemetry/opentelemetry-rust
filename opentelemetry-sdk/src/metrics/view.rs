@@ -2,7 +2,7 @@ use super::instrument::{Instrument, Stream};
 use glob::Pattern;
 use opentelemetry::{
     global,
-    metrics::{MetricResult, MetricsError},
+    metrics::{MetricError, MetricResult},
 };
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
@@ -102,7 +102,7 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View>> {
     if criteria.is_empty() {
-        global::handle_error(MetricsError::Config(format!(
+        global::handle_error(MetricError::Config(format!(
             "no criteria provided, dropping view. mask: {mask:?}"
         )));
         return Ok(Box::new(empty_view));
@@ -112,7 +112,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            global::handle_error(MetricsError::Config(format!(
+            global::handle_error(MetricError::Config(format!(
 				"name replacement for multiple instruments, dropping view, criteria: {criteria:?}, mask: {mask:?}"
 			)));
             return Ok(Box::new(empty_view));
@@ -120,7 +120,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
 
         let pattern = criteria.name.clone();
         let glob_pattern =
-            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+            Pattern::new(&pattern).map_err(|e| MetricError::Config(e.to_string()))?;
 
         Box::new(move |i| {
             glob_pattern.matches(&i.name)
@@ -138,7 +138,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
-                global::handle_error(MetricsError::Other(format!(
+                global::handle_error(MetricError::Other(format!(
                     "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
                     err, err_msg_criteria, mask
                 )));

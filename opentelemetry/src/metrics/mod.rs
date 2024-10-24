@@ -22,12 +22,12 @@ pub use instruments::{
 pub use meter::{Meter, MeterProvider};
 
 /// A specialized `Result` type for metric operations.
-pub type MetricResult<T> = result::Result<T, MetricsError>;
+pub type MetricResult<T> = result::Result<T, MetricError>;
 
 /// Errors returned by the metrics API.
 #[derive(Error, Debug)]
 #[non_exhaustive]
-pub enum MetricsError {
+pub enum MetricError {
     /// Other errors not covered by specific cases.
     #[error("Metrics error: {0}")]
     Other(String),
@@ -44,15 +44,15 @@ pub enum MetricsError {
     InvalidInstrumentConfiguration(&'static str),
 }
 
-impl<T: ExportError> From<T> for MetricsError {
+impl<T: ExportError> From<T> for MetricError {
     fn from(err: T) -> Self {
-        MetricsError::ExportErr(Box::new(err))
+        MetricError::ExportErr(Box::new(err))
     }
 }
 
-impl<T> From<PoisonError<T>> for MetricsError {
+impl<T> From<PoisonError<T>> for MetricError {
     fn from(err: PoisonError<T>) -> Self {
-        MetricsError::Other(err.to_string())
+        MetricError::Other(err.to_string())
     }
 }
 

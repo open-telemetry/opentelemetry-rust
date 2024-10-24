@@ -12,7 +12,7 @@ use futures_util::{
     StreamExt,
 };
 use opentelemetry::{
-    metrics::{MetricResult, MetricsError},
+    metrics::{MetricError, MetricResult},
     otel_debug, otel_error,
 };
 
@@ -244,7 +244,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
+            Either::Right(_) => Err(MetricError::Other("export timed out".into())),
         }
     }
 
@@ -318,7 +318,7 @@ impl MetricReader for PeriodicReader {
     fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         if inner.is_shutdown {
-            return Err(MetricsError::Other("reader is shut down".into()));
+            return Err(MetricError::Other("reader is shut down".into()));
         }
 
         if let Some(producer) = match &inner.sdk_producer_or_worker {
@@ -327,7 +327,7 @@ impl MetricReader for PeriodicReader {
         } {
             producer.produce(rm)?;
         } else {
-            return Err(MetricsError::Other("reader is not registered".into()));
+            return Err(MetricError::Other("reader is not registered".into()));
         }
 
         Ok(())
@@ -336,36 +336,36 @@ impl MetricReader for PeriodicReader {
     fn force_flush(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
         if inner.is_shutdown {
-            return Err(MetricsError::Other("reader is shut down".into()));
+            return Err(MetricError::Other("reader is shut down".into()));
         }
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Flush(sender))
-            .map_err(|e| MetricsError::Other(e.to_string()))?;
+            .map_err(|e| MetricError::Other(e.to_string()))?;
 
         drop(inner); // don't hold lock when blocking on future
 
         futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))
+            .map_err(|err| MetricError::Other(err.to_string()))
             .and_then(|res| res)
     }
 
     fn shutdown(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
         if inner.is_shutdown {
-            return Err(MetricsError::Other("reader is already shut down".into()));
+            return Err(MetricError::Other("reader is already shut down".into()));
         }
 
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
-            .map_err(|e| MetricsError::Other(e.to_string()))?;
+            .map_err(|e| MetricError::Other(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
         let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricsError::Other(err.to_string()))?;
+            .map_err(|err| MetricError::Other(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag
         let mut inner = self.inner.lock()?;
@@ -393,7 +393,7 @@ mod tests {
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
         runtime, testing::metrics::InMemoryMetricsExporter, Resource,
     };
-    use opentelemetry::metrics::{MeterProvider, MetricsError};
+    use opentelemetry::metrics::{MeterProvider, MetricError};
     use std::sync::mpsc;
 
     #[test]
@@ -449,7 +449,7 @@ mod tests {
 
         // Assert
         assert!(
-            matches!(result.unwrap_err(), MetricsError::Other(err) if err == "reader is not registered")
+            matches!(result.unwrap_err(), MetricError::Other(err) if err == "reader is not registered")
         );
     }
 

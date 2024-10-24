@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{MetricResult, MetricsError},
+    metrics::{MetricError, MetricResult},
     InstrumentationScope, KeyValue,
 };
 
@@ -253,7 +253,7 @@ where
         let mut errs = vec![];
         let kind = match inst.kind {
             Some(kind) => kind,
-            None => return Err(MetricsError::Other("instrument must have a kind".into())),
+            None => return Err(MetricError::Other("instrument must have a kind".into())),
         };
 
         // The cache will return the same Aggregator instance. Use stream ids to de duplicate.
@@ -286,7 +286,7 @@ where
             if errs.is_empty() {
                 return Ok(measures);
             } else {
-                return Err(MetricsError::Other(format!("{errs:?}")));
+                return Err(MetricError::Other(format!("{errs:?}")));
             }
         }
 
@@ -315,12 +315,12 @@ where
                     }
                     Ok(measures)
                 } else {
-                    Err(MetricsError::Other(format!("{errs:?}")))
+                    Err(MetricError::Other(format!("{errs:?}")))
                 }
             }
             Err(err) => {
                 errs.push(err);
-                Err(MetricsError::Other(format!("{errs:?}")))
+                Err(MetricError::Other(format!("{errs:?}")))
             }
         }
     }
@@ -355,7 +355,7 @@ where
         }
 
         if let Err(err) = is_aggregator_compatible(&kind, &agg) {
-            return Err(MetricsError::Other(format!(
+            return Err(MetricError::Other(format!(
                 "creating aggregator with instrumentKind: {:?}, aggregation {:?}: {:?}",
                 kind, stream.aggregation, err,
             )));
@@ -400,7 +400,7 @@ where
 
         match cached {
             Ok(opt) => Ok(opt.clone()),
-            Err(err) => Err(MetricsError::Other(err.to_string())),
+            Err(err) => Err(MetricError::Other(err.to_string())),
         }
     }
 
@@ -414,7 +414,7 @@ where
                     return;
                 }
 
-                global::handle_error(MetricsError::Other(format!(
+                global::handle_error(MetricError::Other(format!(
                     "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
                     existing.name, id.name,
                     existing.description, id.description,
@@ -573,7 +573,7 @@ fn is_aggregator_compatible(
             ) {
                 return Ok(());
             }
-            Err(MetricsError::Other("incompatible aggregation".into()))
+            Err(MetricError::Other("incompatible aggregation".into()))
         }
         Aggregation::Sum => {
             match kind {
@@ -585,7 +585,7 @@ fn is_aggregator_compatible(
                 _ => {
                     // TODO: review need for aggregation check after
                     // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
-                    Err(MetricsError::Other("incompatible aggregation".into()))
+                    Err(MetricError::Other("incompatible aggregation".into()))
                 }
             }
         }
@@ -595,7 +595,7 @@ fn is_aggregator_compatible(
                 _ => {
                     // TODO: review need for aggregation check after
                     // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
-                    Err(MetricsError::Other("incompatible aggregation".into()))
+                    Err(MetricError::Other("incompatible aggregation".into()))
                 }
             }
         }
@@ -650,7 +650,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 
@@ -666,7 +666,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 }
@@ -717,7 +717,7 @@ where
             }
             Ok(measures)
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 }

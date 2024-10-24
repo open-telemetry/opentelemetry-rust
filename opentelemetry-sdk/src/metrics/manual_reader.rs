@@ -4,7 +4,7 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{MetricResult, MetricsError},
+    metrics::{MetricError, MetricResult},
     otel_debug,
 };
 
@@ -93,7 +93,7 @@ impl MetricReader for ManualReader {
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
-                return Err(MetricsError::Other(
+                return Err(MetricError::Other(
                     "reader is shut down or not registered".into(),
                 ))
             }
