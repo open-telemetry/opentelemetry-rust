@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{Meter, MeterProvider, MetricsError, Result},
-    otel_debug, KeyValue,
+    otel_debug, otel_error, KeyValue
 };
 
 use crate::{instrumentation::Scope, Resource};
@@ -142,7 +142,7 @@ impl Drop for SdkMeterProviderInner {
                 message = "Meter provider was already shut down; drop will not attempt shutdown again."
             );
         } else if let Err(err) = self.shutdown() {
-            otel_debug!(
+            otel_error!(
                 name: "MeterProvider.ShutdownFailed",
                 message = "Shutdown attempt failed during drop of MeterProvider.",
                 reason = format!("{}", err)
