@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry::metrics::{MetricResult, MetricsError};
+use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::{
     data::{self, ScopeMetrics, Temporality},
     exporter::PushMetricsExporter,
@@ -38,7 +38,7 @@ impl PushMetricsExporter for MetricsExporter {
     /// Write Metrics to stdout
     async fn export(&self, metrics: &mut data::ResourceMetrics) -> MetricResult<()> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Err(MetricsError::Other("exporter is shut down".into()))
+            Err(MetricError::Other("exporter is shut down".into()))
         } else {
             println!("Metrics");
             println!("Resource");

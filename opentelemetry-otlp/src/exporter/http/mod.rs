@@ -320,7 +320,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry::metrics::MetricsError::Other(e.to_string())),
+                Err(e) => Err(opentelemetry::metrics::MetricError::Other(e.to_string())),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }

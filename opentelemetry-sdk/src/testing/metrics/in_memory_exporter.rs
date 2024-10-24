@@ -2,8 +2,8 @@ use crate::metrics::data;
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
 use crate::metrics::exporter::PushMetricsExporter;
 use async_trait::async_trait;
+use opentelemetry::metrics::MetricError;
 use opentelemetry::metrics::MetricResult;
-use opentelemetry::metrics::MetricsError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -132,7 +132,7 @@ impl InMemoryMetricsExporter {
     ///
     /// # Errors
     ///
-    /// Returns a `MetricsError` if the internal lock cannot be acquired.
+    /// Returns a `MetricError` if the internal lock cannot be acquired.
     ///
     /// # Example
     ///
@@ -146,7 +146,7 @@ impl InMemoryMetricsExporter {
         self.metrics
             .lock()
             .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
-            .map_err(MetricsError::from)
+            .map_err(MetricError::from)
     }
 
     /// Clears the internal storage of finished metrics.
@@ -251,7 +251,7 @@ impl PushMetricsExporter for InMemoryMetricsExporter {
             .map(|mut metrics_guard| {
                 metrics_guard.push_back(InMemoryMetricsExporter::clone_metrics(metrics))
             })
-            .map_err(MetricsError::from)
+            .map_err(MetricError::from)
     }
 
     async fn force_flush(&self) -> MetricResult<()> {
@@ -262,7 +262,7 @@ impl PushMetricsExporter for InMemoryMetricsExporter {
         self.metrics
             .lock()
             .map(|mut metrics_guard| metrics_guard.clear())
-            .map_err(MetricsError::from)?;
+            .map_err(MetricError::from)?;
 
         Ok(())
     }

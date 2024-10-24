@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use opentelemetry::metrics::{MetricResult, MetricsError};
+use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
@@ -62,14 +62,14 @@ impl MetricsClient for TonicMetricsClient {
                             .interceptor
                             .call(Request::new(()))
                             .map_err(|e| {
-                                MetricsError::Other(format!(
+                                MetricError::Other(format!(
                                     "unexpected status while exporting {e:?}"
                                 ))
                             })?
                             .into_parts();
                         Ok((inner.client.clone(), m, e))
                     }
-                    None => Err(MetricsError::Other("exporter is already shut down".into())),
+                    None => Err(MetricError::Other("exporter is already shut down".into())),
                 })?;
 
         client
