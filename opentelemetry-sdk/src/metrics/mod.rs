@@ -126,6 +126,47 @@ impl Hash for AttributeSet {
     }
 }
 
+#[allow(dead_code)]
+pub(crate) struct KeyValueHelper;
+
+impl KeyValueHelper {
+    #[allow(dead_code)]
+    pub(crate) fn dedup_and_sort_attributes(attributes: &[KeyValue]) -> Vec<KeyValue> {
+        // Check if the attributes are already deduped
+        let mut has_duplicates = false;
+        let mut keys_set: HashSet<Key> = HashSet::with_capacity(attributes.len());
+        for kv in attributes {
+            if !keys_set.insert(kv.key.clone()) {
+                has_duplicates = true;
+                break;
+            }
+        }
+
+        if has_duplicates {
+            // Dedup the attributes and sort them
+            keys_set.clear();
+            let mut vec = attributes
+                .iter()
+                .rev()
+                .filter_map(|kv| {
+                    if keys_set.insert(kv.key.clone()) {
+                        Some(kv.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            vec.sort_unstable();
+            vec
+        } else {
+            // Attributes are already deduped
+            let mut vec = attributes.to_vec();
+            vec.sort_unstable();
+            vec
+        }
+    }
+}
+
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
@@ -298,6 +339,14 @@ mod tests {
         // cargo test counter_aggregation_attribute_order_unsorted_first_cumulative --features=testing -- --nocapture
 
         counter_aggregation_attribute_order_helper(Temporality::Cumulative, false);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_aggregation_duplicate_attribute_keys() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_aggregation_duplicate_attribute_keys --features=testing -- --nocapture
+        counter_aggregation_duplicate_attribute_keys_helper(Temporality::Delta);
+        counter_aggregation_duplicate_attribute_keys_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2104,6 +2153,46 @@ mod tests {
         }
     }
 
+    fn counter_aggregation_duplicate_attribute_keys_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        let attributes = [
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key1", "value2"),
+        ];
+
+        // Act
+        counter.add(1, &attributes);
+        counter.add(1, &attributes);
+        counter.add(1, &attributes);
+        counter.add(1, &attributes);
+        counter.add(1, &attributes);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        // Expecting 2 time-series.
+        assert_eq!(sum.data_points.len(), 1);
+        assert!(sum.is_monotonic, "Counter should produce monotonic.");
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                sum.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
+        }
+
+        // find and validate key1=value1 datapoint
+        let data_point = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+            .expect("datapoint with key1=value2 expected");
+        assert_eq!(data_point.value, 5);
+    }
+
     fn counter_aggregation_overflow_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
@@ -2300,12 +2389,38 @@ mod tests {
         key: &str,
         value: &str,
     ) -> Option<&'a DataPoint<T>> {
-        data_points.iter().find(|&datapoint| {
-            datapoint
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
-        })
+        for data_point in data_points {
+            let mut count = 0;
+            let mut result: Option<&'a DataPoint<T>> = None;
+            for kv in &data_point.attributes {
+                if kv.key.as_str() == key {
+                    count += 1;
+
+                    if kv.value.as_str() == value {
+                        result = Some(data_point);
+                    }
+                }
+            }
+
+            match count {
+                // The input key was not found in the attributes of this DataPoint.
+                0 => {}
+
+                // Return the result only if the key was found exactly once in the attributes of the DataPoint and the value also matched.
+                1 => {
+                    if result.is_some() {
+                        return result;
+                    }
+                }
+
+                _ => panic!(
+                    "Found more than one occurence of key={} within the same DataPoint",
+                    key
+                ),
+            }
+        }
+
+        None
     }
 
     fn find_datapoint_with_no_attributes<T>(data_points: &[DataPoint<T>]) -> Option<&DataPoint<T>> {
