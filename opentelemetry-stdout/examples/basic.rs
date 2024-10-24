@@ -114,7 +114,7 @@ fn emit_span() {
 #[cfg(feature = "metrics")]
 fn emit_metrics() {
     let meter = global::meter("stdout-example");
-    let c = meter.u64_counter("example_counter").init();
+    let c = meter.u64_counter("example_counter").build();
     c.add(
         1,
         &[
@@ -151,7 +151,7 @@ fn emit_metrics() {
         ],
     );
 
-    let h = meter.f64_histogram("example_histogram").init();
+    let h = meter.f64_histogram("example_histogram").build();
     h.record(
         1.0,
         &[

@@ -8,6 +8,17 @@
 - **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
   - **Replaced**: Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
 - When creating new metric instruments, SDK would return a no-op instrument if the validation fails. [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
+- **Breaking change for Metrics users:** The `init` method used to create instruments has been renamed to `build`.
+
+Before:
+```rust
+let counter = meter.u64_counter("my_counter").init();
+```
+
+Now:
+```rust
+let counter = meter.u64_counter("my_counter").build();
+```
 
 ## v0.26.0
 Released 2024-Sep-30
