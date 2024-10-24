@@ -124,7 +124,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Callbacks for this observable counter will be invoked.",
+                message = "Callbacks for this observable counter will not be invoked.",
                 reason = format!("{}", err));
             return ObservableCounter::new();
         }
@@ -142,7 +142,7 @@ impl SdkMeter {
                         name: "InstrumentCreationFailed",
                         meter_name = self.scope.name.as_ref(),
                         instrument_name = builder.name.as_ref(),
-                        message = "Callbacks for this observable counter will be invoked. Check View Configuration."
+                        message = "Callbacks for this observable counter will not be invoked. Check View Configuration."
                     );
                     return ObservableCounter::new();
                 }
