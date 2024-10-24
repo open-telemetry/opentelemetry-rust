@@ -409,7 +409,7 @@ mod tests {
         assert!(!reader.is_shutdown());
         // create a meter and an instrument
         let meter = global::meter("test");
-        let counter = meter.u64_counter("test_counter").init();
+        let counter = meter.u64_counter("test_counter").build();
         // no need to drop a meter for meter_provider shutdown
         let shutdown_res = provider.shutdown();
         assert!(shutdown_res.is_ok());

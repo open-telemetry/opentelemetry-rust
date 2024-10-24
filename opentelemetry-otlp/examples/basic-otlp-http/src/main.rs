@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
         .with_unit("my_unit")
-        .init();
+        .build();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
     }

@@ -125,7 +125,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
         builder = builder.with_view(view);
     }
     let provider = builder.build();
-    let cntr = provider.meter("test").u64_counter("hello").init();
+    let cntr = provider.meter("test").u64_counter("hello").build();
 
     (rdr, cntr)
 }
@@ -344,7 +344,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
         .u64_histogram(format!("histogram_{}", bound_count))
-        .init();
+        .build();
 
     (r, hist)
 }
@@ -384,7 +384,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         .meter("sdk/metric/bench/histogram");
 
     for i in 0..n {
-        let h = mtr.u64_histogram(format!("fake_data_{i}")).init();
+        let h = mtr.u64_histogram(format!("fake_data_{i}")).build();
         h.record(1, &[]);
     }
 

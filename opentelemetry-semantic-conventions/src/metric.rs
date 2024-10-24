@@ -25,7 +25,7 @@
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
 //!     .with_unit("By")
 //!     .with_description("Duration of HTTP server requests.")
-//!     .init();
+//!     .build();
 //! ```
 
 /// ## Description

@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a meter from the above MeterProvider.
     let meter = global::meter("example");
     // Create a Counter Instrument.
-    let counter = meter.u64_counter("my_counter").init();
+    let counter = meter.u64_counter("my_counter").build();
 
     // Record measurements with unique key-value pairs to exceed the cardinality limit
     // of 2000 and trigger error message

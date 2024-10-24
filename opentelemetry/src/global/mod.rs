@@ -96,7 +96,7 @@
 //!     let meter = global::meter("my-component");
 //!     // It is recommended to reuse the same counter instance for the
 //!     // lifetime of the application
-//!     let counter = meter.u64_counter("my_counter").init();
+//!     let counter = meter.u64_counter("my_counter").build();
 //!
 //!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);

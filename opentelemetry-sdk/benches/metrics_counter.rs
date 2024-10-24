@@ -44,7 +44,7 @@ fn create_counter(name: &'static str) -> Counter<u64> {
     let meter = meter_provider.meter("benchmarks");
 
     println!("Counter_Created");
-    meter.u64_counter(name).init()
+    meter.u64_counter(name).build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
