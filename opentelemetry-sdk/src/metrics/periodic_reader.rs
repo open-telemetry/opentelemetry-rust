@@ -14,7 +14,7 @@ use futures_util::{
 use opentelemetry::{
     global,
     metrics::{MetricsError, Result},
-    otel_error,
+    otel_debug, otel_error,
 };
 
 use crate::runtime::Runtime;
@@ -245,13 +245,11 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => {
-                otel_error!(
-                    name: "collect_and_export",
-                    status = "timed_out"
-                );
-                Err(MetricsError::Other("export timed out".into()))
-            }
+            Either::Right(_) => Err(MetricsError::ExportTimeout(
+                "PeriodicReader".into(),
+                self.timeout.as_nanos(),
+            )
+            .into()),
         }
     }
 
@@ -259,22 +257,44 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         match message {
             Message::Export => {
                 if let Err(err) = self.collect_and_export().await {
-                    global::handle_error(err)
+                    match err {
+                        MetricsError::ExportTimeout(_, _) => {
+                            otel_error!( name: "PeriodicReader.ExportFailed", error  = format!("{:?}", err));
+                        }
+                        MetricsError::ReaderShutdown => {
+                            otel_debug!( name: "PeriodicReader.ReaderShutdown", error = format!("{:?}", err));
+                        }
+                        MetricsError::ReaderNotRegistered => {
+                            otel_debug!( name: "PeriodicReader.ReaderNotRegistered", error = format!("{:?}", err));
+                        }
+                        _ => {
+                            // TBD: This includes errors from both collection and export. Need to be made more specific
+                            // and identify the levels to log them.
+                            otel_error!( name: "PeriodicReader.ExportFailed", error  = format!("{:?}", err));
+                        }
+                    }
                 }
             }
             Message::Flush(ch) => {
                 let res = self.collect_and_export().await;
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("flush channel closed".into()))
+                if let Err(send_error) = ch.send(res) {
+                    otel_debug!(
+                        name: "PeriodicReader.Flush.SendResultError",
+                        error = format!("{:?}", send_error),
+                    );
                 }
             }
             Message::Shutdown(ch) => {
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("shutdown channel closed".into()))
+                if let Err(send_error) = ch.send(res) {
+                    otel_debug!(
+                        name: "PeriodicReader.Flush.SendResultError",
+                        error = format!("{:?}", send_error),
+                    );
+                    //Return false to break the loop and shutdown the worker.
+                    return false;
                 }
-                return false;
             }
         }
 
@@ -300,9 +320,7 @@ impl MetricReader for PeriodicReader {
         let worker = match &mut inner.sdk_producer_or_worker {
             ProducerOrWorker::Producer(_) => {
                 // Only register once. If producer is already set, do nothing.
-                global::handle_error(MetricsError::Other(
-                    "duplicate meter registration, did not register manual reader".into(),
-                ));
+                otel_debug!(name: "PeriodicReader.RegisterPipeline.DuplicateRegistration");
                 return;
             }
             ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
@@ -315,7 +333,7 @@ impl MetricReader for PeriodicReader {
     fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
         let inner = self.inner.lock()?;
         if inner.is_shutdown {
-            return Err(MetricsError::Other("reader is shut down".into()));
+            return Err(MetricsError::ReaderShutdown);
         }
 
         if let Some(producer) = match &inner.sdk_producer_or_worker {
@@ -324,7 +342,7 @@ impl MetricReader for PeriodicReader {
         } {
             producer.produce(rm)?;
         } else {
-            return Err(MetricsError::Other("reader is not registered".into()));
+            return Err(MetricsError::ReaderNotRegistered);
         }
 
         Ok(())
