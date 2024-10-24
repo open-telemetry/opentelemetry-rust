@@ -4,8 +4,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
+    otel_debug,
 };
 
 use super::{
@@ -77,9 +77,9 @@ impl MetricReader for ManualReader {
             if inner.sdk_producer.is_none() {
                 inner.sdk_producer = Some(pipeline);
             } else {
-                global::handle_error(MetricsError::Config(
-                    "duplicate reader registration, did not register manual reader".into(),
-                ))
+                otel_debug!(
+                    name: "ManualReader.DuplicateRegistration",
+                    message = "The pipeline is already registered to the Reader. Registering pipeline multiple times is not allowed.");
             }
         });
     }
