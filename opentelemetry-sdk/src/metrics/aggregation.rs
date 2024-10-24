@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::metrics::{MetricResult, MetricsError};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]
@@ -109,7 +109,7 @@ impl fmt::Display for Aggregation {
 
 impl Aggregation {
     /// Validate that this aggregation has correct configuration
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> MetricResult<()> {
         match self {
             Aggregation::Drop => Ok(()),
             Aggregation::Default => Ok(()),
@@ -153,16 +153,16 @@ mod tests {
         internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
         Aggregation,
     };
-    use opentelemetry::metrics::{MetricsError, Result};
+    use opentelemetry::metrics::{MetricResult, MetricsError};
 
     #[test]
     fn validate_aggregation() {
         struct TestCase {
             name: &'static str,
             input: Aggregation,
-            check: Box<dyn Fn(Result<()>) -> bool>,
+            check: Box<dyn Fn(MetricResult<()>) -> bool>,
         }
-        let ok = Box::new(|result: Result<()>| result.is_ok());
+        let ok = Box::new(|result: MetricResult<()>| result.is_ok());
         let config_error = Box::new(|result| matches!(result, Err(MetricsError::Config(_))));
 
         let test_cases: Vec<TestCase> = vec![

@@ -13,7 +13,7 @@ use futures_util::{
 };
 use opentelemetry::{
     global,
-    metrics::{MetricsError, Result},
+    metrics::{MetricResult, MetricsError},
     otel_error,
 };
 
@@ -212,8 +212,8 @@ struct PeriodicReaderInner {
 #[derive(Debug)]
 enum Message {
     Export,
-    Flush(oneshot::Sender<Result<()>>),
-    Shutdown(oneshot::Sender<Result<()>>),
+    Flush(oneshot::Sender<MetricResult<()>>),
+    Shutdown(oneshot::Sender<MetricResult<()>>),
 }
 
 enum ProducerOrWorker {
@@ -229,7 +229,7 @@ struct PeriodicReaderWorker<RT: Runtime> {
 }
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> Result<()> {
+    async fn collect_and_export(&mut self) -> MetricResult<()> {
         self.reader.collect(&mut self.rm)?;
         if self.rm.scope_metrics.is_empty() {
             // No metrics to export.
@@ -312,7 +312,7 @@ impl MetricReader for PeriodicReader {
         worker(self);
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         if inner.is_shutdown {
             return Err(MetricsError::Other("reader is shut down".into()));
@@ -330,7 +330,7 @@ impl MetricReader for PeriodicReader {
         Ok(())
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
         if inner.is_shutdown {
             return Err(MetricsError::Other("reader is shut down".into()));
@@ -348,7 +348,7 @@ impl MetricReader for PeriodicReader {
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
         if inner.is_shutdown {
             return Err(MetricsError::Other("reader is already shut down".into()));

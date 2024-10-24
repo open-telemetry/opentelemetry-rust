@@ -4,7 +4,7 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{MetricsError, Result},
+    metrics::{MetricResult, MetricsError},
     otel_debug,
 };
 
@@ -88,7 +88,7 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
@@ -103,12 +103,12 @@ impl MetricReader for ManualReader {
     }
 
     /// ForceFlush is a no-op, it always returns nil.
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         Ok(())
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
 
         // Any future call to collect will now return an error.

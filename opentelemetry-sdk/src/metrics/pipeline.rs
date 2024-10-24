@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{MetricsError, Result},
+    metrics::{MetricResult, MetricsError},
     KeyValue,
 };
 
@@ -89,19 +89,19 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.reader.force_flush()
     }
 
     /// Shut down pipeline
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.reader.shutdown()
     }
 }
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
@@ -185,7 +185,7 @@ impl fmt::Debug for InstrumentSync {
     }
 }
 
-type Cache<T> = Mutex<HashMap<InstrumentId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
+type Cache<T> = Mutex<HashMap<InstrumentId, MetricResult<Option<Arc<dyn internal::Measure<T>>>>>>;
 
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
@@ -248,7 +248,7 @@ where
         &self,
         inst: Instrument,
         boundaries: Option<&[f64]>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
@@ -344,7 +344,7 @@ where
         scope: &Scope,
         kind: InstrumentKind,
         mut stream: Stream,
-    ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Option<Arc<dyn internal::Measure<T>>>> {
         let mut agg = stream
             .aggregation
             .take()
@@ -481,7 +481,7 @@ fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
-) -> Result<Option<AggregateFns<T>>> {
+) -> MetricResult<Option<AggregateFns<T>>> {
     fn box_val<T>(
         (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
     ) -> (
@@ -554,7 +554,10 @@ fn aggregate_fn<T: Number>(
 /// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 /// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
-fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
+fn is_aggregator_compatible(
+    kind: &InstrumentKind,
+    agg: &aggregation::Aggregation,
+) -> MetricResult<()> {
     match agg {
         Aggregation::Default => Ok(()),
         Aggregation::ExplicitBucketHistogram { .. }
@@ -637,7 +640,7 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self) -> Result<()> {
+    pub(crate) fn force_flush(&self) -> MetricResult<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.force_flush() {
@@ -653,7 +656,7 @@ impl Pipelines {
     }
 
     /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> Result<()> {
+    pub(crate) fn shutdown(&self) -> MetricResult<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
@@ -698,7 +701,7 @@ where
         &self,
         id: Instrument,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {

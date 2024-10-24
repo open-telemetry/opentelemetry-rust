@@ -2,7 +2,7 @@ use super::instrument::{Instrument, Stream};
 use glob::Pattern;
 use opentelemetry::{
     global,
-    metrics::{MetricsError, Result},
+    metrics::{MetricResult, MetricsError},
 };
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
@@ -100,7 +100,7 @@ impl View for Box<dyn View> {
 /// let view = new_view(criteria, mask);
 /// # drop(view);
 /// ```
-pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
+pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View>> {
     if criteria.is_empty() {
         global::handle_error(MetricsError::Config(format!(
             "no criteria provided, dropping view. mask: {mask:?}"
