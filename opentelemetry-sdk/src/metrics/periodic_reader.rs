@@ -12,9 +12,8 @@ use futures_util::{
     StreamExt,
 };
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
-    otel_error,
+    otel_debug, otel_error,
 };
 
 use crate::runtime::Runtime;
@@ -245,13 +244,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => {
-                otel_error!(
-                    name: "collect_and_export",
-                    status = "timed_out"
-                );
-                Err(MetricsError::Other("export timed out".into()))
-            }
+            Either::Right(_) => Err(MetricsError::Other("export timed out".into())),
         }
     }
 
@@ -259,20 +252,31 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         match message {
             Message::Export => {
                 if let Err(err) = self.collect_and_export().await {
-                    global::handle_error(err)
+                    otel_error!(
+                        name: "PeriodicReader.ExportFailed",
+                        message = "Failed to export metrics",
+                        reason = format!("{}", err));
                 }
             }
             Message::Flush(ch) => {
                 let res = self.collect_and_export().await;
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("flush channel closed".into()))
+                if let Err(send_error) = ch.send(res) {
+                    otel_debug!(
+                        name: "PeriodicReader.Flush.SendResultError",
+                        message = "Failed to send flush result",
+                        reason = format!("{:?}", send_error),
+                    );
                 }
             }
             Message::Shutdown(ch) => {
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if ch.send(res).is_err() {
-                    global::handle_error(MetricsError::Other("shutdown channel closed".into()))
+                if let Err(send_error) = ch.send(res) {
+                    otel_debug!(
+                        name: "PeriodicReader.Shutdown.SendResultError",
+                        message = "Failed to send shutdown result",
+                        reason = format!("{:?}", send_error),
+                    );
                 }
                 return false;
             }
@@ -300,9 +304,8 @@ impl MetricReader for PeriodicReader {
         let worker = match &mut inner.sdk_producer_or_worker {
             ProducerOrWorker::Producer(_) => {
                 // Only register once. If producer is already set, do nothing.
-                global::handle_error(MetricsError::Other(
-                    "duplicate meter registration, did not register manual reader".into(),
-                ));
+                otel_debug!(name: "PeriodicReader.DuplicateRegistration",
+                    message = "duplicate registration found, did not regiser periodic reader.");
                 return;
             }
             ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
