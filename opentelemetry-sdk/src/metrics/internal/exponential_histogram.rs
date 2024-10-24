@@ -111,7 +111,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
                     record_min_max = self.record_min_max,
                     record_sum = self.record_sum,
                     value = format!("{:?}", v),
-                    error = "The measurement will be dropped due to scale underflow. Check the histogram configuration"
+                    message = "The measurement will be dropped due to scale underflow. Check the histogram configuration"
                 );
 
                 return;
