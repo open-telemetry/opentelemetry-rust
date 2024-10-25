@@ -55,7 +55,9 @@ impl SpanRef<'_> {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
                 Ok(mut locked) => f(&mut locked),
-                Err(err) => global::handle_error(err),
+                Err(_) => {
+                    // Ignoring the error silently. TODO: Add specific handling if needed.
+                }
             }
         }
     }
