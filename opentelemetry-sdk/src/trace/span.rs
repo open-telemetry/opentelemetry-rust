@@ -263,7 +263,7 @@ fn build_export_data(
         events: data.events,
         links: data.links,
         status: data.status,
-        instrumentation_lib: tracer.instrumentation_library().clone(),
+        instrumentation_scope: tracer.instrumentation_scope().clone(),
     }
 }
 
