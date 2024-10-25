@@ -8,10 +8,9 @@ use opentelemetry::{
         InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
         ObservableUpDownCounter, Result, UpDownCounter,
     },
-    otel_error,
+    otel_error, InstrumentationScope,
 };
 
-use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
@@ -46,7 +45,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
 pub(crate) struct SdkMeter {
-    scope: Scope,
+    scope: InstrumentationScope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
@@ -54,7 +53,7 @@ pub(crate) struct SdkMeter {
 }
 
 impl SdkMeter {
-    pub(crate) fn new(scope: Scope, pipes: Arc<Pipelines>) -> Self {
+    pub(crate) fn new(scope: InstrumentationScope, pipes: Arc<Pipelines>) -> Self {
         let view_cache = Default::default();
 
         SdkMeter {
@@ -179,19 +178,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this observable updown counter will not be invoked.",
+                reason = format!("{}", err));
             return ObservableUpDownCounter::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableUpDownCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this observable updown counter will not be invoked. Check View Configuration."
+                    );
                     return ObservableUpDownCounter::new();
                 }
 
@@ -206,7 +216,12 @@ impl SdkMeter {
                 ObservableUpDownCounter::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this observable updown counter will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableUpDownCounter::new()
             }
         }
@@ -222,19 +237,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this observable gauge will not be invoked.",
+                reason = format!("{}", err));
             return ObservableGauge::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableGauge,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this observable gauge will not be invoked. Check View Configuration."
+                    );
                     return ObservableGauge::new();
                 }
 
@@ -249,7 +275,12 @@ impl SdkMeter {
                 ObservableGauge::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this observable gauge will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableGauge::new()
             }
         }
