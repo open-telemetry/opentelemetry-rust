@@ -134,6 +134,7 @@ mod tests {
     use crate::testing::metrics::InMemoryMetricsExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
@@ -637,18 +638,17 @@ mod tests {
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let meter1 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value1")]),
-        );
-        let meter2 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value2")]),
-        );
+        let mut scope = InstrumentationScope::builder("test.meter")
+            .with_version("v0.1.0")
+            .with_schema_url("http://example.com")
+            .with_attributes(vec![KeyValue::new("key", "value1")])
+            .build();
+
+        let meter1 = meter_provider.meter_with_scope(scope.clone());
+
+        scope.attributes = vec![KeyValue::new("key", "value2")];
+        let meter2 = meter_provider.meter_with_scope(scope);
+
         let counter1 = meter1
             .u64_counter("my_counter")
             .with_unit("my_unit")
@@ -684,7 +684,7 @@ mod tests {
         let scope = &resource_metrics[0].scope_metrics[0].scope;
         assert_eq!(scope.name, "test.meter");
         assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
-        assert_eq!(scope.schema_url, Some(Cow::Borrowed("schema_url")));
+        assert_eq!(scope.schema_url, Some(Cow::Borrowed("http://example.com")));
 
         // This is validating current behavior, but it is not guaranteed to be the case in the future,
         // as this is a user error and SDK reserves right to change this behavior.

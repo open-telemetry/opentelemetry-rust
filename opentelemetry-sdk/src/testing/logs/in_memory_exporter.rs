@@ -3,7 +3,7 @@ use crate::logs::LogRecord;
 use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::logs::{LogError, LogResult};
-use opentelemetry::InstrumentationLibrary;
+use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 
@@ -56,17 +56,17 @@ pub struct OwnedLogData {
     /// Log record, which can be borrowed or owned.
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
+    pub instrumentation: InstrumentationScope,
 }
 
 /// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
-/// [`InstrumentationLibrary`].
+/// [`InstrumentationScope`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
     pub record: LogRecord,
     /// Instrumentation details for the emitter who produced this `LogData`.
-    pub instrumentation: InstrumentationLibrary,
+    pub instrumentation: InstrumentationScope,
     /// Resource for the emitter who produced this `LogData`.
     pub resource: Cow<'static, Resource>,
 }
