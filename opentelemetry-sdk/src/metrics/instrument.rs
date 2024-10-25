@@ -2,13 +2,10 @@ use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncInstrument},
-    Key, KeyValue,
+    InstrumentationScope, Key, KeyValue,
 };
 
-use crate::{
-    instrumentation::Scope,
-    metrics::{aggregation::Aggregation, internal::Measure},
-};
+use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
 use super::data::Temporality;
 
@@ -96,7 +93,7 @@ pub struct Instrument {
     /// Unit is the unit of measurement recorded by the instrument.
     pub unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
-    pub scope: Scope,
+    pub scope: InstrumentationScope,
 }
 
 impl Instrument {
@@ -124,7 +121,7 @@ impl Instrument {
     }
 
     /// Set the instrument scope.
-    pub fn scope(mut self, scope: Scope) -> Self {
+    pub fn scope(mut self, scope: InstrumentationScope) -> Self {
         self.scope = scope;
         self
     }
@@ -135,7 +132,7 @@ impl Instrument {
             && self.description == ""
             && self.kind.is_none()
             && self.unit == ""
-            && self.scope == Scope::default()
+            && self.scope == InstrumentationScope::default()
     }
 
     pub(crate) fn matches(&self, other: &Instrument) -> bool {

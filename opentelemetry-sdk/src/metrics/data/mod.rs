@@ -2,9 +2,9 @@
 
 use std::{any, borrow::Cow, fmt, time::SystemTime};
 
-use opentelemetry::KeyValue;
+use opentelemetry::{InstrumentationScope, KeyValue};
 
-use crate::{instrumentation::Scope, Resource};
+use crate::Resource;
 
 pub use self::temporality::Temporality;
 
@@ -15,15 +15,15 @@ mod temporality;
 pub struct ResourceMetrics {
     /// The entity that collected the metrics.
     pub resource: Resource,
-    /// The collection of metrics with unique [Scope]s.
+    /// The collection of metrics with unique [InstrumentationScope]s.
     pub scope_metrics: Vec<ScopeMetrics>,
 }
 
 /// A collection of metrics produced by a meter.
 #[derive(Default, Debug)]
 pub struct ScopeMetrics {
-    /// The [Scope] that the meter was created with.
-    pub scope: Scope,
+    /// The [InstrumentationScope] that the meter was created with.
+    pub scope: InstrumentationScope,
     /// The list of aggregations created by the meter.
     pub metrics: Vec<Metric>,
 }
