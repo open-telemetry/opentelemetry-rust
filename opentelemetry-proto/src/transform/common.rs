@@ -44,13 +44,13 @@ pub mod tonic {
 
     impl
         From<(
-            opentelemetry_sdk::InstrumentationLibrary,
+            opentelemetry::InstrumentationScope,
             Option<Cow<'static, str>>,
         )> for InstrumentationScope
     {
         fn from(
             data: (
-                opentelemetry_sdk::InstrumentationLibrary,
+                opentelemetry::InstrumentationScope,
                 Option<Cow<'static, str>>,
             ),
         ) -> Self {
@@ -75,13 +75,13 @@ pub mod tonic {
 
     impl
         From<(
-            &opentelemetry_sdk::InstrumentationLibrary,
+            &opentelemetry::InstrumentationScope,
             Option<Cow<'static, str>>,
         )> for InstrumentationScope
     {
         fn from(
             data: (
-                &opentelemetry_sdk::InstrumentationLibrary,
+                &opentelemetry::InstrumentationScope,
                 Option<Cow<'static, str>>,
             ),
         ) -> Self {

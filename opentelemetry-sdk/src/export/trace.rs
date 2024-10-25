@@ -2,7 +2,7 @@
 use crate::Resource;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
-use opentelemetry::KeyValue;
+use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -95,6 +95,6 @@ pub struct SpanData {
     pub links: crate::trace::SpanLinks,
     /// Span status
     pub status: Status,
-    /// Instrumentation library that produced this span
-    pub instrumentation_lib: crate::InstrumentationLibrary,
+    /// Instrumentation scope that produced this span
+    pub instrumentation_scope: InstrumentationScope,
 }
