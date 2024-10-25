@@ -1,8 +1,8 @@
 use super::instrument::{Instrument, Stream};
 use glob::Pattern;
 use opentelemetry::{
-    global,
     metrics::{MetricsError, Result},
+    otel_warn,
 };
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
@@ -102,9 +102,12 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
-        global::handle_error(MetricsError::Config(format!(
-            "no criteria provided, dropping view. mask: {mask:?}"
-        )));
+        otel_warn!(
+            name: "View.ConfigError.NoCriteriaProvided",
+            message= "no criteria provided, dropping view",
+            criteria = format!("{:?}", criteria),
+            mask = format!("{:?}", mask),
+        );
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
@@ -112,9 +115,12 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            global::handle_error(MetricsError::Config(format!(
-				"name replacement for multiple instruments, dropping view, criteria: {criteria:?}, mask: {mask:?}"
-			)));
+            otel_warn!(
+                name: "View.ConfigError.NameReplacementMultipleInstruments",
+                message = "name replacement for multiple instruments, dropping view",
+                criteria = format!("{:?}", criteria),
+                mask = format!("{:?}", mask),
+            );
             return Ok(Box::new(empty_view));
         }
 
@@ -138,10 +144,13 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
-                global::handle_error(MetricsError::Other(format!(
-                    "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
-                    err, err_msg_criteria, mask
-                )));
+                otel_warn!(
+                    name: "View.AggregationValidationFailed",
+                    message = "failed to validate aggregation, proceeding as if view did not exist",
+                    criteria = format!("{:?}", err_msg_criteria),
+                    mask = format!("{:?}", mask),
+                    reason = format!("{:?}", err),
+                );
                 return Ok(Box::new(empty_view));
             }
         }
