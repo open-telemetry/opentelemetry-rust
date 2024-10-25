@@ -103,7 +103,7 @@ impl View for Box<dyn View> {
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
         otel_warn!(
-            name: "View.ConfigError.NoCriteriaProvided",
+            name: "View.NoCriteriaProvided",
             message= "no criteria provided, dropping view",
             criteria = format!("{:?}", criteria),
             mask = format!("{:?}", mask),
@@ -116,7 +116,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
             otel_warn!(
-                name: "View.ConfigError.NameReplacementMultipleInstruments",
+                name: "View.NameReplacementMultipleInstruments",
                 message = "name replacement for multiple instruments, dropping view",
                 criteria = format!("{:?}", criteria),
                 mask = format!("{:?}", mask),
