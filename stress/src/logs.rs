@@ -9,7 +9,7 @@
     ~44 M /sec
 */
 
-use opentelemetry::InstrumentationLibrary;
+use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
 use tracing::error;
@@ -24,7 +24,7 @@ impl LogProcessor for NoOpLogProcessor {
     fn emit(
         &self,
         _record: &mut opentelemetry_sdk::logs::LogRecord,
-        _library: &InstrumentationLibrary,
+        _scope: &InstrumentationScope,
     ) {
     }
 

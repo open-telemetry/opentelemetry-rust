@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::{global, trace::TraceError, KeyValue};
+use opentelemetry::{global, trace::TraceError, InstrumentationScope, KeyValue};
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::{
     export::{trace, ExportError},
@@ -144,11 +144,11 @@ impl ZipkinPipelineBuilder {
         let mut provider_builder = TracerProvider::builder().with_simple_exporter(exporter);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
-        let tracer =
-            opentelemetry::trace::TracerProvider::tracer_builder(&provider, "opentelemetry-zipkin")
-                .with_version(env!("CARGO_PKG_VERSION"))
-                .with_schema_url(semcov::SCHEMA_URL)
-                .build();
+        let scope = InstrumentationScope::builder("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"))
+            .with_schema_url(semcov::SCHEMA_URL)
+            .build();
+        let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
@@ -161,11 +161,11 @@ impl ZipkinPipelineBuilder {
         let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
-        let tracer =
-            opentelemetry::trace::TracerProvider::tracer_builder(&provider, "opentelemetry-zipkin")
-                .with_version(env!("CARGO_PKG_VERSION"))
-                .with_schema_url(semcov::SCHEMA_URL)
-                .build();
+        let scope = InstrumentationScope::builder("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"))
+            .with_schema_url(semcov::SCHEMA_URL)
+            .build();
+        let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
