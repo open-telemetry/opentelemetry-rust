@@ -1,6 +1,6 @@
 use super::instrument::{Instrument, Stream};
 use glob::Pattern;
-use opentelemetry::metrics::{MetricError, MetricResult},
+use opentelemetry::metrics::{MetricError, MetricResult};
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
