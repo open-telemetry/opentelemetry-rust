@@ -2,7 +2,6 @@ use super::instrument::{Instrument, Stream};
 use glob::Pattern;
 use opentelemetry::{
     metrics::{MetricsError, Result},
-    otel_warn,
 };
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
