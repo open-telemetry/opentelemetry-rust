@@ -29,6 +29,6 @@ pub trait PushMetricsExporter: Send + Sync + 'static {
     /// instead will return an error indicating the shutdown state.
     fn shutdown(&self) -> MetricResult<()>;
 
-    /// Access the [Temporality] of the MetricsExporter.
+    /// Access the [Temporality] of the MetricExporter.
     fn temporality(&self) -> Temporality;
 }
