@@ -102,25 +102,15 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if criteria.is_empty() {
-        otel_warn!(
-            name: "View.NoCriteriaProvided",
-            message= "no criteria provided, dropping view",
-            criteria = format!("{:?}", criteria),
-            mask = format!("{:?}", mask),
-        );
-        return Ok(Box::new(empty_view));
+        // TODO - The error is getting lost here. Need to return or log.
+         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
     let err_msg_criteria = criteria.clone();
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            otel_warn!(
-                name: "View.NameReplacementMultipleInstruments",
-                message = "name replacement for multiple instruments, dropping view",
-                criteria = format!("{:?}", criteria),
-                mask = format!("{:?}", mask),
-            );
+            // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }
 
@@ -144,13 +134,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
             Err(err) => {
-                otel_warn!(
-                    name: "View.AggregationValidationFailed",
-                    message = "failed to validate aggregation, proceeding as if view did not exist",
-                    criteria = format!("{:?}", err_msg_criteria),
-                    mask = format!("{:?}", mask),
-                    reason = format!("{:?}", err),
-                );
+                // TODO - The error is getting lost here. Need to return or log.
                 return Ok(Box::new(empty_view));
             }
         }
