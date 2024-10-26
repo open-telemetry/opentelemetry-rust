@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{MetricsError, Result},
-    otel_warn, InstrumentationScope, KeyValue,
+    otel_debug, InstrumentationScope, KeyValue,
 };
 
 use crate::{
@@ -414,7 +414,7 @@ where
                 }
                 // If an existing instrument with the same name but different attributes is found,
                 // log a warning with details about the conflicting metric stream definitions.
-                otel_warn!(
+                otel_debug!(
                     name: "Instrument.DuplicateMetricStreamDefinitions",
                     message = "duplicate metric stream definitions",
                     reason = format!("names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
