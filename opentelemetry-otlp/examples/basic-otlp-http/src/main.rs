@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    metrics::MetricsError,
+    metrics::MetricError,
     trace::{TraceContextExt, TraceError, Tracer},
     InstrumentationScope, KeyValue,
 };
@@ -65,7 +65,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .build())
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
     let exporter = MetricsExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format

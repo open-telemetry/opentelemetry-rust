@@ -7,7 +7,7 @@ use std::{
 
 use opentelemetry::{
     global,
-    metrics::{MetricsError, Result},
+    metrics::{MetricError, MetricResult},
     InstrumentationScope, KeyValue,
 };
 
@@ -88,19 +88,19 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.reader.force_flush()
     }
 
     /// Shut down pipeline
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.reader.shutdown()
     }
 }
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
@@ -184,7 +184,7 @@ impl fmt::Debug for InstrumentSync {
     }
 }
 
-type Cache<T> = Mutex<HashMap<InstrumentId, Result<Option<Arc<dyn internal::Measure<T>>>>>>;
+type Cache<T> = Mutex<HashMap<InstrumentId, MetricResult<Option<Arc<dyn internal::Measure<T>>>>>>;
 
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
@@ -247,13 +247,13 @@ where
         &self,
         inst: Instrument,
         boundaries: Option<&[f64]>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
         let kind = match inst.kind {
             Some(kind) => kind,
-            None => return Err(MetricsError::Other("instrument must have a kind".into())),
+            None => return Err(MetricError::Other("instrument must have a kind".into())),
         };
 
         // The cache will return the same Aggregator instance. Use stream ids to de duplicate.
@@ -286,7 +286,7 @@ where
             if errs.is_empty() {
                 return Ok(measures);
             } else {
-                return Err(MetricsError::Other(format!("{errs:?}")));
+                return Err(MetricError::Other(format!("{errs:?}")));
             }
         }
 
@@ -315,12 +315,12 @@ where
                     }
                     Ok(measures)
                 } else {
-                    Err(MetricsError::Other(format!("{errs:?}")))
+                    Err(MetricError::Other(format!("{errs:?}")))
                 }
             }
             Err(err) => {
                 errs.push(err);
-                Err(MetricsError::Other(format!("{errs:?}")))
+                Err(MetricError::Other(format!("{errs:?}")))
             }
         }
     }
@@ -343,7 +343,7 @@ where
         scope: &InstrumentationScope,
         kind: InstrumentKind,
         mut stream: Stream,
-    ) -> Result<Option<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Option<Arc<dyn internal::Measure<T>>>> {
         let mut agg = stream
             .aggregation
             .take()
@@ -355,7 +355,7 @@ where
         }
 
         if let Err(err) = is_aggregator_compatible(&kind, &agg) {
-            return Err(MetricsError::Other(format!(
+            return Err(MetricError::Other(format!(
                 "creating aggregator with instrumentKind: {:?}, aggregation {:?}: {:?}",
                 kind, stream.aggregation, err,
             )));
@@ -400,7 +400,7 @@ where
 
         match cached {
             Ok(opt) => Ok(opt.clone()),
-            Err(err) => Err(MetricsError::Other(err.to_string())),
+            Err(err) => Err(MetricError::Other(err.to_string())),
         }
     }
 
@@ -414,7 +414,7 @@ where
                     return;
                 }
 
-                global::handle_error(MetricsError::Other(format!(
+                global::handle_error(MetricError::Other(format!(
                     "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
                     existing.name, id.name,
                     existing.description, id.description,
@@ -480,7 +480,7 @@ fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
-) -> Result<Option<AggregateFns<T>>> {
+) -> MetricResult<Option<AggregateFns<T>>> {
     fn box_val<T>(
         (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
     ) -> (
@@ -553,7 +553,10 @@ fn aggregate_fn<T: Number>(
 /// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
 /// | Observable Gauge         | ✓    | ✓         |     | ✓         | ✓                     |
-fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregation) -> Result<()> {
+fn is_aggregator_compatible(
+    kind: &InstrumentKind,
+    agg: &aggregation::Aggregation,
+) -> MetricResult<()> {
     match agg {
         Aggregation::Default => Ok(()),
         Aggregation::ExplicitBucketHistogram { .. }
@@ -570,7 +573,7 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
             ) {
                 return Ok(());
             }
-            Err(MetricsError::Other("incompatible aggregation".into()))
+            Err(MetricError::Other("incompatible aggregation".into()))
         }
         Aggregation::Sum => {
             match kind {
@@ -582,7 +585,7 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
                 _ => {
                     // TODO: review need for aggregation check after
                     // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
-                    Err(MetricsError::Other("incompatible aggregation".into()))
+                    Err(MetricError::Other("incompatible aggregation".into()))
                 }
             }
         }
@@ -592,7 +595,7 @@ fn is_aggregator_compatible(kind: &InstrumentKind, agg: &aggregation::Aggregatio
                 _ => {
                     // TODO: review need for aggregation check after
                     // https://github.com/open-telemetry/opentelemetry-specification/issues/2710
-                    Err(MetricsError::Other("incompatible aggregation".into()))
+                    Err(MetricError::Other("incompatible aggregation".into()))
                 }
             }
         }
@@ -636,7 +639,7 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self) -> Result<()> {
+    pub(crate) fn force_flush(&self) -> MetricResult<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.force_flush() {
@@ -647,12 +650,12 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 
     /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> Result<()> {
+    pub(crate) fn shutdown(&self) -> MetricResult<()> {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
@@ -663,7 +666,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 }
@@ -697,7 +700,7 @@ where
         &self,
         id: Instrument,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
@@ -714,7 +717,7 @@ where
             }
             Ok(measures)
         } else {
-            Err(MetricsError::Other(format!("{errs:?}")))
+            Err(MetricError::Other(format!("{errs:?}")))
         }
     }
 }
