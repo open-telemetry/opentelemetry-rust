@@ -1,5 +1,5 @@
 use opentelemetry::{
-    otel_error,
+    otel_warn,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
@@ -81,7 +81,7 @@ impl Propagator {
 
         let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
         if parts.len() != 4 {
-            otel_error!(
+            otel_warn!(
                 name: "JaegerPropagator.InvalidHeader",
                 message = "Invalid jaeger header format",
                 header_value = header_value.to_string(),
@@ -100,7 +100,7 @@ impl Propagator {
                 Some(SpanContext::new(trace_id, span_id, flags, true, state))
             }
             _ => {
-                otel_error!(
+                otel_warn!(
                     name: "JaegerPropagator.InvalidHeader",
                     message = "Invalid jaeger header format",
                     header_value = header_value.to_string(),
@@ -172,7 +172,7 @@ impl Propagator {
         match TraceState::from_key_value(baggage_keys) {
             Ok(trace_state) => Ok(trace_state),
             Err(trace_state_err) => {
-                otel_error!(
+                otel_warn!(
                     name: "JaegerPropagator.InvalidTraceState",
                     message = "Invalid trace state",
                     reason = format!("{:?}", trace_state_err),
