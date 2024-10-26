@@ -8,7 +8,7 @@ pub mod tonic {
     use std::any::Any;
     use std::fmt;
 
-    use opentelemetry::{otel_debug, otel_warn, Key, Value};
+    use opentelemetry::{otel_debug, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
@@ -97,7 +97,7 @@ pub mod tonic {
                 Temporality::Cumulative => AggregationTemporality::Cumulative,
                 Temporality::Delta => AggregationTemporality::Delta,
                 other => {
-                    otel_warn!(
+                    otel_debug!(
                         name: "AggregationTemporality::Unknown",
                         message = "Unknown temporality,using default instead.",
                         unknown_temporality = format!("{:?}", other),
