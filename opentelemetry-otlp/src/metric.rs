@@ -20,7 +20,7 @@ use opentelemetry::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
-    exporter::PushMetricsExporter,
+    exporter::PushMetricExporter,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -139,7 +139,7 @@ impl Debug for MetricExporter {
 }
 
 #[async_trait]
-impl PushMetricsExporter for MetricExporter {
+impl PushMetricExporter for MetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         self.client.export(metrics).await
     }

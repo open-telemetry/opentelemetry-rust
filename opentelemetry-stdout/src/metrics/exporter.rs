@@ -4,7 +4,7 @@ use core::{f64, fmt};
 use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::{
     data::{self, ScopeMetrics, Temporality},
-    exporter::PushMetricsExporter,
+    exporter::PushMetricExporter,
 };
 use std::fmt::Debug;
 use std::sync::atomic;
@@ -34,7 +34,7 @@ impl fmt::Debug for MetricExporter {
 }
 
 #[async_trait]
-impl PushMetricsExporter for MetricExporter {
+impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
     async fn export(&self, metrics: &mut data::ResourceMetrics) -> MetricResult<()> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {

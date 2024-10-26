@@ -1,6 +1,6 @@
 use crate::metrics::data;
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
-use crate::metrics::exporter::PushMetricsExporter;
+use crate::metrics::exporter::PushMetricExporter;
 use async_trait::async_trait;
 use opentelemetry::metrics::MetricError;
 use opentelemetry::metrics::MetricResult;
@@ -244,7 +244,7 @@ impl InMemoryMetricExporter {
 }
 
 #[async_trait]
-impl PushMetricsExporter for InMemoryMetricExporter {
+impl PushMetricExporter for InMemoryMetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         self.metrics
             .lock()
