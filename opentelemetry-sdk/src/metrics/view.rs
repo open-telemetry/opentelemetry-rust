@@ -1,9 +1,6 @@
 use super::instrument::{Instrument, Stream};
 use glob::Pattern;
-use opentelemetry::{
-    global,
-    metrics::{MetricError, MetricResult},
-};
+use opentelemetry::metrics::{MetricError, MetricResult};
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
@@ -102,19 +99,14 @@ impl View for Box<dyn View> {
 /// ```
 pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View>> {
     if criteria.is_empty() {
-        global::handle_error(MetricError::Config(format!(
-            "no criteria provided, dropping view. mask: {mask:?}"
-        )));
+        // TODO - The error is getting lost here. Need to return or log.
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
-    let err_msg_criteria = criteria.clone();
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            global::handle_error(MetricError::Config(format!(
-				"name replacement for multiple instruments, dropping view, criteria: {criteria:?}, mask: {mask:?}"
-			)));
+            // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }
 
@@ -137,11 +129,8 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     if let Some(ma) = &mask.aggregation {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
-            Err(err) => {
-                global::handle_error(MetricError::Other(format!(
-                    "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
-                    err, err_msg_criteria, mask
-                )));
+            Err(_) => {
+                // TODO - The error is getting lost here. Need to return or log.
                 return Ok(Box::new(empty_view));
             }
         }
