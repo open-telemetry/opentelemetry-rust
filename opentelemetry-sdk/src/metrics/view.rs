@@ -103,7 +103,6 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
-    let err_msg_criteria = criteria.clone();
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
@@ -130,7 +129,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     if let Some(ma) = &mask.aggregation {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
-            Err(err) => {
+            Err(_) => {
                 // TODO - The error is getting lost here. Need to return or log.
                 return Ok(Box::new(empty_view));
             }
