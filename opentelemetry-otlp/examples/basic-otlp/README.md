@@ -150,7 +150,7 @@ Value: 10
 ### Logs
 
 ```text
-2024-05-22T20:25:42.914Z    info    LogsExporter    {"kind": "exporter", "data_type": "logs", "name": "logging", "resource logs": 2, "log records": 2}
+2024-05-22T20:25:42.914Z    info    LogExporter    {"kind": "exporter", "data_type": "logs", "name": "logging", "resource logs": 2, "log records": 2}
 2024-05-22T20:25:42.914Z    info    ResourceLog #0
 Resource SchemaURL:
 Resource attributes:
