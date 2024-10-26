@@ -391,7 +391,7 @@ mod tests {
     use super::PeriodicReader;
     use crate::{
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
-        runtime, testing::metrics::InMemoryMetricsExporter, Resource,
+        runtime, testing::metrics::InMemoryMetricExporter, Resource,
     };
     use opentelemetry::metrics::{MeterProvider, MetricError};
     use std::sync::mpsc;
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn unregistered_collect() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let mut rm = ResourceMetrics {
             resource: Resource::empty(),
@@ -458,7 +458,7 @@ mod tests {
         RT: crate::runtime::Runtime,
     {
         let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime)
             .with_interval(interval)
             .build();
