@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 use opentelemetry::logs::LogError;
-use opentelemetry::metrics::MetricsError;
+use opentelemetry::metrics::MetricError;
 use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
@@ -33,7 +33,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .build())
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
     let exporter = MetricsExporter::builder().with_tonic().build()?;
 
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
