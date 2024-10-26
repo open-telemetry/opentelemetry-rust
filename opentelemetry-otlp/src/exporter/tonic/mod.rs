@@ -274,7 +274,7 @@ impl TonicExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         self,
         temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::Result<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::MetricResult<crate::MetricsExporter> {
         use crate::MetricsExporter;
         use metrics::TonicMetricsClient;
 

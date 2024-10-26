@@ -4,7 +4,7 @@ use std::sync::RwLock;
 #[cfg(feature = "logs")]
 use crate::logs::LogError;
 #[cfg(feature = "metrics")]
-use crate::metrics::MetricsError;
+use crate::metrics::MetricError;
 use crate::propagation::PropagationError;
 #[cfg(feature = "trace")]
 use crate::trace::TraceError;
@@ -25,7 +25,7 @@ pub enum Error {
     #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
     #[error(transparent)]
     /// An issue raised by the metrics module.
-    Metric(#[from] MetricsError),
+    Metric(#[from] MetricError),
 
     #[cfg(feature = "logs")]
     #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
