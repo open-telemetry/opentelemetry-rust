@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
-    otel_error,
+    otel_warn,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
 };
@@ -119,7 +119,7 @@ impl TextMapPropagator for BaggagePropagator {
                                 decoded_props.as_str(),
                             ))
                         } else {
-                            otel_error!(
+                            otel_warn!(
                                 name: "BaggagePropagator.Extract.InvalidUTF8",
                                 message = "Invalid UTF8 string in key values",
                                 baggage_header = header_value,
@@ -127,7 +127,7 @@ impl TextMapPropagator for BaggagePropagator {
                             None
                         }
                     } else {
-                        otel_error!(
+                        otel_warn!(
                             name: "BaggagePropagator.Extract.InvalidKeyValueFormat",
                             message = "Invalid baggage key-value format",
                             baggage_header = header_value,
@@ -135,7 +135,7 @@ impl TextMapPropagator for BaggagePropagator {
                         None
                     }
                 } else {
-                    otel_error!(
+                    otel_warn!(
                         name: "BaggagePropagator.Extract.InvalidFormat",
                         message = "Invalid baggage format",
                         baggage_header = header_value);
