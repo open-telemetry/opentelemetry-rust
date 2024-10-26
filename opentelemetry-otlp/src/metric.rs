@@ -16,7 +16,7 @@ use crate::NoExporterBuilderSet;
 
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry::metrics::Result;
+use opentelemetry::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
@@ -77,7 +77,7 @@ impl<C> MetricsExporterBuilder<C> {
 
 #[cfg(feature = "grpc-tonic")]
 impl MetricsExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<MetricsExporter> {
+    pub fn build(self) -> MetricResult<MetricsExporter> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }
@@ -85,7 +85,7 @@ impl MetricsExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl MetricsExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<MetricsExporter> {
+    pub fn build(self) -> MetricResult<MetricsExporter> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }
@@ -122,8 +122,8 @@ impl HasHttpConfig for MetricsExporterBuilder<HttpExporterBuilderSet> {
 /// An interface for OTLP metrics clients
 #[async_trait]
 pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()>;
-    fn shutdown(&self) -> Result<()>;
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
+    fn shutdown(&self) -> MetricResult<()>;
 }
 
 /// Export metrics in OTEL format.
@@ -140,16 +140,16 @@ impl Debug for MetricsExporter {
 
 #[async_trait]
 impl PushMetricsExporter for MetricsExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         self.client.export(metrics).await
     }
 
-    async fn force_flush(&self) -> Result<()> {
+    async fn force_flush(&self) -> MetricResult<()> {
         // this component is stateless
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.client.shutdown()
     }
 

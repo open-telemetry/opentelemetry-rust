@@ -8,7 +8,7 @@ pub mod tonic {
     use std::any::Any;
     use std::fmt;
 
-    use opentelemetry::{global, metrics::MetricsError, Key, Value};
+    use opentelemetry::{global, metrics::MetricError, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
@@ -97,7 +97,7 @@ pub mod tonic {
                 Temporality::Cumulative => AggregationTemporality::Cumulative,
                 Temporality::Delta => AggregationTemporality::Delta,
                 other => {
-                    opentelemetry::global::handle_error(MetricsError::Other(format!(
+                    opentelemetry::global::handle_error(MetricError::Other(format!(
                         "Unknown temporality {:?}, using default instead.",
                         other
                     )));
@@ -184,7 +184,7 @@ pub mod tonic {
             } else if let Some(gauge) = data.downcast_ref::<SdkGauge<f64>>() {
                 Ok(TonicMetricData::Gauge(gauge.into()))
             } else {
-                global::handle_error(MetricsError::Other("unknown aggregator".into()));
+                global::handle_error(MetricError::Other("unknown aggregator".into()));
                 Err(())
             }
         }

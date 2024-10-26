@@ -1,8 +1,6 @@
 use super::instrument::{Instrument, Stream};
 use glob::Pattern;
-use opentelemetry::{
-    metrics::{MetricsError, Result},
-};
+use opentelemetry::metrics::{MetricError, MetricResult},
 
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
@@ -99,10 +97,10 @@ impl View for Box<dyn View> {
 /// let view = new_view(criteria, mask);
 /// # drop(view);
 /// ```
-pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
+pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View>> {
     if criteria.is_empty() {
         // TODO - The error is getting lost here. Need to return or log.
-         return Ok(Box::new(empty_view));
+        return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
     let err_msg_criteria = criteria.clone();
@@ -115,7 +113,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
 
         let pattern = criteria.name.clone();
         let glob_pattern =
-            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+            Pattern::new(&pattern).map_err(|e| MetricError::Config(e.to_string()))?;
 
         Box::new(move |i| {
             glob_pattern.matches(&i.name)

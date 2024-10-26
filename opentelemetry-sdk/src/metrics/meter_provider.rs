@@ -8,7 +8,7 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{Meter, MeterProvider, MetricsError, Result},
+    metrics::{Meter, MeterProvider, MetricError, MetricResult},
     otel_debug, otel_error, InstrumentationScope,
 };
 
@@ -91,7 +91,7 @@ impl SdkMeterProvider {
     ///     Ok(())
     /// }
     /// ```
-    pub fn force_flush(&self) -> Result<()> {
+    pub fn force_flush(&self) -> MetricResult<()> {
         self.inner.force_flush()
     }
 
@@ -107,17 +107,17 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) -> MetricResult<()> {
         self.inner.shutdown()
     }
 }
 
 impl SdkMeterProviderInner {
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.pipes.force_flush()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -125,7 +125,7 @@ impl SdkMeterProviderInner {
         {
             self.pipes.shutdown()
         } else {
-            Err(MetricsError::Other(
+            Err(MetricError::Other(
                 "metrics provider already shut down".into(),
             ))
         }
