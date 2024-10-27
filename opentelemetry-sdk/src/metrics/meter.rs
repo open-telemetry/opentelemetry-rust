@@ -79,7 +79,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed",
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Measurements from this counter will be ignored.",
+                message = "Measurements from this Counter will be ignored.",
                 reason = format!("{}", err)
             );
             return Counter::new(Arc::new(NoopSyncInstrument::new()));
@@ -101,7 +101,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Measurements from this counter will be ignored.",
+                    message = "Measurements from this Counter will be ignored.",
                     reason = format!("{}", err)
                 );
                 Counter::new(Arc::new(NoopSyncInstrument::new()))
@@ -123,7 +123,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Callbacks for this observable counter will not be invoked.",
+                message = "Callbacks for this ObservableCounter will not be invoked.",
                 reason = format!("{}", err));
             return ObservableCounter::new();
         }
@@ -141,7 +141,7 @@ impl SdkMeter {
                         name: "InstrumentCreationFailed",
                         meter_name = self.scope.name.as_ref(),
                         instrument_name = builder.name.as_ref(),
-                        message = "Callbacks for this observable counter will not be invoked. Check View Configuration."
+                        message = "Callbacks for this ObservableCounter will not be invoked. Check View Configuration."
                     );
                     return ObservableCounter::new();
                 }
@@ -161,7 +161,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Callbacks for this observable counter will not be invoked.",
+                    message = "Callbacks for this ObservableCounter will not be invoked.",
                     reason = format!("{}", err));
                 ObservableCounter::new()
             }
@@ -182,7 +182,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Callbacks for this observable updown counter will not be invoked.",
+                message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
                 reason = format!("{}", err));
             return ObservableUpDownCounter::new();
         }
@@ -200,7 +200,7 @@ impl SdkMeter {
                         name: "InstrumentCreationFailed",
                         meter_name = self.scope.name.as_ref(),
                         instrument_name = builder.name.as_ref(),
-                        message = "Callbacks for this observable updown counter will not be invoked. Check View Configuration."
+                        message = "Callbacks for this ObservableUpDownCounter will not be invoked. Check View Configuration."
                     );
                     return ObservableUpDownCounter::new();
                 }
@@ -220,7 +220,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Callbacks for this observable updown counter will not be invoked.",
+                    message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
                     reason = format!("{}", err));
                 ObservableUpDownCounter::new()
             }
@@ -241,7 +241,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed", 
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Callbacks for this observable gauge will not be invoked.",
+                message = "Callbacks for this ObservableGauge will not be invoked.",
                 reason = format!("{}", err));
             return ObservableGauge::new();
         }
@@ -259,7 +259,7 @@ impl SdkMeter {
                         name: "InstrumentCreationFailed",
                         meter_name = self.scope.name.as_ref(),
                         instrument_name = builder.name.as_ref(),
-                        message = "Callbacks for this observable gauge will not be invoked. Check View Configuration."
+                        message = "Callbacks for this ObservableGauge will not be invoked. Check View Configuration."
                     );
                     return ObservableGauge::new();
                 }
@@ -279,7 +279,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Callbacks for this observable gauge will not be invoked.",
+                    message = "Callbacks for this ObservableGauge will not be invoked.",
                     reason = format!("{}", err));
                 ObservableGauge::new()
             }
@@ -322,7 +322,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Measurements from this updown counter will be ignored.",
+                    message = "Measurements from this UpDownCounter will be ignored.",
                     reason = format!("{}", err)
                 );
                 UpDownCounter::new(Arc::new(NoopSyncInstrument::new()))
@@ -366,7 +366,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Measurements from this gauge will be ignored.",
+                    message = "Measurements from this Gauge will be ignored.",
                     reason = format!("{}", err)
                 );
                 Gauge::new(Arc::new(NoopSyncInstrument::new()))
@@ -388,7 +388,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed",
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Measurements from this histogram will be ignored.",
+                message = "Measurements from this Histogram will be ignored.",
                 reason = format!("{}", err)
             );
             return Histogram::new(Arc::new(NoopSyncInstrument::new()));
@@ -410,7 +410,7 @@ impl SdkMeter {
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name.as_ref(),
                     instrument_name = builder.name.as_ref(),
-                    message = "Measurements from this hsitogram will be ignored.",
+                    message = "Measurements from this Histogram will be ignored.",
                     reason = format!("{}", err)
                 );
                 Histogram::new(Arc::new(NoopSyncInstrument::new()))
