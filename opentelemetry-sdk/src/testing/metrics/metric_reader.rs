@@ -6,7 +6,7 @@ use crate::metrics::{
     reader::MetricReader,
     InstrumentKind,
 };
-use opentelemetry::metrics::Result;
+use opentelemetry::metrics::MetricResult;
 
 #[derive(Debug, Clone)]
 pub struct TestMetricReader {
@@ -36,15 +36,15 @@ impl Default for TestMetricReader {
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
-    fn collect(&self, _rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, _rm: &mut ResourceMetrics) -> MetricResult<()> {
         Ok(())
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let result = self.force_flush();
         {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();
