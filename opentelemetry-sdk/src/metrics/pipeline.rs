@@ -6,9 +6,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
     metrics::{MetricError, MetricResult},
-    InstrumentationScope, KeyValue,
+    otel_debug, InstrumentationScope, KeyValue,
 };
 
 use crate::{
@@ -413,15 +412,18 @@ where
                 if existing == id {
                     return;
                 }
-
-                global::handle_error(MetricError::Other(format!(
-                    "duplicate metric stream definitions, names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
+                // If an existing instrument with the same name but different attributes is found,
+                // log a warning with details about the conflicting metric stream definitions.
+                otel_debug!(
+                    name: "Instrument.DuplicateMetricStreamDefinitions",
+                    message = "duplicate metric stream definitions",
+                    reason = format!("names: ({} and {}), descriptions: ({} and {}), kinds: ({:?} and {:?}), units: ({:?} and {:?}), and numbers: ({} and {})",
                     existing.name, id.name,
                     existing.description, id.description,
                     existing.kind, id.kind,
                     existing.unit, id.unit,
-                    existing.number, id.number,
-               )))
+                    existing.number, id.number,)
+                );
             }
         }
     }
