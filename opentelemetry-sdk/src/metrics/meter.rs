@@ -300,7 +300,7 @@ impl SdkMeter {
                 name: "InstrumentCreationFailed",
                 meter_name = self.scope.name.as_ref(),
                 instrument_name = builder.name.as_ref(),
-                message = "Measurements from this updown counter will be ignored.",
+                message = "Measurements from this UpDownCounter will be ignored.",
                 reason = format!("{}", err)
             );
             return UpDownCounter::new(Arc::new(NoopSyncInstrument::new()));
