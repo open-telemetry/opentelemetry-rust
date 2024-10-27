@@ -2,7 +2,6 @@ use core::fmt;
 use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
-    global,
     metrics::{
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
         InstrumentProvider, MetricError, MetricResult, ObservableCounter, ObservableGauge,
