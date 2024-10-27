@@ -6,7 +6,7 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::MetricError
+    metrics::{MetricError, MetricResult},
     otel_debug, InstrumentationScope, KeyValue,
 };
 
