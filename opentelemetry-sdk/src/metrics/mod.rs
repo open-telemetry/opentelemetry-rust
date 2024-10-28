@@ -131,8 +131,8 @@ mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use crate::testing::metrics::InMemoryMetricExporterBuilder;
+    use crate::{runtime, testing::metrics::InMemoryMetricExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -491,7 +491,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -542,7 +542,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -631,7 +631,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn instrumentation_scope_identity_test() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -713,7 +713,7 @@ mod tests {
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
@@ -763,7 +763,7 @@ mod tests {
         // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
@@ -838,7 +838,7 @@ mod tests {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
@@ -2345,7 +2345,7 @@ mod tests {
     }
 
     struct TestContext {
-        exporter: InMemoryMetricsExporter,
+        exporter: InMemoryMetricExporter,
         meter_provider: SdkMeterProvider,
 
         // Saving this on the test context for lifetime simplicity
@@ -2354,7 +2354,7 @@ mod tests {
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            let exporter = InMemoryMetricsExporterBuilder::new().with_temporality(temporality);
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
             let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
@@ -2411,7 +2411,7 @@ mod tests {
             let resource_metrics = self
                 .exporter
                 .get_finished_metrics()
-                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricsExporter to return None.
+                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricExporter to return None.
 
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
