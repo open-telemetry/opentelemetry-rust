@@ -107,9 +107,9 @@ impl Inner {
                 }
             })
             .unwrap_or_else(|_err| {
-                otel_debug!(
+                otel_warn!(
                     name: "JaegerRemoteSampler.MutexPoisoned",
-                    message = "Unable to update Jaeger Remote sampling strategy: the sampler's internal mutex is poisoned, likely due to a panic in another thread holding the lock. This may result in using stale configuration until the remote sampling client is restarted.",
+                    message = "Unable to update Jaeger Remote sampling strategy: the sampler's internal mutex is poisoned, likely due to a panic in another thread holding the lock. The last known configuration will continue to be used until the remote sampling client is restarted.",
                 );
             });
     }
@@ -141,7 +141,7 @@ impl Inner {
             _ => {
                 otel_warn!(
                     name: "Sampler.JaegerRemote.InvalidStrategy",
-                    message = "Received invalid sampling strategy from Jaeger remote endpoint. Expected one of: OperationSampling, RateLimitingSampling (max traces per second), or ProbabilisticSampling (0.0-1.0 sampling probability). No valid strategy was found in the response. Using previous strategy if available.",
+                    message: "Invalid sampling strategy received from the remote endpoint. Expected one of: OperationSampling, RateLimitingSampling, or ProbabilisticSampling. Continuing to use the previous strategy or default sampler until a successful update.",
                 );
                 None
             }
