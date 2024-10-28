@@ -11,7 +11,7 @@ use super::data::Temporality;
 ///
 /// This is the final component in the metric push pipeline.
 #[async_trait]
-pub trait PushMetricsExporter: Send + Sync + 'static {
+pub trait PushMetricExporter: Send + Sync + 'static {
     /// Export serializes and transmits metric data to a receiver.
     ///
     /// All retry logic must be contained in this function. The SDK does not
@@ -29,6 +29,6 @@ pub trait PushMetricsExporter: Send + Sync + 'static {
     /// instead will return an error indicating the shutdown state.
     fn shutdown(&self) -> MetricResult<()>;
 
-    /// Access the [Temporality] of the MetricsExporter.
+    /// Access the [Temporality] of the MetricExporter.
     fn temporality(&self) -> Temporality;
 }
