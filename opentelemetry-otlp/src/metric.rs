@@ -1,6 +1,6 @@
 //! OTEL metric exporter
 //!
-//! Defines a [MetricsExporter] to send metric data to backend via OTLP protocol.
+//! Defines a [MetricExporter] to send metric data to backend via OTLP protocol.
 //!
 
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
@@ -20,7 +20,7 @@ use opentelemetry::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
     data::{ResourceMetrics, Temporality},
-    exporter::PushMetricsExporter,
+    exporter::PushMetricExporter,
 };
 use std::fmt::{Debug, Formatter};
 
@@ -39,36 +39,36 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 
 #[derive(Debug, Default, Clone)]
-pub struct MetricsExporterBuilder<C> {
+pub struct MetricExporterBuilder<C> {
     client: C,
     temporality: Temporality,
 }
 
-impl MetricsExporterBuilder<NoExporterBuilderSet> {
+impl MetricExporterBuilder<NoExporterBuilderSet> {
     pub fn new() -> Self {
-        MetricsExporterBuilder::default()
+        MetricExporterBuilder::default()
     }
 }
 
-impl<C> MetricsExporterBuilder<C> {
+impl<C> MetricExporterBuilder<C> {
     #[cfg(feature = "grpc-tonic")]
-    pub fn with_tonic(self) -> MetricsExporterBuilder<TonicExporterBuilderSet> {
-        MetricsExporterBuilder {
+    pub fn with_tonic(self) -> MetricExporterBuilder<TonicExporterBuilderSet> {
+        MetricExporterBuilder {
             client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
             temporality: self.temporality,
         }
     }
 
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    pub fn with_http(self) -> MetricsExporterBuilder<HttpExporterBuilderSet> {
-        MetricsExporterBuilder {
+    pub fn with_http(self) -> MetricExporterBuilder<HttpExporterBuilderSet> {
+        MetricExporterBuilder {
             client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
             temporality: self.temporality,
         }
     }
 
-    pub fn with_temporality(self, temporality: Temporality) -> MetricsExporterBuilder<C> {
-        MetricsExporterBuilder {
+    pub fn with_temporality(self, temporality: Temporality) -> MetricExporterBuilder<C> {
+        MetricExporterBuilder {
             client: self.client,
             temporality,
         }
@@ -76,44 +76,44 @@ impl<C> MetricsExporterBuilder<C> {
 }
 
 #[cfg(feature = "grpc-tonic")]
-impl MetricsExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricsExporter> {
+impl MetricExporterBuilder<TonicExporterBuilderSet> {
+    pub fn build(self) -> MetricResult<MetricExporter> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-impl MetricsExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricsExporter> {
+impl MetricExporterBuilder<HttpExporterBuilderSet> {
+    pub fn build(self) -> MetricResult<MetricExporter> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }
 }
 
 #[cfg(feature = "grpc-tonic")]
-impl HasExportConfig for MetricsExporterBuilder<TonicExporterBuilderSet> {
+impl HasExportConfig for MetricExporterBuilder<TonicExporterBuilderSet> {
     fn export_config(&mut self) -> &mut crate::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-impl HasExportConfig for MetricsExporterBuilder<HttpExporterBuilderSet> {
+impl HasExportConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
     fn export_config(&mut self) -> &mut crate::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }
 
 #[cfg(feature = "grpc-tonic")]
-impl HasTonicConfig for MetricsExporterBuilder<TonicExporterBuilderSet> {
+impl HasTonicConfig for MetricExporterBuilder<TonicExporterBuilderSet> {
     fn tonic_config(&mut self) -> &mut crate::TonicConfig {
         &mut self.client.0.tonic_config
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-impl HasHttpConfig for MetricsExporterBuilder<HttpExporterBuilderSet> {
+impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
     fn http_client_config(&mut self) -> &mut crate::exporter::http::HttpConfig {
         &mut self.client.0.http_config
     }
@@ -127,19 +127,19 @@ pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
 }
 
 /// Export metrics in OTEL format.
-pub struct MetricsExporter {
+pub struct MetricExporter {
     client: Box<dyn MetricsClient>,
     temporality: Temporality,
 }
 
-impl Debug for MetricsExporter {
+impl Debug for MetricExporter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MetricsExporter").finish()
+        f.debug_struct("MetricExporter").finish()
     }
 }
 
 #[async_trait]
-impl PushMetricsExporter for MetricsExporter {
+impl PushMetricExporter for MetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         self.client.export(metrics).await
     }
@@ -158,15 +158,15 @@ impl PushMetricsExporter for MetricsExporter {
     }
 }
 
-impl MetricsExporter {
-    /// Obtain a builder to configure a [MetricsExporter].
-    pub fn builder() -> MetricsExporterBuilder<NoExporterBuilderSet> {
-        MetricsExporterBuilder::default()
+impl MetricExporter {
+    /// Obtain a builder to configure a [MetricExporter].
+    pub fn builder() -> MetricExporterBuilder<NoExporterBuilderSet> {
+        MetricExporterBuilder::default()
     }
 
     /// Create a new metrics exporter
-    pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricsExporter {
-        MetricsExporter {
+    pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricExporter {
+        MetricExporter {
             client: Box::new(client),
             temporality,
         }

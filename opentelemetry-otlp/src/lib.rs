@@ -25,7 +25,7 @@
 //! telemetry.
 //!
 //! You will have to build a OTLP exporter first. Create the correct exporter based on the signal
-//! you are looking to export `SpanExporter::builder()`, `MetricsExporter::builder()`,
+//! you are looking to export `SpanExporter::builder()`, `MetricExporter::builder()`,
 //! `LogExporter::builder()` respectively for traces, metrics, and logs.
 //!
 //! Once you have the exporter, you can create your `Provider` by starting with `TracerProvider::builder()`,
@@ -124,7 +124,7 @@
 //!
 //! Generally there are two parts of configuration. One is the exporter, the other is the provider.
 //! Users can configure the exporter using [SpanExporter::builder()] for traces,
-//! and [MetricsExporter::builder()] + [opentelemetry_sdk::metrics::PeriodicReader::builder()] for metrics.
+//! and [MetricExporter::builder()] + [opentelemetry_sdk::metrics::PeriodicReader::builder()] for metrics.
 //! Once you have an exporter, you can add it to either a [opentelemetry_sdk::trace::TracerProvider::builder()] for traces,
 //! or [opentelemetry_sdk::metrics::SdkMeterProvider::builder()] for metrics.
 //!
@@ -171,7 +171,7 @@
 //!
 //!     # #[cfg(all(feature = "metrics", feature = "grpc-tonic"))]
 //!     # {
-//!     let exporter = opentelemetry_otlp::MetricsExporter::builder()
+//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
 //!        .with_tonic()
 //!        .with_endpoint("http://localhost:4318/v1/metrics")
 //!        .with_protocol(Protocol::Grpc)
@@ -240,7 +240,7 @@ pub use crate::span::{
 #[cfg(feature = "metrics")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
-    MetricsExporter, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    MetricExporter, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
     OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
