@@ -48,6 +48,10 @@ Released 2024-Sep-30
               .build()?,
       ).build();
     ```
+  - **Renamed**
+    - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
+      - `MetricsExporter` -> `MetricExporter`
+      - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
 ## v0.25.0
 

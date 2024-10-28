@@ -45,7 +45,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     };
 
     // Build exporter using Delta Temporality.
-    let exporter = opentelemetry_stdout::MetricsExporterBuilder::default()
+    let exporter = opentelemetry_stdout::MetricExporterBuilder::default()
         .with_temporality(Temporality::Delta)
         .build();
 

@@ -90,7 +90,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 ///
 /// // Create a metric exporter you can use when configuring meter providers
 /// # #[cfg(feature="metrics")]
-/// let metric_exporter = opentelemetry_otlp::MetricsExporter::builder()
+/// let metric_exporter = opentelemetry_otlp::MetricExporter::builder()
 ///     .with_tonic()
 ///     .with_temporality(Temporality::default())
 ///     .build()?;
@@ -274,8 +274,8 @@ impl TonicExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         self,
         temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::MetricResult<crate::MetricsExporter> {
-        use crate::MetricsExporter;
+    ) -> opentelemetry::metrics::MetricResult<crate::MetricExporter> {
+        use crate::MetricExporter;
         use metrics::TonicMetricsClient;
 
         let (channel, interceptor, compression) = self.build_channel(
@@ -287,7 +287,7 @@ impl TonicExporterBuilder {
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
 
-        Ok(MetricsExporter::new(client, temporality))
+        Ok(MetricExporter::new(client, temporality))
     }
 
     /// Build a new tonic span exporter

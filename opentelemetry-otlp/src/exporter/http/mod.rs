@@ -83,7 +83,7 @@ impl Default for HttpConfig {
 ///
 /// // Create a metrics exporter you can use when configuring meter providers
 /// # #[cfg(feature="metrics")]
-/// let metrics_exporter = opentelemetry_otlp::MetricsExporter::builder()
+/// let metrics_exporter = opentelemetry_otlp::MetricExporter::builder()
 ///     .with_http()
 ///     .with_temporality(Temporality::default())
 ///     .build()?;
@@ -221,7 +221,7 @@ impl HttpExporterBuilder {
     pub fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::MetricResult<crate::MetricsExporter> {
+    ) -> opentelemetry::metrics::MetricResult<crate::MetricExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -234,7 +234,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
-        Ok(crate::MetricsExporter::new(client, temporality))
+        Ok(crate::MetricExporter::new(client, temporality))
     }
 }
 
