@@ -4,7 +4,7 @@
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
 use crate::Resource;
-use opentelemetry::global::{handle_error, Error};
+use opentelemetry::{otel_debug, otel_warn};
 use std::borrow::Cow;
 use std::env;
 use std::str::FromStr;
@@ -129,9 +129,9 @@ impl Default for Config {
                     if let Some(r) = ratio {
                         Box::new(Sampler::TraceIdRatioBased(r))
                     } else {
-                        handle_error(
-                            Error::Other(String::from(
-                                "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"))
+                        otel_warn!(
+                            name: "TracesSampler.TraceIdRatio.Error",
+                            message= "Missing or invalid OTEL_TRACES_SAMPLER_ARG env variable. Falling back to default: 1.0"
                         );
                         Box::new(Sampler::TraceIdRatioBased(1.0))
                     }
@@ -149,37 +149,42 @@ impl Default for Config {
                             r,
                         ))))
                     } else {
-                        handle_error(
-                            Error::Other(String::from(
-                            "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"
-                        )));
+                        otel_warn!(
+                            name: "TracesSampler.ParentBasedTraceIdRatio.Error",
+                            message = "Missing or invalid OTEL_TRACES_SAMPLER_ARG env variable. Falling back to default: 1.0"
+                        );
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             1.0,
                         ))))
                     }
                 }
                 "parentbased_jaeger_remote" => {
-                    handle_error(
-                        Error::Other(String::from(
-                        "Unimplemented parentbased_jaeger_remote sampler. Falling back to default: parentbased_always_on"
-                    )));
+                    otel_debug!(
+                        name: "TracesSampler.ParentBasedJaegerRemote.Error",
+                        message = "Unimplemented parentbased_jaeger_remote sampler. Falling back to default: parentbased_always_on"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "jaeger_remote" => {
-                    handle_error(
-                        Error::Other(String::from("Unimplemented jaeger_remote sampler. Falling back to default: parentbased_always_on")));
+                    otel_debug!(
+                        name: "TracesSampler.JaegerRemote.Error",
+                        message = "Unimplemented jaeger_remote sampler. Falling back to default: parentbased_always_on"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "xray" => {
-                    handle_error(
-                        Error::Other(String::from("Unimplemented xray sampler. Falling back to default: parentbased_always_on")));
+                    otel_debug!(
+                        name: "TracesSampler.Xray.Error",
+                        message = "Unimplemented xray sampler. Falling back to default: parentbased_always_on"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 s => {
-                    handle_error(
-                        Error::Other(format!("Unrecognised OTEL_TRACES_SAMPLER value: {}. Falling back to default: parentbased_always_on",
-                        s
-                    )));
+                    otel_warn!(
+                        name: "TracesSampler.Unknown.Error",
+                        message = "Unrecognised OTEL_TRACES_SAMPLER env variable. Falling back to default: parentbased_always_on",
+                        sampler = s
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
             }
