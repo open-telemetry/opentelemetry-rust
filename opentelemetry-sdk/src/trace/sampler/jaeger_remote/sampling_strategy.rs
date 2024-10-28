@@ -6,7 +6,7 @@ use crate::trace::sampler::sample_based_on_probability;
 use opentelemetry::trace::{
     SamplingDecision, SamplingResult, TraceContextExt, TraceId, TraceState,
 };
-use opentelemetry::{otel_debug, otel_warn, Context};
+use opentelemetry::{otel_warn, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
@@ -141,7 +141,7 @@ impl Inner {
             _ => {
                 otel_warn!(
                     name: "Sampler.JaegerRemote.InvalidStrategy",
-                    message: "Invalid sampling strategy received from the remote endpoint. Expected one of: OperationSampling, RateLimitingSampling, or ProbabilisticSampling. Continuing to use the previous strategy or default sampler until a successful update.",
+                    message = "Invalid sampling strategy received from the remote endpoint. Expected one of: OperationSampling, RateLimitingSampling, or ProbabilisticSampling. Continuing to use the previous strategy or default sampler until a successful update.",
                 );
                 None
             }

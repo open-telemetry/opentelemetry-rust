@@ -8,6 +8,7 @@ pub(crate) struct LeakyBucket {
     bucket_size: f64,
     last_time: SystemTime,
 }
+use opentelemetry::otel_debug;
 
 impl LeakyBucket {
     pub(crate) fn new(bucket_size: f64, span_per_sec: f64) -> LeakyBucket {
@@ -53,9 +54,9 @@ impl LeakyBucket {
                     }
                 }
                 Err(err) => {
-                    opentelemetry::otel_debug!(
+                    otel_debug!(
                         name: "JaegerRemoteSampler.LeakyBucket.ClockAdjustment",
-                        message = "jaeger remote sampler detected a rewind in system clock",
+                        message = "Jaeger remote sampler detected a rewind in system clock",
                         reason = format!("{:?}", err),
                     );
                     true
