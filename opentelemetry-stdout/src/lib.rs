@@ -38,7 +38,7 @@
 //! }
 //!
 //! fn init_metrics() -> SdkMeterProvider {
-//!     let exporter = opentelemetry_stdout::MetricsExporter::default();
+//!     let exporter = opentelemetry_stdout::MetricExporter::default();
 //!     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
 //!     SdkMeterProvider::builder().with_reader(reader).build()
 //! }

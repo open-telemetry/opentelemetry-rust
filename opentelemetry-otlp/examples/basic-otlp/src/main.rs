@@ -5,7 +5,7 @@ use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{LogExporter, MetricsExporter, SpanExporter, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::Config;
@@ -34,7 +34,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
-    let exporter = MetricsExporter::builder().with_tonic().build()?;
+    let exporter = MetricExporter::builder().with_tonic().build()?;
 
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
 
