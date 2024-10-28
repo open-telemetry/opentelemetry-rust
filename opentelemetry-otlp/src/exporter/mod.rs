@@ -69,7 +69,7 @@ pub(crate) mod tonic;
 pub struct ExportConfig {
     /// The address of the OTLP collector. If it's not provided via builder or environment variables.
     /// Default address will be used based on the protocol.
-    pub endpoint: String,
+    pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
@@ -83,7 +83,7 @@ impl Default for ExportConfig {
         let protocol = default_protocol();
 
         ExportConfig {
-            endpoint: "".to_string(),
+            endpoint: None,
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
@@ -144,12 +144,13 @@ fn default_headers() -> std::collections::HashMap<String, String> {
     headers
 }
 
-/// Provide access to the export config field within the exporter builders.
+/// Provide access to the [ExportConfig] field within the exporter builders.
 pub trait HasExportConfig {
-    /// Return a mutable reference to the export config within the exporter builders.
+    /// Return a mutable reference to the [ExportConfig] within the exporter builders.
     fn export_config(&mut self) -> &mut ExportConfig;
 }
 
+/// Provide [ExportConfig] access to the [TonicExporterBuilder].
 #[cfg(feature = "grpc-tonic")]
 impl HasExportConfig for TonicExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
@@ -157,6 +158,7 @@ impl HasExportConfig for TonicExporterBuilder {
     }
 }
 
+/// Provide [ExportConfig] access to the [HttpExporterBuilder].
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl HasExportConfig for HttpExporterBuilder {
     fn export_config(&mut self) -> &mut ExportConfig {
@@ -164,7 +166,7 @@ impl HasExportConfig for HttpExporterBuilder {
     }
 }
 
-/// Expose methods to override export configuration.
+/// Expose methods to override [ExportConfig].
 ///
 /// This trait will be implemented for every struct that implemented [`HasExportConfig`] trait.
 ///
@@ -173,8 +175,8 @@ impl HasExportConfig for HttpExporterBuilder {
 /// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 /// # {
 /// use crate::opentelemetry_otlp::WithExportConfig;
-/// let exporter_builder = opentelemetry_otlp::new_exporter()
-///     .tonic()
+/// let exporter_builder = opentelemetry_otlp::SpanExporter::builder()
+///     .with_tonic()
 ///     .with_endpoint("http://localhost:7201");
 /// # }
 /// ```
@@ -183,11 +185,11 @@ pub trait WithExportConfig {
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
     ///
-    /// Note that protocols that are not supported by exporters will be ignore. The exporter
+    /// Note that protocols that are not supported by exporters will be ignored. The exporter
     /// will use default protocol in this case.
     ///
     /// ## Note
-    /// All exporters in this crate are only support one protocol thus choosing the protocol is an no-op at the moment
+    /// All exporters in this crate only support one protocol, thus choosing the protocol is an no-op at the moment.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
     fn with_timeout(self, timeout: Duration) -> Self;
@@ -197,7 +199,7 @@ pub trait WithExportConfig {
 
 impl<B: HasExportConfig> WithExportConfig for B {
     fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
-        self.export_config().endpoint = endpoint.into();
+        self.export_config().endpoint = Some(endpoint.into());
         self
     }
 
@@ -291,17 +293,17 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn test_default_http_endpoint() {
-        let exporter_builder = crate::new_exporter().http();
+        let exporter_builder = crate::HttpExporterBuilder::default();
 
-        assert_eq!(exporter_builder.exporter_config.endpoint, "");
+        assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
 
     #[cfg(feature = "grpc-tonic")]
     #[test]
     fn test_default_tonic_endpoint() {
-        let exporter_builder = crate::new_exporter().tonic();
+        let exporter_builder = crate::TonicExporterBuilder::default();
 
-        assert_eq!(exporter_builder.exporter_config.endpoint, "");
+        assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
 
     #[test]

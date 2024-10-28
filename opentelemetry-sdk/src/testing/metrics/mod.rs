@@ -3,7 +3,7 @@
 /// The `in_memory_exporter` module provides in-memory metrics exporter.
 /// For detailed usage and examples, see `in_memory_exporter`.
 pub mod in_memory_exporter;
-pub use in_memory_exporter::{InMemoryMetricsExporter, InMemoryMetricsExporterBuilder};
+pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
 #[doc(hidden)]
 pub mod metric_reader;

@@ -78,7 +78,7 @@
 //! let meter = global::meter("my_service");
 //!
 //! // create an instrument
-//! let counter = meter.u64_counter("my_counter").init();
+//! let counter = meter.u64_counter("my_counter").build();
 //!
 //! // record a measurement
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
@@ -204,7 +204,7 @@ mod common;
 pub mod testing;
 
 pub use common::{
-    Array, ExportError, InstrumentationLibrary, InstrumentationLibraryBuilder, Key, KeyValue,
+    Array, ExportError, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue,
     StringValue, Value,
 };
 

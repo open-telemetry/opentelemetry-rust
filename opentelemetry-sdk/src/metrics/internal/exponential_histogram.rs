@@ -1,7 +1,7 @@
 use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
 
 use once_cell::sync::Lazy;
-use opentelemetry::{metrics::MetricsError, KeyValue};
+use opentelemetry::{otel_debug, KeyValue};
 
 use crate::{
     metrics::data::{self, Aggregation, Temporality},
@@ -100,9 +100,18 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             if (self.scale - scale_delta as i8) < EXPO_MIN_SCALE {
                 // With a scale of -10 there is only two buckets for the whole range of f64 values.
                 // This can only happen if there is a max size of 1.
-                opentelemetry::global::handle_error(MetricsError::Other(
-                    "exponential histogram scale underflow".into(),
-                ));
+
+                // TODO - to check if this should be logged as an error if this is auto-recoverable.
+                otel_debug!(
+                    name: "ExponentialHistogramDataPoint.Scale.Underflow",
+                    current_scale = self.scale,
+                    scale_delta = scale_delta,
+                    max_size = self.max_size,
+                    min_scale = EXPO_MIN_SCALE,
+                    value = format!("{:?}", v),
+                    message = "The measurement will be dropped due to scale underflow. Check the histogram configuration"
+                );
+
                 return;
             }
             // Downscale

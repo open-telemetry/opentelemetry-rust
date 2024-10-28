@@ -15,7 +15,7 @@ use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
-use opentelemetry::metrics::MetricsError;
+use opentelemetry::metrics::MetricError;
 use opentelemetry::{global, otel_warn, KeyValue};
 
 use crate::metrics::AttributeSet;
@@ -131,7 +131,7 @@ where
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
             trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
-            global::handle_error(MetricsError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
+            global::handle_error(MetricError::Other("Warning: Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged.".into()));
             otel_warn!( name: "ValueMap.measure",
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );

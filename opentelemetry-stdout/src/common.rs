@@ -233,8 +233,8 @@ pub(crate) struct Scope {
     dropped_attributes_count: u64,
 }
 
-impl From<opentelemetry_sdk::Scope> for Scope {
-    fn from(value: opentelemetry_sdk::Scope) -> Self {
+impl From<opentelemetry::InstrumentationScope> for Scope {
+    fn from(value: opentelemetry::InstrumentationScope) -> Self {
         Scope {
             name: value.name,
             version: value.version,

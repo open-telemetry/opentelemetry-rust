@@ -27,7 +27,7 @@
 //! let counter = meter
 //!     .u64_counter("power_consumption")
 //!     .with_unit("kWh")
-//!     .init();
+//!     .build();
 //!
 //! // use instruments to record measurements
 //! counter.add(10, &[KeyValue::new("rate", "standard")]);
@@ -131,9 +131,10 @@ mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
     use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use crate::testing::metrics::InMemoryMetricExporterBuilder;
+    use crate::{runtime, testing::metrics::InMemoryMetricExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::borrow::Cow;
@@ -161,16 +162,16 @@ mod tests {
         ];
         for name in invalid_instrument_names {
             let test_context = TestContext::new(Temporality::Cumulative);
-            let counter = test_context.meter().u64_counter(name).init();
+            let counter = test_context.meter().u64_counter(name).build();
             counter.add(1, &[]);
 
-            let up_down_counter = test_context.meter().i64_up_down_counter(name).init();
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).build();
             up_down_counter.add(1, &[]);
 
-            let gauge = test_context.meter().f64_gauge(name).init();
+            let gauge = test_context.meter().f64_gauge(name).build();
             gauge.record(1.9, &[]);
 
-            let histogram = test_context.meter().f64_histogram(name).init();
+            let histogram = test_context.meter().f64_histogram(name).build();
             histogram.record(1.0, &[]);
 
             let _observable_counter = test_context
@@ -179,7 +180,7 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1, &[]);
                 })
-                .init();
+                .build();
 
             let _observable_gauge = test_context
                 .meter()
@@ -187,7 +188,7 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1.0, &[]);
                 })
-                .init();
+                .build();
 
             let _observable_up_down_counter = test_context
                 .meter()
@@ -195,7 +196,7 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1, &[]);
                 })
-                .init();
+                .build();
 
             test_context.flush_metrics();
 
@@ -445,7 +446,7 @@ mod tests {
                     *index += 1;
                 }
             })
-            .init();
+            .build();
 
         for (iter, v) in values_clone.iter().enumerate() {
             test_context.flush_metrics();
@@ -490,7 +491,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -500,13 +501,13 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter_duplicated = meter
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter.add(10, &attribute);
@@ -541,7 +542,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -552,13 +553,13 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter2 = meter2
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter1.add(10, &attribute);
@@ -630,36 +631,35 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn instrumentation_scope_identity_test() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let meter1 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value1")]),
-        );
-        let meter2 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value2")]),
-        );
+        let mut scope = InstrumentationScope::builder("test.meter")
+            .with_version("v0.1.0")
+            .with_schema_url("http://example.com")
+            .with_attributes(vec![KeyValue::new("key", "value1")])
+            .build();
+
+        let meter1 = meter_provider.meter_with_scope(scope.clone());
+
+        scope.attributes = vec![KeyValue::new("key", "value2")];
+        let meter2 = meter_provider.meter_with_scope(scope);
+
         let counter1 = meter1
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter2 = meter2
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter1.add(10, &attribute);
@@ -684,7 +684,7 @@ mod tests {
         let scope = &resource_metrics[0].scope_metrics[0].scope;
         assert_eq!(scope.name, "test.meter");
         assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
-        assert_eq!(scope.schema_url, Some(Cow::Borrowed("schema_url")));
+        assert_eq!(scope.schema_url, Some(Cow::Borrowed("http://example.com")));
 
         // This is validating current behavior, but it is not guaranteed to be the case in the future,
         // as this is a user error and SDK reserves right to change this behavior.
@@ -713,7 +713,7 @@ mod tests {
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
@@ -736,7 +736,7 @@ mod tests {
         let histogram = meter
             .f64_histogram("test_histogram")
             .with_unit("test_unit")
-            .init();
+            .build();
 
         histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
@@ -763,7 +763,7 @@ mod tests {
         // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
@@ -805,7 +805,7 @@ mod tests {
                     ],
                 );
             })
-            .init();
+            .build();
 
         meter_provider.force_flush().unwrap();
 
@@ -838,7 +838,7 @@ mod tests {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
@@ -853,7 +853,7 @@ mod tests {
 
         // Act
         let meter = meter_provider.meter("test");
-        let counter = meter.u64_counter("my_counter").init();
+        let counter = meter.u64_counter("my_counter").build();
 
         // Normally, this would generate 3 time-series, but since the view
         // drops all attributes, we expect only 1 time-series.
@@ -1135,7 +1135,7 @@ mod tests {
         // Create instrument and emit measurements
         match instrument_name {
             "counter" => {
-                let counter = test_context.meter().u64_counter("test_counter").init();
+                let counter = test_context.meter().u64_counter("test_counter").build();
                 counter.add(5, &[]);
                 counter.add(10, attributes);
             }
@@ -1143,17 +1143,17 @@ mod tests {
                 let updown_counter = test_context
                     .meter()
                     .i64_up_down_counter("test_updowncounter")
-                    .init();
+                    .build();
                 updown_counter.add(15, &[]);
                 updown_counter.add(20, attributes);
             }
             "histogram" => {
-                let histogram = test_context.meter().u64_histogram("test_histogram").init();
+                let histogram = test_context.meter().u64_histogram("test_histogram").build();
                 histogram.record(25, &[]);
                 histogram.record(30, attributes);
             }
             "gauge" => {
-                let gauge = test_context.meter().u64_gauge("test_gauge").init();
+                let gauge = test_context.meter().u64_gauge("test_gauge").build();
                 gauge.record(35, &[]);
                 gauge.record(40, attributes);
             }
@@ -1274,7 +1274,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             "updown_counter" => {
                 let has_run = AtomicBool::new(false);
@@ -1288,7 +1288,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             "gauge" => {
                 let has_run = AtomicBool::new(false);
@@ -1302,7 +1302,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             _ => panic!("Incorrect instrument kind provided"),
         };
@@ -1427,7 +1427,7 @@ mod tests {
     fn counter_f64_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let counter = Arc::new(test_context.meter().f64_counter("test_counter").init());
+        let counter = Arc::new(test_context.meter().f64_counter("test_counter").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1480,7 +1480,7 @@ mod tests {
     fn histogram_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = Arc::new(test_context.meter().u64_histogram("test_histogram").init());
+        let histogram = Arc::new(test_context.meter().u64_histogram("test_histogram").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1617,7 +1617,7 @@ mod tests {
     fn histogram_f64_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = Arc::new(test_context.meter().f64_histogram("test_histogram").init());
+        let histogram = Arc::new(test_context.meter().f64_histogram("test_histogram").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1754,7 +1754,7 @@ mod tests {
     fn histogram_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = test_context.meter().u64_histogram("my_histogram").init();
+        let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
         let mut rand = rngs::SmallRng::from_entropy();
@@ -1862,7 +1862,7 @@ mod tests {
             .meter()
             .u64_histogram("test_histogram")
             .with_boundaries(vec![1.0, 2.5, 5.5])
-            .init();
+            .build();
         histogram.record(1, &[KeyValue::new("key1", "value1")]);
         histogram.record(2, &[KeyValue::new("key1", "value1")]);
         histogram.record(3, &[KeyValue::new("key1", "value1")]);
@@ -1910,7 +1910,7 @@ mod tests {
     fn gauge_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let gauge = test_context.meter().i64_gauge("my_gauge").init();
+        let gauge = test_context.meter().i64_gauge("my_gauge").build();
 
         // Act
         gauge.record(1, &[KeyValue::new("key1", "value1")]);
@@ -1979,7 +1979,7 @@ mod tests {
                 observer.observe(4, &[KeyValue::new("key1", "value1")]);
                 observer.observe(5, &[KeyValue::new("key2", "value2")]);
             })
-            .init();
+            .build();
 
         test_context.flush_metrics();
 
@@ -2345,7 +2345,7 @@ mod tests {
     }
 
     struct TestContext {
-        exporter: InMemoryMetricsExporter,
+        exporter: InMemoryMetricExporter,
         meter_provider: SdkMeterProvider,
 
         // Saving this on the test context for lifetime simplicity
@@ -2354,7 +2354,7 @@ mod tests {
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            let exporter = InMemoryMetricsExporterBuilder::new().with_temporality(temporality);
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
             let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
@@ -2378,7 +2378,7 @@ mod tests {
             if let Some(unit_name) = unit {
                 counter_builder = counter_builder.with_unit(unit_name);
             }
-            counter_builder.init()
+            counter_builder.build()
         }
 
         fn i64_up_down_counter(
@@ -2392,7 +2392,7 @@ mod tests {
             if let Some(unit_name) = unit {
                 updown_counter_builder = updown_counter_builder.with_unit(unit_name);
             }
-            updown_counter_builder.init()
+            updown_counter_builder.build()
         }
 
         fn meter(&self) -> Meter {
@@ -2411,7 +2411,7 @@ mod tests {
             let resource_metrics = self
                 .exporter
                 .get_finished_metrics()
-                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricsExporter to return None.
+                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricExporter to return None.
 
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }

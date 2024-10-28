@@ -60,7 +60,7 @@
 //! let meter = global::meter("my_service");
 //!
 //! // create an instrument
-//! let counter = meter.u64_counter("my_counter").init();
+//! let counter = meter.u64_counter("my_counter").build();
 //!
 //! // record a measurement
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
@@ -122,7 +122,7 @@
 
 pub mod export;
 pub(crate) mod growable_array;
-mod instrumentation;
+
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
@@ -146,6 +146,5 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;

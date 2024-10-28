@@ -3,8 +3,9 @@
 ## vNext
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
-- **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
-  - **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
+- **BREAKING**
+  - **Replaced**
+    - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
     ```rust
     MetricsExporterBuilder::default().with_temporality_selector(DeltaTemporalitySelector::new())
@@ -13,6 +14,10 @@
     ```rust
     MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
     ```
+  - **Renamed**
+    - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
+      - `MetricsExporter` -> `MetricExporter`
+      - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
 ## v0.26.0
 Released 2024-Sep-30

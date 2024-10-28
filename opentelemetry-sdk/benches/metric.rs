@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, Result},
+    metrics::{Counter, Histogram, MeterProvider as _, MetricResult},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -25,15 +25,15 @@ impl MetricReader for SharedReader {
         self.0.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         self.0.collect(rm)
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.0.force_flush()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.0.shutdown()
     }
 
@@ -125,7 +125,7 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
         builder = builder.with_view(view);
     }
     let provider = builder.build();
-    let cntr = provider.meter("test").u64_counter("hello").init();
+    let cntr = provider.meter("test").u64_counter("hello").build();
 
     (rdr, cntr)
 }
@@ -344,7 +344,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
         .u64_histogram(format!("histogram_{}", bound_count))
-        .init();
+        .build();
 
     (r, hist)
 }
@@ -384,7 +384,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         .meter("sdk/metric/bench/histogram");
 
     for i in 0..n {
-        let h = mtr.u64_histogram(format!("fake_data_{i}")).init();
+        let h = mtr.u64_histogram(format!("fake_data_{i}")).build();
         h.record(1, &[]);
     }
 

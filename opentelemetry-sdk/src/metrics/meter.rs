@@ -2,15 +2,14 @@ use core::fmt;
 use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
-    global,
     metrics::{
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
-        InstrumentProvider, MetricsError, ObservableCounter, ObservableGauge,
-        ObservableUpDownCounter, Result, UpDownCounter,
+        InstrumentProvider, MetricError, MetricResult, ObservableCounter, ObservableGauge,
+        ObservableUpDownCounter, UpDownCounter,
     },
+    otel_error, InstrumentationScope,
 };
 
-use crate::instrumentation::Scope;
 use crate::metrics::{
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
@@ -45,7 +44,7 @@ const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must b
 ///
 /// [Meter API]: opentelemetry::metrics::Meter
 pub(crate) struct SdkMeter {
-    scope: Scope,
+    scope: InstrumentationScope,
     pipes: Arc<Pipelines>,
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
@@ -53,7 +52,7 @@ pub(crate) struct SdkMeter {
 }
 
 impl SdkMeter {
-    pub(crate) fn new(scope: Scope, pipes: Arc<Pipelines>) -> Self {
+    pub(crate) fn new(scope: InstrumentationScope, pipes: Arc<Pipelines>) -> Self {
         let view_cache = Default::default();
 
         SdkMeter {
@@ -75,14 +74,20 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from this Counter will be ignored.",
+                reason = format!("{}", err)
+            );
             return Counter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Counter,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -91,7 +96,13 @@ impl SdkMeter {
         {
             Ok(counter) => counter,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this Counter will be ignored.",
+                    reason = format!("{}", err)
+                );
                 Counter::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
@@ -107,19 +118,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this ObservableCounter will not be invoked.",
+                reason = format!("{}", err));
             return ObservableCounter::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this ObservableCounter will not be invoked. Check View Configuration."
+                    );
                     return ObservableCounter::new();
                 }
 
@@ -134,7 +156,12 @@ impl SdkMeter {
                 ObservableCounter::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this ObservableCounter will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableCounter::new()
             }
         }
@@ -150,19 +177,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
+                reason = format!("{}", err));
             return ObservableUpDownCounter::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableUpDownCounter,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this ObservableUpDownCounter will not be invoked. Check View Configuration."
+                    );
                     return ObservableUpDownCounter::new();
                 }
 
@@ -177,7 +215,12 @@ impl SdkMeter {
                 ObservableUpDownCounter::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableUpDownCounter::new()
             }
         }
@@ -193,19 +236,30 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed", 
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this ObservableGauge will not be invoked.",
+                reason = format!("{}", err));
             return ObservableGauge::new();
         }
 
         match resolver.measures(
             InstrumentKind::ObservableGauge,
-            builder.name,
+            builder.name.clone(),
             builder.description,
             builder.unit,
             None,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name.as_ref(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this ObservableGauge will not be invoked. Check View Configuration."
+                    );
                     return ObservableGauge::new();
                 }
 
@@ -220,7 +274,12 @@ impl SdkMeter {
                 ObservableGauge::new()
             }
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this ObservableGauge will not be invoked.",
+                    reason = format!("{}", err));
                 ObservableGauge::new()
             }
         }
@@ -236,14 +295,20 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from this UpDownCounter will be ignored.",
+                reason = format!("{}", err)
+            );
             return UpDownCounter::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::UpDownCounter,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -252,7 +317,13 @@ impl SdkMeter {
         {
             Ok(updown_counter) => updown_counter,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this UpDownCounter will be ignored.",
+                    reason = format!("{}", err)
+                );
                 UpDownCounter::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
@@ -268,14 +339,20 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from this Gauge will be ignored.",
+                reason = format!("{}", err)
+            );
             return Gauge::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Gauge,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 None,
@@ -284,7 +361,13 @@ impl SdkMeter {
         {
             Ok(gauge) => gauge,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this Gauge will be ignored.",
+                    reason = format!("{}", err)
+                );
                 Gauge::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
@@ -300,14 +383,20 @@ impl SdkMeter {
     {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
-            global::handle_error(err);
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name.as_ref(),
+                instrument_name = builder.name.as_ref(),
+                message = "Measurements from this Histogram will be ignored.",
+                reason = format!("{}", err)
+            );
             return Histogram::new(Arc::new(NoopSyncInstrument::new()));
         }
 
         match resolver
             .lookup(
                 InstrumentKind::Histogram,
-                builder.name,
+                builder.name.clone(),
                 builder.description,
                 builder.unit,
                 builder.boundaries,
@@ -316,7 +405,13 @@ impl SdkMeter {
         {
             Ok(histogram) => histogram,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name.as_ref(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this Histogram will be ignored.",
+                    reason = format!("{}", err)
+                );
                 Histogram::new(Arc::new(NoopSyncInstrument::new()))
             }
         }
@@ -433,45 +528,45 @@ impl InstrumentProvider for SdkMeter {
     }
 }
 
-fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> Result<()> {
+fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit))
 }
 
-fn validate_instrument_name(name: &str) -> Result<()> {
+fn validate_instrument_name(name: &str) -> MetricResult<()> {
     if name.is_empty() {
-        return Err(MetricsError::InvalidInstrumentConfiguration(
+        return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_EMPTY,
         ));
     }
     if name.len() > INSTRUMENT_NAME_MAX_LENGTH {
-        return Err(MetricsError::InvalidInstrumentConfiguration(
+        return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_LENGTH,
         ));
     }
     if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-        return Err(MetricsError::InvalidInstrumentConfiguration(
+        return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_FIRST_ALPHABETIC,
         ));
     }
     if name.contains(|c: char| {
         !c.is_ascii_alphanumeric() && !INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
     }) {
-        return Err(MetricsError::InvalidInstrumentConfiguration(
+        return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_INVALID_CHAR,
         ));
     }
     Ok(())
 }
 
-fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> Result<()> {
+fn validate_instrument_unit(unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     if let Some(unit) = unit {
         if unit.len() > INSTRUMENT_UNIT_NAME_MAX_LENGTH {
-            return Err(MetricsError::InvalidInstrumentConfiguration(
+            return Err(MetricError::InvalidInstrumentConfiguration(
                 INSTRUMENT_UNIT_LENGTH,
             ));
         }
         if unit.contains(|c: char| !c.is_ascii()) {
-            return Err(MetricsError::InvalidInstrumentConfiguration(
+            return Err(MetricError::InvalidInstrumentConfiguration(
                 INSTRUMENT_UNIT_INVALID_CHAR,
             ));
         }
@@ -507,7 +602,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<ResolvedMeasures<T>> {
+    ) -> MetricResult<ResolvedMeasures<T>> {
         let aggregators = self.measures(kind, name, description, unit, boundaries)?;
         Ok(ResolvedMeasures {
             measures: aggregators,
@@ -521,7 +616,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-    ) -> Result<Vec<Arc<dyn internal::Measure<T>>>> {
+    ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
             description: description.unwrap_or_default(),
@@ -538,7 +633,7 @@ where
 mod tests {
     use std::borrow::Cow;
 
-    use opentelemetry::metrics::MetricsError;
+    use opentelemetry::metrics::MetricError;
 
     use super::{
         validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_FIRST_ALPHABETIC,
@@ -561,13 +656,13 @@ mod tests {
             ("allow.dots.ok", ""),
         ];
         for (name, expected_error) in instrument_name_test_cases {
-            let assert = |result: Result<_, MetricsError>| {
+            let assert = |result: Result<_, MetricError>| {
                 if expected_error.is_empty() {
                     assert!(result.is_ok());
                 } else {
                     assert!(matches!(
                         result.unwrap_err(),
-                        MetricsError::InvalidInstrumentConfiguration(msg) if msg == expected_error
+                        MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
                     ));
                 }
             };
@@ -592,13 +687,13 @@ mod tests {
         ];
 
         for (unit, expected_error) in instrument_unit_test_cases {
-            let assert = |result: Result<_, MetricsError>| {
+            let assert = |result: Result<_, MetricError>| {
                 if expected_error.is_empty() {
                     assert!(result.is_ok());
                 } else {
                     assert!(matches!(
                         result.unwrap_err(),
-                        MetricsError::InvalidInstrumentConfiguration(msg) if msg == expected_error
+                        MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
                     ));
                 }
             };

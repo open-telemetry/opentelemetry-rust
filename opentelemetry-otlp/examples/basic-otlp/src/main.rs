@@ -1,14 +1,13 @@
 use once_cell::sync::Lazy;
-use opentelemetry::global;
 use opentelemetry::logs::LogError;
-use opentelemetry::metrics::MetricsError;
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry::{
-    trace::{TraceContextExt, Tracer},
-    KeyValue,
-};
+use opentelemetry::metrics::MetricError;
+use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
+use opentelemetry::KeyValue;
+use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{ExportConfig, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
@@ -24,43 +23,37 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
-        .install_batch(runtime::Tokio)
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+    Ok(sdktrace::TracerProvider::builder()
+        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    let export_config = ExportConfig {
-        endpoint: "http://localhost:4317".to_string(),
-        ..ExportConfig::default()
-    };
-    opentelemetry_otlp::new_pipeline()
-        .metrics(runtime::Tokio)
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_export_config(export_config),
-        )
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
+    let exporter = MetricExporter::builder().with_tonic().build()?;
+
+    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+
+    Ok(SdkMeterProvider::builder()
+        .with_reader(reader)
         .with_resource(RESOURCE.clone())
-        .build()
+        .build())
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter = LogExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+
+    Ok(LoggerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .install_batch(runtime::Tokio)
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
 }
 
 #[tokio::main]
@@ -112,22 +105,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .init();
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
-    let tracer = global::tracer_provider()
-        .tracer_builder("basic")
-        .with_attributes(common_scope_attributes.clone())
+    let scope = InstrumentationScope::builder("basic")
+        .with_version("1.0")
+        .with_attributes(common_scope_attributes)
         .build();
-    let meter = global::meter_with_version(
-        "basic",
-        Some("v1.0"),
-        Some("schema_url"),
-        Some(common_scope_attributes.clone()),
-    );
+
+    let tracer = global::tracer_with_scope(scope.clone());
+    let meter = global::meter_with_scope(scope);
 
     let counter = meter
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
         .with_unit("my_unit")
-        .init();
+        .build();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
     }

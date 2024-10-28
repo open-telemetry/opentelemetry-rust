@@ -16,16 +16,18 @@ use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .with_trace_config(
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .build()?;
+    Ok(opentelemetry_sdk::trace::TracerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_config(
             sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
                 opentelemetry_semantic_conventions::resource::SERVICE_NAME,
                 "basic-otlp-tracing-example",
             )])),
         )
-        .install_batch(runtime::Tokio)
+        .build())
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("lemons");

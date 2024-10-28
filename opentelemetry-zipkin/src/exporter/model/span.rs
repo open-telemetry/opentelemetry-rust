@@ -165,7 +165,7 @@ mod tests {
                 events: SpanEvents::default(),
                 links: SpanLinks::default(),
                 status,
-                instrumentation_lib: Default::default(),
+                instrumentation_scope: Default::default(),
             };
             let local_endpoint = Endpoint::new("test".into(), None);
             let span = into_zipkin_span(local_endpoint, span_data);

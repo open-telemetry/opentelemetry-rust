@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use opentelemetry::metrics::Result;
+use opentelemetry::metrics::MetricResult;
 
 use super::{
     data::{ResourceMetrics, Temporality},
@@ -34,13 +34,13 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     /// SDK and stores it in the provided [ResourceMetrics] reference.
     ///
     /// An error is returned if this is called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()>;
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
 
     /// Flushes all metric measurements held in an export pipeline.
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self) -> Result<()>;
+    fn force_flush(&self) -> MetricResult<()>;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.
@@ -50,7 +50,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> Result<()>;
+    fn shutdown(&self) -> MetricResult<()>;
 
     /// The output temporality, a function of instrument kind.
     /// This SHOULD be obtained from the exporter.
@@ -62,5 +62,5 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
+    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
 }

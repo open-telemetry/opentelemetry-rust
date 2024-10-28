@@ -4,8 +4,8 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
-    metrics::{MetricsError, Result},
+    metrics::{MetricError, MetricResult},
+    otel_debug,
 };
 
 use super::{
@@ -77,9 +77,9 @@ impl MetricReader for ManualReader {
             if inner.sdk_producer.is_none() {
                 inner.sdk_producer = Some(pipeline);
             } else {
-                global::handle_error(MetricsError::Config(
-                    "duplicate reader registration, did not register manual reader".into(),
-                ))
+                otel_debug!(
+                    name: "ManualReader.DuplicateRegistration",
+                    message = "The pipeline is already registered to the Reader. Registering pipeline multiple times is not allowed.");
             }
         });
     }
@@ -88,12 +88,12 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
-                return Err(MetricsError::Other(
+                return Err(MetricError::Other(
                     "reader is shut down or not registered".into(),
                 ))
             }
@@ -103,12 +103,12 @@ impl MetricReader for ManualReader {
     }
 
     /// ForceFlush is a no-op, it always returns nil.
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         Ok(())
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let mut inner = self.inner.lock()?;
 
         // Any future call to collect will now return an error.
