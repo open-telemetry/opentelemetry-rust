@@ -5,7 +5,7 @@ use crate::trace::{Sampler, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
 use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
-use opentelemetry::{otel_debug, Context, KeyValue};
+use opentelemetry::{otel_error, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -204,9 +204,9 @@ impl JaegerRemoteSampler {
                     match Self::request_new_strategy(&client, endpoint.clone()).await {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
                         Err(err_msg) => {
-                            otel_debug!(
+                            otel_error!(
                                 name: "JaegerRemoteSampler.UpdateStrategy.RequestFailed",
-                                message = "Failed to fetch new sampling strategy",
+                                message = "Failed to fetch new sampling strategy from remote endpoint. This may cause the sampler to use stale configuration until the next successful update.",
                                 reason = format!("{}", err_msg),
                             );
                         }
