@@ -1,4 +1,3 @@
-use opentelemetry::trace::TraceError;
 use std::time::SystemTime;
 
 // leaky bucket based rate limit
@@ -53,10 +52,12 @@ impl LeakyBucket {
                         false
                     }
                 }
-                Err(_) => {
-                    opentelemetry::global::handle_error(TraceError::Other(
-                        "jaeger remote sampler gets rewinded timestamp".into(),
-                    ));
+                Err(err) => {
+                    opentelemetry::otel_debug!(
+                        name: "JaegerRemoteSampler.LeakyBucket.ClockAdjustment",
+                        message = "jaeger remote sampler detected a rewind in system clock",
+                        reason = format!("{:?}", err),
+                    );
                     true
                 }
             }

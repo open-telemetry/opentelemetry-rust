@@ -4,9 +4,9 @@ use crate::trace::sampler::jaeger_remote::remote::{
 };
 use crate::trace::sampler::sample_based_on_probability;
 use opentelemetry::trace::{
-    SamplingDecision, SamplingResult, TraceContextExt, TraceError, TraceId, TraceState,
+    SamplingDecision, SamplingResult, TraceContextExt, TraceId, TraceState,
 };
-use opentelemetry::{global, Context};
+use opentelemetry::{otel_debug, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
@@ -107,9 +107,10 @@ impl Inner {
                 }
             })
             .unwrap_or_else(|_err| {
-                global::handle_error(TraceError::Other(
-                    "jaeger remote sampler mutex poisoned".into(),
-                ))
+                otel_debug!(
+                    name: "JaegerRemoteSampler.MutexPoisoned",
+                    reason = "Failed to update strategy due to poisoned mutex"
+                );
             });
     }
 
