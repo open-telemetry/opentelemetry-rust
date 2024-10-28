@@ -7,7 +7,7 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_otlp::{LogExporter, MetricsExporter, Protocol, SpanExporter};
+use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::{
     logs::LoggerProvider,
     metrics::{PeriodicReader, SdkMeterProvider},
@@ -66,7 +66,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 }
 
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
-    let exporter = MetricsExporter::builder()
+    let exporter = MetricExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
         .with_endpoint("http://localhost:4318/v1/metrics")

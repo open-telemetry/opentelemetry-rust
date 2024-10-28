@@ -120,7 +120,7 @@ SpanEvent #0
 ### Metric
 
 ```text
-2024-05-22T20:25:42.908Z    info    MetricsExporter {"kind": "exporter", "data_type": "metrics", "name": "logging", "resource metrics": 1, "metrics": 1, "data points": 1}
+2024-05-22T20:25:42.908Z    info    MetricExporter {"kind": "exporter", "data_type": "metrics", "name": "logging", "resource metrics": 1, "metrics": 1, "data points": 1}
 2024-05-22T20:25:42.908Z    info    ResourceMetrics #0
 Resource SchemaURL:
 Resource attributes:

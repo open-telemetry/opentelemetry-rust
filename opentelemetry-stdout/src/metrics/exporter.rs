@@ -4,37 +4,37 @@ use core::{f64, fmt};
 use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::{
     data::{self, ScopeMetrics, Temporality},
-    exporter::PushMetricsExporter,
+    exporter::PushMetricExporter,
 };
 use std::fmt::Debug;
 use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
-pub struct MetricsExporter {
+pub struct MetricExporter {
     is_shutdown: atomic::AtomicBool,
     temporality: Temporality,
 }
 
-impl MetricsExporter {
+impl MetricExporter {
     /// Create a builder to configure this exporter.
-    pub fn builder() -> MetricsExporterBuilder {
-        MetricsExporterBuilder::default()
+    pub fn builder() -> MetricExporterBuilder {
+        MetricExporterBuilder::default()
     }
 }
-impl Default for MetricsExporter {
+impl Default for MetricExporter {
     fn default() -> Self {
-        MetricsExporterBuilder::default().build()
+        MetricExporterBuilder::default().build()
     }
 }
 
-impl fmt::Debug for MetricsExporter {
+impl fmt::Debug for MetricExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("MetricsExporter")
+        f.write_str("MetricExporter")
     }
 }
 
 #[async_trait]
-impl PushMetricsExporter for MetricsExporter {
+impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
     async fn export(&self, metrics: &mut data::ResourceMetrics) -> MetricResult<()> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
@@ -218,11 +218,11 @@ fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>])
 
 /// Configuration for the stdout metrics exporter
 #[derive(Default)]
-pub struct MetricsExporterBuilder {
+pub struct MetricExporterBuilder {
     temporality: Option<Temporality>,
 }
 
-impl MetricsExporterBuilder {
+impl MetricExporterBuilder {
     /// Set the [Temporality] of the exporter.
     pub fn with_temporality(mut self, temporality: Temporality) -> Self {
         self.temporality = Some(temporality);
@@ -230,16 +230,16 @@ impl MetricsExporterBuilder {
     }
 
     /// Create a metrics exporter with the current configuration
-    pub fn build(self) -> MetricsExporter {
-        MetricsExporter {
+    pub fn build(self) -> MetricExporter {
+        MetricExporter {
             temporality: self.temporality.unwrap_or_default(),
             is_shutdown: atomic::AtomicBool::new(false),
         }
     }
 }
 
-impl fmt::Debug for MetricsExporterBuilder {
+impl fmt::Debug for MetricExporterBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("MetricsExporterBuilder")
+        f.write_str("MetricExporterBuilder")
     }
 }
