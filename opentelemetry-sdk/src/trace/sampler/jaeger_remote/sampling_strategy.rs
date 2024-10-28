@@ -6,7 +6,7 @@ use crate::trace::sampler::sample_based_on_probability;
 use opentelemetry::trace::{
     SamplingDecision, SamplingResult, TraceContextExt, TraceId, TraceState,
 };
-use opentelemetry::{otel_warn, Context};
+use opentelemetry::{otel_debug, otel_warn, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
@@ -107,7 +107,7 @@ impl Inner {
                 }
             })
             .unwrap_or_else(|_err| {
-                otel_warn!(
+                otel_debug!(
                     name: "JaegerRemoteSampler.MutexPoisoned",
                     message = "Failed to update Jaeger Remote sampling strategy. The sampler's internal mutex is poisoned, indicating a panic occurred in another thread holding the lock. Sampling decisions may be using stale configuration.",
                 );
