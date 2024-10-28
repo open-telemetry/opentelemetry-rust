@@ -5,20 +5,24 @@
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Implement `LogRecord::set_trace_context` for `LogRecord`. Respect any trace context set on a `LogRecord` when emitting through a `Logger`.
 - Improved `LoggerProvider` shutdown handling to prevent redundant shutdown calls when `drop` is invoked. [#2195](https://github.com/open-telemetry/opentelemetry-rust/pull/2195)
-- **BREAKING**: [#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)
-  - **Replaced**: Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
 - When creating new metric instruments, SDK would return a no-op instrument if the validation fails. [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
-- **Breaking change for Metrics users:** The `init` method used to create instruments has been renamed to `build`.
-
-Before:
-```rust
-let counter = meter.u64_counter("my_counter").init();
-```
-
-Now:
-```rust
-let counter = meter.u64_counter("my_counter").build();
-```
+- **BREAKING for Metrics users**:
+  - **Replaced**
+    - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
+  - **Renamed**
+    - ([#2232](https://github.com/open-telemetry/opentelemetry-rust/pull/2232)): The `init` method used to create instruments has been renamed to `build`.  
+      Before:
+      ```rust
+      let counter = meter.u64_counter("my_counter").init();
+      ```
+      Now:
+      ```rust
+      let counter = meter.u64_counter("my_counter").build();
+      ```
+    - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
+      - `PushMetricsExporter` -> `PushMetricExporter`
+      - `InMemoryMetricsExporter` -> `InMemoryMetricExporter`
+      - `InMemoryMetricsExporterBuilder` -> `InMemoryMetricExporterBuilder`
 - **BREAKING**: [#2220](https://github.com/open-telemetry/opentelemetry-rust/pull/2220)
   - Removed `InstrumentationLibrary` re-export and its `Scope` alias, use `opentelemetry::InstrumentationLibrary` instead.
   - Unified builders across signals

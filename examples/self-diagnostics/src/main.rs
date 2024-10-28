@@ -1,7 +1,7 @@
 use opentelemetry::global::{self, set_error_handler, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_otlp::{LogExporter, MetricsExporter, WithExportConfig};
+use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
 use opentelemetry_sdk::metrics::PeriodicReader;
 use tracing_subscriber::filter::{EnvFilter, LevelFilter};
 use tracing_subscriber::fmt;
@@ -109,7 +109,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 }
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let exporter = MetricsExporter::builder()
+    let exporter = MetricExporter::builder()
         .with_http()
         .with_endpoint("http://localhost:4318/v1/metrics")
         .build()

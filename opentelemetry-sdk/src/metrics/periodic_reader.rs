@@ -18,7 +18,7 @@ use opentelemetry::{
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{exporter::PushMetricsExporter, reader::SdkProducer},
+    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
     Resource,
 };
 
@@ -54,7 +54,7 @@ pub struct PeriodicReaderBuilder<E, RT> {
 
 impl<E, RT> PeriodicReaderBuilder<E, RT>
 where
-    E: PushMetricsExporter,
+    E: PushMetricExporter,
     RT: Runtime,
 {
     fn new(exporter: E, runtime: RT) -> Self {
@@ -155,7 +155,7 @@ where
 ///
 /// The [runtime] can be selected based on feature flags set for this crate.
 ///
-/// The exporter can be any exporter that implements [PushMetricsExporter] such
+/// The exporter can be any exporter that implements [PushMetricExporter] such
 /// as [opentelemetry-otlp].
 ///
 /// [collect]: MetricReader::collect
@@ -168,7 +168,7 @@ where
 /// use opentelemetry_sdk::metrics::PeriodicReader;
 /// # fn example<E, R>(get_exporter: impl Fn() -> E, get_runtime: impl Fn() -> R)
 /// # where
-/// #     E: opentelemetry_sdk::metrics::exporter::PushMetricsExporter,
+/// #     E: opentelemetry_sdk::metrics::exporter::PushMetricExporter,
 /// #     R: opentelemetry_sdk::runtime::Runtime,
 /// # {
 ///
@@ -181,7 +181,7 @@ where
 /// ```
 #[derive(Clone)]
 pub struct PeriodicReader {
-    exporter: Arc<dyn PushMetricsExporter>,
+    exporter: Arc<dyn PushMetricExporter>,
     inner: Arc<Mutex<PeriodicReaderInner>>,
 }
 
@@ -189,7 +189,7 @@ impl PeriodicReader {
     /// Configuration options for a periodic reader
     pub fn builder<E, RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
     where
-        E: PushMetricsExporter,
+        E: PushMetricExporter,
         RT: Runtime,
     {
         PeriodicReaderBuilder::new(exporter, runtime)
@@ -391,7 +391,7 @@ mod tests {
     use super::PeriodicReader;
     use crate::{
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
-        runtime, testing::metrics::InMemoryMetricsExporter, Resource,
+        runtime, testing::metrics::InMemoryMetricExporter, Resource,
     };
     use opentelemetry::metrics::{MeterProvider, MetricError};
     use std::sync::mpsc;
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn unregistered_collect() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let mut rm = ResourceMetrics {
             resource: Resource::empty(),
@@ -458,7 +458,7 @@ mod tests {
         RT: crate::runtime::Runtime,
     {
         let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricsExporter::default();
+        let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime)
             .with_interval(interval)
             .build();
