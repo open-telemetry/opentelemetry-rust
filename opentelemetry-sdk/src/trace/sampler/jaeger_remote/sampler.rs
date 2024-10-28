@@ -206,8 +206,8 @@ impl JaegerRemoteSampler {
                         Err(err_msg) => {
                             otel_debug!(
                                 name: "JaegerRemoteSampler.UpdateStrategy.RequestFailed",
-                                reason = "Failed to fetch new sampling strategy",
-                                error = format!("{}", err_msg),
+                                message = "Failed to fetch new sampling strategy",
+                                reason = format!("{}", err_msg),
                             );
                         }
                     };
