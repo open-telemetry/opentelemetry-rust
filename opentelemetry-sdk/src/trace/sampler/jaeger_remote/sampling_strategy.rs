@@ -109,7 +109,7 @@ impl Inner {
             .unwrap_or_else(|_err| {
                 otel_debug!(
                     name: "JaegerRemoteSampler.MutexPoisoned",
-                    message = "Failed to update Jaeger Remote sampling strategy. The sampler's internal mutex is poisoned, indicating a panic occurred in another thread holding the lock. Sampling decisions may be using stale configuration.",
+                    message = "Unable to update Jaeger Remote sampling strategy: the sampler's internal mutex is poisoned, likely due to a panic in another thread holding the lock. This may result in using stale configuration until the remote sampling client is restarted.",
                 );
             });
     }
