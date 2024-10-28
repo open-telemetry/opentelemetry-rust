@@ -130,8 +130,8 @@ impl Default for Config {
                         Box::new(Sampler::TraceIdRatioBased(r))
                     } else {
                         otel_warn!(
-                            name: "TracesSampler.TraceIdRatio.Error",
-                            message= "Missing or invalid OTEL_TRACES_SAMPLER_ARG env variable. Falling back to default: 1.0"
+                            name: "Sampler.TraceIdRatio.InvalidArgument",
+                            message = "OTEL_TRACES_SAMPLER is set to 'traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)"
                         );
                         Box::new(Sampler::TraceIdRatioBased(1.0))
                     }
@@ -150,8 +150,8 @@ impl Default for Config {
                         ))))
                     } else {
                         otel_warn!(
-                            name: "TracesSampler.ParentBasedTraceIdRatio.Error",
-                            message = "Missing or invalid OTEL_TRACES_SAMPLER_ARG env variable. Falling back to default: 1.0"
+                            name: "Sampler.ParentBasedTraceIdRatio.InvalidArgument",
+                            message = "OTEL_TRACES_SAMPLER is set to 'parentbased_traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)"
                         );
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             1.0,
@@ -159,30 +159,33 @@ impl Default for Config {
                     }
                 }
                 "parentbased_jaeger_remote" => {
-                    otel_debug!(
-                        name: "TracesSampler.ParentBasedJaegerRemote.Error",
-                        message = "Unimplemented parentbased_jaeger_remote sampler. Falling back to default: parentbased_always_on"
+                    otel_warn!(
+                        name: "Sampler.ParentBasedJaegerRemote.Unsupported",
+                        message = "ParentBased JaegerRemote sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "jaeger_remote" => {
-                    otel_debug!(
-                        name: "TracesSampler.JaegerRemote.Error",
-                        message = "Unimplemented jaeger_remote sampler. Falling back to default: parentbased_always_on"
+                    otel_warn!(
+                        name: "Sampler.JaegerRemote.Unsupported",
+                        message = "JaegerRemote sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "xray" => {
-                    otel_debug!(
-                        name: "TracesSampler.Xray.Error",
-                        message = "Unimplemented xray sampler. Falling back to default: parentbased_always_on"
+                    otel_warn!(
+                        name: "Sampler.XRay.Unsupported",
+                        message = "AWS X-Ray sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 s => {
                     otel_warn!(
-                        name: "TracesSampler.Unknown.Error",
-                        message = "Unrecognised OTEL_TRACES_SAMPLER env variable. Falling back to default: parentbased_always_on",
+                        name: "Sampler.Configuration.InvalidSamplerType",
+                        message = format!(
+                            "Unrecognized sampler type '{}' in OTEL_TRACES_SAMPLER environment variable. Valid values are: always_on, always_off, traceidratio, parentbased_always_on, parentbased_always_off, parentbased_traceidratio. Using fallback sampler: ParentBased(AlwaysOn)",
+                            s
+                        ),
                         sampler = s
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
