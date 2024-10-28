@@ -369,7 +369,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                         if let Err(err) = export_task.await {
                             otel_error!(
                                 name: "BatchSpanProcessor.Export.Error",
-                                error = format!("{}", err)
+                                reason = format!("{}", err)
                             );
                         }
 
