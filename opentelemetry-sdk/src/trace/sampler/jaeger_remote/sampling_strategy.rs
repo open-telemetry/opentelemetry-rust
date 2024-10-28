@@ -142,10 +142,8 @@ impl Inner {
                 otel_warn!(
                     name: "Sampler.JaegerRemote.InvalidStrategy",
                     message = "Received invalid sampling strategy from Jaeger remote endpoint. Expected one of: OperationSampling, RateLimitingSampling (max traces per second), or ProbabilisticSampling (0.0-1.0 sampling probability). No valid strategy was found in the response. Using previous strategy if available.",
-                    received_operation_sampling = operation_sampling.is_some(),
-                    received_rate_limiting = rate_limiting_sampling.is_some(),
-                    received_probabilistic = probabilistic_sampling.is_some()
                 );
+                None
             }
         }
     }
