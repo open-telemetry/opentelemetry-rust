@@ -198,12 +198,12 @@ you're more than welcome to participate!
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
 * [Shaun Cox](https://github.com/shaun-cox)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 
 ### Emeritus
 
