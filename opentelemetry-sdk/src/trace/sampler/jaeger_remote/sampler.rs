@@ -204,7 +204,7 @@ impl JaegerRemoteSampler {
                     match Self::request_new_strategy(&client, endpoint.clone()).await {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
                         Err(err_msg) => {
-                            otel_error!(
+                            otel_warn!(
                                 name: "JaegerRemoteSampler.UpdateStrategy.RequestFailed",
                                 message = "Failed to fetch the new sampling strategy from remote endpoint. This may cause the sampler to use stale configuration until the next successful update.",
                                 reason = format!("{}", err_msg),
