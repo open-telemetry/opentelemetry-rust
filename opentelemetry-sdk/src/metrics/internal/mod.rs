@@ -16,8 +16,7 @@ use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
-use opentelemetry::metrics::MetricError;
-use opentelemetry::{global, otel_warn, KeyValue};
+use opentelemetry::{otel_warn, KeyValue};
 
 use crate::metrics::AttributeSet;
 
