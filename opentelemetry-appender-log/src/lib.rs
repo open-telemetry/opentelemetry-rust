@@ -753,13 +753,13 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogsExporter};
+    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogExporter};
 
     use log::Log;
 
     #[test]
     fn logbridge_with_default_metadata_is_enabled() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter)
@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn logbridge_with_record_can_log() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -892,7 +892,7 @@ mod tests {
             }
         }
 
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1158,7 +1158,7 @@ mod tests {
             CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
         };
 
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1201,7 +1201,7 @@ mod tests {
 
     #[test]
     fn test_flush() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter)

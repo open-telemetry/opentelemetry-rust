@@ -65,7 +65,7 @@ cargo run
 
 - If the docker instance for collector is running, below error should be logged into the container. There won't be any logs from the `hyper`, `reqwest` and `tonic` crates.
 ```
-otel-collector-1  | 2024-06-05T17:09:46.926Z    info    LogsExporter    {"kind": "exporter", "data_type": "logs", "name": "logging", "resource logs": 1, "log records": 1}
+otel-collector-1  | 2024-06-05T17:09:46.926Z    info    LogExporter    {"kind": "exporter", "data_type": "logs", "name": "logging", "resource logs": 1, "log records": 1}
 otel-collector-1  | 2024-06-05T17:09:46.926Z    info    ResourceLog #0
 otel-collector-1  | Resource SchemaURL:
 otel-collector-1  | Resource attributes:
