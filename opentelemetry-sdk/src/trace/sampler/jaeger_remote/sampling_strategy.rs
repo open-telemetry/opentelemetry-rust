@@ -140,7 +140,7 @@ impl Inner {
             }
             _ => {
                 otel_warn!(
-                    name: "Sampler.JaegerRemote.InvalidStrategy",
+                    name: "JaegerRemoteSampler.InvalidStrategyReceived",
                     message = "Invalid sampling strategy received from the remote endpoint. Expected one of: OperationSampling, RateLimitingSampling, or ProbabilisticSampling. Continuing to use the previous strategy or default sampler until a successful update.",
                 );
                 None
