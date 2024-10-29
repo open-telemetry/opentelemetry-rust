@@ -330,6 +330,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             } else if let Err(err) = result {
                 // If no channel is provided and the export operation encountered an error,
                 // log the error directly here.
+                // TODO: Consider returning the status instead of logging it.
                 otel_error!(
                     name: "BatchSpanProcessor.Flush.ExportError",
                     reason = format!("{:?}", err),
