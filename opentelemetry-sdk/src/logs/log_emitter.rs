@@ -309,7 +309,7 @@ mod tests {
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogsExporter,
+        testing::logs::InMemoryLogExporter,
         trace::TracerProvider,
         Resource,
     };
@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn trace_context_test() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
