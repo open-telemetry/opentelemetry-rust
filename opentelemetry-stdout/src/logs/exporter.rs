@@ -25,7 +25,7 @@ impl Default for LogExporter {
 
 impl fmt::Debug for LogExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("LogsExporter")
+        f.write_str("LogExporter")
     }
 }
 

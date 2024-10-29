@@ -216,7 +216,7 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
-    use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
+    use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
@@ -231,7 +231,7 @@ mod tests {
     }
 
     fn create_tracing_subscriber(
-        _exporter: InMemoryLogsExporter,
+        _exporter: InMemoryLogExporter,
         logger_provider: &LoggerProvider,
     ) -> impl tracing::Subscriber {
         let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -389,7 +389,7 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -565,7 +565,7 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
