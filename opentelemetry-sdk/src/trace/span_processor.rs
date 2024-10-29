@@ -134,7 +134,8 @@ impl SpanProcessor for SimpleSpanProcessor {
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
-            otel_error!(
+            // TODO: check error type, and log `error` only if the error is user-actiobable, else log `debug`
+            otel_debug!(
                 name: "SimpleProcessor.OnEnd.Error",
                 reason = format!("{:?}", err)
             );
@@ -249,8 +250,8 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
-            otel_error!(
-                name: "BatchProcessor.OnEnd.Error",
+            otel_debug!(
+                name: "BatchSpanProcessor.OnEnd.SendResultError",
                 reason = format!("{:?}", TraceError::Other(err.into()))
             );
         }
@@ -368,7 +369,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                     let task = async move {
                         if let Err(err) = export_task.await {
                             otel_error!(
-                                name: "BatchSpanProcessor.Export.Error",
+                                name: "BatchSpanProcessor.OnEnd.Error",
                                 reason = format!("{}", err)
                             );
                         }

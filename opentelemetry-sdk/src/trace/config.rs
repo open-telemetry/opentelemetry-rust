@@ -161,21 +161,21 @@ impl Default for Config {
                 "parentbased_jaeger_remote" => {
                     otel_warn!(
                         name: "Sampler.ParentBasedJaegerRemote.Unsupported",
-                        message = "ParentBased JaegerRemote sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                        message = "OTEL_TRACES_SAMPLER is set to 'parentbased_jaeger_remote' which is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "jaeger_remote" => {
                     otel_warn!(
                         name: "Sampler.JaegerRemote.Unsupported",
-                        message = "JaegerRemote sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                        message = "OTEL_TRACES_SAMPLER is set to 'jaeger_remote' which is implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "xray" => {
                     otel_warn!(
                         name: "Sampler.XRay.Unsupported",
-                        message = "AWS X-Ray sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                        message = "OTEL_TRACES_SAMPLER is set to 'xray'. AWS X-Ray sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
