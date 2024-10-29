@@ -205,7 +205,7 @@ impl JaegerRemoteSampler {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
                         Err(err_msg) => {
                             otel_warn!(
-                                name: "JaegerRemoteSampler.UpdateStrategy.RequestFailed",
+                                name: "JaegerRemoteSampler.FailedToFetchSamplingStrategy",
                                 message= "Failed to fetch the sampling strategy from the remote endpoint. The last successfully fetched configuration will be used if available; otherwise, the default sampler will be applied until a successful configuration fetch.",
                                 reason = format!("{}", err_msg),
                             );
