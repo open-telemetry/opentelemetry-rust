@@ -33,12 +33,20 @@ mod logs;
 #[cfg(feature = "trace")]
 mod trace;
 
+#[cfg(all(
+    not(feature = "reqwest-client"),
+    not(feature = "reqwest-blocking-client"),
+    feature = "hyper-client"
+))]
+use opentelemetry_http::hyper::HyperClient;
+
 /// Configuration of the http transport
 #[derive(Debug)]
 #[cfg_attr(
     all(
         not(feature = "reqwest-client"),
-        not(feature = "reqwest-blocking-client")
+        not(feature = "reqwest-blocking-client"),
+        not(feature = "hyper-client")
     ),
     derive(Default)
 )]
@@ -50,19 +58,36 @@ pub struct HttpConfig {
     headers: Option<HashMap<String, String>>,
 }
 
-#[cfg(any(feature = "reqwest-blocking-client", feature = "reqwest-client",))]
+#[cfg(any(
+    feature = "reqwest-blocking-client",
+    feature = "reqwest-client",
+    feature = "hyper-client"
+))]
 impl Default for HttpConfig {
     fn default() -> Self {
+        #[cfg(feature = "reqwest-blocking-client")]
+        let default_client =
+            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>);
+        #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
+        let default_client = Some(Arc::new(reqwest::Client::new()) as Arc<dyn HttpClient>);
+        #[cfg(all(
+            not(feature = "reqwest-client"),
+            not(feature = "reqwest-blocking-client"),
+            feature = "hyper-client"
+        ))]
+        // TODO - support configuring custom connector and executor
+        let default_client = Some(Arc::new(HyperClient::with_default_connector(
+            Duration::from_secs(10),
+            None,
+        )) as Arc<dyn HttpClient>);
+        #[cfg(all(
+            not(feature = "reqwest-client"),
+            not(feature = "reqwest-blocking-client"),
+            not(feature = "hyper-client")
+        ))]
+        let default_client = None;
         HttpConfig {
-            #[cfg(feature = "reqwest-blocking-client")]
-            client: Some(Arc::new(reqwest::blocking::Client::new())),
-            #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
-            client: Some(Arc::new(reqwest::Client::new())),
-            #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client")
-            ))]
-            client: None,
+            client: default_client,
             headers: None,
         }
     }
@@ -140,13 +165,11 @@ impl HttpExporterBuilder {
             },
             None => self.exporter_config.timeout,
         };
-
         let http_client = self
             .http_config
             .client
             .take()
             .ok_or(crate::Error::NoHttpClient)?;
-
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
             .http_config

@@ -108,7 +108,10 @@ pub mod hyper {
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
-    use hyper_util::client::legacy::{connect::Connect, Client};
+    use hyper_util::client::legacy::{
+        connect::{Connect, HttpConnector},
+        Client,
+    };
     use std::fmt::Debug;
     use std::pin::Pin;
     use std::task::{self, Poll};
@@ -116,39 +119,42 @@ pub mod hyper {
     use tokio::time;
 
     #[derive(Debug, Clone)]
-    pub struct HyperClient<C> {
+    pub struct HyperClient<C = HttpConnector>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
         inner: Client<C, Body>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
 
-    impl<C> HyperClient<C> {
-        pub fn new_with_timeout(inner: Client<C, Body>, timeout: Duration) -> Self {
+    impl<C> HyperClient<C>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
+        pub fn new(connector: C, timeout: Duration, authorization: Option<HeaderValue>) -> Self {
+            // TODO - support custom executor
+            let inner = Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
             Self {
                 inner,
                 timeout,
-                authorization: None,
-            }
-        }
-
-        pub fn new_with_timeout_and_authorization_header(
-            inner: Client<C, Body>,
-            timeout: Duration,
-            authorization: HeaderValue,
-        ) -> Self {
-            Self {
-                inner,
-                timeout,
-                authorization: Some(authorization),
+                authorization,
             }
         }
     }
 
+    impl HyperClient<HttpConnector> {
+        /// Creates a new `HyperClient` with a default `HttpConnector`.
+        pub fn with_default_connector(
+            timeout: Duration,
+            authorization: Option<HeaderValue>,
+        ) -> Self {
+            Self::new(HttpConnector::new(), timeout, authorization)
+        }
+    }
+
     #[async_trait]
-    impl<C> HttpClient for HyperClient<C>
-    where
-        C: Connect + Send + Sync + Clone + Debug + 'static,
-    {
+    impl HttpClient for HyperClient {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Body(Full::from(body)));
