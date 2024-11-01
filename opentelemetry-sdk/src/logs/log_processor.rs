@@ -533,7 +533,7 @@ mod tests {
     };
     use crate::export::logs::{LogBatch, LogExporter};
     use crate::logs::LogRecord;
-    use crate::testing::logs::InMemoryLogsExporterBuilder;
+    use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
             log_processor::{
@@ -543,7 +543,7 @@ mod tests {
             BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
         runtime,
-        testing::logs::InMemoryLogsExporter,
+        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use async_trait::async_trait;
@@ -690,7 +690,7 @@ mod tests {
         ];
         temp_env::with_vars(env_vars.clone(), || {
             let builder =
-                BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+                BatchLogProcessor::builder(InMemoryLogExporter::default(), runtime::Tokio);
 
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
@@ -711,7 +711,7 @@ mod tests {
 
         temp_env::with_vars(env_vars, || {
             let builder =
-                BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio);
+                BatchLogProcessor::builder(InMemoryLogExporter::default(), runtime::Tokio);
             assert_eq!(builder.config.max_export_batch_size, 120);
             assert_eq!(builder.config.max_queue_size, 120);
         });
@@ -726,7 +726,7 @@ mod tests {
             .with_max_queue_size(4)
             .build();
 
-        let builder = BatchLogProcessor::builder(InMemoryLogsExporter::default(), runtime::Tokio)
+        let builder = BatchLogProcessor::builder(InMemoryLogExporter::default(), runtime::Tokio)
             .with_batch_config(expected);
 
         let actual = &builder.config;
@@ -784,7 +784,7 @@ mod tests {
     async fn test_batch_shutdown() {
         // assert we will receive an error
         // setup
-        let exporter = InMemoryLogsExporterBuilder::default()
+        let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
         let processor = BatchLogProcessor::new(
@@ -806,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_simple_shutdown() {
-        let exporter = InMemoryLogsExporterBuilder::default()
+        let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
@@ -831,7 +831,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_multi_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -846,7 +846,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -858,7 +858,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -870,7 +870,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn test_simple_processor_sync_exporter_without_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1002,7 +1002,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_sync_exporter_with_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
@@ -1015,7 +1015,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_sync_exporter_with_multi_thread_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = Arc::new(SimpleLogProcessor::new(Box::new(exporter.clone())));
 
         let mut handles = vec![];
@@ -1038,7 +1038,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_simple_processor_sync_exporter_with_current_thread_runtime() {
-        let exporter = InMemoryLogsExporterBuilder::default().build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
 
         let mut record: LogRecord = Default::default();
