@@ -188,7 +188,6 @@ impl Default for Config {
                             "Unrecognized sampler type '{}' in OTEL_TRACES_SAMPLER environment variable. Valid values are: always_on, always_off, traceidratio, parentbased_always_on, parentbased_always_off, parentbased_traceidratio. Using fallback sampler: ParentBased(AlwaysOn)",
                             s
                         ),
-                        sampler = s
                     );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
