@@ -11,14 +11,11 @@ use futures_util::{
     stream::{self, FusedStream},
     StreamExt,
 };
-use opentelemetry::{
-    metrics::{MetricError, MetricResult},
-    otel_debug, otel_error,
-};
+use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
 

@@ -1,13 +1,12 @@
 use std::sync::PoisonError;
-use std::sync::RwLock;
 
 #[cfg(feature = "logs")]
 use crate::logs::LogError;
 #[cfg(feature = "metrics")]
 use crate::metrics::MetricError;
-use crate::propagation::PropagationError;
+use opentelemetry::propagation::PropagationError;
 #[cfg(feature = "trace")]
-use crate::trace::TraceError;
+use opentelemetry::trace::TraceError;
 
 /// Wrapper for error from both tracing and metrics part of open telemetry.
 #[derive(thiserror::Error, Debug)]

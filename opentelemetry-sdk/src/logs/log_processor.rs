@@ -1,6 +1,6 @@
 use crate::{
     export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::LogRecord,
+    logs::{LogError, LogRecord, LogResult},
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -11,10 +11,7 @@ use futures_util::{
 };
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    otel_debug, otel_error, otel_warn, InstrumentationScope,
-};
+use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};

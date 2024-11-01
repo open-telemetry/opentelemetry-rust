@@ -399,12 +399,6 @@ impl KeyValue {
     }
 }
 
-/// Marker trait for errors returned by exporters
-pub trait ExportError: std::error::Error + Send + Sync + 'static {
-    /// The name of exporter that returned this error
-    fn exporter_name(&self) -> &'static str;
-}
-
 /// Information about a library or crate providing instrumentation.
 ///
 /// An instrumentation scope should be named to follow any naming conventions

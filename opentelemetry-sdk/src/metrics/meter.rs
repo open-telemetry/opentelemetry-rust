@@ -4,8 +4,8 @@ use std::{borrow::Cow, sync::Arc};
 use opentelemetry::{
     metrics::{
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
-        InstrumentProvider, MetricError, MetricResult, ObservableCounter, ObservableGauge,
-        ObservableUpDownCounter, UpDownCounter,
+        InstrumentProvider, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
+        UpDownCounter,
     },
     otel_error, InstrumentationScope,
 };
@@ -14,6 +14,7 @@ use crate::metrics::{
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
+    MetricError, MetricResult,
 };
 
 use super::noop::NoopSyncInstrument;

@@ -1,11 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    otel_debug,
-    trace::TraceContextExt,
-    Context, InstrumentationScope,
-};
+use crate::{logs::LogError, logs::LogResult};
+use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;

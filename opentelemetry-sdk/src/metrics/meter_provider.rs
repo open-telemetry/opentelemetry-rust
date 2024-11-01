@@ -8,10 +8,11 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{Meter, MeterProvider, MetricError, MetricResult},
+    metrics::{Meter, MeterProvider},
     otel_debug, otel_error, InstrumentationScope,
 };
 
+use crate::metrics::{MetricError, MetricResult};
 use crate::Resource;
 
 use super::{
