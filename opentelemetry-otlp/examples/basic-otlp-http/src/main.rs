@@ -1,3 +1,4 @@
+/// To use hyper as the HTTP client - cargo run --features="hyper" --no-default-features
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
@@ -23,12 +24,6 @@ use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-#[cfg(feature = "hyper")]
-use opentelemetry_otlp::WithHttpConfig;
-
-#[cfg(feature = "hyper")]
-mod hyper;
-
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::new(vec![KeyValue::new(
         opentelemetry_semantic_conventions::resource::SERVICE_NAME,
@@ -37,15 +32,11 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError> {
-    let exporter_builder = LogExporter::builder()
+    let exporter = LogExporter::builder()
         .with_http()
         .with_endpoint("http://localhost:4318/v1/logs")
-        .with_protocol(Protocol::HttpBinary);
-
-    #[cfg(feature = "hyper")]
-    let exporter_builder = exporter_builder.with_http_client(hyper::HyperClient::default());
-
-    let exporter = exporter_builder.build()?;
+        .with_protocol(Protocol::HttpBinary)
+        .build()?;
 
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
@@ -59,6 +50,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
         .with_endpoint("http://localhost:4318/v1/traces")
         .build()?;
+
     Ok(TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
         .with_config(Config::default().with_resource(RESOURCE.clone()))
