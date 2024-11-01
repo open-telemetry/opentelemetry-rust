@@ -352,6 +352,7 @@ impl<T: Number> ExpoHistogram<T> {
     pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
         let f_value = value.into_float();
         // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
         if f_value.is_infinite() || f_value.is_nan() {
             return;
         }

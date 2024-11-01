@@ -7,23 +7,22 @@ use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation, Temporality};
 use opentelemetry::KeyValue;
 
-use super::Number;
-use super::{AtomicTracker, AtomicallyUpdate, Operation, ValueMap};
-
-struct HistogramUpdate;
-
-impl Operation for HistogramUpdate {
-    fn update_tracker<T: Default, AT: AtomicTracker<T>>(tracker: &AT, value: T, index: usize) {
-        tracker.update_histogram(index, value);
-    }
-}
+use super::ValueMap;
+use super::{Aggregator, Number};
 
 struct HistogramTracker<T> {
     buckets: Mutex<Buckets<T>>,
 }
 
-impl<T: Number> AtomicTracker<T> for HistogramTracker<T> {
-    fn update_histogram(&self, index: usize, value: T) {
+impl<T> Aggregator<T> for HistogramTracker<T>
+where
+    T: Number,
+{
+    type InitConfig = usize;
+    /// Value and bucket index
+    type PreComputedValue = (T, usize);
+
+    fn update(&self, (value, index): (T, usize)) {
         let mut buckets = match self.buckets.lock() {
             Ok(guard) => guard,
             Err(_) => return,
@@ -32,15 +31,10 @@ impl<T: Number> AtomicTracker<T> for HistogramTracker<T> {
         buckets.bin(index, value);
         buckets.sum(value);
     }
-}
 
-impl<T: Number> AtomicallyUpdate<T> for HistogramTracker<T> {
-    type AtomicTracker = HistogramTracker<T>;
-
-    fn new_atomic_tracker(buckets_count: Option<usize>) -> Self::AtomicTracker {
-        let count = buckets_count.unwrap();
+    fn create(count: &usize) -> Self {
         HistogramTracker {
-            buckets: Mutex::new(Buckets::<T>::new(count)),
+            buckets: Mutex::new(Buckets::<T>::new(*count)),
         }
     }
 }
@@ -94,7 +88,7 @@ impl<T: Number> Buckets<T> {
 /// Summarizes a set of measurements as a histogram with explicitly defined
 /// buckets.
 pub(crate) struct Histogram<T: Number> {
-    value_map: ValueMap<HistogramTracker<T>, T, HistogramUpdate>,
+    value_map: ValueMap<T, HistogramTracker<T>>,
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,
@@ -103,9 +97,11 @@ pub(crate) struct Histogram<T: Number> {
 
 impl<T: Number> Histogram<T> {
     pub(crate) fn new(boundaries: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
+        // TODO fix the bug, by first removing NaN and only then getting buckets_count
+        // once we know the reason for performance degradation
         let buckets_count = boundaries.len() + 1;
         let mut histogram = Histogram {
-            value_map: ValueMap::new_with_buckets_count(buckets_count),
+            value_map: ValueMap::new(buckets_count),
             bounds: boundaries,
             record_min_max,
             record_sum,
@@ -122,14 +118,20 @@ impl<T: Number> Histogram<T> {
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         let f = measurement.into_float();
-
+        // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
+        // TODO: uncomment once we know the reason for performance degradation
+        // if f.is_infinite() || f.is_nan() {
+        //     return;
+        // }
         // This search will return an index in the range `[0, bounds.len()]`, where
         // it will return `bounds.len()` if value is greater than the last element
         // of `bounds`. This aligns with the buckets in that the length of buckets
         // is `bounds.len()+1`, with the last bucket representing:
         // `(bounds[bounds.len()-1], +∞)`.
         let index = self.bounds.partition_point(|&x| x < f);
-        self.value_map.measure(measurement, attrs, index);
+
+        self.value_map.measure((measurement, index), attrs);
     }
 
     pub(crate) fn delta(
@@ -350,3 +352,69 @@ impl<T: Number> Histogram<T> {
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 }
+
+// TODO: uncomment once we know the reason for performance degradation
+// #[cfg(test)]
+// mod tests {
+
+//     use super::*;
+
+//     #[test]
+//     fn when_f64_is_nan_or_infinity_then_ignore() {
+//         struct Expected {
+//             min: f64,
+//             max: f64,
+//             sum: f64,
+//             count: u64,
+//         }
+//         impl Expected {
+//             fn new(min: f64, max: f64, sum: f64, count: u64) -> Self {
+//                 Expected {
+//                     min,
+//                     max,
+//                     sum,
+//                     count,
+//                 }
+//             }
+//         }
+//         struct TestCase {
+//             values: Vec<f64>,
+//             expected: Expected,
+//         }
+
+//         let test_cases = vec![
+//             TestCase {
+//                 values: vec![2.0, 4.0, 1.0],
+//                 expected: Expected::new(1.0, 4.0, 7.0, 3),
+//             },
+//             TestCase {
+//                 values: vec![2.0, 4.0, 1.0, f64::INFINITY],
+//                 expected: Expected::new(1.0, 4.0, 7.0, 3),
+//             },
+//             TestCase {
+//                 values: vec![2.0, 4.0, 1.0, -f64::INFINITY],
+//                 expected: Expected::new(1.0, 4.0, 7.0, 3),
+//             },
+//             TestCase {
+//                 values: vec![2.0, f64::NAN, 4.0, 1.0],
+//                 expected: Expected::new(1.0, 4.0, 7.0, 3),
+//             },
+//             TestCase {
+//                 values: vec![4.0, 4.0, 4.0, 2.0, 16.0, 1.0],
+//                 expected: Expected::new(1.0, 16.0, 31.0, 6),
+//             },
+//         ];
+
+//         for test in test_cases {
+//             let h = Histogram::new(vec![], true, true);
+//             for v in test.values {
+//                 h.measure(v, &[]);
+//             }
+//             let res = h.value_map.no_attribute_tracker.buckets.lock().unwrap();
+//             assert_eq!(test.expected.max, res.max);
+//             assert_eq!(test.expected.min, res.min);
+//             assert_eq!(test.expected.sum, res.total);
+//             assert_eq!(test.expected.count, res.count);
+//         }
+//     }
+// }
