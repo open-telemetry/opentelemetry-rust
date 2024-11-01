@@ -125,13 +125,14 @@ impl Default for Config {
                 "always_on" => Box::new(Sampler::AlwaysOn),
                 "always_off" => Box::new(Sampler::AlwaysOff),
                 "traceidratio" => {
-                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    let ratio = sampler_arg.as_ref().and_then(|r| r.parse::<f64>().ok());
                     if let Some(r) = ratio {
                         Box::new(Sampler::TraceIdRatioBased(r))
                     } else {
                         otel_warn!(
                             name: "TracerProvider.Config.Sampler.InvalidArgument",
-                            message = "OTEL_TRACES_SAMPLER is set to 'traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)"
+                            message = "OTEL_TRACES_SAMPLER is set to 'traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)",
+                            otel_traces_sampler_arg = format!("{:?}", sampler_arg)
                         );
                         Box::new(Sampler::TraceIdRatioBased(1.0))
                     }
@@ -143,7 +144,7 @@ impl Default for Config {
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOff)))
                 }
                 "parentbased_traceidratio" => {
-                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    let ratio = sampler_arg.as_ref().and_then(|r| r.parse::<f64>().ok());
                     if let Some(r) = ratio {
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             r,
@@ -151,7 +152,8 @@ impl Default for Config {
                     } else {
                         otel_warn!(
                             name: "TracerProvider.Config.Sampler.InvalidArgument",
-                            message = "OTEL_TRACES_SAMPLER is set to 'parentbased_traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)"
+                            message = "OTEL_TRACES_SAMPLER is set to 'parentbased_traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)",
+                            otel_traces_sampler_arg = format!("{:?}", sampler_arg)
                         );
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             1.0,

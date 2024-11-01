@@ -251,7 +251,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         if let Err(err) = result {
             otel_debug!(
-                name: "BatchSpanProcessor.OnEnd.SendResultError",
+                name: "BatchSpanProcessor.Export.SendResultError",
                 reason = format!("{:?}", TraceError::Other(err.into()))
             );
         }
@@ -370,7 +370,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                     let task = async move {
                         if let Err(err) = export_task.await {
                             otel_error!(
-                                name: "BatchSpanProcessor.OnEnd.Error",
+                                name: "BatchSpanProcessor.Export.Error",
                                 reason = format!("{}", err)
                             );
                         }
