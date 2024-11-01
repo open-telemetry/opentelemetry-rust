@@ -40,7 +40,7 @@ observability tools.
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md),
+API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/api.md),
 that allows one to write log appenders that can bridge existing logging
 libraries to the OpenTelemetry log data model. The following log appenders are
 available:
