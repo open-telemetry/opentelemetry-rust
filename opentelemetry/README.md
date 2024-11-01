@@ -56,7 +56,7 @@ Here's a breakdown of its components:
   Allows for the attachment of metadata (baggage) to telemetry, which can be
   used for sharing application-specific information across service boundaries.
 - **[Logs Bridge
-  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md):**
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/api.md):**
   Allows to bridge existing logging mechanisms with OpenTelemetry logging. This
   is **NOT** meant for end users to call, instead it is meant to enable writing
   bridges/appenders for existing logging mechanisms such as

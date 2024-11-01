@@ -53,6 +53,10 @@ Released 2024-Sep-30
       - `MetricsExporter` -> `MetricExporter`
       - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
+  - [#2263](https://github.com/open-telemetry/opentelemetry-rust/pull/2263)
+  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`. 
+  Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25
