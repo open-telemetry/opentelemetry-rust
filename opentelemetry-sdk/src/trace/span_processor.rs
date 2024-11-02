@@ -251,7 +251,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         if let Err(err) = result {
             otel_debug!(
-                name: "BatchSpanProcessor.ExportQueueingFailed",
+                name: "BatchSpanProcessor.OnEnd.ExportQueueingFailed",
                 reason = format!("{:?}", TraceError::Other(err.into()))
             );
         }
