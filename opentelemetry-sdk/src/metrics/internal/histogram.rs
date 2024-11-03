@@ -13,7 +13,7 @@ struct HistogramTracker<T> {
     buckets: Mutex<Buckets<T>>,
 }
 
-impl<T> Aggregator<T> for HistogramTracker<T>
+impl<T> Aggregator for HistogramTracker<T>
 where
     T: Number,
 {
@@ -85,7 +85,7 @@ impl<T: Number> Buckets<T> {
 /// Summarizes a set of measurements as a histogram with explicitly defined
 /// buckets.
 pub(crate) struct Histogram<T: Number> {
-    value_map: ValueMap<T, HistogramTracker<T>>,
+    value_map: ValueMap<HistogramTracker<T>>,
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,

@@ -13,7 +13,7 @@ where
     pub(crate) value: T::AtomicTracker,
 }
 
-impl<T> Aggregator<T> for Assign<T>
+impl<T> Aggregator for Assign<T>
 where
     T: Number,
 {
@@ -39,7 +39,7 @@ where
 
 /// Summarizes a set of measurements as the last one made.
 pub(crate) struct LastValue<T: Number> {
-    value_map: ValueMap<T, Assign<T>>,
+    value_map: ValueMap<Assign<T>>,
     start: Mutex<SystemTime>,
 }
 

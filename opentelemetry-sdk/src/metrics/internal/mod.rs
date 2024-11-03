@@ -23,10 +23,7 @@ use crate::metrics::AttributeSet;
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
     Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
-pub(crate) trait Aggregator<T>
-where
-    T: Number,
-{
+pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
     /// E.g. bucket_size at creation time .
     type InitConfig;
@@ -50,10 +47,9 @@ where
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
-pub(crate) struct ValueMap<T, A>
+pub(crate) struct ValueMap<A>
 where
-    T: Number,
-    A: Aggregator<T>,
+    A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
     trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
@@ -67,10 +63,9 @@ where
     config: A::InitConfig,
 }
 
-impl<T, A> ValueMap<T, A>
+impl<A> ValueMap<A>
 where
-    T: Number,
-    A: Aggregator<T>,
+    A: Aggregator,
 {
     fn new(config: A::InitConfig) -> Self {
         ValueMap {

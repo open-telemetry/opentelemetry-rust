@@ -7,7 +7,7 @@ use std::{collections::HashMap, mem::replace, ops::DerefMut, sync::Mutex, time::
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
-    value_map: ValueMap<T, Assign<T>>,
+    value_map: ValueMap<Assign<T>>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,

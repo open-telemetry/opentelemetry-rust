@@ -16,7 +16,7 @@ where
     value: T::AtomicTracker,
 }
 
-impl<T> Aggregator<T> for Increment<T>
+impl<T> Aggregator for Increment<T>
 where
     T: Number,
 {
@@ -42,7 +42,7 @@ where
 
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number> {
-    value_map: ValueMap<T, Increment<T>>,
+    value_map: ValueMap<Increment<T>>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
