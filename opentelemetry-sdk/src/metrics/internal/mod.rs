@@ -141,6 +141,7 @@ where
     }
 
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
+    /// This is used in Cumulative temporality mode, where [`ValueMap`] is not cleared.
     pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
@@ -162,7 +163,8 @@ where
         }
     }
 
-    /// Iterate through all attribute sets, populate `DataPoints` and and reset.
+    /// Iterate through all attribute sets, populate `DataPoints` and reset.
+    /// This is used in Delta temporality mode, where [`ValueMap`] is reset after collection.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
