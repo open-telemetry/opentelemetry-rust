@@ -2,7 +2,7 @@ use opentelemetry::KeyValue;
 
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 
-use super::{Assign, AtomicTracker, Number, ValueMap};
+use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use std::{
     collections::{HashMap, HashSet},
     sync::{atomic::Ordering, Arc, Mutex},
@@ -11,7 +11,7 @@ use std::{
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
-    value_map: ValueMap<T, T, Assign>,
+    value_map: ValueMap<T, Assign<T>>,
     monotonic: bool,
     start: Mutex<SystemTime>,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
@@ -20,7 +20,7 @@ pub(crate) struct PrecomputedSum<T: Number> {
 impl<T: Number> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(()),
             monotonic,
             start: Mutex::new(SystemTime::now()),
             reported: Mutex::new(Default::default()),
@@ -29,7 +29,7 @@ impl<T: Number> PrecomputedSum<T> {
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         // The argument index is not applicable to PrecomputedSum.
-        self.value_map.measure(measurement, attrs, 0);
+        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -73,7 +73,7 @@ impl<T: Number> PrecomputedSum<T> {
             .has_no_attribute_value
             .swap(false, Ordering::AcqRel)
         {
-            let value = self.value_map.no_attribute_tracker.get_value();
+            let value = self.value_map.no_attribute_tracker.value.get_value();
             let delta = value - *reported.get(&vec![]).unwrap_or(&T::default());
             new_reported.insert(vec![], value);
 
@@ -94,7 +94,7 @@ impl<T: Number> PrecomputedSum<T> {
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
-                let value = tracker.get_value();
+                let value = tracker.value.get_value();
                 let delta = value - *reported.get(&attrs).unwrap_or(&T::default());
                 new_reported.insert(attrs.clone(), value);
                 s_data.data_points.push(DataPoint {
@@ -162,7 +162,7 @@ impl<T: Number> PrecomputedSum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.get_value(),
+                value: self.value_map.no_attribute_tracker.value.get_value(),
                 exemplars: vec![],
             });
         }
@@ -179,7 +179,7 @@ impl<T: Number> PrecomputedSum<T> {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: tracker.get_value(),
+                    value: tracker.value.get_value(),
                     exemplars: vec![],
                 });
             }

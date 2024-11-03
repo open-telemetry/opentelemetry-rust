@@ -7,25 +7,51 @@ use std::{
 use crate::metrics::data::DataPoint;
 use opentelemetry::KeyValue;
 
-use super::{Assign, AtomicTracker, Number, ValueMap};
+use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Number, ValueMap};
+
+/// this is reused by PrecomputedSum
+pub(crate) struct Assign<T>
+where
+    T: AtomicallyUpdate<T>,
+{
+    pub(crate) value: T::AtomicTracker,
+}
+
+impl<T> Aggregator<T> for Assign<T>
+where
+    T: Number,
+{
+    type InitConfig = ();
+    type PreComputedValue = T;
+
+    fn create(_init: &()) -> Self {
+        Self {
+            value: T::new_atomic_tracker(T::default()),
+        }
+    }
+
+    fn update(&self, value: T) {
+        self.value.store(value)
+    }
+}
 
 /// Summarizes a set of measurements as the last one made.
 pub(crate) struct LastValue<T: Number> {
-    value_map: ValueMap<T, T, Assign>,
+    value_map: ValueMap<T, Assign<T>>,
     start: Mutex<SystemTime>,
 }
 
 impl<T: Number> LastValue<T> {
     pub(crate) fn new() -> Self {
         LastValue {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(()),
             start: Mutex::new(SystemTime::now()),
         }
     }
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         // The argument index is not applicable to LastValue.
-        self.value_map.measure(measurement, attrs, 0);
+        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {
@@ -49,7 +75,11 @@ impl<T: Number> LastValue<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.get_and_reset_value(),
+                value: self
+                    .value_map
+                    .no_attribute_tracker
+                    .value
+                    .get_and_reset_value(),
                 exemplars: vec![],
             });
         }
@@ -66,7 +96,7 @@ impl<T: Number> LastValue<T> {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: tracker.get_value(),
+                    value: tracker.value.get_value(),
                     exemplars: vec![],
                 });
             }
@@ -101,7 +131,7 @@ impl<T: Number> LastValue<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.get_value(),
+                value: self.value_map.no_attribute_tracker.value.get_value(),
                 exemplars: vec![],
             });
         }
@@ -118,7 +148,7 @@ impl<T: Number> LastValue<T> {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: tracker.get_value(),
+                    value: tracker.value.get_value(),
                     exemplars: vec![],
                 });
             }

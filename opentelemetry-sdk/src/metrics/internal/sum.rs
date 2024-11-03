@@ -7,12 +7,37 @@ use std::{sync::Mutex, time::SystemTime};
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
 use opentelemetry::KeyValue;
 
-use super::{AtomicTracker, Number};
-use super::{Increment, ValueMap};
+use super::{Aggregator, AtomicTracker, Number};
+use super::{AtomicallyUpdate, ValueMap};
+
+struct Increment<T>
+where
+    T: AtomicallyUpdate<T>,
+{
+    value: T::AtomicTracker,
+}
+
+impl<T> Aggregator<T> for Increment<T>
+where
+    T: Number,
+{
+    type InitConfig = ();
+    type PreComputedValue = T;
+
+    fn create(_init: &()) -> Self {
+        Self {
+            value: T::new_atomic_tracker(T::default()),
+        }
+    }
+
+    fn update(&self, value: T) {
+        self.value.add(value)
+    }
+}
 
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number> {
-    value_map: ValueMap<T, T, Increment>,
+    value_map: ValueMap<T, Increment<T>>,
     monotonic: bool,
     start: Mutex<SystemTime>,
 }
@@ -25,7 +50,7 @@ impl<T: Number> Sum<T> {
     /// were made in.
     pub(crate) fn new(monotonic: bool) -> Self {
         Sum {
-            value_map: ValueMap::new(),
+            value_map: ValueMap::new(()),
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
@@ -33,7 +58,7 @@ impl<T: Number> Sum<T> {
 
     pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
         // The argument index is not applicable to Sum.
-        self.value_map.measure(measurement, attrs, 0);
+        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -76,7 +101,11 @@ impl<T: Number> Sum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.get_and_reset_value(),
+                value: self
+                    .value_map
+                    .no_attribute_tracker
+                    .value
+                    .get_and_reset_value(),
                 exemplars: vec![],
             });
         }
@@ -93,7 +122,7 @@ impl<T: Number> Sum<T> {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: tracker.get_value(),
+                    value: tracker.value.get_value(),
                     exemplars: vec![],
                 });
             }
@@ -152,7 +181,7 @@ impl<T: Number> Sum<T> {
                 attributes: vec![],
                 start_time: Some(prev_start),
                 time: Some(t),
-                value: self.value_map.no_attribute_tracker.get_value(),
+                value: self.value_map.no_attribute_tracker.value.get_value(),
                 exemplars: vec![],
             });
         }
@@ -173,7 +202,7 @@ impl<T: Number> Sum<T> {
                     attributes: attrs.clone(),
                     start_time: Some(prev_start),
                     time: Some(t),
-                    value: tracker.get_value(),
+                    value: tracker.value.get_value(),
                     exemplars: vec![],
                 });
             }

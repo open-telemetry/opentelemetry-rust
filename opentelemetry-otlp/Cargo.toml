@@ -80,6 +80,7 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
 reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]
+hyper-client = ["opentelemetry-http/hyper"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace"]
