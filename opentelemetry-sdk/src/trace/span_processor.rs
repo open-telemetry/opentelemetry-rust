@@ -45,7 +45,7 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::global;
+use opentelemetry::{otel_debug, otel_error};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
@@ -134,7 +134,11 @@ impl SpanProcessor for SimpleSpanProcessor {
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            // TODO: check error type, and log `error` only if the error is user-actiobable, else log `debug`
+            otel_debug!(
+                name: "SimpleProcessor.OnEnd.Error",
+                reason = format!("{:?}", err)
+            );
         }
     }
 
@@ -246,7 +250,10 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         if let Err(err) = result {
-            global::handle_error(TraceError::Other(err.into()));
+            otel_debug!(
+                name: "BatchSpanProcessor.OnEnd.ExportQueueingFailed",
+                reason = format!("{:?}", TraceError::Other(err.into()))
+            );
         }
     }
 
@@ -313,14 +320,22 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             let result = export_task.await;
 
             if let Some(channel) = res_channel {
+                // If a response channel is provided, attempt to send the export result through it.
                 if let Err(result) = channel.send(result) {
-                    global::handle_error(TraceError::from(format!(
-                        "failed to send flush result: {:?}",
-                        result
-                    )));
+                    otel_debug!(
+                        name: "BatchSpanProcessor.Flush.SendResultError",
+                        reason = format!("{:?}", result)
+                    );
                 }
             } else if let Err(err) = result {
-                global::handle_error(err);
+                // If no channel is provided and the export operation encountered an error,
+                // log the error directly here.
+                // TODO: Consider returning the status instead of logging it.
+                otel_error!(
+                    name: "BatchSpanProcessor.Flush.ExportError",
+                    reason = format!("{:?}", err),
+                    message = "Failed during the export process"
+                );
             }
 
             Ok(())
@@ -354,7 +369,10 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                     let export_task = self.export();
                     let task = async move {
                         if let Err(err) = export_task.await {
-                            global::handle_error(err);
+                            otel_error!(
+                                name: "BatchSpanProcessor.Export.Error",
+                                reason = format!("{}", err)
+                            );
                         }
 
                         Ok(())
