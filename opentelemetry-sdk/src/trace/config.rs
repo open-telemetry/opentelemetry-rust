@@ -4,7 +4,7 @@
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
 use crate::Resource;
-use opentelemetry::global::{handle_error, Error};
+use opentelemetry::otel_warn;
 use std::borrow::Cow;
 use std::env;
 use std::str::FromStr;
@@ -125,13 +125,14 @@ impl Default for Config {
                 "always_on" => Box::new(Sampler::AlwaysOn),
                 "always_off" => Box::new(Sampler::AlwaysOff),
                 "traceidratio" => {
-                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    let ratio = sampler_arg.as_ref().and_then(|r| r.parse::<f64>().ok());
                     if let Some(r) = ratio {
                         Box::new(Sampler::TraceIdRatioBased(r))
                     } else {
-                        handle_error(
-                            Error::Other(String::from(
-                                "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"))
+                        otel_warn!(
+                            name: "TracerProvider.Config.InvalidSamplerArgument",
+                            message = "OTEL_TRACES_SAMPLER is set to 'traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)",
+                            otel_traces_sampler_arg = format!("{:?}", sampler_arg)
                         );
                         Box::new(Sampler::TraceIdRatioBased(1.0))
                     }
@@ -143,43 +144,51 @@ impl Default for Config {
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOff)))
                 }
                 "parentbased_traceidratio" => {
-                    let ratio = sampler_arg.and_then(|r| r.parse::<f64>().ok());
+                    let ratio = sampler_arg.as_ref().and_then(|r| r.parse::<f64>().ok());
                     if let Some(r) = ratio {
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             r,
                         ))))
                     } else {
-                        handle_error(
-                            Error::Other(String::from(
-                            "Missing or invalid OTEL_TRACES_SAMPLER_ARG value. Falling back to default: 1.0"
-                        )));
+                        otel_warn!(
+                            name: "TracerProvider.Config.InvalidSamplerArgument",
+                            message = "OTEL_TRACES_SAMPLER is set to 'parentbased_traceidratio' but OTEL_TRACES_SAMPLER_ARG environment variable is missing or invalid. OTEL_TRACES_SAMPLER_ARG must be a valid float between 0.0 and 1.0 representing the desired sampling probability (0.0 = no traces sampled, 1.0 = all traces sampled, 0.5 = 50% of traces sampled). Falling back to default ratio: 1.0 (100% sampling)",
+                            otel_traces_sampler_arg = format!("{:?}", sampler_arg)
+                        );
                         Box::new(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
                             1.0,
                         ))))
                     }
                 }
                 "parentbased_jaeger_remote" => {
-                    handle_error(
-                        Error::Other(String::from(
-                        "Unimplemented parentbased_jaeger_remote sampler. Falling back to default: parentbased_always_on"
-                    )));
+                    otel_warn!(
+                        name: "TracerProvider.Config.UnsupportedSampler",
+                        message = "OTEL_TRACES_SAMPLER is set to 'parentbased_jaeger_remote' which is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "jaeger_remote" => {
-                    handle_error(
-                        Error::Other(String::from("Unimplemented jaeger_remote sampler. Falling back to default: parentbased_always_on")));
+                    otel_warn!(
+                        name: "TracerProvider.Config.UnsupportedSampler",
+                        message = "OTEL_TRACES_SAMPLER is set to 'jaeger_remote' which is implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 "xray" => {
-                    handle_error(
-                        Error::Other(String::from("Unimplemented xray sampler. Falling back to default: parentbased_always_on")));
+                    otel_warn!(
+                        name: "TracerProvider.Config.UnsupportedSampler",
+                        message = "OTEL_TRACES_SAMPLER is set to 'xray'. AWS X-Ray sampler is not implemented in this SDK version. Using fallback sampler: ParentBased(AlwaysOn). Configure an alternative sampler using OTEL_TRACES_SAMPLER"
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
                 s => {
-                    handle_error(
-                        Error::Other(format!("Unrecognised OTEL_TRACES_SAMPLER value: {}. Falling back to default: parentbased_always_on",
-                        s
-                    )));
+                    otel_warn!(
+                        name: "TracerProvider.Config.InvalidSamplerType",
+                        message = format!(
+                            "Unrecognized sampler type '{}' in OTEL_TRACES_SAMPLER environment variable. Valid values are: always_on, always_off, traceidratio, parentbased_always_on, parentbased_always_off, parentbased_traceidratio. Using fallback sampler: ParentBased(AlwaysOn)",
+                            s
+                        ),
+                    );
                     Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn)))
                 }
             }
