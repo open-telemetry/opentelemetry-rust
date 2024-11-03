@@ -1,14 +1,13 @@
-use opentelemetry::global::{self, set_error_handler, Error as OtelError};
+use opentelemetry::global::{self, Error as OtelError};
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
 use opentelemetry_sdk::metrics::PeriodicReader;
-use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
 use std::error::Error;
-use tracing::error;
 
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
@@ -29,27 +28,13 @@ impl ErrorState {
 
     fn mark_as_seen(&self, err: &OtelError) -> bool {
         let mut seen_errors = self.seen_errors.lock().unwrap();
-        seen_errors.insert(err.to_string())
+        let error_message = err.to_string();
+        !seen_errors.insert(error_message) // Returns false if already present
     }
 }
 
 static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
 
-fn custom_error_handler(err: OtelError) {
-    if GLOBAL_ERROR_STATE.mark_as_seen(&err) {
-        // log error not already seen
-        match err {
-            OtelError::Metric(err) => error!("OpenTelemetry metrics error occurred: {}", err),
-            OtelError::Trace(err) => error!("OpenTelemetry trace error occurred: {}", err),
-            OtelError::Log(err) => error!("OpenTelemetry log error occurred: {}", err),
-            OtelError::Propagation(err) => {
-                error!("OpenTelemetry propagation error occurred: {}", err)
-            }
-            OtelError::Other(err_msg) => error!("OpenTelemetry error occurred: {}", err_msg),
-            _ => error!("OpenTelemetry error occurred: {:?}", err),
-        }
-    }
-}
 
 fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
     let exporter = LogExporter::builder()
@@ -77,18 +62,34 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         .add_directive("tonic=error".parse().unwrap())
         .add_directive("reqwest=error".parse().unwrap());
 
-    // Configuring the formatting layer specifically for OpenTelemetry internal logs.
-    // These logs starts with "opentelemetry" prefix in target. This allows specific logs
-    // from the OpenTelemetry-related components to be filtered and handled separately
-    // from the application logs
-
+    // Filter for logs with "opentelemetry_" target prefix to use eprintln,
+    // only if they haven't been logged before.
     let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-        metadata.target().starts_with("opentelemetry")
+        if metadata.target().starts_with("opentelemetry_") {
+            // Ignore debug level logs
+            if metadata.level() == &tracing::Level::DEBUG {
+                return false;
+            }
+            let err = OtelError::Other(metadata.target().to_string()); // Convert target to an OtelError variant
+            if !GLOBAL_ERROR_STATE.mark_as_seen(&err) {
+                eprintln!(
+                    "[{}] - {}: {}",
+                    metadata.level(),
+                    metadata.target(),
+                    metadata.fields()
+                );
+            }
+            false // Prevent these logs from propagating further
+        } else {
+            true // Allow other logs to continue
+        }
     });
 
-    let fmt_opentelemetry_layer = fmt::layer()
-        .with_filter(LevelFilter::DEBUG)
-        .with_filter(opentelemetry_filter);
+    // Layer for OpenTelemetry internal logs
+    let fmt_opentelemetry_layer = fmt::layer().with_filter(opentelemetry_filter);
+
+    // Layer for application logs, excluding OpenTelemetry internal logs
+    let fmt_application_layer = fmt::layer().with_filter(filter);
 
     // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
     // to prevent infinite logging loops.
@@ -102,7 +103,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
     tracing_subscriber::registry()
         .with(fmt_opentelemetry_layer)
-        .with(fmt::layer().with_filter(filter))
+        .with(fmt_application_layer)
         .with(otel_layer)
         .init();
     provider
@@ -130,11 +131,6 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // Set the custom error handler
-    if let Err(err) = set_error_handler(custom_error_handler) {
-        eprintln!("Failed to set custom error handler: {}", err);
-    }
-
     let logger_provider = init_logger_provider();
 
     // Initialize the MeterProvider with the stdout Exporter.

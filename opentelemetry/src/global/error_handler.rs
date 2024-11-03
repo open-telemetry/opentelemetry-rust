@@ -1,5 +1,4 @@
 use std::sync::PoisonError;
-use std::sync::RwLock;
 
 #[cfg(feature = "logs")]
 use crate::logs::LogError;
