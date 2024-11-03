@@ -35,7 +35,6 @@ impl ErrorState {
 
 static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
 
-
 fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
     let exporter = LogExporter::builder()
         .with_http()
