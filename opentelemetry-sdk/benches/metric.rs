@@ -370,22 +370,41 @@ fn histograms(c: &mut Criterion) {
             );
         }
     }
-    group.bench_function("CollectOne", |b| benchmark_collect_histogram(b, 1));
-    group.bench_function("CollectFive", |b| benchmark_collect_histogram(b, 5));
-    group.bench_function("CollectTen", |b| benchmark_collect_histogram(b, 10));
-    group.bench_function("CollectTwentyFive", |b| benchmark_collect_histogram(b, 25));
+
+    for metrics_count in [1, 20] {
+        for (attribute_sets_count, attribs_count) in [(1, 0), (1, 10), (500, 10)] {
+            group.bench_function(
+                format!("Collect_{metrics_count}Metrics_{attribute_sets_count}AttribSets_{attribs_count}Attribs"),
+                |b| benchmark_collect_histogram(b, metrics_count, attribute_sets_count, attribs_count),
+            );
+        }
+    }
 }
 
-fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
+fn benchmark_collect_histogram(
+    b: &mut Bencher,
+    metrics_count: usize,
+    attribute_sets_count: usize,
+    attribs_count: usize,
+) {
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mtr = SdkMeterProvider::builder()
-        .with_reader(r.clone())
-        .build()
-        .meter("sdk/metric/bench/histogram");
 
-    for i in 0..n {
-        let h = mtr.u64_histogram(format!("fake_data_{i}")).build();
-        h.record(1, &[]);
+    let provider = SdkMeterProvider::builder().with_reader(r.clone()).build();
+    let mtr = provider.meter("sdk/metric/bench/histogram");
+    let mut rng = rand::thread_rng();
+
+    for m in 0..metrics_count {
+        let h = mtr.u64_histogram(format!("fake_data_{m}")).build();
+        for _att in 0..attribute_sets_count {
+            let mut attributes: Vec<KeyValue> = Vec::new();
+            for _i in 0..attribs_count {
+                attributes.push(KeyValue::new(
+                    format!("K{}", rng.gen_range::<i32, _>(0..20)),
+                    format!("V{}", rng.gen_range::<i32, _>(0..20)),
+                ))
+            }
+            h.record(1, &attributes)
+        }
     }
 
     let mut rm = ResourceMetrics {
@@ -394,8 +413,8 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     };
 
     b.iter(|| {
-        let _ = r.collect(&mut rm);
-        assert_eq!(rm.scope_metrics[0].metrics.len(), n);
+        r.collect(&mut rm).unwrap();
+        assert_eq!(rm.scope_metrics[0].metrics.len(), metrics_count);
     })
 }
 
