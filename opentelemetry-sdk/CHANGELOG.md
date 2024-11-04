@@ -30,6 +30,10 @@
     - Removed `MeterProvider::versioned_meter`
     - Replaced these methods with `LoggerProvider::logger_with_scope`, `TracerProvider::logger_with_scope`, `MeterProvider::meter_with_scope`
 
+- [#2272](https://github.com/open-telemetry/opentelemetry-rust/pull/2272)
+   - Pin url version to `2.5.2`. The higher version breaks the build refer: [servo/rust-url#992.](https://github.com/servo/rust-url/issues/992)
+   The `url` crate is used when `jaeger_remote_sampler` feature is enabled.
+
 ## v0.26.0
 Released 2024-Sep-30
 
