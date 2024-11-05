@@ -261,7 +261,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             &timeout_runtime,
                             logs.split_off(0),
                         )
-                        .await;
+                        .await
+                        .and(exporter.as_mut().force_flush().await);
 
                         if let Some(channel) = res_channel {
                             if let Err(send_error) = channel.send(result) {
