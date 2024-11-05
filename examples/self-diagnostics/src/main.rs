@@ -29,7 +29,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
     // Specialized filter to process
     // - ERROR logs from specific targets
     // - ERROR logs generated internally.
-    let specialized_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+    let internal_and_dependency_filter = tracing_subscriber::filter::filter_fn(|metadata| {
         let target = metadata.target();
 
         // Only allow ERROR logs from specific targets
@@ -43,8 +43,8 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
             && metadata.level() == &tracing::Level::ERROR
     });
     // Configure fmt::Layer to print detailed log information, including structured fields
-    let fmt_opentelemetry_layer =
-        tracing_subscriber::fmt::layer().with_filter(specialized_filter.clone());
+    let fmt_internal_and_dependency_layer =
+        tracing_subscriber::fmt::layer().with_filter(internal_and_dependency_filter.clone());
 
     // Application filter to exclude specific targets entirely, regardless of level
     let application_filter = tracing_subscriber::filter::filter_fn(|metadata| {
@@ -60,12 +60,12 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
             || target.starts_with("opentelemetry"))
     });
 
-    let fmt_application_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
+    let application_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
         .with_filter(application_filter.clone());
 
     tracing_subscriber::registry()
-        .with(fmt_opentelemetry_layer)
-        .with(fmt_application_layer)
+        .with(fmt_internal_and_dependency_layer)
+        .with(application_filter)
         .init();
     provider
 }
