@@ -65,7 +65,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
     tracing_subscriber::registry()
         .with(fmt_internal_and_dependency_layer)
-        .with(application_filter)
+        .with(application_layer)
         .init();
     provider
 }
