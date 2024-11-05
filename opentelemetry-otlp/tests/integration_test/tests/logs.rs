@@ -2,10 +2,10 @@
 
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
-use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::{LogExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LogError;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
 use std::error::Error;

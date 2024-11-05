@@ -1,4 +1,4 @@
-use opentelemetry::global::{self, Error as OtelError};
+use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
@@ -6,10 +6,6 @@ use opentelemetry_sdk::metrics::PeriodicReader;
 use tracing_subscriber::prelude::*;
 
 use std::error::Error;
-
-use once_cell::sync::Lazy;
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
 
 use std::sync::mpsc::channel;
 
