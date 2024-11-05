@@ -3,8 +3,6 @@ use opentelemetry::KeyValue;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
 use opentelemetry_sdk::metrics::PeriodicReader;
-use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
 
 use std::error::Error;
@@ -48,62 +46,42 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
     let cloned_provider = provider.clone();
 
-    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
-    // The filter levels are set as follows:
-    // - Allow `info` level and above by default.
-    // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
-    // This ensures events generated from these crates within the OTLP Exporter are not looped back,
-    // thus preventing infinite event generation.
-    // Note: This will also drop events from these crates used outside the OTLP Exporter.
-    // For more details, see: https://github.com/open-telemetry/opentelemetry-rust/issues/761
-    let filter = EnvFilter::new("info")
-        .add_directive("hyper=error".parse().unwrap())
-        .add_directive("tonic=error".parse().unwrap())
-        .add_directive("reqwest=error".parse().unwrap());
+    // Specialized filter for specific targets
+    let specialized_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        let target = metadata.target();
 
-    // Filter for logs with "opentelemetry_" target prefix to use eprintln,
-    // only if they haven't been logged before.
-    let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-        if metadata.target().starts_with("opentelemetry_") {
-            // Ignore debug level logs
-            if metadata.level() == &tracing::Level::DEBUG {
-                return false;
-            }
-            let err = OtelError::Other(metadata.target().to_string()); // Convert target to an OtelError variant
-            if !GLOBAL_ERROR_STATE.mark_as_seen(&err) {
-                eprintln!(
-                    "[{}] - {}: {}",
-                    metadata.level(),
-                    metadata.target(),
-                    metadata.fields()
-                );
-            }
-            false // Prevent these logs from propagating further
-        } else {
-            true // Allow other logs to continue
-        }
+        // Only allow ERROR logs from specific targets
+        (target.starts_with("hyper")
+            || target.starts_with("hyper_util")
+            || target.starts_with("tonic")
+            || target.starts_with("tower")
+            || target.starts_with("reqwest")
+            || target.starts_with("opentelemetry_"))
+            && metadata.level() == &tracing::Level::ERROR
+    });
+    // Configure fmt::Layer to print detailed log information, including structured fields
+    let fmt_opentelemetry_layer =
+        tracing_subscriber::fmt::layer().with_filter(specialized_filter.clone());
+
+    // Application filter to exclude specific targets entirely, regardless of level
+    let application_filter = tracing_subscriber::filter::filter_fn(|metadata| {
+        let target = metadata.target();
+
+        // Exclude logs from specific targets for the application layer
+        !(target.starts_with("hyper")
+            || target.starts_with("hyper_util")
+            || target.starts_with("tonic")
+            || target.starts_with("tower")
+            || target.starts_with("reqwest")
+            || target.starts_with("opentelemetry"))
     });
 
-    // Layer for OpenTelemetry internal logs
-    let fmt_opentelemetry_layer = fmt::layer().with_filter(opentelemetry_filter);
-
-    // Layer for application logs, excluding OpenTelemetry internal logs
-    let fmt_application_layer = fmt::layer().with_filter(filter);
-
-    // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
-    // to prevent infinite logging loops.
-
-    let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-        !metadata.target().starts_with("opentelemetry")
-    });
-
-    let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
-        .with_filter(non_opentelemetry_filter.clone());
+    let fmt_application_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
+        .with_filter(application_filter.clone());
 
     tracing_subscriber::registry()
         .with(fmt_opentelemetry_layer)
         .with(fmt_application_layer)
-        .with(otel_layer)
         .init();
     provider
 }
