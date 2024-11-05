@@ -39,7 +39,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
             || target.starts_with("tonic")
             || target.starts_with("tower")
             || target.starts_with("reqwest")
-            || target.starts_with("opentelemetry_"))
+            || target.starts_with("opentelemetry"))
             && metadata.level() == &tracing::Level::ERROR
     });
     // Configure fmt::Layer to print detailed log information, including structured fields
