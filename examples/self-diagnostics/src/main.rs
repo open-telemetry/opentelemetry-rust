@@ -13,26 +13,6 @@ use std::sync::{Arc, Mutex};
 
 use std::sync::mpsc::channel;
 
-struct ErrorState {
-    seen_errors: Mutex<HashSet<String>>,
-}
-
-impl ErrorState {
-    fn new() -> Self {
-        ErrorState {
-            seen_errors: Mutex::new(HashSet::new()),
-        }
-    }
-
-    fn mark_as_seen(&self, err: &OtelError) -> bool {
-        let mut seen_errors = self.seen_errors.lock().unwrap();
-        let error_message = err.to_string();
-        !seen_errors.insert(error_message) // Returns false if already present
-    }
-}
-
-static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
-
 fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
     let exporter = LogExporter::builder()
         .with_http()
@@ -53,6 +33,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         // Only allow ERROR logs from specific targets
         (target.starts_with("hyper")
             || target.starts_with("hyper_util")
+            || target.starts_with("hyper")
             || target.starts_with("tonic")
             || target.starts_with("tower")
             || target.starts_with("reqwest")
@@ -70,6 +51,7 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
         // Exclude logs from specific targets for the application layer
         !(target.starts_with("hyper")
             || target.starts_with("hyper_util")
+            || target.starts_with("hyper")
             || target.starts_with("tonic")
             || target.starts_with("tower")
             || target.starts_with("reqwest")
