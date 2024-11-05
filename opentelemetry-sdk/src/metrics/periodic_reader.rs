@@ -386,11 +386,12 @@ impl MetricReader for PeriodicReader {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
+    use crate::metrics::MetricError;
     use crate::{
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
         runtime, testing::metrics::InMemoryMetricExporter, Resource,
     };
-    use opentelemetry::metrics::{MeterProvider, MetricError};
+    use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
 
     #[test]

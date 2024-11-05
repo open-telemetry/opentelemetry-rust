@@ -530,6 +530,7 @@ mod tests {
     };
     use crate::export::logs::{LogBatch, LogExporter};
     use crate::logs::LogRecord;
+    use crate::logs::LogResult;
     use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
@@ -547,7 +548,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
-    use opentelemetry::{logs::LogResult, KeyValue};
+    use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};

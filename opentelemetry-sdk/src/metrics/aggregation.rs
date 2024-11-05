@@ -153,7 +153,7 @@ mod tests {
         internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
         Aggregation,
     };
-    use opentelemetry::metrics::{MetricError, MetricResult};
+    use crate::metrics::{MetricError, MetricResult};
 
     #[test]
     fn validate_aggregation() {

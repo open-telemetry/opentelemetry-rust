@@ -137,7 +137,6 @@ mod metrics;
 mod propagation;
 #[cfg(feature = "trace")]
 mod trace;
-pub use error_handler::Error;
 
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

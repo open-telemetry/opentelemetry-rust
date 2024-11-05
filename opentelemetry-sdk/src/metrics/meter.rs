@@ -634,7 +634,7 @@ where
 mod tests {
     use std::borrow::Cow;
 
-    use opentelemetry::metrics::MetricError;
+    use crate::metrics::MetricError;
 
     use super::{
         validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_FIRST_ALPHABETIC,

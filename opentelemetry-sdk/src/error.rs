@@ -1,3 +1,4 @@
+//! Wrapper for error from trace, logs and metrics part of open telemetry.
 use std::sync::PoisonError;
 
 #[cfg(feature = "logs")]
