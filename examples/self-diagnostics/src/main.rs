@@ -26,7 +26,9 @@ fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
 
     let cloned_provider = provider.clone();
 
-    // Specialized filter for specific targets
+    // Specialized filter to process
+    // - ERROR logs from specific targets
+    // - ERROR logs generated internally.
     let specialized_filter = tracing_subscriber::filter::filter_fn(|metadata| {
         let target = metadata.target();
 
