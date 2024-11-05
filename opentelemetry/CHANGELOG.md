@@ -33,6 +33,12 @@ let counter = meter.u64_counter("my_counter").build();
   - Replaced `global::meter_with_version` with `global::meter_with_scope`
   - Added `global::tracer_with_scope`
 
+- **Breaking change**: [#2260](https://github.com/open-telemetry/opentelemetry-rust/pull/2260)
+  - Removed `global::set_error_handler` and `global::handle_error`. 
+  - `global::handle_error` usage inside the opentelemetry crates has been replaced with `global::otel_info`, `otel_warn`, `otel_debug` and `otel_error` macros based on the severity of the internal logs.
+  - The default behavior of `global::handle_error` was to log the error using `eprintln!`. With otel macro, the internal logs get emitted via `tracing` macros of matching severity. Users now need to configure the `tracing` layer to capture these logs.
+  - Refer to this PR description for migration guide. Also refer to [self-diagnostics](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/self-diagnostics) example on how to configure the tracing layer for internal logs.
+
 ## v0.26.0
 Released 2024-Sep-30
 
