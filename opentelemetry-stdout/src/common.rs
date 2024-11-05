@@ -236,9 +236,9 @@ pub(crate) struct Scope {
 impl From<opentelemetry::InstrumentationScope> for Scope {
     fn from(value: opentelemetry::InstrumentationScope) -> Self {
         Scope {
-            name: value.name,
-            version: value.version,
-            attributes: value.attributes.into_iter().map(Into::into).collect(),
+            name: value.name().to_owned().into(),
+            version: value.version().map(ToOwned::to_owned).map(Into::into),
+            attributes: value.attributes().map(Into::into).collect(),
             dropped_attributes_count: 0,
         }
     }

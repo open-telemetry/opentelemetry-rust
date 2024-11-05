@@ -30,8 +30,8 @@ impl fmt::Debug for Tracer {
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tracer")
-            .field("name", &self.scope.name)
-            .field("version", &self.scope.version)
+            .field("name", &self.scope.name())
+            .field("version", &self.scope.version())
             .finish()
     }
 }

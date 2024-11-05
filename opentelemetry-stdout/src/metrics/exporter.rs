@@ -72,17 +72,16 @@ impl PushMetricExporter for MetricExporter {
 fn print_metrics(metrics: &[ScopeMetrics]) {
     for (i, metric) in metrics.iter().enumerate() {
         println!("\tInstrumentation Scope #{}", i);
-        println!("\t\tName         : {}", &metric.scope.name);
-        if let Some(version) = &metric.scope.version {
+        println!("\t\tName         : {}", &metric.scope.name());
+        if let Some(version) = &metric.scope.version() {
             println!("\t\tVersion  : {:?}", version);
         }
-        if let Some(schema_url) = &metric.scope.schema_url {
+        if let Some(schema_url) = &metric.scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
         metric
             .scope
-            .attributes
-            .iter()
+            .attributes()
             .enumerate()
             .for_each(|(index, kv)| {
                 if index == 0 {

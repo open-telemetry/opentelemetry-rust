@@ -137,9 +137,8 @@ pub mod tonic {
                 metrics: sm.metrics.iter().map(Into::into).collect(),
                 schema_url: sm
                     .scope
-                    .schema_url
-                    .as_ref()
-                    .map(ToString::to_string)
+                    .schema_url()
+                    .map(ToOwned::to_owned)
                     .unwrap_or_default(),
             }
         }
