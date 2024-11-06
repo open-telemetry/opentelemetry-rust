@@ -77,7 +77,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed",
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Measurements from this Counter will be ignored.",
                 reason = format!("{}", err)
@@ -99,7 +99,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Measurements from this Counter will be ignored.",
                     reason = format!("{}", err)
@@ -121,7 +121,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed", 
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableCounter will not be invoked.",
                 reason = format!("{}", err));
@@ -139,7 +139,7 @@ impl SdkMeter {
                 if ms.is_empty() {
                     otel_error!(
                         name: "InstrumentCreationFailed",
-                        meter_name = self.scope.name.as_ref(),
+                        meter_name = self.scope.name(),
                         instrument_name = builder.name.as_ref(),
                         message = "Callbacks for this ObservableCounter will not be invoked. Check View Configuration."
                     );
@@ -159,7 +159,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Callbacks for this ObservableCounter will not be invoked.",
                     reason = format!("{}", err));
@@ -180,7 +180,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed", 
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
                 reason = format!("{}", err));
@@ -198,7 +198,7 @@ impl SdkMeter {
                 if ms.is_empty() {
                     otel_error!(
                         name: "InstrumentCreationFailed",
-                        meter_name = self.scope.name.as_ref(),
+                        meter_name = self.scope.name(),
                         instrument_name = builder.name.as_ref(),
                         message = "Callbacks for this ObservableUpDownCounter will not be invoked. Check View Configuration."
                     );
@@ -218,7 +218,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
                     reason = format!("{}", err));
@@ -239,7 +239,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed", 
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableGauge will not be invoked.",
                 reason = format!("{}", err));
@@ -257,7 +257,7 @@ impl SdkMeter {
                 if ms.is_empty() {
                     otel_error!(
                         name: "InstrumentCreationFailed",
-                        meter_name = self.scope.name.as_ref(),
+                        meter_name = self.scope.name(),
                         instrument_name = builder.name.as_ref(),
                         message = "Callbacks for this ObservableGauge will not be invoked. Check View Configuration."
                     );
@@ -277,7 +277,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Callbacks for this ObservableGauge will not be invoked.",
                     reason = format!("{}", err));
@@ -298,7 +298,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed",
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Measurements from this UpDownCounter will be ignored.",
                 reason = format!("{}", err)
@@ -320,7 +320,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Measurements from this UpDownCounter will be ignored.",
                     reason = format!("{}", err)
@@ -342,7 +342,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed",
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Measurements from this Gauge will be ignored.",
                 reason = format!("{}", err)
@@ -364,7 +364,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Measurements from this Gauge will be ignored.",
                     reason = format!("{}", err)
@@ -386,7 +386,7 @@ impl SdkMeter {
         if let Err(err) = validation_result {
             otel_error!(
                 name: "InstrumentCreationFailed",
-                meter_name = self.scope.name.as_ref(),
+                meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Measurements from this Histogram will be ignored.",
                 reason = format!("{}", err)
@@ -408,7 +408,7 @@ impl SdkMeter {
             Err(err) => {
                 otel_error!(
                     name: "InstrumentCreationFailed",
-                    meter_name = self.scope.name.as_ref(),
+                    meter_name = self.scope.name(),
                     instrument_name = builder.name.as_ref(),
                     message = "Measurements from this Histogram will be ignored.",
                     reason = format!("{}", err)

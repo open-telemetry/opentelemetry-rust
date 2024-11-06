@@ -413,18 +413,18 @@ pub struct InstrumentationScope {
     /// The library name.
     ///
     /// This should be the name of the crate providing the instrumentation.
-    pub name: Cow<'static, str>,
+    name: Cow<'static, str>,
 
     /// The library version.
-    pub version: Option<Cow<'static, str>>,
+    version: Option<Cow<'static, str>>,
 
     /// [Schema URL] used by this library.
     ///
     /// [Schema URL]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub schema_url: Option<Cow<'static, str>>,
+    schema_url: Option<Cow<'static, str>>,
 
     /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
-    pub attributes: Vec<KeyValue>,
+    attributes: Vec<KeyValue>,
 }
 
 // Uniqueness for InstrumentationScope does not depend on attributes
@@ -456,6 +456,32 @@ impl InstrumentationScope {
             attributes: None,
         }
     }
+
+    /// Returns the instrumentation library name.
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the instrumentation library version.
+    #[inline]
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_deref()
+    }
+
+    /// Returns the [Schema URL] used by this library.
+    ///
+    /// [Schema URL]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
+    #[inline]
+    pub fn schema_url(&self) -> Option<&str> {
+        self.schema_url.as_deref()
+    }
+
+    /// Returns the instrumentation scope attributes to associate with emitted telemetry.
+    #[inline]
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
 /// Configuration options for [InstrumentationScope].
@@ -472,11 +498,8 @@ impl InstrumentationScope {
 #[derive(Debug)]
 pub struct InstrumentationScopeBuilder {
     name: Cow<'static, str>,
-
     version: Option<Cow<'static, str>>,
-
     schema_url: Option<Cow<'static, str>>,
-
     attributes: Option<Vec<KeyValue>>,
 }
 

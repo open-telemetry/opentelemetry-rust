@@ -128,6 +128,12 @@ where
             }));
         };
 
+        otel_debug!(
+            name: "PeriodicReader.BuildCompleted",
+            message = "Periodic reader built.",
+            interval_in_secs = self.interval.as_secs(),
+        );
+
         PeriodicReader {
             exporter: Arc::new(self.exporter),
             inner: Arc::new(Mutex::new(PeriodicReaderInner {
@@ -248,6 +254,10 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn process_message(&mut self, message: Message) -> bool {
         match message {
             Message::Export => {
+                otel_debug!(
+                    name: "PeriodicReader.ExportTriggered",
+                    message = "Export message received.",
+                );
                 if let Err(err) = self.collect_and_export().await {
                     otel_error!(
                         name: "PeriodicReader.ExportFailed",
@@ -256,16 +266,24 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 }
             }
             Message::Flush(ch) => {
+                otel_debug!(
+                    name: "PeriodicReader.ForceFlushCalled",
+                    message = "Flush message received.",
+                );
                 let res = self.collect_and_export().await;
                 if let Err(send_error) = ch.send(res) {
                     otel_debug!(
                         name: "PeriodicReader.Flush.SendResultError",
-                        message = "Failed to send flush result",
+                        message = "Failed to send flush result.",
                         reason = format!("{:?}", send_error),
                     );
                 }
             }
             Message::Shutdown(ch) => {
+                otel_debug!(
+                    name: "PeriodicReader.ShutdownCalled",
+                    message = "Shutdown message received",
+                );
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if let Err(send_error) = ch.send(res) {

@@ -292,7 +292,7 @@ impl opentelemetry::logs::Logger for Logger {
                 || processor.event_enabled(
                     level,
                     target,
-                    self.instrumentation_scope().name.as_ref(),
+                    self.instrumentation_scope().name().as_ref(),
                 );
         }
         enabled
