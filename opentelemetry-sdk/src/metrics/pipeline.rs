@@ -5,10 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry::{
-    metrics::{MetricError, MetricResult},
-    otel_debug, InstrumentationScope, KeyValue,
-};
+use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
     metrics::{
@@ -20,6 +17,7 @@ use crate::{
         internal::Number,
         reader::{MetricReader, SdkProducer},
         view::View,
+        MetricError, MetricResult,
     },
     Resource,
 };

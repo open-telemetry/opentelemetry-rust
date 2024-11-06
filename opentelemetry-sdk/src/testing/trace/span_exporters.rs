@@ -1,8 +1,5 @@
 use crate::{
-    export::{
-        trace::{ExportResult, SpanData, SpanExporter},
-        ExportError,
-    },
+    export::trace::{ExportResult, SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
 };
 use futures_util::future::BoxFuture;
@@ -80,7 +77,7 @@ pub struct TestExportError(String);
 
 impl std::error::Error for TestExportError {}
 
-impl ExportError for TestExportError {
+impl opentelemetry::trace::ExportError for TestExportError {
     fn exporter_name(&self) -> &'static str {
         "test"
     }

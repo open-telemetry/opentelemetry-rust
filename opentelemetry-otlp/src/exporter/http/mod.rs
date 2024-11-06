@@ -223,7 +223,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> opentelemetry::logs::LogResult<crate::LogExporter> {
+    pub fn build_log_exporter(mut self) -> opentelemetry_sdk::logs::LogResult<crate::LogExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
@@ -244,7 +244,7 @@ impl HttpExporterBuilder {
     pub fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::MetricResult<crate::MetricExporter> {
+    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -315,7 +315,7 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> opentelemetry::logs::LogResult<(Vec<u8>, &'static str)> {
+    ) -> opentelemetry_sdk::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
@@ -324,7 +324,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry::logs::LogError::from(e.to_string())),
+                Err(e) => Err(opentelemetry_sdk::logs::LogError::from(e.to_string())),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
@@ -334,7 +334,7 @@ impl OtlpHttpClient {
     fn build_metrics_export_body(
         &self,
         metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
-    ) -> opentelemetry::metrics::MetricResult<(Vec<u8>, &'static str)> {
+    ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = (&*metrics).into();
@@ -343,7 +343,9 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry::metrics::MetricError::Other(e.to_string())),
+                Err(e) => Err(opentelemetry_sdk::metrics::MetricError::Other(
+                    e.to_string(),
+                )),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
