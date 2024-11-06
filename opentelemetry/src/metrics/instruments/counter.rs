@@ -5,6 +5,8 @@ use std::sync::Arc;
 use super::SyncInstrument;
 
 /// An instrument that records increasing values.
+///
+/// [`Counter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Counter`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Counter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
@@ -31,6 +33,8 @@ impl<T> Counter<T> {
 }
 
 /// An async instrument that records increasing values.
+///
+/// [`ObservableCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableCounter`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ObservableCounter<T> {

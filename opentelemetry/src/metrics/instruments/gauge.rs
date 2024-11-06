@@ -5,6 +5,8 @@ use std::sync::Arc;
 use super::SyncInstrument;
 
 /// An instrument that records independent values
+///
+/// [`Gauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Gauge`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Gauge<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
@@ -31,6 +33,8 @@ impl<T> Gauge<T> {
 }
 
 /// An async instrument that records independent readings.
+///
+/// [`ObservableGauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableGauge`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ObservableGauge<T> {

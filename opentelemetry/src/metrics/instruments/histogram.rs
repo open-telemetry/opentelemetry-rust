@@ -5,6 +5,8 @@ use std::sync::Arc;
 use super::SyncInstrument;
 
 /// An instrument that records a distribution of values.
+///
+/// [`Histogram`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Histogram`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Histogram<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
