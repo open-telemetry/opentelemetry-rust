@@ -64,9 +64,9 @@ pub mod tonic {
                 }
             } else {
                 InstrumentationScope {
-                    name: library.name.into_owned(),
-                    version: library.version.map(Cow::into_owned).unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes).0,
+                    name: library.name().to_owned(),
+                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes().cloned()).0,
                     ..Default::default()
                 }
             }
@@ -95,13 +95,9 @@ pub mod tonic {
                 }
             } else {
                 InstrumentationScope {
-                    name: library.name.to_string(),
-                    version: library
-                        .version
-                        .as_ref()
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes.clone()).0,
+                    name: library.name().to_owned(),
+                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
+                    attributes: Attributes::from(library.attributes().cloned()).0,
                     ..Default::default()
                 }
             }
@@ -112,8 +108,8 @@ pub mod tonic {
     #[derive(Default, Debug)]
     pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
 
-    impl From<Vec<opentelemetry::KeyValue>> for Attributes {
-        fn from(kvs: Vec<opentelemetry::KeyValue>) -> Self {
+    impl<I: IntoIterator<Item = opentelemetry::KeyValue>> From<I> for Attributes {
+        fn from(kvs: I) -> Self {
             Attributes(
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {

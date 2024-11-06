@@ -160,13 +160,11 @@ impl Instrument {
     }
 
     pub(crate) fn matches_scope(&self, other: &Instrument) -> bool {
-        (self.scope.name.is_empty() || self.scope.name.as_ref() == other.scope.name.as_ref())
-            && (self.scope.version.is_none()
-                || self.scope.version.as_ref().map(AsRef::as_ref)
-                    == other.scope.version.as_ref().map(AsRef::as_ref))
-            && (self.scope.schema_url.is_none()
-                || self.scope.schema_url.as_ref().map(AsRef::as_ref)
-                    == other.scope.schema_url.as_ref().map(AsRef::as_ref))
+        (self.scope.name().is_empty() || self.scope.name() == other.scope.name())
+            && (self.scope.version().is_none()
+                || self.scope.version().as_ref() == other.scope.version().as_ref())
+            && (self.scope.schema_url().is_none()
+                || self.scope.schema_url().as_ref() == other.scope.schema_url().as_ref())
     }
 }
 
