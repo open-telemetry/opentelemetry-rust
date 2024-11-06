@@ -1,123 +1,16 @@
-use opentelemetry::global::{self, set_error_handler, Error as OtelError};
+use opentelemetry::global;
 use opentelemetry::KeyValue;
-use opentelemetry_appender_tracing::layer;
-use opentelemetry_otlp::{LogExporter, MetricExporter, WithExportConfig};
 use opentelemetry_sdk::metrics::PeriodicReader;
-use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use std::error::Error;
+use tracing::info;
 use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
-
-use std::error::Error;
-use tracing::error;
-
-use once_cell::sync::Lazy;
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
-
-use std::sync::mpsc::channel;
-
-struct ErrorState {
-    seen_errors: Mutex<HashSet<String>>,
-}
-
-impl ErrorState {
-    fn new() -> Self {
-        ErrorState {
-            seen_errors: Mutex::new(HashSet::new()),
-        }
-    }
-
-    fn mark_as_seen(&self, err: &OtelError) -> bool {
-        let mut seen_errors = self.seen_errors.lock().unwrap();
-        seen_errors.insert(err.to_string())
-    }
-}
-
-static GLOBAL_ERROR_STATE: Lazy<Arc<ErrorState>> = Lazy::new(|| Arc::new(ErrorState::new()));
-
-fn custom_error_handler(err: OtelError) {
-    if GLOBAL_ERROR_STATE.mark_as_seen(&err) {
-        // log error not already seen
-        match err {
-            OtelError::Metric(err) => error!("OpenTelemetry metrics error occurred: {}", err),
-            OtelError::Trace(err) => error!("OpenTelemetry trace error occurred: {}", err),
-            OtelError::Log(err) => error!("OpenTelemetry log error occurred: {}", err),
-            OtelError::Propagation(err) => {
-                error!("OpenTelemetry propagation error occurred: {}", err)
-            }
-            OtelError::Other(err_msg) => error!("OpenTelemetry error occurred: {}", err_msg),
-            _ => error!("OpenTelemetry error occurred: {:?}", err),
-        }
-    }
-}
-
-fn init_logger_provider() -> opentelemetry_sdk::logs::LoggerProvider {
-    let exporter = LogExporter::builder()
-        .with_http()
-        .with_endpoint("http://localhost:4318/v1/logs")
-        .build()
-        .unwrap();
-
-    let provider = opentelemetry_sdk::logs::LoggerProvider::builder()
-        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-        .build();
-
-    let cloned_provider = provider.clone();
-
-    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
-    // The filter levels are set as follows:
-    // - Allow `info` level and above by default.
-    // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
-    // This ensures events generated from these crates within the OTLP Exporter are not looped back,
-    // thus preventing infinite event generation.
-    // Note: This will also drop events from these crates used outside the OTLP Exporter.
-    // For more details, see: https://github.com/open-telemetry/opentelemetry-rust/issues/761
-    let filter = EnvFilter::new("info")
-        .add_directive("hyper=error".parse().unwrap())
-        .add_directive("tonic=error".parse().unwrap())
-        .add_directive("reqwest=error".parse().unwrap());
-
-    // Configuring the formatting layer specifically for OpenTelemetry internal logs.
-    // These logs starts with "opentelemetry" prefix in target. This allows specific logs
-    // from the OpenTelemetry-related components to be filtered and handled separately
-    // from the application logs
-
-    let opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-        metadata.target().starts_with("opentelemetry")
-    });
-
-    let fmt_opentelemetry_layer = fmt::layer()
-        .with_filter(LevelFilter::DEBUG)
-        .with_filter(opentelemetry_filter);
-
-    // Configures the appender tracing layer, filtering out OpenTelemetry internal logs
-    // to prevent infinite logging loops.
-
-    let non_opentelemetry_filter = tracing_subscriber::filter::filter_fn(|metadata| {
-        !metadata.target().starts_with("opentelemetry")
-    });
-
-    let otel_layer = layer::OpenTelemetryTracingBridge::new(&cloned_provider)
-        .with_filter(non_opentelemetry_filter.clone());
-
-    tracing_subscriber::registry()
-        .with(fmt_opentelemetry_layer)
-        .with(fmt::layer().with_filter(filter))
-        .with(otel_layer)
-        .init();
-    provider
-}
+use tracing_subscriber::EnvFilter;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let exporter = MetricExporter::builder()
-        .with_http()
-        .with_endpoint("http://localhost:4318/v1/metrics")
-        .build()
-        .unwrap();
+    let exporter = opentelemetry_stdout::MetricExporterBuilder::default().build();
 
-    let reader = PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_interval(std::time::Duration::from_secs(1))
-        .build();
+    let reader = PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio).build();
 
     let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
         .with_reader(reader)
@@ -130,46 +23,43 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // Set the custom error handler
-    if let Err(err) = set_error_handler(custom_error_handler) {
-        eprintln!("Failed to set custom error handler: {}", err);
-    }
+    // OpenTelemetry uses `tracing` crate for its internal logging. Unless a
+    // tracing subscriber is set, the logs will be discarded. In this example,
+    // we configure a `tracing` subscriber to:
+    // 1. Print logs of level INFO or higher to stdout.
+    // 2. Filter logs from OpenTelemetry's dependencies (like tonic, hyper,
+    // reqwest etc. which are commonly used by the OTLP exporter) to only print
+    // ERROR-level logs. This filtering helps reduce repetitive log messages
+    // that could otherwise create an infinite loop of log output. This is a
+    // workaround until
+    // https://github.com/open-telemetry/opentelemetry-rust/issues/761 is
+    // resolved.
 
-    let logger_provider = init_logger_provider();
+    // Target name used by OpenTelemetry always start with "opentelemetry".
+    // Hence, one may use "add_directive("opentelemetry=off".parse().unwrap())"
+    // to turn off all logs from OpenTelemetry.
+
+    let filter = EnvFilter::new("info")
+        .add_directive("hyper=error".parse().unwrap())
+        .add_directive("tonic=error".parse().unwrap())
+        .add_directive("h2=error".parse().unwrap())
+        .add_directive("tower=error".parse().unwrap())
+        .add_directive("reqwest=error".parse().unwrap());
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_thread_names(true).with_filter(filter))
+        .init();
 
     // Initialize the MeterProvider with the stdout Exporter.
     let meter_provider = init_meter_provider();
+    info!("Starting self-diagnostics example");
 
-    // Create a meter from the above MeterProvider.
     let meter = global::meter("example");
-    // Create a Counter Instrument.
-    let counter = meter.u64_counter("my_counter").build();
+    // Create a counter using an invalid name to trigger
+    // internal log about the same.
+    let counter = meter.u64_counter("my_counter with_space").build();
+    counter.add(10, &[KeyValue::new("key", "value")]);
 
-    // Record measurements with unique key-value pairs to exceed the cardinality limit
-    // of 2000 and trigger error message
-    for i in 0..3000 {
-        counter.add(
-            10,
-            &[KeyValue::new(
-                format!("mykey{}", i),
-                format!("myvalue{}", i),
-            )],
-        );
-    }
-
-    let (tx, rx) = channel();
-
-    ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
-        .expect("Error setting Ctrl-C handler");
-
-    println!("Press Ctrl-C to continue...");
-    rx.recv().expect("Could not receive from channel.");
-    println!("Got Ctrl-C, Doing shutdown and existing.");
-
-    // MeterProvider is configured with an OTLP Exporter to export metrics every 1 second,
-    // however shutting down the MeterProvider here instantly flushes
-    // the metrics, instead of waiting for the 1 sec interval.
     meter_provider.shutdown()?;
-    let _ = logger_provider.shutdown();
+    info!("Shutdown complete. Bye!");
     Ok(())
 }
