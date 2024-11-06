@@ -11,6 +11,8 @@ static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> =
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.
+/// 
+/// **Note:** This function should be called before getting [`Meter`] instances via [`meter()`] or [`meter_with_scope()`]. Otherwise, you could get no-op [`Meter`] instances.
 pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
@@ -34,6 +36,9 @@ pub fn meter_provider() -> GlobalMeterProvider {
 /// If the name is an empty string, the provider will use a default name.
 ///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
+/// 
+/// **Note:** Calls to [`meter()`] return a [`Meter`] backed by the global [`MeterProvider`] configured during the method invocation.
+/// If the global [`MeterProvider`] is changed after getting [`Meter`] instances from these calls, the [`Meter`] instances returned will not reflect the change.
 pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name)
 }
@@ -41,7 +46,10 @@ pub fn meter(name: &'static str) -> Meter {
 /// Creates a [`Meter`] with the given instrumentation scope.
 ///
 /// This is a simpler alternative to `global::meter_provider().meter_with_scope(...)`
-///
+/// 
+/// **Note:** Calls to [`meter_with_scope()`] return a [`Meter`] backed by the global [`MeterProvider`] configured during the method invocation.
+/// If the global [`MeterProvider`] is changed after getting [`Meter`] instances from these calls, the [`Meter`] instances returned will not reflect the change.
+/// 
 /// # Example
 ///
 /// ```
