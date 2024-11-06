@@ -93,7 +93,7 @@ pub trait LogExporter: Send + Sync + Debug {
         true
     }
 
-    /// This is a hint to ensure that the export of any Spans the exporter
+    /// This is a hint to ensure that the export of any Logs the exporter
     /// has received prior to the call to this function SHOULD be completed
     /// as soon as possible, preferably before returning from this method.
     ///
@@ -102,7 +102,7 @@ pub trait LogExporter: Send + Sync + Debug {
     ///
     /// This function SHOULD only be called in cases where it is absolutely necessary,
     /// such as when using some FaaS providers that may suspend the process after
-    /// an invocation, but before the exporter exports the completed spans.
+    /// an invocation, but before the exporter exports the completed logs.
     ///
     /// This function SHOULD complete or abort within some timeout. This function can be
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
