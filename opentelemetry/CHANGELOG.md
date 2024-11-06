@@ -44,11 +44,9 @@ let counter = meter.u64_counter("my_counter").build();
    - Created new trait `opentelemetry::trace::ExportError` for trace API. This would be eventually be consolidated with ExportError in the SDK.
    - Moved `LogError` enum from `opentelemetry::logs::LogError` to `opentelemetry_sdk::logs::LogError`
    - Moved `LogResult` type alias from `opentelemetry::logs::LogResult` to `opentelemetry_sdk::logs::LogResult`
-   - Renamed `opentelemetry::metrics::Result` type alias to `opentelemetry::metrics::MetricResult`
-   - Renamed `opentelemetry::metrics::MetricsError` enum to `opentelemetry::metrics::MetricError`
    - Moved `MetricError` enum from `opentelemetry::metrics::MetricError` to `opentelemetry_sdk::metrics::MetricError`
    - Moved `MetricResult` type alias from `opentelemetry::metrics::MetricResult` to `opentelemetry_sdk::metrics::MetricResult`
-  These change shouldn't directly affect the users of OpenTelemetry crates, as these constructs are used in SDK and Exporters.
+  These changes shouldn't directly affect the users of OpenTelemetry crates, as these constructs are used in SDK and Exporters.
 
 ## v0.26.0
 Released 2024-Sep-30
