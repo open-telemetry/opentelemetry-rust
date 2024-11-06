@@ -5,6 +5,7 @@ use std::vec;
 use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::KeyValueHelper;
 use opentelemetry::KeyValue;
 
 use super::{Aggregator, AtomicTracker, Number};
@@ -119,7 +120,7 @@ impl<T: Number> Sum<T> {
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(&attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.value.get_value(),
@@ -199,7 +200,7 @@ impl<T: Number> Sum<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 s_data.data_points.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.value.get_value(),

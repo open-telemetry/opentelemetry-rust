@@ -4,7 +4,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::metrics::data::DataPoint;
+use crate::metrics::{data::DataPoint, KeyValueHelper};
 use opentelemetry::KeyValue;
 
 use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Number, ValueMap};
@@ -93,7 +93,7 @@ impl<T: Number> LastValue<T> {
         for (attrs, tracker) in trackers.drain() {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 dest.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(&attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.value.get_value(),
@@ -145,7 +145,7 @@ impl<T: Number> LastValue<T> {
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
                 dest.push(DataPoint {
-                    attributes: attrs.clone(),
+                    attributes: KeyValueHelper::dedup_and_sort_attributes(attrs),
                     start_time: Some(prev_start),
                     time: Some(t),
                     value: tracker.value.get_value(),
