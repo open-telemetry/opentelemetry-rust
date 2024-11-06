@@ -132,7 +132,7 @@ where
         };
 
         otel_debug!(
-            name: "PeriodicReaderBuilt",
+            name: "PeriodicReader.BuildCompleted",
             message = "Periodic reader built.",
             interval_in_secs = self.interval.as_secs(),
         );
@@ -258,7 +258,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
         match message {
             Message::Export => {
                 otel_debug!(
-                    name: "PeriodicReader.ExportMessageReceived",
+                    name: "PeriodicReader.ExportTriggered",
                     message = "Export message received.",
                 );
                 if let Err(err) = self.collect_and_export().await {
@@ -270,7 +270,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             }
             Message::Flush(ch) => {
                 otel_debug!(
-                    name: "PeriodicReader.FlushMessageReceived",
+                    name: "PeriodicReader.ForceFlushCalled",
                     message = "Flush message received.",
                 );
                 let res = self.collect_and_export().await;
@@ -284,7 +284,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             }
             Message::Shutdown(ch) => {
                 otel_debug!(
-                    name: "PeriodicReader.ShutdownMessageReceived",
+                    name: "PeriodicReader.ShutdownCalled",
                     message = "Shutdown message received",
                 );
                 let res = self.collect_and_export().await;
