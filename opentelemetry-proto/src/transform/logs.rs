@@ -167,9 +167,8 @@ pub mod tonic {
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
                     schema_url: instrumentation
-                        .schema_url
-                        .clone()
-                        .map(Into::into)
+                        .schema_url()
+                        .map(ToOwned::to_owned)
                         .unwrap_or_default(),
                     scope: Some((instrumentation, log_record.target.clone()).into()),
                     log_records: vec![log_record.into()],
@@ -196,7 +195,7 @@ pub mod tonic {
                 let key = log_record
                     .target
                     .clone()
-                    .unwrap_or_else(|| Cow::Owned(instrumentation.name.clone().into_owned()));
+                    .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
                 scope_map
                     .entry(key)
                     .or_default()

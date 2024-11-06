@@ -334,7 +334,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -428,7 +428,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.
@@ -526,7 +526,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -605,7 +605,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.

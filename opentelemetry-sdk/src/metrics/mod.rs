@@ -137,7 +137,6 @@ mod tests {
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
-    use std::borrow::Cow;
     use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
@@ -638,16 +637,18 @@ mod tests {
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let mut scope = InstrumentationScope::builder("test.meter")
-            .with_version("v0.1.0")
-            .with_schema_url("http://example.com")
-            .with_attributes(vec![KeyValue::new("key", "value1")])
-            .build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
 
-        let meter1 = meter_provider.meter_with_scope(scope.clone());
-
-        scope.attributes = vec![KeyValue::new("key", "value2")];
-        let meter2 = meter_provider.meter_with_scope(scope);
+        let meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
 
         let counter1 = meter1
             .u64_counter("my_counter")
@@ -682,13 +683,13 @@ mod tests {
         );
 
         let scope = &resource_metrics[0].scope_metrics[0].scope;
-        assert_eq!(scope.name, "test.meter");
-        assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
-        assert_eq!(scope.schema_url, Some(Cow::Borrowed("http://example.com")));
+        assert_eq!(scope.name(), "test.meter");
+        assert_eq!(scope.version(), Some("v0.1.0"));
+        assert_eq!(scope.schema_url(), Some("http://example.com"));
 
         // This is validating current behavior, but it is not guaranteed to be the case in the future,
         // as this is a user error and SDK reserves right to change this behavior.
-        assert_eq!(scope.attributes, vec![KeyValue::new("key", "value1")]);
+        assert!(scope.attributes().eq(&[KeyValue::new("key", "value1")]));
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
@@ -2341,7 +2342,7 @@ mod tests {
     ) -> Option<&'a ScopeMetrics> {
         metrics
             .iter()
-            .find(|&scope_metric| scope_metric.scope.name == name)
+            .find(|&scope_metric| scope_metric.scope.name() == name)
     }
 
     struct TestContext {
