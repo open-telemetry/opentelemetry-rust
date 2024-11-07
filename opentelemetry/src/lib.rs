@@ -204,8 +204,7 @@ mod common;
 pub mod testing;
 
 pub use common::{
-    Array, ExportError, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue,
-    StringValue, Value,
+    Array, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue, StringValue, Value,
 };
 
 #[cfg(feature = "metrics")]

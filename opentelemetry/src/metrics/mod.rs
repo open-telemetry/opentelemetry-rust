@@ -1,16 +1,13 @@
 //! # OpenTelemetry Metrics API
 
 use std::hash::{Hash, Hasher};
-use std::result;
 use std::sync::Arc;
-use std::sync::PoisonError;
-use thiserror::Error;
 
 mod instruments;
 mod meter;
 pub(crate) mod noop;
 
-use crate::{Array, ExportError, KeyValue, Value};
+use crate::{Array, KeyValue, Value};
 pub use instruments::{
     counter::{Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},
@@ -20,41 +17,6 @@ pub use instruments::{
     SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
-
-/// A specialized `Result` type for metric operations.
-pub type MetricResult<T> = result::Result<T, MetricError>;
-
-/// Errors returned by the metrics API.
-#[derive(Error, Debug)]
-#[non_exhaustive]
-pub enum MetricError {
-    /// Other errors not covered by specific cases.
-    #[error("Metrics error: {0}")]
-    Other(String),
-    /// Invalid configuration
-    #[error("Config error {0}")]
-    Config(String),
-    /// Fail to export metrics
-    #[error("Metrics exporter {} failed with {0}", .0.exporter_name())]
-    ExportErr(Box<dyn ExportError>),
-    /// Invalid instrument configuration such invalid instrument name, invalid instrument description, invalid instrument unit, etc.
-    /// See [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#general-characteristics)
-    /// for full list of requirements.
-    #[error("Invalid instrument configuration: {0}")]
-    InvalidInstrumentConfiguration(&'static str),
-}
-
-impl<T: ExportError> From<T> for MetricError {
-    fn from(err: T) -> Self {
-        MetricError::ExportErr(Box::new(err))
-    }
-}
-
-impl<T> From<PoisonError<T>> for MetricError {
-    fn from(err: PoisonError<T>) -> Self {
-        MetricError::Other(err.to_string())
-    }
-}
 
 struct F64Hashable(f64);
 

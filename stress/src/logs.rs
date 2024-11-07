@@ -28,11 +28,11 @@ impl LogProcessor for NoOpLogProcessor {
     ) {
     }
 
-    fn force_flush(&self) -> opentelemetry::logs::LogResult<()> {
+    fn force_flush(&self) -> opentelemetry_sdk::logs::LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> opentelemetry::logs::LogResult<()> {
+    fn shutdown(&self) -> opentelemetry_sdk::logs::LogResult<()> {
         Ok(())
     }
 }

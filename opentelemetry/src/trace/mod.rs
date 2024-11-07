@@ -186,8 +186,16 @@ pub use self::{
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
-use crate::{ExportError, KeyValue};
+use crate::KeyValue;
 use std::sync::PoisonError;
+
+// TODO - Move ExportError and TraceError to opentelemetry-sdk
+
+/// Trait for errors returned by exporters
+pub trait ExportError: std::error::Error + Send + Sync + 'static {
+    /// The name of exporter that returned this error
+    fn exporter_name(&self) -> &'static str;
+}
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;

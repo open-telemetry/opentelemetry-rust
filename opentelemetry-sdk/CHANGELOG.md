@@ -5,7 +5,7 @@
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Implement `LogRecord::set_trace_context` for `LogRecord`. Respect any trace context set on a `LogRecord` when emitting through a `Logger`.
 - Improved `LoggerProvider` shutdown handling to prevent redundant shutdown calls when `drop` is invoked. [#2195](https://github.com/open-telemetry/opentelemetry-rust/pull/2195)
-- When creating new metric instruments, SDK would return a no-op instrument if the validation fails. [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
+- When creating new metric instruments by calling `build()`, SDK would return a no-op instrument if the validation fails (eg: Invalid metric name). [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
 - **BREAKING for Metrics users**:
   - **Replaced**
     - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
@@ -33,6 +33,18 @@
 - [#2272](https://github.com/open-telemetry/opentelemetry-rust/pull/2272)
    - Pin url version to `2.5.2`. The higher version breaks the build refer: [servo/rust-url#992.](https://github.com/servo/rust-url/issues/992)
    The `url` crate is used when `jaeger_remote_sampler` feature is enabled.
+
+- **BREAKING**: [#2266](https://github.com/open-telemetry/opentelemetry-rust/pull/2266)
+   - Moved `ExportError` trait from `opentelemetry::ExportError` to `opentelemetry_sdk::export::ExportError`
+   - Moved `LogError` enum from `opentelemetry::logs::LogError` to `opentelemetry_sdk::logs::LogError`
+   - Moved `LogResult` type alias from `opentelemetry::logs::LogResult` to `opentelemetry_sdk::logs::LogResult`
+   - Renamed `opentelemetry::metrics::Result` type alias to `opentelemetry::metrics::MetricResult`
+   - Renamed `opentelemetry::metrics::MetricsError` enum to `opentelemetry::metrics::MetricError`
+   - Moved `MetricError` enum from `opentelemetry::metrics::MetricError` to `opentelemetry_sdk::metrics::MetricError`
+   - Moved `MetricResult` type alias from `opentelemetry::metrics::MetricResult` to `opentelemetry_sdk::metrics::MetricResult`
+
+  - Users calling public APIs that return these constructs (e.g, LoggerProvider::shutdown(), MeterProvider::force_flush()) should now import them from the SDK instead of the API.
+  - Developers creating custom exporters should ensure they import these constructs from the SDK, not the API.
 
 ## v0.26.0
 Released 2024-Sep-30

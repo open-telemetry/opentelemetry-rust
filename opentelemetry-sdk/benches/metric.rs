@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, MetricResult},
+    metrics::{Counter, Histogram, MeterProvider as _},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -11,8 +11,8 @@ use opentelemetry_sdk::{
         data::{ResourceMetrics, Temporality},
         new_view,
         reader::MetricReader,
-        Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
-        View,
+        Aggregation, Instrument, InstrumentKind, ManualReader, MetricResult, Pipeline,
+        SdkMeterProvider, Stream, View,
     },
     Resource,
 };
@@ -132,18 +132,12 @@ fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReade
 
 fn counters(c: &mut Criterion) {
     let (_, cntr) = bench_counter(None, "cumulative");
-    let (_, cntr2) = bench_counter(None, "delta");
-    let (_, cntr3) = bench_counter(None, "cumulative");
+    let (_, cntr_max) = bench_counter(None, "cumulative");
 
     let mut group = c.benchmark_group("Counter");
     group.bench_function("AddNoAttrs", |b| b.iter(|| cntr.add(1, &[])));
-    group.bench_function("AddNoAttrsDelta", |b| b.iter(|| cntr2.add(1, &[])));
-
     group.bench_function("AddOneAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("K", "V")]))
-    });
-    group.bench_function("AddOneAttrDelta", |b| {
-        b.iter(|| cntr2.add(1, &[KeyValue::new("K1", "V1")]))
     });
     group.bench_function("AddThreeAttr", |b| {
         b.iter(|| {
@@ -157,35 +151,9 @@ fn counters(c: &mut Criterion) {
             )
         })
     });
-    group.bench_function("AddThreeAttrDelta", |b| {
-        b.iter(|| {
-            cntr2.add(
-                1,
-                &[
-                    KeyValue::new("K2", "V2"),
-                    KeyValue::new("K3", "V3"),
-                    KeyValue::new("K4", "V4"),
-                ],
-            )
-        })
-    });
     group.bench_function("AddFiveAttr", |b| {
         b.iter(|| {
             cntr.add(
-                1,
-                &[
-                    KeyValue::new("K5", "V5"),
-                    KeyValue::new("K6", "V6"),
-                    KeyValue::new("K7", "V7"),
-                    KeyValue::new("K8", "V8"),
-                    KeyValue::new("K9", "V9"),
-                ],
-            )
-        })
-    });
-    group.bench_function("AddFiveAttrDelta", |b| {
-        b.iter(|| {
-            cntr2.add(
                 1,
                 &[
                     KeyValue::new("K5", "V5"),
@@ -216,25 +184,6 @@ fn counters(c: &mut Criterion) {
             )
         })
     });
-    group.bench_function("AddTenAttrDelta", |b| {
-        b.iter(|| {
-            cntr2.add(
-                1,
-                &[
-                    KeyValue::new("K10", "V10"),
-                    KeyValue::new("K11", "V11"),
-                    KeyValue::new("K12", "V12"),
-                    KeyValue::new("K13", "V13"),
-                    KeyValue::new("K14", "V14"),
-                    KeyValue::new("K15", "V15"),
-                    KeyValue::new("K16", "V16"),
-                    KeyValue::new("K17", "V17"),
-                    KeyValue::new("K18", "V18"),
-                    KeyValue::new("K19", "V19"),
-                ],
-            )
-        })
-    });
 
     const MAX_DATA_POINTS: i64 = 2000;
     let mut max_attributes: Vec<KeyValue> = Vec::new();
@@ -244,14 +193,16 @@ fn counters(c: &mut Criterion) {
     }
 
     group.bench_function("AddOneTillMaxAttr", |b| {
-        b.iter(|| cntr3.add(1, &max_attributes))
+        b.iter(|| cntr_max.add(1, &max_attributes))
     });
 
     for i in MAX_DATA_POINTS..MAX_DATA_POINTS * 2 {
         max_attributes.push(KeyValue::new(i.to_string(), i))
     }
 
-    group.bench_function("AddMaxAttr", |b| b.iter(|| cntr3.add(1, &max_attributes)));
+    group.bench_function("AddMaxAttr", |b| {
+        b.iter(|| cntr_max.add(1, &max_attributes))
+    });
 
     group.bench_function("AddInvalidAttr", |b| {
         b.iter(|| cntr.add(1, &[KeyValue::new("", "V"), KeyValue::new("K", "V")]))

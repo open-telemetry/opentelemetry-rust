@@ -2,7 +2,6 @@
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    metrics::MetricError,
     trace::{TraceContextExt, TraceError, Tracer},
     InstrumentationScope, KeyValue,
 };
@@ -11,7 +10,7 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::{
     logs::LoggerProvider,
-    metrics::{PeriodicReader, SdkMeterProvider},
+    metrics::{MetricError, PeriodicReader, SdkMeterProvider},
     runtime,
     trace::{self as sdktrace, Config, TracerProvider},
 };
@@ -31,7 +30,7 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     )])
 });
 
-fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry::logs::LogError> {
+fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogError> {
     let exporter = LogExporter::builder()
         .with_http()
         .with_endpoint("http://localhost:4318/v1/logs")
