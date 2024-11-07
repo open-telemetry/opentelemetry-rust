@@ -3,7 +3,6 @@ use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
 use async_trait::async_trait;
-use futures_util::future::BoxFuture;
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
@@ -108,8 +107,8 @@ pub trait LogExporter: Send + Sync + Debug {
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
     /// a callback or an event. OpenTelemetry client authors can decide if they want to
     /// make the flush timeout configurable.
-    fn force_flush(&mut self) -> BoxFuture<'static, ExportResult> {
-        Box::pin(async { Ok(()) })
+    async fn force_flush(&mut self) -> ExportResult {
+        Ok(())
     }
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
