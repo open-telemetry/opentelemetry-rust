@@ -1,11 +1,11 @@
 //! Log exporters
 use crate::logs::LogRecord;
+use crate::logs::{LogError, LogResult};
 use crate::Resource;
 use async_trait::async_trait;
 use futures_util::future::BoxFuture;
 #[cfg(feature = "logs_level_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
 

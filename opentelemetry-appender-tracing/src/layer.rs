@@ -210,12 +210,12 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use async_trait::async_trait;
-    use opentelemetry::logs::{LogResult, Severity};
+    use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
+    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
@@ -334,7 +334,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -428,7 +428,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.
@@ -526,7 +526,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -605,7 +605,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.

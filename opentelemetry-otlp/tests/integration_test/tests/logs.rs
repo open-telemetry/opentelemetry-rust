@@ -2,21 +2,17 @@
 
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
-use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_otlp::{LogExporter, WithExportConfig};
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_otlp::LogExporter;
+use opentelemetry_sdk::logs::{LogError, LoggerProvider};
 use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
 use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
-    let exporter = LogExporter::builder()
-        .with_tonic()
-        .with_endpoint("0.0.0.0:4317")
-        .build()?;
+    let exporter = LogExporter::builder().with_tonic().build()?;
 
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)

@@ -148,3 +148,5 @@ pub mod util;
 
 #[doc(inline)]
 pub use resource::Resource;
+
+pub mod error;

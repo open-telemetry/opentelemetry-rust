@@ -16,7 +16,8 @@ use std::time::SystemTime;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::export::logs::LogBatch;
