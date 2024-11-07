@@ -208,3 +208,26 @@ impl<T: Number> Histogram<T> {
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_buckets_are_selected_correctly() {
+        let hist = Histogram::<i64>::new(vec![1.0, 3.0, 6.0], false, false);
+        for v in 1..11 {
+            hist.measure(v, &[]);
+        }
+        let (count, dp) = hist.cumulative(None);
+        let dp = dp.unwrap();
+        let dp = dp.as_any().downcast_ref::<data::Histogram<i64>>().unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].count, 10);
+        assert_eq!(dp.data_points[0].bucket_counts.len(), 4);
+        assert_eq!(dp.data_points[0].bucket_counts[0], 1); // 1
+        assert_eq!(dp.data_points[0].bucket_counts[1], 2); // 2, 3
+        assert_eq!(dp.data_points[0].bucket_counts[2], 3); // 4, 5, 6
+        assert_eq!(dp.data_points[0].bucket_counts[3], 4); // 7, 8, 9, 10
+    }
+}
