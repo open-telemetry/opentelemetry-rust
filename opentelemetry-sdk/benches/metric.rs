@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _, MetricResult},
+    metrics::{Counter, Histogram, MeterProvider as _},
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -11,8 +11,8 @@ use opentelemetry_sdk::{
         data::{ResourceMetrics, Temporality},
         new_view,
         reader::MetricReader,
-        Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
-        View,
+        Aggregation, Instrument, InstrumentKind, ManualReader, MetricResult, Pipeline,
+        SdkMeterProvider, Stream, View,
     },
     Resource,
 };

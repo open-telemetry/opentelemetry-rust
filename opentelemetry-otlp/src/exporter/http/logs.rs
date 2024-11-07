@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::logs::{LogError, LogResult};
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;
 

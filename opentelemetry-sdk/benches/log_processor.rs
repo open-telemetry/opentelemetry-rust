@@ -19,10 +19,10 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity},
+    logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity},
     InstrumentationScope,
 };
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor

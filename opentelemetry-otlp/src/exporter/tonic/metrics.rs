@@ -2,11 +2,11 @@ use core::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
+use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use super::BoxInterceptor;

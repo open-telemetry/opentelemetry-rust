@@ -20,13 +20,11 @@ use std::time::SystemTime;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{
-    AnyValue, LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity,
-};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::{InstrumentationScope, Key};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
 use opentelemetry_sdk::trace;
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 

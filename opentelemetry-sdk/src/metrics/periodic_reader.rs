@@ -11,14 +11,11 @@ use futures_util::{
     stream::{self, FusedStream},
     StreamExt,
 };
-use opentelemetry::{
-    metrics::{MetricError, MetricResult},
-    otel_debug, otel_error,
-};
+use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
 
@@ -407,11 +404,12 @@ impl MetricReader for PeriodicReader {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
+    use crate::metrics::MetricError;
     use crate::{
         metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
         runtime, testing::metrics::InMemoryMetricExporter, Resource,
     };
-    use opentelemetry::metrics::{MeterProvider, MetricError};
+    use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
 
     #[test]
