@@ -8,11 +8,9 @@
 - Introduced `SyncInstrument` trait to replace the individual synchronous instrument traits (`SyncCounter`, `SyncGauge`, `SyncHistogram`, `SyncUpDownCounter`) which are meant for SDK implementation. [#2207](https://github.com/open-telemetry/opentelemetry-rust/pull/2207)
 - Ensured that `observe` method on asynchronous instruments can only be called inside a callback. This was done by removing the implementation of `AsyncInstrument` trait for each of the asynchronous instruments. [#2210](https://github.com/open-telemetry/opentelemetry-rust/pull/2210)
 - Removed `PartialOrd` and `Ord` implementations for `KeyValue`. [#2215](https://github.com/open-telemetry/opentelemetry-rust/pull/2215)
-- **Breaking change** Removed `try_init` methods from the instrument builders. Users should only use `init` method to create instruments. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
-- Updated the return types of `InstrumentProvider` trait methods to return the instrument instead of a `Result`. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
 - **Breaking change for exporter authors:** Marked `KeyValue` related structs and enums as `non_exhaustive`. [#2228](https://github.com/open-telemetry/opentelemetry-rust/pull/2228)
 - **Breaking change for log exporter authors:** Marked `AnyValue` enum as `non_exhaustive`. [#2230](https://github.com/open-telemetry/opentelemetry-rust/pull/2230)
-- **Breaking change for Metrics users:** The `init` method used to create instruments has been renamed to `build`.
+- **Breaking change for Metrics users:** The `init` method used to create instruments has been renamed to `build`. Also, `try_init()` method is removed from instrument builders. The return types of `InstrumentProvider` trait methods modified to return the instrument struct, instead of `Result`. [#2227](https://github.com/open-telemetry/opentelemetry-rust/pull/2227)
 
 Before:
 ```rust
@@ -32,16 +30,16 @@ let counter = meter.u64_counter("my_counter").build();
   - Replaced these methods with `LoggerProvider::logger_with_scope`, `TracerProvider::logger_with_scope`, `MeterProvider::meter_with_scope`
   - Replaced `global::meter_with_version` with `global::meter_with_scope`
   - Added `global::tracer_with_scope`
+  - Refer to PR description for migration guide.
+- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)  
 
 - **Breaking change**: [#2260](https://github.com/open-telemetry/opentelemetry-rust/pull/2260)
   - Removed `global::set_error_handler` and `global::handle_error`. 
   - `global::handle_error` usage inside the opentelemetry crates has been replaced with `global::otel_info`, `otel_warn`, `otel_debug` and `otel_error` macros based on the severity of the internal logs.
-  - The default behavior of `global::handle_error` was to log the error using `eprintln!`. With otel macro, the internal logs get emitted via `tracing` macros of matching severity. Users now need to configure the `tracing` layer to capture these logs.
-  - Refer to this PR description for migration guide. Also refer to [self-diagnostics](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/self-diagnostics) example on how to configure the tracing layer for internal logs.
-- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)
+  - The default behavior of `global::handle_error` was to log the error using `eprintln!`. With otel macros, the internal logs get emitted via `tracing` macros of matching severity. Users now need to configure a `tracing` layer/subscriber to capture these logs.
+  - Refer to PR description for migration guide. Also refer to [self-diagnostics](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/self-diagnostics) example to learn how to view internal logs in stdout using `tracing::fmt` layer.
 
-
-- [#2266](https://github.com/open-telemetry/opentelemetry-rust/pull/2266)
+- **Breaking change for exporter/processor authors:** [#2266](https://github.com/open-telemetry/opentelemetry-rust/pull/2266)
    - Moved `ExportError` trait from `opentelemetry::ExportError` to `opentelemetry_sdk::export::ExportError`
    - Created new trait `opentelemetry::trace::ExportError` for trace API. This would be eventually be consolidated with ExportError in the SDK.
    - Moved `LogError` enum from `opentelemetry::logs::LogError` to `opentelemetry_sdk::logs::LogError`
