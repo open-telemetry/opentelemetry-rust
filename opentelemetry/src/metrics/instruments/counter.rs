@@ -33,8 +33,6 @@ impl<T> Counter<T> {
 }
 
 /// An async instrument that records increasing values.
-///
-/// [`ObservableCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableCounter`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ObservableCounter<T> {

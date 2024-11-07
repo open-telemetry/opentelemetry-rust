@@ -33,8 +33,6 @@ impl<T> Gauge<T> {
 }
 
 /// An async instrument that records independent readings.
-///
-/// [`ObservableGauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableGauge`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ObservableGauge<T> {

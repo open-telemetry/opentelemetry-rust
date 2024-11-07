@@ -329,8 +329,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording increasing values via callback.
-    ///
-    /// [`ObservableCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableCounter`]s for the same instrument.
     pub fn u64_observable_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -339,8 +337,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording increasing values via callback.
-    ///
-    /// [`ObservableCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableCounter`]s for the same instrument.
     pub fn f64_observable_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -369,8 +365,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value via callback.
-    ///
-    /// [`ObservableUpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableUpDownCounter`]s for the same instrument.
     pub fn i64_observable_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -379,8 +373,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value via callback.
-    ///
-    /// [`ObservableUpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableUpDownCounter`]s for the same instrument.
     pub fn f64_observable_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -419,8 +411,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording the current value via callback.
-    ///
-    /// [`ObservableGauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableGauge`]s for the same instrument.
     pub fn u64_observable_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -429,8 +419,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording the current value via callback.
-    ///
-    /// [`ObservableGauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableGauge`]s for the same instrument.
     pub fn i64_observable_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -439,8 +427,6 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording the current value via callback.
-    ///
-    /// [`ObservableGauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableGauge`]s for the same instrument.
     pub fn f64_observable_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,

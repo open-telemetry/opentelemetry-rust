@@ -36,8 +36,6 @@ impl<T> UpDownCounter<T> {
 }
 
 /// An async instrument that records increasing or decreasing values.
-///
-/// [`ObservableUpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`ObservableUpDownCounter`]s for the same instrument.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ObservableUpDownCounter<T> {
