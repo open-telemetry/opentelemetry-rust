@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex, Weak};
 
+use crate::metrics::MetricResult;
 use crate::metrics::{
     data::{ResourceMetrics, Temporality},
     pipeline::Pipeline,
     reader::MetricReader,
     InstrumentKind,
 };
-use opentelemetry::metrics::MetricResult;
 
 #[derive(Debug, Clone)]
 pub struct TestMetricReader {

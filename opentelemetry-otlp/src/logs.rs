@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::fmt::Debug;
 
-use opentelemetry::logs::LogResult;
+use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry_sdk::export::logs::LogBatch;
 
@@ -62,14 +62,14 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl LogExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<LogExporter, opentelemetry::logs::LogError> {
+    pub fn build(self) -> Result<LogExporter, opentelemetry_sdk::logs::LogError> {
         self.client.0.build_log_exporter()
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl LogExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<LogExporter, opentelemetry::logs::LogError> {
+    pub fn build(self) -> Result<LogExporter, opentelemetry_sdk::logs::LogError> {
         self.client.0.build_log_exporter()
     }
 }

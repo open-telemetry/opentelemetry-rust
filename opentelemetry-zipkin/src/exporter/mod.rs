@@ -252,3 +252,9 @@ impl ExportError for Error {
         "zipkin"
     }
 }
+
+impl opentelemetry::trace::ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "zipkin"
+    }
+}

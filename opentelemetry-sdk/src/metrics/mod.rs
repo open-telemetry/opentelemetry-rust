@@ -41,6 +41,7 @@
 
 pub(crate) mod aggregation;
 pub mod data;
+mod error;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
@@ -54,6 +55,7 @@ pub mod reader;
 pub(crate) mod view;
 
 pub use aggregation::*;
+pub use error::{MetricError, MetricResult};
 pub use instrument::*;
 pub use manual_reader::*;
 pub use meter_provider::*;

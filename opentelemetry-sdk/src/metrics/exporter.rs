@@ -1,7 +1,7 @@
 //! Interfaces for exporting metrics
 use async_trait::async_trait;
 
-use opentelemetry::metrics::MetricResult;
+use crate::metrics::MetricResult;
 
 use crate::metrics::data::ResourceMetrics;
 

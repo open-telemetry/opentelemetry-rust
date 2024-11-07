@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::{
     data::{self, ScopeMetrics, Temporality},
     exporter::PushMetricExporter,
 };
+use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 use std::fmt::Debug;
 use std::sync::atomic;
 
