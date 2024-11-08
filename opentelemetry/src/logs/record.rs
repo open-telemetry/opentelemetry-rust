@@ -63,7 +63,7 @@ pub trait LogRecord {
 /// Value types for representing arbitrary values in a log record.
 /// Note: The `tracing` and `log` crates only support basic types that can be
 /// converted to these core variants: `i64`, `f64`, `StringValue`, and `bool`.
-/// Any complex and custom types are suported through their Debug implemetnation,
+/// Any complex and custom types are supported through their Debug implementation,
 /// and converted to String. More complex types (`Bytes`, `ListAny`, and `Map`) are
 /// included here to meet specification requirements and are available to support
 /// custom appenders that may be implemented for other logging crates.
