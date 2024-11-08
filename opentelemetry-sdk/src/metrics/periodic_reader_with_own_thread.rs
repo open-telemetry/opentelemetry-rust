@@ -17,10 +17,7 @@ use crate::{
 };
 
 use super::{
-    data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
-    reader::MetricReader,
-    Pipeline,
+    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -478,7 +475,7 @@ impl MetricReader for PeriodicReaderWithOwnThread {
     /// If not configured, the Cumulative temporality SHOULD be used.
     ///  
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
-    fn temporality(&self, kind: InstrumentKind) -> super::data::Temporality {
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
         kind.temporality_preference(self.inner.temporality(kind))
     }
 }
@@ -488,10 +485,8 @@ mod tests {
     use super::PeriodicReaderWithOwnThread;
     use crate::{
         metrics::{
-            data::{ResourceMetrics, Temporality},
-            exporter::PushMetricExporter,
-            reader::MetricReader,
-            MetricError, MetricResult, SdkMeterProvider,
+            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
+            MetricResult, SdkMeterProvider, Temporality,
         },
         testing::metrics::InMemoryMetricExporter,
         Resource,
