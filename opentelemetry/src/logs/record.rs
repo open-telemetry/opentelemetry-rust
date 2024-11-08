@@ -61,6 +61,12 @@ pub trait LogRecord {
 }
 
 /// Value types for representing arbitrary values in a log record.
+/// Note: The `tracing` and `log` crates only natively support basic types
+/// such as `i64`, `f64`, `StringValue`, and `bool`. The boxed types
+/// (`Bytes`, `ListAny`, and `Map`) are included to support custom appenders
+/// for other logging crates, as required by specifications.
+/// These types allow for handling dynamic data structures, so be mindful
+/// of the potential performance overhead associated with boxed vectors and maps.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum AnyValue {
