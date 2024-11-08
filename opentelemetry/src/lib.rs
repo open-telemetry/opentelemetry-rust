@@ -114,7 +114,7 @@
 //! The default feature flags are ["trace", "metrics", "logs"]
 //!
 //! The following feature flags provides additional configuration for `logs`:
-//! * `logs_level_enabled`: Allow users to control the log level
+//! * `experimental_logs_level_enabled`: Allow users to control the log level
 //!
 //! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
 //! * `otel_unstable`: Includes unstable APIs.
