@@ -11,9 +11,6 @@ opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"]}
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
-tracing = { workspace = true, features = ["std"]}
-tracing-core = { workspace = true }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", "std"]}
 
 [features]
 default = ["otel_unstable"]
