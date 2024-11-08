@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.26.0"
+version = "0.27.0"
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
@@ -28,10 +28,10 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 [dependencies]
 async-trait = { workspace = true }
 once_cell = { workspace = true }
-opentelemetry = { version = "0.26", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.26", path = "../opentelemetry-sdk", features = ["trace"] }
-opentelemetry-http = { version = "0.26", path = "../opentelemetry-http" }
-opentelemetry-semantic-conventions = { version = "0.26", path = "../opentelemetry-semantic-conventions" }
+opentelemetry = { version = "0.27.0", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.27.0", path = "../opentelemetry-sdk", features = ["trace"] }
+opentelemetry-http = { version = "0.27.0", path = "../opentelemetry-http" }
+opentelemetry-semantic-conventions = { version = "0.27.0", path = "../opentelemetry-semantic-conventions" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.18"
