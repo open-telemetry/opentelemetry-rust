@@ -6,9 +6,7 @@ use opentelemetry::{InstrumentationScope, KeyValue};
 
 use crate::Resource;
 
-pub use self::temporality::Temporality;
-
-mod temporality;
+use super::Temporality;
 
 /// A collection of [ScopeMetrics] and the associated [Resource] that created them.
 #[derive(Debug)]

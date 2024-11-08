@@ -12,7 +12,7 @@
     ```
     Updated Signature:
     ```rust
-    MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
     ```
   - **Renamed**
     - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
