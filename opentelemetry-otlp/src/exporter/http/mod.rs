@@ -99,7 +99,7 @@ impl Default for HttpConfig {
 ///
 /// ```
 /// # #[cfg(feature="metrics")]
-/// use opentelemetry_sdk::metrics::data::Temporality;
+/// use opentelemetry_sdk::metrics::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
