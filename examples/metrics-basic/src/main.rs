@@ -8,7 +8,7 @@ use std::vec;
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricExporterBuilder::default()
         // Build exporter using Delta Temporality (Defaults to Temporality::Cumulative)
-        // .with_temporality(Temporality::Delta)
+        // .with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
         .build();
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
