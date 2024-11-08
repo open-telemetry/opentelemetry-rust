@@ -396,7 +396,7 @@ impl MetricReader for PeriodicReader {
     /// If not configured, the Cumulative temporality SHOULD be used.
     ///  
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
-    fn temporality(&self, kind: InstrumentKind) -> super::data::Temporality {
+    fn temporality(&self, kind: InstrumentKind) -> super::Temporality {
         kind.temporality_preference(self.exporter.temporality())
     }
 }
@@ -404,10 +404,11 @@ impl MetricReader for PeriodicReader {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
+    use crate::metrics::reader::MetricReader;
     use crate::metrics::MetricError;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::reader::MetricReader, metrics::SdkMeterProvider,
-        runtime, testing::metrics::InMemoryMetricExporter, Resource,
+        metrics::data::ResourceMetrics, metrics::SdkMeterProvider, runtime,
+        testing::metrics::InMemoryMetricExporter, Resource,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;

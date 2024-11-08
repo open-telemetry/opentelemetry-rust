@@ -10,7 +10,7 @@
     ```
     Updated Signature:
     ```rust
-    MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
     ```
   - ([#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221)) **Replaced**:
     - The `opentelemetry_otlp::new_pipeline().{trace,logging,metrics}()` interface is now replaced with `{TracerProvider,SdkMeterProvider,LoggerProvider}::builder()`.

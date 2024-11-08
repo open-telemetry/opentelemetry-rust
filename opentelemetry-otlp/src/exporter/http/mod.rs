@@ -243,7 +243,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         mut self,
-        temporality: opentelemetry_sdk::metrics::data::Temporality,
+        temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
