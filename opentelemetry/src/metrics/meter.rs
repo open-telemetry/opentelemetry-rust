@@ -310,7 +310,9 @@ impl Meter {
 
     /// creates an instrument builder for recording increasing values.
     ///
-    /// [`Counter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Counter`]s for the same instrument.
+    /// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+    /// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+    /// duplicate [`Counter`]s for the same metric could lower SDK performance.
     pub fn u64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -320,7 +322,9 @@ impl Meter {
 
     /// creates an instrument builder for recording increasing values.
     ///
-    /// [`Counter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Counter`]s for the same instrument.
+    /// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+    /// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+    /// duplicate [`Counter`]s for the same metric could lower SDK performance.
     pub fn f64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -346,7 +350,9 @@ impl Meter {
 
     /// creates an instrument builder for recording changes of a value.
     ///
-    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`UpDownCounter`]s for the same instrument.
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn i64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -356,7 +362,9 @@ impl Meter {
 
     /// creates an instrument builder for recording changes of a value.
     ///
-    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`UpDownCounter`]s for the same instrument.
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn f64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -365,6 +373,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value via callback.
+    ///
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn i64_observable_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -382,7 +394,9 @@ impl Meter {
 
     /// creates an instrument builder for recording independent values.
     ///
-    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Gauge`]s for the same instrument.
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn u64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -392,7 +406,9 @@ impl Meter {
 
     /// creates an instrument builder for recording independent values.
     ///
-    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Gauge`]s for the same instrument.
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn f64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -401,8 +417,9 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording independent values.
-    ///
-    /// /// [`Gauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Gauge`]s for the same instrument.
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn i64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -436,7 +453,9 @@ impl Meter {
 
     /// creates an instrument builder for recording a distribution of values.
     ///
-    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Histogram`]s for the same instrument.
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
     pub fn f64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -446,7 +465,9 @@ impl Meter {
 
     /// creates an instrument builder for recording a distribution of values.
     ///
-    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Histogram`]s for the same instrument.
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
     pub fn u64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,

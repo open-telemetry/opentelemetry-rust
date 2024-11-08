@@ -6,7 +6,9 @@ use super::SyncInstrument;
 
 /// An instrument that records a distribution of values.
 ///
-/// [`Histogram`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Histogram`]s for the same instrument.
+/// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+/// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+/// duplicate [`Histogram`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Histogram<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);

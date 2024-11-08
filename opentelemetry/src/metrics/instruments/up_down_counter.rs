@@ -6,7 +6,9 @@ use super::SyncInstrument;
 
 /// An instrument that records increasing or decreasing values.
 ///
-/// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`UpDownCounter`]s for the same instrument.
+/// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+/// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+/// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct UpDownCounter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);

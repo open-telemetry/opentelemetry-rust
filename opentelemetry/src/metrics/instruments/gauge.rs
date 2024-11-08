@@ -6,7 +6,9 @@ use super::SyncInstrument;
 
 /// An instrument that records independent values
 ///
-/// [`Gauge`] can be cloned to create multiple handles to the same instrument. Avoid creating duplicate [`Gauge`]s for the same instrument.
+/// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+/// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+/// duplicate [`Gauge`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Gauge<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
