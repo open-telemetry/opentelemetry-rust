@@ -11,7 +11,7 @@ rust-version = "1.70"
 edition = "2021"
 
 [dependencies]
-opentelemetry = { version = "0.27.0", path = "../opentelemetry", features = [
+opentelemetry = { version = "0.27", path = "../opentelemetry", features = [
   "logs",
 ] }
 log = { workspace = true, features = ["kv", "std"] }

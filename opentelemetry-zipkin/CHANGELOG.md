@@ -6,10 +6,10 @@
 
 Released 2024-Nov-08
 
-- Update `opentelemetry` dependency version to 0.27.0
-- Update `opentelemetry_sdk` dependency version to 0.27.0
-- Update `opentelemetry-http` dependency version to 0.27.0
-- Update `opentelemetry-semantic-conventions` dependency version to 0.27.0
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+- Update `opentelemetry-semantic-conventions` dependency version to 0.27
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 

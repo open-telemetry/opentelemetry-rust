@@ -51,8 +51,8 @@ populate-logs-event-name = []
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
-opentelemetry = { version = "0.27.0", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.27.0", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.27", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.27", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { version = "0.8", optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }

@@ -6,10 +6,10 @@
 
 Released 2024-Nov-08
 
-- Update `opentelemetry` dependency version to 0.27.0
-- Update `opentelemetry_sdk` dependency version to 0.27.0
-- Update `opentelemetry-http` dependency version to 0.27.0
-- Update `opentelemetry-proto` dependency version to 0.27.0
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+- Update `opentelemetry-proto` dependency version to 0.27
 
 - **BREAKING**: 
   - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:

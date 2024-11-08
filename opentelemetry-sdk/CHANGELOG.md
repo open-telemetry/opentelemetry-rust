@@ -6,8 +6,8 @@
 
 Released 2024-Nov-08
 
-- Update `opentelemetry` dependency version to 0.27.0
-- Update `opentelemetry-http` dependency version to 0.27.0
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Implement `LogRecord::set_trace_context` for `LogRecord`. Respect any trace context set on a `LogRecord` when emitting through a `Logger`.
