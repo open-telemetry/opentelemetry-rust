@@ -8,11 +8,9 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     metrics::{
-        data::{ResourceMetrics, Temporality},
-        new_view,
-        reader::MetricReader,
-        Aggregation, Instrument, InstrumentKind, ManualReader, MetricResult, Pipeline,
-        SdkMeterProvider, Stream, View,
+        data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
+        InstrumentKind, ManualReader, MetricResult, Pipeline, SdkMeterProvider, Stream,
+        Temporality, View,
     },
     Resource,
 };

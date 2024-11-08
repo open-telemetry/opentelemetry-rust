@@ -7,7 +7,7 @@ use opentelemetry::{
 
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
-use super::data::Temporality;
+use super::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]

@@ -2,7 +2,10 @@ use std::{marker, sync::Arc};
 
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{Aggregation, Gauge, Temporality};
+use crate::metrics::{
+    data::{Aggregation, Gauge},
+    Temporality,
+};
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,

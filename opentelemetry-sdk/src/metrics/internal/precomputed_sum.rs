@@ -1,6 +1,7 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::data::{self, Aggregation, DataPoint};
+use crate::metrics::Temporality;
 
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use std::{collections::HashMap, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
