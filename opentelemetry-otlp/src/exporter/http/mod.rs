@@ -99,7 +99,7 @@ impl Default for HttpConfig {
 ///
 /// ```
 /// # #[cfg(feature="metrics")]
-/// use opentelemetry_sdk::metrics::data::Temporality;
+/// use opentelemetry_sdk::metrics::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
@@ -243,7 +243,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "metrics")]
     pub fn build_metrics_exporter(
         mut self,
-        temporality: opentelemetry_sdk::metrics::data::Temporality,
+        temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,

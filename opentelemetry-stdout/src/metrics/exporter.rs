@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::{
-    data::{self, ScopeMetrics, Temporality},
+    data::{self, ScopeMetrics},
     exporter::PushMetricExporter,
 };
-use opentelemetry_sdk::metrics::{MetricError, MetricResult};
+use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
 use std::fmt::Debug;
 use std::sync::atomic;
 
@@ -137,7 +137,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
 fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic);
-    if sum.temporality == data::Temporality::Cumulative {
+    if sum.temporality == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");
@@ -151,7 +151,7 @@ fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
 }
 
 fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
-    if histogram.temporality == data::Temporality::Cumulative {
+    if histogram.temporality == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");

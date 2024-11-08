@@ -3,9 +3,9 @@ use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTi
 use once_cell::sync::Lazy;
 use opentelemetry::{otel_debug, KeyValue};
 
-use crate::{
-    metrics::data::{self, Aggregation, Temporality},
-    metrics::AttributeSet,
+use crate::metrics::{
+    data::{self, Aggregation},
+    AttributeSet, Temporality,
 };
 
 use super::Number;
