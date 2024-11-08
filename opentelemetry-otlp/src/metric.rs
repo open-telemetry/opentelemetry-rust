@@ -19,8 +19,7 @@ use core::fmt;
 use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
-    data::{ResourceMetrics, Temporality},
-    exporter::PushMetricExporter,
+    data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
 };
 use std::fmt::{Debug, Formatter};
 
