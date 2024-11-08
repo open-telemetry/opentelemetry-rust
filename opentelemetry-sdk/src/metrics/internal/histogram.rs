@@ -3,7 +3,8 @@ use std::ops::DerefMut;
 use std::{sync::Mutex, time::SystemTime};
 
 use crate::metrics::data::HistogramDataPoint;
-use crate::metrics::data::{self, Aggregation, Temporality};
+use crate::metrics::data::{self, Aggregation};
+use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::ValueMap;

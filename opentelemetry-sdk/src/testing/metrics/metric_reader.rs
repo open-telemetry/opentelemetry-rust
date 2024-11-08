@@ -1,12 +1,9 @@
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::metrics::MetricResult;
 use crate::metrics::{
-    data::{ResourceMetrics, Temporality},
-    pipeline::Pipeline,
-    reader::MetricReader,
-    InstrumentKind,
+    data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
+use crate::metrics::{MetricResult, Temporality};
 
 #[derive(Debug, Clone)]
 pub struct TestMetricReader {

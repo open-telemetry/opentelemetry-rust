@@ -46,6 +46,8 @@
   - Users calling public APIs that return these constructs (e.g, LoggerProvider::shutdown(), MeterProvider::force_flush()) should now import them from the SDK instead of the API.
   - Developers creating custom exporters should ensure they import these constructs from the SDK, not the API.
 
+- **BREAKING**: `Temporality` enum moved from `opentelemetry_sdk::metrics::data::Temporality` to `opentelemetry_sdk::metrics::Temporality`.
+
 ## v0.26.0
 Released 2024-Sep-30
 
