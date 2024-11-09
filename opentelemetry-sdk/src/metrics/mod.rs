@@ -152,11 +152,6 @@ impl AttributeSet {
     pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
-
-    /// Returns the underlying Vec of KeyValue pairs
-    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
-        self.0
-    }
 }
 
 impl Hash for AttributeSet {
