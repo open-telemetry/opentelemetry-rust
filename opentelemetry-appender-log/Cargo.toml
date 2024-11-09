@@ -21,14 +21,14 @@ opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-convent
 ] }
 
 [features]
-experimental_logs_level_enabled = ["opentelemetry/experimental_logs_level_enabled"]
+unstable_logs_level_enabled = ["opentelemetry/unstable_logs_level_enabled"]
 with-serde = ["log/kv_serde", "serde"]
 experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [
   "testing",
-  "experimental_logs_level_enabled",
+  "unstable_logs_level_enabled",
 ] }
 opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }

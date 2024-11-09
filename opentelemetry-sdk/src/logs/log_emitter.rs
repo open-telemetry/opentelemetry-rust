@@ -3,7 +3,7 @@ use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
 use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
 
-#[cfg(feature = "experimental_logs_level_enabled")]
+#[cfg(feature = "unstable_logs_level_enabled")]
 use opentelemetry::logs::Severity;
 
 use std::time::SystemTime;
@@ -282,7 +282,7 @@ impl opentelemetry::logs::Logger for Logger {
         }
     }
 
-    #[cfg(feature = "experimental_logs_level_enabled")]
+    #[cfg(feature = "unstable_logs_level_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
         let provider = self.provider();
 
