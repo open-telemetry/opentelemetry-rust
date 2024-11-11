@@ -4,7 +4,7 @@
 
 ## 0.27.0
 
-Released 2024-Nov-08
+Released 2024-Nov-11
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Add `LogRecord::set_trace_context`; an optional method conditional on the `trace` feature for setting trace context on a log record.
