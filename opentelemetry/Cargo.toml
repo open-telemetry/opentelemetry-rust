@@ -37,12 +37,12 @@ trace = ["pin-project-lite"]
 metrics = []
 testing = ["trace", "metrics"]
 logs = []
-specs_unstable_logs_enabled = ["logs"]
+spec_unstable_logs_enabled = ["logs"]
 otel_unstable = []
 internal-logs = ["tracing"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["specs_unstable_logs_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true }
 

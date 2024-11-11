@@ -89,7 +89,7 @@
 //!
 //! For `logs` the following feature flags are available:
 //!
-//! * `specs_unstable_logs_enabled`: control the log level
+//! * `spec_unstable_logs_enabled`: control the log level
 //!
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:

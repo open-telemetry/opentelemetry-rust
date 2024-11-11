@@ -184,7 +184,7 @@ where
         self.logger.emit(log_record);
     }
 
-    #[cfg(feature = "specs_unstable_logs_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(
         &self,
         _event: &tracing_core::Event<'_>,
