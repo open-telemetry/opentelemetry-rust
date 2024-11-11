@@ -3,7 +3,7 @@ use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
 use async_trait::async_trait;
-#[cfg(feature = "unstable_logs_level_enabled")]
+#[cfg(feature = "unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
@@ -85,7 +85,7 @@ pub trait LogExporter: Send + Sync + Debug {
     async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
-    #[cfg(feature = "unstable_logs_level_enabled")]
+    #[cfg(feature = "unstable_logs_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         // By default, all logs are enabled
