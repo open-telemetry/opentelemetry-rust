@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{logs::LogRecord, InstrumentationScope};
 
-#[cfg(feature = "logs_level_enabled")]
+#[cfg(feature = "spec_unstable_logs_enabled")]
 use super::Severity;
 
 /// The interface for emitting [`LogRecord`]s.
@@ -20,7 +20,7 @@ pub trait Logger {
     /// [`Context`]: crate::Context
     fn emit(&self, record: Self::LogRecord);
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if the given log level is enabled.
     fn event_enabled(&self, level: Severity, target: &str) -> bool;
 }

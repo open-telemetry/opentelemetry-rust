@@ -3,11 +3,7 @@ use std::{fmt, sync::Weak};
 
 use crate::metrics::MetricResult;
 
-use super::{
-    data::{ResourceMetrics, Temporality},
-    pipeline::Pipeline,
-    InstrumentKind,
-};
+use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
 /// The interface used between the SDK and an exporter.
 ///
