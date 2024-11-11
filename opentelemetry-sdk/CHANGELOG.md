@@ -47,8 +47,14 @@
   - Developers creating custom exporters should ensure they import these constructs from the SDK, not the API.
   - [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
 
-
 - **BREAKING**: `Temporality` enum moved from `opentelemetry_sdk::metrics::data::Temporality` to `opentelemetry_sdk::metrics::Temporality`.
+
+- Added a new `PeriodicReader` implementation (`PeriodicReaderWithOwnThread`)
+  that does not rely on an async runtime, and instead creates own Thread. This
+  is under feature flag "experimental_metrics_periodic_reader_no_runtime". The
+  functionality maybe moved into existing PeriodReader or even removed in the
+  future. As of today, this cannot be used as-is with OTLP Metric Exporter or
+  any exporter that require an async runtime.
 
 ## v0.26.0
 Released 2024-Sep-30
