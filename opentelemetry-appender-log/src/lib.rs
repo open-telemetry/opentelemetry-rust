@@ -89,7 +89,7 @@
 //!
 //! This library provides the following Cargo features:
 //!
-//! - `unstable_logs_enabled`: Allow users to control the log level.
+//! - `specs_unstable_logs_enabled`: Allow users to control the log level.
 //! - `with-serde`: Support complex values as attributes without stringifying them.
 //!
 //! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
@@ -117,11 +117,11 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        #[cfg(feature = "unstable_logs_enabled")]
+        #[cfg(feature = "specs_unstable_logs_enabled")]
         return self
             .logger
             .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
-        #[cfg(not(feature = "unstable_logs_enabled"))]
+        #[cfg(not(feature = "specs_unstable_logs_enabled"))]
         true
     }
 
@@ -770,9 +770,9 @@ mod tests {
         // As a result of using `with_simple_exporter` while building the logger provider,
         // the processor used is a `SimpleLogProcessor` which has an implementation of `event_enabled`
         // that always returns true.
-        #[cfg(feature = "unstable_logs_enabled")]
+        #[cfg(feature = "specs_unstable_logs_enabled")]
         assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
-        #[cfg(not(feature = "unstable_logs_enabled"))]
+        #[cfg(not(feature = "specs_unstable_logs_enabled"))]
         assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
     }
 
