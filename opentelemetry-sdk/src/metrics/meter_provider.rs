@@ -215,6 +215,7 @@ impl MeterProviderBuilder {
         self
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Associates a [View] with a [MeterProvider].
     ///
     /// [View]s are appended to existing ones in a [MeterProvider] if this option is

@@ -56,12 +56,22 @@ pub(crate) mod view;
 
 pub use aggregation::*;
 pub use error::{MetricError, MetricResult};
-pub use instrument::*;
 pub use manual_reader::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
 pub use pipeline::Pipeline;
+
+pub use instrument::InstrumentKind;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
+pub use instrument::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use instrument::*;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use view::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use view::*;
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
