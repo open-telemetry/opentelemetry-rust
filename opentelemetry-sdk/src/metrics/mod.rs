@@ -50,6 +50,7 @@ pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
 pub(crate) mod periodic_reader;
+#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
 pub(crate) mod periodic_reader_with_own_thread;
 pub(crate) mod pipeline;
 pub mod reader;
@@ -61,6 +62,7 @@ pub use instrument::*;
 pub use manual_reader::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
+#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
 pub use periodic_reader_with_own_thread::*;
 pub use pipeline::Pipeline;
 pub use view::*;

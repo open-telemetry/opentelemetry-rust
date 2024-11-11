@@ -355,7 +355,8 @@ impl PeriodicReaderInner {
         // take arbitrary time.
         //
         // Relying on futures executor to execute async call.
-        // TODO: Add timeout and pass it to exporter.
+        // TODO: Add timeout and pass it to exporter or consider alternative
+        // design to enforce timeout here.
         let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm));
         #[allow(clippy::question_mark)]
         if let Err(e) = exporter_result {
@@ -392,6 +393,7 @@ impl PeriodicReaderInner {
         }
 
         if let Ok(response) = response_rx.recv() {
+            // TODO: call exporter's force_flush method.
             if response {
                 Ok(())
             } else {
@@ -502,7 +504,7 @@ mod tests {
     };
 
     // use below command to run all tests
-    // cargo test metrics::periodic_reader_with_own_thread::tests --features=testing -- --nocapture
+    // cargo test metrics::periodic_reader_with_own_thread::tests --features=testing,experimental_metrics_periodic_reader_no_runtime -- --nocapture
 
     #[derive(Debug, Clone)]
     struct MetricExporterThatFailsOnlyOnFirst {
