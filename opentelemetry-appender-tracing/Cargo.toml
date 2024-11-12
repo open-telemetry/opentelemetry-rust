@@ -33,10 +33,10 @@ pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
-logs_level_enabled = ["opentelemetry/logs_level_enabled"]
+spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 
 
 [[bench]]
 name = "logs"
 harness = false
-required-features = ["logs_level_enabled"]
+required-features = ["spec_unstable_logs_enabled"]

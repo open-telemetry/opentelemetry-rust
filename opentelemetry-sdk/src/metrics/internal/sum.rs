@@ -3,7 +3,8 @@ use std::ops::DerefMut;
 use std::vec;
 use std::{sync::Mutex, time::SystemTime};
 
-use crate::metrics::data::{self, Aggregation, DataPoint, Temporality};
+use crate::metrics::data::{self, Aggregation, DataPoint};
+use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::{Aggregator, AtomicTracker, Number};
