@@ -56,6 +56,8 @@ Released 2024-Nov-11
 
 - **BREAKING**: `Temporality` enum moved from `opentelemetry_sdk::metrics::data::Temporality` to `opentelemetry_sdk::metrics::Temporality`.
 
+- **BREAKING**: `Views` are now an opt-in ONLY feature. Please include the feature `spec_unstable_metrics_views` to enable `Views`. It will be stabilized post 1.0 stable release of the SDK. [#2295](https://github.com/open-telemetry/opentelemetry-rust/issues/2295)
+
 - Added a new `PeriodicReader` implementation (`PeriodicReaderWithOwnThread`)
   that does not rely on an async runtime, and instead creates own Thread. This
   is under feature flag "experimental_metrics_periodic_reader_no_runtime". The

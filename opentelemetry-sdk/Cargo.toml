@@ -54,6 +54,7 @@ rt-tokio-current-thread = ["tokio", "tokio-stream"]
 rt-async-std = ["async-std"]
 internal-logs = ["tracing"]
 experimental_metrics_periodic_reader_no_runtime = ["metrics"]
+spec_unstable_metrics_views = ["metrics"]
 
 [[bench]]
 name = "context"
