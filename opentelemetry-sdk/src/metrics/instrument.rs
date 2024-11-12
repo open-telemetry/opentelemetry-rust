@@ -83,6 +83,7 @@ impl InstrumentKind {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
     pub name: Cow<'static, str>,
@@ -96,6 +97,7 @@ pub struct Instrument {
     pub scope: InstrumentationScope,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Instrument {
     /// Create a new instrument with default values
     pub fn new() -> Self {
@@ -185,6 +187,7 @@ impl Instrument {
 /// ```
 #[derive(Default, Debug)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
     pub name: Cow<'static, str>,
@@ -202,6 +205,7 @@ pub struct Stream {
     pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Stream {
     /// Create a new stream with empty values.
     pub fn new() -> Self {
