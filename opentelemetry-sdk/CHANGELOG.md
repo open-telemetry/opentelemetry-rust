@@ -4,7 +4,7 @@
 
 ## 0.27.0
 
-Released 2024-Nov-08
+Released 2024-Nov-11
 
 - Update `opentelemetry` dependency version to 0.27
 - Update `opentelemetry-http` dependency version to 0.27
