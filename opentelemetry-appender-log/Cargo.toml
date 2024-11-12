@@ -16,7 +16,7 @@ opentelemetry = { version = "0.27", path = "../opentelemetry", features = [
 ] }
 log = { workspace = true, features = ["kv", "std"] }
 serde = { workspace = true, optional = true, features = ["std"] }
-opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions", optional = true, features = [
+opentelemetry-semantic-conventions = { version = "0.27", path = "../opentelemetry-semantic-conventions", optional = true, features = [
   "semconv_experimental",
 ] }
 
