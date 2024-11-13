@@ -1,10 +1,8 @@
 use std::{
     borrow::{Borrow, Cow},
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{BuildHasher, DefaultHasher, Hash, Hasher},
     ops::Deref,
 };
-
-use rustc_hash::*;
 
 /// Hash value only once, works with references and owned types.
 pub(crate) struct Hashed<'a, T>
@@ -20,27 +18,16 @@ where
     T: ToOwned + Hash + ?Sized,
 {
     pub(crate) fn from_borrowed(value: &'a T) -> Self {
-        let mut hasher = FxHasher::default();
-        value.hash(&mut hasher);
+        let hash = calc_hash(&value);
         Self {
             value: Cow::Borrowed(value),
-            hash: hasher.finish(),
+            hash,
         }
     }
 
     pub(crate) fn from_owned(value: <T as ToOwned>::Owned) -> Self {
         let hash = calc_hash(value.borrow());
         Self {
-            value: Cow::Owned(value),
-            hash,
-        }
-    }
-
-    pub(crate) fn mutate(self, f: impl FnOnce(&mut <T as ToOwned>::Owned)) -> Hashed<'static, T> {
-        let mut value = self.value.into_owned();
-        f(&mut value);
-        let hash = calc_hash(value.borrow());
-        Hashed {
             value: Cow::Owned(value),
             hash,
         }
@@ -63,7 +50,7 @@ fn calc_hash<T>(value: T) -> u64
 where
     T: Hash,
 {
-    let mut hasher = FxHasher::default();
+    let mut hasher = DefaultHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
 }
