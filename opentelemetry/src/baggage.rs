@@ -22,8 +22,7 @@ use std::fmt;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
-const MAX_KEY_VALUE_PAIRS: usize = 180;
-const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
+const MAX_KEY_VALUE_PAIRS: usize = 64;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
 /// A set of name/value pairs describing user-defined properties.
@@ -44,11 +43,10 @@ const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 ///
 /// ### Limits
 ///
-/// * Maximum number of name/value pairs: `180`.
-/// * Maximum number of bytes per a single name/value pair: `4096`.
+/// * Maximum number of name/value pairs: `64`.
 /// * Maximum total length of all name/value pairs: `8192`.
 ///
-/// [RFC2616, Section 2.2]: https://tools.ietf.org/html/rfc2616#section-2.2
+/// https://www.w3.org/TR/baggage/#limits
 #[derive(Debug, Default)]
 pub struct Baggage {
     inner: HashMap<Key, (Value, BaggageMetadata)>,
@@ -154,9 +152,6 @@ impl Baggage {
         }
         let entry_content_len =
             key_value_metadata_bytes_size(key.as_str(), value.as_str().as_ref(), metadata.as_str());
-        if entry_content_len >= MAX_BYTES_FOR_ONE_PAIR {
-            return None;
-        }
         let entries_count = self.inner.len();
         match self.inner.entry(key) {
             Entry::Occupied(mut occupied_entry) => {
