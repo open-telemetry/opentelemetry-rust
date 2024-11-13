@@ -20,6 +20,8 @@ use hashed::{Hashed, HashedNoOpBuilder};
 use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
 
+use super::sort_and_dedup;
+
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Hashed<'static, [KeyValue]>> =
     Lazy::new(|| Hashed::from_owned(vec![KeyValue::new("otel.metric.overflow", "true")]));
 
@@ -97,11 +99,7 @@ where
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
-        let sorted_attrs = attributes.clone().mutate(|list| {
-            // use stable sort
-            list.sort_by(|a, b| a.key.cmp(&b.key));
-            dedup_remove_first(list, |a, b| a.key == b.key);
-        });
+        let sorted_attrs = Hashed::from_owned(sort_and_dedup(&attributes));
         if let Some(tracker) = trackers.get(&sorted_attrs) {
             tracker.update(value);
             return;
@@ -194,20 +192,6 @@ where
                     tracker.clone_and_reset(&self.config),
                 ));
             }
-        }
-    }
-}
-
-fn dedup_remove_first<T>(values: &mut Vec<T>, is_eq: impl Fn(&T, &T) -> bool) {
-    // we cannot use vec.dedup_by because it will remove last duplicate not first
-    if values.len() > 1 {
-        let mut i = values.len() - 1;
-        while i != 0 {
-            let is_same = unsafe { is_eq(values.get_unchecked(i - 1), values.get_unchecked(i)) };
-            if is_same {
-                values.remove(i - 1);
-            }
-            i -= 1;
         }
     }
 }
@@ -415,44 +399,8 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
-    use std::usize;
 
     use super::*;
-
-    fn assert_deduped<const N: usize, const M: usize>(
-        input: [(i32, bool); N],
-        expect: [(i32, bool); M],
-    ) {
-        let mut list: Vec<(i32, bool)> = Vec::from(input);
-        dedup_remove_first(&mut list, |a, b| a.0 == b.0);
-        assert_eq!(list, expect);
-    }
-
-    #[test]
-    fn deduplicate_by_removing_first_element_from_sorted_array() {
-        assert_deduped([], []);
-        assert_deduped([(1, true)], [(1, true)]);
-        assert_deduped([(1, false), (1, false), (1, true)], [(1, true)]);
-        assert_deduped(
-            [(1, true), (2, false), (2, false), (2, true)],
-            [(1, true), (2, true)],
-        );
-        assert_deduped(
-            [(1, true), (1, false), (1, true), (2, true)],
-            [(1, true), (2, true)],
-        );
-        assert_deduped(
-            [
-                (1, false),
-                (1, true),
-                (2, false),
-                (2, true),
-                (3, false),
-                (3, true),
-            ],
-            [(1, true), (2, true), (3, true)],
-        );
-    }
 
     #[test]
     fn can_store_u64_atomic_value() {
