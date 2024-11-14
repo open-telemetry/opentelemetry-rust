@@ -107,7 +107,7 @@ pub trait LogExporter: Send + Sync + Debug {
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
     /// a callback or an event. OpenTelemetry client authors can decide if they want to
     /// make the flush timeout configurable.
-    async fn force_flush(&mut self) -> ExportResult {
+    fn force_flush(&mut self) -> ExportResult {
         Ok(())
     }
     /// Set the resource for the exporter.

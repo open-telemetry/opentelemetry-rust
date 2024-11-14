@@ -259,7 +259,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             logs.split_off(0),
                         )
                         .await
-                        .and(exporter.as_mut().force_flush().await);
+                        .and(exporter.as_mut().force_flush());
 
                         if let Some(channel) = res_channel {
                             if let Err(send_error) = channel.send(result) {
@@ -780,6 +780,25 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_forceflush() {
+        let exporter = InMemoryLogExporterBuilder::default().build();
+        // TODO: Verify exporter.force_flush() is called
+
+        let processor = BatchLogProcessor::new(
+            Box::new(exporter.clone()),
+            BatchConfig::default(),
+            runtime::Tokio,
+        );
+
+        let mut record = LogRecord::default();
+        let instrumentation = InstrumentationScope::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_shutdown() {
         // assert we will receive an error
         // setup
@@ -796,7 +815,6 @@ mod tests {
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
-        processor.force_flush().unwrap();
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
         processor.emit(&mut record, &instrumentation);
