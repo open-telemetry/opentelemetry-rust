@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.26.0"
+version = "0.27.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -37,12 +37,12 @@ trace = ["pin-project-lite"]
 metrics = []
 testing = ["trace", "metrics"]
 logs = []
-logs_level_enabled = ["logs"]
+spec_unstable_logs_enabled = ["logs"]
 otel_unstable = []
 internal-logs = ["tracing"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs_level_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true }
 

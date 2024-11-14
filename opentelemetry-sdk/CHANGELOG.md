@@ -2,6 +2,13 @@
 
 ## vNext
 
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Implement `LogRecord::set_trace_context` for `LogRecord`. Respect any trace context set on a `LogRecord` when emitting through a `Logger`.
 - Improved `LoggerProvider` shutdown handling to prevent redundant shutdown calls when `drop` is invoked. [#2195](https://github.com/open-telemetry/opentelemetry-rust/pull/2195)
@@ -45,6 +52,18 @@
 
   - Users calling public APIs that return these constructs (e.g, LoggerProvider::shutdown(), MeterProvider::force_flush()) should now import them from the SDK instead of the API.
   - Developers creating custom exporters should ensure they import these constructs from the SDK, not the API.
+  - [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
+
+- **BREAKING**: `Temporality` enum moved from `opentelemetry_sdk::metrics::data::Temporality` to `opentelemetry_sdk::metrics::Temporality`.
+
+- **BREAKING**: `Views` are now an opt-in ONLY feature. Please include the feature `spec_unstable_metrics_views` to enable `Views`. It will be stabilized post 1.0 stable release of the SDK. [#2295](https://github.com/open-telemetry/opentelemetry-rust/issues/2295)
+
+- Added a new `PeriodicReader` implementation (`PeriodicReaderWithOwnThread`)
+  that does not rely on an async runtime, and instead creates own Thread. This
+  is under feature flag "experimental_metrics_periodic_reader_no_runtime". The
+  functionality maybe moved into existing PeriodReader or even removed in the
+  future. As of today, this cannot be used as-is with OTLP Metric Exporter or
+  any exporter that require an async runtime.
 
 ## v0.26.0
 Released 2024-Sep-30

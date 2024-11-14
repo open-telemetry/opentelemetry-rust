@@ -12,8 +12,9 @@ pub mod tonic {
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
-        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
+    use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
     use crate::proto::tonic::{

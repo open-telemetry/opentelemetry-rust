@@ -2,6 +2,15 @@
 
 ## vNext
 
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+- Update `opentelemetry-proto` dependency version to 0.27
+
 - **BREAKING**: 
   - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
@@ -10,7 +19,7 @@
     ```
     Updated Signature:
     ```rust
-    MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
     ```
   - ([#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221)) **Replaced**:
     - The `opentelemetry_otlp::new_pipeline().{trace,logging,metrics}()` interface is now replaced with `{TracerProvider,SdkMeterProvider,LoggerProvider}::builder()`.
