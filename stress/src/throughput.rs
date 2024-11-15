@@ -150,7 +150,8 @@ impl<'a> UnsafeSlice<'a> {
             slice: unsafe { &*ptr },
         }
     }
-    
+
+    // SAFETY: It's assumed that no two threads will write to the same index at the same time
     #[inline(always)]
     unsafe fn increment(&self, i: usize) {
         let value = self.slice[i].get();
