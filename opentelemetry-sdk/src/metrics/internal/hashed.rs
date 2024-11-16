@@ -1,8 +1,10 @@
 use std::{
     borrow::{Borrow, Cow},
-    hash::{BuildHasher, DefaultHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     ops::Deref,
 };
+
+use rustc_hash::FxHasher;
 
 /// Hash value only once, works with references and owned types.
 pub(crate) struct Hashed<'a, T>
@@ -54,7 +56,7 @@ fn calc_hash<T>(value: T) -> u64
 where
     T: Hash,
 {
-    let mut hasher = DefaultHasher::default();
+    let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
 }
