@@ -44,6 +44,10 @@ where
     pub(crate) fn into_inner_owned(self) -> T::Owned {
         self.value.into_owned()
     }
+
+    pub(crate) fn hash_value(&self) -> u64 {
+        self.hash
+    }
 }
 
 fn calc_hash<T>(value: T) -> u64

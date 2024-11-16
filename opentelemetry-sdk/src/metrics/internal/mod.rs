@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
+use crossbeam_utils::CachePadded;
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use hashed::{Hashed, HashedNoOpBuilder};
 use once_cell::sync::Lazy;
@@ -59,10 +60,12 @@ pub(crate) struct ValueMap<A>
 where
     A: Aggregator,
 {
+    shards_count: usize,
     // for performance reasons, no_attribs tracker
     no_attribs: NoAttribs<A>,
     // for performance reasons, to handle attributes in the provided order
-    all_attribs: RwLock<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>,
+    all_attribs:
+        Vec<CachePadded<RwLock<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>>>,
     // different order of attribute keys should still map to same tracker instance
     // this helps to achieve that and also enables implementing collection efficiently
     sorted_attribs: Mutex<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>,
@@ -75,12 +78,21 @@ where
     A: Aggregator,
 {
     fn new(config: A::InitConfig) -> Self {
+        let shards_count = std::thread::available_parallelism()
+            .map(|v| v.get())
+            .unwrap_or(1)
+            * 4;
+        let mut all_attribs = Vec::with_capacity(shards_count);
+        all_attribs.resize_with(shards_count, || {
+            CachePadded::new(RwLock::new(HashMap::default()))
+        });
         ValueMap {
+            shards_count,
             no_attribs: NoAttribs {
                 tracker: A::create(&config),
                 is_set: AtomicBool::new(false),
             },
-            all_attribs: RwLock::new(HashMap::default()),
+            all_attribs,
             sorted_attribs: Mutex::new(HashMap::default()),
             config,
         }
@@ -95,8 +107,10 @@ where
 
         let attributes = Hashed::from_borrowed(attributes);
 
+        let shard = (attributes.hash_value() % self.shards_count as u64) as usize;
+
         // Try to retrieve and update the tracker with the attributes in the provided order first
-        match self.all_attribs.read() {
+        match self.all_attribs[shard].read() {
             Ok(trackers) => {
                 if let Some(tracker) = trackers.get(&attributes) {
                     tracker.update(value);
@@ -136,7 +150,7 @@ where
         new_tracker.update(value);
 
         // Insert new tracker, so we could find it next time
-        let Ok(mut all_trackers) = self.all_attribs.write() else {
+        let Ok(mut all_trackers) = self.all_attribs[shard].write() else {
             return;
         };
         all_trackers.insert(attributes.into_owned(), new_tracker);
@@ -176,17 +190,20 @@ where
     {
         // reset sorted trackers so new attributes set will be written into new hashmap
         let trackers = match self.sorted_attribs.lock() {
-            Ok(mut trackers) => {                
-                let new = HashMap::with_capacity_and_hasher(trackers.len(), HashedNoOpBuilder::default());
+            Ok(mut trackers) => {
+                let new =
+                    HashMap::with_capacity_and_hasher(trackers.len(), HashedNoOpBuilder::default());
                 replace(trackers.deref_mut(), new)
             }
             Err(_) => return,
         };
         // reset all trackers, so all attribute sets will start using new hashmap
-        match self.all_attribs.write() {
-            Ok(mut all_trackers) => all_trackers.clear(),
-            Err(_) => return,
-        };
+        for shard in 0..self.shards_count {
+            match self.all_attribs[shard].write() {
+                Ok(mut all_trackers) => all_trackers.clear(),
+                Err(_) => return,
+            };
+        }
 
         prepare_data(dest, trackers.len());
 

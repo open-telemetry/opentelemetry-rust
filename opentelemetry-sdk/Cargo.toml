@@ -29,6 +29,7 @@ tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing = {workspace = true, optional = true}
+crossbeam-utils = "0.8.20"
 
 [package.metadata.docs.rs]
 all-features = true
