@@ -1,5 +1,6 @@
 mod aggregate;
 mod exponential_histogram;
+mod hashed;
 mod histogram;
 mod last_value;
 mod precomputed_sum;
@@ -16,13 +17,14 @@ use std::sync::{Arc, Mutex, RwLock};
 use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+use hashed::{Hashed, HashedNoOpBuilder};
 use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
 
-use crate::metrics::AttributeSet;
+use super::sort_and_dedup;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
-    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Hashed<'static, [KeyValue]>> =
+    Lazy::new(|| Hashed::from_owned(vec![KeyValue::new("otel.metric.overflow", "true")]));
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -60,10 +62,10 @@ where
     // for performance reasons, no_attribs tracker
     no_attribs: NoAttribs<A>,
     // for performance reasons, to handle attributes in the provided order
-    all_attribs: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
+    all_attribs: RwLock<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>,
     // different order of attribute keys should still map to same tracker instance
     // this helps to achieve that and also enables implementing collection efficiently
-    sorted_attribs: Mutex<HashMap<Vec<KeyValue>, Arc<A>>>,
+    sorted_attribs: Mutex<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>,
     /// Configuration for an Aggregator
     config: A::InitConfig,
 }
@@ -78,8 +80,8 @@ where
                 tracker: A::create(&config),
                 is_set: AtomicBool::new(false),
             },
-            all_attribs: RwLock::new(HashMap::new()),
-            sorted_attribs: Mutex::new(HashMap::new()),
+            all_attribs: RwLock::new(HashMap::default()),
+            sorted_attribs: Mutex::new(HashMap::default()),
             config,
         }
     }
@@ -91,10 +93,12 @@ where
             return;
         }
 
+        let attributes = Hashed::from_borrowed(attributes);
+
         // Try to retrieve and update the tracker with the attributes in the provided order first
         match self.all_attribs.read() {
             Ok(trackers) => {
-                if let Some(tracker) = trackers.get(attributes) {
+                if let Some(tracker) = trackers.get(&attributes) {
                     tracker.update(value);
                     return;
                 }
@@ -103,7 +107,7 @@ where
         };
 
         // Get or create a tracker
-        let sorted_attrs = AttributeSet::from(attributes).into_vec();
+        let sorted_attrs = Hashed::from_owned(sort_and_dedup(&attributes));
         let Ok(mut sorted_trackers) = self.sorted_attribs.lock() else {
             return;
         };
@@ -135,7 +139,7 @@ where
         let Ok(mut all_trackers) = self.all_attribs.write() else {
             return;
         };
-        all_trackers.insert(attributes.to_vec(), new_tracker);
+        all_trackers.insert(attributes.into_owned(), new_tracker);
     }
 
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
@@ -160,7 +164,7 @@ where
         }
 
         for (attrs, tracker) in trackers.into_iter() {
-            dest.push(map_fn(attrs, &tracker));
+            dest.push(map_fn(attrs.clone().into_inner_owned(), &tracker));
         }
     }
 
@@ -173,7 +177,7 @@ where
         // reset sorted trackers so new attributes set will be written into new hashmap
         let trackers = match self.sorted_attribs.lock() {
             Ok(mut trackers) => {                
-                let new = HashMap::with_capacity(trackers.len());
+                let new = HashMap::with_capacity_and_hasher(trackers.len(), HashedNoOpBuilder::default());
                 replace(trackers.deref_mut(), new)
             }
             Err(_) => return,
@@ -195,7 +199,7 @@ where
 
         for (attrs, tracker) in trackers.into_iter() {
             let tracker = Arc::into_inner(tracker).expect("the only instance");
-            dest.push(map_fn(attrs, tracker));
+            dest.push(map_fn(attrs.into_inner_owned(), tracker));
         }
     }
 }
@@ -403,6 +407,7 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
