@@ -16,10 +16,16 @@ use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
+
+#[cfg(any(target_arch = "mips", target_arch = "powerpc"))]
 use portable_atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
+#[cfg(not(any(target_arch = "mips", target_arch = "powerpc")))]
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
+
+use crate::metrics::AttributeSet;
 
 #[inline]
 fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
@@ -440,8 +446,8 @@ mod tests {
     #[test]
     fn can_add_and_get_u64_atomic_value() {
         let atomic = u64::new_atomic_tracker(0);
-        atomic.add(15);
-        atomic.add(10);
+        AtomicTracker::add(&atomic, 15);
+        AtomicTracker::add(&atomic, 10);
 
         let value = atomic.get_value();
         assert_eq!(value, 25);
@@ -450,7 +456,7 @@ mod tests {
     #[test]
     fn can_reset_u64_atomic_value() {
         let atomic = u64::new_atomic_tracker(0);
-        atomic.add(15);
+        AtomicTracker::add(&atomic, 15);
 
         let value = atomic.get_and_reset_value();
         let value2 = atomic.get_value();
@@ -479,8 +485,8 @@ mod tests {
     #[test]
     fn can_add_and_get_i64_atomic_value() {
         let atomic = i64::new_atomic_tracker(0);
-        atomic.add(15);
-        atomic.add(-10);
+        AtomicTracker::add(&atomic, 15);
+        AtomicTracker::add(&atomic, -10);
 
         let value = atomic.get_value();
         assert_eq!(value, 5);
@@ -489,7 +495,7 @@ mod tests {
     #[test]
     fn can_reset_i64_atomic_value() {
         let atomic = i64::new_atomic_tracker(0);
-        atomic.add(15);
+        AtomicTracker::add(&atomic, 15);
 
         let value = atomic.get_and_reset_value();
         let value2 = atomic.get_value();
