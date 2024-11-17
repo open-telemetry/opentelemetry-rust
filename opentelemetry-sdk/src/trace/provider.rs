@@ -308,6 +308,10 @@ impl Builder {
     }
 
     /// The sdk [`crate::trace::Config`] that this provider will use.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
+    )]
     pub fn with_config(self, config: crate::trace::Config) -> Self {
         Builder { config, ..self }
     }
