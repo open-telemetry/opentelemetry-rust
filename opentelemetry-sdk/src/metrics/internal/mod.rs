@@ -61,6 +61,7 @@ where
     A: Aggregator,
 {
     shards_count: usize,
+    shift_by: usize,
     // for performance reasons, no_attribs tracker
     no_attribs: NoAttribs<A>,
     // for performance reasons, to handle attributes in the provided order
@@ -78,15 +79,20 @@ where
     A: Aggregator,
 {
     fn new(config: A::InitConfig) -> Self {
-        let shards_count = std::thread::available_parallelism()
+        // mostly inspired by dashmap crate
+        let shards_count = (std::thread::available_parallelism()
             .map(|v| v.get())
             .unwrap_or(1)
-            * 4;
+            * 4)
+        .next_power_of_two();
+        let shift_by =
+            (std::mem::size_of::<usize>() * 8) - (shards_count.trailing_zeros() as usize);
         let mut all_attribs = Vec::with_capacity(shards_count);
         all_attribs.resize_with(shards_count, || {
             CachePadded::new(RwLock::new(HashMap::default()))
         });
         ValueMap {
+            shift_by,
             shards_count,
             no_attribs: NoAttribs {
                 tracker: A::create(&config),
@@ -107,7 +113,7 @@ where
 
         let attributes = Hashed::from_borrowed(attributes);
 
-        let shard = (attributes.hash_value() % self.shards_count as u64) as usize;
+        let shard = self.determine_shard(attributes.hash_value());
 
         // Try to retrieve and update the tracker with the attributes in the provided order first
         match self.all_attribs[shard].read() {
@@ -218,6 +224,11 @@ where
             let tracker = Arc::into_inner(tracker).expect("the only instance");
             dest.push(map_fn(attrs.into_inner_owned(), tracker));
         }
+    }
+
+    fn determine_shard(&self, hash: u64) -> usize {
+        // Leave the high 7 bits for the HashBrown SIMD tag.
+        ((hash as usize) << 7) >> self.shift_by
     }
 }
 
