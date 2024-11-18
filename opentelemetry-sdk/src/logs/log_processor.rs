@@ -129,7 +129,11 @@ impl LogProcessor for SimpleLogProcessor {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        Ok(())
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.force_flush()
+        } else {
+            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
+        }
     }
 
     fn shutdown(&self) -> LogResult<()> {
