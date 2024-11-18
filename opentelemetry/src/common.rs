@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, Cow};
+use std::cmp::Ordering;
 use std::sync::Arc;
 use std::{fmt, hash};
 
@@ -163,6 +164,26 @@ pub enum Array {
     String(Vec<StringValue>),
 }
 
+impl Eq for Array {}
+
+impl PartialOrd for Array {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Array {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Array::Bool(a), Array::Bool(b)) => a.cmp(b),
+            (Array::I64(a), Array::I64(b)) => a.cmp(b),
+            (Array::F64(a), Array::F64(b)) => a.partial_cmp(b).unwrap(),
+            (Array::String(a), Array::String(b)) => a.cmp(b),
+            (_a, _b) => todo!(),
+        }
+    }
+}
+
 impl fmt::Display for Array {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -229,9 +250,31 @@ pub enum Value {
     Array(Array),
 }
 
+impl Eq for Value {}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
+            (Value::I64(a), Value::I64(b)) => a.cmp(b),
+            (Value::F64(a), Value::F64(b)) => a.partial_cmp(b).unwrap(),
+            (Value::String(a), Value::String(b)) => a.as_str().cmp(b.as_str()),
+            (Value::Array(a), Value::Array(b)) => a.cmp(b),
+            // (a, b) => a.as_str().cmp(&b.as_str()),
+            (_a, _b) => todo!(),
+        }
+    }
+}
+
 /// Wrapper for string-like values
 #[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct StringValue(OtelString);
 
 impl fmt::Debug for StringValue {
@@ -375,7 +418,7 @@ impl fmt::Display for Value {
 }
 
 /// A key-value pair describing an attribute.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialOrd, Ord, PartialEq)]
 #[non_exhaustive]
 pub struct KeyValue {
     /// The attribute name
