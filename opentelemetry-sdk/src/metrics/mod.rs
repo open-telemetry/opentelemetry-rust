@@ -115,21 +115,25 @@ pub(crate) struct AttributeSet(Vec<KeyValue>, u64);
 
 impl From<&[KeyValue]> for AttributeSet {
     fn from(values: &[KeyValue]) -> Self {
-        let mut seen_keys = HashSet::with_capacity(values.len());
-        let vec = values
-            .iter()
-            .rev()
-            .filter_map(|kv| {
-                if seen_keys.insert(kv.key.clone()) {
-                    Some(kv.clone())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        AttributeSet::new(vec)
+        AttributeSet::new(sort_and_dedup(values))
     }
+}
+
+pub(crate) fn sort_and_dedup(values: &[KeyValue]) -> Vec<KeyValue> {
+    let mut seen_keys = HashSet::with_capacity(values.len());
+    let mut vec = values
+        .iter()
+        .rev()
+        .filter_map(|kv| {
+            if seen_keys.insert(kv.key.clone()) {
+                Some(kv.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    vec.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    vec
 }
 
 fn calculate_hash(values: &[KeyValue]) -> u64 {
@@ -142,8 +146,7 @@ fn calculate_hash(values: &[KeyValue]) -> u64 {
 }
 
 impl AttributeSet {
-    fn new(mut values: Vec<KeyValue>) -> Self {
-        values.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    fn new(values: Vec<KeyValue>) -> Self {
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
     }
@@ -151,11 +154,6 @@ impl AttributeSet {
     /// Iterate over key value pairs in the set
     pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
         self.0.iter().map(|kv| (&kv.key, &kv.value))
-    }
-
-    /// Returns the underlying Vec of KeyValue pairs
-    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
-        self.0
     }
 }
 
