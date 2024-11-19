@@ -56,7 +56,7 @@ impl Config {
     /// Specify the number of events to be recorded per span.
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_max_events_per_span(...) instead."
     )]
     pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
         self.span_limits.max_events_per_span = max_events;
@@ -66,7 +66,7 @@ impl Config {
     /// Specify the number of attributes to be recorded per span.
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_span(...) instead."
     )]
     pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_span = max_attributes;
@@ -76,7 +76,7 @@ impl Config {
     /// Specify the number of events to be recorded per span.
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_max_links_per_span(...) instead."
     )]
     pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
         self.span_limits.max_links_per_span = max_links;
@@ -86,7 +86,7 @@ impl Config {
     /// Specify the number of attributes one event can have.
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_event(...) instead."
     )]
     pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_event = max_attributes;
@@ -96,7 +96,7 @@ impl Config {
     /// Specify the number of attributes one link can have.
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_link(...) instead."
     )]
     pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_link = max_attributes;
@@ -106,7 +106,7 @@ impl Config {
     /// Specify all limit via the span_limits
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_span_limits(...) instead."
     )]
     pub fn with_span_limits(mut self, span_limits: SpanLimits) -> Self {
         self.span_limits = span_limits;
@@ -116,7 +116,7 @@ impl Config {
     /// Specify the attributes representing the entity that produces telemetry
     #[deprecated(
         since = "0.27.1",
-        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+        note = "Config is becoming private. Please use Builder::with_resource(...) instead."
     )]
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = Cow::Owned(resource);
