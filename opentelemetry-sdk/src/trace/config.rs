@@ -53,7 +53,7 @@ impl Config {
         self
     }
 
-    /// Specify the number of events to be recorded per span.
+    /// Specify the maximum number of events that can be recorded per span.
     #[deprecated(
         since = "0.27.1",
         note = "Config is becoming private. Please use Builder::with_max_events_per_span(...) instead."
@@ -63,7 +63,7 @@ impl Config {
         self
     }
 
-    /// Specify the number of attributes to be recorded per span.
+    /// Specify the maximum number of attributes that can be recorded per span.
     #[deprecated(
         since = "0.27.1",
         note = "Config is becoming private. Please use Builder::with_max_attributes_per_span(...) instead."
@@ -73,7 +73,7 @@ impl Config {
         self
     }
 
-    /// Specify the number of events to be recorded per span.
+    /// Specify the maximum number of links that can be recorded per span.
     #[deprecated(
         since = "0.27.1",
         note = "Config is becoming private. Please use Builder::with_max_links_per_span(...) instead."
@@ -83,7 +83,7 @@ impl Config {
         self
     }
 
-    /// Specify the number of attributes one event can have.
+    /// Specify the maximum number of attributes one event can have.
     #[deprecated(
         since = "0.27.1",
         note = "Config is becoming private. Please use Builder::with_max_attributes_per_event(...) instead."
@@ -93,7 +93,7 @@ impl Config {
         self
     }
 
-    /// Specify the number of attributes one link can have.
+    /// Specify the maximum number of attributes one link can have.
     #[deprecated(
         since = "0.27.1",
         note = "Config is becoming private. Please use Builder::with_max_attributes_per_link(...) instead."
