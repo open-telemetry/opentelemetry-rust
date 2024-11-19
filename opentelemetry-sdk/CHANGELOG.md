@@ -2,6 +2,22 @@
 
 ## vNext
 
+- **DEPRECATED**:
+  - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
+    `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
+    example:
+    ```rust
+    // old
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_config(Config::default().with_resource(Resource::empty()))
+        .build();
+
+    // new
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_resource(Resource::empty())
+        .build();
+    ```
+
 ## 0.27.0
 
 Released 2024-Nov-11
