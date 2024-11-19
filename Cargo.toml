@@ -48,3 +48,4 @@ tracing = { version = "0.1", default-features = false }
 tracing-core = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5.2", default-features = false } #https://github.com/servo/rust-url/issues/992
+portable-atomic = "1.9.0"
