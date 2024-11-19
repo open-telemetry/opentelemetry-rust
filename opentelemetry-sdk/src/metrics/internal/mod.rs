@@ -1,5 +1,6 @@
 mod aggregate;
 mod exponential_histogram;
+mod hashed;
 mod histogram;
 mod last_value;
 mod precomputed_sum;
@@ -15,13 +16,14 @@ use std::sync::{Arc, RwLock};
 use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+use hashed::{Hashed, HashedNoOpBuilder};
 use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
 
-use crate::metrics::AttributeSet;
+use super::sort_and_dedup;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
-    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Hashed<'static, [KeyValue]>> =
+    Lazy::new(|| Hashed::from_owned(vec![KeyValue::new("otel.metric.overflow", "true")]));
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -52,7 +54,7 @@ where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
+    trackers: RwLock<HashMap<Hashed<'static, [KeyValue]>, Arc<A>, HashedNoOpBuilder>>,
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Indicates whether a value with no attributes has been stored.
@@ -69,7 +71,7 @@ where
 {
     fn new(config: A::InitConfig) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::new()),
+            trackers: RwLock::new(HashMap::default()),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
@@ -84,19 +86,21 @@ where
             return;
         }
 
+        let attributes = Hashed::from_borrowed(attributes);
+
         let Ok(trackers) = self.trackers.read() else {
             return;
         };
 
         // Try to retrieve and update the tracker with the attributes in the provided order first
-        if let Some(tracker) = trackers.get(attributes) {
+        if let Some(tracker) = trackers.get(&attributes) {
             tracker.update(value);
             return;
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
-        let sorted_attrs = AttributeSet::from(attributes).into_vec();
-        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+        let sorted_attrs = Hashed::from_owned(sort_and_dedup(&attributes));
+        if let Some(tracker) = trackers.get(&sorted_attrs) {
             tracker.update(value);
             return;
         }
@@ -110,20 +114,20 @@ where
 
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
+        if let Some(tracker) = trackers.get(&attributes) {
             tracker.update(value);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+        } else if let Some(tracker) = trackers.get(&sorted_attrs) {
             tracker.update(value);
         } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
             let new_tracker = Arc::new(A::create(&self.config));
             new_tracker.update(value);
 
             // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
+            trackers.insert(attributes.into_owned(), new_tracker.clone());
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(&STREAM_OVERFLOW_ATTRIBUTES) {
             overflow_value.update(value);
         } else {
             let new_tracker = A::create(&self.config);
@@ -153,7 +157,7 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), tracker));
+                dest.push(map_fn(attrs.clone().into_inner_owned(), tracker));
             }
         }
     }
@@ -183,7 +187,10 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.into_iter() {
             if seen.insert(Arc::as_ptr(&tracker)) {
-                dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
+                dest.push(map_fn(
+                    attrs.into_inner_owned(),
+                    tracker.clone_and_reset(&self.config),
+                ));
             }
         }
     }
@@ -392,6 +399,7 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
