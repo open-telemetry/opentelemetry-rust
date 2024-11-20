@@ -19,7 +19,6 @@ opentelemetry-appender-log = { path = "../../../opentelemetry-appender-log", def
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", default-features = false }
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 
-
 [features]
 hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
 reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
