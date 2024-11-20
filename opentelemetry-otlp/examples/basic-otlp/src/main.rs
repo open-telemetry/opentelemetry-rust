@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // matches the containing block, reporting traces and metrics during the whole
     // execution.
 
-    let result = init_tracer_provider()
+    let result = init_tracer_provider();
     assert!(
         result.is_ok(),
         "Init tracer failed with error: {:?}",
