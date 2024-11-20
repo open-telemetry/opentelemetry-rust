@@ -34,54 +34,90 @@ pub struct Config {
 
 impl Config {
     /// Specify the sampler to be used.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_sampler(...) instead."
+    )]
     pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
         self.sampler = Box::new(sampler);
         self
     }
 
     /// Specify the id generator to be used.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_id_generator(...) instead."
+    )]
     pub fn with_id_generator<T: IdGenerator + 'static>(mut self, id_generator: T) -> Self {
         self.id_generator = Box::new(id_generator);
         self
     }
 
-    /// Specify the number of events to be recorded per span.
+    /// Specify the maximum number of events that can be recorded per span.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_max_events_per_span(...) instead."
+    )]
     pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
         self.span_limits.max_events_per_span = max_events;
         self
     }
 
-    /// Specify the number of attributes to be recorded per span.
+    /// Specify the maximum number of attributes that can be recorded per span.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_span(...) instead."
+    )]
     pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_span = max_attributes;
         self
     }
 
-    /// Specify the number of events to be recorded per span.
+    /// Specify the maximum number of links that can be recorded per span.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_max_links_per_span(...) instead."
+    )]
     pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
         self.span_limits.max_links_per_span = max_links;
         self
     }
 
-    /// Specify the number of attributes one event can have.
+    /// Specify the maximum number of attributes one event can have.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_event(...) instead."
+    )]
     pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_event = max_attributes;
         self
     }
 
-    /// Specify the number of attributes one link can have.
+    /// Specify the maximum number of attributes one link can have.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_max_attributes_per_link(...) instead."
+    )]
     pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
         self.span_limits.max_attributes_per_link = max_attributes;
         self
     }
 
     /// Specify all limit via the span_limits
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_span_limits(...) instead."
+    )]
     pub fn with_span_limits(mut self, span_limits: SpanLimits) -> Self {
         self.span_limits = span_limits;
         self
     }
 
     /// Specify the attributes representing the entity that produces telemetry
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming private. Please use Builder::with_resource(...) instead."
+    )]
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = Cow::Owned(resource);
         self
