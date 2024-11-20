@@ -197,6 +197,9 @@ fn prepare_data<T>(data: &mut Vec<T>, list_len: usize) {
 }
 
 fn sort_and_dedup(attributes: &[KeyValue]) -> Vec<KeyValue> {
+    // Use newly allocated vec here as incoming attributes are immutable so
+    // cannot sort/de-dup in-place. TODO: This allocation can be avoided by
+    // leveraging a ThreadLocal vec.
     let mut sorted = attributes.to_vec();
     sorted.sort_unstable_by(|a, b| a.key.cmp(&b.key));
     sorted.dedup_by(|a, b| a.key == b.key);
