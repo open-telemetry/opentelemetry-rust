@@ -13,8 +13,13 @@ use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
-    let exporter = LogExporter::builder()
-        .with_tonic()
+    let exporter_builder = LogExporter::builder();
+    #[cfg(feature = "tonic-client")]
+    let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(feature = "hyper-client")]
+    let exporter_builder = exporter_builder.with_http();
+
+    let exporter = exporter_builder
         .with_endpoint("0.0.0.0:4317")
         .build()?;
 
