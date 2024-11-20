@@ -21,9 +21,9 @@ opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-c
 
 
 [features]
-hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
-reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
-reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
 tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
 
 # Keep tonic as the default client
