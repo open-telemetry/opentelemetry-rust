@@ -29,7 +29,6 @@ tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing = {workspace = true, optional = true}
-rustc-hash = "2.0.0"
 
 [package.metadata.docs.rs]
 all-features = true
