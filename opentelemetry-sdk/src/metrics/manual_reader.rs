@@ -3,13 +3,12 @@ use std::{
     sync::{Mutex, Weak},
 };
 
-use opentelemetry::{
-    metrics::{MetricError, MetricResult},
-    otel_debug,
-};
+use opentelemetry::otel_debug;
+
+use crate::metrics::{MetricError, MetricResult, Temporality};
 
 use super::{
-    data::{ResourceMetrics, Temporality},
+    data::ResourceMetrics,
     pipeline::Pipeline,
     reader::{MetricReader, SdkProducer},
 };

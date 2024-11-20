@@ -2,10 +2,33 @@
 
 ## vNext
 
+- **DEPRECATED**:
+  - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
+    `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
+    example:
+    ```rust
+    // old
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_config(Config::default().with_resource(Resource::empty()))
+        .build();
+
+    // new
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_resource(Resource::empty())
+        .build();
+    ```
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Implement `LogRecord::set_trace_context` for `LogRecord`. Respect any trace context set on a `LogRecord` when emitting through a `Logger`.
 - Improved `LoggerProvider` shutdown handling to prevent redundant shutdown calls when `drop` is invoked. [#2195](https://github.com/open-telemetry/opentelemetry-rust/pull/2195)
-- When creating new metric instruments, SDK would return a no-op instrument if the validation fails. [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
+- When creating new metric instruments by calling `build()`, SDK would return a no-op instrument if the validation fails (eg: Invalid metric name). [#2166](https://github.com/open-telemetry/opentelemetry-rust/pull/2166)
 - **BREAKING for Metrics users**:
   - **Replaced**
     - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
@@ -29,6 +52,34 @@
     - Removed deprecated `LoggerProvider::versioned_logger`, `TracerProvider::versioned_tracer`
     - Removed `MeterProvider::versioned_meter`
     - Replaced these methods with `LoggerProvider::logger_with_scope`, `TracerProvider::logger_with_scope`, `MeterProvider::meter_with_scope`
+
+- [#2272](https://github.com/open-telemetry/opentelemetry-rust/pull/2272)
+   - Pin url version to `2.5.2`. The higher version breaks the build refer: [servo/rust-url#992.](https://github.com/servo/rust-url/issues/992)
+   The `url` crate is used when `jaeger_remote_sampler` feature is enabled.
+
+- **BREAKING**: [#2266](https://github.com/open-telemetry/opentelemetry-rust/pull/2266)
+   - Moved `ExportError` trait from `opentelemetry::ExportError` to `opentelemetry_sdk::export::ExportError`
+   - Moved `LogError` enum from `opentelemetry::logs::LogError` to `opentelemetry_sdk::logs::LogError`
+   - Moved `LogResult` type alias from `opentelemetry::logs::LogResult` to `opentelemetry_sdk::logs::LogResult`
+   - Renamed `opentelemetry::metrics::Result` type alias to `opentelemetry::metrics::MetricResult`
+   - Renamed `opentelemetry::metrics::MetricsError` enum to `opentelemetry::metrics::MetricError`
+   - Moved `MetricError` enum from `opentelemetry::metrics::MetricError` to `opentelemetry_sdk::metrics::MetricError`
+   - Moved `MetricResult` type alias from `opentelemetry::metrics::MetricResult` to `opentelemetry_sdk::metrics::MetricResult`
+
+  - Users calling public APIs that return these constructs (e.g, LoggerProvider::shutdown(), MeterProvider::force_flush()) should now import them from the SDK instead of the API.
+  - Developers creating custom exporters should ensure they import these constructs from the SDK, not the API.
+  - [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
+
+- **BREAKING**: `Temporality` enum moved from `opentelemetry_sdk::metrics::data::Temporality` to `opentelemetry_sdk::metrics::Temporality`.
+
+- **BREAKING**: `Views` are now an opt-in ONLY feature. Please include the feature `spec_unstable_metrics_views` to enable `Views`. It will be stabilized post 1.0 stable release of the SDK. [#2295](https://github.com/open-telemetry/opentelemetry-rust/issues/2295)
+
+- Added a new `PeriodicReader` implementation (`PeriodicReaderWithOwnThread`)
+  that does not rely on an async runtime, and instead creates own Thread. This
+  is under feature flag "experimental_metrics_periodic_reader_no_runtime". The
+  functionality maybe moved into existing PeriodReader or even removed in the
+  future. As of today, this cannot be used as-is with OTLP Metric Exporter or
+  any exporter that require an async runtime.
 
 ## v0.26.0
 Released 2024-Sep-30

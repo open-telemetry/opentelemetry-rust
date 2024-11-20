@@ -1,14 +1,13 @@
 use once_cell::sync::Lazy;
-use opentelemetry::logs::LogError;
-use opentelemetry::metrics::MetricError;
 use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LogError;
 use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::metrics::MetricError;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::trace::Config;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -28,7 +27,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .with_endpoint("http://localhost:4317")
         .build()?;
     Ok(sdktrace::TracerProvider::builder()
-        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter, runtime::Tokio)
         .build())
 }

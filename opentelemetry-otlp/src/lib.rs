@@ -132,7 +132,7 @@
 //! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
-//! use opentelemetry_sdk::metrics::data::Temporality;
+//! use opentelemetry_sdk::metrics::Temporality;
 //! use opentelemetry_otlp::{Protocol, WithExportConfig, WithTonicConfig};
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
@@ -386,6 +386,12 @@ impl From<tonic::Status> for Error {
 }
 
 impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "otlp"
+    }
+}
+
+impl opentelemetry::trace::ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "otlp"
     }

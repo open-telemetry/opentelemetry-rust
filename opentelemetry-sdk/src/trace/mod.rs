@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name_updated");
-        assert_eq!(span.instrumentation_scope.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name(), "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
-        assert_eq!(span.instrumentation_scope.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name(), "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -155,7 +155,7 @@ mod tests {
         let span = &exported_spans[0];
         assert_eq!(span.name, "span_name");
         assert_eq!(span.span_kind, SpanKind::Server);
-        assert_eq!(span.instrumentation_scope.name, "test_tracer");
+        assert_eq!(span.instrumentation_scope.name(), "test_tracer");
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
@@ -240,7 +240,7 @@ mod tests {
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(Config::default().with_sampler(Sampler::AlwaysOff))
+            .with_sampler(Sampler::AlwaysOff)
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -293,7 +293,7 @@ mod tests {
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = TracerProvider::builder()
-            .with_config(Config::default().with_sampler(TestRecordOnlySampler::default()))
+            .with_sampler(TestRecordOnlySampler::default())
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -333,9 +333,8 @@ mod tests {
 
         let tracer = provider.tracer_with_scope(scope);
         let instrumentation_scope = tracer.instrumentation_scope();
-        let attributes = &instrumentation_scope.attributes;
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
+        assert!(instrumentation_scope
+            .attributes()
+            .eq(&[KeyValue::new("test_k", "test_v")]));
     }
 }

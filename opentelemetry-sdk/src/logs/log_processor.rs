@@ -1,6 +1,6 @@
 use crate::{
     export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::LogRecord,
+    logs::{LogError, LogRecord, LogResult},
     runtime::{RuntimeChannel, TrySend},
     Resource,
 };
@@ -9,12 +9,9 @@ use futures_util::{
     future::{self, Either},
     {pin_mut, stream, StreamExt as _},
 };
-#[cfg(feature = "logs_level_enabled")]
+#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    otel_debug, otel_error, otel_warn, InstrumentationScope,
-};
+use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::AtomicBool;
 use std::{cmp::min, env, sync::Mutex};
@@ -64,7 +61,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
     fn shutdown(&self) -> LogResult<()>;
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         // By default, all logs are enabled
@@ -533,6 +530,7 @@ mod tests {
     };
     use crate::export::logs::{LogBatch, LogExporter};
     use crate::logs::LogRecord;
+    use crate::logs::LogResult;
     use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
@@ -550,7 +548,7 @@ mod tests {
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
-    use opentelemetry::{logs::LogResult, KeyValue};
+    use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};

@@ -80,26 +80,6 @@ jobs:
           cargo install cargo-check-external-types@0.1.13
           cd ${{ matrix.example }}
           cargo check-external-types --config allowed-external-types.toml
-  non-default-examples:
-    strategy:
-      matrix:
-        os: [ windows-latest, ubuntu-latest ]
-        example: [opentelemetry-otlp/examples/basic-otlp]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
-    - uses: arduino/setup-protoc@v3
-      with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build
-      run: |
-        cd ${{ matrix.example }}
-        cargo build --verbose
   msrv:
     strategy:
       matrix:
@@ -132,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
       - uses: arduino/setup-protoc@v3

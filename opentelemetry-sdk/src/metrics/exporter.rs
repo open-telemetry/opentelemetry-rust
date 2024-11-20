@@ -1,11 +1,11 @@
 //! Interfaces for exporting metrics
 use async_trait::async_trait;
 
-use opentelemetry::metrics::MetricResult;
+use crate::metrics::MetricResult;
 
 use crate::metrics::data::ResourceMetrics;
 
-use super::data::Temporality;
+use super::Temporality;
 
 /// Exporter handles the delivery of metric data to external receivers.
 ///

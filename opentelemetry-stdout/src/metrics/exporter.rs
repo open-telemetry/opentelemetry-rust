@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::{
-    data::{self, ScopeMetrics, Temporality},
+    data::{self, ScopeMetrics},
     exporter::PushMetricExporter,
 };
+use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
 use std::fmt::Debug;
 use std::sync::atomic;
 
@@ -72,17 +72,16 @@ impl PushMetricExporter for MetricExporter {
 fn print_metrics(metrics: &[ScopeMetrics]) {
     for (i, metric) in metrics.iter().enumerate() {
         println!("\tInstrumentation Scope #{}", i);
-        println!("\t\tName         : {}", &metric.scope.name);
-        if let Some(version) = &metric.scope.version {
+        println!("\t\tName         : {}", &metric.scope.name());
+        if let Some(version) = &metric.scope.version() {
             println!("\t\tVersion  : {:?}", version);
         }
-        if let Some(schema_url) = &metric.scope.schema_url {
+        if let Some(schema_url) = &metric.scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
         metric
             .scope
-            .attributes
-            .iter()
+            .attributes()
             .enumerate()
             .for_each(|(index, kv)| {
                 if index == 0 {
@@ -138,7 +137,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
 fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic);
-    if sum.temporality == data::Temporality::Cumulative {
+    if sum.temporality == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");
@@ -152,7 +151,7 @@ fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
 }
 
 fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
-    if histogram.temporality == data::Temporality::Cumulative {
+    if histogram.temporality == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");

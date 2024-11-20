@@ -41,6 +41,7 @@
 
 pub(crate) mod aggregation;
 pub mod data;
+mod error;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
@@ -49,23 +50,61 @@ pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
 pub(crate) mod periodic_reader;
+#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
+pub(crate) mod periodic_reader_with_own_thread;
 pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
 
 pub use aggregation::*;
-pub use instrument::*;
+pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
+#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
+pub use periodic_reader_with_own_thread::*;
 pub use pipeline::Pipeline;
+
+pub use instrument::InstrumentKind;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
+pub use instrument::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use instrument::*;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use view::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use view::*;
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::KeyValue;
+
+/// Defines the window that an aggregation was calculated over.
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Temporality {
+    /// A measurement interval that continues to expand forward in time from a
+    /// starting point.
+    ///
+    /// New measurements are added to all previous measurements since a start time.
+    #[default]
+    Cumulative,
+
+    /// A measurement interval that resets each cycle.
+    ///
+    /// Measurements from one cycle are recorded independently, measurements from
+    /// other cycles do not affect them.
+    Delta,
+
+    /// Configures Synchronous Counter and Histogram instruments to use
+    /// Delta aggregation temporality, which allows them to shed memory
+    /// following a cardinality explosion, thus use less memory.
+    LowMemory,
+}
 
 /// A unique set of attributes that can be used as instrument identifiers.
 ///
@@ -109,11 +148,6 @@ impl AttributeSet {
         AttributeSet(values, hash)
     }
 
-    /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.key, &kv.value))
-    }
-
     /// Returns the underlying Vec of KeyValue pairs
     pub(crate) fn into_vec(self) -> Vec<KeyValue> {
         self.0
@@ -130,14 +164,13 @@ impl Hash for AttributeSet {
 mod tests {
     use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
     use super::*;
-    use crate::metrics::data::{ResourceMetrics, Temporality};
+    use crate::metrics::data::ResourceMetrics;
     use crate::testing::metrics::InMemoryMetricExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricExporter};
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
-    use std::borrow::Cow;
     use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
@@ -638,16 +671,18 @@ mod tests {
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let mut scope = InstrumentationScope::builder("test.meter")
-            .with_version("v0.1.0")
-            .with_schema_url("http://example.com")
-            .with_attributes(vec![KeyValue::new("key", "value1")])
-            .build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
 
-        let meter1 = meter_provider.meter_with_scope(scope.clone());
-
-        scope.attributes = vec![KeyValue::new("key", "value2")];
-        let meter2 = meter_provider.meter_with_scope(scope);
+        let meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
 
         let counter1 = meter1
             .u64_counter("my_counter")
@@ -682,13 +717,13 @@ mod tests {
         );
 
         let scope = &resource_metrics[0].scope_metrics[0].scope;
-        assert_eq!(scope.name, "test.meter");
-        assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
-        assert_eq!(scope.schema_url, Some(Cow::Borrowed("http://example.com")));
+        assert_eq!(scope.name(), "test.meter");
+        assert_eq!(scope.version(), Some("v0.1.0"));
+        assert_eq!(scope.schema_url(), Some("http://example.com"));
 
         // This is validating current behavior, but it is not guaranteed to be the case in the future,
         // as this is a user error and SDK reserves right to change this behavior.
-        assert_eq!(scope.attributes, vec![KeyValue::new("key", "value1")]);
+        assert!(scope.attributes().eq(&[KeyValue::new("key", "value1")]));
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
@@ -2341,7 +2376,7 @@ mod tests {
     ) -> Option<&'a ScopeMetrics> {
         metrics
             .iter()
-            .find(|&scope_metric| scope_metric.scope.name == name)
+            .find(|&scope_metric| scope_metric.scope.name() == name)
     }
 
     struct TestContext {

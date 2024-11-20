@@ -27,3 +27,4 @@ tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "op
 
 # Keep tonic as the default client
 default = ["tonic-client"]
+

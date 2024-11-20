@@ -12,8 +12,9 @@ pub mod tonic {
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
-        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
+    use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
     use crate::proto::tonic::{
@@ -137,9 +138,8 @@ pub mod tonic {
                 metrics: sm.metrics.iter().map(Into::into).collect(),
                 schema_url: sm
                     .scope
-                    .schema_url
-                    .as_ref()
-                    .map(ToString::to_string)
+                    .schema_url()
+                    .map(ToOwned::to_owned)
                     .unwrap_or_default(),
             }
         }
