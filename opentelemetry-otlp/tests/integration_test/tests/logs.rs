@@ -16,6 +16,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
     let exporter_builder = LogExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(not(feature = "tonic-client"))]
     #[cfg(any(
         feature = "hyper-client",
         feature = "reqwest-client",
