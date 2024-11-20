@@ -184,7 +184,7 @@ where
         self.logger.emit(log_record);
     }
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(
         &self,
         _event: &tracing_core::Event<'_>,
@@ -210,14 +210,13 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use async_trait::async_trait;
-    use opentelemetry::logs::{LogResult, Severity};
+    use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
+    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
-    use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -334,7 +333,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -402,7 +401,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -428,7 +427,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.
@@ -526,7 +525,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -579,7 +578,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -605,7 +604,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.

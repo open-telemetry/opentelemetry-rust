@@ -1,9 +1,10 @@
 use crate::metrics::data;
-use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics, Temporality};
+use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
+use crate::metrics::MetricError;
+use crate::metrics::MetricResult;
+use crate::metrics::Temporality;
 use async_trait::async_trait;
-use opentelemetry::metrics::MetricError;
-use opentelemetry::metrics::MetricResult;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};

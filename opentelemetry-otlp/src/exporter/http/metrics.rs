@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::metrics::{MetricError, MetricResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
+use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 
 use crate::{metric::MetricsClient, Error};
 

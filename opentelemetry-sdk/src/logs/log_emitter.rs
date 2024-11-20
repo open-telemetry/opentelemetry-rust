@@ -1,13 +1,9 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use opentelemetry::{
-    logs::{LogError, LogResult},
-    otel_debug,
-    trace::TraceContextExt,
-    Context, InstrumentationScope,
-};
+use crate::{logs::LogError, logs::LogResult};
+use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
 
-#[cfg(feature = "logs_level_enabled")]
+#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
 use std::time::SystemTime;
@@ -286,7 +282,7 @@ impl opentelemetry::logs::Logger for Logger {
         }
     }
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
         let provider = self.provider();
 
@@ -296,7 +292,7 @@ impl opentelemetry::logs::Logger for Logger {
                 || processor.event_enabled(
                     level,
                     target,
-                    self.instrumentation_scope().name.as_ref(),
+                    self.instrumentation_scope().name().as_ref(),
                 );
         }
         enabled

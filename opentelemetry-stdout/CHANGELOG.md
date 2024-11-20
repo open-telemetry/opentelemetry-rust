@@ -2,6 +2,13 @@
 
 ## vNext
 
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - **BREAKING**
   - **Replaced**
@@ -12,7 +19,7 @@
     ```
     Updated Signature:
     ```rust
-    MetricsExporterBuilder::default().with_temporality(Temporality::Delta)
+    MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
     ```
   - **Renamed**
     - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.

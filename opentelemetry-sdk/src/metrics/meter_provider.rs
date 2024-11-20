@@ -8,10 +8,11 @@ use std::{
 };
 
 use opentelemetry::{
-    metrics::{Meter, MeterProvider, MetricError, MetricResult},
+    metrics::{Meter, MeterProvider},
     otel_debug, otel_error, InstrumentationScope,
 };
 
+use crate::metrics::{MetricError, MetricResult};
 use crate::Resource;
 
 use super::{
@@ -214,6 +215,7 @@ impl MeterProviderBuilder {
         self
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Associates a [View] with a [MeterProvider].
     ///
     /// [View]s are appended to existing ones in a [MeterProvider] if this option is
@@ -465,18 +467,16 @@ mod tests {
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
         // these are different meters because meter names are case sensitive
-        let mut library = InstrumentationScope::builder("ABC")
-            .with_version("1.0.0")
-            .with_schema_url("http://example.com")
-            .build();
+        let make_scope = |name| {
+            InstrumentationScope::builder(name)
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build()
+        };
 
-        let _meter6 = provider.meter_with_scope(library.clone());
-
-        library.name = "Abc".into();
-        let _meter7 = provider.meter_with_scope(library.clone());
-
-        library.name = "abc".into();
-        let _meter8 = provider.meter_with_scope(library);
+        let _meter6 = provider.meter_with_scope(make_scope("ABC"));
+        let _meter7 = provider.meter_with_scope(make_scope("Abc"));
+        let _meter8 = provider.meter_with_scope(make_scope("abc"));
 
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }

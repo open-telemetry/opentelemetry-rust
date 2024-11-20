@@ -81,7 +81,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 ///
 /// ```no_run
 /// # #[cfg(feature="metrics")]
-/// use opentelemetry_sdk::metrics::data::Temporality;
+/// use opentelemetry_sdk::metrics::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a span exporter you can use to when configuring tracer providers
@@ -254,7 +254,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "logs")]
     pub(crate) fn build_log_exporter(
         self,
-    ) -> Result<crate::logs::LogExporter, opentelemetry::logs::LogError> {
+    ) -> Result<crate::logs::LogExporter, opentelemetry_sdk::logs::LogError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
         let (channel, interceptor, compression) = self.build_channel(
@@ -273,8 +273,8 @@ impl TonicExporterBuilder {
     #[cfg(feature = "metrics")]
     pub(crate) fn build_metrics_exporter(
         self,
-        temporality: opentelemetry_sdk::metrics::data::Temporality,
-    ) -> opentelemetry::metrics::MetricResult<crate::MetricExporter> {
+        temporality: opentelemetry_sdk::metrics::Temporality,
+    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
         use crate::MetricExporter;
         use metrics::TonicMetricsClient;
 

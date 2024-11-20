@@ -30,8 +30,8 @@ impl fmt::Debug for Tracer {
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tracer")
-            .field("name", &self.scope.name)
-            .field("version", &self.scope.version)
+            .field("name", &self.scope.name())
+            .field("version", &self.scope.version())
             .finish()
     }
 }
@@ -285,7 +285,7 @@ impl opentelemetry::trace::Tracer for Tracer {
 mod tests {
     use crate::{
         testing::trace::TestSpan,
-        trace::{Config, Sampler, ShouldSample},
+        trace::{Sampler, ShouldSample},
     };
     use opentelemetry::{
         trace::{
@@ -326,9 +326,8 @@ mod tests {
     fn allow_sampler_to_change_trace_state() {
         // Setup
         let sampler = TestSampler {};
-        let config = Config::default().with_sampler(sampler);
         let tracer_provider = crate::trace::TracerProvider::builder()
-            .with_config(config)
+            .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
@@ -351,9 +350,8 @@ mod tests {
     #[test]
     fn drop_parent_based_children() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let config = Config::default().with_sampler(sampler);
         let tracer_provider = crate::trace::TracerProvider::builder()
-            .with_config(config)
+            .with_sampler(sampler)
             .build();
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
@@ -366,9 +364,8 @@ mod tests {
     #[test]
     fn uses_current_context_for_builders_if_unset() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let config = Config::default().with_sampler(sampler);
         let tracer_provider = crate::trace::TracerProvider::builder()
-            .with_config(config)
+            .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");
 

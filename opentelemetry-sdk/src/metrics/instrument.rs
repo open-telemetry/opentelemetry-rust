@@ -7,7 +7,7 @@ use opentelemetry::{
 
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
-use super::data::Temporality;
+use super::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -83,6 +83,7 @@ impl InstrumentKind {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
     pub name: Cow<'static, str>,
@@ -96,6 +97,7 @@ pub struct Instrument {
     pub scope: InstrumentationScope,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Instrument {
     /// Create a new instrument with default values
     pub fn new() -> Self {
@@ -160,13 +162,11 @@ impl Instrument {
     }
 
     pub(crate) fn matches_scope(&self, other: &Instrument) -> bool {
-        (self.scope.name.is_empty() || self.scope.name.as_ref() == other.scope.name.as_ref())
-            && (self.scope.version.is_none()
-                || self.scope.version.as_ref().map(AsRef::as_ref)
-                    == other.scope.version.as_ref().map(AsRef::as_ref))
-            && (self.scope.schema_url.is_none()
-                || self.scope.schema_url.as_ref().map(AsRef::as_ref)
-                    == other.scope.schema_url.as_ref().map(AsRef::as_ref))
+        (self.scope.name().is_empty() || self.scope.name() == other.scope.name())
+            && (self.scope.version().is_none()
+                || self.scope.version().as_ref() == other.scope.version().as_ref())
+            && (self.scope.schema_url().is_none()
+                || self.scope.schema_url().as_ref() == other.scope.schema_url().as_ref())
     }
 }
 
@@ -187,6 +187,7 @@ impl Instrument {
 /// ```
 #[derive(Default, Debug)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
     pub name: Cow<'static, str>,
@@ -204,6 +205,7 @@ pub struct Stream {
     pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Stream {
     /// Create a new stream with empty values.
     pub fn new() -> Self {

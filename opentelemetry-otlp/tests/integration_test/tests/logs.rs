@@ -2,11 +2,10 @@
 
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
-use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::LogExporter;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::{LogError, LoggerProvider};
 use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
 use std::error::Error;
 use std::fs::File;
@@ -24,7 +23,6 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
     let exporter_builder = exporter_builder.with_http();
 
     let exporter = exporter_builder.build()?;
-    //let exporter = LogExporter::builder().with_tonic().build()?;
 
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)

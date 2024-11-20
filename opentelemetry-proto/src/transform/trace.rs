@@ -102,9 +102,8 @@ pub mod tonic {
                 scope_spans: vec![ScopeSpans {
                     schema_url: source_span
                         .instrumentation_scope
-                        .schema_url
-                        .as_ref()
-                        .map(ToString::to_string)
+                        .schema_url()
+                        .map(ToOwned::to_owned)
                         .unwrap_or_default(),
                     scope: Some((source_span.instrumentation_scope, None).into()),
                     spans: vec![Span {

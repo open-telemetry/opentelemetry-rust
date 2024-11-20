@@ -16,11 +16,10 @@ use crate::NoExporterBuilderSet;
 
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry::metrics::MetricResult;
+use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
-    data::{ResourceMetrics, Temporality},
-    exporter::PushMetricExporter,
+    data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
 };
 use std::fmt::{Debug, Formatter};
 

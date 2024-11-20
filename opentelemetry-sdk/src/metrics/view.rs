@@ -1,7 +1,10 @@
 use super::instrument::{Instrument, Stream};
+#[cfg(feature = "spec_unstable_metrics_views")]
+use crate::metrics::{MetricError, MetricResult};
+#[cfg(feature = "spec_unstable_metrics_views")]
 use glob::Pattern;
-use opentelemetry::metrics::{MetricError, MetricResult};
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
 }
@@ -42,6 +45,7 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 /// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
+#[allow(unreachable_pub)]
 pub trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///
@@ -65,6 +69,7 @@ impl View for Box<dyn View> {
     }
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 /// Creates a [View] that applies the [Stream] mask for all instruments that
 /// match criteria.
 ///
