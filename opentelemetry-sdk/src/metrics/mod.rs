@@ -81,7 +81,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::KeyValue;
 
 /// Defines the window that an aggregation was calculated over.
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
@@ -146,11 +146,6 @@ impl AttributeSet {
         values.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         let hash = calculate_hash(&values);
         AttributeSet(values, hash)
-    }
-
-    /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.key, &kv.value))
     }
 
     /// Returns the underlying Vec of KeyValue pairs

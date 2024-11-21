@@ -106,6 +106,7 @@ impl ZipkinPipelineBuilder {
                 ));
                 cfg
             } else {
+                #[allow(deprecated)]
                 Config::default().with_resource(Resource::empty())
             };
             (config, Endpoint::new(service_name, self.service_addr))
@@ -116,6 +117,7 @@ impl ZipkinPipelineBuilder {
                 .unwrap()
                 .to_string();
             (
+                #[allow(deprecated)]
                 Config::default().with_resource(Resource::empty()),
                 Endpoint::new(service_name, self.service_addr),
             )
@@ -138,6 +140,7 @@ impl ZipkinPipelineBuilder {
     }
 
     /// Install the Zipkin trace exporter pipeline with a simple span processor.
+    #[allow(deprecated)]
     pub fn install_simple(mut self) -> Result<Tracer, TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
@@ -155,6 +158,7 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
+    #[allow(deprecated)]
     pub fn install_batch<R: RuntimeChannel>(mut self, runtime: R) -> Result<Tracer, TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;

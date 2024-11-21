@@ -12,7 +12,7 @@ use opentelemetry_sdk::{
     logs::LoggerProvider,
     metrics::{MetricError, PeriodicReader, SdkMeterProvider},
     runtime,
-    trace::{self as sdktrace, Config, TracerProvider},
+    trace::{self as sdktrace, TracerProvider},
 };
 use opentelemetry_sdk::{
     logs::{self as sdklogs},
@@ -52,7 +52,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 
     Ok(TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
-        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .build())
 }
 
