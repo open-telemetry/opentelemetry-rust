@@ -97,7 +97,7 @@
 #![cfg_attr(test, deny(warnings))]
 
 use once_cell::sync::{Lazy, OnceCell};
-use opentelemetry::{otel_error, InstrumentationScope, Key, Value};
+use opentelemetry::{otel_error, otel_warn, InstrumentationScope, Key, Value};
 use opentelemetry_sdk::{
     metrics::{
         data::{self, ResourceMetrics},
@@ -165,8 +165,10 @@ impl MetricReader for PrometheusExporter {
         self.reader.shutdown()
     }
 
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.reader.temporality(kind)
+    /// Note: Prometheus only supports cumulative temporality, so this will always be
+    /// [Temporality::Cumulative].
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        Temporality::Cumulative
     }
 }
 
@@ -274,7 +276,7 @@ impl prometheus::core::Collector for Collector {
             Ok(guard) => guard,
             Err(err) => {
                 otel_error!(
-                    name: "OpenTelemetry error occurred.",
+                    name: "OpenTelemetryPrometheus.AcquireLockError",
                     message = err.to_string(),
                 );
                 return Vec::new();
@@ -287,7 +289,7 @@ impl prometheus::core::Collector for Collector {
         };
         if let Err(err) = self.reader.collect(&mut metrics) {
             otel_error!(
-                name: "OpenTelemetry metrics error occurred.",
+                name: "OpenTelemetryPrometheus.ReaderError",
                 message = err.to_string(),
             );
             return vec![];
@@ -419,16 +421,18 @@ fn validate_metrics(
 ) -> (bool, Option<String>) {
     if let Some(existing) = mfs.get(name) {
         if existing.get_field_type() != metric_type {
-            otel_error!(
-                name: "OpenTelemetry metrics error occurred.",
-                message = format!("Instrument type conflict, using existing type definition. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type).as_str(),
+            otel_warn!(
+                name: "OpenTelemetryPrometheus.MetricValidation",
+                message = "Instrument type conflict, using existing type definition",
+                metric_type = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type).as_str(),
             );
             return (true, None);
         }
         if existing.get_help() != description {
-            otel_error!(
-                name: "OpenTelemetry metrics error occurred.",
-                message = format!("Instrument description conflict, using existing. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_help().to_string(), description.to_string()).as_str(),
+            otel_warn!(
+                name: "OpenTelemetryPrometheus.MetricValidation",
+                message = "Instrument description conflict, using existing",
+                metric_description = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_help().to_string(), description.to_string()).as_str(),
             );
             return (false, Some(existing.get_help().to_string()));
         }
