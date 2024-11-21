@@ -9,7 +9,7 @@
     |--------------------------------|-------------|
     | Counter_Add_Sorted             | 172 ns      |
     | Counter_Add_Unsorted           | 183 ns      |
-    | Counter_Overflow               | 898 ns      |
+    | Counter_Overflow               | 562 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 
