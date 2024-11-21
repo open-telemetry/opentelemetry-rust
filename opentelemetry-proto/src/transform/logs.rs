@@ -102,7 +102,7 @@ pub mod tonic {
                         .collect();
                     #[cfg(feature = "populate-logs-event-name")]
                     {
-                        if let Some(event_name) = &log_record.event_name {
+                        if let Some(event_name) = &log_record.event_name() {
                             let mut attributes_with_name = attributes;
                             attributes_with_name.push(KeyValue {
                                 key: "event.name".into(),
