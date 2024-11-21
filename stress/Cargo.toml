@@ -19,6 +19,11 @@ name = "metrics_histogram"
 path = "src/metrics_histogram.rs"
 doc = false
 
+[[bin]] # Bin to run measure latency in various conditions
+name = "metrics_latency"
+path = "src/metrics_latency.rs"
+doc = false
+
 [[bin]] # Bin to run the metrics overflow stress tests
 name = "metrics_overflow"
 path = "src/metrics_overflow.rs"
