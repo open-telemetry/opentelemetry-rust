@@ -51,7 +51,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         let name = name.into();
 
         if name.is_empty() {
-            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+            otel_warn!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
         };
 
         let scope = InstrumentationScope::builder(name).build();
