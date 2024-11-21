@@ -1,7 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
-use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_warn, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -44,17 +44,14 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default logger name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        let mut name = name.into();
+        let name = name.into();
 
         if name.is_empty() {
-            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
+            otel_warn!(name: "LoggerProvider.Logger.EmptyName",  message = "Logger name is empty; consider providing a meaningful name");
         };
 
         let scope = InstrumentationScope::builder(name).build();
