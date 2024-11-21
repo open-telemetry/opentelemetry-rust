@@ -69,34 +69,34 @@ fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;
-        if let Some(event_name) = record.event_name {
+        if let Some(event_name) = record.event_name() {
             println!("\t EventName: {:?}", event_name);
         }
-        if let Some(target) = &record.target {
+        if let Some(target) = record.target() {
             println!("\t Target (Scope): {:?}", target);
         }
-        if let Some(trace_context) = &record.trace_context {
+        if let Some(trace_context) = record.trace_context() {
             println!("\t TraceId: {:?}", trace_context.trace_id);
             println!("\t SpanId: {:?}", trace_context.span_id);
         }
-        if let Some(timestamp) = record.timestamp {
+        if let Some(timestamp) = record.timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();
             println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
         }
-        if let Some(timestamp) = record.observed_timestamp {
+        if let Some(timestamp) = record.observed_timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();
             println!(
                 "\t Observed Timestamp: {}",
                 datetime.format("%Y-%m-%d %H:%M:%S%.6f")
             );
         }
-        if let Some(severity) = record.severity_text {
+        if let Some(severity) = record.severity_text() {
             println!("\t SeverityText: {:?}", severity);
         }
-        if let Some(severity) = record.severity_number {
+        if let Some(severity) = record.severity_number() {
             println!("\t SeverityNumber: {:?}", severity);
         }
-        if let Some(body) = &record.body {
+        if let Some(body) = record.body() {
             println!("\t Body: {:?}", body);
         }
 

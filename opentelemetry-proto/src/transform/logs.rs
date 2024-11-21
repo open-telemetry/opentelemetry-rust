@@ -58,8 +58,8 @@ pub mod tonic {
 
     impl From<&opentelemetry_sdk::logs::LogRecord> for LogRecord {
         fn from(log_record: &opentelemetry_sdk::logs::LogRecord) -> Self {
-            let trace_context = log_record.trace_context.as_ref();
-            let severity_number = match log_record.severity_number {
+            let trace_context = log_record.trace_context();
+            let severity_number = match log_record.severity_number() {
                 Some(Severity::Trace) => SeverityNumber::Trace,
                 Some(Severity::Trace2) => SeverityNumber::Trace2,
                 Some(Severity::Trace3) => SeverityNumber::Trace3,
@@ -88,8 +88,8 @@ pub mod tonic {
             };
 
             LogRecord {
-                time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
+                time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
+                observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
                 attributes: {
                     let attributes: Vec<KeyValue> = log_record
                         .attributes_iter()
@@ -119,8 +119,11 @@ pub mod tonic {
                     attributes
                 },
                 severity_number: severity_number.into(),
-                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: log_record.body.clone().map(Into::into),
+                severity_text: log_record
+                    .severity_text()
+                    .map(Into::into)
+                    .unwrap_or_default(),
+                body: log_record.body().cloned().map(Into::into),
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {
@@ -170,7 +173,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target.clone()).into()),
+                    scope: Some((instrumentation, log_record.target().cloned()).into()),
                     log_records: vec![log_record.into()],
                 }],
             }
@@ -193,8 +196,8 @@ pub mod tonic {
             >,
              (log_record, instrumentation)| {
                 let key = log_record
-                    .target
-                    .clone()
+                    .target()
+                    .cloned()
                     .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
                 scope_map
                     .entry(key)
