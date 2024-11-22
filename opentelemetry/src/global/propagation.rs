@@ -11,19 +11,19 @@ static DEFAULT_TEXT_MAP_PROPAGATOR: OnceLock<NoopTextMapPropagator> = OnceLock::
 
 /// Ensures the `GLOBAL_TEXT_MAP_PROPAGATOR` is initialized with a `NoopTextMapPropagator`.
 #[inline]
-fn init_global_text_map_propagator() -> &'static RwLock<Box<dyn TextMapPropagator + Send + Sync>> {
+fn global_text_map_propagator() -> &'static RwLock<Box<dyn TextMapPropagator + Send + Sync>> {
     GLOBAL_TEXT_MAP_PROPAGATOR.get_or_init(|| RwLock::new(Box::new(NoopTextMapPropagator::new())))
 }
 
 /// Ensures the `DEFAULT_TEXT_MAP_PROPAGATOR` is initialized.
 #[inline]
-fn init_default_text_map_propagator() -> &'static NoopTextMapPropagator {
+fn default_text_map_propagator() -> &'static NoopTextMapPropagator {
     DEFAULT_TEXT_MAP_PROPAGATOR.get_or_init(NoopTextMapPropagator::new)
 }
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
 pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(propagator: P) {
-    let global_propagator = init_global_text_map_propagator();
+    let global_propagator = global_text_map_propagator();
     let _lock = global_propagator
         .write()
         .map(|mut global_propagator| *global_propagator = Box::new(propagator));
@@ -34,12 +34,12 @@ pub fn get_text_map_propagator<T, F>(mut f: F) -> T
 where
     F: FnMut(&dyn TextMapPropagator) -> T,
 {
-    let global_propagator = init_global_text_map_propagator();
+    let global_propagator = global_text_map_propagator();
     global_propagator
         .read()
         .map(|propagator| f(&**propagator))
         .unwrap_or_else(|_| {
-            let default_propagator = init_default_text_map_propagator();
+            let default_propagator = default_text_map_propagator();
             f(default_propagator as &dyn TextMapPropagator)
         })
 }
