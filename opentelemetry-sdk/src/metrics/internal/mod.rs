@@ -220,8 +220,30 @@ where
             ));
         }
 
-        for (attrs, tracker) in trackers.into_iter() {
-            let tracker = Arc::into_inner(tracker).expect("the only instance");
+        for (attrs, mut tracker) in trackers.into_iter() {
+            // Handles special case:
+            // measure-thread: get inserted tracker from `sorted_attribs` (holds tracker)
+            // collect-thread: replace sorted_attribs (clears sorted_attribs)
+            // collect-thread: clear all_attribs
+            // collect_thread: THIS-LOOP: loop until measure-thread still holds a tracker
+            // measure-thread: insert tracker into `all_attribs``
+            // collect_thread: exits this loop after clearing trackers
+            let tracker = loop {
+                match Arc::try_unwrap(tracker) {
+                    Ok(inner) => {
+                        break inner;
+                    }
+                    Err(reinserted) => {
+                        tracker = reinserted;
+                        for shard in 0..self.shards_count {
+                            match self.all_attribs[shard].write() {
+                                Ok(mut all_trackers) => all_trackers.clear(),
+                                Err(_) => return,
+                            };
+                        }
+                    }
+                };
+            };
             dest.push(map_fn(attrs.into_inner_owned(), tracker));
         }
     }
