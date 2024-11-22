@@ -7,3 +7,4 @@ function patch_version() {
 }
 
 patch_version url 2.5.2 #https://github.com/servo/rust-url/issues/992
+patch_version rustls-native-certs 0.8.0 #0.8.1 needs rustc 1.71 or newer
