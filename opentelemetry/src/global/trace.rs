@@ -373,8 +373,7 @@ fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub fn tracer_provider() -> GlobalTracerProvider {
-    let global_provider = global_tracer_provider();
-    global_provider
+    global_tracer_provider()
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
         .clone()
@@ -430,8 +429,7 @@ where
     T: trace::Tracer<Span = S> + Send + Sync + 'static,
     P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
 {
-    let global_provider = global_tracer_provider();
-    let mut tracer_provider = global_provider
+    let mut tracer_provider = global_tracer_provider()
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
     mem::replace(
@@ -443,8 +441,7 @@ where
 /// Shut down the current tracer provider. This will invoke the shutdown method on all span processors.
 /// span processors should export remaining spans before return
 pub fn shutdown_tracer_provider() {
-    let global_provider = global_tracer_provider();
-    let mut tracer_provider = global_provider
+    let mut tracer_provider = global_tracer_provider()
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
 

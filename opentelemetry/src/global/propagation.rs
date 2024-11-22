@@ -23,8 +23,7 @@ fn default_text_map_propagator() -> &'static NoopTextMapPropagator {
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
 pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(propagator: P) {
-    let global_propagator = global_text_map_propagator();
-    let _lock = global_propagator
+    let _lock = global_text_map_propagator()
         .write()
         .map(|mut global_propagator| *global_propagator = Box::new(propagator));
 }
@@ -34,8 +33,7 @@ pub fn get_text_map_propagator<T, F>(mut f: F) -> T
 where
     F: FnMut(&dyn TextMapPropagator) -> T,
 {
-    let global_propagator = global_text_map_propagator();
-    global_propagator
+    global_text_map_propagator()
         .read()
         .map(|propagator| f(&**propagator))
         .unwrap_or_else(|_| {

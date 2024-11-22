@@ -19,8 +19,7 @@ pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
 {
-    let global_provider = global_meter_provider();
-    let mut global_provider = global_provider
+    let mut global_provider = global_meter_provider()
         .write()
         .expect("GLOBAL_METER_PROVIDER RwLock poisoned");
     *global_provider = Arc::new(new_provider);
@@ -28,8 +27,7 @@ where
 
 /// Returns an instance of the currently configured global [`MeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {
-    let global_provider = global_meter_provider();
-    global_provider
+    global_meter_provider()
         .read()
         .expect("GLOBAL_METER_PROVIDER RwLock poisoned")
         .clone()
