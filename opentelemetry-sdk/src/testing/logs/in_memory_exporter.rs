@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 /// An in-memory logs exporter that stores logs data in memory..
 ///
 /// This exporter is useful for testing and debugging purposes.
-/// It stores logs in a `Vec<LogData>`. Logs can be retrieved using
+/// It stores logs in a `Vec<OwnedLogData>`. Logs can be retrieved using
 /// `get_emitted_logs` method.
 ///
 /// # Example
@@ -65,9 +65,9 @@ pub struct OwnedLogData {
 pub struct LogDataWithResource {
     /// Log record
     pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogData`.
+    /// Instrumentation details for the emitter who produced this `LogRecord`.
     pub instrumentation: InstrumentationScope,
-    /// Resource for the emitter who produced this `LogData`.
+    /// Resource for the emitter who produced this `LogRecord`.
     pub resource: Cow<'static, Resource>,
 }
 
@@ -137,7 +137,7 @@ impl InMemoryLogExporterBuilder {
 }
 
 impl InMemoryLogExporter {
-    /// Returns the logs emitted via Logger as a vector of `LogData`.
+    /// Returns the logs emitted via Logger as a vector of `LogDataWithResource`.
     ///
     /// # Example
     ///

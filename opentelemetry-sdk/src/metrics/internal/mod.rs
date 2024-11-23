@@ -18,8 +18,6 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
 
-use crate::metrics::AttributeSet;
-
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
     Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
@@ -95,7 +93,7 @@ where
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
-        let sorted_attrs = AttributeSet::from(attributes).into_vec();
+        let sorted_attrs = sort_and_dedup(attributes);
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.update(value);
             return;
@@ -196,6 +194,16 @@ fn prepare_data<T>(data: &mut Vec<T>, list_len: usize) {
     if total_len > data.capacity() {
         data.reserve_exact(total_len - data.capacity());
     }
+}
+
+fn sort_and_dedup(attributes: &[KeyValue]) -> Vec<KeyValue> {
+    // Use newly allocated vec here as incoming attributes are immutable so
+    // cannot sort/de-dup in-place. TODO: This allocation can be avoided by
+    // leveraging a ThreadLocal vec.
+    let mut sorted = attributes.to_vec();
+    sorted.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    sorted.dedup_by(|a, b| a.key == b.key);
+    sorted
 }
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
