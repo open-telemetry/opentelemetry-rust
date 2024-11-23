@@ -3,6 +3,7 @@
 ## vNext
 
 - **DEPRECATED**:
+  - `ResourceDetector.detect()` no longer supports timeout option.
   - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
     `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
     example:
