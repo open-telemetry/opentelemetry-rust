@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, InstrumentationScope,
+    otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
 use crate::metrics::{MetricError, MetricResult};
@@ -109,6 +109,10 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> MetricResult<()> {
+        otel_info!(
+            name: "MeterProvider.Shutdown",
+            message = "User initiated shutdown of MeterProvider."
+        );
         self.inner.shutdown()
     }
 }
@@ -139,15 +143,25 @@ impl Drop for SdkMeterProviderInner {
         // shutdown(), then we don't need to call shutdown again.
         if self.is_shutdown.load(Ordering::Relaxed) {
             otel_debug!(
-                name: "MeterProvider.AlreadyShutdown",
-                message = "Meter provider was already shut down; drop will not attempt shutdown again."
+                name: "MeterProvider.Drop.AlreadyShutdown",
+                message = "MeterProvider was already shut down; drop will not attempt shutdown again."
             );
-        } else if let Err(err) = self.shutdown() {
-            otel_error!(
-                name: "MeterProvider.ShutdownFailed",
-                message = "Shutdown attempt failed during drop of MeterProvider.",
-                reason = format!("{}", err)
+        } else {
+            otel_info!(
+                name: "MeterProvider.Drop",
+                message = "Last reference of MeterProvider dropped, initiating shutdown."
             );
+            if let Err(err) = self.shutdown() {
+                otel_error!(
+                    name: "MeterProvider.Drop.ShutdownFailed",
+                    message = "Shutdown attempt failed during drop of MeterProvider.",
+                    reason = format!("{}", err)
+                );
+            } else {
+                otel_info!(
+                    name: "MeterProvider.Drop.ShutdownCompleted",
+                );
+            }
         }
     }
 }
@@ -231,7 +245,7 @@ impl MeterProviderBuilder {
     /// Construct a new [MeterProvider] with this configuration.
 
     pub fn build(self) -> SdkMeterProvider {
-        SdkMeterProvider {
+        let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
                     self.resource.unwrap_or_default(),
@@ -241,7 +255,12 @@ impl MeterProviderBuilder {
                 meters: Default::default(),
                 is_shutdown: AtomicBool::new(false),
             }),
-        }
+        };
+
+        otel_info!(
+            name: "MeterProvider.Built",
+        );
+        meter_provider
     }
 }
 
