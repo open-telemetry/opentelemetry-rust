@@ -1,6 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
+use opentelemetry::otel_info;
 use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
@@ -154,10 +155,15 @@ impl LoggerProviderInner {
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         if !self.is_shutdown.load(Ordering::Relaxed) {
+            otel_info!(
+                name: "LoggerProvider.Drop",
+                message = "Last reference of LoggerProvider dropped, initiating shutdown."
+            );
             let _ = self.shutdown(); // errors are handled within shutdown
         } else {
             otel_debug!(
-                name: "LoggerProvider.Drop.AlreadyShutdown"
+                name: "LoggerProvider.Drop.AlreadyShutdown",
+                message = "LoggerProvider was already shut down; drop will not attempt shutdown again."
             );
         }
     }
