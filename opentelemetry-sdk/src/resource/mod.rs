@@ -20,6 +20,7 @@
 //!
 //! The OS and Process resource detectors are packaged separately in the
 //! [`opentelemetry-resource-detector` crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
+mod builder;
 mod env;
 mod telemetry;
 
@@ -35,6 +36,8 @@ use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
+
+use self::builder::ResourceBuilder;
 
 /// Inner structure of `Resource` holding the actual data.
 /// This structure is designed to be shared among `Resource` instances via `Arc`.
@@ -62,6 +65,22 @@ impl Default for Resource {
 }
 
 impl Resource {
+    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    ///
+    /// If you want to start from a [Resource::default()] see [Resource::builder_default()].
+    ///
+    /// Starts with a [Resource::empty()].
+    pub fn builder() -> ResourceBuilder {
+        ResourceBuilder::new_empty()
+    }
+
+    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    ///
+    /// Starts with a [Resource::default()].
+    pub fn builder_default() -> ResourceBuilder {
+        ResourceBuilder::new_empty()
+    }
+
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
     pub fn empty() -> Self {
