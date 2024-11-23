@@ -24,7 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 futures-core = { workspace = true, optional = true }
 futures-sink = { version = "0.3", optional = true }
 pin-project-lite = { workspace = true, optional = true }
-thiserror = { workspace = true }
+thiserror = { workspace = true, optional = true}
 tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
@@ -32,7 +32,7 @@ js-sys = "0.3.63"
 
 [features]
 default = ["trace", "metrics", "logs"]
-trace = ["pin-project-lite", "futures-sink", "futures-core"]
+trace = ["pin-project-lite", "futures-sink", "futures-core", "thiserror"]
 metrics = []
 testing = ["trace", "metrics"]
 logs = []
