@@ -1,5 +1,5 @@
 use crate::metrics::{self, Meter, MeterProvider};
-use crate::InstrumentationScope;
+use crate::{otel_error, otel_info, InstrumentationScope};
 use std::sync::{Arc, OnceLock, RwLock};
 
 type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
@@ -19,10 +19,15 @@ pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
 {
-    let mut global_provider = global_meter_provider()
-        .write()
-        .expect("GLOBAL_METER_PROVIDER RwLock poisoned");
-    *global_provider = Arc::new(new_provider);
+    // Try to set the global meter provider. If the RwLock is poisoned, we'll log an error.
+    let mut global_provider = global_meter_provider().write();
+
+    if let Ok(ref mut provider) = global_provider {
+        **provider = Arc::new(new_provider);
+        otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
+    } else {
+        otel_error!(name: "MeterProvider.GlobalSetFailed", message = "Global meter provider is not set due to lock poison. Meters created using global::meter() or global::meter_with_scope() will not function.");
+    }
 }
 
 /// Returns an instance of the currently configured global [`MeterProvider`].
