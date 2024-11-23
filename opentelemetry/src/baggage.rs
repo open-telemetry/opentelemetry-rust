@@ -16,13 +16,13 @@
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
 use once_cell::sync::Lazy;
+use std::collections::hash_map::Entry;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
 
 static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
 
-const MAX_KEY_VALUE_PAIRS: usize = 180;
-const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
+const MAX_KEY_VALUE_PAIRS: usize = 64;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
 /// A set of name/value pairs describing user-defined properties.
@@ -43,11 +43,10 @@ const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 ///
 /// ### Limits
 ///
-/// * Maximum number of name/value pairs: `180`.
-/// * Maximum number of bytes per a single name/value pair: `4096`.
+/// * Maximum number of name/value pairs: `64`.
 /// * Maximum total length of all name/value pairs: `8192`.
 ///
-/// [RFC2616, Section 2.2]: https://tools.ietf.org/html/rfc2616#section-2.2
+/// https://www.w3.org/TR/baggage/#limits
 #[derive(Debug, Default)]
 pub struct Baggage {
     inner: HashMap<Key, (Value, BaggageMetadata)>,
@@ -124,6 +123,8 @@ impl Baggage {
     /// Same with `insert`, if the name was not present, [`None`] will be returned.
     /// If the name is present, the old value and metadata will be returned.
     ///
+    /// Also checks for [limits](https://w3c.github.io/baggage/#limits).
+    ///
     /// # Examples
     ///
     /// ```
@@ -146,10 +147,38 @@ impl Baggage {
         S: Into<BaggageMetadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
-        if self.insertable(&key, &value, &metadata) {
-            self.inner.insert(key, (value, metadata))
-        } else {
-            None
+        if !key.as_str().is_ascii() {
+            return None;
+        }
+        let entry_content_len =
+            key_value_metadata_bytes_size(key.as_str(), value.as_str().as_ref(), metadata.as_str());
+        let entries_count = self.inner.len();
+        match self.inner.entry(key) {
+            Entry::Occupied(mut occupied_entry) => {
+                let prev_content_len = key_value_metadata_bytes_size(
+                    occupied_entry.key().as_str(),
+                    &occupied_entry.get().0.as_str().as_ref(),
+                    occupied_entry.get().1.as_str(),
+                );
+                let new_content_len = self.kv_content_len + entry_content_len - prev_content_len;
+                if new_content_len > MAX_LEN_OF_ALL_PAIRS {
+                    return None;
+                }
+                self.kv_content_len = new_content_len;
+                Some(occupied_entry.insert((value, metadata)))
+            }
+            Entry::Vacant(vacant_entry) => {
+                if entries_count == MAX_KEY_VALUE_PAIRS {
+                    return None;
+                }
+                let new_content_len = self.kv_content_len + entry_content_len;
+                if new_content_len > MAX_LEN_OF_ALL_PAIRS {
+                    return None;
+                }
+                self.kv_content_len = new_content_len;
+                vacant_entry.insert((value, metadata));
+                None
+            }
         }
     }
 
@@ -169,58 +198,9 @@ impl Baggage {
         self.inner.is_empty()
     }
 
-    /// Gets an iterator over the baggage items, sorted by name.
+    /// Gets an iterator over the baggage items, in any order.
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
-    }
-
-    /// Determine whether the key value pair exceed one of the [limits](https://w3c.github.io/baggage/#limits).
-    /// If not, update the total length of key values
-    fn insertable(&mut self, key: &Key, value: &Value, metadata: &BaggageMetadata) -> bool {
-        if !key.as_str().is_ascii() {
-            return false;
-        }
-        let value = value.as_str();
-        if key_value_metadata_bytes_size(key.as_str(), value.as_ref(), metadata.as_str())
-            < MAX_BYTES_FOR_ONE_PAIR
-        {
-            match self.inner.get(key) {
-                None => {
-                    // check total length
-                    if self.kv_content_len
-                        + metadata.as_str().len()
-                        + value.len()
-                        + key.as_str().len()
-                        > MAX_LEN_OF_ALL_PAIRS
-                    {
-                        return false;
-                    }
-                    // check number of pairs
-                    if self.inner.len() + 1 > MAX_KEY_VALUE_PAIRS {
-                        return false;
-                    }
-                    self.kv_content_len +=
-                        metadata.as_str().len() + value.len() + key.as_str().len()
-                }
-                Some((old_value, old_metadata)) => {
-                    let old_value = old_value.as_str();
-                    if self.kv_content_len - old_metadata.as_str().len() - old_value.len()
-                        + metadata.as_str().len()
-                        + value.len()
-                        > MAX_LEN_OF_ALL_PAIRS
-                    {
-                        return false;
-                    }
-                    self.kv_content_len =
-                        self.kv_content_len - old_metadata.as_str().len() - old_value.len()
-                            + metadata.as_str().len()
-                            + value.len()
-                }
-            }
-            true
-        } else {
-            false
-        }
     }
 }
 
@@ -376,13 +356,11 @@ impl BaggageExt for Context {
         &self,
         baggage: T,
     ) -> Self {
-        let mut merged: Baggage = self
-            .baggage()
-            .iter()
-            .map(|(key, (value, metadata))| {
-                KeyValueMetadata::new(key.clone(), value.clone(), metadata.clone())
-            })
-            .collect();
+        let old = self.baggage();
+        let mut merged = Baggage {
+            inner: old.inner.clone(),
+            kv_content_len: old.kv_content_len,
+        };
         for kvm in baggage.into_iter().map(|kv| kv.into()) {
             merged.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
         }
