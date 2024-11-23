@@ -11,7 +11,7 @@ use futures_util::{
     stream::{self, FusedStream},
     StreamExt,
 };
-use opentelemetry::{otel_debug, otel_error, otel_info};
+use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
