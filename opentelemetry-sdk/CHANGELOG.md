@@ -18,6 +18,9 @@
         .build();
     ```
   - `logs::LogData` struct is deprecated, and scheduled to be removed from public API in `v0.28.0`.
+  - Bug fix: Empty Meter names are retained as-is instead of replacing with
+    "rust.opentelemetry.io/sdk/meter"
+    [#2334](https://github.com/open-telemetry/opentelemetry-rust/pull/2334)
 
   - Bug fix: Empty Logger names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/logger"
