@@ -1,8 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
-use opentelemetry::otel_info;
-use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -45,19 +44,10 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default logger name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        let mut name = name.into();
-
-        if name.is_empty() {
-            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        };
-
         let scope = InstrumentationScope::builder(name).build();
         self.logger_with_scope(scope)
     }
@@ -67,6 +57,9 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
         }
+        if scope.name().is_empty() {
+            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+        };
         Logger::new(scope, self.clone())
     }
 }
@@ -704,6 +697,42 @@ mod tests {
 
         // Verify that shutdown was only called once, even after drop
         assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_empty_logger_name() {
+        let exporter = InMemoryLogExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let logger = logger_provider.logger("");
+        let mut record = logger.create_log_record();
+        record.set_body("Testing empty logger name".into());
+        logger.emit(record);
+
+        // Create a logger using a scope with an empty name
+        let scope = InstrumentationScope::builder("").build();
+        let scoped_logger = logger_provider.logger_with_scope(scope);
+        let mut scoped_record = scoped_logger.create_log_record();
+        scoped_record.set_body("Testing empty logger scope name".into());
+        scoped_logger.emit(scoped_record);
+
+        // Assert: Verify that the emitted logs are processed correctly
+        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(emitted_logs.len(), 2);
+        // Assert the first log
+        assert_eq!(
+            emitted_logs[0].clone().record.body,
+            Some(AnyValue::String("Testing empty logger name".into()))
+        );
+        assert_eq!(logger.instrumentation_scope().name(), "");
+
+        // Assert the second log created through the scope
+        assert_eq!(
+            emitted_logs[1].clone().record.body,
+            Some(AnyValue::String("Testing empty logger scope name".into()))
+        );
+        assert_eq!(scoped_logger.instrumentation_scope().name(), "");
     }
 
     #[derive(Debug)]
