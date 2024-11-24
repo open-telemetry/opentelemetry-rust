@@ -63,6 +63,9 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
         }
+        if scope.name().is_empty() {
+            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+        };
         Logger::new(scope, self.clone())
     }
 }
