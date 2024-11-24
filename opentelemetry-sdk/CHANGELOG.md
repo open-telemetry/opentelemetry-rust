@@ -21,7 +21,7 @@
 
   - Bug fix: Empty Logger names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/logger"
-    [#2334](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
+    [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
 
 ## 0.27.0
 
