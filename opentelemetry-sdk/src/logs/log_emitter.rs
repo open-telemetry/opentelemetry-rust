@@ -710,16 +710,29 @@ mod tests {
         record.set_body("Testing empty logger name".into());
         logger.emit(record);
 
-        // Assert: Verify that the emitted log is processed correctly
+        // Create a logger using a scope with an empty name
+        let scope = InstrumentationScope::builder("").build();
+        let scoped_logger = logger_provider.logger_with_scope(scope);
+        let mut scoped_record = scoped_logger.create_log_record();
+        scoped_record.set_body("Testing empty logger scope name".into());
+        scoped_logger.emit(scoped_record);
+
+        // Assert: Verify that the emitted logs are processed correctly
         let emitted_logs = exporter.get_emitted_logs().unwrap();
-        assert_eq!(emitted_logs.len(), 1);
+        assert_eq!(emitted_logs.len(), 2);
+        // Assert the first log
         assert_eq!(
             emitted_logs[0].clone().record.body,
             Some(AnyValue::String("Testing empty logger name".into()))
         );
-
-        // Assert: Ensure the logger name is empty in the instrumentation scope
         assert_eq!(logger.instrumentation_scope().name(), "");
+
+        // Assert the second log created through the scope
+        assert_eq!(
+            emitted_logs[1].clone().record.body,
+            Some(AnyValue::String("Testing empty logger scope name".into()))
+        );
+        assert_eq!(scoped_logger.instrumentation_scope().name(), "");
     }
 
     #[derive(Debug)]
