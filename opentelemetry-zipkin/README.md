@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    global::shutdown_tracer_provider();
+    provider.shutdown().expect("TracerProvider should shutdown successfully");
 
     Ok(())
 }

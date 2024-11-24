@@ -140,7 +140,9 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a simple span processor.
     #[allow(deprecated)]
-    pub fn install_simple(mut self) -> Result<Tracer, TraceError> {
+    pub fn install_simple(
+        mut self,
+    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder = TracerProvider::builder().with_simple_exporter(exporter);
@@ -151,14 +153,17 @@ impl ZipkinPipelineBuilder {
             .with_schema_url(semcov::SCHEMA_URL)
             .build();
         let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider);
-        Ok(tracer)
+        let _ = global::set_tracer_provider(provider.clone());
+        Ok((tracer, provider))
     }
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
     #[allow(deprecated)]
-    pub fn install_batch<R: RuntimeChannel>(mut self, runtime: R) -> Result<Tracer, TraceError> {
+    pub fn install_batch<R: RuntimeChannel>(
+        mut self,
+        runtime: R,
+    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);
@@ -169,8 +174,8 @@ impl ZipkinPipelineBuilder {
             .with_schema_url(semcov::SCHEMA_URL)
             .build();
         let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider);
-        Ok(tracer)
+        let _ = global::set_tracer_provider(provider.clone());
+        Ok((tracer, provider))
     }
 
     /// Assign the service name under which to group traces.

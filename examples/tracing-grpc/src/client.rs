@@ -1,9 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::{global, propagation::Injector};
-use opentelemetry_sdk::{
-    propagation::TraceContextPropagator, runtime::Tokio, trace::TracerProvider,
-};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, runtime::Tokio, trace as sdktrace};
 use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
@@ -11,14 +9,15 @@ use opentelemetry::{
     Context, KeyValue,
 };
 
-fn init_tracer() {
+fn init_tracer() -> sdktrace::TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
-    let provider = TracerProvider::builder()
+    let provider = sdktrace::TracerProvider::builder()
         .with_batch_exporter(SpanExporter::default(), Tokio)
         .build();
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
@@ -75,9 +74,10 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    init_tracer();
+    let provider = init_tracer();
     greet().await?;
-    opentelemetry::global::shutdown_tracer_provider();
+
+    provider.shutdown()?;
 
     Ok(())
 }
