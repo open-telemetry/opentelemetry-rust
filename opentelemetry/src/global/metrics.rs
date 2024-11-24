@@ -43,8 +43,6 @@ pub fn meter_provider() -> GlobalMeterProvider {
 
 /// Creates a named [`Meter`] via the currently configured global [`MeterProvider`].
 ///
-/// If the name is an empty string, the provider will use a default name.
-///
 /// This is a more convenient way of expressing `global::meter_provider().meter(name)`.
 pub fn meter(name: &'static str) -> Meter {
     meter_provider().meter(name)
