@@ -27,6 +27,7 @@ mod telemetry;
 mod attributes;
 pub(crate) use attributes::*;
 
+pub use builder::ResourceBuilder;
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
@@ -37,8 +38,6 @@ use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
-
-use self::builder::ResourceBuilder;
 
 /// Inner structure of `Resource` holding the actual data.
 /// This structure is designed to be shared among `Resource` instances via `Arc`.
