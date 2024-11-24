@@ -1,10 +1,9 @@
 //! Implements the [`API`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.64+][msrv]*
+//! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! [`API`]: https://opentelemetry.io/docs/specs/otel/overview/#api
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
-//! [msrv]: #supported-rust-versions
 //!
 //! # Getting Started
 //!
@@ -159,7 +158,7 @@
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
-//! supported version is 1.64. The current OpenTelemetry version is not
+//! supported version is 1.70. The current OpenTelemetry version is not
 //! guaranteed to build on Rust versions earlier than the minimum supported
 //! version.
 //!
