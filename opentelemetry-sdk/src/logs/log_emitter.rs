@@ -48,12 +48,6 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        let name = name.into();
-
-        if name.is_empty() {
-            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
-        };
-
         let scope = InstrumentationScope::builder(name).build();
         self.logger_with_scope(scope)
     }
