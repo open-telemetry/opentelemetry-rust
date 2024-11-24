@@ -1,13 +1,17 @@
 use crate::metrics::{self, Meter, MeterProvider};
-use crate::InstrumentationScope;
-use once_cell::sync::Lazy;
-use std::sync::{Arc, RwLock};
+use crate::{otel_error, otel_info, InstrumentationScope};
+use std::sync::{Arc, OnceLock, RwLock};
 
 type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
 
 /// The global `MeterProvider` singleton.
-static GLOBAL_METER_PROVIDER: Lazy<RwLock<GlobalMeterProvider>> =
-    Lazy::new(|| RwLock::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new())));
+static GLOBAL_METER_PROVIDER: OnceLock<RwLock<GlobalMeterProvider>> = OnceLock::new();
+
+#[inline]
+fn global_meter_provider() -> &'static RwLock<GlobalMeterProvider> {
+    GLOBAL_METER_PROVIDER
+        .get_or_init(|| RwLock::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new())))
+}
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.
@@ -15,15 +19,20 @@ pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
 {
-    let mut global_provider = GLOBAL_METER_PROVIDER
-        .write()
-        .expect("GLOBAL_METER_PROVIDER RwLock poisoned");
-    *global_provider = Arc::new(new_provider);
+    // Try to set the global meter provider. If the RwLock is poisoned, we'll log an error.
+    let mut global_provider = global_meter_provider().write();
+
+    if let Ok(ref mut provider) = global_provider {
+        **provider = Arc::new(new_provider);
+        otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
+    } else {
+        otel_error!(name: "MeterProvider.GlobalSetFailed", message = "Global meter provider is not set due to lock poison. Meters created using global::meter() or global::meter_with_scope() will not function.");
+    }
 }
 
 /// Returns an instance of the currently configured global [`MeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {
-    GLOBAL_METER_PROVIDER
+    global_meter_provider()
         .read()
         .expect("GLOBAL_METER_PROVIDER RwLock poisoned")
         .clone()

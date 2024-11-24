@@ -1,11 +1,10 @@
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
 use crate::InstrumentationScope;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
-use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::SystemTime;
 
 /// Allows a specific [`crate::trace::Span`] to be used generically by [`BoxedSpan`]
@@ -360,11 +359,13 @@ impl trace::TracerProvider for GlobalTracerProvider {
 }
 
 /// The global `Tracer` provider singleton.
-static GLOBAL_TRACER_PROVIDER: Lazy<RwLock<GlobalTracerProvider>> = Lazy::new(|| {
-    RwLock::new(GlobalTracerProvider::new(
-        trace::noop::NoopTracerProvider::new(),
-    ))
-});
+static GLOBAL_TRACER_PROVIDER: OnceLock<RwLock<GlobalTracerProvider>> = OnceLock::new();
+
+#[inline]
+fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
+    GLOBAL_TRACER_PROVIDER
+        .get_or_init(|| RwLock::new(GlobalTracerProvider::new(NoopTracerProvider::new())))
+}
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
 /// [`GlobalTracerProvider`].
@@ -372,7 +373,7 @@ static GLOBAL_TRACER_PROVIDER: Lazy<RwLock<GlobalTracerProvider>> = Lazy::new(||
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub fn tracer_provider() -> GlobalTracerProvider {
-    GLOBAL_TRACER_PROVIDER
+    global_tracer_provider()
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
         .clone()
@@ -428,7 +429,7 @@ where
     T: trace::Tracer<Span = S> + Send + Sync + 'static,
     P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
 {
-    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
+    let mut tracer_provider = global_tracer_provider()
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
     mem::replace(
@@ -440,7 +441,7 @@ where
 /// Shut down the current tracer provider. This will invoke the shutdown method on all span processors.
 /// span processors should export remaining spans before return
 pub fn shutdown_tracer_provider() {
-    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
+    let mut tracer_provider = global_tracer_provider()
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
 
