@@ -1,6 +1,8 @@
-use opentelemetry::KeyValue;
+use std::time::Duration;
 
-use super::{Resource, ResourceDetector};
+use opentelemetry::{KeyValue, Value};
+
+use super::{Resource, ResourceDetector, SERVICE_NAME};
 
 /// Builder to allow easy composition of a Resource
 #[derive(Debug, Default)]
@@ -30,13 +32,23 @@ impl ResourceBuilder {
 
     /// Add multiple [ResourceDetector] to your resource.
     pub fn with_detectors(mut self, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
-        self.resource = self.resource.merge(&Resource::from_detectors(detectors));
+        self.resource = self
+            .resource
+            .merge(&Resource::from_detectors(Duration::from_secs(0), detectors));
         self
     }
 
     /// Add a [KeyValue] to the resource.
     pub fn with_key_value(self, kv: KeyValue) -> Self {
         self.with_key_values(vec![kv])
+    }
+
+    /// Add an [Attribute] to your resource for "service.name"
+    pub fn with_service_name<V>(self, service_name: V) -> Self
+    where
+        V: Into<Value>,
+    {
+        self.with_key_value(KeyValue::new(SERVICE_NAME, service_name))
     }
 
     /// Add multiple [KeyValue]s to the resource.
