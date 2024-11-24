@@ -77,7 +77,7 @@ impl Resource {
     ///
     /// Starts with a [Resource::default()].
     pub fn builder_default() -> ResourceBuilder {
-        ResourceBuilder::new_empty()
+        ResourceBuilder::new_default()
     }
 
     /// Creates an empty resource.
