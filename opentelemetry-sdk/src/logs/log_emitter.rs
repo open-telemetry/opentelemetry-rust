@@ -1,7 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
-use opentelemetry::{otel_debug, otel_warn, trace::TraceContextExt, Context, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -51,7 +51,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
         let name = name.into();
 
         if name.is_empty() {
-            otel_warn!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
         };
 
         let scope = InstrumentationScope::builder(name).build();
@@ -695,6 +695,29 @@ mod tests {
 
         // Verify that shutdown was only called once, even after drop
         assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_empty_logger_name() {
+        let exporter = InMemoryLogExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let logger = logger_provider.logger("");
+        let mut record = logger.create_log_record();
+        record.set_body("Testing empty logger name".into());
+        logger.emit(record);
+
+        // Assert: Verify that the emitted log is processed correctly
+        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(emitted_logs.len(), 1);
+        assert_eq!(
+            emitted_logs[0].clone().record.body,
+            Some(AnyValue::String("Testing empty logger name".into()))
+        );
+
+        // Assert: Ensure the logger name is empty in the instrumentation scope
+        assert_eq!(logger.instrumentation_scope().name(), "");
     }
 
     #[derive(Debug)]
