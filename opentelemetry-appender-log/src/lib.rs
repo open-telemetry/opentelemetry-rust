@@ -1,7 +1,7 @@
 //! Bridge `log` into OpenTelemetry.
 //!
 //! This library implements a log appender for the [`log`] crate using the [Logs Bridge API].
-//! 
+//!
 //! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! # Getting Started
@@ -95,7 +95,7 @@
 //! - `with-serde`: Support complex values as attributes without stringifying them.
 //!
 //! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
-//! 
+//!
 //! ## Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
