@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // OpenTelemetry uses `tracing` crate for its internal logging. Unless a
     // tracing subscriber is set, the logs will be discarded. In this example,
     // we configure a `tracing` subscriber to:
-    // 1. Print logs of level INFO or higher to stdout.
+    // 1. Print logs of level INFO or higher to stdout using tracing's fmt layer.
     // 2. Filter logs from OpenTelemetry's dependencies (like tonic, hyper,
     // reqwest etc. which are commonly used by the OTLP exporter) to only print
     // ERROR-level logs. This filtering helps reduce repetitive log messages
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // https://github.com/open-telemetry/opentelemetry-rust/issues/761 is
     // resolved.
 
-    // Target name used by OpenTelemetry always start with "opentelemetry".
+    // Target names used by all OpenTelemetry official crates always start with "opentelemetry".
     // Hence, one may use "add_directive("opentelemetry=off".parse().unwrap())"
     // to turn off all logs from OpenTelemetry.
 

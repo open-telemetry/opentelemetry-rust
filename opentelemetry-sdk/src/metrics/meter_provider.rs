@@ -9,7 +9,7 @@ use std::{
 
 use opentelemetry::{
     metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, InstrumentationScope,
+    otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
 use crate::metrics::{MetricError, MetricResult};
@@ -109,6 +109,10 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> MetricResult<()> {
+        otel_info!(
+            name: "MeterProvider.Shutdown",
+            message = "User initiated shutdown of MeterProvider."
+        );
         self.inner.shutdown()
     }
 }
@@ -139,28 +143,31 @@ impl Drop for SdkMeterProviderInner {
         // shutdown(), then we don't need to call shutdown again.
         if self.is_shutdown.load(Ordering::Relaxed) {
             otel_debug!(
-                name: "MeterProvider.AlreadyShutdown",
-                message = "Meter provider was already shut down; drop will not attempt shutdown again."
+                name: "MeterProvider.Drop.AlreadyShutdown",
+                message = "MeterProvider was already shut down; drop will not attempt shutdown again."
             );
-        } else if let Err(err) = self.shutdown() {
-            otel_error!(
-                name: "MeterProvider.ShutdownFailed",
-                message = "Shutdown attempt failed during drop of MeterProvider.",
-                reason = format!("{}", err)
+        } else {
+            otel_info!(
+                name: "MeterProvider.Drop",
+                message = "Last reference of MeterProvider dropped, initiating shutdown."
             );
+            if let Err(err) = self.shutdown() {
+                otel_error!(
+                    name: "MeterProvider.Drop.ShutdownFailed",
+                    message = "Shutdown attempt failed during drop of MeterProvider.",
+                    reason = format!("{}", err)
+                );
+            } else {
+                otel_info!(
+                    name: "MeterProvider.Drop.ShutdownCompleted",
+                );
+            }
         }
     }
 }
 
-/// Default meter name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/meter";
-
 impl MeterProvider for SdkMeterProvider {
-    fn meter(&self, mut name: &'static str) -> Meter {
-        if name.is_empty() {
-            name = DEFAULT_COMPONENT_NAME
-        };
-
+    fn meter(&self, name: &'static str) -> Meter {
         let scope = InstrumentationScope::builder(name).build();
         self.meter_with_scope(scope)
     }
@@ -169,6 +176,10 @@ impl MeterProvider for SdkMeterProvider {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Meter::new(Arc::new(NoopMeter::new()));
         }
+
+        if scope.name().is_empty() {
+            otel_info!(name: "MeterNameEmpty", message = "Meter name is empty; consider providing a meaningful name. Meter will function normally and the provided name will be used as-is.");
+        };
 
         if let Ok(mut meters) = self.inner.meters.lock() {
             let meter = meters
@@ -231,7 +242,7 @@ impl MeterProviderBuilder {
     /// Construct a new [MeterProvider] with this configuration.
 
     pub fn build(self) -> SdkMeterProvider {
-        SdkMeterProvider {
+        let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
                     self.resource.unwrap_or_default(),
@@ -241,7 +252,12 @@ impl MeterProviderBuilder {
                 meters: Default::default(),
                 is_shutdown: AtomicBool::new(false),
             }),
-        }
+        };
+
+        otel_info!(
+            name: "MeterProvider.Built",
+        );
+        meter_provider
     }
 }
 

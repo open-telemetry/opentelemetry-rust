@@ -464,6 +464,44 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn empty_meter_name_retained() {
+        async fn meter_name_retained_helper(
+            meter: Meter,
+            provider: SdkMeterProvider,
+            exporter: InMemoryMetricExporter,
+        ) {
+            // Act
+            let counter = meter.u64_counter("my_counter").build();
+
+            counter.add(10, &[]);
+            provider.force_flush().unwrap();
+
+            // Assert
+            let resource_metrics = exporter
+                .get_finished_metrics()
+                .expect("metrics are expected to be exported.");
+            assert!(
+                resource_metrics[0].scope_metrics[0].metrics.len() == 1,
+                "There should be a single metric"
+            );
+            let meter_name = resource_metrics[0].scope_metrics[0].scope.name();
+            assert_eq!(meter_name, "");
+        }
+
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Test Meter creation in 2 ways, both with empty string as meter name
+        let meter1 = meter_provider.meter("");
+        meter_name_retained_helper(meter1, meter_provider.clone(), exporter.clone()).await;
+
+        let meter_scope = InstrumentationScope::builder("").build();
+        let meter2 = meter_provider.meter_with_scope(meter_scope);
+        meter_name_retained_helper(meter2, meter_provider, exporter).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
