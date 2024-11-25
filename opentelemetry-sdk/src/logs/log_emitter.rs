@@ -173,7 +173,7 @@ impl Builder {
     /// The `LogExporter` that this provider should use.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
-        processors.push(Box::new(SimpleLogProcessor::new(Box::new(exporter))));
+        processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
         Builder { processors, ..self }
     }
