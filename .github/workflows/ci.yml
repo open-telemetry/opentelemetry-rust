@@ -8,6 +8,9 @@ on:
     - main
     paths-ignore:
     - '**.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     strategy:
