@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
     otel_warn,
@@ -7,10 +6,11 @@ use opentelemetry::{
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
+use std::sync::LazyLock;
 
 static BAGGAGE_HEADER: &str = "baggage";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
-static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned()]);
+static BAGGAGE_FIELDS: LazyLock<[String; 1]> = LazyLock::new(|| [BAGGAGE_HEADER.to_owned()]);
 
 /// Propagates name-value pairs in [W3C Baggage] format.
 ///

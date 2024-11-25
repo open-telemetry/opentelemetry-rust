@@ -15,10 +15,10 @@ use std::{
     },
 };
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 // a no nop logger provider used as placeholder when the provider is shutdown
-static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
+static NOOP_LOGGER_PROVIDER: LazyLock<LoggerProvider> = LazyLock::new(|| LoggerProvider {
     inner: Arc::new(LoggerProviderInner {
         processors: Vec::new(),
         resource: Resource::empty(),

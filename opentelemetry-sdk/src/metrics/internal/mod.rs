@@ -15,11 +15,11 @@ use std::sync::{Arc, RwLock};
 use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
+use std::sync::LazyLock;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
-    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: LazyLock<Vec<KeyValue>> =
+    LazyLock::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.

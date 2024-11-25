@@ -1,21 +1,21 @@
 //! # W3C Trace Context Propagator
 //!
 
-use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 const SUPPORTED_VERSION: u8 = 0;
 const MAX_VERSION: u8 = 254;
 const TRACEPARENT_HEADER: &str = "traceparent";
 const TRACESTATE_HEADER: &str = "tracestate";
 
-static TRACE_CONTEXT_HEADER_FIELDS: Lazy<[String; 2]> =
-    Lazy::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
+static TRACE_CONTEXT_HEADER_FIELDS: LazyLock<[String; 2]> =
+    LazyLock::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
 
 /// Propagates `SpanContext`s in [W3C TraceContext] format under `traceparent` and `tracestate` header.
 ///

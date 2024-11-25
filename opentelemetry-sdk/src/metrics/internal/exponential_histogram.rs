@@ -1,7 +1,7 @@
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
 
-use once_cell::sync::Lazy;
 use opentelemetry::{otel_debug, KeyValue};
+use std::sync::LazyLock;
 
 use crate::metrics::{
     data::{self, Aggregation},
@@ -166,7 +166,7 @@ fn scale_change(max_size: i32, bin: i32, start_bin: i32, length: i32) -> u32 {
 }
 
 /// Constants used in calculating the logarithm index.
-static SCALE_FACTORS: Lazy<[f64; 21]> = Lazy::new(|| {
+static SCALE_FACTORS: LazyLock<[f64; 21]> = LazyLock::new(|| {
     [
         LOG2_E * 2f64.powi(0),
         LOG2_E * 2f64.powi(1),
