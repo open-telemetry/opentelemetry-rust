@@ -1,9 +1,11 @@
 //! Implements the [`API`] component of [OpenTelemetry].
 //!
 //! *[Supported Rust Versions](#supported-rust-versions)*
+//! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! [`API`]: https://opentelemetry.io/docs/specs/otel/overview/#api
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
+//!
 //! [Jaeger]: https://www.jaegertracing.io/
 //! [Prometheus]: https://www.prometheus.io/
 //! 
@@ -241,6 +243,10 @@
 //!
 //! ## Supported Rust Versions
 //!
+//! OpenTelemetry is built against the latest stable release. The minimum
+//! supported version is 1.70. The current OpenTelemetry version is not
+//! guaranteed to build on Rust versions earlier than the minimum supported
+//! version.
 //! This crate is built against the latest stable release. The minimum supported
 //! version is 1.70. The current version is not guaranteed to build on Rust
 //! versions earlier than the minimum supported version.
