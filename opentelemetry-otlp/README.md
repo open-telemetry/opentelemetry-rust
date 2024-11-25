@@ -30,11 +30,10 @@ can easily instrument your applications or systems, no matter their language,
 infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
-*Compiler support: [requires `rustc` 1.71.1+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ## Getting started
 
