@@ -73,27 +73,34 @@ use opentelemetry::InstrumentationScope;
 use opentelemetry::{otel_debug, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{Arc, OnceLock};
 
 use super::IdGenerator;
 
+// TODO Replace with LazyLock once it is stable
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
-static NOOP_TRACER_PROVIDER: LazyLock<TracerProvider> = LazyLock::new(|| TracerProvider {
-    inner: Arc::new(TracerProviderInner {
-        processors: Vec::new(),
-        config: Config {
-            // cannot use default here as the default resource is not empty
-            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-            id_generator: Box::<RandomIdGenerator>::default(),
-            span_limits: SpanLimits::default(),
-            resource: Cow::Owned(Resource::empty()),
-        },
-        is_shutdown: AtomicBool::new(true),
-    }),
-});
+// TODO Replace with LazyLock once it is stable
+static NOOP_TRACER_PROVIDER: OnceLock<TracerProvider> = OnceLock::new();
+#[inline]
+fn noop_tracer_provider() -> &'static TracerProvider {
+    NOOP_TRACER_PROVIDER.get_or_init(|| {
+        TracerProvider {
+            inner: Arc::new(TracerProviderInner {
+                processors: Vec::new(),
+                config: Config {
+                    // cannot use default here as the default resource is not empty
+                    sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+                    id_generator: Box::<RandomIdGenerator>::default(),
+                    span_limits: SpanLimits::default(),
+                    resource: Cow::Owned(Resource::empty()),
+                },
+                is_shutdown: AtomicBool::new(true),
+            }),
+        }
+    })
+}
 
 /// TracerProvider inner type
 #[derive(Debug)]
@@ -269,7 +276,7 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(scope, NOOP_TRACER_PROVIDER.clone());
+            return Tracer::new(scope, noop_tracer_provider().clone());
         }
         Tracer::new(scope, self.clone())
     }

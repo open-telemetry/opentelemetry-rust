@@ -16,10 +16,14 @@ use aggregate::is_under_cardinality_limit;
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: LazyLock<Vec<KeyValue>> =
-    LazyLock::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
+
+#[inline]
+fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
+    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", "true")])
+}
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -121,12 +125,12 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
             overflow_value.update(value);
         } else {
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
-            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
+            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
             otel_warn!( name: "ValueMap.measure",
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );

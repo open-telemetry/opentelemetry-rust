@@ -11,20 +11,24 @@ use std::{
     borrow::Cow,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, OnceLock,
     },
 };
 
-use std::sync::LazyLock;
-
 // a no nop logger provider used as placeholder when the provider is shutdown
-static NOOP_LOGGER_PROVIDER: LazyLock<LoggerProvider> = LazyLock::new(|| LoggerProvider {
-    inner: Arc::new(LoggerProviderInner {
-        processors: Vec::new(),
-        resource: Resource::empty(),
-        is_shutdown: AtomicBool::new(true),
-    }),
-});
+// TODO - replace it with LazyLock once it is stable
+static NOOP_LOGGER_PROVIDER: OnceLock<LoggerProvider> = OnceLock::new();
+
+#[inline]
+fn noop_logger_provider() -> &'static LoggerProvider {
+    NOOP_LOGGER_PROVIDER.get_or_init(|| LoggerProvider {
+        inner: Arc::new(LoggerProviderInner {
+            processors: Vec::new(),
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(true),
+        }),
+    })
+}
 
 #[derive(Debug, Clone)]
 /// Handles the creation and coordination of [`Logger`]s.
@@ -55,7 +59,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
+            return Logger::new(scope, noop_logger_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
