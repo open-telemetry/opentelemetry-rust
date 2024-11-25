@@ -727,7 +727,6 @@ mod tests {
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
-    use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
@@ -963,7 +962,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,

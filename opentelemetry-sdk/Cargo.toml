@@ -43,7 +43,7 @@ pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
-trace = ["opentelemetry/trace", "rand", "async-trait", "percent-encoding"]
+trace = ["opentelemetry/trace", "rand", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
 logs = ["opentelemetry/logs", "async-trait", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
