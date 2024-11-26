@@ -29,8 +29,7 @@
   - `Logger::provider`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`.
   - `Logger::instrumentation_scope`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`
      Migration Guidance: 
-        - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending 
-        on above methods.
+        - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 
 ## 0.27.0
