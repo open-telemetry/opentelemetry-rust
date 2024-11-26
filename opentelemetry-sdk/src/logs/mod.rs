@@ -108,6 +108,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn logger_attributes() {
         let provider = LoggerProvider::builder().build();
         let scope = InstrumentationScope::builder("test_logger")
