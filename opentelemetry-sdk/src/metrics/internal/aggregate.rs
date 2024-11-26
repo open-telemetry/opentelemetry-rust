@@ -12,7 +12,7 @@ use super::{
     precomputed_sum::PrecomputedSum, sum::Sum, Number,
 };
 
-pub(crate) const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
