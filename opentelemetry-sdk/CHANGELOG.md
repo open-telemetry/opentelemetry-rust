@@ -26,6 +26,12 @@
     "rust.opentelemetry.io/sdk/logger"
     [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
 
+  - **Bug Fix:** Validates the `with_boundaries` bucket boundaries used in
+    Histograms. The boundaries provided by the user must be a non-empty vector,
+    sorted in strictly increasing order, and contain no duplicates. Instruments
+    will not record measurements if the boundaries are invalid.
+    [#2351](https://github.com/open-telemetry/opentelemetry-rust/pull/2351)
+
 ## 0.27.0
 
 Released 2024-Nov-11

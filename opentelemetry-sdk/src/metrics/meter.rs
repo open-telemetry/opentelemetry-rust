@@ -394,6 +394,20 @@ impl SdkMeter {
             return Histogram::new(Arc::new(NoopSyncInstrument::new()));
         }
 
+        if let Some(ref boundaries) = builder.boundaries {
+            let validation_result = validate_buckets(boundaries);
+            if let Err(err) = validation_result {
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this Histogram will be ignored.",
+                    reason = format!("{}", err)
+                );
+                return Histogram::new(Arc::new(NoopSyncInstrument::new()));
+            }
+        }
+
         match resolver
             .lookup(
                 InstrumentKind::Histogram,
@@ -531,6 +545,25 @@ impl InstrumentProvider for SdkMeter {
 
 fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit))
+}
+
+fn validate_buckets(buckets: &[f64]) -> MetricResult<()> {
+    if buckets.is_empty() {
+        return Err(MetricError::InvalidInstrumentConfiguration(
+            "Buckets must not be empty",
+        ));
+    }
+
+    // validate that buckets are sorted and non-duplicate
+    for window in buckets.windows(2) {
+        if window[0] >= window[1] {
+            return Err(MetricError::InvalidInstrumentConfiguration(
+                "Buckets must be sorted and non-duplicate",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_instrument_name(name: &str) -> MetricResult<()> {

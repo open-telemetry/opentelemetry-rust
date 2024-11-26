@@ -178,6 +178,27 @@ mod tests {
             // As instrument name is invalid, no metrics should be exported
             test_context.check_no_metrics();
         }
+
+        let invalid_buckets = vec![
+            vec![],                        // empty buckets
+            vec![1.0, 1.0],                // duplicate buckets
+            vec![1.0, 2.0, 3.0, 2.0],      // duplicate non consequent buckets
+            vec![1.0, 2.0, 3.0, 4.0, 2.5], // unsorted buckets
+        ];
+        for buckets in invalid_buckets {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(buckets)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As buckets via Advisory params are invalid, no metrics should be
+            // exported
+            test_context.check_no_metrics();
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
