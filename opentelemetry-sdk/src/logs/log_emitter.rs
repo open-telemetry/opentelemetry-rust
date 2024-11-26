@@ -240,7 +240,7 @@ impl Logger {
 
     #[deprecated(
         since = "0.27.1",
-        note = "This method is intended for appender developers and has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+        note = "This method is intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
     )]
     /// LoggerProvider associated with this logger.
     pub fn provider(&self) -> &LoggerProvider {
@@ -249,7 +249,7 @@ impl Logger {
 
     #[deprecated(
         since = "0.27.1",
-        note = "This method is intended for appender developers and has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+        note = "This method is intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
     )]
     /// Instrumentation scope of this logger.
     pub fn instrumentation_scope(&self) -> &InstrumentationScope {
