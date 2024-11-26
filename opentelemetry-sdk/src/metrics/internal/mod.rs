@@ -75,6 +75,8 @@ where
             trackers: RwLock::new(HashMap::with_capacity(
                 1 + STREAM_CARDINALITY_LIMIT as usize,
             )),
+            // TODO: For cumulative, this is not required, so avoid this
+            // pre-allocation.
             trackers_for_collect: RwLock::new(HashMap::with_capacity(
                 1 + STREAM_CARDINALITY_LIMIT as usize,
             )),
