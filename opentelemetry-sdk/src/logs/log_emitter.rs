@@ -242,11 +242,19 @@ impl Logger {
         Logger { scope, provider }
     }
 
+    #[deprecated(
+        since = "0.27.1",
+        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+    )]
     /// LoggerProvider associated with this logger.
     pub fn provider(&self) -> &LoggerProvider {
         &self.provider
     }
 
+    #[deprecated(
+        since = "0.27.1",
+        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+    )]
     /// Instrumentation scope of this logger.
     pub fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
@@ -262,7 +270,7 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        let provider = self.provider();
+        let provider = &self.provider;
         let processors = provider.log_processors();
 
         //let mut log_record = record;
@@ -281,22 +289,17 @@ impl opentelemetry::logs::Logger for Logger {
         }
 
         for p in processors {
-            p.emit(&mut record, self.instrumentation_scope());
+            p.emit(&mut record, &self.scope);
         }
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = self.provider();
+        let provider = &self.provider;
 
         let mut enabled = false;
         for processor in provider.log_processors() {
-            enabled = enabled
-                || processor.event_enabled(
-                    level,
-                    target,
-                    self.instrumentation_scope().name().as_ref(),
-                );
+            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
         }
         enabled
     }
@@ -729,14 +732,14 @@ mod tests {
             emitted_logs[0].clone().record.body,
             Some(AnyValue::String("Testing empty logger name".into()))
         );
-        assert_eq!(logger.instrumentation_scope().name(), "");
+        assert_eq!(logger.scope.name(), "");
 
         // Assert the second log created through the scope
         assert_eq!(
             emitted_logs[1].clone().record.body,
             Some(AnyValue::String("Testing empty logger scope name".into()))
         );
-        assert_eq!(scoped_logger.instrumentation_scope().name(), "");
+        assert_eq!(scoped_logger.scope.name(), "");
     }
 
     #[derive(Debug)]
