@@ -1,6 +1,7 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::PeriodicReader;
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::fmt;
@@ -13,9 +14,10 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let reader = PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio).build();
 
     let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
-        .with_resource(opentelemetry_sdk::resource::Resource::new(vec![
-            KeyValue::new("service.name", "self-diagnostics"),
-        ]))
+        .with_resource(Resource::new([KeyValue::new(
+            "service.name",
+            "self-diagnostics-example",
+        )]))
         .with_reader(reader)
         .build();
 
