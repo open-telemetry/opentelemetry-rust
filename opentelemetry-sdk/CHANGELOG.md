@@ -25,6 +25,12 @@
   - Bug fix: Empty Logger names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/logger"
     [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
+  
+  - `Logger::provider`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`.
+  - `Logger::instrumentation_scope`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`
+     Migration Guidance: 
+        - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
+
 
 ## 0.27.0
 
