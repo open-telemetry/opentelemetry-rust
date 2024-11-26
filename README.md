@@ -24,6 +24,10 @@ observability tools.
 
 ## Project Status
 
+The table below summarizes the overall status of each component. Some components
+include unstable features, which are documented in their respective crate
+documentation.
+
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
 | Logs-API              | RC*                |
@@ -31,8 +35,8 @@ observability tools.
 | Logs-OTLP Exporter    | Beta               |
 | Logs-Appender-Tracing | Beta               |
 | Metrics-API           | RC                 |
-| Metrics-SDK           | Beta              |
-| Metrics-OTLP Exporter | Beta              |
+| Metrics-SDK           | Beta               |
+| Metrics-OTLP Exporter | Beta               |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
 | Traces-OTLP Exporter  | Beta               |
