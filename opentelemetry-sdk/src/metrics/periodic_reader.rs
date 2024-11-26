@@ -132,6 +132,7 @@ where
             name: "PeriodicReader.BuildCompleted",
             message = "Periodic reader built.",
             interval_in_secs = self.interval.as_secs(),
+            temporality = format!("{:?}", self.exporter.temporality()),
         );
 
         PeriodicReader {
