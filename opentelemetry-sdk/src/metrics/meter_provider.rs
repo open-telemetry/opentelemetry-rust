@@ -174,6 +174,10 @@ impl MeterProvider for SdkMeterProvider {
 
     fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
+            otel_debug!(
+                name: "MeterProvider.NoOpMeterReturned",
+                meter_name = scope.name(),
+            );
             return Meter::new(Arc::new(NoopMeter::new()));
         }
 
@@ -182,14 +186,26 @@ impl MeterProvider for SdkMeterProvider {
         };
 
         if let Ok(mut meters) = self.inner.meters.lock() {
-            let meter = meters
-                .entry(scope)
-                .or_insert_with_key(|scope| {
-                    Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()))
-                })
-                .clone();
-            Meter::new(meter)
+            if let Some(existing_meter) = meters.get(&scope) {
+                otel_debug!(
+                    name: "MeterProvider.ExistingMeterReturned",
+                    meter_name = scope.name(),
+                );
+                Meter::new(existing_meter.clone())
+            } else {
+                let new_meter = Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
+                meters.insert(scope.clone(), new_meter.clone());
+                otel_debug!(
+                    name: "MeterProvider.NewMeterCreated",
+                    meter_name = scope.name(),
+                );
+                Meter::new(new_meter)
+            }
         } else {
+            otel_debug!(
+                name: "MeterProvider.NoOpMeterReturned",
+                meter_name = scope.name(),
+            );
             Meter::new(Arc::new(NoopMeter::new()))
         }
     }
@@ -242,6 +258,11 @@ impl MeterProviderBuilder {
     /// Construct a new [MeterProvider] with this configuration.
 
     pub fn build(self) -> SdkMeterProvider {
+        otel_debug!(
+            name: "MeterProvider.Building",
+            builder = format!("{:?}", &self),
+        );
+
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(

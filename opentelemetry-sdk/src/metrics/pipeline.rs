@@ -72,6 +72,10 @@ impl Pipeline {
     /// unique values.
     fn add_sync(&self, scope: InstrumentationScope, i_sync: InstrumentSync) {
         let _ = self.inner.lock().map(|mut inner| {
+            otel_debug!(
+                name : "InstrumentCreated",
+                instrument_name = i_sync.name.as_ref(),
+            );
             inner.aggregations.entry(scope).or_default().push(i_sync);
         });
     }
@@ -99,6 +103,10 @@ impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
     fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         let inner = self.inner.lock()?;
+        otel_debug!(
+            name: "MeterProviderInvokingObservableCallbacks",
+            count =  inner.callbacks.len(),
+        );
         for cb in &inner.callbacks {
             // TODO consider parallel callbacks.
             cb();
