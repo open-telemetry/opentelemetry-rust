@@ -77,7 +77,6 @@ use std::sync::{Arc, OnceLock};
 
 use super::IdGenerator;
 
-// TODO Replace with LazyLock once it is stable
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
