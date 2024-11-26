@@ -72,8 +72,12 @@ where
 {
     fn new(config: A::InitConfig) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(STREAM_CARDINALITY_LIMIT as usize)),
-            trackers_for_collect: RwLock::new(HashMap::with_capacity(STREAM_CARDINALITY_LIMIT as usize)),
+            trackers: RwLock::new(HashMap::with_capacity(
+                1 + STREAM_CARDINALITY_LIMIT as usize,
+            )),
+            trackers_for_collect: RwLock::new(HashMap::with_capacity(
+                1 + STREAM_CARDINALITY_LIMIT as usize,
+            )),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
