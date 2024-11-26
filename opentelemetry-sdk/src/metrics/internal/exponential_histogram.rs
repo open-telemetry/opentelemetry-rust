@@ -671,7 +671,7 @@ mod tests {
             for v in test.values {
                 h.measure(v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribs.tracker.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -720,7 +720,7 @@ mod tests {
             for v in test.values {
                 h.measure(v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribs.tracker.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
