@@ -397,6 +397,9 @@ impl SdkMeter {
         if let Some(ref boundaries) = builder.boundaries {
             let validation_result = validate_buckets(boundaries);
             if let Err(err) = validation_result {
+                // TODO: Include the buckets too in the error message.
+                // TODO: This validation is not done when Views are used to
+                // provide boundaries, and that should be fixed.
                 otel_error!(
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name(),
