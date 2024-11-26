@@ -159,9 +159,8 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 
 Components in this repo are built against the latest stable release. The minimum
 supported version of `rustc` is 1.70. Any exceptions to this are noted in
-indivual readme files of the corresponding create. The current OpenTelemetry
-version is not guaranteed to build on Rust versions earlier than the minimum
-supported version.
+indivual readme files of the corresponding create. Crates are not guaranteed to
+build on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions before
 it will always be supported. For example, if the current stable compiler version

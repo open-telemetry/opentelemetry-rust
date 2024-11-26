@@ -15,8 +15,6 @@ This crate contains the [OpenTelemetry](https://opentelemetry.io/) API for Rust.
 
 ## Overview
 
-## Overview
-
 OpenTelemetry is an Observability framework and toolkit designed to create and
 manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
 vendor- and tool-agnostic, meaning that it can be used with a broad variety of
