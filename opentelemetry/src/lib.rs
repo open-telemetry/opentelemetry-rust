@@ -36,7 +36,7 @@
 //! ```
 //!
 //! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples) directory for different integration patterns.
-//! 
+//!
 //! See the [`trace`] module docs for more information on creating and managing
 //! spans.
 //!
@@ -62,7 +62,7 @@
 //! [`opentelemetry-otlp`]. This reduces reporting overhead while ensuring
 //! up-to-date data. The aggregation strategy and export interval can be
 //! customized in the [`opentelemetry_sdk`] based on your use case.
-//! 
+//!
 //! ## Choosing the Right Instrument
 //! Selecting the correct instrument is critical for accurately representing
 //! your metrics data:
@@ -75,9 +75,9 @@
 //!   current state, such as CPU usage, temperature etc.
 //! - Use **Histograms** for measuring the distribution of a value, such as
 //!   response times or payload sizes.
-//! 
+//!
 //! ### Observable Instruments
-//! 
+//!
 //! Counters, UpDownCounters, and Gauges have Observable variants that allow
 //! values to be reported through a callback function. Observable instruments
 //! are ideal when the metric value is managed elsewhere and needs to be
@@ -113,7 +113,7 @@
 //!
 //! // Record a measurement by passing the value and a set of attributes.
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
-//! 
+//!
 //! // Create an ObservableCounter and register a callback that reports the measurement.
 //! let _observable_counter = meter
 //! .u64_observable_counter("my_observable_counter")
@@ -132,7 +132,7 @@
 //! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/metrics-basic)
 //! directory that show a runnable example with all type of instruments.
 //!
-//! 
+//!
 //! See the [`metrics`] module docs for more information on creating and
 //! managing instruments.
 //!
