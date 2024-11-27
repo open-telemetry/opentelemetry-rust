@@ -54,7 +54,7 @@
 //! 3. **Record Measurements:** Use the instruments to record measurement values
 //!    along with optional attributes.
 //!
-//! ## How Metrics Work in OpenTelemetry
+//! ## How Metrics work in OpenTelemetry
 //! In OpenTelemetry, raw measurements recorded using instruments are
 //! **aggregated in memory** to form metrics. These aggregated metrics are
 //! periodically exported by the [`opentelemetry_sdk`] at fixed intervals (e.g.,
@@ -91,6 +91,8 @@
 //! - An **ObservableUpDownCounter** can monitor the size of an in-memory queue
 //!   by reporting the size using queue's len() method within the callback
 //!   function.
+//! - An **ObservableGauge** can monitor the CPU temperature by using
+//!   temperature sensor APIs within the callback function.
 //!   
 //! For detailed guidance, refer to [OpenTelemetry Metrics API - Instrumentation
 //! Guidance](https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/#instrument-selection).
@@ -109,19 +111,19 @@
 //! let meter = global::meter("my_service");
 //!
 //! // Create an instrument (in this case, a Counter).
-//! let counter = meter.u64_counter("my_counter").build();
+//! let counter = meter.u64_counter("request.count").build();
 //!
 //! // Record a measurement by passing the value and a set of attributes.
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
 //!
 //! // Create an ObservableCounter and register a callback that reports the measurement.
 //! let _observable_counter = meter
-//! .u64_observable_counter("my_observable_counter")
+//! .u64_observable_counter("bytes_received")
 //! .with_callback(|observer| {
 //!     observer.observe(
 //!         100,
 //!         &[
-//!             KeyValue::new("mykey1", "myvalue1"),
+//!             KeyValue::new("protocol", "udp"),
 //!         ],
 //!     )
 //! })
@@ -151,7 +153,7 @@
 //!  [`opentelemetry-appender-tracing`](https://crates.io/crates/opentelemetry-appender-tracing)
 //!  crates.
 //!
-//! ## Crate Feature Flags
+//! # Crate Feature Flags
 //!
 //! The following core crate feature flags are available:
 //!
@@ -168,7 +170,7 @@
 //! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
 //! * `otel_unstable`: Includes unstable APIs. There are no features behind this flag at the moment.
 //!
-//! ## Related Crates
+//! # Related Crates
 //!
 //! In addition to `opentelemetry`, the [`open-telemetry/opentelemetry-rust`]
 //! repository contains several additional crates designed to be used with the
@@ -208,7 +210,7 @@
 //! [`Prometheus`]: https://prometheus.io
 //! [`Zipkin`]: https://zipkin.io
 //!
-//! ## Supported Rust Versions
+//! # Supported Rust Versions
 //!
 //! OpenTelemetry is built against the latest stable release. The minimum
 //! supported version is 1.70. The current OpenTelemetry version is not
