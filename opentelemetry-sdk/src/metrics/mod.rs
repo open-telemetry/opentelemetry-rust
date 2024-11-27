@@ -183,7 +183,7 @@ mod tests {
             vec![1.0, 1.0],                          // duplicate boundaries
             vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
             vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
-            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with NaNs
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
             vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
             vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with NaNs
         ];
