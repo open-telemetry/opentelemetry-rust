@@ -276,7 +276,7 @@ impl prometheus::core::Collector for Collector {
             Ok(guard) => guard,
             Err(err) => {
                 otel_error!(
-                    name: "OpenTelemetryPrometheus.AcquireLockError",
+                    name: "MetricScrapeFailed",
                     message = err.to_string(),
                 );
                 return Vec::new();
@@ -289,7 +289,7 @@ impl prometheus::core::Collector for Collector {
         };
         if let Err(err) = self.reader.collect(&mut metrics) {
             otel_error!(
-                name: "OpenTelemetryPrometheus.ReaderError",
+                name: "MetricScrapeFailed",
                 message = err.to_string(),
             );
             return vec![];
@@ -422,7 +422,7 @@ fn validate_metrics(
     if let Some(existing) = mfs.get(name) {
         if existing.get_field_type() != metric_type {
             otel_warn!(
-                name: "OpenTelemetryPrometheus.MetricValidation",
+                name: "MetricValidationFailed",
                 message = "Instrument type conflict, using existing type definition",
                 metric_type = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type).as_str(),
             );
@@ -430,7 +430,7 @@ fn validate_metrics(
         }
         if existing.get_help() != description {
             otel_warn!(
-                name: "OpenTelemetryPrometheus.MetricValidation",
+                name: "MetricValidationFailed",
                 message = "Instrument description conflict, using existing",
                 metric_description = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_help().to_string(), description.to_string()).as_str(),
             );
