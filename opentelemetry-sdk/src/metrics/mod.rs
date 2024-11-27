@@ -197,8 +197,8 @@ mod tests {
             histogram.record(1.9, &[]);
             test_context.flush_metrics();
 
-            // As bucket boundaires via Advisory params are invalid, no metrics
-            // should be exported
+            // As bucket boundaires provided via advisory params are invalid, no
+            // metrics should be exported
             test_context.check_no_metrics();
         }
     }

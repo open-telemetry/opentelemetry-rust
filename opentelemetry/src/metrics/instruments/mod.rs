@@ -87,7 +87,18 @@ impl<'a, T> HistogramBuilder<'a, T> {
     ///
     /// Setting boundaries is optional. By default, the boundaries are set to:
     ///
-    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0, 5000.0, 7500.0, 10000.0]`
+    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0,
+    /// 2500.0, 5000.0, 7500.0, 10000.0]`
+    ///
+    /// # Notes
+    /// - Boundaries must not contain `f64::NAN`, `f64::INFINITY` or
+    ///   `f64::NEG_INFINITY`
+    /// - Values must be in strictly increasing order (e.g., each value must be
+    ///   greater than the previous).
+    /// - Boundaries must not contain duplicate values.
+    ///
+    /// If invalid boundaries are provided, the instrument will not report
+    /// measurements.
     pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
         self.boundaries = Some(boundaries);
         self
