@@ -155,7 +155,7 @@ impl LogProcessor for SimpleLogProcessor {
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
-    // Track dropped logs. We'll log this at shutdown and also emit
+    // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
 
     // Track the maximum queue size that was configured for this processor
