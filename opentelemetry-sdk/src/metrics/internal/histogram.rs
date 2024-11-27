@@ -75,8 +75,13 @@ pub(crate) struct Histogram<T: Number> {
 
 impl<T: Number> Histogram<T> {
     pub(crate) fn new(mut bounds: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
-        bounds.retain(|v| !v.is_nan());
-        bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
+        #[cfg(feature = "spec_unstable_metrics_views")]
+        {
+            // TODO: When views are used, validate this upfront
+            bounds.retain(|v| !v.is_nan());
+            bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
+        }
+
         let buckets_count = bounds.len() + 1;
         Histogram {
             value_map: ValueMap::new(buckets_count),
