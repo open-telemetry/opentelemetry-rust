@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 opentelemetry = { version = "0.27", default-features = false, features = [
-    "trace",
+    "trace","internal-logs"
 ], path = "../opentelemetry" }
 
 [dev-dependencies]
