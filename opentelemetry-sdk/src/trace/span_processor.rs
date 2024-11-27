@@ -262,7 +262,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             // emit a warning.
             if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
                 otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
-                    message = "Beginning to drop span messages due to full exporter queue.");
+                    message = "Beginning to drop span messages due to full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
             }
         }
     }
