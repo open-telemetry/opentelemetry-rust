@@ -207,7 +207,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of lost dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 

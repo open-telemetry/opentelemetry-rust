@@ -286,7 +286,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
                 name: "BatchSpanProcessor.Shutdown",
                 dropped_spans = dropped_spans,
                 max_queue_size = max_queue_size,
-                message = "Spans were dropped due to a full or closed queue. The count represents the total count of lost logs in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Spans were dropped due to a full or closed queue. The count represents the total count of span records dropped in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
