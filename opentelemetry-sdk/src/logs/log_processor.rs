@@ -11,9 +11,11 @@ use futures_util::{
 };
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{
+    global, metrics::Counter, otel_debug, otel_error, otel_warn, InstrumentationScope,
+};
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -154,6 +156,11 @@ impl LogProcessor for SimpleLogProcessor {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    // Track dropped logs. We'll log this at shutdown and also emit
+    // as a metric.
+    dropped_logs_count: AtomicUsize,
+    dropped_logs_metric: Counter<u64>,
 }
 
 impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
@@ -172,11 +179,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         )));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
-        if let Err(err) = result {
-            otel_error!(
-                name: "BatchLogProcessor.Export.Error",
-                error = format!("{}", err)
-            );
+        if result.is_err() {
+            // Increment dropped logs counter and metric
+            self.dropped_logs_count.fetch_add(1, Ordering::Relaxed);
+            self.dropped_logs_metric.add(1, &[]);
         }
     }
 
@@ -192,6 +198,15 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
+        if dropped_logs > 0 {
+            otel_warn!(
+                name: "BatchLogProcessor.Shutdown",
+                dropped_logs = dropped_logs,
+                message = "Logs were dropped due to a full buffer."
+            );
+        }
+
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -296,8 +311,18 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 }
             }
         }));
+
+        let dropped_logs_metric = global::meter("opentelemetry")
+            .u64_counter("dropped_logs")
+            .with_description("Number of logs dropped due to full buffer")
+            .build();
+
         // Return batch processor with link to worker
-        BatchLogProcessor { message_sender }
+        BatchLogProcessor {
+            message_sender,
+            dropped_logs_count: AtomicUsize::new(0),
+            dropped_logs_metric,
+        }
     }
 
     /// Create a new batch processor builder
