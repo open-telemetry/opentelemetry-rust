@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use opentelemetry::{
     baggage::{BaggageExt, KeyValueMetadata},
     otel_warn,
@@ -7,10 +6,17 @@ use opentelemetry::{
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
+use std::sync::OnceLock;
 
 static BAGGAGE_HEADER: &str = "baggage";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
-static BAGGAGE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [BAGGAGE_HEADER.to_owned()]);
+
+// TODO Replace this with LazyLock once it is stable.
+static BAGGAGE_FIELDS: OnceLock<[String; 1]> = OnceLock::new();
+#[inline]
+fn baggage_fields() -> &'static [String; 1] {
+    BAGGAGE_FIELDS.get_or_init(|| [BAGGAGE_HEADER.to_owned()])
+}
 
 /// Propagates name-value pairs in [W3C Baggage] format.
 ///
@@ -149,7 +155,7 @@ impl TextMapPropagator for BaggagePropagator {
     }
 
     fn fields(&self) -> FieldIter<'_> {
-        FieldIter::new(BAGGAGE_FIELDS.as_ref())
+        FieldIter::new(baggage_fields())
     }
 }
 

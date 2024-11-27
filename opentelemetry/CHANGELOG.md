@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.27.1
+
+Released 2024-Nov-27
+
 ## 0.27.0
 
 Released 2024-Nov-11

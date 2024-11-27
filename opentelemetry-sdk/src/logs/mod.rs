@@ -13,6 +13,10 @@ pub use log_processor::{
 use opentelemetry::InstrumentationScope;
 pub use record::{LogRecord, TraceContext};
 
+#[deprecated(
+    since = "0.27.1",
+    note = "The struct is not used anywhere in the SDK and will be removed in the next major release."
+)]
 /// `LogData` represents a single log event without resource context.
 #[derive(Clone, Debug)]
 pub struct LogData {
@@ -104,6 +108,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn logger_attributes() {
         let provider = LoggerProvider::builder().build();
         let scope = InstrumentationScope::builder("test_logger")

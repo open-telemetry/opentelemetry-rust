@@ -13,7 +13,7 @@ use futures_util::{
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -45,14 +45,14 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     ///
-    /// This method receives a mutable reference to `LogData`. If the processor
+    /// This method receives a mutable reference to `LogRecord`. If the processor
     /// needs to handle the export asynchronously, it should clone the data to
     /// ensure it can be safely processed without lifetime issues. Any changes
     /// made to the log data in this method will be reflected in the next log
     /// processor in the chain.
     ///
     /// # Parameters
-    /// - `record`: A mutable reference to `LogData` representing the log record.
+    /// - `record`: A mutable reference to `LogRecord` representing the log record.
     /// - `instrumentation`: The instrumentation scope associated with the log record.
     fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
@@ -158,6 +158,12 @@ impl LogProcessor for SimpleLogProcessor {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    // Track dropped logs - we'll log this at shutdown
+    dropped_logs_count: AtomicUsize,
+
+    // Track the maximum queue size that was configured for this processor
+    max_queue_size: usize,
 }
 
 impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
@@ -176,11 +182,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         )));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
-        if let Err(err) = result {
-            otel_error!(
-                name: "BatchLogProcessor.Export.Error",
-                error = format!("{}", err)
-            );
+        if result.is_err() {
+            // Increment dropped logs count. The first time we have to drop a log,
+            // emit a warning.
+            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+            }
         }
     }
 
@@ -196,6 +204,17 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
+        if dropped_logs > 0 {
+            otel_warn!(
+                name: "BatchLogProcessor.LogsDropped",
+                dropped_logs_count = dropped_logs,
+                max_queue_size = max_queue_size,
+                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+            );
+        }
+
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -219,6 +238,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
+        let max_queue_size = config.max_queue_size;
 
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -301,8 +321,13 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                 }
             }
         }));
+
         // Return batch processor with link to worker
-        BatchLogProcessor { message_sender }
+        BatchLogProcessor {
+            message_sender,
+            dropped_logs_count: AtomicUsize::new(0),
+            max_queue_size,
+        }
     }
 
     /// Create a new batch processor builder

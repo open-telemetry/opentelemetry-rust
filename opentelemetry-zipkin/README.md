@@ -30,6 +30,8 @@ of telemetry is intentionally left to other tools.
 [`Zipkin`]: https://zipkin.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
+*[Supported Rust Versions](#supported-rust-versions)*
+
 ## Quickstart
 
 First make sure you have a running version of the zipkin process you want to
