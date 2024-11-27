@@ -32,6 +32,13 @@
         - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 
+  - **Bug Fix:** Validates the `with_boundaries` bucket boundaries used in
+    Histograms. The boundaries provided by the user must not contain `f64::NAN`,
+    `f64::INFINITY` or `f64::NEG_INFINITY` and must be sorted in strictly
+    increasing order, and contain no duplicates. Instruments will not record
+    measurements if the boundaries are invalid.
+    [#2351](https://github.com/open-telemetry/opentelemetry-rust/pull/2351)
+
 ## 0.27.0
 
 Released 2024-Nov-11

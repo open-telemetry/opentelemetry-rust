@@ -178,6 +178,29 @@ mod tests {
             // As instrument name is invalid, no metrics should be exported
             test_context.check_no_metrics();
         }
+
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaires provided via advisory params are invalid, no
+            // metrics should be exported
+            test_context.check_no_metrics();
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
