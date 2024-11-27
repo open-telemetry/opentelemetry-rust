@@ -555,7 +555,7 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
     for boundary in boundaries {
         if boundary.is_nan() || boundary.is_infinite() {
             return Err(MetricError::InvalidInstrumentConfiguration(
-                "Buckets must not contain NaN, +Inf, or -Inf",
+                "Bucket boundaries must not contain NaN, +Inf, or -Inf",
             ));
         }
     }
@@ -564,7 +564,7 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
     for i in 1..boundaries.len() {
         if boundaries[i] <= boundaries[i - 1] {
             return Err(MetricError::InvalidInstrumentConfiguration(
-                "Buckets must be sorted and non-duplicate",
+                "Bucket boundaries must be sorted and non-duplicate",
             ));
         }
     }
