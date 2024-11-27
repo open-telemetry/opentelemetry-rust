@@ -12,4 +12,4 @@ opentelemetry-stdout = { path = "../../opentelemetry-stdout"}
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter","registry", "std"]}
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"]}
