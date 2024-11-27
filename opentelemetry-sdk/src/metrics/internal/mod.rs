@@ -16,7 +16,6 @@ use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
-use std::sync::OnceLock;
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
