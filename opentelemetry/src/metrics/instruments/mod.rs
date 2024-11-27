@@ -99,6 +99,14 @@ impl<'a, T> HistogramBuilder<'a, T> {
     ///
     /// If invalid boundaries are provided, the instrument will not report
     /// measurements.
+    /// Providing an empty `vec![]` means no bucket information will be
+    /// calculated.
+    ///
+    /// # Warning
+    /// Using more buckets can improve the accuracy of percentile calculations in backends.
+    /// However, this comes at a cost, including increased memory, CPU, and network usage.
+    /// Choose the number of buckets carefully, considering your application's performance
+    /// and resource requirements.
     pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
         self.boundaries = Some(boundaries);
         self
