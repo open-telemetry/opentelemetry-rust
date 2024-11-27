@@ -45,12 +45,15 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::{otel_debug, otel_error};
+use opentelemetry::global::{self};
+use opentelemetry::metrics::Counter;
+use opentelemetry::{otel_debug, otel_error, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
 use std::cmp::min;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
@@ -227,6 +230,11 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    // Track dropped spans. We'll log this at shutdown and also emit
+    // as a metric.
+    dropped_spans_count: AtomicUsize,
+    dropped_spans_metric: Counter<u64>,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -249,11 +257,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
-        if let Err(err) = result {
-            otel_debug!(
-                name: "BatchSpanProcessor.OnEnd.ExportQueueingFailed",
-                reason = format!("{:?}", TraceError::Other(err.into()))
-            );
+        // If the queue is full, and we can't buffer a span
+        if result.is_err() {
+            // Increment the number of dropped spans and the corresponding metric
+            self.dropped_spans_metric.add(1, &[]);
+            self.dropped_spans_count.fetch_add(1, Ordering::Relaxed);
         }
     }
 
@@ -269,6 +277,15 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
+        let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
+        if dropped_spans > 0 {
+            otel_warn!(
+                name: "BatchSpanProcessor.Shutdown",
+                dropped_spans = dropped_spans,
+                message = "Spans were dropped due to a full buffer."
+            );
+        }
+
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -492,8 +509,17 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             processor.run(messages).await
         }));
 
+        let dropped_spans_metric = global::meter("opentelemetry")
+            .u64_counter("dropped_spans")
+            .with_description("Number of spans dropped due to full buffer")
+            .build();
+
         // Return batch processor with link to worker
-        BatchSpanProcessor { message_sender }
+        BatchSpanProcessor {
+            message_sender,
+            dropped_spans_count: AtomicUsize::new(0),
+            dropped_spans_metric,
+        }
     }
 
     /// Create a new batch processor builder
