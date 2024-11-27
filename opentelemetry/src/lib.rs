@@ -7,7 +7,6 @@
 //!
 //! # Getting Started with Traces
 //!
-//!
 //! The [`trace`] module includes types for tracking the progression of a single
 //! request while it is handled by services that make up an application. A trace
 //! is a tree of [`Span`]s which are objects that represent the work being done
