@@ -156,7 +156,6 @@ pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
     // Track dropped logs. We'll log this at shutdown and also emit
-    // as a metric.
     dropped_logs_count: AtomicUsize,
 
     // Track the maximum queue size that was configured for this processor
@@ -180,11 +179,11 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
-            // Increment dropped logs counter and metric. The first time we have top drop a log,
+            // Increment dropped logs count. The first time we have to drop a log,
             // emit a warning.
             if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
                 otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                    message = "Beginning to drop log messages due to full exporter queue.");
+                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
             }
         }
     }
@@ -208,7 +207,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a full or closed queue. The count represents the total count of lost logs in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of lost dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
