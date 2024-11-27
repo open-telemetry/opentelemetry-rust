@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
@@ -57,9 +57,10 @@ where
     /// Trackers store the values associated with different attribute sets.
     trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
 
-    /// Used by collect exclusively. The data type must match the one used in
-    /// `trackers` to allow mem::swap.
-    trackers_for_collect: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
+    /// Used ONLY by Delta collect. The data type must match the one used in
+    /// `trackers` to allow mem::swap. Wrapping the type in `OnceLock` to
+    /// avoid this allocation for Cumulative aggregation.
+    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<A>>>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
@@ -78,14 +79,18 @@ where
     fn new(config: A::InitConfig) -> Self {
         ValueMap {
             trackers: RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)),
-            // TODO: For cumulative, this is not required, so avoid this
-            // pre-allocation.
-            trackers_for_collect: RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)),
+            trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
             config,
         }
+    }
+
+    #[inline]
+    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
+        self.trackers_for_collect
+            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)))
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
@@ -183,7 +188,7 @@ where
             ));
         }
 
-        if let Ok(mut trackers_collect) = self.trackers_for_collect.write() {
+        if let Ok(mut trackers_collect) = self.trackers_for_collect().write() {
             if let Ok(mut trackers_current) = self.trackers.write() {
                 swap(trackers_collect.deref_mut(), trackers_current.deref_mut());
                 self.count.store(0, Ordering::SeqCst);
