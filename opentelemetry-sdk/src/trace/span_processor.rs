@@ -45,8 +45,6 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::global::{self};
-use opentelemetry::metrics::Counter;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
@@ -231,10 +229,11 @@ impl SpanProcessor for SimpleSpanProcessor {
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
-    // Track dropped spans. We'll log this at shutdown and also emit
-    // as a metric.
+    // Track dropped spans
     dropped_spans_count: AtomicUsize,
-    dropped_spans_metric: Counter<u64>,
+
+    // Track the maximum queue size that was configured for this processor
+    max_queue_size: usize,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -259,9 +258,12 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         // If the queue is full, and we can't buffer a span
         if result.is_err() {
-            // Increment the number of dropped spans and the corresponding metric
-            self.dropped_spans_metric.add(1, &[]);
-            self.dropped_spans_count.fetch_add(1, Ordering::Relaxed);
+            // Increment the number of dropped spans. If this is the first time we've had to drop,
+            // emit a warning.
+            if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
+                    message = "Beginning to drop span messages due to full exporter queue.");
+            }
         }
     }
 
@@ -278,11 +280,13 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
     fn shutdown(&self) -> TraceResult<()> {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
             otel_warn!(
                 name: "BatchSpanProcessor.Shutdown",
                 dropped_spans = dropped_spans,
-                message = "Spans were dropped due to a full buffer."
+                max_queue_size = max_queue_size,
+                message = "Spans were dropped due to a full or closed queue. The count represents the total count of lost logs in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
@@ -486,6 +490,8 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
 
+        let max_queue_size = config.max_queue_size;
+
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -509,16 +515,11 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             processor.run(messages).await
         }));
 
-        let dropped_spans_metric = global::meter("opentelemetry")
-            .u64_counter("dropped_spans")
-            .with_description("Number of spans dropped due to full buffer")
-            .build();
-
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender,
             dropped_spans_count: AtomicUsize::new(0),
-            dropped_spans_metric,
+            max_queue_size,
         }
     }
 

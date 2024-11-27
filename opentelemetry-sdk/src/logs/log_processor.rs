@@ -11,9 +11,7 @@ use futures_util::{
 };
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{
-    global, metrics::Counter, otel_debug, otel_error, otel_warn, InstrumentationScope,
-};
+use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
@@ -160,7 +158,9 @@ pub struct BatchLogProcessor<R: RuntimeChannel> {
     // Track dropped logs. We'll log this at shutdown and also emit
     // as a metric.
     dropped_logs_count: AtomicUsize,
-    dropped_logs_metric: Counter<u64>,
+
+    // Track the maximum queue size that was configured for this processor
+    max_queue_size: usize,
 }
 
 impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
@@ -180,9 +180,12 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
-            // Increment dropped logs counter and metric
-            self.dropped_logs_count.fetch_add(1, Ordering::Relaxed);
-            self.dropped_logs_metric.add(1, &[]);
+            // Increment dropped logs counter and metric. The first time we have top drop a log,
+            // emit a warning.
+            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                    message = "Beginning to drop log messages due to full exporter queue.");
+            }
         }
     }
 
@@ -199,11 +202,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
 
     fn shutdown(&self) -> LogResult<()> {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
             otel_warn!(
-                name: "BatchLogProcessor.Shutdown",
-                dropped_logs = dropped_logs,
-                message = "Logs were dropped due to a full buffer."
+                name: "BatchLogProcessor.LogsDropped",
+                dropped_logs_count = dropped_logs,
+                max_queue_size = max_queue_size,
+                message = "Logs were dropped due to a full or closed queue. The count represents the total count of lost logs in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
@@ -230,6 +235,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
+        let max_queue_size = config.max_queue_size;
 
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -312,16 +318,11 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
             }
         }));
 
-        let dropped_logs_metric = global::meter("opentelemetry")
-            .u64_counter("dropped_logs")
-            .with_description("Number of logs dropped due to full buffer")
-            .build();
-
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
             dropped_logs_count: AtomicUsize::new(0),
-            dropped_logs_metric,
+            max_queue_size,
         }
     }
 
