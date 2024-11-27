@@ -74,6 +74,7 @@ pub(crate) struct Histogram<T: Number> {
 }
 
 impl<T: Number> Histogram<T> {
+    #[allow(unused_mut)]
     pub(crate) fn new(mut bounds: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
         #[cfg(feature = "spec_unstable_metrics_views")]
         {
