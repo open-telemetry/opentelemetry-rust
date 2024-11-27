@@ -398,8 +398,13 @@ impl Builder {
         // For the uncommon case where there are multiple tracer providers with different resource
         // configurations, users can optionally provide their own borrowed static resource.
         if matches!(config.resource, Cow::Owned(_)) {
-            let owned_resource = config.resource.clone().into_owned();
-            config.resource = Cow::Borrowed(PROVIDER_RESOURCE.get_or_init(|| owned_resource));
+            config.resource =
+                match PROVIDER_RESOURCE.get_or_init(|| config.resource.clone().into_owned()) {
+                    static_resource if *static_resource == *config.resource.as_ref() => {
+                        Cow::Borrowed(static_resource)
+                    }
+                    _ => config.resource, // Use the new resource if different
+                };
         }
 
         // Create a new vector to hold the modified processors
