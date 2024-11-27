@@ -179,24 +179,26 @@ mod tests {
             test_context.check_no_metrics();
         }
 
-        let invalid_buckets = vec![
-            vec![],                        // empty buckets
-            vec![1.0, 1.0],                // duplicate buckets
-            vec![1.0, 2.0, 3.0, 2.0],      // duplicate non consequent buckets
-            vec![1.0, 2.0, 3.0, 4.0, 2.5], // unsorted buckets
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with NaNs
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with NaNs
         ];
-        for buckets in invalid_buckets {
+        for bucket_boundaries in invalid_bucket_boundaries {
             let test_context = TestContext::new(Temporality::Cumulative);
             let histogram = test_context
                 .meter()
                 .f64_histogram("test")
-                .with_boundaries(buckets)
+                .with_boundaries(bucket_boundaries)
                 .build();
             histogram.record(1.9, &[]);
             test_context.flush_metrics();
 
-            // As buckets via Advisory params are invalid, no metrics should be
-            // exported
+            // As bucket boundaires via Advisory params are invalid, no metrics
+            // should be exported
             test_context.check_no_metrics();
         }
     }
