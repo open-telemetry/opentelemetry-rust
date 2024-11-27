@@ -160,7 +160,7 @@
 //! * `logs`: Includes the logs bridge API.
 //! * `internal-logs`: Includes internal logging for the OpenTelemetry library via `tracing`.
 //!
-//! The default feature flags are ["trace", "metrics", "logs", "internal-loggs"].
+//! The default feature flags are ["trace", "metrics", "logs", "internal-logs"].
 //!
 //! The following feature flags provides additional configuration for `logs`:
 //! * `spec_unstable_logs_enabled`: Allow users to control the log level
