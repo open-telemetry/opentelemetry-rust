@@ -59,11 +59,19 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
+            otel_debug!(
+                name: "LoggerProvider.NoOpLoggerReturned",
+                logger_name = scope.name(),
+            );
             return Logger::new(scope, noop_logger_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
         };
+        otel_debug!(
+            name: "LoggerProvider.NewLoggerReturned",
+            logger_name = scope.name(),
+        );
         Logger::new(scope, self.clone())
     }
 }
@@ -92,6 +100,9 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
+        otel_debug!(
+            name: "LoggerProvider.ShutdownInvokedByUser",
+        );
         if self
             .inner
             .is_shutdown
@@ -224,6 +235,10 @@ impl Builder {
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }
+
+        otel_debug!(
+            name: "LoggerProvider.Built",
+        );
         logger_provider
     }
 }
