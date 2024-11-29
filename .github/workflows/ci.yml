@@ -8,6 +8,9 @@ on:
     - main
     paths-ignore:
     - '**.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     strategy:
@@ -24,6 +27,7 @@ jobs:
           - rust: stable
             os: actuated-arm64-4cpu-16gb
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.rust == 'beta' }}
     steps:
     - name: Free disk space
       if: ${{ matrix.os == 'ubuntu-latest'}}

@@ -4,7 +4,6 @@ env:
 on:
   pull_request:
     types: [ labeled, synchronize, opened, reopened ]
-
 jobs:
   semver-compliance: # This job uses the latest published crate as baseline for comparison.
     runs-on: ubuntu-latest

@@ -17,13 +17,16 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.70+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ## Project Status
+
+The table below summarizes the overall status of each component. Some components
+include unstable features, which are documented in their respective crate
+documentation.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
@@ -32,8 +35,8 @@ observability tools.
 | Logs-OTLP Exporter    | Beta               |
 | Logs-Appender-Tracing | Beta               |
 | Metrics-API           | RC                 |
-| Metrics-SDK           | Beta              |
-| Metrics-OTLP Exporter | Beta              |
+| Metrics-SDK           | Beta               |
+| Metrics-OTLP Exporter | Beta               |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
 | Traces-OTLP Exporter  | Beta               |
