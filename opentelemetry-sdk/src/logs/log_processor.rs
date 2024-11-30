@@ -77,13 +77,13 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// debugging and testing. For scenarios requiring higher
 /// performance/throughput, consider using [BatchLogProcessor].
 #[derive(Debug)]
-pub struct SimpleLogProcessor {
-    exporter: Mutex<Box<dyn LogExporter>>,
+pub struct SimpleLogProcessor<T: LogExporter> {
+    exporter: Mutex<T>,
     is_shutdown: AtomicBool,
 }
 
-impl SimpleLogProcessor {
-    pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
+impl<T: LogExporter> SimpleLogProcessor<T> {
+    pub(crate) fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -91,7 +91,7 @@ impl SimpleLogProcessor {
     }
 }
 
-impl LogProcessor for SimpleLogProcessor {
+impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
@@ -152,11 +152,12 @@ impl LogProcessor for SimpleLogProcessor {
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
 /// them at a pre-configured interval.
-pub struct BatchLogProcessor<R: RuntimeChannel> {
+pub struct BatchLogProcessor<T: LogExporter, R: RuntimeChannel> {
+    exporter: Mutex<T>,
     message_sender: R::Sender<BatchMessage>,
 }
 
-impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
+impl<T: LogExporter, R: RuntimeChannel> Debug for BatchLogProcessor<T, R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("BatchLogProcessor")
             .field("message_sender", &self.message_sender)
@@ -164,7 +165,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
     }
 }
 
-impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
+impl<T: LogExporter, R: RuntimeChannel> LogProcessor for BatchLogProcessor<T, R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
@@ -210,10 +211,11 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
     }
 }
 
-impl<R: RuntimeChannel> BatchLogProcessor<R> {
-    pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig, runtime: R) -> Self {
+impl<T: LogExporter, R: RuntimeChannel> BatchLogProcessor<T, R> {
+    pub(crate) fn new(exporter: T, config: BatchConfig, runtime: R) -> Self {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
+        let exporter = Arc::new(Mutex::new(exporter));
         let inner_runtime = runtime.clone();
 
         // Spawn worker process via user-defined spawn function.
@@ -234,9 +236,10 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     BatchMessage::ExportLog(log) => {
                         logs.push(log);
                         if logs.len() == config.max_export_batch_size {
+                            let mut locked_exporter = exporter.lock().unwrap(); // Get the MutexGuard
                             let result = export_with_timeout(
                                 config.max_export_timeout,
-                                exporter.as_mut(),
+                                &mut *locked_exporter,
                                 &timeout_runtime,
                                 logs.split_off(0),
                             )
@@ -252,9 +255,10 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // Log batch interval time reached or a force flush has been invoked, export current spans.
                     BatchMessage::Flush(res_channel) => {
+                        let mut locked_exporter = exporter.lock().unwrap(); // Get the MutexGuard
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            exporter.as_mut(),
+                            &mut *locked_exporter,
                             &timeout_runtime,
                             logs.split_off(0),
                         )
@@ -271,15 +275,16 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
                     BatchMessage::Shutdown(ch) => {
+                        let mut locked_exporter = exporter.lock().unwrap();
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            exporter.as_mut(),
+                            &mut *locked_exporter,
                             &timeout_runtime,
                             logs.split_off(0),
                         )
                         .await;
 
-                        exporter.shutdown();
+                        locked_exporter.shutdown();
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -291,7 +296,8 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
-                        exporter.set_resource(&resource);
+                        let mut locked_exporter = exporter.lock().unwrap();
+                        locked_exporter.set_resource(&resource);
                     }
                 }
             }

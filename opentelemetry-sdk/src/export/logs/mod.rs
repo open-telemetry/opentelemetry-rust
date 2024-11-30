@@ -2,7 +2,6 @@
 use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
-use async_trait::async_trait;
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
@@ -63,7 +62,6 @@ impl LogBatch<'_> {
 }
 
 /// `LogExporter` defines the interface that log exporters should implement.
-#[async_trait]
 pub trait LogExporter: Send + Sync + Debug {
     /// Exports a batch of log records and their associated instrumentation scopes.
     ///
@@ -82,7 +80,10 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
+    fn export<'a>(
+        &mut self,
+        batch: LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "spec_unstable_logs_enabled")]
