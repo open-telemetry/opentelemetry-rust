@@ -95,8 +95,8 @@ impl<T: Number> Sum<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| DataPoint {
                 attributes,
-                start_time: Some(prev_start),
-                time: Some(t),
+                start_time: prev_start,
+                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
@@ -132,8 +132,8 @@ impl<T: Number> Sum<T> {
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
                 attributes,
-                start_time: Some(prev_start),
-                time: Some(t),
+                start_time: prev_start,
+                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
