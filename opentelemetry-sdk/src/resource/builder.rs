@@ -5,23 +5,25 @@ use opentelemetry::{KeyValue, Value};
 use super::{Resource, ResourceDetector, SERVICE_NAME};
 
 /// Builder to allow easy composition of a Resource
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ResourceBuilder {
     resource: Resource,
 }
 
-impl ResourceBuilder {
-    /// Create ResourceBuilder with an empty [Resource].
-    pub fn new_empty() -> Self {
-        ResourceBuilder {
-            resource: Resource::empty(),
-        }
-    }
-
-    /// Create ResourceBuilder with a default [Resource].
-    pub fn new_default() -> Self {
+impl Default for ResourceBuilder {
+    /// Create ResourceBuilder with [Resource::default()].
+    fn default() -> Self {
         ResourceBuilder {
             resource: Resource::default(),
+        }
+    }
+}
+
+impl ResourceBuilder {
+    /// Create ResourceBuilder with [Resource::empty()].
+    pub fn new() -> Self {
+        ResourceBuilder {
+            resource: Resource::empty(),
         }
     }
 
