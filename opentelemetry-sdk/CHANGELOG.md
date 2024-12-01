@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add `ResourceBuilder` for an easy way to create new `Resource`s
+
 ## 0.27.1
 
 Released 2024-Nov-27
