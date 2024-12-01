@@ -7,7 +7,7 @@ use crate::metrics::data::{self, Aggregation, DataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::{Aggregator, AtomicTracker, Number};
+use super::{Aggregator, AtomicTracker, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
@@ -48,6 +48,12 @@ pub(crate) struct Sum<T: Number> {
     start: Mutex<SystemTime>,
 }
 
+impl<T: Number> Measure<T> for Sum<T> {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        self.value_map.measure(measurement, attrs);
+    }
+}
+
 impl<T: Number> Sum<T> {
     /// Returns an aggregator that summarizes a set of measurements as their
     /// arithmetic sum.
@@ -60,11 +66,6 @@ impl<T: Number> Sum<T> {
             monotonic,
             start: Mutex::new(SystemTime::now()),
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to Sum.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(

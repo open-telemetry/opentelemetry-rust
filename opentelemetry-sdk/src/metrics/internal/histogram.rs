@@ -7,8 +7,8 @@ use crate::metrics::data::{self, Aggregation};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::ValueMap;
 use super::{Aggregator, Number};
+use super::{Measure, ValueMap};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -73,6 +73,20 @@ pub(crate) struct Histogram<T: Number> {
     start: Mutex<SystemTime>,
 }
 
+impl<T: Number> Measure<T> for Histogram<T> {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let f = measurement.into_float();
+        // This search will return an index in the range `[0, bounds.len()]`, where
+        // it will return `bounds.len()` if value is greater than the last element
+        // of `bounds`. This aligns with the buckets in that the length of buckets
+        // is `bounds.len()+1`, with the last bucket representing:
+        // `(bounds[bounds.len()-1], +∞)`.
+        let index = self.bounds.partition_point(|&x| x < f);
+
+        self.value_map.measure((measurement, index), attrs);
+    }
+}
+
 impl<T: Number> Histogram<T> {
     #[allow(unused_mut)]
     pub(crate) fn new(mut bounds: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
@@ -91,18 +105,6 @@ impl<T: Number> Histogram<T> {
             record_sum,
             start: Mutex::new(SystemTime::now()),
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        let f = measurement.into_float();
-        // This search will return an index in the range `[0, bounds.len()]`, where
-        // it will return `bounds.len()` if value is greater than the last element
-        // of `bounds`. This aligns with the buckets in that the length of buckets
-        // is `bounds.len()+1`, with the last bucket representing:
-        // `(bounds[bounds.len()-1], +∞)`.
-        let index = self.bounds.partition_point(|&x| x < f);
-
-        self.value_map.measure((measurement, index), attrs);
     }
 
     pub(crate) fn delta(

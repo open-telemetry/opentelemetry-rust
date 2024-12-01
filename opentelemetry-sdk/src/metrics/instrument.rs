@@ -285,7 +285,7 @@ pub(crate) struct ResolvedMeasures<T> {
 impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
     fn measure(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(val, attrs)
+            measure.measure(val, attrs)
         }
     }
 }
@@ -304,7 +304,7 @@ impl<T> Observable<T> {
 impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
     fn observe(&self, measurement: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
-            measure.call(measurement, attrs)
+            measure.measure(measurement, attrs)
         }
     }
 }

@@ -3,6 +3,7 @@ use opentelemetry::KeyValue;
 use crate::metrics::data::{self, Aggregation, DataPoint};
 use crate::metrics::Temporality;
 
+use super::Measure;
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use std::{collections::HashMap, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
 
@@ -14,6 +15,12 @@ pub(crate) struct PrecomputedSum<T: Number> {
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
+impl<T: Number> Measure<T> for PrecomputedSum<T> {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        self.value_map.measure(measurement, attrs);
+    }
+}
+
 impl<T: Number> PrecomputedSum<T> {
     pub(crate) fn new(monotonic: bool) -> Self {
         PrecomputedSum {
@@ -22,11 +29,6 @@ impl<T: Number> PrecomputedSum<T> {
             start: Mutex::new(SystemTime::now()),
             reported: Mutex::new(Default::default()),
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to PrecomputedSum.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
