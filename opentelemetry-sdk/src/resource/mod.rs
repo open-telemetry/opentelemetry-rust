@@ -70,14 +70,14 @@ impl Resource {
     ///
     /// Starts with a [Resource::empty()].
     pub fn builder() -> ResourceBuilder {
-        ResourceBuilder::new_empty()
+        ResourceBuilder::new()
     }
 
     /// Creates a Builder that allows you to configure multiple aspects of the Resource.
     ///
     /// Starts with a [Resource::default()].
     pub fn builder_default() -> ResourceBuilder {
-        ResourceBuilder::new_default()
+        ResourceBuilder::default()
     }
 
     /// Creates an empty resource.
