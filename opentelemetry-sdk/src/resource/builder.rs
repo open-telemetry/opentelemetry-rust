@@ -86,6 +86,7 @@ mod tests {
             || {
                 let resource = Resource::builder()
                     .with_detector(Box::new(EnvResourceDetector::new()))
+                    .with_service_name("my_test_service_name")
                     .with_key_value(KeyValue::new("test1", "test_value"))
                     .with_key_values(vec![
                         KeyValue::new("test1", "test_value1"),
@@ -97,6 +98,7 @@ mod tests {
                     resource,
                     Resource::new(vec![
                         KeyValue::new("key", "value"),
+                        KeyValue::new(SERVICE_NAME, "my_test_service_name"),
                         KeyValue::new("test1", "test_value1"),
                         KeyValue::new("test2", "test_value2"),
                         KeyValue::new("k", "v"),
