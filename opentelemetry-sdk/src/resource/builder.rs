@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use opentelemetry::{KeyValue, Value};
+use opentelemetry::KeyValue;
 
-use super::{Resource, ResourceDetector, SERVICE_NAME};
+use super::{Resource, ResourceDetector};
 
 /// Builder to allow easy composition of a Resource
 #[derive(Debug)]
@@ -45,14 +45,6 @@ impl ResourceBuilder {
         self.with_key_values(vec![kv])
     }
 
-    /// Add an [Attribute] to your resource for "service.name"
-    pub fn with_service_name<V>(self, service_name: V) -> Self
-    where
-        V: Into<Value>,
-    {
-        self.with_key_value(KeyValue::new(SERVICE_NAME, service_name))
-    }
-
     /// Add multiple [KeyValue]s to the resource.
     pub fn with_key_values<T: IntoIterator<Item = KeyValue>>(mut self, kvs: T) -> Self {
         self.resource = self.resource.merge(&Resource::new(kvs));
@@ -86,7 +78,6 @@ mod tests {
             || {
                 let resource = Resource::builder()
                     .with_detector(Box::new(EnvResourceDetector::new()))
-                    .with_service_name("my_test_service_name")
                     .with_key_value(KeyValue::new("test1", "test_value"))
                     .with_key_values(vec![
                         KeyValue::new("test1", "test_value1"),
@@ -98,7 +89,6 @@ mod tests {
                     resource,
                     Resource::new(vec![
                         KeyValue::new("key", "value"),
-                        KeyValue::new(SERVICE_NAME, "my_test_service_name"),
                         KeyValue::new("test1", "test_value1"),
                         KeyValue::new("test2", "test_value2"),
                         KeyValue::new("k", "v"),
