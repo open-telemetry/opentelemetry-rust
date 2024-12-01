@@ -5,6 +5,7 @@ use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
+use std::sync::{Arc, Mutex};
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
@@ -29,30 +30,39 @@ impl fmt::Debug for LogExporter {
     }
 }
 
-#[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            return Err("exporter is shut down".into());
-        } else {
-            println!("Logs");
-            if self.resource_emitted {
-                print_logs(batch);
+    fn export(
+        &mut self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        let is_shutdown = self.is_shutdown.load(atomic::Ordering::SeqCst);
+        let resource_emitted_arc = Arc::new(Mutex::new(self.resource_emitted));
+        let resource_emitted_arc_clone = Arc::clone(&resource_emitted_arc);
+        let resource = self.resource.clone();
+        async move {
+            if is_shutdown {
+                Err("exporter is shut down".into())
             } else {
-                self.resource_emitted = true;
-                println!("Resource");
-                if let Some(schema_url) = self.resource.schema_url() {
-                    println!("\t Resource SchemaUrl: {:?}", schema_url);
+                println!("Logs");
+                let mut resource_emitted_guard = resource_emitted_arc_clone.lock().unwrap();
+                if *resource_emitted_guard {
+                    print_logs(batch);
+                } else {
+                    println!("Resource");
+                    if let Some(schema_url) = resource.schema_url() {
+                        println!("\t Resource SchemaUrl: {:?}", schema_url);
+                    }
+                    resource.iter().for_each(|(k, v)| {
+                        println!("\t ->  {}={:?}", k, v);
+                    });
+
+                    print_logs(batch);
+                    *resource_emitted_guard = true;
                 }
-                self.resource.iter().for_each(|(k, v)| {
-                    println!("\t ->  {}={:?}", k, v);
-                });
 
-                print_logs(batch);
+                Ok(())
             }
-
-            Ok(())
         }
     }
 

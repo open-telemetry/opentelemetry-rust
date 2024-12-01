@@ -552,7 +552,6 @@ mod tests {
         testing::logs::InMemoryLogExporter,
         Resource,
     };
-    use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
@@ -567,12 +566,11 @@ mod tests {
         resource: Arc<Mutex<Option<Resource>>>,
     }
 
-    #[async_trait]
     impl LogExporter for MockLogExporter {
         fn export(
             &mut self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send + '_ {
             async { Ok(()) }
         }
 
@@ -1071,12 +1069,11 @@ mod tests {
             batch: LogBatch<'_>,
         ) -> impl std::future::Future<Output = LogResult<()>> + Send {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
-            let export_count = Arc::clone(&self.export_count);
             async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;
 
                 for _ in batch.iter() {
-                    export_count.fetch_add(1, Ordering::Acquire);
+                    self.export_count.fetch_add(1, Ordering::Acquire);
                 }
                 Ok(())
             }
