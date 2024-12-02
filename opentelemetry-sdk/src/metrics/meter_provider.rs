@@ -256,7 +256,6 @@ impl MeterProviderBuilder {
     }
 
     /// Construct a new [MeterProvider] with this configuration.
-
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
             name: "MeterProvider.Building",

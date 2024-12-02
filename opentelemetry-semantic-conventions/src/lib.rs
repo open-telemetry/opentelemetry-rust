@@ -14,6 +14,8 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
+//TODO - remove once there are no empty lines after doc comments in the templates.
+#![allow(clippy::empty_line_after_doc_comments)]
 
 pub mod attribute;
 pub mod metric;

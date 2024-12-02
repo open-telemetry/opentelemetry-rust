@@ -113,7 +113,7 @@ impl<'a, T> HistogramBuilder<'a, T> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, Histogram<f64>> {
+impl HistogramBuilder<'_, Histogram<f64>> {
     /// Creates a new instrument.
     ///
     /// Validates the instrument configuration and creates a new instrument. In
@@ -124,7 +124,7 @@ impl<'a> HistogramBuilder<'a, Histogram<f64>> {
     }
 }
 
-impl<'a> HistogramBuilder<'a, Histogram<u64>> {
+impl HistogramBuilder<'_, Histogram<u64>> {
     /// Creates a new instrument.
     ///
     /// Validates the instrument configuration and creates a new instrument. In
