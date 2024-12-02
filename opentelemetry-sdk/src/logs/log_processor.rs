@@ -1229,7 +1229,6 @@ mod tests {
         let exporter = LogExporterThatRequiresTokio::new();
 
         let processor = SimpleLogProcessor::new(exporter.clone());
-        
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
