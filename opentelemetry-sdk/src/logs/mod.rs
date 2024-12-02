@@ -49,7 +49,7 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_resource(resource.clone())
-            .with_log_processor(SimpleLogProcessor::new(Box::new(exporter.clone())))
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
             .build();
 
         // Act
