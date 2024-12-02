@@ -81,9 +81,10 @@ pub trait LogExporter: Send + Sync + Debug {
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
     fn export<'a>(
-        &mut self,
-        batch: LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send;
+        &'a mut self,
+        batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a;
+
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "spec_unstable_logs_enabled")]

@@ -32,33 +32,27 @@ impl fmt::Debug for LogExporter {
 
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    fn export(
-        &mut self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
-        let is_shutdown = self.is_shutdown.load(atomic::Ordering::SeqCst);
-        let resource_emitted_arc = Arc::new(Mutex::new(self.resource_emitted));
-        let resource_emitted_arc_clone = Arc::clone(&resource_emitted_arc);
-        let resource = self.resource.clone();
+    fn export<'a>(
+        &'a mut self,
+        batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
         async move {
-            if is_shutdown {
-                Err("exporter is shut down".into())
+            if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+                return Err("exporter is shut down".into());
             } else {
                 println!("Logs");
-                let mut resource_emitted_guard = resource_emitted_arc_clone.lock().unwrap();
-                if *resource_emitted_guard {
+                if self.resource_emitted {
                     print_logs(batch);
                 } else {
+                    self.resource_emitted = true;
                     println!("Resource");
-                    if let Some(schema_url) = resource.schema_url() {
+                    if let Some(schema_url) = self.resource.schema_url() {
                         println!("\t Resource SchemaUrl: {:?}", schema_url);
                     }
-                    resource.iter().for_each(|(k, v)| {
+                    self.resource.iter().for_each(|(k, v)| {
                         println!("\t ->  {}={:?}", k, v);
                     });
-
                     print_logs(batch);
-                    *resource_emitted_guard = true;
                 }
 
                 Ok(())
@@ -75,7 +69,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-fn print_logs(batch: LogBatch<'_>) {
+fn print_logs(batch: &LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;

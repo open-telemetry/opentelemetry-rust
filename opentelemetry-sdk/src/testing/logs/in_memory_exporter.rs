@@ -182,10 +182,10 @@ impl InMemoryLogExporter {
 }
 
 impl LogExporter for InMemoryLogExporter {
-    fn export(
-        &mut self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    fn export<'a>(
+        &'a mut self,
+        batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
         async move {
             let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
             for (log_record, instrumentation) in batch.iter() {

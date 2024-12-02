@@ -108,7 +108,8 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
             .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
             .and_then(|mut exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
-                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
+                let log_batch = LogBatch::new(log_tuple);
+                futures_executor::block_on(exporter.export(&log_batch))
             });
         // Handle errors with specific static names
         match result {
@@ -217,7 +218,6 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
     {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
-        //let exporter = Arc::new(Mutex::new(exporter));
         let inner_runtime = runtime.clone();
 
         // Spawn worker process via user-defined spawn function.
@@ -340,7 +340,8 @@ where
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
-    let export = exporter.export(LogBatch::new(log_vec.as_slice()));
+    let log_batch = LogBatch::new(log_vec.as_slice());
+    let export = exporter.export(&log_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -567,10 +568,10 @@ mod tests {
     }
 
     impl LogExporter for MockLogExporter {
-        fn export(
-            &mut self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send + '_ {
+        fn export<'a>(
+            &'a mut self,
+            _batch: &'a LogBatch<'a>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
             async { Ok(()) }
         }
 
@@ -1064,10 +1065,10 @@ mod tests {
     }
 
     impl LogExporter for LogExporterThatRequiresTokio {
-        fn export(
-            &mut self,
-            batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        fn export<'a>(
+            &'a mut self,
+            batch: &'a LogBatch<'a>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
             async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;
