@@ -626,10 +626,8 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available. The collection name MAY be parsed from the query text, in which case it SHOULD be the first collection name in the query.
-
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available. The operation name MAY be parsed from the query text, in which case it SHOULD be the first operation name found in the query.
-
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::DB_SYSTEM`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
