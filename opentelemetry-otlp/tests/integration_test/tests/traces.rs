@@ -8,6 +8,8 @@ use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_otlp::SpanExporter;
+
 use opentelemetry_proto::tonic::trace::v1::TracesData;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
@@ -16,9 +18,19 @@ use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    let exporter = opentelemetry_otlp::SpanExporter::builder()
-        .with_tonic()
-        .build()?;
+    let exporter_builder = SpanExporter::builder();
+    #[cfg(feature = "tonic-client")]
+    let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(not(feature = "tonic-client"))]
+    #[cfg(any(
+        feature = "hyper-client",
+        feature = "reqwest-client",
+        feature = "reqwest-blocking-client"
+    ))]
+    let exporter_builder = exporter_builder.with_http();
+
+    let exporter = exporter_builder.build()?;
+
     Ok(opentelemetry_sdk::trace::TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(Resource::new(vec![KeyValue::new(
