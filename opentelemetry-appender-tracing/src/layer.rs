@@ -247,11 +247,16 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
-        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
-            // This will cause a deadlock as the export itself creates a log
-            // while still within the lock of the SimpleLogProcessor.
-            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-            Ok(())
+        fn export<'a>(
+            &'a mut self,
+            _batch: &'a LogBatch<'a>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+            async {
+                // This will cause a deadlock as the export itself creates a log
+                // while still within the lock of the SimpleLogProcessor.
+                warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+                Ok(())
+            }
         }
     }
 
