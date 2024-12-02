@@ -394,6 +394,23 @@ impl SdkMeter {
             return Histogram::new(Arc::new(NoopSyncInstrument::new()));
         }
 
+        if let Some(ref boundaries) = builder.boundaries {
+            let validation_result = validate_bucket_boundaries(boundaries);
+            if let Err(err) = validation_result {
+                // TODO: Include the buckets too in the error message.
+                // TODO: This validation is not done when Views are used to
+                // provide boundaries, and that should be fixed.
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Measurements from this Histogram will be ignored.",
+                    reason = format!("{}", err)
+                );
+                return Histogram::new(Arc::new(NoopSyncInstrument::new()));
+            }
+        }
+
         match resolver
             .lookup(
                 InstrumentKind::Histogram,
@@ -531,6 +548,28 @@ impl InstrumentProvider for SdkMeter {
 
 fn validate_instrument_config(name: &str, unit: &Option<Cow<'static, str>>) -> MetricResult<()> {
     validate_instrument_name(name).and_then(|_| validate_instrument_unit(unit))
+}
+
+fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
+    // Validate boundaries do not contain f64::NAN, f64::INFINITY, or f64::NEG_INFINITY
+    for boundary in boundaries {
+        if boundary.is_nan() || boundary.is_infinite() {
+            return Err(MetricError::InvalidInstrumentConfiguration(
+                "Bucket boundaries must not contain NaN, +Inf, or -Inf",
+            ));
+        }
+    }
+
+    // validate that buckets are sorted and non-duplicate
+    for i in 1..boundaries.len() {
+        if boundaries[i] <= boundaries[i - 1] {
+            return Err(MetricError::InvalidInstrumentConfiguration(
+                "Bucket boundaries must be sorted and non-duplicate",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_instrument_name(name: &str) -> MetricResult<()> {

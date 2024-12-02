@@ -19,8 +19,6 @@ pub trait MeterProvider {
     /// name needs to be unique so it does not collide with other names used by
     /// an application, nor other applications.
     ///
-    /// If the name is empty, then an implementation defined default name will
-    /// be used instead.
     ///
     /// # Examples
     ///

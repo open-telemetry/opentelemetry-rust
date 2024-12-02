@@ -15,15 +15,21 @@
 //!
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, Value};
-use once_cell::sync::Lazy;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
+use std::sync::OnceLock;
 
-static DEFAULT_BAGGAGE: Lazy<Baggage> = Lazy::new(Baggage::default);
+static DEFAULT_BAGGAGE: OnceLock<Baggage> = OnceLock::new();
 
 const MAX_KEY_VALUE_PAIRS: usize = 180;
 const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
+
+/// Returns the default baggage, ensuring it is initialized only once.
+#[inline]
+fn get_default_baggage() -> &'static Baggage {
+    DEFAULT_BAGGAGE.get_or_init(Baggage::default)
+}
 
 /// A set of name/value pairs describing user-defined properties.
 ///
@@ -399,7 +405,7 @@ impl BaggageExt for Context {
     }
 
     fn baggage(&self) -> &Baggage {
-        self.get::<Baggage>().unwrap_or(&DEFAULT_BAGGAGE)
+        self.get::<Baggage>().unwrap_or(get_default_baggage())
     }
 }
 

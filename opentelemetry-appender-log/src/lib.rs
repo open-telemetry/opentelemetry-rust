@@ -2,6 +2,8 @@
 //!
 //! This library implements a log appender for the [`log`] crate using the [Logs Bridge API].
 //!
+//! *[Supported Rust Versions](#supported-rust-versions)*
+//!
 //! # Getting Started
 //!
 //! The bridge requires configuration on both the `log` and OpenTelemetry sides.
@@ -93,6 +95,20 @@
 //! - `with-serde`: Support complex values as attributes without stringifying them.
 //!
 //! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
+//!
+//! ## Supported Rust Versions
+//!
+//! OpenTelemetry is built against the latest stable release. The minimum
+//! supported version is 1.70. The current OpenTelemetry version is not
+//! guaranteed to build on Rust versions earlier than the minimum supported
+//! version.
+//!
+//! The current stable Rust compiler and the three most recent minor versions
+//! before it will always be supported. For example, if the current stable
+//! compiler version is 1.49, the minimum supported version will not be
+//! increased past 1.46, three minor versions prior. Increasing the minimum
+//! supported compiler version is not considered a semver breaking change as
+//! long as doing so complies with this policy.
 
 use log::{Level, Metadata, Record};
 use opentelemetry::{

@@ -26,7 +26,7 @@
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
 //!     .with_unit("By")
 //!     .with_description("Duration of HTTP server requests.")
-//!     .init();
+//!     .build();
 //! ```
 
 {% for root_ns in ctx %}
@@ -57,7 +57,7 @@
                 {% set req_level = "Unspecified" %}
                 {% set req_message = '' %}
             {% endif %}
-/// | [`crate::attribute::{{ attribute.name | screaming_snake_case }}`] | `{{ req_level }}`{{ (': ' + req_message if req_message else '') }}
+/// | [`crate::attribute::{{ attribute.name | screaming_snake_case }}`] | `{{ req_level }}`{{ (': ' + req_message.replace('\n', ' ') if req_message else '') }}
         {% endfor %}
         {% if metric.examples %}
 ///
