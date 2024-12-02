@@ -21,7 +21,6 @@
 //! let _tracer = TracerProvider::builder()
 //!     .with_config(config().with_resource(Resource::new(vec![
 //!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
-//!         KeyValue::new(semconv::resource::SERVICE_NAMESPACE, "my-namespace"),
 //!     ])))
 //!     .build();
 //! ```

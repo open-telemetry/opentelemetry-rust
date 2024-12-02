@@ -6,7 +6,6 @@ use crate::{logs::LogRecord, InstrumentationScope};
 use super::Severity;
 
 /// The interface for emitting [`LogRecord`]s.
-
 pub trait Logger {
     /// Specifies the `LogRecord` type associated with this logger.
     type LogRecord: LogRecord;
