@@ -2,6 +2,53 @@
 
 ## vNext
 
+- *Breaking* SimpleLogProcessor modified to be generic over `LogExporter` to
+  avoid dynamic dispatch to invoke exporter. If you were using
+  `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+  transparent change.
+  [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+
+## 0.27.1
+
+Released 2024-Nov-27
+
+- **DEPRECATED**:
+  - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
+    `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
+    example:
+    ```rust
+    // old
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_config(Config::default().with_resource(Resource::empty()))
+        .build();
+
+    // new
+    let tracer_provider: TracerProvider = TracerProvider::builder()
+        .with_resource(Resource::empty())
+        .build();
+    ```
+  - `logs::LogData` struct is deprecated, and scheduled to be removed from public API in `v0.28.0`.
+  - Bug fix: Empty Meter names are retained as-is instead of replacing with
+    "rust.opentelemetry.io/sdk/meter"
+    [#2334](https://github.com/open-telemetry/opentelemetry-rust/pull/2334)
+
+  - Bug fix: Empty Logger names are retained as-is instead of replacing with
+    "rust.opentelemetry.io/sdk/logger"
+    [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
+  
+  - `Logger::provider`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`.
+  - `Logger::instrumentation_scope`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`
+     Migration Guidance: 
+        - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
+
+
+  - **Bug Fix:** Validates the `with_boundaries` bucket boundaries used in
+    Histograms. The boundaries provided by the user must not contain `f64::NAN`,
+    `f64::INFINITY` or `f64::NEG_INFINITY` and must be sorted in strictly
+    increasing order, and contain no duplicates. Instruments will not record
+    measurements if the boundaries are invalid.
+    [#2351](https://github.com/open-telemetry/opentelemetry-rust/pull/2351)
+
 ## 0.27.0
 
 Released 2024-Nov-11

@@ -5,7 +5,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::trace::TracerProvider;
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{runtime, Resource};
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 
 use std::error::Error;
@@ -17,12 +17,10 @@ fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::TracerProvider, Tr
 
     Ok(TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
-        .with_config(
-            sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "tracing-jaeger",
-            )])),
-        )
+        .with_resource(Resource::new(vec![KeyValue::new(
+            SERVICE_NAME,
+            "tracing-jaeger",
+        )]))
         .build())
 }
 

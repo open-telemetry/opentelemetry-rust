@@ -68,30 +68,38 @@ use crate::trace::{
 };
 use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
-use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
 use opentelemetry::InstrumentationScope;
 use opentelemetry::{otel_debug, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
+use super::IdGenerator;
+
+static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
-static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider {
-    inner: Arc::new(TracerProviderInner {
-        processors: Vec::new(),
-        config: Config {
-            // cannot use default here as the default resource is not empty
-            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-            id_generator: Box::<RandomIdGenerator>::default(),
-            span_limits: SpanLimits::default(),
-            resource: Cow::Owned(Resource::empty()),
-        },
-        is_shutdown: AtomicBool::new(true),
-    }),
-});
+// TODO Replace with LazyLock once it is stable
+static NOOP_TRACER_PROVIDER: OnceLock<TracerProvider> = OnceLock::new();
+#[inline]
+fn noop_tracer_provider() -> &'static TracerProvider {
+    NOOP_TRACER_PROVIDER.get_or_init(|| {
+        TracerProvider {
+            inner: Arc::new(TracerProviderInner {
+                processors: Vec::new(),
+                config: Config {
+                    // cannot use default here as the default resource is not empty
+                    sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+                    id_generator: Box::<RandomIdGenerator>::default(),
+                    span_limits: SpanLimits::default(),
+                    resource: Cow::Owned(Resource::empty()),
+                },
+                is_shutdown: AtomicBool::new(true),
+            }),
+        }
+    })
+}
 
 /// TracerProvider inner type
 #[derive(Debug)]
@@ -267,7 +275,7 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(scope, NOOP_TRACER_PROVIDER.clone());
+            return Tracer::new(scope, noop_tracer_provider().clone());
         }
         Tracer::new(scope, self.clone())
     }
@@ -308,8 +316,75 @@ impl Builder {
     }
 
     /// The sdk [`crate::trace::Config`] that this provider will use.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
+    )]
     pub fn with_config(self, config: crate::trace::Config) -> Self {
         Builder { config, ..self }
+    }
+
+    /// Specify the sampler to be used.
+    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
+        self.config.sampler = Box::new(sampler);
+        self
+    }
+
+    /// Specify the id generator to be used.
+    pub fn with_id_generator<T: IdGenerator + 'static>(mut self, id_generator: T) -> Self {
+        self.config.id_generator = Box::new(id_generator);
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
+        self.config.span_limits.max_attributes_per_span = max_events;
+        self
+    }
+
+    /// Specify the number of attributes to be recorded per span.
+    pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_span = max_attributes;
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
+        self.config.span_limits.max_links_per_span = max_links;
+        self
+    }
+
+    /// Specify the number of attributes one event can have.
+    pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_event = max_attributes;
+        self
+    }
+
+    /// Specify the number of attributes one link can have.
+    pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_link = max_attributes;
+        self
+    }
+
+    /// Specify all limit via the span_limits
+    pub fn with_span_limits(mut self, span_limits: SpanLimits) -> Self {
+        self.config.span_limits = span_limits;
+        self
+    }
+
+    /// Associates a [Resource] with a [TracerProvider].
+    ///
+    /// This [Resource] represents the entity producing telemetry and is associated
+    /// with all [Tracer]s the [TracerProvider] will create.
+    ///
+    /// By default, if this option is not used, the default [Resource] will be used.
+    ///
+    /// [Tracer]: opentelemetry::trace::Tracer
+    pub fn with_resource(self, resource: Resource) -> Self {
+        Builder {
+            config: self.config.with_resource(resource),
+            ..self
+        }
     }
 
     /// Create a new provider from this configuration.
@@ -323,16 +398,13 @@ impl Builder {
         // For the uncommon case where there are multiple tracer providers with different resource
         // configurations, users can optionally provide their own borrowed static resource.
         if matches!(config.resource, Cow::Owned(_)) {
-            config.resource = match PROVIDER_RESOURCE.try_insert(config.resource.into_owned()) {
-                Ok(static_resource) => Cow::Borrowed(static_resource),
-                Err((prev, new)) => {
-                    if prev == &new {
-                        Cow::Borrowed(prev)
-                    } else {
-                        Cow::Owned(new)
+            config.resource =
+                match PROVIDER_RESOURCE.get_or_init(|| config.resource.clone().into_owned()) {
+                    static_resource if *static_resource == *config.resource.as_ref() => {
+                        Cow::Borrowed(static_resource)
                     }
-                }
-            }
+                    _ => config.resource, // Use the new resource if different
+                };
         }
 
         // Create a new vector to hold the modified processors
@@ -363,7 +435,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
-    use std::borrow::Cow;
+
     use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
@@ -499,13 +571,10 @@ mod tests {
 
         // If user provided config, use that.
         let custom_config_provider = super::TracerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
-                    SERVICE_NAME,
-                    "test_service",
-                )])),
-                ..Default::default()
-            })
+            .with_resource(Resource::new(vec![KeyValue::new(
+                SERVICE_NAME,
+                "test_service",
+            )]))
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.config().resource.len(), 1);
@@ -534,13 +603,10 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::TracerProvider::builder()
-                    .with_config(Config {
-                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
-                            KeyValue::new("my-custom-key", "my-custom-value"),
-                            KeyValue::new("my-custom-key2", "my-custom-value2"),
-                        ]))),
-                        ..Default::default()
-                    })
+                    .with_resource(Resource::new_with_defaults(vec![
+                        KeyValue::new("my-custom-key", "my-custom-value"),
+                        KeyValue::new("my-custom-key2", "my-custom-value2"),
+                    ]))
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -575,10 +641,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::empty()),
-                ..Default::default()
-            })
+            .with_resource(Resource::empty())
             .build();
 
         assert_eq!(no_service_name.config().resource.len(), 0)

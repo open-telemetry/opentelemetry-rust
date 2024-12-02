@@ -1,14 +1,15 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    rustc 1.82.0 (f6e511eec 2024-10-15)
+    OS: Ubuntu 22.04.3 LTS (5.15.167.4-microsoft-standard-WSL2)
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Counter_Add_Sorted             | 193 ns      |
-    | Counter_Add_Unsorted           | 209 ns      |
-    | Counter_Overflow               | 898 ns      |
+    | Counter_Add_Sorted             | 172 ns      |
+    | Counter_Add_Unsorted           | 183 ns      |
+    | Counter_Overflow               | 562 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 

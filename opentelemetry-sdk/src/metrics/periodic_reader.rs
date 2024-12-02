@@ -132,6 +132,7 @@ where
             name: "PeriodicReader.BuildCompleted",
             message = "Periodic reader built.",
             interval_in_secs = self.interval.as_secs(),
+            temporality = format!("{:?}", self.exporter.temporality()),
         );
 
         PeriodicReader {
@@ -234,10 +235,18 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     async fn collect_and_export(&mut self) -> MetricResult<()> {
         self.reader.collect(&mut self.rm)?;
         if self.rm.scope_metrics.is_empty() {
+            otel_debug!(
+                name: "PeriodicReaderWorker.NoMetricsToExport",
+            );
             // No metrics to export.
             return Ok(());
         }
 
+        otel_debug!(
+            name: "PeriodicReaderWorker.InvokeExporter",
+            message = "Calling exporter's export method with collected metrics.",
+            count = self.rm.scope_metrics.len(),
+        );
         let export = self.reader.exporter.export(&mut self.rm);
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);

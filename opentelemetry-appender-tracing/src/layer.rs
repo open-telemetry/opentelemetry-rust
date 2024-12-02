@@ -69,7 +69,7 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -217,7 +217,6 @@ mod tests {
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
-    use opentelemetry_sdk::trace;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -402,7 +401,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -579,7 +578,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
