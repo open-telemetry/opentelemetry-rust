@@ -10,18 +10,16 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub(crate) struct TonicLogsClient {
-    inner: ClientInner,
-    is_shutdown: AtomicBool,
+    inner: Option<ClientInner>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
-    client: Mutex<LogsServiceClient<Channel>>,
+    client: LogsServiceClient<Channel>,
     interceptor: BoxInterceptor,
 }
 
@@ -45,11 +43,10 @@ impl TonicLogsClient {
         }
 
         TonicLogsClient {
-            inner: ClientInner {
+            inner: Some(ClientInner {
                 client,
                 interceptor,
-            },
-            is_shutdown: AtomicBool::new(false),
+            }),
             resource: Default::default(),
         }
     }
@@ -57,22 +54,22 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        if self.is_shutdown.load(Ordering::SeqCst) {
-            return Err(LogError::Other("exporter is already shut down".into()));
-        }
-
-        let (metadata, extensions, _) = self
-            .inner
-            .interceptor
-            .call(Request::new(()))
-            .map_err(|e| LogError::Other(Box::new(e)))?
-            .into_parts();
+    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+        let (mut client, metadata, extensions) = match &mut self.inner {
+            Some(inner) => {
+                let (m, e, _) = inner
+                    .interceptor
+                    .call(Request::new(()))
+                    .map_err(|e| LogError::Other(Box::new(e)))?
+                    .into_parts();
+                (inner.client.clone(), m, e)
+            }
+            None => return Err(LogError::Other("exporter is already shut down".into())),
+        };
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        self.inner
-            .client
+        client
             .export(Request::from_parts(
                 metadata,
                 extensions,
@@ -84,7 +81,9 @@ impl LogExporter for TonicLogsClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) {
+        let _ = self.inner.take();
+    }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
         self.resource = resource.into();
