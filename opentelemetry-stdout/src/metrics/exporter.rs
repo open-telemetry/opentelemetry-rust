@@ -163,16 +163,6 @@ fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
 fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
-        let datetime: DateTime<Utc> = data_point.start_time.into();
-        println!(
-            "\t\t\tStartTime    : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
-        let datetime: DateTime<Utc> = data_point.time.into();
-        println!(
-            "\t\t\tEndTime      : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes.iter() {
