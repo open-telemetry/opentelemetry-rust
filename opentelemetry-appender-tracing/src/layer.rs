@@ -69,7 +69,7 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {

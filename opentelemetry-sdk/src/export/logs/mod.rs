@@ -38,7 +38,6 @@ impl<'a> LogBatch<'a> {
     ///
     /// Note - this is not a public function, and should not be used directly. This would be
     /// made private in the future.
-
     pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
         LogBatch { data }
     }

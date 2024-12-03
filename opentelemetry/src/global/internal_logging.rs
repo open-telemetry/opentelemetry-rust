@@ -4,7 +4,6 @@
 /// **internally within OpenTelemetry code** or for **custom exporters and processors**. They are not designed
 /// for general application logging and should not be used for that purpose.
 ///
-
 /// Macro for logging informational messages in OpenTelemetry.
 ///
 /// # Fields:
@@ -17,10 +16,8 @@
 /// otel_info!(name: "sdk_start", version = "1.0.0", schema_url = "http://example.com");
 /// ```
 ///
-
 // TODO: Remove `name` attribute duplication in logging macros below once `tracing::Fmt` supports displaying `name`.
 // See issue: https://github.com/tokio-rs/tracing/issues/2774
-
 #[macro_export]
 macro_rules! otel_info {
     (name: $name:expr $(,)?) => {

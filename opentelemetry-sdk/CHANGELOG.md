@@ -2,6 +2,12 @@
 
 ## vNext
 
+- *Breaking* SimpleLogProcessor modified to be generic over `LogExporter` to
+  avoid dynamic dispatch to invoke exporter. If you were using
+  `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+  transparent change.
+  [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+
 ## 0.27.1
 
 Released 2024-Nov-27
