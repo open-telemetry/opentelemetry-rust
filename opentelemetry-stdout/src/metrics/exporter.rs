@@ -142,11 +142,31 @@ fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     } else {
         println!("\t\tTemporality  : Delta");
     }
+    let datetime: DateTime<Utc> = sum.start_time.into();
+    println!(
+        "\t\tStartTime    : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
+    let datetime: DateTime<Utc> = sum.time.into();
+    println!(
+        "\t\tEndTime      : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
     print_data_points(&sum.data_points);
 }
 
 fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
     println!("\t\tGauge DataPoints");
+    let datetime: DateTime<Utc> = gauge.start_time.into();
+    println!(
+        "\t\tStartTime    : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
+    let datetime: DateTime<Utc> = gauge.time.into();
+    println!(
+        "\t\tEndTime      : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
     print_data_points(&gauge.data_points);
 }
 
