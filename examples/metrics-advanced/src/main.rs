@@ -52,7 +52,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let reader = PeriodicReader::builder(exporter).build();
 
     let resource = Resource::builder()
-        .with_key_value(KeyValue::new("service.name", "metrics-advanced-example"))
+        .with_attribute(KeyValue::new("service.name", "metrics-advanced-example"))
         .build();
 
     let provider = SdkMeterProvider::builder()

@@ -41,12 +41,12 @@ impl ResourceBuilder {
     }
 
     /// Add a [KeyValue] to the resource.
-    pub fn with_key_value(self, kv: KeyValue) -> Self {
-        self.with_key_values(vec![kv])
+    pub fn with_attribute(self, kv: KeyValue) -> Self {
+        self.with_attributes(vec![kv])
     }
 
     /// Add multiple [KeyValue]s to the resource.
-    pub fn with_key_values<T: IntoIterator<Item = KeyValue>>(mut self, kvs: T) -> Self {
+    pub fn with_attributes<T: IntoIterator<Item = KeyValue>>(mut self, kvs: T) -> Self {
         self.resource = self.resource.merge(&Resource::new(kvs));
         self
     }
@@ -78,8 +78,8 @@ mod tests {
             || {
                 let resource = Resource::builder()
                     .with_detector(Box::new(EnvResourceDetector::new()))
-                    .with_key_value(KeyValue::new("test1", "test_value"))
-                    .with_key_values(vec![
+                    .with_attribute(KeyValue::new("test1", "test_value"))
+                    .with_attributes(vec![
                         KeyValue::new("test1", "test_value1"),
                         KeyValue::new("test2", "test_value2"),
                     ])
