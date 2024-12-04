@@ -11,21 +11,33 @@
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::logs::{LogProcessor, LoggerProvider};
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
+use async_trait::async_trait;
+
+#[derive(Debug, Clone)]
+struct NoopExporter;
+
+#[async_trait]
+impl LogExporter for NoopExporter {
+    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
+        LogResult::Ok(())
+    }
+}
 
 #[derive(Debug)]
-pub struct NoOpLogProcessor;
+pub struct NoOpLogProcessor {
+    exporter: NoopExporter,
+}
 
 impl LogProcessor for NoOpLogProcessor {
-    fn emit(
-        &self,
-        _record: &mut opentelemetry_sdk::logs::LogRecord,
-        _scope: &InstrumentationScope,
-    ) {
+    fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
+        let log_tuple = &[(record as &LogRecord, scope)];
+        let _ = self.exporter.export(LogBatch::new(log_tuple));
     }
 
     fn force_flush(&self) -> opentelemetry_sdk::logs::LogResult<()> {
@@ -40,7 +52,9 @@ impl LogProcessor for NoOpLogProcessor {
 fn main() {
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
-        .with_log_processor(NoOpLogProcessor {})
+        .with_log_processor(NoOpLogProcessor {
+            exporter: NoopExporter {},
+        })
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
