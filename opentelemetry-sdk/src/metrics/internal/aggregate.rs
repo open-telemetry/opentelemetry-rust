@@ -12,11 +12,11 @@ use super::{
     precomputed_sum::PrecomputedSum, sum::Sum, Number,
 };
 
-const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
-    size < STREAM_CARDINALITY_LIMIT as usize
+    size < STREAM_CARDINALITY_LIMIT
 }
 
 /// Receives measurements to be aggregated.
@@ -224,8 +224,8 @@ mod tests {
         let mut a = Gauge {
             data_points: vec![DataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
-                start_time: Some(SystemTime::now()),
-                time: Some(SystemTime::now()),
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 value: 1u64,
                 exemplars: vec![],
             }],
@@ -251,15 +251,15 @@ mod tests {
                 data_points: vec![
                     DataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
+                        start_time: SystemTime::now(),
+                        time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     DataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
+                        start_time: SystemTime::now(),
+                        time: SystemTime::now(),
                         value: 2u64,
                         exemplars: vec![],
                     },
@@ -294,15 +294,15 @@ mod tests {
                 data_points: vec![
                     DataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
+                        start_time: SystemTime::now(),
+                        time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     DataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
+                        start_time: SystemTime::now(),
+                        time: SystemTime::now(),
                         value: 2u64,
                         exemplars: vec![],
                     },

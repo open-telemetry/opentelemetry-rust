@@ -1,8 +1,7 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
 use crate::{logs::LogError, logs::LogResult};
-use opentelemetry::otel_info;
-use opentelemetry::{otel_debug, trace::TraceContextExt, Context, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -12,20 +11,24 @@ use std::{
     borrow::Cow,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, OnceLock,
     },
 };
 
-use once_cell::sync::Lazy;
-
 // a no nop logger provider used as placeholder when the provider is shutdown
-static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
-    inner: Arc::new(LoggerProviderInner {
-        processors: Vec::new(),
-        resource: Resource::empty(),
-        is_shutdown: AtomicBool::new(true),
-    }),
-});
+// TODO - replace it with LazyLock once it is stable
+static NOOP_LOGGER_PROVIDER: OnceLock<LoggerProvider> = OnceLock::new();
+
+#[inline]
+fn noop_logger_provider() -> &'static LoggerProvider {
+    NOOP_LOGGER_PROVIDER.get_or_init(|| LoggerProvider {
+        inner: Arc::new(LoggerProviderInner {
+            processors: Vec::new(),
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(true),
+        }),
+    })
+}
 
 #[derive(Debug, Clone)]
 /// Handles the creation and coordination of [`Logger`]s.
@@ -45,19 +48,10 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default logger name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
-        let mut name = name.into();
-
-        if name.is_empty() {
-            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        };
-
         let scope = InstrumentationScope::builder(name).build();
         self.logger_with_scope(scope)
     }
@@ -65,8 +59,19 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Logger::new(scope, NOOP_LOGGER_PROVIDER.clone());
+            otel_debug!(
+                name: "LoggerProvider.NoOpLoggerReturned",
+                logger_name = scope.name(),
+            );
+            return Logger::new(scope, noop_logger_provider().clone());
         }
+        if scope.name().is_empty() {
+            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+        };
+        otel_debug!(
+            name: "LoggerProvider.NewLoggerReturned",
+            logger_name = scope.name(),
+        );
         Logger::new(scope, self.clone())
     }
 }
@@ -95,6 +100,9 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
+        otel_debug!(
+            name: "LoggerProvider.ShutdownInvokedByUser",
+        );
         if self
             .inner
             .is_shutdown
@@ -180,7 +188,7 @@ impl Builder {
     /// The `LogExporter` that this provider should use.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
-        processors.push(Box::new(SimpleLogProcessor::new(Box::new(exporter))));
+        processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
         Builder { processors, ..self }
     }
@@ -227,6 +235,10 @@ impl Builder {
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }
+
+        otel_debug!(
+            name: "LoggerProvider.Built",
+        );
         logger_provider
     }
 }
@@ -245,11 +257,19 @@ impl Logger {
         Logger { scope, provider }
     }
 
+    #[deprecated(
+        since = "0.27.1",
+        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+    )]
     /// LoggerProvider associated with this logger.
     pub fn provider(&self) -> &LoggerProvider {
         &self.provider
     }
 
+    #[deprecated(
+        since = "0.27.1",
+        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
+    )]
     /// Instrumentation scope of this logger.
     pub fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
@@ -265,7 +285,7 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        let provider = self.provider();
+        let provider = &self.provider;
         let processors = provider.log_processors();
 
         //let mut log_record = record;
@@ -284,22 +304,17 @@ impl opentelemetry::logs::Logger for Logger {
         }
 
         for p in processors {
-            p.emit(&mut record, self.instrumentation_scope());
+            p.emit(&mut record, &self.scope);
         }
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = self.provider();
+        let provider = &self.provider;
 
         let mut enabled = false;
         for processor in provider.log_processors() {
-            enabled = enabled
-                || processor.event_enabled(
-                    level,
-                    target,
-                    self.instrumentation_scope().name().as_ref(),
-                );
+            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
         }
         enabled
     }
@@ -704,6 +719,42 @@ mod tests {
 
         // Verify that shutdown was only called once, even after drop
         assert_eq!(*shutdown_called.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_empty_logger_name() {
+        let exporter = InMemoryLogExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let logger = logger_provider.logger("");
+        let mut record = logger.create_log_record();
+        record.set_body("Testing empty logger name".into());
+        logger.emit(record);
+
+        // Create a logger using a scope with an empty name
+        let scope = InstrumentationScope::builder("").build();
+        let scoped_logger = logger_provider.logger_with_scope(scope);
+        let mut scoped_record = scoped_logger.create_log_record();
+        scoped_record.set_body("Testing empty logger scope name".into());
+        scoped_logger.emit(scoped_record);
+
+        // Assert: Verify that the emitted logs are processed correctly
+        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(emitted_logs.len(), 2);
+        // Assert the first log
+        assert_eq!(
+            emitted_logs[0].clone().record.body,
+            Some(AnyValue::String("Testing empty logger name".into()))
+        );
+        assert_eq!(logger.scope.name(), "");
+
+        // Assert the second log created through the scope
+        assert_eq!(
+            emitted_logs[1].clone().record.body,
+            Some(AnyValue::String("Testing empty logger scope name".into()))
+        );
+        assert_eq!(scoped_logger.scope.name(), "");
     }
 
     #[derive(Debug)]

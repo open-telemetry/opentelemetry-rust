@@ -45,12 +45,13 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::{otel_debug, otel_error};
+use opentelemetry::{otel_debug, otel_error, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
 use std::cmp::min;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
@@ -227,6 +228,12 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    // Track dropped spans
+    dropped_spans_count: AtomicUsize,
+
+    // Track the maximum queue size that was configured for this processor
+    max_queue_size: usize,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -249,11 +256,14 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
-        if let Err(err) = result {
-            otel_debug!(
-                name: "BatchSpanProcessor.OnEnd.ExportQueueingFailed",
-                reason = format!("{:?}", TraceError::Other(err.into()))
-            );
+        // If the queue is full, and we can't buffer a span
+        if result.is_err() {
+            // Increment the number of dropped spans. If this is the first time we've had to drop,
+            // emit a warning.
+            if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
+                    message = "Beginning to drop span messages due to full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
+            }
         }
     }
 
@@ -269,6 +279,17 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
+        let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
+        if dropped_spans > 0 {
+            otel_warn!(
+                name: "BatchSpanProcessor.Shutdown",
+                dropped_spans = dropped_spans,
+                max_queue_size = max_queue_size,
+                message = "Spans were dropped due to a full or closed queue. The count represents the total count of span records dropped in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+            );
+        }
+
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -469,6 +490,8 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
 
+        let max_queue_size = config.max_queue_size;
+
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -493,7 +516,11 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         }));
 
         // Return batch processor with link to worker
-        BatchSpanProcessor { message_sender }
+        BatchSpanProcessor {
+            message_sender,
+            dropped_spans_count: AtomicUsize::new(0),
+            max_queue_size,
+        }
     }
 
     /// Create a new batch processor builder
@@ -727,7 +754,6 @@ mod tests {
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
-    use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
@@ -963,7 +989,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,

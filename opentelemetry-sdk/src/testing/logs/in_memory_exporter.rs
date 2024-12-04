@@ -29,7 +29,6 @@ use std::sync::{Arc, Mutex};
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
-
 ///    let emitted_logs = exporter.get_emitted_logs().unwrap();
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);

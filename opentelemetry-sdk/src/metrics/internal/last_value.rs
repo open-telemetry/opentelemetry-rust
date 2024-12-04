@@ -66,8 +66,8 @@ impl<T: Number> LastValue<T> {
         self.value_map
             .collect_and_reset(dest, |attributes, aggr| DataPoint {
                 attributes,
-                start_time: Some(prev_start),
-                time: Some(t),
+                start_time: prev_start,
+                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
@@ -79,8 +79,8 @@ impl<T: Number> LastValue<T> {
         self.value_map
             .collect_readonly(dest, |attributes, aggr| DataPoint {
                 attributes,
-                start_time: Some(prev_start),
-                time: Some(t),
+                start_time: prev_start,
+                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });

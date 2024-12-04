@@ -6,7 +6,6 @@ use crate::{logs::LogRecord, InstrumentationScope};
 use super::Severity;
 
 /// The interface for emitting [`LogRecord`]s.
-
 pub trait Logger {
     /// Specifies the `LogRecord` type associated with this logger.
     type LogRecord: LogRecord;
@@ -57,8 +56,7 @@ pub trait LoggerProvider {
     /// Returns a new logger with the given name.
     ///
     /// The `name` should be the application name or the name of the library
-    /// providing instrumentation. If the name is empty, then an
-    /// implementation-defined default name may be used instead.
+    /// providing instrumentation.
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
         let scope = InstrumentationScope::builder(name).build();
         self.logger_with_scope(scope)

@@ -178,6 +178,29 @@ mod tests {
             // As instrument name is invalid, no metrics should be exported
             test_context.check_no_metrics();
         }
+
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaires provided via advisory params are invalid, no
+            // metrics should be exported
+            test_context.check_no_metrics();
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -461,6 +484,44 @@ mod tests {
 
             test_context.reset_metrics();
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn empty_meter_name_retained() {
+        async fn meter_name_retained_helper(
+            meter: Meter,
+            provider: SdkMeterProvider,
+            exporter: InMemoryMetricExporter,
+        ) {
+            // Act
+            let counter = meter.u64_counter("my_counter").build();
+
+            counter.add(10, &[]);
+            provider.force_flush().unwrap();
+
+            // Assert
+            let resource_metrics = exporter
+                .get_finished_metrics()
+                .expect("metrics are expected to be exported.");
+            assert!(
+                resource_metrics[0].scope_metrics[0].metrics.len() == 1,
+                "There should be a single metric"
+            );
+            let meter_name = resource_metrics[0].scope_metrics[0].scope.name();
+            assert_eq!(meter_name, "");
+        }
+
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Test Meter creation in 2 ways, both with empty string as meter name
+        let meter1 = meter_provider.meter("");
+        meter_name_retained_helper(meter1, meter_provider.clone(), exporter.clone()).await;
+
+        let meter_scope = InstrumentationScope::builder("").build();
+        let meter2 = meter_provider.meter_with_scope(meter_scope);
+        meter_name_retained_helper(meter2, meter_provider, exporter).await;
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

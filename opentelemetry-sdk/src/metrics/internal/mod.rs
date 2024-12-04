@@ -7,19 +7,23 @@ mod sum;
 
 use core::fmt;
 use std::collections::{HashMap, HashSet};
-use std::mem::take;
+use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
-use aggregate::is_under_cardinality_limit;
+use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use once_cell::sync::Lazy;
 use opentelemetry::{otel_warn, KeyValue};
 
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: Lazy<Vec<KeyValue>> =
-    Lazy::new(|| vec![KeyValue::new("otel.metric.overflow", "true")]);
+// TODO Replace it with LazyLock once it is stable
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
+
+#[inline]
+fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
+    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", "true")])
+}
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -51,6 +55,12 @@ where
 {
     /// Trackers store the values associated with different attribute sets.
     trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
+
+    /// Used ONLY by Delta collect. The data type must match the one used in
+    /// `trackers` to allow mem::swap. Wrapping the type in `OnceLock` to
+    /// avoid this allocation for Cumulative aggregation.
+    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<A>>>>,
+
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Indicates whether a value with no attributes has been stored.
@@ -67,12 +77,19 @@ where
 {
     fn new(config: A::InitConfig) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::new()),
+            trackers: RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)),
+            trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
             config,
         }
+    }
+
+    #[inline]
+    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
+        self.trackers_for_collect
+            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)))
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
@@ -121,12 +138,12 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
             overflow_value.update(value);
         } else {
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
-            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
+            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
             otel_warn!( name: "ValueMap.measure",
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );
@@ -170,19 +187,23 @@ where
             ));
         }
 
-        let trackers = match self.trackers.write() {
-            Ok(mut trackers) => {
+        if let Ok(mut trackers_collect) = self.trackers_for_collect().write() {
+            if let Ok(mut trackers_current) = self.trackers.write() {
+                swap(trackers_collect.deref_mut(), trackers_current.deref_mut());
                 self.count.store(0, Ordering::SeqCst);
-                take(trackers.deref_mut())
+            } else {
+                otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
+                return;
             }
-            Err(_) => todo!(),
-        };
 
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.into_iter() {
-            if seen.insert(Arc::as_ptr(&tracker)) {
-                dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
+            let mut seen = HashSet::new();
+            for (attrs, tracker) in trackers_collect.drain() {
+                if seen.insert(Arc::as_ptr(&tracker)) {
+                    dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
+                }
             }
+        } else {
+            otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers for collect lock poisoned");
         }
     }
 }

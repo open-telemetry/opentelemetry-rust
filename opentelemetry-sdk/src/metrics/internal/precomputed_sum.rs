@@ -68,8 +68,8 @@ impl<T: Number> PrecomputedSum<T> {
                 let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
                 DataPoint {
                     attributes,
-                    start_time: Some(prev_start),
-                    time: Some(t),
+                    start_time: prev_start,
+                    time: t,
                     value: delta,
                     exemplars: vec![],
                 }
@@ -109,8 +109,8 @@ impl<T: Number> PrecomputedSum<T> {
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
                 attributes,
-                start_time: Some(prev_start),
-                time: Some(t),
+                start_time: prev_start,
+                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
