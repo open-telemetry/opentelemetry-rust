@@ -1,4 +1,3 @@
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::{
     global,
     trace::{TraceContextExt, TraceError, Tracer},
@@ -43,6 +42,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
+
     Ok(())
 }
