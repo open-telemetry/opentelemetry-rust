@@ -12,6 +12,11 @@ pub struct ResourceBuilder {
 
 impl Default for ResourceBuilder {
     /// Create ResourceBuilder with [Resource::default()].
+    ///
+    /// The default resource will contain the following detectors:
+    /// - SdkProvidedResourceDetector
+    /// - TelemetryResourceDetector
+    /// - EnvResourceDetector
     fn default() -> Self {
         ResourceBuilder {
             resource: Resource::default(),
