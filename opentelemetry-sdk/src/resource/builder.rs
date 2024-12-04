@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use opentelemetry::KeyValue;
+use opentelemetry::{KeyValue, Value};
 
-use super::{Resource, ResourceDetector};
+use super::{Resource, ResourceDetector, SERVICE_NAME};
 
 /// Builder to allow easy composition of a Resource
 #[derive(Debug)]
@@ -51,6 +51,11 @@ impl ResourceBuilder {
         self
     }
 
+    /// Add `service.name` resource attribute.
+    pub fn with_service_name(self, name: impl Into<Value>) -> Self {
+        self.with_attribute(KeyValue::new(SERVICE_NAME, name.into()))
+    }
+
     /// Create a [Resource] with the options provided to the [ResourceBuilder].
     pub fn build(self) -> Resource {
         self.resource
@@ -78,6 +83,7 @@ mod tests {
             || {
                 let resource = Resource::builder()
                     .with_detector(Box::new(EnvResourceDetector::new()))
+                    .with_service_name("testing_service")
                     .with_attribute(KeyValue::new("test1", "test_value"))
                     .with_attributes(vec![
                         KeyValue::new("test1", "test_value1"),
@@ -91,6 +97,7 @@ mod tests {
                         KeyValue::new("key", "value"),
                         KeyValue::new("test1", "test_value1"),
                         KeyValue::new("test2", "test_value2"),
+                        KeyValue::new(SERVICE_NAME, "testing_service"),
                         KeyValue::new("k", "v"),
                         KeyValue::new("a", "x"),
                         KeyValue::new("a", "z"),

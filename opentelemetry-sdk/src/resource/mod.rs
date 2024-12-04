@@ -63,6 +63,12 @@ impl Default for Resource {
     }
 }
 
+impl From<ResourceBuilder> for Resource {
+    fn from(value: ResourceBuilder) -> Self {
+        value.build()
+    }
+}
+
 impl Resource {
     /// Creates a Builder that allows you to configure multiple aspects of the Resource.
     ///
