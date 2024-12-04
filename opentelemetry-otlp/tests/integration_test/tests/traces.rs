@@ -2,7 +2,6 @@
 
 use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
@@ -65,7 +64,7 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
 
     Ok(())
 }

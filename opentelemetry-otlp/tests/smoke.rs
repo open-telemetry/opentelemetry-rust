@@ -1,6 +1,5 @@
 use futures_util::StreamExt;
 use opentelemetry::global;
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_proto::tonic::collector::trace::v1::{
@@ -105,7 +104,7 @@ async fn smoke_tracer() {
             )
             .build();
 
-        global::set_tracer_provider(tracer_provider);
+        global::set_tracer_provider(tracer_provider.clone());
 
         let tracer = global::tracer("smoke");
 
@@ -117,7 +116,9 @@ async fn smoke_tracer() {
         span.add_event("my-test-event", vec![]);
         span.end();
 
-        shutdown_tracer_provider();
+        tracer_provider
+            .shutdown()
+            .expect("tracer_provider should shutdown successfully");
     }
 
     println!("Waiting for request...");
