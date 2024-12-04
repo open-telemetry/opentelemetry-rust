@@ -6,7 +6,7 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~44 M /sec
+    ~40 M /sec
 */
 
 use opentelemetry::InstrumentationScope;
@@ -37,7 +37,7 @@ pub struct NoOpLogProcessor {
 impl LogProcessor for NoOpLogProcessor {
     fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
         let log_tuple = &[(record as &LogRecord, scope)];
-        let _ = self.exporter.export(LogBatch::new(log_tuple));
+        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
     fn force_flush(&self) -> opentelemetry_sdk::logs::LogResult<()> {

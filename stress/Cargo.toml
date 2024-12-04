@@ -53,5 +53,7 @@ num-format = "0.4.4"
 sysinfo = { version = "0.32", optional = true }
 libc = "=0.2.164" # https://github.com/GuillaumeGomez/sysinfo/issues/1392
 async-trait = "0.1.51"
+futures-executor = { workspace = true }
+
 [features]
 stats = ["sysinfo"]
