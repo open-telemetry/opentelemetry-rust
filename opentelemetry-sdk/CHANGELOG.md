@@ -2,18 +2,19 @@
 
 ## vNext
 
-- *Breaking* SimpleLogProcessor modified to be generic over `LogExporter` to
-  avoid dynamic dispatch to invoke exporter. If you were using
-  `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
-  transparent change.
-  [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+- *Breaking*
+  - SimpleLogProcessor modified to be generic over `LogExporter` to
+    avoid dynamic dispatch to invoke exporter. If you were using
+    `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+    transparent change.
+    [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+  - `ResourceDetector.detect()` no longer supports timeout option.
 
 ## 0.27.1
 
 Released 2024-Nov-27
 
 - **DEPRECATED**:
-  - `ResourceDetector.detect()` no longer supports timeout option.
   - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
     `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
     example:
