@@ -8,12 +8,12 @@
   transparent change.
   [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
 
-- *Breaking* LogExporter::export() method doesn't take mutable reference to self:
+- *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
   Before:
      async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()>
   After:
      async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()>
-  The custom exporters would need to internally synchronize their mutable states (if any)
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
 
 ## 0.27.1
 
