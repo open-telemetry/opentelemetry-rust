@@ -26,13 +26,13 @@
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let tracer = opentelemetry_zipkin::new_pipeline().install_simple()?;
+//!     let (tracer, provider) = opentelemetry_zipkin::new_pipeline().install_simple()?;
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shutdown_tracer_provider(); // sending remaining spans
+//!     provider.shutdown().expect("TracerProvider should shutdown successfully"); // sending remaining spans
 //!
 //!     Ok(())
 //! }
@@ -131,7 +131,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let tracer = opentelemetry_zipkin::new_pipeline()
+//!     let (tracer, provider) = opentelemetry_zipkin::new_pipeline()
 //!         .with_http_client(
 //!             HyperClient(
 //!                 Client::builder(TokioExecutor::new())
@@ -156,7 +156,7 @@
 //!         // Traced app logic here...
 //!     });
 //!
-//!     global::shutdown_tracer_provider(); // sending remaining spans
+//!     provider.shutdown()?; // sending remaining spans
 //!
 //!     Ok(())
 //! }
