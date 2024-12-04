@@ -2,11 +2,13 @@
 
 ## vNext
 
-- *Breaking* SimpleLogProcessor modified to be generic over `LogExporter` to
-  avoid dynamic dispatch to invoke exporter. If you were using
-  `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
-  transparent change.
-  [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+- *Breaking*
+  - SimpleLogProcessor modified to be generic over `LogExporter` to
+    avoid dynamic dispatch to invoke exporter. If you were using
+    `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+    transparent change.
+    [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+  - `ResourceDetector.detect()` no longer supports timeout option.
 
 - *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
   Before:
