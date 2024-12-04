@@ -19,7 +19,6 @@ use opentelemetry_semantic_conventions as semcov;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Zipkin span exporter
 #[derive(Debug)]
@@ -112,7 +111,7 @@ impl ZipkinPipelineBuilder {
             (config, Endpoint::new(service_name, self.service_addr))
         } else {
             let service_name = SdkProvidedResourceDetector
-                .detect(Duration::from_secs(0))
+                .detect()
                 .get(semcov::resource::SERVICE_NAME.into())
                 .unwrap()
                 .to_string();

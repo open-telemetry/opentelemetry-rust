@@ -1,7 +1,6 @@
 use crate::resource::ResourceDetector;
 use crate::Resource;
 use opentelemetry::KeyValue;
-use std::time::Duration;
 
 /// Detect the telemetry SDK information used to capture data recorded by the instrumentation libraries.
 ///
@@ -16,7 +15,7 @@ use std::time::Duration;
 pub struct TelemetryResourceDetector;
 
 impl ResourceDetector for TelemetryResourceDetector {
-    fn detect(&self, _timeout: Duration) -> Resource {
+    fn detect(&self) -> Resource {
         Resource::new(vec![
             KeyValue::new(super::TELEMETRY_SDK_NAME, "opentelemetry"),
             KeyValue::new(super::TELEMETRY_SDK_LANGUAGE, "rust"),
