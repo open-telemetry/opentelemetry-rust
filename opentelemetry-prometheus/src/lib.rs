@@ -9,6 +9,10 @@
 //! use opentelemetry::{metrics::MeterProvider, KeyValue};
 //! use opentelemetry_sdk::metrics::SdkMeterProvider;
 //! use prometheus::{Encoder, TextEncoder};
+//! use opentelemetry_sdk::metrics::{
+//!     reader::MetricReader,
+//!  Temporality,
+//! };
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
@@ -28,11 +32,11 @@
 //! let counter = meter
 //!     .u64_counter("a.counter")
 //!     .with_description("Counts things")
-//!     .init();
+//!     .build();
 //! let histogram = meter
 //!     .u64_histogram("a.histogram")
 //!     .with_description("Records values")
-//!     .init();
+//!     .build();
 //!
 //! counter.add(100, &[KeyValue::new("key", "value")]);
 //! histogram.record(100, &[KeyValue::new("key", "value")]);
@@ -97,18 +101,14 @@
 #![cfg_attr(test, deny(warnings))]
 
 use once_cell::sync::{Lazy, OnceCell};
-use opentelemetry::{
-    global,
-    metrics::{MetricsError, Result},
-    Key, Value,
-};
+use opentelemetry::{otel_error, InstrumentationScope, Key, Value};
 use opentelemetry_sdk::{
     metrics::{
-        data::{self, ResourceMetrics, Temporality},
-        reader::{MetricReader, TemporalitySelector},
-        InstrumentKind, ManualReader, Pipeline,
+        data::{self, ResourceMetrics},
+        reader::MetricReader,
+        InstrumentKind, ManualReader, MetricResult, Pipeline, Temporality,
     },
-    Resource, Scope,
+    Resource,
 };
 use prometheus::{
     core::Desc,
@@ -152,28 +152,27 @@ pub struct PrometheusExporter {
     reader: Arc<ManualReader>,
 }
 
-impl TemporalitySelector for PrometheusExporter {
-    /// Note: Prometheus only supports cumulative temporality so this will always be
-    /// [Temporality::Cumulative].
-    fn temporality(&self, kind: InstrumentKind) -> Temporality {
-        self.reader.temporality(kind)
-    }
-}
-
 impl MetricReader for PrometheusExporter {
+
+    /// Note: Prometheus only supports cumulative temporality, so this will always be
+    /// [Temporality::Cumulative].
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        Temporality::Cumulative
+    }
+
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         self.reader.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
         self.reader.collect(rm)
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.reader.force_flush()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         self.reader.shutdown()
     }
 }
@@ -193,7 +192,7 @@ struct Collector {
 
 #[derive(Default)]
 struct CollectorInner {
-    scope_infos: HashMap<Scope, MetricFamily>,
+    scope_infos: HashMap<InstrumentationScope, MetricFamily>,
     metric_families: HashMap<String, MetricFamily>,
 }
 
@@ -281,7 +280,7 @@ impl prometheus::core::Collector for Collector {
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
             Err(err) => {
-                global::handle_error(err);
+                otel_error!(name: "inner.lock", message= format!("err: {}", err) );
                 return Vec::new();
             }
         };
@@ -291,7 +290,7 @@ impl prometheus::core::Collector for Collector {
             scope_metrics: vec![],
         };
         if let Err(err) = self.reader.collect(&mut metrics) {
-            global::handle_error(err);
+            otel_error!(name: "reader.collect", message= format!("err: {}", err) );
             return vec![];
         }
         let mut res = Vec::with_capacity(metrics.scope_metrics.len() + 1);
@@ -311,7 +310,8 @@ impl prometheus::core::Collector for Collector {
 
         for scope_metrics in metrics.scope_metrics {
             let scope_labels = if !self.disable_scope_info {
-                if !scope_metrics.scope.attributes.is_empty() {
+                // field `attributes` of struct `InstrumentationScope` is private field
+                if scope_metrics.scope.attributes().count() > 0 {
                     let scope_info = inner
                         .scope_infos
                         .entry(scope_metrics.scope.clone())
@@ -320,12 +320,12 @@ impl prometheus::core::Collector for Collector {
                 }
 
                 let mut labels =
-                    Vec::with_capacity(1 + scope_metrics.scope.version.is_some() as usize);
+                    Vec::with_capacity(1 + scope_metrics.scope.version().is_some() as usize);
                 let mut name = LabelPair::new();
                 name.set_name(SCOPE_INFO_KEYS[0].into());
-                name.set_value(scope_metrics.scope.name.to_string());
+                name.set_value(scope_metrics.scope.name().to_string());
                 labels.push(name);
-                if let Some(version) = &scope_metrics.scope.version {
+                if let Some(version) = &scope_metrics.scope.version() {
                     let mut l_version = LabelPair::new();
                     l_version.set_name(SCOPE_INFO_KEYS[1].into());
                     l_version.set_value(version.to_string());
@@ -421,11 +421,11 @@ fn validate_metrics(
 ) -> (bool, Option<String>) {
     if let Some(existing) = mfs.get(name) {
         if existing.get_field_type() != metric_type {
-            global::handle_error(MetricsError::Other(format!("Instrument type conflict, using existing type definition. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type)));
+            otel_error!(name: "validate_metrics.invalid_metric_type", message = format!("Instrument type conflict, using existing type definition. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type));
             return (true, None);
         }
         if existing.get_help() != description {
-            global::handle_error(MetricsError::Other(format!("Instrument description conflict, using existing. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_help(), description)));
+            otel_error!(name: "validate_metrics.invalid_description", message = format!("Instrument description conflict, using existing. Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_help(), description));
             return (false, Some(existing.get_help().to_string()));
         }
         (false, None)
@@ -578,16 +578,16 @@ fn create_info_metric(
     mf
 }
 
-fn create_scope_info_metric(scope: &Scope) -> MetricFamily {
+fn create_scope_info_metric(scope: &InstrumentationScope) -> MetricFamily {
     let mut g = prometheus::proto::Gauge::default();
     g.set_value(1.0);
 
-    let mut labels = Vec::with_capacity(1 + scope.version.is_some() as usize);
+    let mut labels = Vec::with_capacity(1 + scope.version().is_some() as usize);
     let mut name = LabelPair::new();
     name.set_name(SCOPE_INFO_KEYS[0].into());
-    name.set_value(scope.name.to_string());
+    name.set_value(scope.name().to_string());
     labels.push(name);
-    if let Some(version) = &scope.version {
+    if let Some(version) = &scope.version() {
         let mut v_label = LabelPair::new();
         v_label.set_name(SCOPE_INFO_KEYS[1].into());
         v_label.set_value(version.to_string());
