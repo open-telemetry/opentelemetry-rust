@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::TraceError;
+use opentelemetry::trace::{TraceError, TraceResult};
 use opentelemetry_sdk::export::{self, trace::ExportResult};
 use std::sync::atomic;
 
@@ -59,8 +59,9 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> TraceResult<()> {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {

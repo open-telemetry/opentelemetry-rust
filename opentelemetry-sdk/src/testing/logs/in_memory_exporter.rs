@@ -195,10 +195,11 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> LogResult<()> {
         if self.should_reset_on_shutdown {
             self.reset();
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

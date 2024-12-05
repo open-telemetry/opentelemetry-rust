@@ -149,14 +149,7 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
-            Ok(())
-        } else {
-            Err(TraceError::Other(
-                "SimpleSpanProcessor mutex poison at shutdown".into(),
-            ))
-        }
+        self.exporter.lock()?.shutdown()
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -432,7 +425,12 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             // Stream has terminated or processor is shutdown, return to finish execution.
             BatchMessage::Shutdown(ch) => {
                 self.flush(Some(ch)).await;
-                self.exporter.shutdown();
+                if let Err(e) = self.exporter.shutdown() {
+                    otel_warn!(
+                       name: "SpanProcessor.Shutdown.Failed",
+                       message = "failed shutting down exporter cleanly",
+                       error = format!("{:?}", e));
+                }
                 return false;
             }
             // propagate the resource

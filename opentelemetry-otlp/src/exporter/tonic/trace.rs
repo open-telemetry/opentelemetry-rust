@@ -92,8 +92,9 @@ impl SpanExporter for TonicTracesClient {
         })
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> TraceResult<()> {
         let _ = self.inner.take();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

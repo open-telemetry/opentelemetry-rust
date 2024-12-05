@@ -60,8 +60,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> LogResult<()> {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {

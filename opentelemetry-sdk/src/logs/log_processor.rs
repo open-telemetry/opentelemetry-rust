@@ -144,7 +144,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
+            exporter.shutdown()?;
             Ok(())
         } else {
             Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
@@ -650,7 +650,13 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                         )
                         .await;
 
-                        exporter.shutdown();
+                        if let Err(e) = exporter.shutdown() {
+                            otel_warn!(
+                               name: "BatchLogProcessor.Shutdown.Failed",
+                               message = "failed shutting down exporter cleanly",
+                               error = format!("{:?}", e)
+                            );
+                        };
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -933,8 +939,6 @@ mod tests {
         async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
             Ok(())
         }
-
-        fn shutdown(&mut self) {}
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource

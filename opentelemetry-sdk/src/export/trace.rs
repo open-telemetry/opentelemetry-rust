@@ -7,8 +7,13 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::time::SystemTime;
 
-/// Describes the result of an export.
-pub type ExportResult = Result<(), TraceError>;
+/// Describes the results of other operations on the trace API.
+pub type TraceResult<T> = Result<T, TraceError>;
+
+/// Describes the results of an export
+/// Note: This is an alias we will remove in the future, favouring
+/// using TraceResult directly.
+pub type ExportResult = TraceResult<()>;
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -30,7 +35,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     ///
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, TraceResult<()>>;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
@@ -43,7 +48,9 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) -> TraceResult<()> {
+        Ok(())
+    }
 
     /// This is a hint to ensure that the export of any Spans the exporter
     /// has received prior to the call to this function SHOULD be completed

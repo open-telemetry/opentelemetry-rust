@@ -5,6 +5,10 @@
 - Bump msrv to 1.75.0.
 - *Breaking* time fields, `StartTime` and `EndTime` is printed on aggregation (Sum, Gauge, Histogram, ExpoHistogram) with 2 tabs, previously it was on aggregation data point, with 3 tabs, see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411).
 
+- `LogExporter.shutdown` and `SpanExporter.shutdown`  now explicitly return a result. The
+    semantics of the method have not changed, but you will have a new lint encouraging you to consume these results.
+
+
 ## 0.27.0
 
 Released 2024-Nov-11
