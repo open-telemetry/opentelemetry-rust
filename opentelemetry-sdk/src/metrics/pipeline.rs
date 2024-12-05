@@ -37,7 +37,7 @@ pub struct Pipeline {
     pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
-    inner: Box<Mutex<PipelineInner>>,
+    inner: Mutex<PipelineInner>,
 }
 
 impl fmt::Debug for Pipeline {
