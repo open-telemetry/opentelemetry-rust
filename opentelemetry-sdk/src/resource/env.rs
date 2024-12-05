@@ -5,7 +5,6 @@
 use crate::resource::{Resource, ResourceDetector};
 use opentelemetry::{Key, KeyValue, Value};
 use std::env;
-use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
@@ -20,7 +19,7 @@ pub struct EnvResourceDetector {
 }
 
 impl ResourceDetector for EnvResourceDetector {
-    fn detect(&self, _timeout: Duration) -> Resource {
+    fn detect(&self) -> Resource {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
             Ok(s) if !s.is_empty() => construct_otel_resources(s),
             Ok(_) | Err(_) => Resource::new(vec![]), // return empty resource
@@ -72,7 +71,7 @@ fn construct_otel_resources(s: String) -> Resource {
 pub struct SdkProvidedResourceDetector;
 
 impl ResourceDetector for SdkProvidedResourceDetector {
-    fn detect(&self, _timeout: Duration) -> Resource {
+    fn detect(&self) -> Resource {
         Resource::new(vec![KeyValue::new(
             super::SERVICE_NAME,
             env::var(OTEL_SERVICE_NAME)
@@ -81,7 +80,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                 .map(Value::from)
                 .or_else(|| {
                     EnvResourceDetector::new()
-                        .detect(Duration::from_secs(0))
+                        .detect()
                         .get(Key::new(super::SERVICE_NAME))
                 })
                 .unwrap_or_else(|| "unknown_service".into()),
@@ -96,7 +95,6 @@ mod tests {
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry::{Key, KeyValue, Value};
-    use std::time::Duration;
 
     #[test]
     fn test_read_from_env() {
@@ -110,7 +108,7 @@ mod tests {
             ],
             || {
                 let detector = EnvResourceDetector::new();
-                let resource = detector.detect(Duration::from_secs(5));
+                let resource = detector.detect();
                 assert_eq!(
                     resource,
                     Resource::new(vec![
@@ -124,21 +122,21 @@ mod tests {
         );
 
         let detector = EnvResourceDetector::new();
-        let resource = detector.detect(Duration::from_secs(5));
+        let resource = detector.detect();
         assert!(resource.is_empty());
     }
 
     #[test]
     fn test_sdk_provided_resource_detector() {
         // Ensure no env var set
-        let no_env = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+        let no_env = SdkProvidedResourceDetector.detect();
         assert_eq!(
             no_env.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
-            let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+            let with_service = SdkProvidedResourceDetector.detect();
             assert_eq!(
                 with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                 Some(Value::from("test service")),
@@ -149,7 +147,7 @@ mod tests {
             OTEL_RESOURCE_ATTRIBUTES,
             Some("service.name=test service1"),
             || {
-                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
                     with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service1")),
@@ -164,7 +162,7 @@ mod tests {
                 (OTEL_RESOURCE_ATTRIBUTES, Some("service.name=test service3")),
             ],
             || {
-                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
                     with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service"))

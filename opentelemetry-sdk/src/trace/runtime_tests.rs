@@ -66,15 +66,18 @@ fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::Tr
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-async fn test_set_provider_in_tokio<R: RuntimeChannel>(runtime: R) -> Arc<AtomicUsize> {
+async fn test_set_provider_in_tokio<R: RuntimeChannel>(
+    runtime: R,
+) -> (Arc<AtomicUsize>, crate::trace::TracerProvider) {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
-    let _ = set_tracer_provider(build_batch_tracer_provider(exporter, runtime));
+    let tracer_provider = build_batch_tracer_provider(exporter, runtime);
+    let _ = set_tracer_provider(tracer_provider.clone());
     let tracer = tracer("opentelemetery");
 
     tracer.in_span("test", |_cx| {});
 
-    span_count
+    (span_count, tracer_provider)
 }
 
 // When using `tokio::spawn` to spawn the worker task in batch processor
@@ -97,7 +100,7 @@ async fn test_set_provider_in_tokio<R: RuntimeChannel>(runtime: R) -> Arc<Atomic
 #[ignore = "requires --test-threads=1"]
 #[cfg(feature = "rt-tokio")]
 async fn test_set_provider_multiple_thread_tokio() {
-    let span_count = test_set_provider_in_tokio(runtime::Tokio).await;
+    let (span_count, _) = test_set_provider_in_tokio(runtime::Tokio).await;
     assert_eq!(span_count.load(Ordering::SeqCst), 0);
 }
 
@@ -106,8 +109,10 @@ async fn test_set_provider_multiple_thread_tokio() {
 #[ignore = "requires --test-threads=1"]
 #[cfg(feature = "rt-tokio")]
 async fn test_set_provider_multiple_thread_tokio_shutdown() {
-    let span_count = test_set_provider_in_tokio(runtime::Tokio).await;
-    shutdown_tracer_provider();
+    let (span_count, tracer_provider) = test_set_provider_in_tokio(runtime::Tokio).await;
+    tracer_provider
+        .shutdown()
+        .expect("TracerProvider should shutdown properly");
     assert!(span_count.load(Ordering::SeqCst) > 0);
 }
 
@@ -119,12 +124,15 @@ async fn test_set_provider_multiple_thread_tokio_shutdown() {
 async fn test_set_provider_single_thread_tokio_with_simple_processor() {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
-    let _ = set_tracer_provider(build_simple_tracer_provider(exporter));
+    let tracer_provider = build_simple_tracer_provider(exporter);
+    let _ = set_tracer_provider(tracer_provider.clone());
     let tracer = tracer("opentelemetry");
 
     tracer.in_span("test", |_cx| {});
 
-    shutdown_tracer_provider();
+    tracer_provider
+        .shutdown()
+        .expect("TracerProvider should shutdown properly");
 
     assert!(span_count.load(Ordering::SeqCst) > 0);
 }
@@ -134,7 +142,7 @@ async fn test_set_provider_single_thread_tokio_with_simple_processor() {
 #[ignore = "requires --test-threads=1"]
 #[cfg(feature = "rt-tokio-current-thread")]
 async fn test_set_provider_single_thread_tokio() {
-    let span_count = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
+    let (span_count, _) = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
     assert_eq!(span_count.load(Ordering::SeqCst), 0)
 }
 
@@ -143,7 +151,10 @@ async fn test_set_provider_single_thread_tokio() {
 #[ignore = "requires --test-threads=1"]
 #[cfg(feature = "rt-tokio-current-thread")]
 async fn test_set_provider_single_thread_tokio_shutdown() {
-    let span_count = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
-    shutdown_tracer_provider();
+    let (span_count, tracer_provider) =
+        test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
+    tracer_provider
+        .shutdown()
+        .expect("TracerProvider should shutdown properly");
     assert!(span_count.load(Ordering::SeqCst) > 0)
 }

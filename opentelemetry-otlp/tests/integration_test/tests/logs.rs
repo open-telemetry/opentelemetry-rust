@@ -12,7 +12,18 @@ use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
-    let exporter = LogExporter::builder().with_tonic().build()?;
+    let exporter_builder = LogExporter::builder();
+    #[cfg(feature = "tonic-client")]
+    let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(not(feature = "tonic-client"))]
+    #[cfg(any(
+        feature = "hyper-client",
+        feature = "reqwest-client",
+        feature = "reqwest-blocking-client"
+    ))]
+    let exporter_builder = exporter_builder.with_http();
+
+    let exporter = exporter_builder.build()?;
 
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)

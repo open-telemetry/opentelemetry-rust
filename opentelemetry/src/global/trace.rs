@@ -437,16 +437,3 @@ where
         GlobalTracerProvider::new(new_provider),
     )
 }
-
-/// Shut down the current tracer provider. This will invoke the shutdown method on all span processors.
-/// span processors should export remaining spans before return
-pub fn shutdown_tracer_provider() {
-    let mut tracer_provider = global_tracer_provider()
-        .write()
-        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-
-    let _ = mem::replace(
-        &mut *tracer_provider,
-        GlobalTracerProvider::new(NoopTracerProvider::new()),
-    );
-}

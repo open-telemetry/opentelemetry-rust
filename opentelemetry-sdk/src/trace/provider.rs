@@ -219,10 +219,8 @@ impl TracerProvider {
     ///
     ///     // create more spans..
     ///
-    ///     // dropping provider and shutting down global provider ensure all
-    ///     // remaining spans are exported
+    ///     // dropping provider ensures all remaining spans are exported
     ///     drop(provider);
-    ///     global::shutdown_tracer_provider();
     /// }
     /// ```
     pub fn force_flush(&self) -> Vec<TraceResult<()>> {

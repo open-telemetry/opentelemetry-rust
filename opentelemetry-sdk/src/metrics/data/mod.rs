@@ -97,9 +97,9 @@ pub struct DataPoint<T> {
     /// time series.
     pub attributes: Vec<KeyValue>,
     /// The time when the time series was started.
-    pub start_time: Option<SystemTime>,
+    pub start_time: SystemTime,
     /// The time when the time series was recorded.
-    pub time: Option<SystemTime>,
+    pub time: SystemTime,
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
@@ -338,8 +338,8 @@ mod tests {
     fn validate_cloning_data_points() {
         let data_type = DataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: Some(std::time::SystemTime::now()),
-            time: Some(std::time::SystemTime::now()),
+            start_time: std::time::SystemTime::now(),
+            time: std::time::SystemTime::now(),
             value: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],

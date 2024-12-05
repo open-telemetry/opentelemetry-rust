@@ -1,5 +1,5 @@
 use opentelemetry::{
-    global::{self, shutdown_tracer_provider},
+    global::{self},
     trace::{Span, Tracer},
 };
 use std::thread;
@@ -13,7 +13,7 @@ fn bar() {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let tracer = opentelemetry_zipkin::new_pipeline()
+    let (tracer, provider) = opentelemetry_zipkin::new_pipeline()
         .with_service_name("trace-demo")
         .install_simple()?;
 
@@ -23,6 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         thread::sleep(Duration::from_millis(6));
     });
 
-    shutdown_tracer_provider();
+    provider.shutdown()?;
     Ok(())
 }

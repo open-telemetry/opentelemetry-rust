@@ -83,4 +83,4 @@ reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-web
 hyper-client = ["opentelemetry-http/hyper"]
 
 # test
-integration-testing = ["tonic", "prost", "tokio/full", "trace"]
+integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
