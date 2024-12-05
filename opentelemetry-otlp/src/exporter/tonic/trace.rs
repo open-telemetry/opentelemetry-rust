@@ -1,7 +1,7 @@
 use core::fmt;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::trace::TraceError;
+use opentelemetry::trace::{TraceError, TraceResult};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
@@ -88,8 +88,9 @@ impl SpanExporter for TonicTracesClient {
         })
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> TraceResult<()> {
         let _ = self.inner.take();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

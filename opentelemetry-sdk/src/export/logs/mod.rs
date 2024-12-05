@@ -82,8 +82,12 @@ pub trait LogExporter: Send + Sync + Debug {
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
     async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
+
     /// Shuts down the exporter.
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) -> LogResult<()> {
+        Ok(())
+    }
+
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {

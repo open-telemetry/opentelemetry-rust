@@ -1,11 +1,11 @@
 use crate::{
-    export::trace::{ExportResult, SpanData, SpanExporter},
+    export::trace::{ExportResult, SpanData, SpanExporter, TraceResult},
     trace::{SpanEvents, SpanLinks},
 };
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{
-    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
+    trace::{SpanContext, SpanId, SpanKind, Status, TraceError, TraceFlags, TraceId, TraceState},
     InstrumentationScope,
 };
 use std::fmt::{Display, Formatter};
@@ -53,8 +53,11 @@ impl SpanExporter for TokioSpanExporter {
         Box::pin(std::future::ready(Ok(())))
     }
 
-    fn shutdown(&mut self) {
-        self.tx_shutdown.send(()).unwrap();
+    fn shutdown(&mut self) -> TraceResult<()> {
+        self.tx_shutdown
+            .send(())
+            .map_err::<TraceError, _>(|err| TraceError::Other(Box::new(err)))?;
+        Ok(())
     }
 }
 

@@ -10,6 +10,9 @@ use std::time::SystemTime;
 /// Describes the result of an export.
 pub type ExportResult = Result<(), TraceError>;
 
+/// Describes the results of other operations on the trace API.
+pub type TraceResult<T> = Result<T, TraceError>;
+
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
 /// sending of telemetry data.
@@ -43,7 +46,9 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) -> TraceResult<()> {
+        Ok(())
+    }
 
     /// This is a hint to ensure that the export of any Spans the exporter
     /// has received prior to the call to this function SHOULD be completed
