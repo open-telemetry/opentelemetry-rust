@@ -134,7 +134,6 @@ where
             new_tracker.update(value);
 
             // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
