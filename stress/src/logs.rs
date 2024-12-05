@@ -20,21 +20,21 @@ mod throughput;
 use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
-struct NoopExporter;
+struct MockLogExporter;
 
 #[async_trait]
-impl LogExporter for NoopExporter {
+impl LogExporter for MockLogExporter {
     async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
         LogResult::Ok(())
     }
 }
 
 #[derive(Debug)]
-pub struct NoOpLogProcessor {
-    exporter: NoopExporter,
+pub struct MockLogProcessor {
+    exporter: MockLogExporter,
 }
 
-impl LogProcessor for NoOpLogProcessor {
+impl LogProcessor for MockLogProcessor {
     fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
         let log_tuple = &[(record as &LogRecord, scope)];
         let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
@@ -52,8 +52,8 @@ impl LogProcessor for NoOpLogProcessor {
 fn main() {
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
-        .with_log_processor(NoOpLogProcessor {
-            exporter: NoopExporter {},
+        .with_log_processor(MockLogProcessor {
+            exporter: MockLogExporter {},
         })
         .build();
 
