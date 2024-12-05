@@ -142,8 +142,9 @@ impl SpanExporter for InMemorySpanExporter {
         Box::pin(std::future::ready(Ok(())))
     }
 
-    fn shutdown(&mut self) {
-        self.reset()
+    fn shutdown(&mut self) -> TraceResult<()> {
+        self.reset();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

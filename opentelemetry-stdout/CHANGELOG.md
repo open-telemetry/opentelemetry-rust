@@ -2,6 +2,10 @@
 
 ## vNext
 
+- `LogExporter.shutdown` and `SpanExporter.shutdown`  now explicitly return a result. The
+    semantics of the method have not changed, but you will have a new lint encouraging you to consume these results.
+
+
 ## 0.27.0
 
 Released 2024-Nov-11
