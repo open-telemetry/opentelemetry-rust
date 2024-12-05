@@ -247,7 +247,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
-        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
+        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
             // This will cause a deadlock as the export itself creates a log
             // while still within the lock of the SimpleLogProcessor.
             warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
