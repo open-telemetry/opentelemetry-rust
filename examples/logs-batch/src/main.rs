@@ -9,7 +9,7 @@ use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 fn main() {
     // Setup LoggerProvider with a stdout exporter
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let runtime = CustomThreadRuntime::new(2, 5); // 1 worker thread
+    let runtime = CustomThreadRuntime::new(2, 5); // 2 worker thread with queue size of 5
     let logger_provider = LoggerProvider::builder()
         .with_resource(Resource::new([KeyValue::new(
             SERVICE_NAME,
