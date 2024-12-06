@@ -13,33 +13,18 @@ use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
-use std::{
-    os::unix::process,
-    sync::{Arc, Mutex},
-};
 
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
-use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
 struct MockLogExporter;
 
-#[async_trait]
 impl LogExporter for MockLogExporter {
-    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct SimpleExporter;
-
-impl LogExporter for SimpleExporter {
     fn export<'a>(
-        &'a mut self,
+        &'a self,
         _batch: &'a LogBatch<'a>,
     ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
         async { Ok(()) }
@@ -54,7 +39,8 @@ pub struct MockLogProcessor {
 impl LogProcessor for MockLogProcessor {
     fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
         let log_tuple = &[(record as &LogRecord, scope)];
-        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
+        let log_batch = LogBatch::new(log_tuple);
+        let _ = futures_executor::block_on(self.exporter.export(&log_batch));
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -67,8 +53,6 @@ impl LogProcessor for MockLogProcessor {
 }
 
 fn main() {
-    let exporter = SimpleExporter::default();
-    let processor = NoOpLogProcessor::new(exporter);
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
         .with_log_processor(MockLogProcessor {

@@ -247,6 +247,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
+        #[allow(clippy::manual_async_fn)]
         fn export<'a>(
             &'a self,
             _batch: &'a LogBatch<'a>,

@@ -55,33 +55,39 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        let (mut client, metadata, extensions) = match &self.inner {
-            Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .lock()
-                    .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
-                    .call(Request::new(()))
-                    .map_err(|e| LogError::Other(Box::new(e)))?
-                    .into_parts();
-                (inner.client.clone(), m, e)
-            }
-            None => return Err(LogError::Other("exporter is already shut down".into())),
-        };
+    #[allow(clippy::manual_async_fn)]
+    fn export<'a>(
+        &'a self,
+        batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+        async move {
+            let (mut client, metadata, extensions) = match &self.inner {
+                Some(inner) => {
+                    let (m, e, _) = inner
+                        .interceptor
+                        .lock()
+                        .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
+                        .call(Request::new(()))
+                        .map_err(|e| LogError::Other(Box::new(e)))?
+                        .into_parts();
+                    (inner.client.clone(), m, e)
+                }
+                None => return Err(LogError::Other("exporter is already shut down".into())),
+            };
 
-        let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
+            let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await
-            .map_err(crate::Error::from)?;
+            client
+                .export(Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportLogsServiceRequest { resource_logs },
+                ))
+                .await
+                .map_err(crate::Error::from)?;
 
-        Ok(())
+            Ok(())
+        }
     }
 
     fn shutdown(&mut self) {

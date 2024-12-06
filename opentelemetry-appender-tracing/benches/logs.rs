@@ -34,8 +34,12 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
+    #[allow(clippy::manual_async_fn)]
+    fn export<'a>(
+        &'a self,
+        _batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+        async { LogResult::Ok(()) }
     }
 
     fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
@@ -44,17 +48,17 @@ impl LogExporter for NoopExporter {
 }
 
 #[derive(Debug)]
-struct NoopProcessor {
-    exporter: Box<dyn LogExporter>,
+struct NoopProcessor<E: LogExporter> {
+    exporter: E,
 }
 
-impl NoopProcessor {
-    fn new(exporter: Box<dyn LogExporter>) -> Self {
+impl<E: LogExporter> NoopProcessor<E> {
+    fn new(exporter: E) -> Self {
         Self { exporter }
     }
 }
 
-impl LogProcessor for NoopProcessor {
+impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
     fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
         // no-op
     }
@@ -124,7 +128,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
-    let processor = NoopProcessor::new(Box::new(exporter));
+    let processor = NoopProcessor::new(exporter);
     let provider = LoggerProvider::builder()
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",

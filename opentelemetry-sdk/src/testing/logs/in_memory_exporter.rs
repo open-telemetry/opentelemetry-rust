@@ -181,6 +181,7 @@ impl InMemoryLogExporter {
 }
 
 impl LogExporter for InMemoryLogExporter {
+    #[allow(clippy::manual_async_fn)]
     fn export<'a>(
         &'a self,
         batch: &'a LogBatch<'a>,

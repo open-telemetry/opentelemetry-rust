@@ -568,6 +568,7 @@ mod tests {
     }
 
     impl LogExporter for MockLogExporter {
+        #[allow(clippy::manual_async_fn)]
         fn export<'a>(
             &'a self,
             _batch: &'a LogBatch<'a>,
@@ -1065,6 +1066,7 @@ mod tests {
     }
 
     impl LogExporter for LogExporterThatRequiresTokio {
+        #[allow(clippy::manual_async_fn)]
         fn export<'a>(
             &'a self,
             batch: &'a LogBatch<'a>,
