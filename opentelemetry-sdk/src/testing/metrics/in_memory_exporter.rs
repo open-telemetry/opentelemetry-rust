@@ -210,32 +210,44 @@ impl InMemoryMetricExporter {
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<f64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<u64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<i64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<f64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<u64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else {
             // unknown data type
