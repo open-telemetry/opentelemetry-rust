@@ -10,6 +10,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
+use tokio::sync::Mutex;
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
@@ -20,7 +21,7 @@ pub(crate) struct TonicLogsClient {
 
 struct ClientInner {
     client: LogsServiceClient<Channel>,
-    interceptor: BoxInterceptor,
+    interceptor: Mutex<BoxInterceptor>,
 }
 
 impl fmt::Debug for TonicLogsClient {
@@ -45,7 +46,7 @@ impl TonicLogsClient {
         TonicLogsClient {
             inner: Some(ClientInner {
                 client,
-                interceptor,
+                interceptor: Mutex::new(interceptor),
             }),
             resource: Default::default(),
         }
@@ -54,11 +55,13 @@ impl TonicLogsClient {
 
 #[async_trait]
 impl LogExporter for TonicLogsClient {
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
-        let (mut client, metadata, extensions) = match &mut self.inner {
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
+        let (mut client, metadata, extensions) = match &self.inner {
             Some(inner) => {
                 let (m, e, _) = inner
                     .interceptor
+                    .lock()
+                    .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
                     .call(Request::new(()))
                     .map_err(|e| LogError::Other(Box::new(e)))?
                     .into_parts();
