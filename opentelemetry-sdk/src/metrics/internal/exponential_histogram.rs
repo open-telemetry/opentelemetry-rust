@@ -8,7 +8,7 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::{Aggregator, Number, ValueMap};
+use super::{Aggregator, Measure, Number, ValueMap};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -355,6 +355,19 @@ pub(crate) struct ExpoHistogram<T: Number> {
     record_min_max: bool,
 }
 
+impl<T: Number> Measure<T> for ExpoHistogram<T> {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        let f_value = measurement.into_float();
+        // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
+        if !f_value.is_finite() {
+            return;
+        }
+
+        self.value_map.measure(measurement, attrs);
+    }
+}
+
 impl<T: Number> ExpoHistogram<T> {
     /// Create a new exponential histogram.
     pub(crate) fn new(
@@ -372,17 +385,6 @@ impl<T: Number> ExpoHistogram<T> {
             record_min_max,
             start: Mutex::new(SystemTime::now()),
         }
-    }
-
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
-        let f_value = value.into_float();
-        // Ignore NaN and infinity.
-        // Only makes sense if T is f64, maybe this could be no-op for other cases?
-        if !f_value.is_finite() {
-            return;
-        }
-
-        self.value_map.measure(value, attrs);
     }
 
     pub(crate) fn delta(
@@ -510,7 +512,7 @@ impl<T: Number> ExpoHistogram<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
+    use std::{ops::Neg, sync::Arc};
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
@@ -1217,12 +1219,9 @@ mod tests {
     }
 
     fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
-    ) -> (
-        Box<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-    ) {
-        (Box::new(m), Box::new(ca))
+        (m, ca): (Arc<dyn Measure<T>>, impl internal::ComputeAggregation),
+    ) -> (Arc<dyn Measure<T>>, Box<dyn internal::ComputeAggregation>) {
+        (m, Box::new(ca))
     }
 
     fn hist_aggregation<T: Number + From<u32>>() {
@@ -1236,7 +1235,7 @@ mod tests {
             name: &'static str,
             build: Box<
                 dyn Fn() -> (
-                    Box<dyn internal::Measure<T>>,
+                    Arc<dyn internal::Measure<T>>,
                     Box<dyn internal::ComputeAggregation>,
                 ),
             >,
@@ -1435,7 +1434,7 @@ mod tests {
             let mut count = 0;
             for n in test.input {
                 for v in n {
-                    in_fn.call(v, &[])
+                    in_fn.measure(v, &[])
                 }
                 count = out_fn.call(Some(got.as_mut())).0
             }

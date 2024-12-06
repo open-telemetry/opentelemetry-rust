@@ -490,12 +490,15 @@ fn aggregate_fn<T: Number>(
     kind: InstrumentKind,
 ) -> MetricResult<Option<AggregateFns<T>>> {
     fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
+        (m, ca): (
+            Arc<dyn internal::Measure<T>>,
+            impl internal::ComputeAggregation,
+        ),
     ) -> (
         Arc<dyn internal::Measure<T>>,
         Box<dyn internal::ComputeAggregation>,
     ) {
-        (Arc::new(m), Box::new(ca))
+        (m, Box::new(ca))
     }
 
     match agg {

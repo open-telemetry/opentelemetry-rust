@@ -3,7 +3,7 @@ use std::{mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
 use crate::metrics::data::DataPoint;
 use opentelemetry::KeyValue;
 
-use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Number, ValueMap};
+use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Measure, Number, ValueMap};
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -43,17 +43,18 @@ pub(crate) struct LastValue<T: Number> {
     start: Mutex<SystemTime>,
 }
 
+impl<T: Number> Measure<T> for LastValue<T> {
+    fn measure(&self, measurement: T, attrs: &[KeyValue]) {
+        self.value_map.measure(measurement, attrs);
+    }
+}
+
 impl<T: Number> LastValue<T> {
     pub(crate) fn new() -> Self {
         LastValue {
             value_map: ValueMap::new(()),
             start: Mutex::new(SystemTime::now()),
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to LastValue.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {
