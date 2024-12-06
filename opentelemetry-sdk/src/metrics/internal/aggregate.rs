@@ -211,8 +211,8 @@ impl<T: Number> AggregateBuilder<T> {
 #[cfg(test)]
 mod tests {
     use crate::metrics::data::{
-        DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
-        Histogram, HistogramDataPoint, Sum,
+        ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, GaugeDataPoint,
+        Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };
     use std::{time::SystemTime, vec};
 
@@ -222,9 +222,9 @@ mod tests {
     fn last_value_aggregation() {
         let (measure, agg) = AggregateBuilder::<u64>::new(None, None).last_value();
         let mut a = Gauge {
-            data_points: vec![DataPoint {
+            data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
-                start_time: SystemTime::now(),
+                start_time: Some(SystemTime::now()),
                 time: SystemTime::now(),
                 value: 1u64,
                 exemplars: vec![],
@@ -249,14 +249,14 @@ mod tests {
                 AggregateBuilder::<u64>::new(Some(temporality), None).precomputed_sum(true);
             let mut a = Sum {
                 data_points: vec![
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
                         start_time: SystemTime::now(),
                         time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
                         start_time: SystemTime::now(),
                         time: SystemTime::now(),
@@ -292,14 +292,14 @@ mod tests {
             let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None).sum(true);
             let mut a = Sum {
                 data_points: vec![
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
                         start_time: SystemTime::now(),
                         time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
                         start_time: SystemTime::now(),
                         time: SystemTime::now(),
