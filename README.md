@@ -83,7 +83,7 @@ fn main() {
     });
 
     // Shutdown trace pipeline
-    global::shutdown_tracer_provider();
+    provider.shutdown().expect("TracerProvider should shutdown successfully")
 }
 ```
 

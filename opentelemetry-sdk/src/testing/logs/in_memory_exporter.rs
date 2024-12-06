@@ -182,7 +182,7 @@ impl InMemoryLogExporter {
 
 impl LogExporter for InMemoryLogExporter {
     fn export<'a>(
-        &'a mut self,
+        &'a self,
         batch: &'a LogBatch<'a>,
     ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
         async move {

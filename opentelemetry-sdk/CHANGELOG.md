@@ -2,11 +2,21 @@
 
 ## vNext
 
-- *Breaking* SimpleLogProcessor modified to be generic over `LogExporter` to
-  avoid dynamic dispatch to invoke exporter. If you were using
-  `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
-  transparent change.
-  [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+- *Breaking*
+  - SimpleLogProcessor modified to be generic over `LogExporter` to
+    avoid dynamic dispatch to invoke exporter. If you were using
+    `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+    transparent change.
+    [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+  - `ResourceDetector.detect()` no longer supports timeout option.
+  - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply cloneable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
+
+- *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
+  Before:
+     async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()>
+  After:
+     async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()>
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
 
 ## 0.27.1
 

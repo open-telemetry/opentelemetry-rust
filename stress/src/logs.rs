@@ -6,21 +6,33 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~44 M /sec
+    ~40 M /sec
 */
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogResult, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
 use std::{
     os::unix::process,
     sync::{Arc, Mutex},
 };
+
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
+use async_trait::async_trait;
+
+#[derive(Debug, Clone)]
+struct MockLogExporter;
+
+#[async_trait]
+impl LogExporter for MockLogExporter {
+    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
+        LogResult::Ok(())
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct SimpleExporter;
@@ -35,34 +47,14 @@ impl LogExporter for SimpleExporter {
 }
 
 #[derive(Debug)]
-pub struct NoOpLogProcessor {
-    exporter: Arc<Mutex<SimpleExporter>>,
+pub struct MockLogProcessor {
+    exporter: MockLogExporter,
 }
 
-impl NoOpLogProcessor {
-    pub fn new(exporter: SimpleExporter) -> Self {
-        Self {
-            exporter: Arc::new(Mutex::new(exporter)),
-        }
-    }
-}
-
-impl LogProcessor for NoOpLogProcessor {
+impl LogProcessor for MockLogProcessor {
     fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
-        let log_tuple = &[(record as &opentelemetry_sdk::logs::LogRecord, scope)];
-        let log_batch = LogBatch::new(log_tuple);
-
-        // Access the exporter using the Mutex
-        if let Ok(mut exporter) = self.exporter.lock() {
-            match futures_executor::block_on(exporter.export(&log_batch)) {
-                Err(err) => {
-                    eprintln!("Error: Export failed in NoOpLogProcessor. Error: {:?}", err);
-                }
-                _ => {}
-            }
-        } else {
-            eprintln!("Error: Failed to acquire lock on exporter.");
-        }
+        let log_tuple = &[(record as &LogRecord, scope)];
+        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
     fn force_flush(&self) -> LogResult<()> {
@@ -79,7 +71,9 @@ fn main() {
     let processor = NoOpLogProcessor::new(exporter);
     // LoggerProvider with a no-op processor.
     let provider: LoggerProvider = LoggerProvider::builder()
-        .with_log_processor(processor)
+        .with_log_processor(MockLogProcessor {
+            exporter: MockLogExporter {},
+        })
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.

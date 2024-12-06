@@ -106,7 +106,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
             .exporter
             .lock()
             .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
-            .and_then(|mut exporter| {
+            .and_then(|exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 let log_batch = LogBatch::new(log_tuple);
                 futures_executor::block_on(exporter.export(&log_batch))
@@ -569,7 +569,7 @@ mod tests {
 
     impl LogExporter for MockLogExporter {
         fn export<'a>(
-            &'a mut self,
+            &'a self,
             _batch: &'a LogBatch<'a>,
         ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
             async { Ok(()) }
@@ -1066,7 +1066,7 @@ mod tests {
 
     impl LogExporter for LogExporterThatRequiresTokio {
         fn export<'a>(
-            &'a mut self,
+            &'a self,
             batch: &'a LogBatch<'a>,
         ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration

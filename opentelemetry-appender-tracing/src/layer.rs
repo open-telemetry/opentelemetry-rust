@@ -248,7 +248,7 @@ mod tests {
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
         fn export<'a>(
-            &'a mut self,
+            &'a self,
             _batch: &'a LogBatch<'a>,
         ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
             async {

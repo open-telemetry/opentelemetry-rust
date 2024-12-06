@@ -80,7 +80,7 @@ pub trait LogExporter: Send + Sync + Debug {
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
     fn export<'a>(
-        &'a mut self,
+        &'a self,
         batch: &'a LogBatch<'a>,
     ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a;
 

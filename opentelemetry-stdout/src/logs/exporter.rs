@@ -4,12 +4,13 @@ use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
+use std::sync::atomic::Ordering;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
     resource: Resource,
     is_shutdown: atomic::AtomicBool,
-    resource_emitted: bool,
+    resource_emitted: atomic::AtomicBool,
 }
 
 impl Default for LogExporter {
@@ -17,7 +18,7 @@ impl Default for LogExporter {
         LogExporter {
             resource: Resource::default(),
             is_shutdown: atomic::AtomicBool::new(false),
-            resource_emitted: false,
+            resource_emitted: atomic::AtomicBool::new(false),
         }
     }
 }
@@ -31,7 +32,7 @@ impl fmt::Debug for LogExporter {
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     fn export<'a>(
-        &'a mut self,
+        &'a self,
         batch: &'a LogBatch<'a>,
     ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
         async move {
@@ -39,18 +40,21 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                 return Err("exporter is shut down".into());
             } else {
                 println!("Logs");
-                if self.resource_emitted {
-                    print_logs(batch);
-                } else {
-                    self.resource_emitted = true;
-                    println!("Resource");
-                    if let Some(schema_url) = self.resource.schema_url() {
-                        println!("\t Resource SchemaUrl: {:?}", schema_url);
-                    }
-                    self.resource.iter().for_each(|(k, v)| {
-                        println!("\t ->  {}={:?}", k, v);
-                    });
-                    print_logs(batch);
+            if self
+                .resource_emitted
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
+                print_logs(batch);
+            } else {
+                println!("Resource");
+                if let Some(schema_url) = self.resource.schema_url() {
+                    println!("\t Resource SchemaUrl: {:?}", schema_url);
+                }
+                self.resource.iter().for_each(|(k, v)| {
+                    println!("\t ->  {}={:?}", k, v);
+                });
+                print_logs(batch);
                 }
 
                 Ok(())
