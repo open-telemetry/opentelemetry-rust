@@ -1467,7 +1467,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
+                assert_gauge_data_points_eq(
                     a,
                     b,
                     ignore_timestamp,
@@ -1494,7 +1494,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
+                assert_sum_data_points_eq(
                     a,
                     b,
                     ignore_timestamp,
@@ -1554,9 +1554,33 @@ mod tests {
         }
     }
 
-    fn assert_data_points_eq<T: Number>(
-        a: &data::DataPoint<T>,
-        b: &data::DataPoint<T>,
+    fn assert_sum_data_points_eq<T: Number>(
+        a: &data::SumDataPoint<T>,
+        b: &data::SumDataPoint<T>,
+        ignore_timestamp: bool,
+        message: &'static str,
+        test_name: &'static str,
+    ) {
+        assert_eq!(
+            a.attributes, b.attributes,
+            "{}: {} attributes",
+            test_name, message
+        );
+        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+
+        if !ignore_timestamp {
+            assert_eq!(
+                a.start_time, b.start_time,
+                "{}: {} start time",
+                test_name, message
+            );
+            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
+        }
+    }
+
+    fn assert_gauge_data_points_eq<T: Number>(
+        a: &data::GaugeDataPoint<T>,
+        b: &data::GaugeDataPoint<T>,
         ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,

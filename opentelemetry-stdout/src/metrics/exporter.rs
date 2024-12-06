@@ -142,12 +142,12 @@ fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    print_data_points(&sum.data_points);
+    print_sum_data_points(&sum.data_points);
 }
 
 fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
     println!("\t\tGauge DataPoints");
-    print_data_points(&gauge.data_points);
+    print_gauge_data_points(&gauge.data_points);
 }
 
 fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
@@ -160,7 +160,7 @@ fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
     print_hist_data_points(&histogram.data_points);
 }
 
-fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
+fn print_sum_data_points<T: Debug>(data_points: &[data::SumDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         let datetime: DateTime<Utc> = data_point.start_time.into();
@@ -168,6 +168,29 @@ fn print_data_points<T: Debug>(data_points: &[data::DataPoint<T>]) {
             "\t\t\tStartTime    : {}",
             datetime.format("%Y-%m-%d %H:%M:%S%.6f")
         );
+        let datetime: DateTime<Utc> = data_point.time.into();
+        println!(
+            "\t\t\tEndTime      : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
+        println!("\t\t\tValue        : {:#?}", data_point.value);
+        println!("\t\t\tAttributes   :");
+        for kv in data_point.attributes.iter() {
+            println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
+        }
+    }
+}
+
+fn print_gauge_data_points<T: Debug>(data_points: &[data::GaugeDataPoint<T>]) {
+    for (i, data_point) in data_points.iter().enumerate() {
+        println!("\t\tDataPoint #{}", i);
+        if let Some(start_time) = data_point.start_time {
+            let datetime: DateTime<Utc> = start_time.into();
+            println!(
+                "\t\t\tStartTime    : {}",
+                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+            );
+        }
         let datetime: DateTime<Utc> = data_point.time.into();
         println!(
             "\t\t\tEndTime      : {}",
