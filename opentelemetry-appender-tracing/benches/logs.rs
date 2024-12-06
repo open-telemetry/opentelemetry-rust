@@ -34,7 +34,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
