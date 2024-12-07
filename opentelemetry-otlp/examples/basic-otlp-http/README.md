@@ -18,6 +18,7 @@ making the `main()` a normal main and *not* `tokio::main`
 
 // TODO: Metrics does not work with non tokio main when using `reqwest-blocking-client` today, fix that when switching 
 // default to use own thread.
+// TODO: Document `hyper` feature flag when using SimpleProcessor.
 
 ## Usage
 
