@@ -43,7 +43,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogEr
         .build())
 }
 
-fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
     let exporter = SpanExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
@@ -71,7 +71,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let tracer_provider = init_tracer_provider()?;
+    let tracer_provider = init_traces()?;
     global::set_tracer_provider(tracer_provider.clone());
 
     let meter_provider = init_metrics()?;

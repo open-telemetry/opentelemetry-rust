@@ -21,7 +21,7 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     )])
 });
 
-fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
     let exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
@@ -57,7 +57,7 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let tracer_provider = init_tracer_provider()?;
+    let tracer_provider = init_traces()?;
     global::set_tracer_provider(tracer_provider.clone());
 
     let meter_provider = init_metrics()?;
