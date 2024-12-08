@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -266,7 +266,7 @@ impl TonicExporterBuilder {
 
         let client = TonicLogsClient::new(channel, interceptor, compression);
 
-        Ok(crate::logs::LogExporter::new(client))
+        Ok(crate::logs::LogExporter::from_tonic(client))
     }
 
     /// Build a new tonic metrics exporter
