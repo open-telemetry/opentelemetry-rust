@@ -11,7 +11,9 @@
 
 {% for root_ns in ctx %}
     {% for attr in root_ns.attributes | rejectattr("name", "in", params.excluded_attributes) %}
-{{ [attr.brief, concat_if("\n\n## Notes\n\n", attr.note), attr_macros.examples(attr)] | comment }}
+{# Escape any `<...>` tags to `[...]` to avoid Rustdoc warnings and HTML parsing issues. #}
+{% set safe_note = attr.note | replace('<', '[') | replace('>', ']') %}
+{{ [attr.brief, concat_if("\n\n## Notes\n\n", safe_note), attr_macros.examples(attr)] | comment }}
         {% if attr is experimental %}
 #[cfg(feature = "semconv_experimental")]
         {% endif %}
