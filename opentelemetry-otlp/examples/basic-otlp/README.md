@@ -21,7 +21,7 @@ must be executed within a Tokio runtime. Below is an example:
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
      let rt = tokio::runtime::Runtime::new()?;
      let tracer_provider = rt.block_on(async {
-          init_tracer_provider()
+          init_traces()
      })?;
      global::set_tracer_provider(tracer_provider.clone());
 
