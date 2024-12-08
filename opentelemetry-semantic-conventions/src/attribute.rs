@@ -688,7 +688,7 @@ pub const CICD_PIPELINE_NAME: &str = "cicd.pipeline.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_RUN_ID: &str = "cicd.pipeline.run.id";
 
-/// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](https://en.wikipedia.org/wiki/Pipeline_(computing)) in a pipeline. Other terms for tasks include commands, steps, and procedures.
+/// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](https://wikipedia.org/wiki/Pipeline_(computing)) in a pipeline. Other terms for tasks include commands, steps, and procedures.
 ///
 /// # Examples
 ///
@@ -707,7 +707,7 @@ pub const CICD_PIPELINE_TASK_NAME: &str = "cicd.pipeline.task.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_TASK_RUN_ID: &str = "cicd.pipeline.task.run.id";
 
-/// The [URL](https://en.wikipedia.org/wiki/URL) of the pipeline run providing the complete address in order to locate and identify the pipeline run.
+/// The [URL](https://wikipedia.org/wiki/URL) of the pipeline run providing the complete address in order to locate and identify the pipeline run.
 ///
 /// # Examples
 ///
@@ -887,7 +887,7 @@ pub const CLOUDFOUNDRY_APP_ID: &str = "cloudfoundry.app.id";
 ///
 /// ## Notes
 ///
-/// CloudFoundry defines the `instance_id` in the [Loggegator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
+/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
 /// It is used for logs and metrics emitted by CloudFoundry. It is
 /// supposed to contain the application instance index for applications
 /// deployed on the runtime.
@@ -1343,8 +1343,13 @@ pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 /// ## Notes
 ///
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
-/// If the collection name is parsed from the query text, it SHOULD be the first collection name found in the query and it SHOULD match the value provided in the query text including any schema and database name prefix.
-/// For batch operations, if the individual operations are known to have the same collection name then that collection name SHOULD be used, otherwise `db.collection.name` SHOULD NOT be captured.
+///
+/// The collection name SHOULD NOT be extracted from `db.query.text`,
+/// unless the query format is known to only ever have a single collection name present.
+///
+/// For batch operations, if the individual operations are known to have the same collection name
+/// then that collection name SHOULD be used.
+///
 /// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
@@ -1375,6 +1380,18 @@ pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 
+/// Account or request [consistency level](https://learn.microsoft.com/azure/cosmos-db/consistency-levels).
+///
+/// # Examples
+///
+/// - `"Eventual"`
+/// - `"ConsistentPrefix"`
+/// - `"BoundedStaleness"`
+/// - `"Strong"`
+/// - `"Session"`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
+
 /// Deprecated, use `db.collection.name` instead.
 ///
 /// # Examples
@@ -1384,11 +1401,28 @@ pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 #[deprecated(note = "Replaced by `db.collection.name`.")]
 pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
-/// Cosmos DB Operation Type
+/// Deprecated, no replacement at this time
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "No replacement at this time.")]
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 
-/// RU consumed for that operation
+/// List of regions contacted during operation in the order that they were contacted. If there is more than one region listed, it indicates that the operation was performed on multiple regions i.e. cross-regional call.
+///
+/// ## Notes
+///
+/// Region name matches the format of `displayName` in [Azure Location API](https://learn.microsoft.com/rest/api/subscription/subscriptions/list-locations?view=rest-subscription-2021-10-01&tabs=HTTP#location)
+///
+/// # Examples
+///
+/// - `[
+///  "North Central US",
+///  "Australia East",
+///  "Australia Southeast",
+/// ]`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
+
+/// Request units consumed for the operation.
 ///
 /// # Examples
 ///
@@ -1545,9 +1579,17 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 ///
 /// ## Notes
 ///
-/// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
-/// If the operation name is parsed from the query text, it SHOULD be the first operation name found in the query.
-/// For batch operations, if the individual operations are known to have the same operation name then that operation name SHOULD be used prepended by `BATCH `, otherwise `db.operation.name` SHOULD be `BATCH` or some other database system specific term if more applicable.
+/// It is RECOMMENDED to capture the value as provided by the application
+/// without attempting to do any case normalization.
+///
+/// The operation name SHOULD NOT be extracted from `db.query.text`,
+/// unless the query format is known to only ever have a single operation name present.
+///
+/// For batch operations, if the individual operations are known to have the same operation name
+/// then that operation name SHOULD be used prepended by `BATCH `,
+/// otherwise `db.operation.name` SHOULD be `BATCH` or some other database
+/// system specific term if more applicable.
+///
 /// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
@@ -1558,12 +1600,12 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_OPERATION_NAME: &str = "db.operation.name";
 
-/// A query parameter used in `db.query.text`, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+/// A database operation parameter, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
 ///
 /// ## Notes
 ///
-/// Query parameters should only be captured when `db.query.text` is parameterized with placeholders.
 /// If a parameter has no name and instead is referenced only by index, then `<key>` SHOULD be the 0-based index.
+/// If `db.query.text` is also captured, then `db.operation.parameter.<key>` SHOULD match up with the parameterized placeholders present in `db.query.text`.
 /// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
@@ -1571,7 +1613,33 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 /// - `"someval"`
 /// - `"55"`
 #[cfg(feature = "semconv_experimental")]
+pub const DB_OPERATION_PARAMETER: &str = "db.operation.parameter";
+
+/// A query parameter used in `db.query.text`, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+///
+/// # Examples
+///
+/// - `"someval"`
+/// - `"55"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `db.operation.parameter`.")]
 pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
+
+/// Low cardinality representation of a database query text.
+///
+/// ## Notes
+///
+/// `db.query.summary` provides static summary of the query text. It describes a class of database queries and is useful as a grouping key, especially when analyzing telemetry for database calls involving complex queries.
+/// Summary may be available to the instrumentation through instrumentation hooks or other means. If it is not available, instrumentations that support query parsing SHOULD generate a summary following [Generating query summary](../../docs/database/database-spans.md#generating-a-summary-of-the-query-text) section.
+/// This attribute has stability level RELEASE CANDIDATE.
+///
+/// # Examples
+///
+/// - `"SELECT wuser_table"`
+/// - `"INSERT shipping_details SELECT orders"`
+/// - `"get user by id"`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_QUERY_SUMMARY: &str = "db.query.summary";
 
 /// The database query being executed.
 ///
@@ -1585,7 +1653,7 @@ pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
 /// # Examples
 ///
 /// - `"SELECT * FROM wuser_table where username = ?"`
-/// - `"SET mykey \"WuValue\""`
+/// - `"SET mykey ?"`
 #[cfg(feature = "semconv_experimental")]
 pub const DB_QUERY_TEXT: &str = "db.query.text";
 
@@ -1599,6 +1667,16 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `db.namespace`.")]
 pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
+
+/// Number of rows returned by the operation.
+///
+/// # Examples
+///
+/// - `10`
+/// - `30`
+/// - `1000`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_RESPONSE_RETURNED_ROWS: &str = "db.response.returned_rows";
 
 /// Database response status code.
 ///
@@ -2094,7 +2172,34 @@ pub const FAAS_TRIGGER: &str = "faas.trigger";
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_VERSION: &str = "faas.version";
 
-/// The unique identifier of the feature flag.
+/// The unique identifier for the flag evaluation context. For example, the targeting key.
+///
+/// # Examples
+///
+/// - `"5157782b-2203-4c80-a857-dbbd5e7761db"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
+
+/// A message explaining the nature of an error occurring during flag evaluation.
+///
+/// # Examples
+///
+/// - `"Flag `header-color`expected type`string`but found type`number`"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_EVALUATION_ERROR_MESSAGE: &str = "feature_flag.evaluation.error.message";
+
+/// The reason code which shows how a feature flag value was determined.
+///
+/// # Examples
+///
+/// - `"static"`
+/// - `"targeting_match"`
+/// - `"error"`
+/// - `"default"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_EVALUATION_REASON: &str = "feature_flag.evaluation.reason";
+
+/// The lookup key of the feature flag.
 ///
 /// # Examples
 ///
@@ -2102,7 +2207,7 @@ pub const FAAS_VERSION: &str = "faas.version";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 
-/// The name of the service provider that performs the flag evaluation.
+/// Identifies the feature flag provider.
 ///
 /// # Examples
 ///
@@ -2110,7 +2215,17 @@ pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 
-/// SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
+/// The identifier of the [flag set](https://openfeature.dev/specification/glossary/#flag-set) to which the feature flag belongs.
+///
+/// # Examples
+///
+/// - `"proj-1"`
+/// - `"ab98sgs"`
+/// - `"service1/dev"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_SET_ID: &str = "feature_flag.set.id";
+
+/// A semantic identifier for an evaluated flag value.
 ///
 /// ## Notes
 ///
@@ -2119,10 +2234,6 @@ pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 /// provide additional context for understanding the meaning behind a value.
 /// For example, the variant `red` maybe be used for the value `#c05543`.
 ///
-/// A stringified version of the value can be used in situations where a
-/// semantic identifier is unavailable. String representation of the value
-/// should be determined by the implementer.
-///
 /// # Examples
 ///
 /// - `"red"`
@@ -2130,6 +2241,15 @@ pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 /// - `"on"`
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_VARIANT: &str = "feature_flag.variant";
+
+/// The version of the ruleset used during the evaluation. This may be any stable value which uniquely identifies the ruleset.
+///
+/// # Examples
+///
+/// - `"1"`
+/// - `"01ABCDEF"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_VERSION: &str = "feature_flag.version";
 
 /// Time when the file was last accessed, in ISO 8601 format.
 ///
@@ -2383,7 +2503,7 @@ pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.r
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_OPENAI_REQUEST_SEED: &str = "gen_ai.openai.request.seed";
 
-/// The service tier requested. May be a specific tier, detault, or auto.
+/// The service tier requested. May be a specific tier, default, or auto.
 ///
 /// # Examples
 ///
@@ -2397,9 +2517,18 @@ pub const GEN_AI_OPENAI_REQUEST_SERVICE_TIER: &str = "gen_ai.openai.request.serv
 /// # Examples
 ///
 /// - `"scale"`
-/// - `"detault"`
+/// - `"default"`
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_OPENAI_RESPONSE_SERVICE_TIER: &str = "gen_ai.openai.response.service_tier";
+
+/// A fingerprint to track any eventual change in the Generative AI environment.
+///
+/// # Examples
+///
+/// - `"fp_44709d6fcb"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT: &str =
+    "gen_ai.openai.response.system_fingerprint";
 
 /// The name of the operation being performed.
 ///
@@ -2417,6 +2546,24 @@ pub const GEN_AI_OPERATION_NAME: &str = "gen_ai.operation.name";
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Removed, no replacement at this time.")]
 pub const GEN_AI_PROMPT: &str = "gen_ai.prompt";
+
+/// The encoding formats requested in an embeddings operation, if specified.
+///
+/// ## Notes
+///
+/// In some GenAI systems the encoding formats are called embedding types. Also, some GenAI systems only accept a single format per request.
+///
+/// # Examples
+///
+/// - `[
+///  "base64",
+/// ]`
+/// - `[
+///  "float",
+///  "binary",
+/// ]`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_REQUEST_ENCODING_FORMATS: &str = "gen_ai.request.encoding_formats";
 
 /// The frequency penalty setting for the GenAI request.
 ///
@@ -2577,6 +2724,59 @@ pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `gen_ai.usage.input_tokens` attribute.")]
 pub const GEN_AI_USAGE_PROMPT_TOKENS: &str = "gen_ai.usage.prompt_tokens";
+
+/// Two-letter code representing continent’s name
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_CONTINENT_CODE: &str = "geo.continent.code";
+
+/// Two-letter ISO Country Code ([ISO 3166-1 alpha2](https://wikipedia.org/wiki/ISO_3166-1#Codes)).
+///
+/// # Examples
+///
+/// - `"CA"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_COUNTRY_ISO_CODE: &str = "geo.country.iso_code";
+
+/// Locality name. Represents the name of a city, town, village, or similar populated place.
+///
+/// # Examples
+///
+/// - `"Montreal"`
+/// - `"Berlin"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_LOCALITY_NAME: &str = "geo.locality.name";
+
+/// Latitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
+///
+/// # Examples
+///
+/// - `45.505918`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_LOCATION_LAT: &str = "geo.location.lat";
+
+/// Longitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
+///
+/// # Examples
+///
+/// - `-73.61483`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_LOCATION_LON: &str = "geo.location.lon";
+
+/// Postal code associated with the location. Values appropriate for this field may also be known as a postcode or ZIP code and will vary widely from country to country.
+///
+/// # Examples
+///
+/// - `"94040"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_POSTAL_CODE: &str = "geo.postal_code";
+
+/// Region ISO code ([ISO 3166-2](https://wikipedia.org/wiki/ISO_3166-2)).
+///
+/// # Examples
+///
+/// - `"CA-QC"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEO_REGION_ISO_CODE: &str = "geo.region.iso_code";
 
 /// The type of memory.
 ///
@@ -4082,6 +4282,14 @@ pub const NETWORK_CONNECTION_SUBTYPE: &str = "network.connection.subtype";
 #[cfg(feature = "semconv_experimental")]
 pub const NETWORK_CONNECTION_TYPE: &str = "network.connection.type";
 
+/// The network interface name.
+///
+/// # Examples
+///
+/// - `"lo"`
+/// - `"eth0"`
+pub const NETWORK_INTERFACE_NAME: &str = "network.interface.name";
+
 /// The network IO operation direction.
 ///
 /// # Examples
@@ -4120,7 +4328,7 @@ pub const NETWORK_PEER_ADDRESS: &str = "network.peer.address";
 /// - `65123`
 pub const NETWORK_PEER_PORT: &str = "network.peer.port";
 
-/// [OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.
+/// [OSI application layer](https://wikipedia.org/wiki/Application_layer) or non-OSI equivalent.
 ///
 /// ## Notes
 ///
@@ -4145,7 +4353,7 @@ pub const NETWORK_PROTOCOL_NAME: &str = "network.protocol.name";
 /// - `"2"`
 pub const NETWORK_PROTOCOL_VERSION: &str = "network.protocol.version";
 
-/// [OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+/// [OSI transport layer](https://wikipedia.org/wiki/Transport_layer) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
 ///
 /// ## Notes
 ///
@@ -4161,7 +4369,7 @@ pub const NETWORK_PROTOCOL_VERSION: &str = "network.protocol.version";
 /// - `"udp"`
 pub const NETWORK_TRANSPORT: &str = "network.transport";
 
-/// [OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+/// [OSI network layer](https://wikipedia.org/wiki/Network_layer) or non-OSI equivalent.
 ///
 /// ## Notes
 ///
@@ -4386,6 +4594,15 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_GO: &str = "process.executable.build_id.go
 ///
 /// - `"600DCAFE4A110000F2BF38C493F5FB92"`
 #[cfg(feature = "semconv_experimental")]
+pub const PROCESS_EXECUTABLE_BUILD_ID_HTLHASH: &str = "process.executable.build_id.htlhash";
+
+/// "Deprecated, use `process.executable.build_id.htlhash` instead."
+///
+/// # Examples
+///
+/// - `"600DCAFE4A110000F2BF38C493F5FB92"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `process.executable.build_id.htlhash`")]
 pub const PROCESS_EXECUTABLE_BUILD_ID_PROFILING: &str = "process.executable.build_id.profiling";
 
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
@@ -4431,6 +4648,19 @@ pub const PROCESS_GROUP_LEADER_PID: &str = "process.group_leader.pid";
 /// Whether the process is connected to an interactive shell
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_INTERACTIVE: &str = "process.interactive";
+
+/// The control group associated with the process.
+///
+/// ## Notes
+///
+/// Control groups (cgroups) are a kernel feature used to organize and manage process resources. This attribute provides the path(s) to the cgroup(s) associated with the process, which should match the contents of the [/proc/<PID>/cgroup](https://man7.org/linux/man-pages/man7/cgroups.7.html) file.
+///
+/// # Examples
+///
+/// - `"1:name=systemd:/user.slice/user-1000.slice/session-3.scope"`
+/// - `"0::/user.slice/user-1000.slice/user@1000.service/tmux-spawn-0267755b-4639-4a27-90ed-f19f88e53748.scope"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_LINUX_CGROUP: &str = "process.linux.cgroup";
 
 /// The username of the user that owns the process.
 ///
@@ -4765,7 +4995,7 @@ pub const SERVER_PORT: &str = "server.port";
 ///
 /// UUIDs are typically recommended, as only an opaque value for the purposes of identifying a service instance is
 /// needed. Similar to what can be seen in the man page for the
-/// [`/etc/machine-id`](https://www.freedesktop.org/software/systemd/man/machine-id.html) file, the underlying
+/// [`/etc/machine-id`](https://www.freedesktop.org/software/systemd/man/latest/machine-id.html) file, the underlying
 /// data, such as pod name and namespace should be treated as confidential, being the user's choice to expose it
 /// or not via another resource attribute.
 ///
@@ -5035,7 +5265,7 @@ pub const TELEMETRY_SDK_NAME: &str = "telemetry.sdk.name";
 /// - `"1.2.3"`
 pub const TELEMETRY_SDK_VERSION: &str = "telemetry.sdk.version";
 
-/// The fully qualified human readable name of the [test case](https://en.wikipedia.org/wiki/Test_case).
+/// The fully qualified human readable name of the [test case](https://wikipedia.org/wiki/Test_case).
 ///
 /// # Examples
 ///
@@ -5054,7 +5284,7 @@ pub const TEST_CASE_NAME: &str = "test.case.name";
 #[cfg(feature = "semconv_experimental")]
 pub const TEST_CASE_RESULT_STATUS: &str = "test.case.result.status";
 
-/// The human readable name of a [test suite](https://en.wikipedia.org/wiki/Test_suite).
+/// The human readable name of a [test suite](https://wikipedia.org/wiki/Test_suite).
 ///
 /// # Examples
 ///
@@ -5374,9 +5604,29 @@ pub const URL_FRAGMENT: &str = "url.fragment";
 ///
 /// ## Notes
 ///
-/// For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
-/// `url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
-/// `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed). Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it.
+/// For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment
+/// is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
+///
+/// `url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`.
+/// In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
+///
+/// `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
+///
+/// Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it.
+///
+///
+/// Query string values for the following keys SHOULD be redacted by default and replaced by the
+/// value `REDACTED`:
+///
+/// - [`AWSAccessKeyId`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`Signature`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`sig`](https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)
+/// - [`X-Goog-Signature`](https://cloud.google.com/storage/docs/access-control/signed-urls)
+///
+/// This list is subject to change over time.
+///
+/// When a query string value is redacted, the query string key SHOULD still be preserved, e.g.
+/// `https://www.example.com/path?color=blue&sig=REDACTED`.
 ///
 /// # Examples
 ///
@@ -5422,6 +5672,19 @@ pub const URL_PORT: &str = "url.port";
 /// ## Notes
 ///
 /// Sensitive content provided in `url.query` SHOULD be scrubbed when instrumentations can identify it.
+///
+///
+/// Query string values for the following keys SHOULD be redacted by default and replaced by the value `REDACTED`:
+///
+/// - [`AWSAccessKeyId`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`Signature`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`sig`](https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)
+/// - [`X-Goog-Signature`](https://cloud.google.com/storage/docs/access-control/signed-urls)
+///
+/// This list is subject to change over time.
+///
+/// When a query string value is redacted, the query string key SHOULD still be preserved, e.g.
+/// `q=OpenTelemetry&sig=REDACTED`.
 ///
 /// # Examples
 ///
@@ -5563,6 +5826,14 @@ pub const USER_AGENT_NAME: &str = "user_agent.name";
 /// - `"YourApp/1.0.0 grpc-java-okhttp/1.27.2"`
 pub const USER_AGENT_ORIGINAL: &str = "user_agent.original";
 
+/// Specifies the category of synthetic traffic, such as tests or bots.
+///
+/// ## Notes
+///
+/// This attribute MAY be derived from the contents of the `user_agent.original` attribute. Components that populate the attribute are responsible for determining what they consider to be synthetic bot or test traffic. This attribute can either be set for self-identification purposes, or on telemetry detected to be generated as a result of a synthetic request. This attribute is useful for distinguishing between genuine client traffic and synthetic traffic generated by bots or tests
+#[cfg(feature = "semconv_experimental")]
+pub const USER_AGENT_SYNTHETIC_TYPE: &str = "user_agent.synthetic.type";
+
 /// Version of the user-agent extracted from original. Usually refers to the browser's version
 ///
 /// ## Notes
@@ -5588,15 +5859,25 @@ pub const V8JS_GC_TYPE: &str = "v8js.gc.type";
 #[cfg(feature = "semconv_experimental")]
 pub const V8JS_HEAP_SPACE_NAME: &str = "v8js.heap.space.name";
 
-/// The ID of the change (pull request/merge request) if applicable. This is usually a unique (within repository) identifier generated by the VCS system.
+/// The ID of the change (pull request/merge request/changelist) if applicable. This is usually a unique (within repository) identifier generated by the VCS system.
 ///
 /// # Examples
 ///
 /// - `"123"`
 #[cfg(feature = "semconv_experimental")]
-pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
+pub const VCS_CHANGE_ID: &str = "vcs.change.id";
 
-/// The human readable title of the change (pull request/merge request). This title is often a brief summary of the change and may get merged in to a ref as the commit summary.
+/// The state of the change (pull request/merge request/changelist).
+///
+/// # Examples
+///
+/// - `"open"`
+/// - `"closed"`
+/// - `"merged"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CHANGE_STATE: &str = "vcs.change.state";
+
+/// The human readable title of the change (pull request/merge request/changelist). This title is often a brief summary of the change and may get merged in to a ref as the commit summary.
 ///
 /// # Examples
 ///
@@ -5604,7 +5885,16 @@ pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
 /// - `"feat: add my new feature"`
 /// - `"[chore] update dependency"`
 #[cfg(feature = "semconv_experimental")]
-pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
+pub const VCS_CHANGE_TITLE: &str = "vcs.change.title";
+
+/// The type of line change being measured on a branch or change.
+///
+/// # Examples
+///
+/// - `"added"`
+/// - `"removed"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_LINE_CHANGE_TYPE: &str = "vcs.line_change.type";
 
 /// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
 ///
@@ -5613,7 +5903,7 @@ pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
 /// - `"my-feature-branch"`
 /// - `"tag-1-test"`
 #[cfg(feature = "semconv_experimental")]
-pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
+pub const VCS_REF_BASE_NAME: &str = "vcs.ref.base.name";
 
 /// The revision, literally [revised version](https://www.merriam-webster.com/dictionary/revision), The revision most often refers to a commit object in Git, or a revision number in SVN.
 ///
@@ -5625,7 +5915,7 @@ pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
 /// not necessarily have to be a hash; it can simply define a
 /// [revision number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
 /// which is an integer that is monotonically increasing. In cases where
-/// it is identical to the `ref.name`, it SHOULD still be included. It is
+/// it is identical to the `ref.base.name`, it SHOULD still be included. It is
 /// up to the implementer to decide which value to set as the revision
 /// based on the VCS system and situational context.
 ///
@@ -5636,7 +5926,7 @@ pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
 /// - `"123"`
 /// - `"HEAD"`
 #[cfg(feature = "semconv_experimental")]
-pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
+pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 
 /// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
@@ -5645,9 +5935,111 @@ pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 /// - `"branch"`
 /// - `"tag"`
 #[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_BASE_TYPE: &str = "vcs.ref.base.type";
+
+/// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
+///
+/// # Examples
+///
+/// - `"my-feature-branch"`
+/// - `"tag-1-test"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_HEAD_NAME: &str = "vcs.ref.head.name";
+
+/// The revision, literally [revised version](https://www.merriam-webster.com/dictionary/revision), The revision most often refers to a commit object in Git, or a revision number in SVN.
+///
+/// ## Notes
+///
+/// The revision can be a full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
+/// of the recorded change to a ref within a repository pointing to a
+/// commit [commit](https://git-scm.com/docs/git-commit) object. It does
+/// not necessarily have to be a hash; it can simply define a
+/// [revision number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
+/// which is an integer that is monotonically increasing. In cases where
+/// it is identical to the `ref.head.name`, it SHOULD still be included. It is
+/// up to the implementer to decide which value to set as the revision
+/// based on the VCS system and situational context.
+///
+/// # Examples
+///
+/// - `"9d59409acf479dfa0df1aa568182e43e43df8bbe28d60fcf2bc52e30068802cc"`
+/// - `"main"`
+/// - `"123"`
+/// - `"HEAD"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
+
+/// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
+///
+/// # Examples
+///
+/// - `"branch"`
+/// - `"tag"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_HEAD_TYPE: &str = "vcs.ref.head.type";
+
+/// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
+///
+/// # Examples
+///
+/// - `"branch"`
+/// - `"tag"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_TYPE: &str = "vcs.ref.type";
+
+/// Deprecated, use `vcs.change.id` instead.
+///
+/// # Examples
+///
+/// - `"123"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Deprecated, use `vcs.change.id` instead.")]
+pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
+
+/// Deprecated, use `vcs.change.title` instead.
+///
+/// # Examples
+///
+/// - `"Fixes broken thing"`
+/// - `"feat: add my new feature"`
+/// - `"[chore] update dependency"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Deprecated, use `vcs.change.title` instead.")]
+pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
+
+/// Deprecated, use `vcs.ref.head.name` instead.
+///
+/// # Examples
+///
+/// - `"my-feature-branch"`
+/// - `"tag-1-test"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Deprecated, use `vcs.ref.head.name` instead.")]
+pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
+
+/// Deprecated, use `vcs.ref.head.revision` instead.
+///
+/// # Examples
+///
+/// - `"9d59409acf479dfa0df1aa568182e43e43df8bbe28d60fcf2bc52e30068802cc"`
+/// - `"main"`
+/// - `"123"`
+/// - `"HEAD"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Deprecated, use `vcs.ref.head.revision` instead.")]
+pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
+
+/// Deprecated, use `vcs.ref.head.type` instead.
+///
+/// # Examples
+///
+/// - `"branch"`
+/// - `"tag"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Deprecated, use `vcs.ref.head.type` instead.")]
 pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 
-/// The [URL](https://en.wikipedia.org/wiki/URL) of the repository providing the complete address in order to locate and identify the repository.
+/// The [URL](https://wikipedia.org/wiki/URL) of the repository providing the complete address in order to locate and identify the repository.
 ///
 /// # Examples
 ///
@@ -5655,6 +6047,15 @@ pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 /// - `"https://gitlab.com/my-org/my-project/my-projects-project/repo"`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REPOSITORY_URL_FULL: &str = "vcs.repository.url.full";
+
+/// The type of revision comparison.
+///
+/// # Examples
+///
+/// - `"ahead"`
+/// - `"behind"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REVISION_DELTA_DIRECTION: &str = "vcs.revision_delta.direction";
 
 /// Additional description of the web engine (e.g. detailed version and edition information).
 ///

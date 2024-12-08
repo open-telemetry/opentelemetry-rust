@@ -14,8 +14,6 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
-//TODO - remove once there are no empty lines after doc comments in the templates.
-#![allow(clippy::empty_line_after_doc_comments)]
 
 pub mod attribute;
 pub mod metric;
@@ -24,4 +22,4 @@ pub mod trace;
 
 /// The schema URL that matches the version of the semantic conventions that
 /// this crate defines.
-pub const SCHEMA_URL: &str = "https://opentelemetry.io/schemas/1.28.0";
+pub const SCHEMA_URL: &str = "https://opentelemetry.io/schemas/1.29.0";
