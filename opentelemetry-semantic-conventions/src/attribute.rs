@@ -10,6 +10,8 @@
 
 /// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"33"`
@@ -28,6 +30,8 @@ pub const ANDROID_STATE: &str = "android.state";
 
 /// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations) specification for more information.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"golang-binary-amd64-v0.1.0.attestation"`
@@ -39,6 +43,8 @@ pub const ARTIFACT_ATTESTATION_FILENAME: &str = "artifact.attestation.filename";
 
 /// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), of the built attestation. Some envelopes in the software attestation space also refer to this as the [digest](https://github.com/in-toto/attestation/blob/main/spec/README.md#in-toto-attestation-framework-spec).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1b31dfcd5b7f9267bf2ff47651df1cfb9147b9e4df1f335accf65b4cda498408"`
@@ -46,6 +52,8 @@ pub const ARTIFACT_ATTESTATION_FILENAME: &str = "artifact.attestation.filename";
 pub const ARTIFACT_ATTESTATION_HASH: &str = "artifact.attestation.hash";
 
 /// The id of the build [software attestation](https://slsa.dev/attestation-model).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -92,6 +100,8 @@ pub const ARTIFACT_HASH: &str = "artifact.hash";
 
 /// The [Package URL](https://github.com/package-url/purl-spec) of the [package artifact](https://slsa.dev/spec/v1.0/terminology#package-model) provides a standard way to identify and locate the packaged artifact.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"pkg:github/package-url/purl-spec@1209109710924"`
@@ -100,6 +110,8 @@ pub const ARTIFACT_HASH: &str = "artifact.hash";
 pub const ARTIFACT_PURL: &str = "artifact.purl";
 
 /// The version of the artifact.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -111,6 +123,8 @@ pub const ARTIFACT_VERSION: &str = "artifact.version";
 
 /// ASP.NET Core exception middleware handling result
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"handled"`
@@ -119,12 +133,16 @@ pub const ASPNETCORE_DIAGNOSTICS_EXCEPTION_RESULT: &str = "aspnetcore.diagnostic
 
 /// Full type name of the [`IExceptionHandler`](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.diagnostics.iexceptionhandler) implementation that handled the exception.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Contoso.MyHandler"`
 pub const ASPNETCORE_DIAGNOSTICS_HANDLER_TYPE: &str = "aspnetcore.diagnostics.handler.type";
 
 /// Rate limiting policy name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -135,6 +153,8 @@ pub const ASPNETCORE_RATE_LIMITING_POLICY: &str = "aspnetcore.rate_limiting.poli
 
 /// Rate-limiting result, shows whether the lease was acquired or contains a rejection reason
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"acquired"`
@@ -143,12 +163,16 @@ pub const ASPNETCORE_RATE_LIMITING_RESULT: &str = "aspnetcore.rate_limiting.resu
 
 /// Flag indicating if request was handled by the application pipeline.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `true`
 pub const ASPNETCORE_REQUEST_IS_UNHANDLED: &str = "aspnetcore.request.is_unhandled";
 
 /// A value that indicates whether the matched route is a fallback route.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -157,6 +181,8 @@ pub const ASPNETCORE_ROUTING_IS_FALLBACK: &str = "aspnetcore.routing.is_fallback
 
 /// Match result - success or failure
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"success"`
@@ -164,6 +190,8 @@ pub const ASPNETCORE_ROUTING_IS_FALLBACK: &str = "aspnetcore.routing.is_fallback
 pub const ASPNETCORE_ROUTING_MATCH_STATUS: &str = "aspnetcore.routing.match_status";
 
 /// The JSON-serialized value of each item in the `AttributeDefinitions` request field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -175,6 +203,8 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_def
 
 /// The value of the `AttributesToGet` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `[
@@ -184,11 +214,15 @@ pub const AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS: &str = "aws.dynamodb.attribute_def
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_ATTRIBUTES_TO_GET: &str = "aws.dynamodb.attributes_to_get";
 
-/// The value of the `ConsistentRead` request parameter
+/// The value of the `ConsistentRead` request parameter.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_CONSISTENT_READ: &str = "aws.dynamodb.consistent_read";
 
 /// The JSON-serialized value of each item in the `ConsumedCapacity` response field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -200,6 +234,8 @@ pub const AWS_DYNAMODB_CONSUMED_CAPACITY: &str = "aws.dynamodb.consumed_capacity
 
 /// The value of the `Count` response parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `10`
@@ -207,6 +243,8 @@ pub const AWS_DYNAMODB_CONSUMED_CAPACITY: &str = "aws.dynamodb.consumed_capacity
 pub const AWS_DYNAMODB_COUNT: &str = "aws.dynamodb.count";
 
 /// The value of the `ExclusiveStartTableName` request parameter.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -216,6 +254,8 @@ pub const AWS_DYNAMODB_COUNT: &str = "aws.dynamodb.count";
 pub const AWS_DYNAMODB_EXCLUSIVE_START_TABLE: &str = "aws.dynamodb.exclusive_start_table";
 
 /// The JSON-serialized value of each item in the `GlobalSecondaryIndexUpdates` request field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -228,6 +268,8 @@ pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEX_UPDATES: &str =
 
 /// The JSON-serialized value of each item of the `GlobalSecondaryIndexes` request field
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `[
@@ -238,6 +280,8 @@ pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: &str = "aws.dynamodb.global_sec
 
 /// The value of the `IndexName` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"name_to_group"`
@@ -245,6 +289,8 @@ pub const AWS_DYNAMODB_GLOBAL_SECONDARY_INDEXES: &str = "aws.dynamodb.global_sec
 pub const AWS_DYNAMODB_INDEX_NAME: &str = "aws.dynamodb.index_name";
 
 /// The JSON-serialized value of the `ItemCollectionMetrics` response field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -254,6 +300,8 @@ pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: &str = "aws.dynamodb.item_collec
 
 /// The value of the `Limit` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `10`
@@ -261,6 +309,8 @@ pub const AWS_DYNAMODB_ITEM_COLLECTION_METRICS: &str = "aws.dynamodb.item_collec
 pub const AWS_DYNAMODB_LIMIT: &str = "aws.dynamodb.limit";
 
 /// The JSON-serialized value of each item of the `LocalSecondaryIndexes` request field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -272,6 +322,8 @@ pub const AWS_DYNAMODB_LOCAL_SECONDARY_INDEXES: &str = "aws.dynamodb.local_secon
 
 /// The value of the `ProjectionExpression` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Title"`
@@ -282,6 +334,8 @@ pub const AWS_DYNAMODB_PROJECTION: &str = "aws.dynamodb.projection";
 
 /// The value of the `ProvisionedThroughput.ReadCapacityUnits` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1.0`
@@ -291,6 +345,8 @@ pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: &str = "aws.dynamodb.provision
 
 /// The value of the `ProvisionedThroughput.WriteCapacityUnits` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1.0`
@@ -298,11 +354,15 @@ pub const AWS_DYNAMODB_PROVISIONED_READ_CAPACITY: &str = "aws.dynamodb.provision
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_PROVISIONED_WRITE_CAPACITY: &str = "aws.dynamodb.provisioned_write_capacity";
 
-/// The value of the `ScanIndexForward` request parameter
+/// The value of the `ScanIndexForward` request parameter.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_SCAN_FORWARD: &str = "aws.dynamodb.scan_forward";
 
 /// The value of the `ScannedCount` response parameter.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -312,6 +372,8 @@ pub const AWS_DYNAMODB_SCANNED_COUNT: &str = "aws.dynamodb.scanned_count";
 
 /// The value of the `Segment` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `10`
@@ -319,6 +381,8 @@ pub const AWS_DYNAMODB_SCANNED_COUNT: &str = "aws.dynamodb.scanned_count";
 pub const AWS_DYNAMODB_SEGMENT: &str = "aws.dynamodb.segment";
 
 /// The value of the `Select` request parameter.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -329,6 +393,8 @@ pub const AWS_DYNAMODB_SELECT: &str = "aws.dynamodb.select";
 
 /// The number of items in the `TableNames` response parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `20`
@@ -336,6 +402,8 @@ pub const AWS_DYNAMODB_SELECT: &str = "aws.dynamodb.select";
 pub const AWS_DYNAMODB_TABLE_COUNT: &str = "aws.dynamodb.table_count";
 
 /// The keys in the `RequestItems` object field.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -348,6 +416,8 @@ pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 
 /// The value of the `TotalSegments` request parameter.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `100`
@@ -355,6 +425,8 @@ pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 pub const AWS_DYNAMODB_TOTAL_SEGMENTS: &str = "aws.dynamodb.total_segments";
 
 /// The ARN of an [ECS cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -364,17 +436,23 @@ pub const AWS_ECS_CLUSTER_ARN: &str = "aws.ecs.cluster.arn";
 
 /// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"arn:aws:ecs:us-west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9"`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_CONTAINER_ARN: &str = "aws.ecs.container.arn";
 
-/// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task
+/// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_LAUNCHTYPE: &str = "aws.ecs.launchtype";
 
 /// The ARN of a running [ECS task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html#ecs-resource-ids).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -385,6 +463,8 @@ pub const AWS_ECS_TASK_ARN: &str = "aws.ecs.task.arn";
 
 /// The family name of the [ECS task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) used to create the ECS task.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry-family"`
@@ -392,6 +472,8 @@ pub const AWS_ECS_TASK_ARN: &str = "aws.ecs.task.arn";
 pub const AWS_ECS_TASK_FAMILY: &str = "aws.ecs.task.family";
 
 /// The ID of a running ECS task. The ID MUST be extracted from `task.arn`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -402,6 +484,8 @@ pub const AWS_ECS_TASK_ID: &str = "aws.ecs.task.id";
 
 /// The revision for the task definition used to create the ECS task.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"8"`
@@ -410,6 +494,8 @@ pub const AWS_ECS_TASK_ID: &str = "aws.ecs.task.id";
 pub const AWS_ECS_TASK_REVISION: &str = "aws.ecs.task.revision";
 
 /// The ARN of an EKS cluster.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -474,6 +560,8 @@ pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
 
 /// The name(s) of the AWS log stream(s) an application is writing to.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `[
@@ -483,6 +571,8 @@ pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
 pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
 
 /// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -599,6 +689,8 @@ pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 
 /// [Azure Resource Provider Namespace](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-services-resource-providers) as recognized by the client.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Microsoft.Storage"`
@@ -608,6 +700,8 @@ pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 pub const AZ_NAMESPACE: &str = "az.namespace";
 
 /// The unique identifier of the service request. It's generated by the Azure service and returned with the response.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -671,6 +765,8 @@ pub const BROWSER_PLATFORM: &str = "browser.platform";
 
 /// The human readable name of the pipeline within a CI/CD system.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Build and Test"`
@@ -682,6 +778,8 @@ pub const CICD_PIPELINE_NAME: &str = "cicd.pipeline.name";
 
 /// The unique identifier of a pipeline run within a CI/CD system.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"120912"`
@@ -689,6 +787,8 @@ pub const CICD_PIPELINE_NAME: &str = "cicd.pipeline.name";
 pub const CICD_PIPELINE_RUN_ID: &str = "cicd.pipeline.run.id";
 
 /// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](https://wikipedia.org/wiki/Pipeline_(computing)) in a pipeline. Other terms for tasks include commands, steps, and procedures.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -701,6 +801,8 @@ pub const CICD_PIPELINE_TASK_NAME: &str = "cicd.pipeline.task.name";
 
 /// The unique identifier of a task run within a pipeline.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"12097"`
@@ -709,6 +811,8 @@ pub const CICD_PIPELINE_TASK_RUN_ID: &str = "cicd.pipeline.task.run.id";
 
 /// The [URL](https://wikipedia.org/wiki/URL) of the pipeline run providing the complete address in order to locate and identify the pipeline run.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"https://github.com/open-telemetry/semantic-conventions/actions/runs/9753949763/job/26920038674?pr=1075"`
@@ -716,6 +820,8 @@ pub const CICD_PIPELINE_TASK_RUN_ID: &str = "cicd.pipeline.task.run.id";
 pub const CICD_PIPELINE_TASK_RUN_URL_FULL: &str = "cicd.pipeline.task.run.url.full";
 
 /// The type of the task within a pipeline.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -751,6 +857,8 @@ pub const CLIENT_PORT: &str = "client.port";
 
 /// The cloud account ID the resource is assigned to.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"111111111111"`
@@ -778,7 +886,9 @@ pub const CLOUD_AVAILABILITY_ZONE: &str = "cloud.availability_zone";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUD_PLATFORM: &str = "cloud.platform";
 
-/// Name of the cloud provider
+/// Name of the cloud provider.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUD_PROVIDER: &str = "cloud.provider";
 
@@ -813,7 +923,7 @@ pub const CLOUD_REGION: &str = "cloud.region";
 /// - **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
 /// - **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/rest/api/resources/resources/get-by-id) of the invoked function,
 ///   *not* the function app, having the form
-///   `/subscriptions/<SUBSCRIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>`.
+///   `/subscriptions/[SUBSCRIPTION_GUID]/resourceGroups/[RG]/providers/Microsoft.Web/sites/[FUNCAPP]/functions/[FUNC]`.
 ///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
 ///   a TracerProvider.
 ///
@@ -827,6 +937,8 @@ pub const CLOUD_RESOURCE_ID: &str = "cloud.resource_id";
 
 /// The [event_id](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id) uniquely identifies the event.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"123e4567-e89b-12d3-a456-426614174000"`
@@ -835,6 +947,8 @@ pub const CLOUD_RESOURCE_ID: &str = "cloud.resource_id";
 pub const CLOUDEVENTS_EVENT_ID: &str = "cloudevents.event_id";
 
 /// The [source](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1) identifies the context in which an event happened.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -846,6 +960,8 @@ pub const CLOUDEVENTS_EVENT_SOURCE: &str = "cloudevents.event_source";
 
 /// The [version of the CloudEvents specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1.0"`
@@ -854,6 +970,8 @@ pub const CLOUDEVENTS_EVENT_SPEC_VERSION: &str = "cloudevents.event_spec_version
 
 /// The [subject](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject) of the event in the context of the event producer (identified by source).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"mynewfile.jpg"`
@@ -861,6 +979,8 @@ pub const CLOUDEVENTS_EVENT_SPEC_VERSION: &str = "cloudevents.event_spec_version
 pub const CLOUDEVENTS_EVENT_SUBJECT: &str = "cloudevents.event_subject";
 
 /// The [event_type](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type) contains a value describing the type of event related to the originating occurrence.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -875,7 +995,7 @@ pub const CLOUDEVENTS_EVENT_TYPE: &str = "cloudevents.event_type";
 ///
 /// Application instrumentation should use the value from environment
 /// variable `VCAP_APPLICATION.application_id`. This is the same value as
-/// reported by `cf app <app-name> --guid`.
+/// reported by `cf app [app-name] --guid`.
 ///
 /// # Examples
 ///
@@ -922,7 +1042,7 @@ pub const CLOUDFOUNDRY_APP_NAME: &str = "cloudfoundry.app.name";
 ///
 /// Application instrumentation should use the value from environment
 /// variable `VCAP_APPLICATION.org_id`. This is the same value as
-/// reported by `cf org <org-name> --guid`.
+/// reported by `cf org [org-name] --guid`.
 ///
 /// # Examples
 ///
@@ -979,7 +1099,7 @@ pub const CLOUDFOUNDRY_PROCESS_TYPE: &str = "cloudfoundry.process.type";
 ///
 /// Application instrumentation should use the value from environment
 /// variable `VCAP_APPLICATION.space_id`. This is the same value as
-/// reported by `cf space <space-name> --guid`.
+/// reported by `cf space [space-name] --guid`.
 ///
 /// # Examples
 ///
@@ -1041,6 +1161,8 @@ pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.
 
 /// The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `16`
@@ -1048,6 +1170,8 @@ pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.
 pub const CODE_COLUMN: &str = "code.column";
 
 /// The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1057,6 +1181,8 @@ pub const CODE_FILEPATH: &str = "code.filepath";
 
 /// The method or function name, or equivalent (usually rightmost part of the code unit's name).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"serveRequest"`
@@ -1064,6 +1190,8 @@ pub const CODE_FILEPATH: &str = "code.filepath";
 pub const CODE_FUNCTION: &str = "code.function";
 
 /// The line number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1073,6 +1201,8 @@ pub const CODE_LINENO: &str = "code.lineno";
 
 /// The "namespace" within which `code.function` is defined. Usually the qualified class or module name, such that `code.namespace` + some separator + `code.function` form a unique identifier for the code unit.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"com.example.MyHttpService"`
@@ -1080,6 +1210,8 @@ pub const CODE_LINENO: &str = "code.lineno";
 pub const CODE_NAMESPACE: &str = "code.namespace";
 
 /// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1101,6 +1233,8 @@ pub const CONTAINER_COMMAND: &str = "container.command";
 
 /// All the command arguments (including the command/executable itself) run by the container.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `[
@@ -1113,6 +1247,8 @@ pub const CONTAINER_COMMAND_ARGS: &str = "container.command_args";
 
 /// The full command run by the container as a single string representing the full command.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"otelcontribcol --config config.yaml"`
@@ -1120,6 +1256,8 @@ pub const CONTAINER_COMMAND_ARGS: &str = "container.command_args";
 pub const CONTAINER_COMMAND_LINE: &str = "container.command_line";
 
 /// Deprecated, use `cpu.mode` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1155,6 +1293,8 @@ pub const CONTAINER_CSI_VOLUME_ID: &str = "container.csi.volume.id";
 
 /// Container ID. Usually a UUID, as for example used to [identify Docker containers](https://docs.docker.com/engine/containers/run/#container-identification). The UUID might be abbreviated.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"a3bf90e006b2"`
@@ -1176,6 +1316,8 @@ pub const CONTAINER_ID: &str = "container.id";
 pub const CONTAINER_IMAGE_ID: &str = "container.image.id";
 
 /// Name of the image the container was built on.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1200,6 +1342,8 @@ pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 
 /// Container image tags. An example can be found in [Docker Image Inspect](https://docs.docker.com/engine/api/v1.43/#tag/Image/operation/ImageInspect). Should be only the `<tag>` section of the full name for example from `registry.example.com/my-org/my-image:<tag>`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `[
@@ -1211,6 +1355,8 @@ pub const CONTAINER_IMAGE_TAGS: &str = "container.image.tags";
 
 /// Container labels, `<key>` being the label name, the value being the label value.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"container.label.app=nginx"`
@@ -1218,6 +1364,8 @@ pub const CONTAINER_IMAGE_TAGS: &str = "container.image.tags";
 pub const CONTAINER_LABEL: &str = "container.label";
 
 /// Deprecated, use `container.label` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1228,6 +1376,8 @@ pub const CONTAINER_LABELS: &str = "container.labels";
 
 /// Container name used by container runtime.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry-autoconf"`
@@ -1235,6 +1385,8 @@ pub const CONTAINER_LABELS: &str = "container.labels";
 pub const CONTAINER_NAME: &str = "container.name";
 
 /// The container runtime managing this container.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1246,6 +1398,8 @@ pub const CONTAINER_RUNTIME: &str = "container.runtime";
 
 /// The mode of the CPU
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"user"`
@@ -1253,11 +1407,15 @@ pub const CONTAINER_RUNTIME: &str = "container.runtime";
 #[cfg(feature = "semconv_experimental")]
 pub const CPU_MODE: &str = "cpu.mode";
 
-/// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html)
+/// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level";
 
 /// The data center of the coordinating node for a query.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1267,17 +1425,23 @@ pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 
 /// The ID of the coordinating node for a query.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"be13faa2-8574-4d71-926d-27f16cf8a7af"`
 #[cfg(feature = "semconv_experimental")]
 pub const DB_CASSANDRA_COORDINATOR_ID: &str = "db.cassandra.coordinator.id";
 
-/// Whether or not the query is idempotent
+/// Whether or not the query is idempotent.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 
 /// The fetch size used for paging, i.e. how many rows will be returned at once.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1286,6 +1450,8 @@ pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 
 /// The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1297,6 +1463,8 @@ pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
 
 /// Deprecated, use `db.collection.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"mytable"`
@@ -1306,6 +1474,8 @@ pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
 
 /// The name of the connection pool; unique within the instrumented application. In case the connection pool implementation doesn't provide a name, instrumentation SHOULD use a combination of parameters that would make the name unique, for example, combining attributes `server.address`, `server.port`, and `db.namespace`, formatted as `server.address:server.port/db.namespace`. Instrumentations that generate connection pool name following different patterns SHOULD document it.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"myDataSource"`
@@ -1313,6 +1483,8 @@ pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
 pub const DB_CLIENT_CONNECTION_POOL_NAME: &str = "db.client.connection.pool.name";
 
 /// The state of a connection in the pool
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1322,6 +1494,8 @@ pub const DB_CLIENT_CONNECTION_STATE: &str = "db.client.connection.state";
 
 /// Deprecated, use `db.client.connection.pool.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"myDataSource"`
@@ -1330,6 +1504,8 @@ pub const DB_CLIENT_CONNECTION_STATE: &str = "db.client.connection.state";
 pub const DB_CLIENT_CONNECTIONS_POOL_NAME: &str = "db.client.connections.pool.name";
 
 /// Deprecated, use `db.client.connection.state` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1361,6 +1537,8 @@ pub const DB_COLLECTION_NAME: &str = "db.collection.name";
 
 /// Deprecated, use `server.address`, `server.port` attributes instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Server=(localdb)\\v11.0;Integrated Security=true;"`
@@ -1370,17 +1548,23 @@ pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 
 /// Unique Cosmos client instance id.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"3ba4827d-4422-483f-b59f-85b74211c11d"`
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 
-/// Cosmos client connection mode
+/// Cosmos client connection mode.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 
 /// Account or request [consistency level](https://learn.microsoft.com/azure/cosmos-db/consistency-levels).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1394,6 +1578,8 @@ pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
 
 /// Deprecated, use `db.collection.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"mytable"`
@@ -1401,7 +1587,9 @@ pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
 #[deprecated(note = "Replaced by `db.collection.name`.")]
 pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
-/// Deprecated, no replacement at this time
+/// Deprecated, no replacement at this time.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "No replacement at this time.")]
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
@@ -1424,6 +1612,8 @@ pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 
 /// Request units consumed for the operation.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `46.18`
@@ -1431,11 +1621,15 @@ pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_REQUEST_CHARGE: &str = "db.cosmosdb.request_charge";
 
-/// Request payload size in bytes
+/// Request payload size in bytes.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_content_length";
 
 /// Deprecated, use `db.response.status_code` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1447,6 +1641,8 @@ pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 
 /// Cosmos DB sub status code.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1000`
@@ -1456,6 +1652,8 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 
 /// Deprecated, use `db.namespace` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"e9106fc68e3044f0b1475b04bf4ffd5f"`
@@ -1464,6 +1662,8 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 
 /// Represents the human-readable identifier of the node/instance to which a request was routed.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1475,7 +1675,7 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 ///
 /// ## Notes
 ///
-/// Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.
+/// Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.[key]`, where `[key]` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.
 ///
 /// # Examples
 ///
@@ -1485,6 +1685,8 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 pub const DB_ELASTICSEARCH_PATH_PARTS: &str = "db.elasticsearch.path_parts";
 
 /// Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1497,6 +1699,8 @@ pub const DB_INSTANCE_ID: &str = "db.instance.id";
 
 /// Removed, no replacement at this time.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"org.postgresql.Driver"`
@@ -1507,6 +1711,8 @@ pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 
 /// Deprecated, use `db.collection.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"mytable"`
@@ -1516,6 +1722,8 @@ pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 
 /// Deprecated, SQL Server instance is now populated as a part of `db.namespace` attribute.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"MSSQLSERVER"`
@@ -1524,6 +1732,8 @@ pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 
 /// Deprecated, use `db.namespace` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1550,6 +1760,8 @@ pub const DB_NAME: &str = "db.name";
 pub const DB_NAMESPACE: &str = "db.namespace";
 
 /// Deprecated, use `db.operation.name` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1604,8 +1816,8 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 ///
 /// ## Notes
 ///
-/// If a parameter has no name and instead is referenced only by index, then `<key>` SHOULD be the 0-based index.
-/// If `db.query.text` is also captured, then `db.operation.parameter.<key>` SHOULD match up with the parameterized placeholders present in `db.query.text`.
+/// If a parameter has no name and instead is referenced only by index, then `[key]` SHOULD be the 0-based index.
+/// If `db.query.text` is also captured, then `db.operation.parameter.[key]` SHOULD match up with the parameterized placeholders present in `db.query.text`.
 /// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
@@ -1616,6 +1828,8 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 pub const DB_OPERATION_PARAMETER: &str = "db.operation.parameter";
 
 /// A query parameter used in `db.query.text`, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1659,6 +1873,8 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 
 /// Deprecated, use `db.namespace` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `0`
@@ -1669,6 +1885,8 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
 
 /// Number of rows returned by the operation.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1697,6 +1915,8 @@ pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 
 /// Deprecated, use `db.collection.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"mytable"`
@@ -1705,6 +1925,8 @@ pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 pub const DB_SQL_TABLE: &str = "db.sql.table";
 
 /// The database statement being executed.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1725,6 +1947,8 @@ pub const DB_SYSTEM: &str = "db.system";
 
 /// Deprecated, no replacement at this time.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"readonly_user"`
@@ -1734,6 +1958,8 @@ pub const DB_SYSTEM: &str = "db.system";
 pub const DB_USER: &str = "db.user";
 
 /// 'Deprecated, use `deployment.environment.name` instead.'
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1764,6 +1990,8 @@ pub const DEPLOYMENT_ENVIRONMENT_NAME: &str = "deployment.environment.name";
 
 /// The id of the deployment.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1208"`
@@ -1772,6 +2000,8 @@ pub const DEPLOYMENT_ID: &str = "deployment.id";
 
 /// The name of the deployment.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"deploy my app"`
@@ -1779,7 +2009,9 @@ pub const DEPLOYMENT_ID: &str = "deployment.id";
 #[cfg(feature = "semconv_experimental")]
 pub const DEPLOYMENT_NAME: &str = "deployment.name";
 
-/// The status of the deployment
+/// The status of the deployment.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const DEPLOYMENT_STATUS: &str = "deployment.status";
 
@@ -1798,6 +2030,8 @@ pub const DEPLOYMENT_STATUS: &str = "deployment.status";
 pub const DESTINATION_ADDRESS: &str = "destination.address";
 
 /// Destination port number
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1859,6 +2093,8 @@ pub const DEVICE_MODEL_NAME: &str = "device.model.name";
 
 /// The disk IO operation direction.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"read"`
@@ -1880,6 +2116,8 @@ pub const DNS_QUESTION_NAME: &str = "dns.question.name";
 
 /// Name of the garbage collector managed heap generation.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"gen0"`
@@ -1890,6 +2128,8 @@ pub const DOTNET_GC_HEAP_GENERATION: &str = "dotnet.gc.heap.generation";
 
 /// Deprecated, use `user.id` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"username"`
@@ -1899,6 +2139,8 @@ pub const ENDUSER_ID: &str = "enduser.id";
 
 /// Deprecated, use `user.roles` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"admin"`
@@ -1907,6 +2149,8 @@ pub const ENDUSER_ID: &str = "enduser.id";
 pub const ENDUSER_ROLE: &str = "enduser.role";
 
 /// Deprecated, no replacement at this time.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -1984,6 +2228,8 @@ pub const EXCEPTION_ESCAPED: &str = "exception.escaped";
 
 /// The exception message.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Division by zero"`
@@ -1992,6 +2238,8 @@ pub const EXCEPTION_MESSAGE: &str = "exception.message";
 
 /// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)\n"`
@@ -1999,17 +2247,23 @@ pub const EXCEPTION_STACKTRACE: &str = "exception.stacktrace";
 
 /// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"java.net.ConnectException"`
 /// - `"OSError"`
 pub const EXCEPTION_TYPE: &str = "exception.type";
 
-/// A boolean that is true if the serverless function is executed for the first time (aka cold-start)
+/// A boolean that is true if the serverless function is executed for the first time (aka cold-start).
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_COLDSTART: &str = "faas.coldstart";
 
 /// A string containing the schedule period as [Cron Expression](https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2018,6 +2272,8 @@ pub const FAAS_COLDSTART: &str = "faas.coldstart";
 pub const FAAS_CRON: &str = "faas.cron";
 
 /// The name of the source on which the triggering operation was performed. For example, in Cloud Storage or S3 corresponds to the bucket name, and in Cosmos DB to the database name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2028,6 +2284,8 @@ pub const FAAS_DOCUMENT_COLLECTION: &str = "faas.document.collection";
 
 /// The document name/table subjected to the operation. For example, in Cloud Storage or S3 is the name of the file, and in Cosmos DB the table name.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"myFile.txt"`
@@ -2035,11 +2293,15 @@ pub const FAAS_DOCUMENT_COLLECTION: &str = "faas.document.collection";
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_DOCUMENT_NAME: &str = "faas.document.name";
 
-/// Describes the type of the operation that was performed on the data
+/// Describes the type of the operation that was performed on the data.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_DOCUMENT_OPERATION: &str = "faas.document.operation";
 
 /// A string containing the time when the data was accessed in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2060,6 +2322,8 @@ pub const FAAS_DOCUMENT_TIME: &str = "faas.document.time";
 pub const FAAS_INSTANCE: &str = "faas.instance";
 
 /// The invocation ID of the current function invocation.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2125,7 +2389,7 @@ pub const FAAS_MAX_MEMORY: &str = "faas.max_memory";
 /// definition of function name MUST be used for this attribute
 /// (and consequently the span name) for the listed cloud providers/products:
 ///
-/// - **Azure:**  The full name `<FUNCAPP>/<FUNC>`, i.e., function app name
+/// - **Azure:**  The full name `[FUNCAPP]/[FUNC]`, i.e., function app name
 ///   followed by a forward slash followed by the function name (this form
 ///   can also be seen in the resource JSON for the function).
 ///   This means that a span attribute MUST be used, as an Azure function
@@ -2141,13 +2405,17 @@ pub const FAAS_NAME: &str = "faas.name";
 
 /// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2020-01-23T13:47:06Z"`
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_TIME: &str = "faas.time";
 
-/// Type of the trigger which caused this function invocation
+/// Type of the trigger which caused this function invocation.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_TRIGGER: &str = "faas.trigger";
 
@@ -2174,6 +2442,8 @@ pub const FAAS_VERSION: &str = "faas.version";
 
 /// The unique identifier for the flag evaluation context. For example, the targeting key.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"5157782b-2203-4c80-a857-dbbd5e7761db"`
@@ -2182,6 +2452,8 @@ pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
 
 /// A message explaining the nature of an error occurring during flag evaluation.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Flag `header-color`expected type`string`but found type`number`"`
@@ -2189,6 +2461,8 @@ pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
 pub const FEATURE_FLAG_EVALUATION_ERROR_MESSAGE: &str = "feature_flag.evaluation.error.message";
 
 /// The reason code which shows how a feature flag value was determined.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2201,6 +2475,8 @@ pub const FEATURE_FLAG_EVALUATION_REASON: &str = "feature_flag.evaluation.reason
 
 /// The lookup key of the feature flag.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"logo-color"`
@@ -2209,6 +2485,8 @@ pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 
 /// Identifies the feature flag provider.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Flag Manager"`
@@ -2216,6 +2494,8 @@ pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 
 /// The identifier of the [flag set](https://openfeature.dev/specification/glossary/#flag-set) to which the feature flag belongs.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2243,6 +2523,8 @@ pub const FEATURE_FLAG_SET_ID: &str = "feature_flag.set.id";
 pub const FEATURE_FLAG_VARIANT: &str = "feature_flag.variant";
 
 /// The version of the ruleset used during the evaluation. This may be any stable value which uniquely identifies the ruleset.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2304,6 +2586,8 @@ pub const FILE_CREATED: &str = "file.created";
 
 /// Directory where the file is located. It should include the drive letter, when appropriate.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/home/user"`
@@ -2339,6 +2623,8 @@ pub const FILE_FORK_NAME: &str = "file.fork_name";
 
 /// Primary Group ID (GID) of the file.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1000"`
@@ -2346,6 +2632,8 @@ pub const FILE_FORK_NAME: &str = "file.fork_name";
 pub const FILE_GROUP_ID: &str = "file.group.id";
 
 /// Primary group name of the file.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2355,6 +2643,8 @@ pub const FILE_GROUP_NAME: &str = "file.group.name";
 
 /// Inode representing the file in the filesystem.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"256383"`
@@ -2362,6 +2652,8 @@ pub const FILE_GROUP_NAME: &str = "file.group.name";
 pub const FILE_INODE: &str = "file.inode";
 
 /// Mode of the file in octal representation.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2371,6 +2663,8 @@ pub const FILE_MODE: &str = "file.mode";
 
 /// Time when the file content was last modified, in ISO 8601 format.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2021-01-01T12:00:00Z"`
@@ -2378,6 +2672,8 @@ pub const FILE_MODE: &str = "file.mode";
 pub const FILE_MODIFIED: &str = "file.modified";
 
 /// Name of the file including the extension, without the directory.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2387,6 +2683,8 @@ pub const FILE_NAME: &str = "file.name";
 
 /// The user ID (UID) or security identifier (SID) of the file owner.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1000"`
@@ -2394,6 +2692,8 @@ pub const FILE_NAME: &str = "file.name";
 pub const FILE_OWNER_ID: &str = "file.owner.id";
 
 /// Username of the file owner.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2403,6 +2703,8 @@ pub const FILE_OWNER_NAME: &str = "file.owner.name";
 
 /// Full path to the file, including the file name. It should include the drive letter, when appropriate.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/home/alice/example.png"`
@@ -2410,7 +2712,9 @@ pub const FILE_OWNER_NAME: &str = "file.owner.name";
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_PATH: &str = "file.path";
 
-/// File size in bytes
+/// File size in bytes.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_SIZE: &str = "file.size";
 
@@ -2444,6 +2748,8 @@ pub const GCP_CLIENT_SERVICE: &str = "gcp.client.service";
 
 /// The name of the Cloud Run [execution](https://cloud.google.com/run/docs/managing/job-executions) being run for the Job, as set by the [`CLOUD_RUN_EXECUTION`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"job-name-xxxx"`
@@ -2452,6 +2758,8 @@ pub const GCP_CLIENT_SERVICE: &str = "gcp.client.service";
 pub const GCP_CLOUD_RUN_JOB_EXECUTION: &str = "gcp.cloud_run.job.execution";
 
 /// The index for a task within an execution as provided by the [`CLOUD_RUN_TASK_INDEX`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2462,6 +2770,8 @@ pub const GCP_CLOUD_RUN_JOB_TASK_INDEX: &str = "gcp.cloud_run.job.task_index";
 
 /// The hostname of a GCE instance. This is the full value of the default or [custom hostname](https://cloud.google.com/compute/docs/instances/custom-hostname-vm).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"my-host1234.example.com"`
@@ -2470,6 +2780,8 @@ pub const GCP_CLOUD_RUN_JOB_TASK_INDEX: &str = "gcp.cloud_run.job.task_index";
 pub const GCP_GCE_INSTANCE_HOSTNAME: &str = "gcp.gce.instance.hostname";
 
 /// The instance name of a GCE instance. This is the value provided by `host.name`, the visible name of the instance in the Cloud Console UI, and the prefix for the default hostname of the instance as defined by the [default internal DNS name](https://cloud.google.com/compute/docs/internal-dns#instance-fully-qualified-domain-names).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2480,6 +2792,8 @@ pub const GCP_GCE_INSTANCE_NAME: &str = "gcp.gce.instance.name";
 
 /// Deprecated, use Event API to report completions contents.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]"`
@@ -2489,6 +2803,8 @@ pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
 
 /// The response format that is requested.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"json"`
@@ -2497,6 +2813,8 @@ pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.r
 
 /// Requests with same seed value more likely to return same result.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `100`
@@ -2504,6 +2822,8 @@ pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.r
 pub const GEN_AI_OPENAI_REQUEST_SEED: &str = "gen_ai.openai.request.seed";
 
 /// The service tier requested. May be a specific tier, default, or auto.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2514,6 +2834,8 @@ pub const GEN_AI_OPENAI_REQUEST_SERVICE_TIER: &str = "gen_ai.openai.request.serv
 
 /// The service tier used for the response.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"scale"`
@@ -2522,6 +2844,8 @@ pub const GEN_AI_OPENAI_REQUEST_SERVICE_TIER: &str = "gen_ai.openai.request.serv
 pub const GEN_AI_OPENAI_RESPONSE_SERVICE_TIER: &str = "gen_ai.openai.response.service_tier";
 
 /// A fingerprint to track any eventual change in the Generative AI environment.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2539,6 +2863,8 @@ pub const GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT: &str =
 pub const GEN_AI_OPERATION_NAME: &str = "gen_ai.operation.name";
 
 /// Deprecated, use Event API to report prompt contents.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2567,6 +2893,8 @@ pub const GEN_AI_REQUEST_ENCODING_FORMATS: &str = "gen_ai.request.encoding_forma
 
 /// The frequency penalty setting for the GenAI request.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `0.1`
@@ -2574,6 +2902,8 @@ pub const GEN_AI_REQUEST_ENCODING_FORMATS: &str = "gen_ai.request.encoding_forma
 pub const GEN_AI_REQUEST_FREQUENCY_PENALTY: &str = "gen_ai.request.frequency_penalty";
 
 /// The maximum number of tokens the model generates for a request.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2583,6 +2913,8 @@ pub const GEN_AI_REQUEST_MAX_TOKENS: &str = "gen_ai.request.max_tokens";
 
 /// The name of the GenAI model a request is being made to.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"gpt-4"`
@@ -2591,6 +2923,8 @@ pub const GEN_AI_REQUEST_MODEL: &str = "gen_ai.request.model";
 
 /// The presence penalty setting for the GenAI request.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `0.1`
@@ -2598,6 +2932,8 @@ pub const GEN_AI_REQUEST_MODEL: &str = "gen_ai.request.model";
 pub const GEN_AI_REQUEST_PRESENCE_PENALTY: &str = "gen_ai.request.presence_penalty";
 
 /// List of sequences that the model will use to stop generating further tokens.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2610,6 +2946,8 @@ pub const GEN_AI_REQUEST_STOP_SEQUENCES: &str = "gen_ai.request.stop_sequences";
 
 /// The temperature setting for the GenAI request.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `0.0`
@@ -2617,6 +2955,8 @@ pub const GEN_AI_REQUEST_STOP_SEQUENCES: &str = "gen_ai.request.stop_sequences";
 pub const GEN_AI_REQUEST_TEMPERATURE: &str = "gen_ai.request.temperature";
 
 /// The top_k sampling setting for the GenAI request.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2626,6 +2966,8 @@ pub const GEN_AI_REQUEST_TOP_K: &str = "gen_ai.request.top_k";
 
 /// The top_p sampling setting for the GenAI request.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1.0`
@@ -2633,6 +2975,8 @@ pub const GEN_AI_REQUEST_TOP_K: &str = "gen_ai.request.top_k";
 pub const GEN_AI_REQUEST_TOP_P: &str = "gen_ai.request.top_p";
 
 /// Array of reasons the model stopped generating tokens, corresponding to each generation received.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2648,6 +2992,8 @@ pub const GEN_AI_RESPONSE_FINISH_REASONS: &str = "gen_ai.response.finish_reasons
 
 /// The unique identifier for the completion.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"chatcmpl-123"`
@@ -2655,6 +3001,8 @@ pub const GEN_AI_RESPONSE_FINISH_REASONS: &str = "gen_ai.response.finish_reasons
 pub const GEN_AI_RESPONSE_ID: &str = "gen_ai.response.id";
 
 /// The name of the model that generated the response.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2684,6 +3032,8 @@ pub const GEN_AI_SYSTEM: &str = "gen_ai.system";
 
 /// The type of token being counted.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"input"`
@@ -2692,6 +3042,8 @@ pub const GEN_AI_SYSTEM: &str = "gen_ai.system";
 pub const GEN_AI_TOKEN_TYPE: &str = "gen_ai.token.type";
 
 /// Deprecated, use `gen_ai.usage.output_tokens` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2702,6 +3054,8 @@ pub const GEN_AI_USAGE_COMPLETION_TOKENS: &str = "gen_ai.usage.completion_tokens
 
 /// The number of tokens used in the GenAI input (prompt).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `100`
@@ -2709,6 +3063,8 @@ pub const GEN_AI_USAGE_COMPLETION_TOKENS: &str = "gen_ai.usage.completion_tokens
 pub const GEN_AI_USAGE_INPUT_TOKENS: &str = "gen_ai.usage.input_tokens";
 
 /// The number of tokens used in the GenAI response (completion).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2718,6 +3074,8 @@ pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
 
 /// Deprecated, use `gen_ai.usage.input_tokens` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `42`
@@ -2725,11 +3083,15 @@ pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
 #[deprecated(note = "Replaced by `gen_ai.usage.input_tokens` attribute.")]
 pub const GEN_AI_USAGE_PROMPT_TOKENS: &str = "gen_ai.usage.prompt_tokens";
 
-/// Two-letter code representing continent’s name
+/// Two-letter code representing continent’s name.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const GEO_CONTINENT_CODE: &str = "geo.continent.code";
 
 /// Two-letter ISO Country Code ([ISO 3166-1 alpha2](https://wikipedia.org/wiki/ISO_3166-1#Codes)).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2738,6 +3100,8 @@ pub const GEO_CONTINENT_CODE: &str = "geo.continent.code";
 pub const GEO_COUNTRY_ISO_CODE: &str = "geo.country.iso_code";
 
 /// Locality name. Represents the name of a city, town, village, or similar populated place.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2748,6 +3112,8 @@ pub const GEO_LOCALITY_NAME: &str = "geo.locality.name";
 
 /// Latitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `45.505918`
@@ -2755,6 +3121,8 @@ pub const GEO_LOCALITY_NAME: &str = "geo.locality.name";
 pub const GEO_LOCATION_LAT: &str = "geo.location.lat";
 
 /// Longitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2764,6 +3132,8 @@ pub const GEO_LOCATION_LON: &str = "geo.location.lon";
 
 /// Postal code associated with the location. Values appropriate for this field may also be known as a postcode or ZIP code and will vary widely from country to country.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"94040"`
@@ -2772,6 +3142,8 @@ pub const GEO_POSTAL_CODE: &str = "geo.postal_code";
 
 /// Region ISO code ([ISO 3166-2](https://wikipedia.org/wiki/ISO_3166-2)).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"CA-QC"`
@@ -2779,6 +3151,8 @@ pub const GEO_POSTAL_CODE: &str = "geo.postal_code";
 pub const GEO_REGION_ISO_CODE: &str = "geo.region.iso_code";
 
 /// The type of memory.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2801,6 +3175,8 @@ pub const GRAPHQL_DOCUMENT: &str = "graphql.document";
 
 /// The name of the operation being executed.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"findBookById"`
@@ -2808,6 +3184,8 @@ pub const GRAPHQL_DOCUMENT: &str = "graphql.document";
 pub const GRAPHQL_OPERATION_NAME: &str = "graphql.operation.name";
 
 /// The type of the operation being executed.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2819,6 +3197,8 @@ pub const GRAPHQL_OPERATION_TYPE: &str = "graphql.operation.type";
 
 /// Unique identifier for the application
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2daa2797-e42b-4624-9322-ec3f968df4da"`
@@ -2826,6 +3206,8 @@ pub const GRAPHQL_OPERATION_TYPE: &str = "graphql.operation.type";
 pub const HEROKU_APP_ID: &str = "heroku.app.id";
 
 /// Commit hash for the current release
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2835,17 +3217,23 @@ pub const HEROKU_RELEASE_COMMIT: &str = "heroku.release.commit";
 
 /// Time and date the release was created
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2022-10-23T18:00:42Z"`
 #[cfg(feature = "semconv_experimental")]
 pub const HEROKU_RELEASE_CREATION_TIMESTAMP: &str = "heroku.release.creation_timestamp";
 
-/// The CPU architecture the host system is running on
+/// The CPU architecture the host system is running on.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const HOST_ARCH: &str = "host.arch";
 
 /// The amount of level 2 memory cache available to the processor (in Bytes).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2854,6 +3242,8 @@ pub const HOST_ARCH: &str = "host.arch";
 pub const HOST_CPU_CACHE_L2_SIZE: &str = "host.cpu.cache.l2.size";
 
 /// Family or generation of the CPU.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2864,6 +3254,8 @@ pub const HOST_CPU_FAMILY: &str = "host.cpu.family";
 
 /// Model identifier. It provides more granular information about the CPU, distinguishing it from other CPUs within the same family.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"6"`
@@ -2873,6 +3265,8 @@ pub const HOST_CPU_MODEL_ID: &str = "host.cpu.model.id";
 
 /// Model designation of the processor.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"`
@@ -2880,6 +3274,8 @@ pub const HOST_CPU_MODEL_ID: &str = "host.cpu.model.id";
 pub const HOST_CPU_MODEL_NAME: &str = "host.cpu.model.name";
 
 /// Stepping or core revisions.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2902,6 +3298,8 @@ pub const HOST_CPU_VENDOR_ID: &str = "host.cpu.vendor.id";
 
 /// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud provider. For non-containerized systems, this should be the `machine-id`. See the table below for the sources to use to determine the `machine-id` based on operating system.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"fdbf79e8af94cb7f9e8df36789187052"`
@@ -2909,6 +3307,8 @@ pub const HOST_CPU_VENDOR_ID: &str = "host.cpu.vendor.id";
 pub const HOST_ID: &str = "host.id";
 
 /// VM image ID or host OS image ID. For Cloud, this value is from the provider.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2918,6 +3318,8 @@ pub const HOST_IMAGE_ID: &str = "host.image.id";
 
 /// Name of the VM image or OS install the host was instantiated from.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"infra-ami-eks-worker-node-7d4ec78312"`
@@ -2926,6 +3328,8 @@ pub const HOST_IMAGE_ID: &str = "host.image.id";
 pub const HOST_IMAGE_NAME: &str = "host.image.name";
 
 /// The version string of the VM image or host OS as defined in [Version Attributes](/docs/resource/README.md#version-attributes).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2965,6 +3369,8 @@ pub const HOST_MAC: &str = "host.mac";
 
 /// Name of the host. On Unix systems, it may contain what the hostname command returns, or the fully qualified hostname, or another name specified by the user.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry-test"`
@@ -2973,6 +3379,8 @@ pub const HOST_NAME: &str = "host.name";
 
 /// Type of host. For Cloud, this must be the machine type.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"n1-standard-1"`
@@ -2980,6 +3388,8 @@ pub const HOST_NAME: &str = "host.name";
 pub const HOST_TYPE: &str = "host.type";
 
 /// Deprecated, use `client.address` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -2990,6 +3400,8 @@ pub const HTTP_CLIENT_IP: &str = "http.client_ip";
 
 /// State of the HTTP connection in the HTTP connection pool.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"active"`
@@ -2997,12 +3409,16 @@ pub const HTTP_CLIENT_IP: &str = "http.client_ip";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_CONNECTION_STATE: &str = "http.connection.state";
 
-/// Deprecated, use `network.protocol.name` instead
+/// Deprecated, use `network.protocol.name` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `network.protocol.name`.")]
 pub const HTTP_FLAVOR: &str = "http.flavor";
 
 /// Deprecated, use one of `server.address`, `client.address` or `http.request.header.host` instead, depending on the usage.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3015,6 +3431,8 @@ pub const HTTP_HOST: &str = "http.host";
 
 /// Deprecated, use `http.request.method` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"GET"`
@@ -3025,6 +3443,8 @@ pub const HTTP_HOST: &str = "http.host";
 pub const HTTP_METHOD: &str = "http.method";
 
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3074,6 +3494,8 @@ pub const HTTP_REQUEST_METHOD: &str = "http.request.method";
 
 /// Original HTTP method sent by the client in the request line.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"GeT"`
@@ -3094,6 +3516,8 @@ pub const HTTP_REQUEST_RESEND_COUNT: &str = "http.request.resend_count";
 
 /// The total size of the request in bytes. This should be the total number of bytes sent over the wire, including the request line (HTTP/1.1), framing (HTTP/2 and HTTP/3), headers, and request body if any.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1437`
@@ -3101,6 +3525,8 @@ pub const HTTP_REQUEST_RESEND_COUNT: &str = "http.request.resend_count";
 pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 
 /// Deprecated, use `http.request.header.<key>` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3111,6 +3537,8 @@ pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.request.body.size` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `5493`
@@ -3120,6 +3548,8 @@ pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.request_content_length_uncompressed";
 
 /// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3143,6 +3573,8 @@ pub const HTTP_RESPONSE_HEADER: &str = "http.response.header";
 
 /// The total size of the response in bytes. This should be the total number of bytes sent over the wire, including the status line (HTTP/1.1), framing (HTTP/2 and HTTP/3), headers, and response body and trailers if any.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1437`
@@ -3151,12 +3583,16 @@ pub const HTTP_RESPONSE_SIZE: &str = "http.response.size";
 
 /// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `200`
 pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
 /// Deprecated, use `http.response.header.<key>` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3166,6 +3602,8 @@ pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3190,6 +3628,8 @@ pub const HTTP_ROUTE: &str = "http.route";
 
 /// Deprecated, use `url.scheme` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"http"`
@@ -3200,6 +3640,8 @@ pub const HTTP_SCHEME: &str = "http.scheme";
 
 /// Deprecated, use `server.address` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"example.com"`
@@ -3208,6 +3650,8 @@ pub const HTTP_SCHEME: &str = "http.scheme";
 pub const HTTP_SERVER_NAME: &str = "http.server_name";
 
 /// Deprecated, use `http.response.status_code` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3218,6 +3662,8 @@ pub const HTTP_STATUS_CODE: &str = "http.status_code";
 
 /// Deprecated, use `url.path` and `url.query` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/search?q=OpenTelemetry#SemConv"`
@@ -3227,6 +3673,8 @@ pub const HTTP_TARGET: &str = "http.target";
 
 /// Deprecated, use `url.full` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"https://www.foo.bar/search?q=OpenTelemetry#SemConv"`
@@ -3235,6 +3683,8 @@ pub const HTTP_TARGET: &str = "http.target";
 pub const HTTP_URL: &str = "http.url";
 
 /// Deprecated, use `user_agent.original` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3246,6 +3696,8 @@ pub const HTTP_USER_AGENT: &str = "http.user_agent";
 
 /// An identifier for the hardware component, unique within the monitored host
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"win32battery_battery_testsysa33_1"`
@@ -3253,6 +3705,8 @@ pub const HTTP_USER_AGENT: &str = "http.user_agent";
 pub const HW_ID: &str = "hw.id";
 
 /// An easily-recognizable name for the hardware component
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3262,6 +3716,8 @@ pub const HW_NAME: &str = "hw.name";
 
 /// Unique identifier of the parent component (typically the `hw.id` attribute of the enclosure, or disk controller)
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"dellStorage_perc_0"`
@@ -3269,6 +3725,8 @@ pub const HW_NAME: &str = "hw.name";
 pub const HW_PARENT: &str = "hw.parent";
 
 /// The current state of the component
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const HW_STATE: &str = "hw.state";
 
@@ -3341,16 +3799,22 @@ pub const JVM_MEMORY_POOL_NAME: &str = "jvm.memory.pool.name";
 
 /// The type of memory.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"heap"`
 /// - `"non_heap"`
 pub const JVM_MEMORY_TYPE: &str = "jvm.memory.type";
 
-/// Whether the thread is daemon or not
+/// Whether the thread is daemon or not.
+///
+/// ## Notes
 pub const JVM_THREAD_DAEMON: &str = "jvm.thread.daemon";
 
 /// State of the thread.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3359,6 +3823,8 @@ pub const JVM_THREAD_DAEMON: &str = "jvm.thread.daemon";
 pub const JVM_THREAD_STATE: &str = "jvm.thread.state";
 
 /// The name of the cluster.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3385,10 +3851,10 @@ pub const K8S_CLUSTER_NAME: &str = "k8s.cluster.name";
 /// [ISO/IEC 9834-8 and ITU-T X.667](https://www.itu.int/ITU-T/studygroups/com17/oid.html).
 /// Which states:
 ///
-/// > If generated according to one of the mechanisms defined in Rec.
-/// > ITU-T X.667 | ISO/IEC 9834-8, a UUID is either guaranteed to be
-/// > different from all other UUIDs generated before 3603 A.D., or is
-/// > extremely likely to be different (depending on the mechanism chosen).
+/// \] If generated according to one of the mechanisms defined in Rec.
+/// \] ITU-T X.667 | ISO/IEC 9834-8, a UUID is either guaranteed to be
+/// \] different from all other UUIDs generated before 3603 A.D., or is
+/// \] extremely likely to be different (depending on the mechanism chosen).
 ///
 /// Therefore, UIDs between clusters should be extremely unlikely to
 /// conflict.
@@ -3401,17 +3867,23 @@ pub const K8S_CLUSTER_UID: &str = "k8s.cluster.uid";
 
 /// The name of the Container from Pod specification, must be unique within a Pod. Container runtime usually uses different globally unique name (`container.name`).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"redis"`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_CONTAINER_NAME: &str = "k8s.container.name";
 
-/// Number of times the container was restarted. This attribute can be used to identify a particular container (running or stopped) within a container spec
+/// Number of times the container was restarted. This attribute can be used to identify a particular container (running or stopped) within a container spec.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
 
 /// Last terminated reason of the Container.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3423,6 +3895,8 @@ pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
 
 /// The name of the CronJob.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3430,6 +3904,8 @@ pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
 pub const K8S_CRONJOB_NAME: &str = "k8s.cronjob.name";
 
 /// The UID of the CronJob.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3439,6 +3915,8 @@ pub const K8S_CRONJOB_UID: &str = "k8s.cronjob.uid";
 
 /// The name of the DaemonSet.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3446,6 +3924,8 @@ pub const K8S_CRONJOB_UID: &str = "k8s.cronjob.uid";
 pub const K8S_DAEMONSET_NAME: &str = "k8s.daemonset.name";
 
 /// The UID of the DaemonSet.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3455,6 +3935,8 @@ pub const K8S_DAEMONSET_UID: &str = "k8s.daemonset.uid";
 
 /// The name of the Deployment.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3462,6 +3944,8 @@ pub const K8S_DAEMONSET_UID: &str = "k8s.daemonset.uid";
 pub const K8S_DEPLOYMENT_NAME: &str = "k8s.deployment.name";
 
 /// The UID of the Deployment.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3471,6 +3955,8 @@ pub const K8S_DEPLOYMENT_UID: &str = "k8s.deployment.uid";
 
 /// The name of the Job.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3478,6 +3964,8 @@ pub const K8S_DEPLOYMENT_UID: &str = "k8s.deployment.uid";
 pub const K8S_JOB_NAME: &str = "k8s.job.name";
 
 /// The UID of the Job.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3487,6 +3975,8 @@ pub const K8S_JOB_UID: &str = "k8s.job.uid";
 
 /// The name of the namespace that the pod is running in.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"default"`
@@ -3494,6 +3984,8 @@ pub const K8S_JOB_UID: &str = "k8s.job.uid";
 pub const K8S_NAMESPACE_NAME: &str = "k8s.namespace.name";
 
 /// The name of the Node.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3503,6 +3995,8 @@ pub const K8S_NODE_NAME: &str = "k8s.node.name";
 
 /// The UID of the Node.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1eb3a0c6-0477-4080-a9cb-0cb7db65c6a2"`
@@ -3510,6 +4004,8 @@ pub const K8S_NODE_NAME: &str = "k8s.node.name";
 pub const K8S_NODE_UID: &str = "k8s.node.uid";
 
 /// The annotation key-value pairs placed on the Pod, the `<key>` being the annotation name, the value being the annotation value.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3521,6 +4017,8 @@ pub const K8S_POD_ANNOTATION: &str = "k8s.pod.annotation";
 
 /// The label key-value pairs placed on the Pod, the `<key>` being the label name, the value being the label value.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"k8s.pod.label.app=my-app"`
@@ -3531,6 +4029,8 @@ pub const K8S_POD_LABEL: &str = "k8s.pod.label";
 
 /// Deprecated, use `k8s.pod.label` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"k8s.pod.label.app=my-app"`
@@ -3540,6 +4040,8 @@ pub const K8S_POD_LABELS: &str = "k8s.pod.labels";
 
 /// The name of the Pod.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry-pod-autoconf"`
@@ -3547,6 +4049,8 @@ pub const K8S_POD_LABELS: &str = "k8s.pod.labels";
 pub const K8S_POD_NAME: &str = "k8s.pod.name";
 
 /// The UID of the Pod.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3556,6 +4060,8 @@ pub const K8S_POD_UID: &str = "k8s.pod.uid";
 
 /// The name of the ReplicaSet.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3563,6 +4069,8 @@ pub const K8S_POD_UID: &str = "k8s.pod.uid";
 pub const K8S_REPLICASET_NAME: &str = "k8s.replicaset.name";
 
 /// The UID of the ReplicaSet.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3572,6 +4080,8 @@ pub const K8S_REPLICASET_UID: &str = "k8s.replicaset.uid";
 
 /// The name of the StatefulSet.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"opentelemetry"`
@@ -3579,6 +4089,8 @@ pub const K8S_REPLICASET_UID: &str = "k8s.replicaset.uid";
 pub const K8S_STATEFULSET_NAME: &str = "k8s.statefulset.name";
 
 /// The UID of the StatefulSet.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3588,6 +4100,8 @@ pub const K8S_STATEFULSET_UID: &str = "k8s.statefulset.uid";
 
 /// The name of the K8s volume.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"volume0"`
@@ -3595,6 +4109,8 @@ pub const K8S_STATEFULSET_UID: &str = "k8s.statefulset.uid";
 pub const K8S_VOLUME_NAME: &str = "k8s.volume.name";
 
 /// The type of the K8s volume.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3605,6 +4121,8 @@ pub const K8S_VOLUME_TYPE: &str = "k8s.volume.type";
 
 /// The Linux Slab memory state
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"reclaimable"`
@@ -3614,6 +4132,8 @@ pub const LINUX_MEMORY_SLAB_STATE: &str = "linux.memory.slab.state";
 
 /// The basename of the file.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"audit.log"`
@@ -3621,6 +4141,8 @@ pub const LINUX_MEMORY_SLAB_STATE: &str = "linux.memory.slab.state";
 pub const LOG_FILE_NAME: &str = "log.file.name";
 
 /// The basename of the file, with symlinks resolved.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3630,6 +4152,8 @@ pub const LOG_FILE_NAME_RESOLVED: &str = "log.file.name_resolved";
 
 /// The full path to the file.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/var/log/mysql/audit.log"`
@@ -3638,13 +4162,17 @@ pub const LOG_FILE_PATH: &str = "log.file.path";
 
 /// The full path to the file, with symlinks resolved.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/var/lib/docker/uuid.log"`
 #[cfg(feature = "semconv_experimental")]
 pub const LOG_FILE_PATH_RESOLVED: &str = "log.file.path_resolved";
 
-/// The stream associated with the log. See below for a list of well-known values
+/// The stream associated with the log. See below for a list of well-known values.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const LOG_IOSTREAM: &str = "log.iostream";
 
@@ -3674,22 +4202,30 @@ pub const LOG_RECORD_ORIGINAL: &str = "log.record.original";
 #[cfg(feature = "semconv_experimental")]
 pub const LOG_RECORD_UID: &str = "log.record.uid";
 
-/// Deprecated, use `rpc.message.compressed_size` instead
+/// Deprecated, use `rpc.message.compressed_size` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `rpc.message.compressed_size`.")]
 pub const MESSAGE_COMPRESSED_SIZE: &str = "message.compressed_size";
 
-/// Deprecated, use `rpc.message.id` instead
+/// Deprecated, use `rpc.message.id` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `rpc.message.id`.")]
 pub const MESSAGE_ID: &str = "message.id";
 
-/// Deprecated, use `rpc.message.type` instead
+/// Deprecated, use `rpc.message.type` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `rpc.message.type`.")]
 pub const MESSAGE_TYPE: &str = "message.type";
 
-/// Deprecated, use `rpc.message.uncompressed_size` instead
+/// Deprecated, use `rpc.message.uncompressed_size` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `rpc.message.uncompressed_size`.")]
 pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
@@ -3709,6 +4245,8 @@ pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 pub const MESSAGING_BATCH_MESSAGE_COUNT: &str = "messaging.batch.message_count";
 
 /// A unique identifier for the client that consumes or produces a message.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3730,7 +4268,9 @@ pub const MESSAGING_CLIENT_ID: &str = "messaging.client.id";
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_CONSUMER_GROUP_NAME: &str = "messaging.consumer.group.name";
 
-/// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name)
+/// A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_DESTINATION_ANONYMOUS: &str = "messaging.destination.anonymous";
 
@@ -3749,6 +4289,8 @@ pub const MESSAGING_DESTINATION_ANONYMOUS: &str = "messaging.destination.anonymo
 pub const MESSAGING_DESTINATION_NAME: &str = "messaging.destination.name";
 
 /// The identifier of the partition messages are sent to or received from, unique within the `messaging.destination.name`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3780,16 +4322,22 @@ pub const MESSAGING_DESTINATION_SUBSCRIPTION_NAME: &str = "messaging.destination
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_DESTINATION_TEMPLATE: &str = "messaging.destination.template";
 
-/// A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed
+/// A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_DESTINATION_TEMPORARY: &str = "messaging.destination.temporary";
 
-/// Deprecated, no replacement at this time
+/// Deprecated, no replacement at this time.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "No replacement at this time.")]
 pub const MESSAGING_DESTINATION_PUBLISH_ANONYMOUS: &str = "messaging.destination_publish.anonymous";
 
 /// Deprecated, no replacement at this time.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3801,6 +4349,8 @@ pub const MESSAGING_DESTINATION_PUBLISH_NAME: &str = "messaging.destination_publ
 
 /// Deprecated, use `messaging.consumer.group.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"$Default"`
@@ -3809,6 +4359,8 @@ pub const MESSAGING_DESTINATION_PUBLISH_NAME: &str = "messaging.destination_publ
 pub const MESSAGING_EVENTHUBS_CONSUMER_GROUP: &str = "messaging.eventhubs.consumer.group";
 
 /// The UTC epoch seconds at which the message has been accepted and stored in the entity.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3819,6 +4371,8 @@ pub const MESSAGING_EVENTHUBS_MESSAGE_ENQUEUED_TIME: &str =
 
 /// The ack deadline in seconds set for the modify ack deadline request.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `10`
@@ -3828,6 +4382,8 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_ACK_DEADLINE: &str =
 
 /// The ack id for a given message.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"ack_id"`
@@ -3835,6 +4391,8 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_ACK_DEADLINE: &str =
 pub const MESSAGING_GCP_PUBSUB_MESSAGE_ACK_ID: &str = "messaging.gcp_pubsub.message.ack_id";
 
 /// The delivery attempt for a given message.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3845,6 +4403,8 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_DELIVERY_ATTEMPT: &str =
 
 /// The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"ordering_key"`
@@ -3854,6 +4414,8 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY: &str =
 
 /// Deprecated, use `messaging.consumer.group.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"my-group"`
@@ -3862,6 +4424,8 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY: &str =
 pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group";
 
 /// Deprecated, use `messaging.destination.partition.id` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3884,6 +4448,8 @@ pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
 
 /// Deprecated, use `messaging.kafka.offset` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `42`
@@ -3891,11 +4457,15 @@ pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
 #[deprecated(note = "Replaced by `messaging.kafka.offset`.")]
 pub const MESSAGING_KAFKA_MESSAGE_OFFSET: &str = "messaging.kafka.message.offset";
 
-/// A boolean that is true if the message is a tombstone
+/// A boolean that is true if the message is a tombstone.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_KAFKA_MESSAGE_TOMBSTONE: &str = "messaging.kafka.message.tombstone";
 
 /// The offset of a record in the corresponding Kafka partition.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3918,6 +4488,8 @@ pub const MESSAGING_MESSAGE_BODY_SIZE: &str = "messaging.message.body.size";
 
 /// The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called "Correlation ID".
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"MyConversationId"`
@@ -3939,6 +4511,8 @@ pub const MESSAGING_MESSAGE_ENVELOPE_SIZE: &str = "messaging.message.envelope.si
 
 /// A value used by the messaging system as an identifier for the message, represented as a string.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"452a7c7c7c7048c2f887f61572b18fc2"`
@@ -3946,6 +4520,8 @@ pub const MESSAGING_MESSAGE_ENVELOPE_SIZE: &str = "messaging.message.envelope.si
 pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 
 /// Deprecated, use `messaging.operation.type` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3957,6 +4533,8 @@ pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 pub const MESSAGING_OPERATION: &str = "messaging.operation";
 
 /// The system-specific name of the messaging operation.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -3976,6 +4554,8 @@ pub const MESSAGING_OPERATION_TYPE: &str = "messaging.operation.type";
 
 /// RabbitMQ message routing key.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"myKey"`
@@ -3985,6 +4565,8 @@ pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: &str =
 
 /// RabbitMQ message delivery tag
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `123`
@@ -3992,6 +4574,8 @@ pub const MESSAGING_RABBITMQ_DESTINATION_ROUTING_KEY: &str =
 pub const MESSAGING_RABBITMQ_MESSAGE_DELIVERY_TAG: &str = "messaging.rabbitmq.message.delivery_tag";
 
 /// Deprecated, use `messaging.consumer.group.name` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4002,11 +4586,15 @@ pub const MESSAGING_RABBITMQ_MESSAGE_DELIVERY_TAG: &str = "messaging.rabbitmq.me
 )]
 pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: &str = "messaging.rocketmq.client_group";
 
-/// Model of message consumption. This only applies to consumer spans
+/// Model of message consumption. This only applies to consumer spans.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_ROCKETMQ_CONSUMPTION_MODEL: &str = "messaging.rocketmq.consumption_model";
 
 /// The delay time level for delay message, which determines the message delay time.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4017,6 +4605,8 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_DELAY_TIME_LEVEL: &str =
 
 /// The timestamp in milliseconds that the delay message is expected to be delivered to consumer.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1665987217045`
@@ -4026,6 +4616,8 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: &str =
 
 /// It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"myMessageGroup"`
@@ -4033,6 +4625,8 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_DELIVERY_TIMESTAMP: &str =
 pub const MESSAGING_ROCKETMQ_MESSAGE_GROUP: &str = "messaging.rocketmq.message.group";
 
 /// Key(s) of message, another way to mark message besides message id.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4045,17 +4639,23 @@ pub const MESSAGING_ROCKETMQ_MESSAGE_KEYS: &str = "messaging.rocketmq.message.ke
 
 /// The secondary classifier of message besides topic.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"tagA"`
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_ROCKETMQ_MESSAGE_TAG: &str = "messaging.rocketmq.message.tag";
 
-/// Type of message
+/// Type of message.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_ROCKETMQ_MESSAGE_TYPE: &str = "messaging.rocketmq.message.type";
 
 /// Namespace of RocketMQ resources, resources in different namespaces are individual.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4065,6 +4665,8 @@ pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 
 /// Deprecated, use `messaging.destination.subscription.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"subscription-a"`
@@ -4073,11 +4675,15 @@ pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 pub const MESSAGING_SERVICEBUS_DESTINATION_SUBSCRIPTION_NAME: &str =
     "messaging.servicebus.destination.subscription_name";
 
-/// Describes the [settlement type](https://learn.microsoft.com/azure/service-bus-messaging/message-transfers-locks-settlement#peeklock)
+/// Describes the [settlement type](https://learn.microsoft.com/azure/service-bus-messaging/message-transfers-locks-settlement#peeklock).
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const MESSAGING_SERVICEBUS_DISPOSITION_STATUS: &str = "messaging.servicebus.disposition_status";
 
 /// Number of deliveries that have been attempted for this message.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4087,6 +4693,8 @@ pub const MESSAGING_SERVICEBUS_MESSAGE_DELIVERY_COUNT: &str =
     "messaging.servicebus.message.delivery_count";
 
 /// The UTC epoch seconds at which the message has been accepted and stored in the entity.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4105,6 +4713,8 @@ pub const MESSAGING_SYSTEM: &str = "messaging.system";
 
 /// Deprecated, use `network.local.address`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"192.168.0.1"`
@@ -4113,6 +4723,8 @@ pub const MESSAGING_SYSTEM: &str = "messaging.system";
 pub const NET_HOST_IP: &str = "net.host.ip";
 
 /// Deprecated, use `server.address`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4123,6 +4735,8 @@ pub const NET_HOST_NAME: &str = "net.host.name";
 
 /// Deprecated, use `server.port`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `8080`
@@ -4132,6 +4746,8 @@ pub const NET_HOST_PORT: &str = "net.host.port";
 
 /// Deprecated, use `network.peer.address`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"127.0.0.1"`
@@ -4140,6 +4756,8 @@ pub const NET_HOST_PORT: &str = "net.host.port";
 pub const NET_PEER_IP: &str = "net.peer.ip";
 
 /// Deprecated, use `server.address` on client spans and `client.address` on server spans.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4152,6 +4770,8 @@ pub const NET_PEER_NAME: &str = "net.peer.name";
 
 /// Deprecated, use `server.port` on client spans and `client.port` on server spans.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `8080`
@@ -4160,6 +4780,8 @@ pub const NET_PEER_NAME: &str = "net.peer.name";
 pub const NET_PEER_PORT: &str = "net.peer.port";
 
 /// Deprecated, use `network.protocol.name`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4172,6 +4794,8 @@ pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 
 /// Deprecated, use `network.protocol.version`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"3.1.1"`
@@ -4179,12 +4803,16 @@ pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 #[deprecated(note = "Replaced by `network.protocol.version`.")]
 pub const NET_PROTOCOL_VERSION: &str = "net.protocol.version";
 
-/// Deprecated, use `network.transport` and `network.type`
+/// Deprecated, use `network.transport` and `network.type`.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Split to `network.transport` and `network.type`.")]
 pub const NET_SOCK_FAMILY: &str = "net.sock.family";
 
 /// Deprecated, use `network.local.address`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4195,6 +4823,8 @@ pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 
 /// Deprecated, use `network.local.port`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `8080`
@@ -4203,6 +4833,8 @@ pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 pub const NET_SOCK_HOST_PORT: &str = "net.sock.host.port";
 
 /// Deprecated, use `network.peer.address`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4213,6 +4845,8 @@ pub const NET_SOCK_PEER_ADDR: &str = "net.sock.peer.addr";
 
 /// Deprecated, no replacement at this time.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/var/my.sock"`
@@ -4222,6 +4856,8 @@ pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 
 /// Deprecated, use `network.peer.port`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `65531`
@@ -4229,12 +4865,16 @@ pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 #[deprecated(note = "Replaced by `network.peer.port`.")]
 pub const NET_SOCK_PEER_PORT: &str = "net.sock.peer.port";
 
-/// Deprecated, use `network.transport`
+/// Deprecated, use `network.transport`.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `network.transport`.")]
 pub const NET_TRANSPORT: &str = "net.transport";
 
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4244,6 +4884,8 @@ pub const NETWORK_CARRIER_ICC: &str = "network.carrier.icc";
 
 /// The mobile carrier country code.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"310"`
@@ -4251,6 +4893,8 @@ pub const NETWORK_CARRIER_ICC: &str = "network.carrier.icc";
 pub const NETWORK_CARRIER_MCC: &str = "network.carrier.mcc";
 
 /// The mobile carrier network code.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4260,6 +4904,8 @@ pub const NETWORK_CARRIER_MNC: &str = "network.carrier.mnc";
 
 /// The name of the mobile carrier.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"sprint"`
@@ -4267,6 +4913,8 @@ pub const NETWORK_CARRIER_MNC: &str = "network.carrier.mnc";
 pub const NETWORK_CARRIER_NAME: &str = "network.carrier.name";
 
 /// This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4276,6 +4924,8 @@ pub const NETWORK_CONNECTION_SUBTYPE: &str = "network.connection.subtype";
 
 /// The internet connection type.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"wifi"`
@@ -4283,6 +4933,8 @@ pub const NETWORK_CONNECTION_SUBTYPE: &str = "network.connection.subtype";
 pub const NETWORK_CONNECTION_TYPE: &str = "network.connection.type";
 
 /// The network interface name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4292,6 +4944,8 @@ pub const NETWORK_INTERFACE_NAME: &str = "network.interface.name";
 
 /// The network IO operation direction.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"transmit"`
@@ -4299,6 +4953,8 @@ pub const NETWORK_INTERFACE_NAME: &str = "network.interface.name";
 pub const NETWORK_IO_DIRECTION: &str = "network.io.direction";
 
 /// Local address of the network connection - IP address or Unix domain socket name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4308,12 +4964,16 @@ pub const NETWORK_LOCAL_ADDRESS: &str = "network.local.address";
 
 /// Local port number of the network connection.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `65123`
 pub const NETWORK_LOCAL_PORT: &str = "network.local.port";
 
 /// Peer address of the network connection - IP address or Unix domain socket name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4322,6 +4982,8 @@ pub const NETWORK_LOCAL_PORT: &str = "network.local.port";
 pub const NETWORK_PEER_ADDRESS: &str = "network.peer.address";
 
 /// Peer port number of the network connection.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4381,7 +5043,9 @@ pub const NETWORK_TRANSPORT: &str = "network.transport";
 /// - `"ipv6"`
 pub const NETWORK_TYPE: &str = "network.type";
 
-/// The state of event loop time
+/// The state of event loop time.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_STATE: &str = "nodejs.eventloop.state";
 
@@ -4408,6 +5072,8 @@ pub const OPENTRACING_REF_TYPE: &str = "opentracing.ref_type";
 
 /// Unique identifier for a particular build or compilation of the operating system.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"TQ3C.230805.001.B2"`
@@ -4418,6 +5084,8 @@ pub const OS_BUILD_ID: &str = "os.build_id";
 
 /// Human readable (not intended to be parsed) OS version information, like e.g. reported by `ver` or `lsb_release -a` commands.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Microsoft Windows [Version 10.0.18363.778]"`
@@ -4427,6 +5095,8 @@ pub const OS_DESCRIPTION: &str = "os.description";
 
 /// Human readable operating system name.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"iOS"`
@@ -4435,11 +5105,15 @@ pub const OS_DESCRIPTION: &str = "os.description";
 #[cfg(feature = "semconv_experimental")]
 pub const OS_NAME: &str = "os.name";
 
-/// The operating system type
+/// The operating system type.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const OS_TYPE: &str = "os.type";
 
 /// The version string of the operating system as defined in [Version Attributes](/docs/resource/README.md#version-attributes).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4450,6 +5124,8 @@ pub const OS_VERSION: &str = "os.version";
 
 /// Deprecated. Use the `otel.scope.name` attribute
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"io.opentelemetry.contrib.mongodb"`
@@ -4458,6 +5134,8 @@ pub const OS_VERSION: &str = "os.version";
 pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
 
 /// Deprecated. Use the `otel.scope.version` attribute.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4468,6 +5146,8 @@ pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"io.opentelemetry.contrib.mongodb"`
@@ -4475,15 +5155,21 @@ pub const OTEL_SCOPE_NAME: &str = "otel.scope.name";
 
 /// The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1.0.0"`
 pub const OTEL_SCOPE_VERSION: &str = "otel.scope.version";
 
-/// Name of the code, either "OK" or "ERROR". MUST NOT be set if the status code is UNSET
+/// Name of the code, either "OK" or "ERROR". MUST NOT be set if the status code is UNSET.
+///
+/// ## Notes
 pub const OTEL_STATUS_CODE: &str = "otel.status_code";
 
 /// Description of the Status if it has a value, otherwise not set.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4491,6 +5177,8 @@ pub const OTEL_STATUS_CODE: &str = "otel.status_code";
 pub const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 
 /// Deprecated, use `db.client.connection.state` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4501,6 +5189,8 @@ pub const STATE: &str = "state";
 
 /// The [`service.name`](/docs/resource/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"AuthTokenCache"`
@@ -4508,6 +5198,8 @@ pub const STATE: &str = "state";
 pub const PEER_SERVICE: &str = "peer.service";
 
 /// Deprecated, use `db.client.connection.pool.name` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4530,6 +5222,8 @@ pub const PROCESS_ARGS_COUNT: &str = "process.args_count";
 
 /// The command used to launch the process (i.e. the command name). On Linux based systems, can be set to the zeroth string in `proc/[pid]/cmdline`. On Windows, can be set to the first parameter extracted from `GetCommandLineW`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"cmd/otelcol"`
@@ -4537,6 +5231,8 @@ pub const PROCESS_ARGS_COUNT: &str = "process.args_count";
 pub const PROCESS_COMMAND: &str = "process.command";
 
 /// All the command arguments (including the command/executable itself) as received by the process. On Linux-based systems (and some other Unixoid systems supporting procfs), can be set according to the list of null-delimited strings extracted from `proc/[pid]/cmdline`. For libc-based executables, this would be the full argv vector passed to `main`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4549,22 +5245,30 @@ pub const PROCESS_COMMAND_ARGS: &str = "process.command_args";
 
 /// The full command used to launch the process as a single string representing the full command. On Windows, can be set to the result of `GetCommandLineW`. Do not set this if you have to assemble it just for monitoring; use `process.command_args` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"C:\\cmd\\otecol --config=\"my directory\\config.yaml\""`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_COMMAND_LINE: &str = "process.command_line";
 
-/// Specifies whether the context switches for this data point were voluntary or involuntary
+/// Specifies whether the context switches for this data point were voluntary or involuntary.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CONTEXT_SWITCH_TYPE: &str = "process.context_switch_type";
 
-/// Deprecated, use `cpu.mode` instead
+/// Deprecated, use `cpu.mode` instead.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "Replaced by `cpu.mode`")]
 pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 
 /// The date and time the process was created, in ISO 8601 format.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4574,6 +5278,8 @@ pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
 
 /// The GNU build ID as found in the `.note.gnu.build-id` ELF section (hex string).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"c89b11207f6479603b0d49bf291c092c2b719293"`
@@ -4581,6 +5287,8 @@ pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
 pub const PROCESS_EXECUTABLE_BUILD_ID_GNU: &str = "process.executable.build_id.gnu";
 
 /// The Go build ID as retrieved by `go tool buildid <go executable>`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4590,6 +5298,8 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_GO: &str = "process.executable.build_id.go
 
 /// Profiling specific build ID for executables. See the OTel specification for Profiles for more information.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"600DCAFE4A110000F2BF38C493F5FB92"`
@@ -4597,6 +5307,8 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_GO: &str = "process.executable.build_id.go
 pub const PROCESS_EXECUTABLE_BUILD_ID_HTLHASH: &str = "process.executable.build_id.htlhash";
 
 /// "Deprecated, use `process.executable.build_id.htlhash` instead."
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4607,6 +5319,8 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_PROFILING: &str = "process.executable.buil
 
 /// The name of the process executable. On Linux based systems, can be set to the `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of `GetProcessImageFileNameW`.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"otelcol"`
@@ -4614,6 +5328,8 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_PROFILING: &str = "process.executable.buil
 pub const PROCESS_EXECUTABLE_NAME: &str = "process.executable.name";
 
 /// The full path to the process executable. On Linux based systems, can be set to the target of `proc/[pid]/exe`. On Windows, can be set to the result of `GetProcessImageFileNameW`.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4623,6 +5339,8 @@ pub const PROCESS_EXECUTABLE_PATH: &str = "process.executable.path";
 
 /// The exit code of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `127`
@@ -4630,6 +5348,8 @@ pub const PROCESS_EXECUTABLE_PATH: &str = "process.executable.path";
 pub const PROCESS_EXIT_CODE: &str = "process.exit.code";
 
 /// The date and time the process exited, in ISO 8601 format.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4639,13 +5359,17 @@ pub const PROCESS_EXIT_TIME: &str = "process.exit.time";
 
 /// The PID of the process's group leader. This is also the process group ID (PGID) of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `23`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_GROUP_LEADER_PID: &str = "process.group_leader.pid";
 
-/// Whether the process is connected to an interactive shell
+/// Whether the process is connected to an interactive shell.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_INTERACTIVE: &str = "process.interactive";
 
@@ -4653,7 +5377,7 @@ pub const PROCESS_INTERACTIVE: &str = "process.interactive";
 ///
 /// ## Notes
 ///
-/// Control groups (cgroups) are a kernel feature used to organize and manage process resources. This attribute provides the path(s) to the cgroup(s) associated with the process, which should match the contents of the [/proc/<PID>/cgroup](https://man7.org/linux/man-pages/man7/cgroups.7.html) file.
+/// Control groups (cgroups) are a kernel feature used to organize and manage process resources. This attribute provides the path(s) to the cgroup(s) associated with the process, which should match the contents of the [/proc/\[PID\]/cgroup](https://man7.org/linux/man-pages/man7/cgroups.7.html) file.
 ///
 /// # Examples
 ///
@@ -4664,17 +5388,23 @@ pub const PROCESS_LINUX_CGROUP: &str = "process.linux.cgroup";
 
 /// The username of the user that owns the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"root"`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_OWNER: &str = "process.owner";
 
-/// The type of page fault for this data point. Type `major` is for major/hard page faults, and `minor` is for minor/soft page faults
+/// The type of page fault for this data point. Type `major` is for major/hard page faults, and `minor` is for minor/soft page faults.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_PAGING_FAULT_TYPE: &str = "process.paging.fault_type";
 
 /// Parent Process identifier (PPID).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4684,6 +5414,8 @@ pub const PROCESS_PARENT_PID: &str = "process.parent_pid";
 
 /// Process identifier (PID).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1234`
@@ -4691,6 +5423,8 @@ pub const PROCESS_PARENT_PID: &str = "process.parent_pid";
 pub const PROCESS_PID: &str = "process.pid";
 
 /// The real user ID (RUID) of the process.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4700,6 +5434,8 @@ pub const PROCESS_REAL_USER_ID: &str = "process.real_user.id";
 
 /// The username of the real user of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"operator"`
@@ -4707,6 +5443,8 @@ pub const PROCESS_REAL_USER_ID: &str = "process.real_user.id";
 pub const PROCESS_REAL_USER_NAME: &str = "process.real_user.name";
 
 /// An additional description about the runtime of the process, for example a specific vendor customization of the runtime environment.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4716,6 +5454,8 @@ pub const PROCESS_RUNTIME_DESCRIPTION: &str = "process.runtime.description";
 
 /// The name of the runtime of this process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"OpenJDK Runtime Environment"`
@@ -4723,6 +5463,8 @@ pub const PROCESS_RUNTIME_DESCRIPTION: &str = "process.runtime.description";
 pub const PROCESS_RUNTIME_NAME: &str = "process.runtime.name";
 
 /// The version of the runtime of this process, as returned by the runtime without modification.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4732,6 +5474,8 @@ pub const PROCESS_RUNTIME_VERSION: &str = "process.runtime.version";
 
 /// The saved user ID (SUID) of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1002`
@@ -4740,6 +5484,8 @@ pub const PROCESS_SAVED_USER_ID: &str = "process.saved_user.id";
 
 /// The username of the saved user.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"operator"`
@@ -4747,6 +5493,8 @@ pub const PROCESS_SAVED_USER_ID: &str = "process.saved_user.id";
 pub const PROCESS_SAVED_USER_NAME: &str = "process.saved_user.name";
 
 /// The PID of the process's session leader. This is also the session ID (SID) of the process.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4770,6 +5518,8 @@ pub const PROCESS_TITLE: &str = "process.title";
 
 /// The effective user ID (EUID) of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1001`
@@ -4777,6 +5527,8 @@ pub const PROCESS_TITLE: &str = "process.title";
 pub const PROCESS_USER_ID: &str = "process.user.id";
 
 /// The username of the effective user of the process.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4798,6 +5550,8 @@ pub const PROCESS_VPID: &str = "process.vpid";
 
 /// The working directory of the process.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/root"`
@@ -4806,13 +5560,17 @@ pub const PROCESS_WORKING_DIRECTORY: &str = "process.working_directory";
 
 /// Describes the interpreter or compiler of a single frame.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"cpython"`
 #[cfg(feature = "semconv_experimental")]
 pub const PROFILE_FRAME_TYPE: &str = "profile.frame.type";
 
-/// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values
+/// The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 
@@ -4864,11 +5622,15 @@ pub const RPC_GRPC_REQUEST_METADATA: &str = "rpc.grpc.request.metadata";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_RESPONSE_METADATA: &str = "rpc.grpc.response.metadata";
 
-/// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request
+/// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_STATUS_CODE: &str = "rpc.grpc.status_code";
 
 /// `error.code` property of response if it is an error response.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4879,6 +5641,8 @@ pub const RPC_JSONRPC_ERROR_CODE: &str = "rpc.jsonrpc.error_code";
 
 /// `error.message` property of response if it is an error response.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Parse error"`
@@ -4887,6 +5651,8 @@ pub const RPC_JSONRPC_ERROR_CODE: &str = "rpc.jsonrpc.error_code";
 pub const RPC_JSONRPC_ERROR_MESSAGE: &str = "rpc.jsonrpc.error_message";
 
 /// `id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -4898,6 +5664,8 @@ pub const RPC_JSONRPC_REQUEST_ID: &str = "rpc.jsonrpc.request_id";
 
 /// Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 doesn't specify this, the value can be omitted.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2.0"`
@@ -4905,7 +5673,9 @@ pub const RPC_JSONRPC_REQUEST_ID: &str = "rpc.jsonrpc.request_id";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_JSONRPC_VERSION: &str = "rpc.jsonrpc.version";
 
-/// Compressed size of the message in bytes
+/// Compressed size of the message in bytes.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_MESSAGE_COMPRESSED_SIZE: &str = "rpc.message.compressed_size";
 
@@ -4917,11 +5687,15 @@ pub const RPC_MESSAGE_COMPRESSED_SIZE: &str = "rpc.message.compressed_size";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_MESSAGE_ID: &str = "rpc.message.id";
 
-/// Whether this is a received or sent message
+/// Whether this is a received or sent message.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_MESSAGE_TYPE: &str = "rpc.message.type";
 
-/// Uncompressed size of the message in bytes
+/// Uncompressed size of the message in bytes.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_MESSAGE_UNCOMPRESSED_SIZE: &str = "rpc.message.uncompressed_size";
 
@@ -4949,7 +5723,9 @@ pub const RPC_METHOD: &str = "rpc.method";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVICE: &str = "rpc.service";
 
-/// A string identifying the remoting system. See below for a list of well-known identifiers
+/// A string identifying the remoting system. See below for a list of well-known identifiers.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SYSTEM: &str = "rpc.system";
 
@@ -5041,6 +5817,8 @@ pub const SERVICE_NAMESPACE: &str = "service.namespace";
 
 /// The version string of the service API or implementation. The format is not defined by these conventions.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"2.0.0"`
@@ -5048,6 +5826,8 @@ pub const SERVICE_NAMESPACE: &str = "service.namespace";
 pub const SERVICE_VERSION: &str = "service.version";
 
 /// A unique id to identify a session.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5057,6 +5837,8 @@ pub const SESSION_ID: &str = "session.id";
 
 /// The previous `session.id` for this user, when known.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"00112233-4455-6677-8899-aabbccddeeff"`
@@ -5065,6 +5847,8 @@ pub const SESSION_PREVIOUS_ID: &str = "session.previous_id";
 
 /// SignalR HTTP connection closure status.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"app_shutdown"`
@@ -5072,6 +5856,8 @@ pub const SESSION_PREVIOUS_ID: &str = "session.previous_id";
 pub const SIGNALR_CONNECTION_STATUS: &str = "signalr.connection.status";
 
 /// [SignalR transport type](https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md)
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5095,6 +5881,8 @@ pub const SOURCE_ADDRESS: &str = "source.address";
 
 /// Source port number
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `3389`
@@ -5104,6 +5892,8 @@ pub const SOURCE_PORT: &str = "source.port";
 
 /// The logical CPU number \[0..n-1\]
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `1`
@@ -5111,6 +5901,8 @@ pub const SOURCE_PORT: &str = "source.port";
 pub const SYSTEM_CPU_LOGICAL_NUMBER: &str = "system.cpu.logical_number";
 
 /// Deprecated, use `cpu.mode` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5122,6 +5914,8 @@ pub const SYSTEM_CPU_STATE: &str = "system.cpu.state";
 
 /// The device identifier
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"(identifier)"`
@@ -5129,6 +5923,8 @@ pub const SYSTEM_CPU_STATE: &str = "system.cpu.state";
 pub const SYSTEM_DEVICE: &str = "system.device";
 
 /// The filesystem mode
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5138,6 +5934,8 @@ pub const SYSTEM_FILESYSTEM_MODE: &str = "system.filesystem.mode";
 
 /// The filesystem mount path
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"/mnt/data"`
@@ -5145,6 +5943,8 @@ pub const SYSTEM_FILESYSTEM_MODE: &str = "system.filesystem.mode";
 pub const SYSTEM_FILESYSTEM_MOUNTPOINT: &str = "system.filesystem.mountpoint";
 
 /// The filesystem state
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5154,6 +5954,8 @@ pub const SYSTEM_FILESYSTEM_STATE: &str = "system.filesystem.state";
 
 /// The filesystem type
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"ext4"`
@@ -5161,6 +5963,8 @@ pub const SYSTEM_FILESYSTEM_STATE: &str = "system.filesystem.state";
 pub const SYSTEM_FILESYSTEM_TYPE: &str = "system.filesystem.type";
 
 /// The memory state
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5171,6 +5975,8 @@ pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
 
 /// A stateless protocol MUST NOT set this attribute
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"close_wait"`
@@ -5178,6 +5984,8 @@ pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
 pub const SYSTEM_NETWORK_STATE: &str = "system.network.state";
 
 /// The paging access direction
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5187,6 +5995,8 @@ pub const SYSTEM_PAGING_DIRECTION: &str = "system.paging.direction";
 
 /// The memory paging state
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"free"`
@@ -5194,6 +6004,8 @@ pub const SYSTEM_PAGING_DIRECTION: &str = "system.paging.direction";
 pub const SYSTEM_PAGING_STATE: &str = "system.paging.state";
 
 /// The memory paging type
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5203,6 +6015,8 @@ pub const SYSTEM_PAGING_TYPE: &str = "system.paging.type";
 
 /// The process state, e.g., [Linux Process State Codes](https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES)
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"running"`
@@ -5210,6 +6024,8 @@ pub const SYSTEM_PAGING_TYPE: &str = "system.paging.type";
 pub const SYSTEM_PROCESS_STATUS: &str = "system.process.status";
 
 /// Deprecated, use `system.process.status` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5233,13 +6049,17 @@ pub const TELEMETRY_DISTRO_NAME: &str = "telemetry.distro.name";
 
 /// The version string of the auto instrumentation agent or distribution, if used.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1.2.3"`
 #[cfg(feature = "semconv_experimental")]
 pub const TELEMETRY_DISTRO_VERSION: &str = "telemetry.distro.version";
 
-/// The language of the telemetry SDK
+/// The language of the telemetry SDK.
+///
+/// ## Notes
 pub const TELEMETRY_SDK_LANGUAGE: &str = "telemetry.sdk.language";
 
 /// The name of the telemetry SDK as defined above.
@@ -5260,12 +6080,16 @@ pub const TELEMETRY_SDK_NAME: &str = "telemetry.sdk.name";
 
 /// The version string of the telemetry SDK.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1.2.3"`
 pub const TELEMETRY_SDK_VERSION: &str = "telemetry.sdk.version";
 
 /// The fully qualified human readable name of the [test case](https://wikipedia.org/wiki/Test_case).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5277,6 +6101,8 @@ pub const TEST_CASE_NAME: &str = "test.case.name";
 
 /// The status of the actual test case result from test execution.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"pass"`
@@ -5286,6 +6112,8 @@ pub const TEST_CASE_RESULT_STATUS: &str = "test.case.result.status";
 
 /// The human readable name of a [test suite](https://wikipedia.org/wiki/Test_suite).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"TestSuite1"`
@@ -5293,6 +6121,8 @@ pub const TEST_CASE_RESULT_STATUS: &str = "test.case.result.status";
 pub const TEST_SUITE_NAME: &str = "test.suite.name";
 
 /// The status of the test suite run.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5307,6 +6137,8 @@ pub const TEST_SUITE_RUN_STATUS: &str = "test.suite.run.status";
 
 /// Current "managed" thread ID (as opposed to OS thread ID).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `42`
@@ -5314,6 +6146,8 @@ pub const TEST_SUITE_RUN_STATUS: &str = "test.suite.run.status";
 pub const THREAD_ID: &str = "thread.id";
 
 /// Current thread name.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5336,6 +6170,8 @@ pub const TLS_CIPHER: &str = "tls.cipher";
 
 /// PEM-encoded stand-alone certificate offered by the client. This is usually mutually-exclusive of `client.certificate_chain` since this value also exists in that list.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"MII..."`
@@ -5343,6 +6179,8 @@ pub const TLS_CIPHER: &str = "tls.cipher";
 pub const TLS_CLIENT_CERTIFICATE: &str = "tls.client.certificate";
 
 /// Array of PEM-encoded certificates that make up the certificate chain offered by the client. This is usually mutually-exclusive of `client.certificate` since that value should be the first certificate in the chain.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5355,6 +6193,8 @@ pub const TLS_CLIENT_CERTIFICATE_CHAIN: &str = "tls.client.certificate_chain";
 
 /// Certificate fingerprint using the MD5 digest of DER-encoded version of certificate offered by the client. For consistency with other hash values, this value should be formatted as an uppercase hash.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"0F76C7F2C55BFD7D8E8B8F4BFBF0C9EC"`
@@ -5362,6 +6202,8 @@ pub const TLS_CLIENT_CERTIFICATE_CHAIN: &str = "tls.client.certificate_chain";
 pub const TLS_CLIENT_HASH_MD5: &str = "tls.client.hash.md5";
 
 /// Certificate fingerprint using the SHA1 digest of DER-encoded version of certificate offered by the client. For consistency with other hash values, this value should be formatted as an uppercase hash.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5371,6 +6213,8 @@ pub const TLS_CLIENT_HASH_SHA1: &str = "tls.client.hash.sha1";
 
 /// Certificate fingerprint using the SHA256 digest of DER-encoded version of certificate offered by the client. For consistency with other hash values, this value should be formatted as an uppercase hash.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"0687F666A054EF17A08E2F2162EAB4CBC0D265E1D7875BE74BF3C712CA92DAF0"`
@@ -5378,6 +6222,8 @@ pub const TLS_CLIENT_HASH_SHA1: &str = "tls.client.hash.sha1";
 pub const TLS_CLIENT_HASH_SHA256: &str = "tls.client.hash.sha256";
 
 /// Distinguished name of [subject](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6) of the issuer of the x.509 certificate presented by the client.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5387,6 +6233,8 @@ pub const TLS_CLIENT_ISSUER: &str = "tls.client.issuer";
 
 /// A hash that identifies clients based on how they perform an SSL/TLS handshake.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"d4e5b18d6b55c71272893221c96ba240"`
@@ -5394,6 +6242,8 @@ pub const TLS_CLIENT_ISSUER: &str = "tls.client.issuer";
 pub const TLS_CLIENT_JA3: &str = "tls.client.ja3";
 
 /// Date/Time indicating when client certificate is no longer considered valid.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5403,6 +6253,8 @@ pub const TLS_CLIENT_NOT_AFTER: &str = "tls.client.not_after";
 
 /// Date/Time indicating when client certificate is first considered valid.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1970-01-01T00:00:00.000Z"`
@@ -5410,6 +6262,8 @@ pub const TLS_CLIENT_NOT_AFTER: &str = "tls.client.not_after";
 pub const TLS_CLIENT_NOT_BEFORE: &str = "tls.client.not_before";
 
 /// Deprecated, use `server.address` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5420,6 +6274,8 @@ pub const TLS_CLIENT_SERVER_NAME: &str = "tls.client.server_name";
 
 /// Distinguished name of subject of the x.509 certificate presented by the client.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"CN=myclient, OU=Documentation Team, DC=example, DC=com"`
@@ -5427,6 +6283,8 @@ pub const TLS_CLIENT_SERVER_NAME: &str = "tls.client.server_name";
 pub const TLS_CLIENT_SUBJECT: &str = "tls.client.subject";
 
 /// Array of ciphers offered by the client during the client hello.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5439,6 +6297,8 @@ pub const TLS_CLIENT_SUPPORTED_CIPHERS: &str = "tls.client.supported_ciphers";
 
 /// String indicating the curve used for the given cipher, when applicable
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"secp256r1"`
@@ -5446,6 +6306,8 @@ pub const TLS_CLIENT_SUPPORTED_CIPHERS: &str = "tls.client.supported_ciphers";
 pub const TLS_CURVE: &str = "tls.curve";
 
 /// Boolean flag indicating if the TLS negotiation was successful and transitioned to an encrypted tunnel.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5455,6 +6317,8 @@ pub const TLS_ESTABLISHED: &str = "tls.established";
 
 /// String indicating the protocol being tunneled. Per the values in the [IANA registry](https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids), this string should be lower case.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"http/1.1"`
@@ -5462,10 +6326,14 @@ pub const TLS_ESTABLISHED: &str = "tls.established";
 pub const TLS_NEXT_PROTOCOL: &str = "tls.next_protocol";
 
 /// Normalized lowercase protocol name parsed from original string of the negotiated [SSL/TLS protocol version](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html#RETURN-VALUES)
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_PROTOCOL_NAME: &str = "tls.protocol.name";
 
 /// Numeric part of the version parsed from the original string of the negotiated [SSL/TLS protocol version](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html#RETURN-VALUES)
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5476,6 +6344,8 @@ pub const TLS_PROTOCOL_VERSION: &str = "tls.protocol.version";
 
 /// Boolean flag indicating if this TLS connection was resumed from an existing TLS negotiation.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `true`
@@ -5484,6 +6354,8 @@ pub const TLS_RESUMED: &str = "tls.resumed";
 
 /// PEM-encoded stand-alone certificate offered by the server. This is usually mutually-exclusive of `server.certificate_chain` since this value also exists in that list.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"MII..."`
@@ -5491,6 +6363,8 @@ pub const TLS_RESUMED: &str = "tls.resumed";
 pub const TLS_SERVER_CERTIFICATE: &str = "tls.server.certificate";
 
 /// Array of PEM-encoded certificates that make up the certificate chain offered by the server. This is usually mutually-exclusive of `server.certificate` since that value should be the first certificate in the chain.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5503,6 +6377,8 @@ pub const TLS_SERVER_CERTIFICATE_CHAIN: &str = "tls.server.certificate_chain";
 
 /// Certificate fingerprint using the MD5 digest of DER-encoded version of certificate offered by the server. For consistency with other hash values, this value should be formatted as an uppercase hash.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"0F76C7F2C55BFD7D8E8B8F4BFBF0C9EC"`
@@ -5510,6 +6386,8 @@ pub const TLS_SERVER_CERTIFICATE_CHAIN: &str = "tls.server.certificate_chain";
 pub const TLS_SERVER_HASH_MD5: &str = "tls.server.hash.md5";
 
 /// Certificate fingerprint using the SHA1 digest of DER-encoded version of certificate offered by the server. For consistency with other hash values, this value should be formatted as an uppercase hash.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5519,6 +6397,8 @@ pub const TLS_SERVER_HASH_SHA1: &str = "tls.server.hash.sha1";
 
 /// Certificate fingerprint using the SHA256 digest of DER-encoded version of certificate offered by the server. For consistency with other hash values, this value should be formatted as an uppercase hash.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"0687F666A054EF17A08E2F2162EAB4CBC0D265E1D7875BE74BF3C712CA92DAF0"`
@@ -5526,6 +6406,8 @@ pub const TLS_SERVER_HASH_SHA1: &str = "tls.server.hash.sha1";
 pub const TLS_SERVER_HASH_SHA256: &str = "tls.server.hash.sha256";
 
 /// Distinguished name of [subject](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6) of the issuer of the x.509 certificate presented by the client.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5535,6 +6417,8 @@ pub const TLS_SERVER_ISSUER: &str = "tls.server.issuer";
 
 /// A hash that identifies servers based on how they perform an SSL/TLS handshake.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"d4e5b18d6b55c71272893221c96ba240"`
@@ -5542,6 +6426,8 @@ pub const TLS_SERVER_ISSUER: &str = "tls.server.issuer";
 pub const TLS_SERVER_JA3S: &str = "tls.server.ja3s";
 
 /// Date/Time indicating when server certificate is no longer considered valid.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5551,6 +6437,8 @@ pub const TLS_SERVER_NOT_AFTER: &str = "tls.server.not_after";
 
 /// Date/Time indicating when server certificate is first considered valid.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"1970-01-01T00:00:00.000Z"`
@@ -5558,6 +6446,8 @@ pub const TLS_SERVER_NOT_AFTER: &str = "tls.server.not_after";
 pub const TLS_SERVER_NOT_BEFORE: &str = "tls.server.not_before";
 
 /// Distinguished name of subject of the x.509 certificate presented by the server.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5594,6 +6484,8 @@ pub const URL_DOMAIN: &str = "url.domain";
 pub const URL_EXTENSION: &str = "url.extension";
 
 /// The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5661,6 +6553,8 @@ pub const URL_PATH: &str = "url.path";
 
 /// Port extracted from the `url.full`
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `443`
@@ -5706,6 +6600,8 @@ pub const URL_REGISTERED_DOMAIN: &str = "url.registered_domain";
 
 /// The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"https"`
@@ -5727,6 +6623,8 @@ pub const URL_SCHEME: &str = "url.scheme";
 pub const URL_SUBDOMAIN: &str = "url.subdomain";
 
 /// The low-cardinality template of an [absolute path reference](https://www.rfc-editor.org/rfc/rfc3986#section-4.2).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5751,6 +6649,8 @@ pub const URL_TOP_LEVEL_DOMAIN: &str = "url.top_level_domain";
 
 /// User email address.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"a.einstein@example.com"`
@@ -5758,6 +6658,8 @@ pub const URL_TOP_LEVEL_DOMAIN: &str = "url.top_level_domain";
 pub const USER_EMAIL: &str = "user.email";
 
 /// User's full name
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5779,6 +6681,8 @@ pub const USER_HASH: &str = "user.hash";
 
 /// Unique identifier of the user.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"S-1-5-21-202424912787-2692429404-2351956786-1000"`
@@ -5787,6 +6691,8 @@ pub const USER_ID: &str = "user.id";
 
 /// Short name or login/username of the user.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"a.einstein"`
@@ -5794,6 +6700,8 @@ pub const USER_ID: &str = "user.id";
 pub const USER_NAME: &str = "user.name";
 
 /// Array of user roles at the time of the event.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5818,6 +6726,8 @@ pub const USER_ROLES: &str = "user.roles";
 pub const USER_AGENT_NAME: &str = "user_agent.name";
 
 /// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5847,7 +6757,9 @@ pub const USER_AGENT_SYNTHETIC_TYPE: &str = "user_agent.synthetic.type";
 #[cfg(feature = "semconv_experimental")]
 pub const USER_AGENT_VERSION: &str = "user_agent.version";
 
-/// The type of garbage collection
+/// The type of garbage collection.
+///
+/// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const V8JS_GC_TYPE: &str = "v8js.gc.type";
 
@@ -5861,6 +6773,8 @@ pub const V8JS_HEAP_SPACE_NAME: &str = "v8js.heap.space.name";
 
 /// The ID of the change (pull request/merge request/changelist) if applicable. This is usually a unique (within repository) identifier generated by the VCS system.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"123"`
@@ -5868,6 +6782,8 @@ pub const V8JS_HEAP_SPACE_NAME: &str = "v8js.heap.space.name";
 pub const VCS_CHANGE_ID: &str = "vcs.change.id";
 
 /// The state of the change (pull request/merge request/changelist).
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5879,6 +6795,8 @@ pub const VCS_CHANGE_STATE: &str = "vcs.change.state";
 
 /// The human readable title of the change (pull request/merge request/changelist). This title is often a brief summary of the change and may get merged in to a ref as the commit summary.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"Fixes broken thing"`
@@ -5889,6 +6807,8 @@ pub const VCS_CHANGE_TITLE: &str = "vcs.change.title";
 
 /// The type of line change being measured on a branch or change.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"added"`
@@ -5897,6 +6817,8 @@ pub const VCS_CHANGE_TITLE: &str = "vcs.change.title";
 pub const VCS_LINE_CHANGE_TYPE: &str = "vcs.line_change.type";
 
 /// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5930,6 +6852,8 @@ pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 
 /// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"branch"`
@@ -5938,6 +6862,8 @@ pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 pub const VCS_REF_BASE_TYPE: &str = "vcs.ref.base.type";
 
 /// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5971,6 +6897,8 @@ pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
 
 /// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"branch"`
@@ -5979,6 +6907,8 @@ pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
 pub const VCS_REF_HEAD_TYPE: &str = "vcs.ref.head.type";
 
 /// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -5989,6 +6919,8 @@ pub const VCS_REF_TYPE: &str = "vcs.ref.type";
 
 /// Deprecated, use `vcs.change.id` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"123"`
@@ -5997,6 +6929,8 @@ pub const VCS_REF_TYPE: &str = "vcs.ref.type";
 pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
 
 /// Deprecated, use `vcs.change.title` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -6009,6 +6943,8 @@ pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
 
 /// Deprecated, use `vcs.ref.head.name` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"my-feature-branch"`
@@ -6018,6 +6954,8 @@ pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
 pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
 
 /// Deprecated, use `vcs.ref.head.revision` instead.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -6031,6 +6969,8 @@ pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 
 /// Deprecated, use `vcs.ref.head.type` instead.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"branch"`
@@ -6041,6 +6981,8 @@ pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 
 /// The [URL](https://wikipedia.org/wiki/URL) of the repository providing the complete address in order to locate and identify the repository.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"https://github.com/opentelemetry/open-telemetry-collector-contrib"`
@@ -6049,6 +6991,8 @@ pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 pub const VCS_REPOSITORY_URL_FULL: &str = "vcs.repository.url.full";
 
 /// The type of revision comparison.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
@@ -6059,6 +7003,8 @@ pub const VCS_REVISION_DELTA_DIRECTION: &str = "vcs.revision_delta.direction";
 
 /// Additional description of the web engine (e.g. detailed version and edition information).
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final"`
@@ -6067,6 +7013,8 @@ pub const WEBENGINE_DESCRIPTION: &str = "webengine.description";
 
 /// The name of the web engine.
 ///
+/// ## Notes
+///
 /// # Examples
 ///
 /// - `"WildFly"`
@@ -6074,6 +7022,8 @@ pub const WEBENGINE_DESCRIPTION: &str = "webengine.description";
 pub const WEBENGINE_NAME: &str = "webengine.name";
 
 /// The version of the web engine.
+///
+/// ## Notes
 ///
 /// # Examples
 ///
