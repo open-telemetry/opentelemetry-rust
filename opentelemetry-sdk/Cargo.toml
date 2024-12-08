@@ -28,6 +28,7 @@ tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing = {workspace = true, optional = true}
+async-compat = { version = "0.2"}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -36,6 +37,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 temp-env = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"]}
+hyper-tls = "0.6"
+reqwest = {workspace = true, features = ["blocking"]}
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
