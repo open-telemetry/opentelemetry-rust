@@ -49,13 +49,14 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_temporality(Temporality::Delta)
         .build();
 
+    let resource = Resource::builder()
+        .with_attribute(KeyValue::new("service.name", "metrics-advanced-example"))
+        .build();
+
     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
-        .with_resource(Resource::new([KeyValue::new(
-            "service.name",
-            "metrics-advanced-example",
-        )]))
+        .with_resource(resource)
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
