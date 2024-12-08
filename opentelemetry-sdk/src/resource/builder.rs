@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::Duration};
+use std::borrow::Cow;
 
 use opentelemetry::{KeyValue, Value};
 
@@ -39,9 +39,7 @@ impl ResourceBuilder {
 
     /// Add multiple [ResourceDetector] to your resource.
     pub fn with_detectors(mut self, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
-        self.resource = self
-            .resource
-            .merge(&Resource::from_detectors(Duration::from_secs(0), detectors));
+        self.resource = self.resource.merge(&Resource::from_detectors(detectors));
         self
     }
 
