@@ -360,6 +360,9 @@ pub use crate::attribute::PROCESS_EXECUTABLE_NAME;
 pub use crate::attribute::PROCESS_EXECUTABLE_PATH;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_LINUX_CGROUP;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_OWNER;
 
 #[cfg(feature = "semconv_experimental")]

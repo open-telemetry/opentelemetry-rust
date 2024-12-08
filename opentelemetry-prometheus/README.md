@@ -7,7 +7,7 @@
 [`Prometheus`] integration for applications instrumented with [`OpenTelemetry`]. 
 
 **The development of prometheus exporter has halt until the Opentelemetry metrics API and SDK reaches 1.0. Current 
-implementation is based on Opentelemetry API and SDK 0.24**.
+implementation is based on Opentelemetry API and SDK 0.27**.
 
 [![Crates.io: opentelemetry-prometheus](https://img.shields.io/crates/v/opentelemetry-prometheus.svg)](https://crates.io/crates/opentelemetry-prometheus)
 [![Documentation](https://docs.rs/opentelemetry-prometheus/badge.svg)](https://docs.rs/opentelemetry-prometheus)
