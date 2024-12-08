@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Update to [v1.28.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
+- Update to [v1.29.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
 - Update to [v0.11.0](https://github.com/open-telemetry/weaver/releases/tag/v0.11.0) of the semantic conventions.
 
 ## 0.27.0
