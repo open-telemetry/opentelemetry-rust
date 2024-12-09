@@ -1,10 +1,43 @@
-# Basic OTLP exporter Example
+# Basic OTLP Exporter Example
 
-This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
-and traces to exports them to the [OpenTelemetry
-Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP over gRPC.
-The Collector then sends the data to the appropriate backend, in this case,
-the logging Exporter, which displays data to console.
+This example demonstrates how to set up an OpenTelemetry OTLP exporter for logs,
+metrics, and traces to send data to the [OpenTelemetry
+Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP
+over gRPC. The Collector then forwards the data to the configured backend, which
+in this case is the logging exporter, displaying data on the console.
+Additionally, the example configures a `tracing::fmt` layer to output logs
+emitted via `tracing` to `stdout`. For demonstration, this layer uses a filter
+to display `DEBUG` level logs from various OpenTelemetry components. In real
+applications, these filters should be adjusted appropriately.
+
+The example employs a `BatchExporter` for logs and traces, which is the
+recommended approach when using OTLP exporters. While it can be modified to use
+a `SimpleExporter`, this requires the main method to be a `tokio::main` function
+since the `tonic` client requires a Tokio runtime. If you prefer not to use
+`tokio::main`, then the `init_logs`, `init_traces`, and `init_metrics` functions
+must be executed within a Tokio runtime. Below is an example:
+
+```rust
+fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+     let rt = tokio::runtime::Runtime::new()?;
+     let tracer_provider = rt.block_on(async {
+          init_traces()
+     })?;
+     global::set_tracer_provider(tracer_provider.clone());
+
+     let meter_provider = rt.block_on(async {
+          init_metrics()
+     })?;
+     global::set_meter_provider(meter_provider.clone());
+
+     let logger_provider = rt.block_on(async {
+          init_logs()
+     })?;
+
+     // Ensure the runtime (`rt`) remains active until the program ends
+     // Additional code goes here...
+}
+```
 
 ## Usage
 
