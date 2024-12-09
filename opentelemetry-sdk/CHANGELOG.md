@@ -18,10 +18,10 @@
      async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()>
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
-- *Breaking* Removed the following deprecated methods:
+- *Breaking* Removed the following deprecated struct:
   - logs::LogData - Previously deprecated in version 0.27.1
   Migration Guidance: This structure is no longer utilized within the SDK, and users should not have dependencies on it.
-  
+
 ## 0.27.1
 
 Released 2024-Nov-27
