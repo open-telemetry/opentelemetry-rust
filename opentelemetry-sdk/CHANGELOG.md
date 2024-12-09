@@ -22,6 +22,12 @@
   - logs::LogData - Previously deprecated in version 0.27.1
   Migration Guidance: This structure is no longer utilized within the SDK, and users should not have dependencies on it.
 
+- *Breaking* Removed the following deprecated methods:
+  - `Logger::provider()` : Previously deprecated in version 0.27.1
+  - `Logger::instrumentation_scope()` : Previously deprecated in version 0.27.1.
+     Migration Guidance: 
+        - These methods were intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
+
 ## 0.27.1
 
 Released 2024-Nov-27
