@@ -155,7 +155,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     tracer_provider.shutdown()?;
     logger_provider.shutdown()?;
-    // meter_provider.shutdown()?;
+    meter_provider.shutdown()?;
 
     Ok(())
 }
