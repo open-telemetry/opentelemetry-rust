@@ -1,6 +1,6 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, DataPoint};
+use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
@@ -66,7 +66,7 @@ impl<T: Number> PrecomputedSum<T> {
                 let value = aggr.value.get_value();
                 new_reported.insert(attributes.clone(), value);
                 let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
-                DataPoint {
+                SumDataPoint {
                     attributes,
                     start_time: prev_start,
                     time: t,
@@ -107,7 +107,7 @@ impl<T: Number> PrecomputedSum<T> {
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
 
         self.value_map
-            .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
+            .collect_readonly(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 start_time: prev_start,
                 time: t,
