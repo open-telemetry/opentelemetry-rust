@@ -1,4 +1,4 @@
-# OpenTelemetry Log Appender for log -  Example
+# OpenTelemetry Log Appender for tracing -  Example
 
 This example shows how to use the opentelemetry-appender-tracing crate, which is a
 [logging
