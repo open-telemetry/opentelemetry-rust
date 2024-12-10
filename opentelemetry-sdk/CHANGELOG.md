@@ -10,9 +10,8 @@
     [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
   - `ResourceDetector.detect()` no longer supports timeout option.
   - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply cloneable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
-  - The trait functions `LogExporter.shutdown` and `TraceExporter.shutdown` now explicitly return a result. The
-    semantics of the method have not changed, but you will have a new lint encouraging you to consume these results.
-
+  - If you are an exporter author, the trait functions `LogExporter.shutdown` and `TraceExporter.shutdown` must now return a result. Note that implementing shutdown is optional as the trait provides a default implementation that returns Ok(()).
+  
 ## 0.27.1
 
 Released 2024-Nov-27

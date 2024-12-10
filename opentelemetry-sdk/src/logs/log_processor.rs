@@ -596,10 +596,6 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> LogResult<()> {
-            Ok(())
-        }
-
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
                 .lock()
