@@ -64,7 +64,12 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .build()?;
 
     #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
-    let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader =
+        opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(
+            exporter,
+            runtime::Tokio,
+        )
+        .build();
     #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
     let reader = PeriodicReader::builder(exporter).build();
 
