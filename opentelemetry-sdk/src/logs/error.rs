@@ -11,7 +11,7 @@ pub type LogResult<T> = Result<T, LogError>;
 /// Errors returned by the log SDK.
 pub enum LogError {
     /// Export failed with the error returned by the exporter.
-    #[error("Exporter {} encountered the following errors: {0}", .0.exporter_name())]
+    #[error("Exporter {0} encountered the following errors: {name}", name = .0.exporter_name())]
     ExportFailed(Box<dyn ExportError>),
 
     /// Export failed to finish after certain period and processor stopped the export.
