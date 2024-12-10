@@ -189,24 +189,17 @@ impl Resource {
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
     pub fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
-        println!("here1");
         if self.is_empty() {
             return other.clone();
         }
-        println!("here2");
         if other.is_empty() {
             return self.clone();
         }
-        println!("here3");
         let mut combined_attrs = self.inner.attrs.clone();
         for (k, v) in other.inner.attrs.iter() {
             combined_attrs.insert(k.clone(), v.clone());
         }
 
-        dbg!(&self.inner.schema_url);
-        dbg!(&other.inner.schema_url);
-
-        println!("here4");
         // Resolve the schema URL according to the precedence rules
         let combined_schema_url = match (&self.inner.schema_url, &other.inner.schema_url) {
             // If both resources have a schema URL and it's the same, use it
