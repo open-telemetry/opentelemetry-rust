@@ -70,6 +70,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
             runtime::Tokio,
         )
         .build();
+    // TODO: This does not work today. See https://github.com/open-telemetry/opentelemetry-rust/issues/2400
     #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
     let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
 
