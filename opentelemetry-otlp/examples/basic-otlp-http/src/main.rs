@@ -10,7 +10,7 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::{
     logs::LoggerProvider,
-    metrics::{MetricError, PeriodicReader, SdkMeterProvider},
+    metrics::{MetricError, SdkMeterProvider},
     runtime,
     trace::{self as sdktrace, TracerProvider},
 };
@@ -71,7 +71,7 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         )
         .build();
     #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
-    let reader = PeriodicReader::builder(exporter).build();
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
 
     Ok(SdkMeterProvider::builder()
         .with_reader(reader)
