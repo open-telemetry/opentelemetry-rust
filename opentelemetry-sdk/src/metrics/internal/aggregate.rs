@@ -2,10 +2,7 @@ use std::{marker, sync::Arc};
 
 use opentelemetry::KeyValue;
 
-use crate::metrics::{
-    data::{Aggregation, Gauge},
-    Temporality,
-};
+use crate::metrics::{data::Aggregation, Temporality};
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
@@ -99,31 +96,15 @@ impl<T: Number> AggregateBuilder<T> {
 
     /// Builds a last-value aggregate function input and output.
     pub(crate) fn last_value(&self) -> (impl Measure<T>, impl ComputeAggregation) {
-        let lv_filter = Arc::new(LastValue::new());
-        let lv_agg = Arc::clone(&lv_filter);
+        let lv = Arc::new(LastValue::new());
+        let agg_lv = Arc::clone(&lv);
         let t = self.temporality;
 
         (
-            self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| {
-                let g = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
-                let mut new_agg = if g.is_none() {
-                    Some(Gauge {
-                        data_points: vec![],
-                    })
-                } else {
-                    None
-                };
-                let g = g.unwrap_or_else(|| new_agg.as_mut().expect("present if g is none"));
-
-                match t {
-                    Some(Temporality::Delta) => {
-                        lv_agg.compute_aggregation_delta(&mut g.data_points)
-                    }
-                    _ => lv_agg.compute_aggregation_cumulative(&mut g.data_points),
-                }
-
-                (g.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+            self.filter(move |n, a: &[KeyValue]| lv.measure(n, a)),
+            move |dest: Option<&mut dyn Aggregation>| match t {
+                Some(Temporality::Delta) => agg_lv.delta(dest),
+                _ => agg_lv.cumulative(dest),
             },
         )
     }
@@ -211,8 +192,8 @@ impl<T: Number> AggregateBuilder<T> {
 #[cfg(test)]
 mod tests {
     use crate::metrics::data::{
-        ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, GaugeDataPoint,
-        Histogram, HistogramDataPoint, Sum, SumDataPoint,
+        ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
+        GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };
     use std::{time::SystemTime, vec};
 
@@ -224,11 +205,11 @@ mod tests {
         let mut a = Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
-                start_time: Some(SystemTime::now()),
-                time: SystemTime::now(),
                 value: 1u64,
                 exemplars: vec![],
             }],
+            start_time: Some(SystemTime::now()),
+            time: SystemTime::now(),
         };
         let new_attributes = [KeyValue::new("b", 2)];
         measure.call(2, &new_attributes[..]);
@@ -251,19 +232,17 @@ mod tests {
                 data_points: vec![
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         value: 2u64,
                         exemplars: vec![],
                     },
                 ],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -294,19 +273,17 @@ mod tests {
                 data_points: vec![
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         value: 2u64,
                         exemplars: vec![],
                     },
                 ],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
