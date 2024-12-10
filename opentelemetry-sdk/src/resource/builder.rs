@@ -26,7 +26,7 @@ impl Default for ResourceBuilder {
 
 impl ResourceBuilder {
     /// Create ResourceBuilder with [Resource::empty()].
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         ResourceBuilder {
             resource: Resource::empty(),
         }
