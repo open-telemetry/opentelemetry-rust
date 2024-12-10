@@ -106,8 +106,8 @@ mod tests {
     use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::*;
     use crate::metrics::data::ResourceMetrics;
+    use crate::testing::metrics::InMemoryMetricExporter;
     use crate::testing::metrics::InMemoryMetricExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricExporter};
     use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
@@ -752,9 +752,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
@@ -2435,7 +2432,7 @@ mod tests {
             let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
-            let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+            let reader = PeriodicReader::builder(exporter.clone()).build();
             let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
             TestContext {
