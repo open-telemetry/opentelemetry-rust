@@ -515,6 +515,9 @@ mod tests {
         }
 
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -531,6 +534,9 @@ mod tests {
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -582,6 +588,9 @@ mod tests {
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -671,6 +680,9 @@ mod tests {
     async fn instrumentation_scope_identity_test() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
@@ -755,6 +767,9 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
@@ -805,6 +820,9 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
@@ -880,6 +898,9 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
+        #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
         let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
