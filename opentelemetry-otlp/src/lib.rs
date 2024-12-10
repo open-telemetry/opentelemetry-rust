@@ -179,7 +179,7 @@
 //!        .build()
 //!        .unwrap();
 //!
-//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio)
+//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
 //!        .with_interval(std::time::Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
 //!        .build();
