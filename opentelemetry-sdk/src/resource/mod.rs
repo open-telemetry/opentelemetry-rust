@@ -20,12 +20,14 @@
 //!
 //! The OS and Process resource detectors are packaged separately in the
 //! [`opentelemetry-resource-detector` crate](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-resource-detectors).
+mod builder;
 mod env;
 mod telemetry;
 
 mod attributes;
 pub(crate) use attributes::*;
 
+pub use builder::ResourceBuilder;
 pub use env::EnvResourceDetector;
 pub use env::SdkProvidedResourceDetector;
 pub use telemetry::TelemetryResourceDetector;
@@ -61,7 +63,29 @@ impl Default for Resource {
     }
 }
 
+impl From<ResourceBuilder> for Resource {
+    fn from(value: ResourceBuilder) -> Self {
+        value.build()
+    }
+}
+
 impl Resource {
+    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    ///
+    /// If you want to start from a [Resource::default()] see [Resource::builder_default()].
+    ///
+    /// Starts with a [Resource::empty()].
+    pub fn builder() -> ResourceBuilder {
+        ResourceBuilder::new()
+    }
+
+    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    ///
+    /// Starts with a [Resource::default()].
+    pub fn builder_default() -> ResourceBuilder {
+        ResourceBuilder::default()
+    }
+
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
     pub fn empty() -> Self {
@@ -175,6 +199,7 @@ impl Resource {
         for (k, v) in other.inner.attrs.iter() {
             combined_attrs.insert(k.clone(), v.clone());
         }
+
         // Resolve the schema URL according to the precedence rules
         let combined_schema_url = match (&self.inner.schema_url, &other.inner.schema_url) {
             // If both resources have a schema URL and it's the same, use it

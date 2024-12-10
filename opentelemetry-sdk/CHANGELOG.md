@@ -2,6 +2,9 @@
 
 ## vNext
 
+*Features*
+- Add `ResourceBuilder` for an easy way to create new `Resource`s
+
 - *Breaking*
   - SimpleLogProcessor modified to be generic over `LogExporter` to
     avoid dynamic dispatch to invoke exporter. If you were using
