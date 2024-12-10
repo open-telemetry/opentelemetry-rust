@@ -169,7 +169,7 @@ where
 /// # Example
 ///
 /// ```no_run
-/// use opentelemetry_sdk::metrics::PeriodicReader;
+/// use opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader;
 /// # fn example<E, R>(get_exporter: impl Fn() -> E, get_runtime: impl Fn() -> R)
 /// # where
 /// #     E: opentelemetry_sdk::metrics::exporter::PushMetricExporter,
