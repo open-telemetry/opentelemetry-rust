@@ -104,11 +104,12 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
+    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::*;
     use crate::metrics::data::ResourceMetrics;
     use crate::testing::metrics::InMemoryMetricExporterBuilder;
     use crate::{runtime, testing::metrics::InMemoryMetricExporter};
+    use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -465,7 +466,7 @@ mod tests {
             let data_point = if is_empty_attributes {
                 &sum.data_points[0]
             } else {
-                find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+                find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
                     .expect("datapoint with key1=value1 expected")
             };
 
@@ -1096,12 +1097,12 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2);
 
         // find and validate key1=value1 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
 
@@ -1218,12 +1219,15 @@ mod tests {
                         test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 5);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&counter_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_sum_datapoint_with_key_value(
+                        &counter_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 10);
                 }
                 "updown_counter" => {
@@ -1231,10 +1235,10 @@ mod tests {
                         test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&updown_counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 15);
-                    let data_point1 = find_datapoint_with_key_value(
+                    let data_point1 = find_sum_datapoint_with_key_value(
                         &updown_counter_data.data_points,
                         "key1",
                         "value1",
@@ -1269,12 +1273,15 @@ mod tests {
                         test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&gauge_data.data_points)
+                        find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 35);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&gauge_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_gauge_datapoint_with_key_value(
+                        &gauge_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 40);
                 }
                 _ => panic!("Incorrect instrument kind provided"),
@@ -1366,12 +1373,15 @@ mod tests {
                     assert_eq!(counter_data.data_points.len(), 2);
                     assert!(counter_data.is_monotonic);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 5);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&counter_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_sum_datapoint_with_key_value(
+                        &counter_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 10);
                 }
                 "updown_counter" => {
@@ -1380,10 +1390,10 @@ mod tests {
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     assert!(!updown_counter_data.is_monotonic);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&updown_counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 15);
-                    let data_point1 = find_datapoint_with_key_value(
+                    let data_point1 = find_sum_datapoint_with_key_value(
                         &updown_counter_data.data_points,
                         "key1",
                         "value1",
@@ -1396,12 +1406,15 @@ mod tests {
                         test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&gauge_data.data_points)
+                        find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 25);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&gauge_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_gauge_datapoint_with_key_value(
+                        &gauge_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 30);
                 }
                 _ => panic!("Incorrect instrument kind provided"),
@@ -1970,12 +1983,12 @@ mod tests {
 
         // find and validate key1=value2 datapoint
         let data_point1 =
-            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
+            find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
                 .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
         let data_point1 =
-            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
+            find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
                 .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 6);
 
@@ -1995,11 +2008,11 @@ mod tests {
 
         let gauge = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
         assert_eq!(gauge.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 41);
 
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 54);
     }
@@ -2029,18 +2042,19 @@ mod tests {
 
         if use_empty_attributes {
             // find and validate zero attribute datapoint
-            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
-                .expect("datapoint with no attributes expected");
+            let zero_attribute_datapoint =
+                find_gauge_datapoint_with_no_attributes(&gauge.data_points)
+                    .expect("datapoint with no attributes expected");
             assert_eq!(zero_attribute_datapoint.value, 1);
         }
 
         // find and validate key1=value1 datapoint
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
         // find and validate key2=value2 datapoint
-        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+        let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
             .expect("datapoint with key2=value2 expected");
         assert_eq!(data_point2.value, 5);
 
@@ -2053,16 +2067,17 @@ mod tests {
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
 
         if use_empty_attributes {
-            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
-                .expect("datapoint with no attributes expected");
+            let zero_attribute_datapoint =
+                find_gauge_datapoint_with_no_attributes(&gauge.data_points)
+                    .expect("datapoint with no attributes expected");
             assert_eq!(zero_attribute_datapoint.value, 1);
         }
 
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
-        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+        let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
             .expect("datapoint with key2=value2 expected");
         assert_eq!(data_point2.value, 5);
     }
@@ -2101,11 +2116,11 @@ mod tests {
         }
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
 
@@ -2125,7 +2140,7 @@ mod tests {
 
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
         assert_eq!(sum.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         if temporality == Temporality::Cumulative {
             assert_eq!(data_point1.value, 10);
@@ -2133,7 +2148,7 @@ mod tests {
             assert_eq!(data_point1.value, 5);
         }
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         if temporality == Temporality::Cumulative {
             assert_eq!(data_point1.value, 6);
@@ -2169,12 +2184,12 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2002);
 
         let data_point =
-            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
                 .expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
-        let empty_attrs_data_point = find_datapoint_with_no_attributes(&sum.data_points)
+        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
             .expect("Empty attributes point expected");
         assert!(
             empty_attrs_data_point.attributes.is_empty(),
@@ -2300,11 +2315,11 @@ mod tests {
         );
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 7);
 
@@ -2324,20 +2339,20 @@ mod tests {
 
         let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
         assert_eq!(sum.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 10);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 14);
     }
 
-    fn find_datapoint_with_key_value<'a, T>(
-        data_points: &'a [DataPoint<T>],
+    fn find_sum_datapoint_with_key_value<'a, T>(
+        data_points: &'a [SumDataPoint<T>],
         key: &str,
         value: &str,
-    ) -> Option<&'a DataPoint<T>> {
+    ) -> Option<&'a SumDataPoint<T>> {
         data_points.iter().find(|&datapoint| {
             datapoint
                 .attributes
@@ -2346,7 +2361,30 @@ mod tests {
         })
     }
 
-    fn find_datapoint_with_no_attributes<T>(data_points: &[DataPoint<T>]) -> Option<&DataPoint<T>> {
+    fn find_gauge_datapoint_with_key_value<'a, T>(
+        data_points: &'a [GaugeDataPoint<T>],
+        key: &str,
+        value: &str,
+    ) -> Option<&'a GaugeDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
+        })
+    }
+
+    fn find_sum_datapoint_with_no_attributes<T>(
+        data_points: &[SumDataPoint<T>],
+    ) -> Option<&SumDataPoint<T>> {
+        data_points
+            .iter()
+            .find(|&datapoint| datapoint.attributes.is_empty())
+    }
+
+    fn find_gauge_datapoint_with_no_attributes<T>(
+        data_points: &[GaugeDataPoint<T>],
+    ) -> Option<&GaugeDataPoint<T>> {
         data_points
             .iter()
             .find(|&datapoint| datapoint.attributes.is_empty())
