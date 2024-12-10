@@ -9,6 +9,9 @@ use opentelemetry::trace::{Span, Tracer};
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
+#[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+use opentelemetry_sdk::runtime;
+
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
@@ -34,6 +37,9 @@ fn init_trace() -> TracerProvider {
 #[cfg(feature = "metrics")]
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricExporter::default();
+    #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
     let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
