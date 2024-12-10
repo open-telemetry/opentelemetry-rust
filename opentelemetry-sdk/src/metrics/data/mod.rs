@@ -59,10 +59,6 @@ pub struct GaugeDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
     pub attributes: Vec<KeyValue>,
-    /// The time when the time series was started.
-    pub start_time: Option<SystemTime>,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
@@ -73,8 +69,6 @@ impl<T: Copy> Clone for GaugeDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             value: self.value,
             exemplars: self.exemplars.clone(),
         }
@@ -86,6 +80,10 @@ impl<T: Copy> Clone for GaugeDataPoint<T> {
 pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<GaugeDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: Option<SystemTime>,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
 }
 
 impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
@@ -103,10 +101,6 @@ pub struct SumDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
     pub attributes: Vec<KeyValue>,
-    /// The time when the time series was started.
-    pub start_time: SystemTime,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
@@ -117,8 +111,6 @@ impl<T: Copy> Clone for SumDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             value: self.value,
             exemplars: self.exemplars.clone(),
         }
@@ -130,6 +122,10 @@ impl<T: Copy> Clone for SumDataPoint<T> {
 pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<SumDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -366,8 +362,6 @@ mod tests {
     fn validate_cloning_data_points() {
         let data_type = SumDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: std::time::SystemTime::now(),
-            time: std::time::SystemTime::now(),
             value: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
