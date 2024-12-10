@@ -10,21 +10,7 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-use opentelemetry::InstrumentationScope;
 pub use record::{LogRecord, TraceContext};
-
-#[deprecated(
-    since = "0.27.1",
-    note = "The struct is not used anywhere in the SDK and will be removed in the next major release."
-)]
-/// `LogData` represents a single log event without resource context.
-#[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationScope,
-}
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
@@ -33,6 +19,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;
     use std::collections::HashMap;

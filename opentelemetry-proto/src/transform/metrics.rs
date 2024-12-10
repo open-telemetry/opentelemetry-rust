@@ -319,7 +319,7 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
+                        start_time_unix_nano: dp.start_time.map(to_nanos).unwrap_or_default(),
                         time_unix_nano: to_nanos(dp.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,

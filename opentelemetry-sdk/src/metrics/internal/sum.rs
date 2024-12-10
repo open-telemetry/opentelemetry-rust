@@ -3,7 +3,7 @@ use std::ops::DerefMut;
 use std::vec;
 use std::{sync::Mutex, time::SystemTime};
 
-use crate::metrics::data::{self, Aggregation, DataPoint};
+use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
@@ -93,7 +93,7 @@ impl<T: Number> Sum<T> {
             .map(|mut start| replace(start.deref_mut(), t))
             .unwrap_or(t);
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| DataPoint {
+            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 start_time: prev_start,
                 time: t,
@@ -130,7 +130,7 @@ impl<T: Number> Sum<T> {
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
 
         self.value_map
-            .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
+            .collect_readonly(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 start_time: prev_start,
                 time: t,

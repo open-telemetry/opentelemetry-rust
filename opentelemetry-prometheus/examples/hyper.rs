@@ -85,17 +85,17 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         http_counter: meter
             .u64_counter("http_requests_total")
             .with_description("Total number of HTTP requests made.")
-            .init(),
+            .build(),
         http_body_gauge: meter
             .u64_histogram("example.http_response_size")
             .with_unit("By")
             .with_description("The metrics HTTP response sizes in bytes.")
-            .init(),
+            .build(),
         http_req_histogram: meter
             .f64_histogram("example.http_request_duration")
             .with_unit("ms")
             .with_description("The HTTP request latencies in milliseconds.")
-            .init(),
+            .build(),
     });
 
     let addr: SocketAddr = ([127, 0, 0, 1], 3000).into();

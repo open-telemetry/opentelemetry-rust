@@ -1,6 +1,6 @@
 use std::{mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
 
-use crate::metrics::data::DataPoint;
+use crate::metrics::data::GaugeDataPoint;
 use opentelemetry::KeyValue;
 
 use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Number, ValueMap};
@@ -56,7 +56,7 @@ impl<T: Number> LastValue<T> {
         self.value_map.measure(measurement, attrs);
     }
 
-    pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<DataPoint<T>>) {
+    pub(crate) fn compute_aggregation_delta(&self, dest: &mut Vec<GaugeDataPoint<T>>) {
         let t = SystemTime::now();
         let prev_start = self
             .start
@@ -64,22 +64,22 @@ impl<T: Number> LastValue<T> {
             .map(|mut start| replace(start.deref_mut(), t))
             .unwrap_or(t);
         self.value_map
-            .collect_and_reset(dest, |attributes, aggr| DataPoint {
+            .collect_and_reset(dest, |attributes, aggr| GaugeDataPoint {
                 attributes,
-                start_time: prev_start,
+                start_time: Some(prev_start),
                 time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
     }
 
-    pub(crate) fn compute_aggregation_cumulative(&self, dest: &mut Vec<DataPoint<T>>) {
+    pub(crate) fn compute_aggregation_cumulative(&self, dest: &mut Vec<GaugeDataPoint<T>>) {
         let t = SystemTime::now();
         let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
         self.value_map
-            .collect_readonly(dest, |attributes, aggr| DataPoint {
+            .collect_readonly(dest, |attributes, aggr| GaugeDataPoint {
                 attributes,
-                start_time: prev_start,
+                start_time: Some(prev_start),
                 time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
