@@ -5,9 +5,6 @@ edition = "2021"
 license = "Apache-2.0"
 publish = false
 
-[features]
-experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime"]
-
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry", features = ["metrics", "logs"] }

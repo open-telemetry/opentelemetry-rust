@@ -25,7 +25,6 @@ trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
 metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror", "opentelemetry_sdk/spec_unstable_logs_enabled"]
 populate-logs-event-name = []
-experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime", "opentelemetry_sdk/metrics"]
 
 [dependencies]
 async-trait = { workspace = true, optional = true }

@@ -63,8 +63,13 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .with_endpoint("http://localhost:4318/v1/metrics")
         .build()?;
 
+    #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+    let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
+    #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
+    let reader = PeriodicReader::builder(exporter).build();
+
     Ok(SdkMeterProvider::builder()
-        .with_reader(PeriodicReader::builder(exporter, runtime::Tokio).build())
+        .with_reader(reader)
         .with_resource(RESOURCE.clone())
         .build())
 }

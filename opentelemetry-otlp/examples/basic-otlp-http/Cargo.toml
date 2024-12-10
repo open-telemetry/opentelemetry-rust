@@ -9,6 +9,7 @@ publish = false
 default = ["reqwest"]
 reqwest = ["opentelemetry-otlp/reqwest-client"]
 hyper = ["opentelemetry-otlp/hyper-client"]
+experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime"]
 
 
 [dependencies]

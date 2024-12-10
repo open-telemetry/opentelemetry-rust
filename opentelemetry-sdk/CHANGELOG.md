@@ -53,13 +53,20 @@
       ```
 
  2. *Async Runtime Support*
-    If your application cannot spin up new thread or you prefer using async
-    runtimes, enable the "experimental_metrics_periodicreader_with_async_runtime" feature flag.  
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_metrics_periodicreader_with_async_runtime" feature flag and
+    adjust code as below.  
 
-    - *Code requires no change*
+    - *Before:*
       ```rust
       let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
       ```
+
+    - *After:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```      
 
     *Requirements:*
     - Enable the feature flag:
