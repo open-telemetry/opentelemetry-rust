@@ -7,7 +7,7 @@ This directory contains some examples that should help you get start crates from
 This example uses following crates from this repo:
 
 - opentelemetry(log)
-- opentelemetry-appender-log
+- opentelemetry-appender-tracing
 - opentelemetry-stdout
 
 Check this example if you want to understand *how to instrument logs using opentelemetry*.
