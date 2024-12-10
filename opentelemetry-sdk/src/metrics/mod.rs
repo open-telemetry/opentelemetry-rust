@@ -49,9 +49,10 @@ pub(crate) mod manual_reader;
 pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
+#[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
 pub(crate) mod periodic_reader;
-#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
-pub(crate) mod periodic_reader_with_own_thread;
+#[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+pub(crate) mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
@@ -60,9 +61,10 @@ pub use aggregation::*;
 pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
 pub use meter_provider::*;
+#[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
 pub use periodic_reader::*;
-#[cfg(feature = "experimental_metrics_periodic_reader_no_runtime")]
-pub use periodic_reader_with_own_thread::*;
+#[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+pub use periodic_reader_with_async_runtime::*;
 pub use pipeline::Pipeline;
 
 pub use instrument::InstrumentKind;
@@ -513,7 +515,7 @@ mod tests {
         }
 
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Test Meter creation in 2 ways, both with empty string as meter name
@@ -529,7 +531,7 @@ mod tests {
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -580,7 +582,7 @@ mod tests {
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -669,7 +671,7 @@ mod tests {
     async fn instrumentation_scope_identity_test() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -753,7 +755,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
             .aggregation(Aggregation::ExplicitBucketHistogram {
@@ -803,7 +805,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -878,7 +880,7 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);

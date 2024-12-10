@@ -35,7 +35,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
 fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
     let exporter = MetricExporter::builder().with_tonic().build()?;
 
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader = PeriodicReader::builder(exporter).build();
 
     Ok(SdkMeterProvider::builder()
         .with_reader(reader)
