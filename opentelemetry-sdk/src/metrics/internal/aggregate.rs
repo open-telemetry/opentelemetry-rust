@@ -314,8 +314,6 @@ mod tests {
             let mut a = Histogram {
                 data_points: vec![HistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
                     count: 2,
                     bounds: vec![1.0, 2.0],
                     bucket_counts: vec![0, 1, 1],
@@ -324,6 +322,8 @@ mod tests {
                     sum: 3u64,
                     exemplars: vec![],
                 }],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -357,8 +357,6 @@ mod tests {
             let mut a = ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
                     count: 2,
                     min: None,
                     max: None,
@@ -376,6 +374,8 @@ mod tests {
                     zero_threshold: 1.0,
                     exemplars: vec![],
                 }],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {

@@ -230,8 +230,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: to_nanos(hist.start_time),
+                        time_unix_nano: to_nanos(hist.time),
                         count: dp.count,
                         sum: Some(dp.sum.into_f64()),
                         bucket_counts: dp.bucket_counts.clone(),
@@ -258,8 +258,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicExponentialHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: to_nanos(hist.start_time),
+                        time_unix_nano: to_nanos(hist.time),
                         count: dp.count as u64,
                         sum: Some(dp.sum.into_f64()),
                         scale: dp.scale.into(),
