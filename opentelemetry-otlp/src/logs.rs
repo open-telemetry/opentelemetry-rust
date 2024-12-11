@@ -105,7 +105,16 @@ impl HasHttpConfig for LogExporterBuilder<HttpExporterBuilderSet> {
 /// OTLP exporter that sends log data
 #[derive(Debug)]
 pub struct LogExporter {
-    client: Box<dyn opentelemetry_sdk::export::logs::LogExporter>,
+    //client: Box<dyn opentelemetry_sdk::export::logs::LogExporter>,
+    client: LogExporterInner,
+}
+
+#[derive(Debug)]
+enum LogExporterInner {
+    #[cfg(feature = "grpc-tonic")]
+    Tonic(crate::exporter::tonic::logs::TonicLogsClient),
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    Http(crate::exporter::http::OtlpHttpClient),
 }
 
 impl LogExporter {
@@ -114,21 +123,44 @@ impl LogExporter {
         LogExporterBuilder::default()
     }
 
-    /// Create a new log exporter
-    pub fn new(client: impl opentelemetry_sdk::export::logs::LogExporter + 'static) -> Self {
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub(crate) fn from_http(client: crate::exporter::http::OtlpHttpClient) -> Self {
         LogExporter {
-            client: Box::new(client),
+            client: LogExporterInner::Http(client),
+        }
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    pub(crate) fn from_tonic(client: crate::exporter::tonic::logs::TonicLogsClient) -> Self {
+        LogExporter {
+            client: LogExporterInner::Tonic(client),
         }
     }
 }
 
 #[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        self.client.export(batch).await
+    #[allow(clippy::manual_async_fn)]
+    fn export<'a>(
+        &'a self,
+        batch: &'a LogBatch<'a>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+        async move {
+            match &self.client {
+                #[cfg(feature = "grpc-tonic")]
+                LogExporterInner::Tonic(client) => client.export(batch).await,
+                #[cfg(any(feature = "http-proto", feature = "http-json"))]
+                LogExporterInner::Http(client) => client.export(batch).await,
+            }
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.client.set_resource(resource);
+        match &mut self.client {
+            #[cfg(feature = "grpc-tonic")]
+            LogExporterInner::Tonic(client) => client.set_resource(resource),
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            LogExporterInner::Http(client) => client.set_resource(resource),
+        }
     }
 }
