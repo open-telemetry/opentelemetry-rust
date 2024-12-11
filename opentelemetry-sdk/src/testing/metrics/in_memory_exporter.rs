@@ -195,16 +195,22 @@ impl InMemoryMetricExporter {
         if let Some(hist) = data.as_any().downcast_ref::<Histogram<i64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<f64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<u64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {

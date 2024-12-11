@@ -147,6 +147,10 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
 pub struct Histogram<T> {
     /// Individual aggregated measurements with unique attributes.
     pub data_points: Vec<HistogramDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -166,11 +170,6 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
-    /// The time when the time series was started.
-    pub start_time: SystemTime,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
-
     /// The number of updates this histogram has been calculated with.
     pub count: u64,
     /// The upper bounds of the buckets of the histogram.
@@ -195,8 +194,6 @@ impl<T: Copy> Clone for HistogramDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             count: self.count,
             bounds: self.bounds.clone(),
             bucket_counts: self.bucket_counts.clone(),
@@ -213,7 +210,10 @@ impl<T: Copy> Clone for HistogramDataPoint<T> {
 pub struct ExponentialHistogram<T> {
     /// The individual aggregated measurements with unique attributes.
     pub data_points: Vec<ExponentialHistogramDataPoint<T>>,
-
+    /// When the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -233,10 +233,6 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
-    /// When the time series was started.
-    pub start_time: SystemTime,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
 
     /// The number of updates this histogram has been calculated with.
     pub count: usize,
@@ -281,8 +277,6 @@ impl<T: Copy> Clone for ExponentialHistogramDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             count: self.count,
             min: self.min,
             max: self.max,
@@ -375,8 +369,6 @@ mod tests {
 
         let histogram_data_point = HistogramDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: std::time::SystemTime::now(),
-            time: std::time::SystemTime::now(),
             count: 0,
             bounds: vec![],
             bucket_counts: vec![],
@@ -395,8 +387,6 @@ mod tests {
 
         let exponential_histogram_data_point = ExponentialHistogramDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: std::time::SystemTime::now(),
-            time: std::time::SystemTime::now(),
             count: 0,
             min: None,
             max: None,

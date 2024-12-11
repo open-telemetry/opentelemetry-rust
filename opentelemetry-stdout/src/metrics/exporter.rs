@@ -160,13 +160,13 @@ fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
     if let Some(start_time) = gauge.start_time {
         let datetime: DateTime<Utc> = start_time.into();
         println!(
-            "\t\t\tStartTime    : {}",
+            "\t\tStartTime    : {}",
             datetime.format("%Y-%m-%d %H:%M:%S%.6f")
         );
     }
     let datetime: DateTime<Utc> = gauge.time.into();
     println!(
-        "\t\t\tEndTime      : {}",
+        "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
     print_gauge_data_points(&gauge.data_points);
@@ -178,6 +178,16 @@ fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
     } else {
         println!("\t\tTemporality  : Delta");
     }
+    let datetime: DateTime<Utc> = histogram.start_time.into();
+    println!(
+        "\t\tStartTime    : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
+    let datetime: DateTime<Utc> = histogram.time.into();
+    println!(
+        "\t\tEndTime      : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
     println!("\t\tHistogram DataPoints");
     print_hist_data_points(&histogram.data_points);
 }
@@ -207,16 +217,6 @@ fn print_gauge_data_points<T: Debug>(data_points: &[data::GaugeDataPoint<T>]) {
 fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
-        let datetime: DateTime<Utc> = data_point.start_time.into();
-        println!(
-            "\t\t\tStartTime    : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
-        let datetime: DateTime<Utc> = data_point.time.into();
-        println!(
-            "\t\t\tEndTime      : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
         println!("\t\t\tCount        : {}", data_point.count);
         println!("\t\t\tSum          : {:?}", data_point.sum);
         if let Some(min) = &data_point.min {
