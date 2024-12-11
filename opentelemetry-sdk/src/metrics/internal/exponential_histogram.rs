@@ -389,12 +389,19 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = SystemTime::now();
+        let start_time = self
+            .start
+            .lock()
+            .map(|mut start| replace(start.deref_mut(), time))
+            .unwrap_or(time);
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time,
+                time,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -402,20 +409,14 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), t))
-            .unwrap_or(t);
+        h.start_time = start_time;
+        h.time = time;
 
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
                 let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)
@@ -450,12 +451,19 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = SystemTime::now();
+        let start_time = self
+            .start
+            .lock()
+            .map(|s| *s)
+            .unwrap_or_else(|_| SystemTime::now());
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time,
+                time,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -463,20 +471,14 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+        h.start_time = start_time;
+        h.time = time;
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, attr| {
                 let b = attr.lock().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)
@@ -1270,8 +1272,6 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1285,6 +1285,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1318,8 +1320,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1328,6 +1328,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1364,8 +1366,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1374,6 +1374,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1410,8 +1412,6 @@ mod tests {
                             counts: vec![1, 6, 2],
                         },
                         attributes: vec![],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1420,6 +1420,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1430,6 +1432,8 @@ mod tests {
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: Temporality::Delta,
             });
             let mut count = 0;
