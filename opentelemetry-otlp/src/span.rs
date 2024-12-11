@@ -64,6 +64,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
 impl SpanExporterBuilder<TonicExporterBuilderSet> {
     pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
         let span_exporter = self.client.0.build_span_exporter()?;
+        opentelemetry::otel_debug!(name: "LogExporterBuilt");
         Ok(SpanExporter::new(span_exporter))
     }
 }
