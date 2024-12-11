@@ -344,7 +344,9 @@ impl PeriodicReaderInner {
             return Ok(());
         }
 
-        let metrics_count = rm.scope_metrics.iter().fold(0, | count, scope_metrics | count + scope_metrics.metrics.len());
+        let metrics_count = rm.scope_metrics.iter().fold(0, |count, scope_metrics| {
+            count + scope_metrics.metrics.len()
+        });
         otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
 
         // TODO: substract the time taken for collect from the timeout. collect
