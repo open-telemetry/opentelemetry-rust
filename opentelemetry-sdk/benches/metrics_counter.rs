@@ -19,6 +19,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
