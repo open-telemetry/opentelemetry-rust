@@ -175,8 +175,8 @@ impl PeriodicReader {
                 let mut remaining_interval = interval;
                 otel_info!(
                     name: "PeriodReaderThreadStarted",
-                    interval_in_secs = interval.as_secs(),
-                    timeout_in_secs = timeout.as_secs()
+                    interval_in_millisecs = interval.as_millis(),
+                    timeout_in_millisecs = timeout.as_millis()
                 );
                 loop {
                     otel_debug!(
@@ -344,7 +344,8 @@ impl PeriodicReaderInner {
             return Ok(());
         }
 
-        otel_debug!(name: "PeriodicReaderMetricsCollected", count = rm.scope_metrics.len());
+        let metrics_count = rm.scope_metrics.iter().fold(0, | count, scope_metrics | count + scope_metrics.metrics.len());
+        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
 
         // TODO: substract the time taken for collect from the timeout. collect
         // involves observable callbacks too, which are user defined and can
