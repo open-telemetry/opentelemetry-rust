@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use core::fmt;
+use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
@@ -43,6 +44,8 @@ impl TonicLogsClient {
                 .accept_compressed(compression);
         }
 
+        otel_debug!(name: "TonicsLogsClientBuilt");
+
         TonicLogsClient {
             inner: Some(ClientInner {
                 client,
@@ -71,6 +74,8 @@ impl LogExporter for TonicLogsClient {
         };
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
+
+        otel_debug!(name: "TonicsLogsClient.CallingExport");
 
         client
             .export(Request::from_parts(
