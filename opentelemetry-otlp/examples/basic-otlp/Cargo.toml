@@ -7,9 +7,9 @@ publish = false
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { path = "../../../opentelemetry", features = ["metrics", "logs"] }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "logs"] }
-opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic", "metrics", "logs"] }
+opentelemetry = { path = "../../../opentelemetry" }
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio"] }
+opentelemetry-otlp = { path = "../../../opentelemetry-otlp" }
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
