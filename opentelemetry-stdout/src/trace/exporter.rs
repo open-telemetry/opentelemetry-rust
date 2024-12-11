@@ -72,16 +72,18 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{}", i);
         println!("\tInstrumentation Scope");
-        println!("\t\tName         : {:?}", &span.instrumentation_lib.name);
-        if let Some(version) = &span.instrumentation_lib.version {
+        println!(
+            "\t\tName         : {:?}",
+            &span.instrumentation_scope.name()
+        );
+        if let Some(version) = &span.instrumentation_scope.version() {
             println!("\t\tVersion  : {:?}", version);
         }
-        if let Some(schema_url) = &span.instrumentation_lib.schema_url {
+        if let Some(schema_url) = &span.instrumentation_scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
-        span.instrumentation_lib
-            .attributes
-            .iter()
+        span.instrumentation_scope
+            .attributes()
             .enumerate()
             .for_each(|(index, kv)| {
                 if index == 0 {

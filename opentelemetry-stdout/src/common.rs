@@ -144,7 +144,9 @@ impl From<opentelemetry::Value> for Value {
                 opentelemetry::Array::String(s) => {
                     Value::Array(s.into_iter().map(|s| Value::String(s.into())).collect())
                 }
+                _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
             },
+            _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added
         }
     }
 }
@@ -169,6 +171,7 @@ impl From<opentelemetry::logs::AnyValue> for Value {
                     .collect(),
             ),
             opentelemetry::logs::AnyValue::Bytes(b) => Value::BytesValue(*b),
+            _ => unreachable!("Nonexistent value type"),
         }
     }
 }
@@ -230,12 +233,12 @@ pub(crate) struct Scope {
     dropped_attributes_count: u64,
 }
 
-impl From<opentelemetry_sdk::Scope> for Scope {
-    fn from(value: opentelemetry_sdk::Scope) -> Self {
+impl From<opentelemetry::InstrumentationScope> for Scope {
+    fn from(value: opentelemetry::InstrumentationScope) -> Self {
         Scope {
-            name: value.name,
-            version: value.version,
-            attributes: value.attributes.into_iter().map(Into::into).collect(),
+            name: value.name().to_owned().into(),
+            version: value.version().map(ToOwned::to_owned).map(Into::into),
+            attributes: value.attributes().map(Into::into).collect(),
             dropped_attributes_count: 0,
         }
     }

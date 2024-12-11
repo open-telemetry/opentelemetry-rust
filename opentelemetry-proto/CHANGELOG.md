@@ -2,6 +2,16 @@
 
 ## vNext
 
+- Update proto definitions to v1.4.0 [#2315](https://github.com/open-telemetry/opentelemetry-rust/pull/2315)
+
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+
 ## v0.26.1
 
 - Require tonic 0.12.3 to match generated gRPC code [#2168](https://github.com/open-telemetry/opentelemetry-rust/pull/2168)

@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key,
 };
 use std::borrow::Cow;
 use tracing_core::Level;
@@ -69,7 +69,7 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -136,11 +136,12 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
+        let scope = InstrumentationScope::builder(INSTRUMENTATION_LIBRARY_NAME)
+            .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+            .build();
+
         OpenTelemetryTracingBridge {
-            logger: provider
-                .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
-                .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-                .build(),
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
         }
     }
@@ -183,7 +184,7 @@ where
         self.logger.emit(log_record);
     }
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(
         &self,
         _event: &tracing_core::Event<'_>,
@@ -209,14 +210,13 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use async_trait::async_trait;
-    use opentelemetry::logs::{LogResult, Severity};
+    use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
-    use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
-    use opentelemetry_sdk::trace;
+    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
+    use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -230,7 +230,7 @@ mod tests {
     }
 
     fn create_tracing_subscriber(
-        _exporter: InMemoryLogsExporter,
+        _exporter: InMemoryLogExporter,
         logger_provider: &LoggerProvider,
     ) -> impl tracing::Subscriber {
         let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
@@ -247,7 +247,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
-        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
+        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
             // This will cause a deadlock as the export itself creates a log
             // while still within the lock of the SimpleLogProcessor.
             warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -333,7 +333,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -401,7 +401,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -427,7 +427,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -525,7 +525,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // Validate trace context is none.
@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
@@ -578,7 +578,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -604,7 +604,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
 
         // validate trace context.

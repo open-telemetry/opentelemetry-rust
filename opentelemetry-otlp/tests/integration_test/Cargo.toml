@@ -16,5 +16,15 @@ testcontainers = "0.15.0"
 
 [target.'cfg(unix)'.dependencies]
 opentelemetry-appender-log = { path = "../../../opentelemetry-appender-log", default-features = false}
-opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["tonic", "metrics", "logs"] }
+opentelemetry-otlp = { path = "../../../opentelemetry-otlp", default-features = false }
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
+
+[features]
+hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+
+# Keep tonic as the default client
+default = ["tonic-client"]
+

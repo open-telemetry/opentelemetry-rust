@@ -6,7 +6,7 @@ use crate::metrics::{
     AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
     ObservableGauge, ObservableUpDownCounter, UpDownCounter,
 };
-use crate::KeyValue;
+use crate::InstrumentationScope;
 
 use super::{Counter, Histogram, HistogramBuilder};
 
@@ -19,8 +19,6 @@ pub trait MeterProvider {
     /// name needs to be unique so it does not collide with other names used by
     /// an application, nor other applications.
     ///
-    /// If the name is empty, then an implementation defined default name will
-    /// be used instead.
     ///
     /// # Examples
     ///
@@ -32,32 +30,36 @@ pub trait MeterProvider {
     ///
     /// // meter used in applications
     /// let meter = provider.meter("my_app");
-    ///
-    /// // meter used in libraries/crates that optionally includes version and schema url
-    /// let meter = provider.versioned_meter(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
-    ///     Some(vec![KeyValue::new("key", "value")]),
-    /// );
     /// ```
     fn meter(&self, name: &'static str) -> Meter {
-        self.versioned_meter(name, None, None, None)
+        let scope = InstrumentationScope::builder(name).build();
+        self.meter_with_scope(scope)
     }
 
-    /// Returns a new versioned meter with a given name.
+    /// Returns a new [Meter] with the given instrumentation scope.
     ///
-    /// The instrumentation name must be the name of the library providing instrumentation. This
-    /// name may be the same as the instrumented code only if that code provides built-in
-    /// instrumentation. If the instrumentation name is empty, then a implementation defined
-    /// default name will be used instead.
-    fn versioned_meter(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter;
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use opentelemetry::InstrumentationScope;
+    /// use opentelemetry::metrics::MeterProvider;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::default();
+    ///
+    /// // meter used in applications/binaries
+    /// let meter = provider.meter("my_app");
+    ///
+    /// // meter used in libraries/crates that optionally includes version and schema url
+    /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+    ///     .with_version(env!("CARGO_PKG_VERSION"))
+    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .build();
+    ///
+    /// let meter = provider.meter_with_scope(scope);
+    /// ```
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter;
 }
 
 /// Provides the ability to create instruments for recording measurements or
@@ -86,7 +88,7 @@ pub trait MeterProvider {
 /// // Synchronous Instruments
 ///
 /// // u64 Counter
-/// let u64_counter = meter.u64_counter("my_u64_counter").init();
+/// let u64_counter = meter.u64_counter("my_u64_counter").build();
 /// u64_counter.add(
 ///     10,
 ///     &[
@@ -96,7 +98,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 Counter
-/// let f64_counter = meter.f64_counter("my_f64_counter").init();
+/// let f64_counter = meter.f64_counter("my_f64_counter").build();
 /// f64_counter.add(
 ///     3.15,
 ///     &[
@@ -120,7 +122,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable Counter
 /// let _observable_f64_counter = meter
@@ -136,10 +138,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 UpDownCounter
-/// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").init();
+/// let updown_i64_counter = meter.i64_up_down_counter("my_updown_i64_counter").build();
 /// updown_i64_counter.add(
 ///     -10,
 ///     &[
@@ -149,7 +151,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 UpDownCounter
-/// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").init();
+/// let updown_f64_counter = meter.f64_up_down_counter("my_updown_f64_counter").build();
 /// updown_f64_counter.add(
 ///     -10.67,
 ///     &[
@@ -172,7 +174,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable UpDownCounter
 /// let _observable_updown_f64_counter = meter
@@ -188,10 +190,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 Gauge
-/// let gauge = meter.i64_gauge("my_gauge").init();
+/// let gauge = meter.i64_gauge("my_gauge").build();
 /// gauge.record(
 /// -10,
 /// &[
@@ -201,7 +203,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // u64 Gauge
-/// let gauge = meter.u64_gauge("my_gauge").init();
+/// let gauge = meter.u64_gauge("my_gauge").build();
 /// gauge.record(
 /// 101,
 /// &[
@@ -211,7 +213,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // f64 Gauge
-/// let gauge = meter.f64_gauge("my_gauge").init();
+/// let gauge = meter.f64_gauge("my_gauge").build();
 /// gauge.record(
 /// 12.5,
 /// &[
@@ -234,7 +236,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Observable Gauge
 /// let _observable_f64_gauge = meter
@@ -250,7 +252,7 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // i64 Observable Gauge
 /// let _observable_i64_gauge = meter
@@ -266,10 +268,10 @@ pub trait MeterProvider {
 ///             ],
 ///         )
 ///     })
-///     .init();
+///     .build();
 ///
 /// // f64 Histogram
-/// let f64_histogram = meter.f64_histogram("my_f64_histogram").init();
+/// let f64_histogram = meter.f64_histogram("my_f64_histogram").build();
 /// f64_histogram.record(
 ///     10.5,
 ///     &[
@@ -279,7 +281,7 @@ pub trait MeterProvider {
 /// );
 ///
 /// // u64 Histogram
-/// let u64_histogram = meter.u64_histogram("my_u64_histogram").init();
+/// let u64_histogram = meter.u64_histogram("my_u64_histogram").build();
 /// u64_histogram.record(
 ///     12,
 ///     &[
@@ -305,6 +307,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording increasing values.
+    ///
+    /// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+    /// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+    /// duplicate [`Counter`]s for the same metric could lower SDK performance.
     pub fn u64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -313,6 +319,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording increasing values.
+    ///
+    /// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+    /// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+    /// duplicate [`Counter`]s for the same metric could lower SDK performance.
     pub fn f64_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -337,6 +347,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value.
+    ///
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn i64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -345,6 +359,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value.
+    ///
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn f64_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -353,6 +371,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording changes of a value via callback.
+    ///
+    /// [`UpDownCounter`] can be cloned to create multiple handles to the same instrument. If a [`UpDownCounter`] needs to be shared,
+    /// users are recommended to clone the [`UpDownCounter`] instead of creating duplicate [`UpDownCounter`]s for the same metric. Creating
+    /// duplicate [`UpDownCounter`]s for the same metric could lower SDK performance.
     pub fn i64_observable_up_down_counter(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -369,6 +391,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording independent values.
+    ///
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn u64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -377,6 +403,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording independent values.
+    ///
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn f64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -385,6 +415,9 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording independent values.
+    /// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+    /// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+    /// duplicate [`Gauge`]s for the same metric could lower SDK performance.
     pub fn i64_gauge(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -417,6 +450,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording a distribution of values.
+    ///
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
     pub fn f64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,
@@ -425,6 +462,10 @@ impl Meter {
     }
 
     /// creates an instrument builder for recording a distribution of values.
+    ///
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
     pub fn u64_histogram(
         &self,
         name: impl Into<Cow<'static, str>>,

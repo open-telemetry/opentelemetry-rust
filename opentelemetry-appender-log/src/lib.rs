@@ -2,6 +2,8 @@
 //!
 //! This library implements a log appender for the [`log`] crate using the [Logs Bridge API].
 //!
+//! *[Supported Rust Versions](#supported-rust-versions)*
+//!
 //! # Getting Started
 //!
 //! The bridge requires configuration on both the `log` and OpenTelemetry sides.
@@ -89,19 +91,32 @@
 //!
 //! This library provides the following Cargo features:
 //!
-//! - `logs_level_enabled`: Allow users to control the log level.
+//! - `spec_unstable_logs_enabled`: Allow users to control the log level.
 //! - `with-serde`: Support complex values as attributes without stringifying them.
 //!
 //! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
+//!
+//! ## Supported Rust Versions
+//!
+//! OpenTelemetry is built against the latest stable release. The minimum
+//! supported version is 1.70. The current OpenTelemetry version is not
+//! guaranteed to build on Rust versions earlier than the minimum supported
+//! version.
+//!
+//! The current stable Rust compiler and the three most recent minor versions
+//! before it will always be supported. For example, if the current stable
+//! compiler version is 1.49, the minimum supported version will not be
+//! increased past 1.46, three minor versions prior. Increasing the minimum
+//! supported compiler version is not considered a semver breaking change as
+//! long as doing so complies with this policy.
 
 use log::{Level, Metadata, Record};
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE};
-use std::borrow::Cow;
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -118,11 +133,11 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
-        #[cfg(feature = "logs_level_enabled")]
+        #[cfg(feature = "spec_unstable_logs_enabled")]
         return self
             .logger
             .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
-        #[cfg(not(feature = "logs_level_enabled"))]
+        #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         true
     }
 
@@ -170,11 +185,12 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
+        let scope = InstrumentationScope::builder("opentelemetry-log-appender")
+            .with_version(env!("CARGO_PKG_VERSION"))
+            .build();
+
         OpenTelemetryLogBridge {
-            logger: provider
-                .logger_builder("opentelemetry-log-appender")
-                .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-                .build(),
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
         }
     }
@@ -753,13 +769,13 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogsExporter};
+    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogExporter};
 
     use log::Log;
 
     #[test]
     fn logbridge_with_default_metadata_is_enabled() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter)
@@ -770,15 +786,15 @@ mod tests {
         // As a result of using `with_simple_exporter` while building the logger provider,
         // the processor used is a `SimpleLogProcessor` which has an implementation of `event_enabled`
         // that always returns true.
-        #[cfg(feature = "logs_level_enabled")]
+        #[cfg(feature = "spec_unstable_logs_enabled")]
         assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
-        #[cfg(not(feature = "logs_level_enabled"))]
+        #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
     }
 
     #[test]
     fn logbridge_with_record_can_log() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -892,7 +908,7 @@ mod tests {
             }
         }
 
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1158,7 +1174,7 @@ mod tests {
             CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
         };
 
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1201,7 +1217,7 @@ mod tests {
 
     #[test]
     fn test_flush() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter)

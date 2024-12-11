@@ -2,12 +2,13 @@
 
 use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
 use opentelemetry::global;
-use opentelemetry::global::shutdown_tracer_provider;
 use opentelemetry::trace::TraceError;
 use opentelemetry::{
     trace::{TraceContextExt, Tracer},
     Key, KeyValue,
 };
+use opentelemetry_otlp::SpanExporter;
+
 use opentelemetry_proto::tonic::trace::v1::TracesData;
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
@@ -16,16 +17,26 @@ use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .with_trace_config(
-            sdktrace::Config::default().with_resource(Resource::new(vec![KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                "basic-otlp-tracing-example",
-            )])),
-        )
-        .install_batch(runtime::Tokio)
+    let exporter_builder = SpanExporter::builder();
+    #[cfg(feature = "tonic-client")]
+    let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(not(feature = "tonic-client"))]
+    #[cfg(any(
+        feature = "hyper-client",
+        feature = "reqwest-client",
+        feature = "reqwest-blocking-client"
+    ))]
+    let exporter_builder = exporter_builder.with_http();
+
+    let exporter = exporter_builder.build()?;
+
+    Ok(opentelemetry_sdk::trace::TracerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_resource(Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            "basic-otlp-tracing-example",
+        )]))
+        .build())
 }
 
 const LEMONS_KEY: Key = Key::from_static_str("lemons");
@@ -53,7 +64,7 @@ pub async fn traces() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         });
     });
 
-    shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
 
     Ok(())
 }

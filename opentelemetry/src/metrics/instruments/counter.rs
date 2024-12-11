@@ -1,10 +1,14 @@
-use crate::{metrics::AsyncInstrument, KeyValue};
+use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
 use super::SyncInstrument;
 
 /// An instrument that records increasing values.
+///
+/// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+/// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+/// duplicate [`Counter`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Counter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
@@ -33,12 +37,17 @@ impl<T> Counter<T> {
 /// An async instrument that records increasing values.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct ObservableCounter<T>(Arc<dyn AsyncInstrument<T>>);
+pub struct ObservableCounter<T> {
+    _marker: std::marker::PhantomData<T>,
+}
 
 impl<T> ObservableCounter<T> {
     /// Create a new observable counter.
-    pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
-        ObservableCounter(inner)
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableCounter {
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
@@ -48,11 +57,5 @@ impl<T> fmt::Debug for ObservableCounter<T> {
             "ObservableCounter<{}>",
             std::any::type_name::<T>()
         ))
-    }
-}
-
-impl<T> AsyncInstrument<T> for ObservableCounter<T> {
-    fn observe(&self, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
     }
 }

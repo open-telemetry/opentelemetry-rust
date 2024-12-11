@@ -2,28 +2,26 @@
 
 use std::{any, borrow::Cow, fmt, time::SystemTime};
 
-use opentelemetry::KeyValue;
+use opentelemetry::{InstrumentationScope, KeyValue};
 
-use crate::{instrumentation::Scope, Resource};
+use crate::Resource;
 
-pub use self::temporality::Temporality;
-
-mod temporality;
+use super::Temporality;
 
 /// A collection of [ScopeMetrics] and the associated [Resource] that created them.
 #[derive(Debug)]
 pub struct ResourceMetrics {
     /// The entity that collected the metrics.
     pub resource: Resource,
-    /// The collection of metrics with unique [Scope]s.
+    /// The collection of metrics with unique [InstrumentationScope]s.
     pub scope_metrics: Vec<ScopeMetrics>,
 }
 
 /// A collection of metrics produced by a meter.
 #[derive(Default, Debug)]
 pub struct ScopeMetrics {
-    /// The [Scope] that the meter was created with.
-    pub scope: Scope,
+    /// The [InstrumentationScope] that the meter was created with.
+    pub scope: InstrumentationScope,
     /// The list of aggregations created by the meter.
     pub metrics: Vec<Metric>,
 }
@@ -55,11 +53,37 @@ pub trait Aggregation: fmt::Debug + any::Any + Send + Sync {
     fn as_mut(&mut self) -> &mut dyn any::Any;
 }
 
+/// DataPoint is a single data point in a time series.
+#[derive(Debug, PartialEq)]
+pub struct GaugeDataPoint<T> {
+    /// Attributes is the set of key value pairs that uniquely identify the
+    /// time series.
+    pub attributes: Vec<KeyValue>,
+    /// The value of this data point.
+    pub value: T,
+    /// The sampled [Exemplar]s collected during the time series.
+    pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T: Copy> Clone for GaugeDataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            value: self.value,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// A measurement of the current value of an instrument.
 #[derive(Debug)]
 pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
-    pub data_points: Vec<DataPoint<T>>,
+    pub data_points: Vec<GaugeDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: Option<SystemTime>,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
 }
 
 impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
@@ -71,11 +95,37 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
     }
 }
 
+/// DataPoint is a single data point in a time series.
+#[derive(Debug, PartialEq)]
+pub struct SumDataPoint<T> {
+    /// Attributes is the set of key value pairs that uniquely identify the
+    /// time series.
+    pub attributes: Vec<KeyValue>,
+    /// The value of this data point.
+    pub value: T,
+    /// The sampled [Exemplar]s collected during the time series.
+    pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T: Copy> Clone for SumDataPoint<T> {
+    fn clone(&self) -> Self {
+        Self {
+            attributes: self.attributes.clone(),
+            value: self.value,
+            exemplars: self.exemplars.clone(),
+        }
+    }
+}
+
 /// Represents the sum of all measurements of values from an instrument.
 #[derive(Debug)]
 pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
-    pub data_points: Vec<DataPoint<T>>,
+    pub data_points: Vec<SumDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -92,39 +142,15 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
     }
 }
 
-/// DataPoint is a single data point in a time series.
-#[derive(Debug, PartialEq)]
-pub struct DataPoint<T> {
-    /// Attributes is the set of key value pairs that uniquely identify the
-    /// time series.
-    pub attributes: Vec<KeyValue>,
-    /// The time when the time series was started.
-    pub start_time: Option<SystemTime>,
-    /// The time when the time series was recorded.
-    pub time: Option<SystemTime>,
-    /// The value of this data point.
-    pub value: T,
-    /// The sampled [Exemplar]s collected during the time series.
-    pub exemplars: Vec<Exemplar<T>>,
-}
-
-impl<T: Copy> Clone for DataPoint<T> {
-    fn clone(&self) -> Self {
-        Self {
-            attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
-            value: self.value,
-            exemplars: self.exemplars.clone(),
-        }
-    }
-}
-
 /// Represents the histogram of all measurements of values from an instrument.
 #[derive(Debug)]
 pub struct Histogram<T> {
     /// Individual aggregated measurements with unique attributes.
     pub data_points: Vec<HistogramDataPoint<T>>,
+    /// The time when the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -144,11 +170,6 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
-    /// The time when the time series was started.
-    pub start_time: SystemTime,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
-
     /// The number of updates this histogram has been calculated with.
     pub count: u64,
     /// The upper bounds of the buckets of the histogram.
@@ -173,8 +194,6 @@ impl<T: Copy> Clone for HistogramDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             count: self.count,
             bounds: self.bounds.clone(),
             bucket_counts: self.bucket_counts.clone(),
@@ -191,7 +210,10 @@ impl<T: Copy> Clone for HistogramDataPoint<T> {
 pub struct ExponentialHistogram<T> {
     /// The individual aggregated measurements with unique attributes.
     pub data_points: Vec<ExponentialHistogramDataPoint<T>>,
-
+    /// When the time series was started.
+    pub start_time: SystemTime,
+    /// The time when the time series was recorded.
+    pub time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
@@ -211,10 +233,6 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
-    /// When the time series was started.
-    pub start_time: SystemTime,
-    /// The time when the time series was recorded.
-    pub time: SystemTime,
 
     /// The number of updates this histogram has been calculated with.
     pub count: usize,
@@ -259,8 +277,6 @@ impl<T: Copy> Clone for ExponentialHistogramDataPoint<T> {
     fn clone(&self) -> Self {
         Self {
             attributes: self.attributes.clone(),
-            start_time: self.start_time,
-            time: self.time,
             count: self.count,
             min: self.min,
             max: self.max,
@@ -332,16 +348,14 @@ impl<T: Copy> Clone for Exemplar<T> {
 #[cfg(test)]
 mod tests {
 
-    use super::{DataPoint, Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint};
+    use super::{Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint, SumDataPoint};
 
     use opentelemetry::KeyValue;
 
     #[test]
     fn validate_cloning_data_points() {
-        let data_type = DataPoint {
+        let data_type = SumDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: Some(std::time::SystemTime::now()),
-            time: Some(std::time::SystemTime::now()),
             value: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
@@ -355,8 +369,6 @@ mod tests {
 
         let histogram_data_point = HistogramDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: std::time::SystemTime::now(),
-            time: std::time::SystemTime::now(),
             count: 0,
             bounds: vec![],
             bucket_counts: vec![],
@@ -375,8 +387,6 @@ mod tests {
 
         let exponential_histogram_data_point = ExponentialHistogramDataPoint {
             attributes: vec![KeyValue::new("key", "value")],
-            start_time: std::time::SystemTime::now(),
-            time: std::time::SystemTime::now(),
             count: 0,
             min: None,
             max: None,

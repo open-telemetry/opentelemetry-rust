@@ -30,6 +30,8 @@ of telemetry is intentionally left to other tools.
 [`Zipkin`]: https://zipkin.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
+*[Supported Rust Versions](#supported-rust-versions)*
+
 ## Quickstart
 
 First make sure you have a running version of the zipkin process you want to
@@ -54,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    global::shutdown_tracer_provider();
+    provider.shutdown().expect("TracerProvider should shutdown successfully");
 
     Ok(())
 }

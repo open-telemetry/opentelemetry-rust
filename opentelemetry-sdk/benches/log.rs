@@ -20,21 +20,18 @@ use std::time::SystemTime;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{
-    AnyValue, LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity,
-};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
-use opentelemetry::{InstrumentationLibrary, Key};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
-use opentelemetry_sdk::trace;
+use opentelemetry::{InstrumentationScope, Key};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
+    fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
@@ -67,7 +64,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("bench-tracer");
 

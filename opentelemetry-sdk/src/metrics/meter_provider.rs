@@ -8,12 +8,12 @@ use std::{
 };
 
 use opentelemetry::{
-    global,
-    metrics::{Meter, MeterProvider, MetricsError, Result},
-    KeyValue,
+    metrics::{Meter, MeterProvider},
+    otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
-use crate::{instrumentation::Scope, Resource};
+use crate::metrics::{MetricError, MetricResult};
+use crate::Resource;
 
 use super::{
     meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
@@ -37,7 +37,7 @@ pub struct SdkMeterProvider {
 #[derive(Debug)]
 struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
-    meters: Mutex<HashMap<Scope, Arc<SdkMeter>>>,
+    meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
     is_shutdown: AtomicBool,
 }
 
@@ -92,7 +92,7 @@ impl SdkMeterProvider {
     ///     Ok(())
     /// }
     /// ```
-    pub fn force_flush(&self) -> Result<()> {
+    pub fn force_flush(&self) -> MetricResult<()> {
         self.inner.force_flush()
     }
 
@@ -108,17 +108,21 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) -> MetricResult<()> {
+        otel_info!(
+            name: "MeterProvider.Shutdown",
+            message = "User initiated shutdown of MeterProvider."
+        );
         self.inner.shutdown()
     }
 }
 
 impl SdkMeterProviderInner {
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> MetricResult<()> {
         self.pipes.force_flush()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         if self
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -126,7 +130,7 @@ impl SdkMeterProviderInner {
         {
             self.pipes.shutdown()
         } else {
-            Err(MetricsError::Other(
+            Err(MetricError::Other(
                 "metrics provider already shut down".into(),
             ))
         }
@@ -137,48 +141,71 @@ impl Drop for SdkMeterProviderInner {
     fn drop(&mut self) {
         // If user has already shutdown the provider manually by calling
         // shutdown(), then we don't need to call shutdown again.
-        if !self.is_shutdown.load(Ordering::Relaxed) {
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            otel_debug!(
+                name: "MeterProvider.Drop.AlreadyShutdown",
+                message = "MeterProvider was already shut down; drop will not attempt shutdown again."
+            );
+        } else {
+            otel_info!(
+                name: "MeterProvider.Drop",
+                message = "Last reference of MeterProvider dropped, initiating shutdown."
+            );
             if let Err(err) = self.shutdown() {
-                global::handle_error(err);
+                otel_error!(
+                    name: "MeterProvider.Drop.ShutdownFailed",
+                    message = "Shutdown attempt failed during drop of MeterProvider.",
+                    reason = format!("{}", err)
+                );
+            } else {
+                otel_info!(
+                    name: "MeterProvider.Drop.ShutdownCompleted",
+                );
             }
         }
     }
 }
+
 impl MeterProvider for SdkMeterProvider {
-    fn versioned_meter(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-        schema_url: Option<&'static str>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Meter {
+    fn meter(&self, name: &'static str) -> Meter {
+        let scope = InstrumentationScope::builder(name).build();
+        self.meter_with_scope(scope)
+    }
+
+    fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
+            otel_debug!(
+                name: "MeterProvider.NoOpMeterReturned",
+                meter_name = scope.name(),
+            );
             return Meter::new(Arc::new(NoopMeter::new()));
         }
 
-        let mut builder = Scope::builder(name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        let scope = builder.build();
+        if scope.name().is_empty() {
+            otel_info!(name: "MeterNameEmpty", message = "Meter name is empty; consider providing a meaningful name. Meter will function normally and the provided name will be used as-is.");
+        };
 
         if let Ok(mut meters) = self.inner.meters.lock() {
-            let meter = meters
-                .entry(scope)
-                .or_insert_with_key(|scope| {
-                    Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()))
-                })
-                .clone();
-            Meter::new(meter)
+            if let Some(existing_meter) = meters.get(&scope) {
+                otel_debug!(
+                    name: "MeterProvider.ExistingMeterReturned",
+                    meter_name = scope.name(),
+                );
+                Meter::new(existing_meter.clone())
+            } else {
+                let new_meter = Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
+                meters.insert(scope.clone(), new_meter.clone());
+                otel_debug!(
+                    name: "MeterProvider.NewMeterCreated",
+                    meter_name = scope.name(),
+                );
+                Meter::new(new_meter)
+            }
         } else {
+            otel_debug!(
+                name: "MeterProvider.NoOpMeterReturned",
+                meter_name = scope.name(),
+            );
             Meter::new(Arc::new(NoopMeter::new()))
         }
     }
@@ -215,6 +242,7 @@ impl MeterProviderBuilder {
         self
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Associates a [View] with a [MeterProvider].
     ///
     /// [View]s are appended to existing ones in a [MeterProvider] if this option is
@@ -228,9 +256,13 @@ impl MeterProviderBuilder {
     }
 
     /// Construct a new [MeterProvider] with this configuration.
-
     pub fn build(self) -> SdkMeterProvider {
-        SdkMeterProvider {
+        otel_debug!(
+            name: "MeterProvider.Building",
+            builder = format!("{:?}", &self),
+        );
+
+        let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
                     self.resource.unwrap_or_default(),
@@ -240,7 +272,12 @@ impl MeterProviderBuilder {
                 meters: Default::default(),
                 is_shutdown: AtomicBool::new(false),
             }),
-        }
+        };
+
+        otel_info!(
+            name: "MeterProvider.Built",
+        );
+        meter_provider
     }
 }
 
@@ -260,8 +297,8 @@ mod tests {
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
-    use opentelemetry::global;
     use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
 
@@ -409,7 +446,7 @@ mod tests {
         assert!(!reader.is_shutdown());
         // create a meter and an instrument
         let meter = global::meter("test");
-        let counter = meter.u64_counter("test_counter").init();
+        let counter = meter.u64_counter("test_counter").build();
         // no need to drop a meter for meter_provider shutdown
         let shutdown_res = provider.shutdown();
         assert!(shutdown_res.is_ok());
@@ -454,21 +491,29 @@ mod tests {
         let _meter1 = provider.meter("test");
         let _meter2 = provider.meter("test");
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 1);
-        let _meter3 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter4 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter5 =
-            provider.versioned_meter("test", Some("1.0.0"), Some("http://example.com"), None);
+
+        let scope = InstrumentationScope::builder("test")
+            .with_version("1.0.0")
+            .with_schema_url("http://example.com")
+            .build();
+
+        let _meter3 = provider.meter_with_scope(scope.clone());
+        let _meter4 = provider.meter_with_scope(scope.clone());
+        let _meter5 = provider.meter_with_scope(scope);
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 2);
 
-        // the below are different meters, as meter names are case sensitive
-        let _meter6 =
-            provider.versioned_meter("ABC", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter7 =
-            provider.versioned_meter("Abc", Some("1.0.0"), Some("http://example.com"), None);
-        let _meter8 =
-            provider.versioned_meter("abc", Some("1.0.0"), Some("http://example.com"), None);
+        // these are different meters because meter names are case sensitive
+        let make_scope = |name| {
+            InstrumentationScope::builder(name)
+                .with_version("1.0.0")
+                .with_schema_url("http://example.com")
+                .build()
+        };
+
+        let _meter6 = provider.meter_with_scope(make_scope("ABC"));
+        let _meter7 = provider.meter_with_scope(make_scope("Abc"));
+        let _meter8 = provider.meter_with_scope(make_scope("abc"));
+
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
     }
 }

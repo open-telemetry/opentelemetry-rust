@@ -1,15 +1,12 @@
 use crate::{
-    export::{
-        trace::{ExportResult, SpanData, SpanExporter},
-        ExportError,
-    },
+    export::trace::{ExportResult, SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
-    InstrumentationLibrary,
 };
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
-use opentelemetry::trace::{
-    SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+use opentelemetry::{
+    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
+    InstrumentationScope,
 };
 use std::fmt::{Display, Formatter};
 
@@ -32,7 +29,7 @@ pub fn new_test_export_span_data() -> SpanData {
         events: SpanEvents::default(),
         links: SpanLinks::default(),
         status: Status::Unset,
-        instrumentation_lib: InstrumentationLibrary::default(),
+        instrumentation_scope: InstrumentationScope::default(),
     }
 }
 
@@ -80,7 +77,7 @@ pub struct TestExportError(String);
 
 impl std::error::Error for TestExportError {}
 
-impl ExportError for TestExportError {
+impl opentelemetry::trace::ExportError for TestExportError {
     fn exporter_name(&self) -> &'static str {
         "test"
     }

@@ -51,6 +51,7 @@ pub mod tonic {
                         .collect(),
                 }),
                 LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
+                _ => unreachable!("Nonexistent value type"),
             }
         }
     }
@@ -142,7 +143,7 @@ pub mod tonic {
         From<(
             (
                 &opentelemetry_sdk::logs::LogRecord,
-                &opentelemetry::InstrumentationLibrary,
+                &opentelemetry::InstrumentationScope,
             ),
             &ResourceAttributesWithSchema,
         )> for ResourceLogs
@@ -151,7 +152,7 @@ pub mod tonic {
             data: (
                 (
                     &opentelemetry_sdk::logs::LogRecord,
-                    &opentelemetry::InstrumentationLibrary,
+                    &opentelemetry::InstrumentationScope,
                 ),
                 &ResourceAttributesWithSchema,
             ),
@@ -166,9 +167,8 @@ pub mod tonic {
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
                     schema_url: instrumentation
-                        .schema_url
-                        .clone()
-                        .map(Into::into)
+                        .schema_url()
+                        .map(ToOwned::to_owned)
                         .unwrap_or_default(),
                     scope: Some((instrumentation, log_record.target.clone()).into()),
                     log_records: vec![log_record.into()],
@@ -188,14 +188,14 @@ pub mod tonic {
                 Cow<'static, str>,
                 Vec<(
                     &opentelemetry_sdk::logs::LogRecord,
-                    &opentelemetry::InstrumentationLibrary,
+                    &opentelemetry::InstrumentationScope,
                 )>,
             >,
              (log_record, instrumentation)| {
                 let key = log_record
                     .target
                     .clone()
-                    .unwrap_or_else(|| Cow::Owned(instrumentation.name.clone().into_owned()));
+                    .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
                 scope_map
                     .entry(key)
                     .or_default()
@@ -234,19 +234,19 @@ pub mod tonic {
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::InstrumentationLibrary;
+    use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
     use std::time::SystemTime;
 
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
-    ) -> (LogRecord, InstrumentationLibrary) {
+    ) -> (LogRecord, InstrumentationScope) {
         let mut logrecord = LogRecord::default();
         logrecord.set_timestamp(SystemTime::now());
         logrecord.set_observed_timestamp(SystemTime::now());
         let instrumentation =
-            InstrumentationLibrary::builder(instrumentation_name.to_string()).build();
+            InstrumentationScope::builder(instrumentation_name.to_string()).build();
         (logrecord, instrumentation)
     }
 

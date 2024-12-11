@@ -2,7 +2,12 @@
 
 ## vNext
 
-- Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+## v0.27.0
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-semantic-conventions` dependency version to 0.27
+
 
 ## v0.17.0
 

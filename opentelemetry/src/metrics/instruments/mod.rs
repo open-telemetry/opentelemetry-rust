@@ -1,6 +1,6 @@
 use gauge::{Gauge, ObservableGauge};
 
-use crate::metrics::{Meter, Result};
+use crate::metrics::Meter;
 use crate::KeyValue;
 use core::fmt;
 use std::borrow::Cow;
@@ -87,42 +87,51 @@ impl<'a, T> HistogramBuilder<'a, T> {
     ///
     /// Setting boundaries is optional. By default, the boundaries are set to:
     ///
-    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0, 5000.0, 7500.0, 10000.0]`
+    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0,
+    /// 2500.0, 5000.0, 7500.0, 10000.0]`
+    ///
+    /// # Notes
+    /// - Boundaries must not contain `f64::NAN`, `f64::INFINITY` or
+    ///   `f64::NEG_INFINITY`
+    /// - Values must be in strictly increasing order (e.g., each value must be
+    ///   greater than the previous).
+    /// - Boundaries must not contain duplicate values.
+    ///
+    /// If invalid boundaries are provided, the instrument will not report
+    /// measurements.
+    /// Providing an empty `vec![]` means no bucket information will be
+    /// calculated.
+    ///
+    /// # Warning
+    /// Using more buckets can improve the accuracy of percentile calculations in backends.
+    /// However, this comes at a cost, including increased memory, CPU, and network usage.
+    /// Choose the number of buckets carefully, considering your application's performance
+    /// and resource requirements.
     pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
         self.boundaries = Some(boundaries);
         self
     }
 }
 
-impl<'a> HistogramBuilder<'a, Histogram<f64>> {
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<Histogram<f64>> {
-        self.instrument_provider.f64_histogram(self)
-    }
-
+impl HistogramBuilder<'_, Histogram<f64>> {
     /// Creates a new instrument.
     ///
     /// Validates the instrument configuration and creates a new instrument. In
-    /// case of invalid configuration, an instrument that is no-op is returned
+    /// case of invalid configuration, a no-op instrument is returned
     /// and an error is logged using internal logging.
-    pub fn init(self) -> Histogram<f64> {
-        self.try_init().unwrap()
+    pub fn build(self) -> Histogram<f64> {
+        self.instrument_provider.f64_histogram(self)
     }
 }
 
-impl<'a> HistogramBuilder<'a, Histogram<u64>> {
-    /// Validate the instrument configuration and creates a new instrument.
-    pub fn try_init(self) -> Result<Histogram<u64>> {
-        self.instrument_provider.u64_histogram(self)
-    }
-
+impl HistogramBuilder<'_, Histogram<u64>> {
     /// Creates a new instrument.
     ///
     /// Validates the instrument configuration and creates a new instrument. In
-    /// case of invalid configuration, an instrument that is no-op is returned
+    /// case of invalid configuration, a no-op instrument is returned
     /// and an error is logged using internal logging.
-    pub fn init(self) -> Histogram<u64> {
-        self.try_init().unwrap()
+    pub fn build(self) -> Histogram<u64> {
+        self.instrument_provider.u64_histogram(self)
     }
 }
 
@@ -179,18 +188,10 @@ macro_rules! build_instrument {
     ($name:ident, $inst:ty) => {
         impl<'a> InstrumentBuilder<'a, $inst> {
             #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
-            pub fn try_init(self) -> Result<$inst> {
+            /// In case of invalid configuration, a no-op instrument is returned
+            /// and an error is logged using internal logging.
+            pub fn build(self) -> $inst {
                 self.instrument_provider.$name(self)
-            }
-
-            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
-            ///
-            /// # Panics
-            ///
-            /// Panics if the instrument cannot be created. Use
-            /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-            pub fn init(self) -> $inst {
-                self.try_init().unwrap()
             }
         }
     };
@@ -241,10 +242,7 @@ pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
 #[non_exhaustive] // We expect to add more configuration fields in the future
-pub struct AsyncInstrumentBuilder<'a, I, M>
-where
-    I: AsyncInstrument<M>,
-{
+pub struct AsyncInstrumentBuilder<'a, I, M> {
     /// Instrument provider is used to create the instrument.
     pub instrument_provider: &'a dyn InstrumentProvider,
 
@@ -263,10 +261,7 @@ where
     _inst: marker::PhantomData<I>,
 }
 
-impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M>
-where
-    I: AsyncInstrument<M>,
-{
+impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
     /// Create a new instrument builder
     pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
         AsyncInstrumentBuilder {
@@ -311,18 +306,10 @@ macro_rules! build_async_instrument {
     ($name:ident, $inst:ty, $measurement:ty) => {
         impl<'a> AsyncInstrumentBuilder<'a, $inst, $measurement> {
             #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
-            pub fn try_init(self) -> Result<$inst> {
+            /// In case of invalid configuration, a no-op instrument is returned
+            /// and an error is logged using internal logging.
+            pub fn build(self) -> $inst {
                 self.instrument_provider.$name(self)
-            }
-
-            #[doc = concat!("Validates the instrument configuration and creates a new `",  stringify!($inst), "`.")]
-            ///
-            /// # Panics
-            ///
-            /// Panics if the instrument cannot be created. Use
-            /// [`try_init`](InstrumentBuilder::try_init) if you want to handle errors.
-            pub fn init(self) -> $inst {
-                self.try_init().unwrap()
             }
         }
     };

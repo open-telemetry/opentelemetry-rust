@@ -1,10 +1,24 @@
-# Basic OTLP exporter Example
+# Basic OTLP Exporter Example
 
-This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
-and traces to export them to the [OpenTelemetry
+This example demonstrates how to set up an OpenTelemetry OTLP exporter for logs,
+metrics, and traces to send data to the [OpenTelemetry
 Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP
-over selected protocol such as HTTP/protobuf or HTTP/json. The Collector then sends the data to the appropriate
-backend, in this case, the logging Exporter, which displays data to console.
+over HTTP (using `protobuf` encoding by default but can be changed to use
+`json`). The Collector then forwards the data to the configured backend, which
+in this case is the logging exporter, displaying data on the console.
+Additionally, the example configures a `tracing::fmt` layer to output logs
+emitted via `tracing` to `stdout`. For demonstration, this layer uses a filter
+to display `DEBUG` level logs from various OpenTelemetry components. In real
+applications, these filters should be adjusted appropriately.
+
+The example employs a `BatchExporter` for logs and traces, which is the
+recommended approach when using OTLP exporters. While it can be modified to use
+a `SimpleExporter`, this requires enabling feature flag `reqwest-blocking-client` and
+making the `main()` a normal main and *not* `tokio::main`
+
+// TODO: Metrics does not work with non tokio main when using `reqwest-blocking-client` today, fix that when switching 
+// default to use own thread.
+// TODO: Document `hyper` feature flag when using SimpleProcessor.
 
 ## Usage
 

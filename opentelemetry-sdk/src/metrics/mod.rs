@@ -27,7 +27,7 @@
 //! let counter = meter
 //!     .u64_counter("power_consumption")
 //!     .with_unit("kWh")
-//!     .init();
+//!     .build();
 //!
 //! // use instruments to record measurements
 //! counter.add(10, &[KeyValue::new("rate", "standard")]);
@@ -41,6 +41,7 @@
 
 pub(crate) mod aggregation;
 pub mod data;
+mod error;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
@@ -49,95 +50,69 @@ pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
 pub(crate) mod periodic_reader;
+#[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+/// Module for periodic reader with async runtime.
+pub mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
 
 pub use aggregation::*;
-pub use instrument::*;
+pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
 pub use pipeline::Pipeline;
+
+pub use instrument::InstrumentKind;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
+pub use instrument::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use instrument::*;
+
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use view::*;
+// #[cfg(not(feature = "spec_unstable_metrics_views"))]
+// pub(crate) use view::*;
 
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
-use opentelemetry::{Key, KeyValue, Value};
+/// Defines the window that an aggregation was calculated over.
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Temporality {
+    /// A measurement interval that continues to expand forward in time from a
+    /// starting point.
+    ///
+    /// New measurements are added to all previous measurements since a start time.
+    #[default]
+    Cumulative,
 
-/// A unique set of attributes that can be used as instrument identifiers.
-///
-/// This must implement [Hash], [PartialEq], and [Eq] so it may be used as
-/// HashMap keys and other de-duplication methods.
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct AttributeSet(Vec<KeyValue>, u64);
+    /// A measurement interval that resets each cycle.
+    ///
+    /// Measurements from one cycle are recorded independently, measurements from
+    /// other cycles do not affect them.
+    Delta,
 
-impl From<&[KeyValue]> for AttributeSet {
-    fn from(values: &[KeyValue]) -> Self {
-        let mut seen_keys = HashSet::with_capacity(values.len());
-        let vec = values
-            .iter()
-            .rev()
-            .filter_map(|kv| {
-                if seen_keys.insert(kv.key.clone()) {
-                    Some(kv.clone())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        AttributeSet::new(vec)
-    }
-}
-
-fn calculate_hash(values: &[KeyValue]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    values.iter().fold(&mut hasher, |mut hasher, item| {
-        item.hash(&mut hasher);
-        hasher
-    });
-    hasher.finish()
-}
-
-impl AttributeSet {
-    fn new(mut values: Vec<KeyValue>) -> Self {
-        values.sort_unstable();
-        let hash = calculate_hash(&values);
-        AttributeSet(values, hash)
-    }
-
-    /// Iterate over key value pairs in the set
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Key, &Value)> {
-        self.0.iter().map(|kv| (&kv.key, &kv.value))
-    }
-
-    /// Returns the underlying Vec of KeyValue pairs
-    pub(crate) fn into_vec(self) -> Vec<KeyValue> {
-        self.0
-    }
-}
-
-impl Hash for AttributeSet {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.1)
-    }
+    /// Configures Synchronous Counter and Histogram instruments to use
+    /// Delta aggregation temporality, which allows them to shed memory
+    /// following a cardinality explosion, thus use less memory.
+    LowMemory,
 }
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{DataPoint, HistogramDataPoint, ScopeMetrics};
+    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::*;
-    use crate::metrics::data::{ResourceMetrics, Temporality};
-    use crate::metrics::reader::TemporalitySelector;
-    use crate::testing::metrics::InMemoryMetricsExporterBuilder;
-    use crate::{runtime, testing::metrics::InMemoryMetricsExporter};
+    use crate::metrics::data::ResourceMetrics;
+    use crate::testing::metrics::InMemoryMetricExporter;
+    use crate::testing::metrics::InMemoryMetricExporterBuilder;
+    use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
-    use std::borrow::Cow;
     use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
@@ -162,16 +137,16 @@ mod tests {
         ];
         for name in invalid_instrument_names {
             let test_context = TestContext::new(Temporality::Cumulative);
-            let counter = test_context.meter().u64_counter(name).init();
+            let counter = test_context.meter().u64_counter(name).build();
             counter.add(1, &[]);
 
-            let up_down_counter = test_context.meter().i64_up_down_counter(name).init();
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).build();
             up_down_counter.add(1, &[]);
 
-            let gauge = test_context.meter().f64_gauge(name).init();
+            let gauge = test_context.meter().f64_gauge(name).build();
             gauge.record(1.9, &[]);
 
-            let histogram = test_context.meter().f64_histogram(name).init();
+            let histogram = test_context.meter().f64_histogram(name).build();
             histogram.record(1.0, &[]);
 
             let _observable_counter = test_context
@@ -180,7 +155,7 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1, &[]);
                 })
-                .init();
+                .build();
 
             let _observable_gauge = test_context
                 .meter()
@@ -188,7 +163,7 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1.0, &[]);
                 })
-                .init();
+                .build();
 
             let _observable_up_down_counter = test_context
                 .meter()
@@ -196,11 +171,34 @@ mod tests {
                 .with_callback(move |observer| {
                     observer.observe(1, &[]);
                 })
-                .init();
+                .build();
 
             test_context.flush_metrics();
 
             // As instrument name is invalid, no metrics should be exported
+            test_context.check_no_metrics();
+        }
+
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaires provided via advisory params are invalid, no
+            // metrics should be exported
             test_context.check_no_metrics();
         }
     }
@@ -446,7 +444,7 @@ mod tests {
                     *index += 1;
                 }
             })
-            .init();
+            .build();
 
         for (iter, v) in values_clone.iter().enumerate() {
             test_context.flush_metrics();
@@ -467,7 +465,7 @@ mod tests {
             let data_point = if is_empty_attributes {
                 &sum.data_points[0]
             } else {
-                find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+                find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
                     .expect("datapoint with key1=value1 expected")
             };
 
@@ -489,10 +487,48 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn empty_meter_name_retained() {
+        async fn meter_name_retained_helper(
+            meter: Meter,
+            provider: SdkMeterProvider,
+            exporter: InMemoryMetricExporter,
+        ) {
+            // Act
+            let counter = meter.u64_counter("my_counter").build();
+
+            counter.add(10, &[]);
+            provider.force_flush().unwrap();
+
+            // Assert
+            let resource_metrics = exporter
+                .get_finished_metrics()
+                .expect("metrics are expected to be exported.");
+            assert!(
+                resource_metrics[0].scope_metrics[0].metrics.len() == 1,
+                "There should be a single metric"
+            );
+            let meter_name = resource_metrics[0].scope_metrics[0].scope.name();
+            assert_eq!(meter_name, "");
+        }
+
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Test Meter creation in 2 ways, both with empty string as meter name
+        let meter1 = meter_provider.meter("");
+        meter_name_retained_helper(meter1, meter_provider.clone(), exporter.clone()).await;
+
+        let meter_scope = InstrumentationScope::builder("").build();
+        let meter2 = meter_provider.meter_with_scope(meter_scope);
+        meter_name_retained_helper(meter2, meter_provider, exporter).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -501,13 +537,13 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter_duplicated = meter
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter.add(10, &attribute);
@@ -542,8 +578,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
@@ -553,13 +589,13 @@ mod tests {
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter2 = meter2
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter1.add(10, &attribute);
@@ -631,36 +667,37 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn instrumentation_scope_identity_test() {
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
         // Hence there should be a single metric stream output for this test.
-        let meter1 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value1")]),
-        );
-        let meter2 = meter_provider.versioned_meter(
-            "test.meter",
-            Some("v0.1.0"),
-            Some("schema_url"),
-            Some(vec![KeyValue::new("key", "value2")]),
-        );
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
+
+        let meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
+
         let counter1 = meter1
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let counter2 = meter2
             .u64_counter("my_counter")
             .with_unit("my_unit")
             .with_description("my_description")
-            .init();
+            .build();
 
         let attribute = vec![KeyValue::new("key1", "value1")];
         counter1.add(10, &attribute);
@@ -683,13 +720,13 @@ mod tests {
         );
 
         let scope = &resource_metrics[0].scope_metrics[0].scope;
-        assert_eq!(scope.name, "test.meter");
-        assert_eq!(scope.version, Some(Cow::Borrowed("v0.1.0")));
-        assert_eq!(scope.schema_url, Some(Cow::Borrowed("schema_url")));
+        assert_eq!(scope.name(), "test.meter");
+        assert_eq!(scope.version(), Some("v0.1.0"));
+        assert_eq!(scope.schema_url(), Some("http://example.com"));
 
         // This is validating current behavior, but it is not guaranteed to be the case in the future,
         // as this is a user error and SDK reserves right to change this behavior.
-        assert_eq!(scope.attributes, vec![KeyValue::new("key", "value1")]);
+        assert!(scope.attributes().eq(&[KeyValue::new("key", "value1")]));
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter");
@@ -714,8 +751,8 @@ mod tests {
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
             .aggregation(Aggregation::ExplicitBucketHistogram {
@@ -737,7 +774,7 @@ mod tests {
         let histogram = meter
             .f64_histogram("test_histogram")
             .with_unit("test_unit")
-            .init();
+            .build();
 
         histogram.record(1.5, &[KeyValue::new("key1", "value1")]);
         meter_provider.force_flush().unwrap();
@@ -764,8 +801,8 @@ mod tests {
         // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -806,7 +843,7 @@ mod tests {
                     ],
                 );
             })
-            .init();
+            .build();
 
         meter_provider.force_flush().unwrap();
 
@@ -839,8 +876,8 @@ mod tests {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricsExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -854,7 +891,7 @@ mod tests {
 
         // Act
         let meter = meter_provider.meter("test");
-        let counter = meter.u64_counter("my_counter").init();
+        let counter = meter.u64_counter("my_counter").build();
 
         // Normally, this would generate 3 time-series, but since the view
         // drops all attributes, we expect only 1 time-series.
@@ -934,7 +971,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn no_attr_delta_up_down_counter() {
+    async fn no_attr_up_down_counter_always_cumulative() {
         let mut test_context = TestContext::new(Temporality::Delta);
         let counter = test_context.i64_up_down_counter("test", "my_counter", Some("my_unit"));
 
@@ -945,7 +982,11 @@ mod tests {
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
-        assert_eq!(sum.temporality, Temporality::Delta, "Should produce Delta");
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce Cumulative due to UpDownCounter temporality_preference"
+        );
 
         let data_point = &sum.data_points[0];
         assert!(data_point.attributes.is_empty(), "Non-empty attribute set");
@@ -1055,12 +1096,12 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2);
 
         // find and validate key1=value1 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
 
@@ -1132,7 +1173,7 @@ mod tests {
         // Create instrument and emit measurements
         match instrument_name {
             "counter" => {
-                let counter = test_context.meter().u64_counter("test_counter").init();
+                let counter = test_context.meter().u64_counter("test_counter").build();
                 counter.add(5, &[]);
                 counter.add(10, attributes);
             }
@@ -1140,17 +1181,17 @@ mod tests {
                 let updown_counter = test_context
                     .meter()
                     .i64_up_down_counter("test_updowncounter")
-                    .init();
+                    .build();
                 updown_counter.add(15, &[]);
                 updown_counter.add(20, attributes);
             }
             "histogram" => {
-                let histogram = test_context.meter().u64_histogram("test_histogram").init();
+                let histogram = test_context.meter().u64_histogram("test_histogram").build();
                 histogram.record(25, &[]);
                 histogram.record(30, attributes);
             }
             "gauge" => {
-                let gauge = test_context.meter().u64_gauge("test_gauge").init();
+                let gauge = test_context.meter().u64_gauge("test_gauge").build();
                 gauge.record(35, &[]);
                 gauge.record(40, attributes);
             }
@@ -1177,12 +1218,15 @@ mod tests {
                         test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 5);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&counter_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_sum_datapoint_with_key_value(
+                        &counter_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 10);
                 }
                 "updown_counter" => {
@@ -1190,10 +1234,10 @@ mod tests {
                         test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&updown_counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 15);
-                    let data_point1 = find_datapoint_with_key_value(
+                    let data_point1 = find_sum_datapoint_with_key_value(
                         &updown_counter_data.data_points,
                         "key1",
                         "value1",
@@ -1228,12 +1272,15 @@ mod tests {
                         test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&gauge_data.data_points)
+                        find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 35);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&gauge_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_gauge_datapoint_with_key_value(
+                        &gauge_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 40);
                 }
                 _ => panic!("Incorrect instrument kind provided"),
@@ -1271,7 +1318,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             "updown_counter" => {
                 let has_run = AtomicBool::new(false);
@@ -1285,7 +1332,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             "gauge" => {
                 let has_run = AtomicBool::new(false);
@@ -1299,7 +1346,7 @@ mod tests {
                             has_run.store(true, Ordering::SeqCst);
                         }
                     })
-                    .init();
+                    .build();
             }
             _ => panic!("Incorrect instrument kind provided"),
         };
@@ -1325,12 +1372,15 @@ mod tests {
                     assert_eq!(counter_data.data_points.len(), 2);
                     assert!(counter_data.is_monotonic);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 5);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&counter_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_sum_datapoint_with_key_value(
+                        &counter_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 10);
                 }
                 "updown_counter" => {
@@ -1339,10 +1389,10 @@ mod tests {
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     assert!(!updown_counter_data.is_monotonic);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&updown_counter_data.data_points)
+                        find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 15);
-                    let data_point1 = find_datapoint_with_key_value(
+                    let data_point1 = find_sum_datapoint_with_key_value(
                         &updown_counter_data.data_points,
                         "key1",
                         "value1",
@@ -1355,12 +1405,15 @@ mod tests {
                         test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
-                        find_datapoint_with_no_attributes(&gauge_data.data_points)
+                        find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
                             .expect("datapoint with no attributes expected");
                     assert_eq!(zero_attribute_datapoint.value, 25);
-                    let data_point1 =
-                        find_datapoint_with_key_value(&gauge_data.data_points, "key1", "value1")
-                            .expect("datapoint with key1=value1 expected");
+                    let data_point1 = find_gauge_datapoint_with_key_value(
+                        &gauge_data.data_points,
+                        "key1",
+                        "value1",
+                    )
+                    .expect("datapoint with key1=value1 expected");
                     assert_eq!(data_point1.value, 30);
                 }
                 _ => panic!("Incorrect instrument kind provided"),
@@ -1424,7 +1477,7 @@ mod tests {
     fn counter_f64_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let counter = Arc::new(test_context.meter().f64_counter("test_counter").init());
+        let counter = Arc::new(test_context.meter().f64_counter("test_counter").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1477,7 +1530,7 @@ mod tests {
     fn histogram_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = Arc::new(test_context.meter().u64_histogram("test_histogram").init());
+        let histogram = Arc::new(test_context.meter().u64_histogram("test_histogram").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1614,7 +1667,7 @@ mod tests {
     fn histogram_f64_multithreaded_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = Arc::new(test_context.meter().f64_histogram("test_histogram").init());
+        let histogram = Arc::new(test_context.meter().f64_histogram("test_histogram").build());
 
         for i in 0..10 {
             thread::scope(|s| {
@@ -1751,7 +1804,7 @@ mod tests {
     fn histogram_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let histogram = test_context.meter().u64_histogram("my_histogram").init();
+        let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
         let mut rand = rngs::SmallRng::from_entropy();
@@ -1859,7 +1912,7 @@ mod tests {
             .meter()
             .u64_histogram("test_histogram")
             .with_boundaries(vec![1.0, 2.5, 5.5])
-            .init();
+            .build();
         histogram.record(1, &[KeyValue::new("key1", "value1")]);
         histogram.record(2, &[KeyValue::new("key1", "value1")]);
         histogram.record(3, &[KeyValue::new("key1", "value1")]);
@@ -1907,7 +1960,7 @@ mod tests {
     fn gauge_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
-        let gauge = test_context.meter().i64_gauge("my_gauge").init();
+        let gauge = test_context.meter().i64_gauge("my_gauge").build();
 
         // Act
         gauge.record(1, &[KeyValue::new("key1", "value1")]);
@@ -1929,12 +1982,12 @@ mod tests {
 
         // find and validate key1=value2 datapoint
         let data_point1 =
-            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
+            find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
                 .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
         let data_point1 =
-            find_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
+            find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
                 .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 6);
 
@@ -1954,11 +2007,11 @@ mod tests {
 
         let gauge = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
         assert_eq!(gauge.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 41);
 
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 54);
     }
@@ -1976,7 +2029,7 @@ mod tests {
                 observer.observe(4, &[KeyValue::new("key1", "value1")]);
                 observer.observe(5, &[KeyValue::new("key2", "value2")]);
             })
-            .init();
+            .build();
 
         test_context.flush_metrics();
 
@@ -1988,18 +2041,19 @@ mod tests {
 
         if use_empty_attributes {
             // find and validate zero attribute datapoint
-            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
-                .expect("datapoint with no attributes expected");
+            let zero_attribute_datapoint =
+                find_gauge_datapoint_with_no_attributes(&gauge.data_points)
+                    .expect("datapoint with no attributes expected");
             assert_eq!(zero_attribute_datapoint.value, 1);
         }
 
         // find and validate key1=value1 datapoint
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
         // find and validate key2=value2 datapoint
-        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+        let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
             .expect("datapoint with key2=value2 expected");
         assert_eq!(data_point2.value, 5);
 
@@ -2012,16 +2066,17 @@ mod tests {
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
 
         if use_empty_attributes {
-            let zero_attribute_datapoint = find_datapoint_with_no_attributes(&gauge.data_points)
-                .expect("datapoint with no attributes expected");
+            let zero_attribute_datapoint =
+                find_gauge_datapoint_with_no_attributes(&gauge.data_points)
+                    .expect("datapoint with no attributes expected");
             assert_eq!(zero_attribute_datapoint.value, 1);
         }
 
-        let data_point1 = find_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+        let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 4);
 
-        let data_point2 = find_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+        let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
             .expect("datapoint with key2=value2 expected");
         assert_eq!(data_point2.value, 5);
     }
@@ -2060,11 +2115,11 @@ mod tests {
         }
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 3);
 
@@ -2084,7 +2139,7 @@ mod tests {
 
         let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
         assert_eq!(sum.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         if temporality == Temporality::Cumulative {
             assert_eq!(data_point1.value, 10);
@@ -2092,7 +2147,7 @@ mod tests {
             assert_eq!(data_point1.value, 5);
         }
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         if temporality == Temporality::Cumulative {
             assert_eq!(data_point1.value, 6);
@@ -2128,12 +2183,12 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2002);
 
         let data_point =
-            find_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
                 .expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
-        let empty_attrs_data_point = find_datapoint_with_no_attributes(&sum.data_points)
+        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
             .expect("Empty attributes point expected");
         assert!(
             empty_attrs_data_point.attributes.is_empty(),
@@ -2252,22 +2307,18 @@ mod tests {
             !sum.is_monotonic,
             "UpDownCounter should produce non-monotonic."
         );
-        if let Temporality::Cumulative = temporality {
-            assert_eq!(
-                sum.temporality,
-                Temporality::Cumulative,
-                "Should produce cumulative"
-            );
-        } else {
-            assert_eq!(sum.temporality, Temporality::Delta, "Should produce delta");
-        }
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "Should produce Cumulative for UpDownCounter"
+        );
 
         // find and validate key1=value2 datapoint
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
         assert_eq!(data_point1.value, 5);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
         assert_eq!(data_point1.value, 7);
 
@@ -2287,28 +2338,20 @@ mod tests {
 
         let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
         assert_eq!(sum.data_points.len(), 2);
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value1")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
-        if temporality == Temporality::Cumulative {
-            assert_eq!(data_point1.value, 10);
-        } else {
-            assert_eq!(data_point1.value, 5);
-        }
+        assert_eq!(data_point1.value, 10);
 
-        let data_point1 = find_datapoint_with_key_value(&sum.data_points, "key1", "value2")
+        let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value2")
             .expect("datapoint with key1=value2 expected");
-        if temporality == Temporality::Cumulative {
-            assert_eq!(data_point1.value, 14);
-        } else {
-            assert_eq!(data_point1.value, 7);
-        }
+        assert_eq!(data_point1.value, 14);
     }
 
-    fn find_datapoint_with_key_value<'a, T>(
-        data_points: &'a [DataPoint<T>],
+    fn find_sum_datapoint_with_key_value<'a, T>(
+        data_points: &'a [SumDataPoint<T>],
         key: &str,
         value: &str,
-    ) -> Option<&'a DataPoint<T>> {
+    ) -> Option<&'a SumDataPoint<T>> {
         data_points.iter().find(|&datapoint| {
             datapoint
                 .attributes
@@ -2317,7 +2360,30 @@ mod tests {
         })
     }
 
-    fn find_datapoint_with_no_attributes<T>(data_points: &[DataPoint<T>]) -> Option<&DataPoint<T>> {
+    fn find_gauge_datapoint_with_key_value<'a, T>(
+        data_points: &'a [GaugeDataPoint<T>],
+        key: &str,
+        value: &str,
+    ) -> Option<&'a GaugeDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
+        })
+    }
+
+    fn find_sum_datapoint_with_no_attributes<T>(
+        data_points: &[SumDataPoint<T>],
+    ) -> Option<&SumDataPoint<T>> {
+        data_points
+            .iter()
+            .find(|&datapoint| datapoint.attributes.is_empty())
+    }
+
+    fn find_gauge_datapoint_with_no_attributes<T>(
+        data_points: &[GaugeDataPoint<T>],
+    ) -> Option<&GaugeDataPoint<T>> {
         data_points
             .iter()
             .find(|&datapoint| datapoint.attributes.is_empty())
@@ -2350,11 +2416,11 @@ mod tests {
     ) -> Option<&'a ScopeMetrics> {
         metrics
             .iter()
-            .find(|&scope_metric| scope_metric.scope.name == name)
+            .find(|&scope_metric| scope_metric.scope.name() == name)
     }
 
     struct TestContext {
-        exporter: InMemoryMetricsExporter,
+        exporter: InMemoryMetricExporter,
         meter_provider: SdkMeterProvider,
 
         // Saving this on the test context for lifetime simplicity
@@ -2363,18 +2429,10 @@ mod tests {
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            struct TestTemporalitySelector(Temporality);
-            impl TemporalitySelector for TestTemporalitySelector {
-                fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-                    self.0
-                }
-            }
-
-            let mut exporter = InMemoryMetricsExporterBuilder::new();
-            exporter = exporter.with_temporality_selector(TestTemporalitySelector(temporality));
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
 
             let exporter = exporter.build();
-            let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+            let reader = PeriodicReader::builder(exporter.clone()).build();
             let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
 
             TestContext {
@@ -2395,7 +2453,7 @@ mod tests {
             if let Some(unit_name) = unit {
                 counter_builder = counter_builder.with_unit(unit_name);
             }
-            counter_builder.init()
+            counter_builder.build()
         }
 
         fn i64_up_down_counter(
@@ -2409,7 +2467,7 @@ mod tests {
             if let Some(unit_name) = unit {
                 updown_counter_builder = updown_counter_builder.with_unit(unit_name);
             }
-            updown_counter_builder.init()
+            updown_counter_builder.build()
         }
 
         fn meter(&self) -> Meter {
@@ -2428,7 +2486,7 @@ mod tests {
             let resource_metrics = self
                 .exporter
                 .get_finished_metrics()
-                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricsExporter to return None.
+                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricExporter to return None.
 
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }

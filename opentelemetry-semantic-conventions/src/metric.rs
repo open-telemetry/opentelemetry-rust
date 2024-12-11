@@ -25,7 +25,7 @@
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
 //!     .with_unit("By")
 //!     .with_description("Duration of HTTP server requests.")
-//!     .init();
+//!     .build();
 //! ```
 
 /// ## Description
@@ -280,10 +280,27 @@ pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_NETWORK_IO: &str = "container.network.io";
+
+/// ## Description
+///
+/// The time the container has been running
+///
+/// ## Notes
+///
+/// Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.
+/// The actual accuracy would depend on the instrumentation and operating system
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_UPTIME: &str = "container.uptime";
 
 /// ## Description
 ///
@@ -610,6 +627,52 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 
 /// ## Description
 ///
+/// Number of active client instances
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{instance}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
+    "db.client.cosmosdb.active_instance.count";
+
+/// ## Description
+///
+/// [Request charge](https://learn.microsoft.com/azure/cosmos-db/request-units) consumed by the operation
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `{request_unit}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_COSMOSDB_CONSISTENCY_LEVEL`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_COSMOSDB_REGIONS_CONTACTED`] | `{"recommended": "if available"}`
+/// | [`crate::attribute::DB_COSMOSDB_SUB_STATUS_CODE`] | `Conditionally_required`: when response was received and contained sub-code.
+/// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
+    "db.client.cosmosdb.operation.request_charge";
+
+/// ## Description
+///
 /// Duration of database client operations.
 ///
 /// ## Notes
@@ -625,11 +688,11 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available. The collection name MAY be parsed from the query text, in which case it SHOULD be the first collection name in the query.
-
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection. The collection name MAY be parsed from the query text, in which case it SHOULD be the single collection name in the query.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available. The operation name MAY be parsed from the query text, in which case it SHOULD be the first operation name found in the query.
-
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
+/// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::DB_SYSTEM`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
@@ -639,6 +702,34 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
 pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
+
+/// ## Description
+///
+/// The actual number of records returned by the database operation
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `{row}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection. The collection name MAY be parsed from the query text, in which case it SHOULD be the single collection name in the query.
+/// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
+/// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
+/// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
+/// | [`crate::attribute::DB_SYSTEM`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
+/// | [`crate::attribute::NETWORK_PEER_PORT`] | `{"recommended": "if and only if `network.peer.address` is set."}`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const DB_CLIENT_RESPONSE_RETURNED_ROWS: &str = "db.client.response.returned_rows";
 
 /// ## Description
 ///
@@ -1176,7 +1267,7 @@ pub const FAAS_TIMEOUTS: &str = "faas.timeouts";
 /// |:-|:- |
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if the operation ended in an error
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
-/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -1198,7 +1289,7 @@ pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.dura
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
-/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::GEN_AI_TOKEN_TYPE`] | `Required`
@@ -1222,7 +1313,7 @@ pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
 /// |:-|:- |
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if the operation ended in an error
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
-/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -1244,7 +1335,7 @@ pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
-/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -1266,7 +1357,7 @@ pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_ou
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
-/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
 /// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -1537,6 +1628,7 @@ pub const HTTP_CLIENT_REQUEST_BODY_SIZE: &str = "http.client.request.body.size";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
 /// | [`crate::attribute::URL_SCHEME`] | `Opt_in`
+/// | [`crate::attribute::URL_TEMPLATE`] | `Opt_in`
 pub const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";
 
 /// ## Description
@@ -1614,6 +1706,7 @@ pub const HTTP_SERVER_ACTIVE_REQUESTS: &str = "http.server.active_requests";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
+/// | [`crate::attribute::USER_AGENT_SYNTHETIC_TYPE`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_SERVER_REQUEST_BODY_SIZE: &str = "http.server.request.body.size";
 
@@ -1639,6 +1732,7 @@ pub const HTTP_SERVER_REQUEST_BODY_SIZE: &str = "http.server.request.body.size";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
+/// | [`crate::attribute::USER_AGENT_SYNTHETIC_TYPE`] | `Opt_in`
 pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 
 /// ## Description
@@ -1667,6 +1761,7 @@ pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 /// | [`crate::attribute::URL_SCHEME`] | `Required`
+/// | [`crate::attribute::USER_AGENT_SYNTHETIC_TYPE`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_SERVER_RESPONSE_BODY_SIZE: &str = "http.server.response.body.size";
 
@@ -2101,6 +2196,59 @@ pub const K8S_NODE_MEMORY_USAGE: &str = "k8s.node.memory.usage";
 
 /// ## Description
 ///
+/// Node network errors
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{error}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_NETWORK_ERRORS: &str = "k8s.node.network.errors";
+
+/// ## Description
+///
+/// Network bytes for the Node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_NETWORK_IO: &str = "k8s.node.network.io";
+
+/// ## Description
+///
+/// The time the Node has been running
+///
+/// ## Notes
+///
+/// Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.
+/// The actual accuracy would depend on the instrumentation and operating system
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_UPTIME: &str = "k8s.node.uptime";
+
+/// ## Description
+///
 /// Total CPU time consumed
 ///
 /// ## Notes
@@ -2146,6 +2294,59 @@ pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
 /// | Status: | `Experimental`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_MEMORY_USAGE: &str = "k8s.pod.memory.usage";
+
+/// ## Description
+///
+/// Pod network errors
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{error}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_NETWORK_ERRORS: &str = "k8s.pod.network.errors";
+
+/// ## Description
+///
+/// Network bytes for the Pod
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_NETWORK_IO: &str = "k8s.pod.network.io";
+
+/// ## Description
+///
+/// The time the Pod has been running
+///
+/// ## Notes
+///
+/// Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.
+/// The actual accuracy would depend on the instrumentation and operating system
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_UPTIME: &str = "k8s.pod.uptime";
 
 /// ## Description
 ///
@@ -2897,11 +3098,12 @@ pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD use counter with type `double` and measure uptime with at least millisecond precision
+/// Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.
+/// The actual accuracy would depend on the instrumentation and operating system
 /// ## Metadata
 /// | | |
 /// |:-|:-
-/// | Instrument: | `counter` |
+/// | Instrument: | `gauge` |
 /// | Unit: | `s` |
 /// | Status: | `Experimental`  |
 #[cfg(feature = "semconv_experimental")]
@@ -3505,8 +3707,8 @@ pub const SYSTEM_MEMORY_UTILIZATION: &str = "system.memory.utilization";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_NETWORK_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
@@ -3532,8 +3734,8 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 
@@ -3558,8 +3760,8 @@ pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 
@@ -3574,8 +3776,8 @@ pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 
@@ -3639,6 +3841,7 @@ pub const SYSTEM_PAGING_OPERATIONS: &str = "system.paging.operations";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_PAGING_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PAGING_USAGE: &str = "system.paging.usage";
@@ -3654,6 +3857,7 @@ pub const SYSTEM_PAGING_USAGE: &str = "system.paging.usage";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_PAGING_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PAGING_UTILIZATION: &str = "system.paging.utilization";
@@ -3686,6 +3890,23 @@ pub const SYSTEM_PROCESS_COUNT: &str = "system.process.count";
 /// | Status: | `Experimental`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
+
+/// ## Description
+///
+/// The time the system has been running
+///
+/// ## Notes
+///
+/// Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.
+/// The actual accuracy would depend on the instrumentation and operating system
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_UPTIME: &str = "system.uptime";
 
 /// ## Description
 ///
@@ -3791,3 +4012,181 @@ pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
 /// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const V8JS_MEMORY_HEAP_USED: &str = "v8js.memory.heap.used";
+
+/// ## Description
+///
+/// The number of changes (pull requests/merge requests/changelists) in a repository, categorized by their state (e.g. open or merged)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{change}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CHANGE_COUNT: &str = "vcs.change.count";
+
+/// ## Description
+///
+/// The time duration a change (pull request/merge request/changelist) has been in a given state
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CHANGE_DURATION: &str = "vcs.change.duration";
+
+/// ## Description
+///
+/// The amount of time since its creation it took a change (pull request/merge request/changelist) to get the first approval
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CHANGE_TIME_TO_APPROVAL: &str = "vcs.change.time_to_approval";
+
+/// ## Description
+///
+/// The number of unique contributors to a repository
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{contributor}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CONTRIBUTOR_COUNT: &str = "vcs.contributor.count";
+
+/// ## Description
+///
+/// The number of refs of type branch or tag in a repository
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{ref}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_REF_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_COUNT: &str = "vcs.ref.count";
+
+/// ## Description
+///
+/// The number of lines added/removed in a ref (branch) relative to the ref from the `vcs.ref.base.name` attribute
+///
+/// ## Notes
+///
+/// This metric should be reported for each `vcs.line_change.type` value. For example if a ref added 3 lines and removed 2 lines,
+/// instrumentation SHOULD report two measurements: 3 and 2 (both positive numbers).
+/// If number of lines added/removed should be calculated from the start of time, then `vcs.ref.base.name` SHOULD be set to an empty string
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{line}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_CHANGE_ID`] | `Conditionally_required`: if a change is associate with the ref.
+/// | [`crate::attribute::VCS_LINE_CHANGE_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
+
+/// ## Description
+///
+/// The number of revisions (commits) a ref (branch) is ahead/behind the branch from the `vcs.ref.base.name` attribute
+///
+/// ## Notes
+///
+/// This metric should be reported for each `vcs.revision_delta.direction` value. For example if branch `a` is 3 commits behind and 2 commits ahead of `trunk`,
+/// instrumentation SHOULD report two measurements: 3 and 2 (both positive numbers) and `vcs.ref.base.name` is set to `trunk`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{revision}` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_CHANGE_ID`] | `Conditionally_required`: if a change is associate with the ref.
+/// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+/// | [`crate::attribute::VCS_REVISION_DELTA_DIRECTION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_REVISIONS_DELTA: &str = "vcs.ref.revisions_delta";
+
+/// ## Description
+///
+/// Time a ref (branch) created from the default branch (trunk) has existed. The `ref.type` attribute will always be `branch`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Experimental`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REF_TIME: &str = "vcs.ref.time";
+
+/// ## Description
+///
+/// The number of repositories in an organization
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{repository}` |
+/// | Status: | `Experimental`  |
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REPOSITORY_COUNT: &str = "vcs.repository.count";

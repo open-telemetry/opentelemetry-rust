@@ -1,32 +1,34 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
 use crate::{export::logs::LogExporter, Resource};
-use opentelemetry::otel_warn;
-use opentelemetry::{
-    global,
-    logs::{LogError, LogResult},
-    trace::TraceContextExt,
-    Context, InstrumentationLibrary,
-};
+use crate::{logs::LogError, logs::LogResult};
+use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
-#[cfg(feature = "logs_level_enabled")]
+#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
+use std::time::SystemTime;
 use std::{
     borrow::Cow,
-    sync::{atomic::Ordering, Arc},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, OnceLock,
+    },
 };
-use std::{sync::atomic::AtomicBool, time::SystemTime};
-
-use once_cell::sync::Lazy;
 
 // a no nop logger provider used as placeholder when the provider is shutdown
-static NOOP_LOGGER_PROVIDER: Lazy<LoggerProvider> = Lazy::new(|| LoggerProvider {
-    inner: Arc::new(LoggerProviderInner {
-        processors: Vec::new(),
-        resource: Resource::empty(),
-        is_shutdown: AtomicBool::new(true),
-    }),
-});
+// TODO - replace it with LazyLock once it is stable
+static NOOP_LOGGER_PROVIDER: OnceLock<LoggerProvider> = OnceLock::new();
+
+#[inline]
+fn noop_logger_provider() -> &'static LoggerProvider {
+    NOOP_LOGGER_PROVIDER.get_or_init(|| LoggerProvider {
+        inner: Arc::new(LoggerProviderInner {
+            processors: Vec::new(),
+            resource: Resource::empty(),
+            is_shutdown: AtomicBool::new(true),
+        }),
+    })
+}
 
 #[derive(Debug, Clone)]
 /// Handles the creation and coordination of [`Logger`]s.
@@ -46,48 +48,31 @@ pub struct LoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-/// Default logger name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/logger";
-
 impl opentelemetry::logs::LoggerProvider for LoggerProvider {
     type Logger = Logger;
 
-    /// Create a new versioned `Logger` instance.
-    fn versioned_logger(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<Cow<'static, str>>,
-        schema_url: Option<Cow<'static, str>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
-    ) -> Logger {
-        let name = name.into();
-        let component_name = if name.is_empty() {
-            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        } else {
-            name
-        };
-
-        let mut builder = self.logger_builder(component_name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        builder.build()
+    fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
+        let scope = InstrumentationScope::builder(name).build();
+        self.logger_with_scope(scope)
     }
 
-    fn library_logger(&self, library: Arc<InstrumentationLibrary>) -> Self::Logger {
+    fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Logger::new(library, NOOP_LOGGER_PROVIDER.clone());
+            otel_debug!(
+                name: "LoggerProvider.NoOpLoggerReturned",
+                logger_name = scope.name(),
+            );
+            return Logger::new(scope, noop_logger_provider().clone());
         }
-        Logger::new(library, self.clone())
+        if scope.name().is_empty() {
+            otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
+        };
+        otel_debug!(
+            name: "LoggerProvider.NewLoggerReturned",
+            logger_name = scope.name(),
+        );
+        Logger::new(scope, self.clone())
     }
 }
 
@@ -115,6 +100,9 @@ impl LoggerProvider {
 
     /// Shuts down this `LoggerProvider`
     pub fn shutdown(&self) -> LogResult<()> {
+        otel_debug!(
+            name: "LoggerProvider.ShutdownInvokedByUser",
+        );
         if self
             .inner
             .is_shutdown
@@ -126,17 +114,10 @@ impl LoggerProvider {
             if errs.is_empty() {
                 Ok(())
             } else {
-                otel_warn!(
-                    name: "logger_provider_shutdown_error",
-                    error = format!("{:?}", errs)
-                );
-                Err(LogError::Other(format!("{:?}", errs).into()))
+                Err(LogError::Other(format!("{errs:?}").into()))
             }
         } else {
-            otel_warn!(
-                name: "logger_provider_already_shutdown"
-            );
-            Err(LogError::Other("logger provider already shut down".into()))
+            Err(LogError::AlreadyShutdown("LoggerProvider".to_string()))
         }
     }
 }
@@ -154,6 +135,24 @@ impl LoggerProviderInner {
         let mut errs = vec![];
         for processor in &self.processors {
             if let Err(err) = processor.shutdown() {
+                // Log at debug level because:
+                //  - The error is also returned to the user for handling (if applicable)
+                //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
+                //    which is non-actionable by the user
+                match err {
+                    // specific handling for mutex poisioning
+                    LogError::MutexPoisoned(_) => {
+                        otel_debug!(
+                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
+                        );
+                    }
+                    _ => {
+                        otel_debug!(
+                            name: "LoggerProvider.Drop.ShutdownError",
+                            error = format!("{err}")
+                        );
+                    }
+                }
                 errs.push(err);
             }
         }
@@ -164,10 +163,16 @@ impl LoggerProviderInner {
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         if !self.is_shutdown.load(Ordering::Relaxed) {
-            let errs = self.shutdown();
-            if !errs.is_empty() {
-                global::handle_error(LogError::Other(format!("{:?}", errs).into()));
-            }
+            otel_info!(
+                name: "LoggerProvider.Drop",
+                message = "Last reference of LoggerProvider dropped, initiating shutdown."
+            );
+            let _ = self.shutdown(); // errors are handled within shutdown
+        } else {
+            otel_debug!(
+                name: "LoggerProvider.Drop.AlreadyShutdown",
+                message = "LoggerProvider was already shut down; drop will not attempt shutdown again."
+            );
         }
     }
 }
@@ -183,7 +188,7 @@ impl Builder {
     /// The `LogExporter` that this provider should use.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
-        processors.push(Box::new(SimpleLogProcessor::new(Box::new(exporter))));
+        processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
         Builder { processors, ..self }
     }
@@ -229,6 +234,10 @@ impl Builder {
         for processor in logger_provider.log_processors() {
             processor.set_resource(logger_provider.resource());
         }
+
+        otel_debug!(
+            name: "LoggerProvider.Built",
+        );
         logger_provider
     }
 }
@@ -238,29 +247,18 @@ impl Builder {
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
 pub struct Logger {
-    instrumentation_lib: Arc<InstrumentationLibrary>,
+    scope: InstrumentationScope,
     provider: LoggerProvider,
 }
 
 impl Logger {
-    pub(crate) fn new(
-        instrumentation_lib: Arc<InstrumentationLibrary>,
-        provider: LoggerProvider,
-    ) -> Self {
-        Logger {
-            instrumentation_lib,
-            provider,
-        }
+    pub(crate) fn new(scope: InstrumentationScope, provider: LoggerProvider) -> Self {
+        Logger { scope, provider }
     }
 
-    /// LoggerProvider associated with this logger.
-    pub fn provider(&self) -> &LoggerProvider {
-        &self.provider
-    }
-
-    /// Instrumentation library information of this logger.
-    pub fn instrumentation_library(&self) -> &InstrumentationLibrary {
-        &self.instrumentation_lib
+    #[cfg(test)]
+    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
+        &self.scope
     }
 }
 
@@ -273,7 +271,7 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        let provider = self.provider();
+        let provider = &self.provider;
         let processors = provider.log_processors();
 
         //let mut log_record = record;
@@ -292,22 +290,17 @@ impl opentelemetry::logs::Logger for Logger {
         }
 
         for p in processors {
-            p.emit(&mut record, self.instrumentation_library());
+            p.emit(&mut record, &self.scope);
         }
     }
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = self.provider();
+        let provider = &self.provider;
 
         let mut enabled = false;
         for processor in provider.log_processors() {
-            enabled = enabled
-                || processor.event_enabled(
-                    level,
-                    target,
-                    self.instrumentation_library().name.as_ref(),
-                );
+            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
         }
         enabled
     }
@@ -319,7 +312,7 @@ mod tests {
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogsExporter,
+        testing::logs::InMemoryLogExporter,
         trace::TracerProvider,
         Resource,
     };
@@ -354,7 +347,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -490,7 +483,7 @@ mod tests {
 
     #[test]
     fn trace_context_test() {
-        let exporter = InMemoryLogsExporter::default();
+        let exporter = InMemoryLogExporter::default();
 
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -714,6 +707,42 @@ mod tests {
         assert_eq!(*shutdown_called.lock().unwrap(), 1);
     }
 
+    #[test]
+    fn test_empty_logger_name() {
+        let exporter = InMemoryLogExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let logger = logger_provider.logger("");
+        let mut record = logger.create_log_record();
+        record.set_body("Testing empty logger name".into());
+        logger.emit(record);
+
+        // Create a logger using a scope with an empty name
+        let scope = InstrumentationScope::builder("").build();
+        let scoped_logger = logger_provider.logger_with_scope(scope);
+        let mut scoped_record = scoped_logger.create_log_record();
+        scoped_record.set_body("Testing empty logger scope name".into());
+        scoped_logger.emit(scoped_record);
+
+        // Assert: Verify that the emitted logs are processed correctly
+        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(emitted_logs.len(), 2);
+        // Assert the first log
+        assert_eq!(
+            emitted_logs[0].clone().record.body,
+            Some(AnyValue::String("Testing empty logger name".into()))
+        );
+        assert_eq!(logger.scope.name(), "");
+
+        // Assert the second log created through the scope
+        assert_eq!(
+            emitted_logs[1].clone().record.body,
+            Some(AnyValue::String("Testing empty logger scope name".into()))
+        );
+        assert_eq!(scoped_logger.scope.name(), "");
+    }
+
     #[derive(Debug)]
     pub(crate) struct LazyLogProcessor {
         shutdown_called: Arc<Mutex<bool>>,
@@ -733,7 +762,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do.
         }
 
@@ -764,7 +793,7 @@ mod tests {
     }
 
     impl LogProcessor for CountingShutdownProcessor {
-        fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {
+        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
             // nothing to do
         }
 

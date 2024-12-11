@@ -7,6 +7,7 @@ use std::{fmt, hash};
 /// See the [attribute naming] spec for guidelines.
 ///
 /// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
+#[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
 
@@ -149,6 +150,7 @@ impl hash::Hash for OtelString {
 }
 
 /// A [Value::Array] containing homogeneous values.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
@@ -212,6 +214,7 @@ into_array!(
 );
 
 /// The value part of attribute [KeyValue] pairs.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// bool values
@@ -227,6 +230,7 @@ pub enum Value {
 }
 
 /// Wrapper for string-like values
+#[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct StringValue(OtelString);
 
@@ -372,6 +376,7 @@ impl fmt::Display for Value {
 
 /// A key-value pair describing an attribute.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct KeyValue {
     /// The attribute name
     pub key: Key,
@@ -394,15 +399,9 @@ impl KeyValue {
     }
 }
 
-/// Marker trait for errors returned by exporters
-pub trait ExportError: std::error::Error + Send + Sync + 'static {
-    /// The name of exporter that returned this error
-    fn exporter_name(&self) -> &'static str;
-}
-
 /// Information about a library or crate providing instrumentation.
 ///
-/// An instrumentation library should be named to follow any naming conventions
+/// An instrumentation scope should be named to follow any naming conventions
 /// of the instrumented library (e.g. 'middleware' for a web framework).
 ///
 /// See the [instrumentation libraries] spec for more information.
@@ -410,37 +409,28 @@ pub trait ExportError: std::error::Error + Send + Sync + 'static {
 /// [instrumentation libraries]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/overview.md#instrumentation-libraries
 #[derive(Debug, Default, Clone)]
 #[non_exhaustive]
-pub struct InstrumentationLibrary {
+pub struct InstrumentationScope {
     /// The library name.
     ///
     /// This should be the name of the crate providing the instrumentation.
-    pub name: Cow<'static, str>,
+    name: Cow<'static, str>,
 
     /// The library version.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate").
-    ///     with_version(env!("CARGO_PKG_VERSION")).
-    ///     with_schema_url("https://opentelemetry.io/schemas/1.17.0").
-    ///     build();
-    /// ```
-    pub version: Option<Cow<'static, str>>,
+    version: Option<Cow<'static, str>>,
 
-    /// [Schema url] used by this library.
+    /// [Schema URL] used by this library.
     ///
-    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub schema_url: Option<Cow<'static, str>>,
+    /// [Schema URL]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
+    schema_url: Option<Cow<'static, str>>,
 
     /// Specifies the instrumentation scope attributes to associate with emitted telemetry.
-    pub attributes: Vec<KeyValue>,
+    attributes: Vec<KeyValue>,
 }
 
-// Uniqueness for InstrumentationLibrary/InstrumentationScope does not depend on attributes
-impl Eq for InstrumentationLibrary {}
+// Uniqueness for InstrumentationScope does not depend on attributes
+impl Eq for InstrumentationScope {}
 
-impl PartialEq for InstrumentationLibrary {
+impl PartialEq for InstrumentationScope {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.version == other.version
@@ -448,7 +438,7 @@ impl PartialEq for InstrumentationLibrary {
     }
 }
 
-impl hash::Hash for InstrumentationLibrary {
+impl hash::Hash for InstrumentationScope {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.version.hash(state);
@@ -456,39 +446,47 @@ impl hash::Hash for InstrumentationLibrary {
     }
 }
 
-impl InstrumentationLibrary {
-    /// Deprecated, use [`InstrumentationLibrary::builder()`]
-    ///
-    /// Create an new instrumentation library.
-    #[deprecated(since = "0.23.0", note = "Please use builder() instead")]
-    pub fn new(
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> InstrumentationLibrary {
-        InstrumentationLibrary {
-            name: name.into(),
-            version: version.map(Into::into),
-            schema_url: schema_url.map(Into::into),
-            attributes: attributes.unwrap_or_default(),
-        }
-    }
-
-    /// Create a new builder to create an [InstrumentationLibrary]
-    pub fn builder<T: Into<Cow<'static, str>>>(name: T) -> InstrumentationLibraryBuilder {
-        InstrumentationLibraryBuilder {
+impl InstrumentationScope {
+    /// Create a new builder to create an [InstrumentationScope]
+    pub fn builder<T: Into<Cow<'static, str>>>(name: T) -> InstrumentationScopeBuilder {
+        InstrumentationScopeBuilder {
             name: name.into(),
             version: None,
             schema_url: None,
             attributes: None,
         }
     }
+
+    /// Returns the instrumentation library name.
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the instrumentation library version.
+    #[inline]
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_deref()
+    }
+
+    /// Returns the [Schema URL] used by this library.
+    ///
+    /// [Schema URL]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
+    #[inline]
+    pub fn schema_url(&self) -> Option<&str> {
+        self.schema_url.as_deref()
+    }
+
+    /// Returns the instrumentation scope attributes to associate with emitted telemetry.
+    #[inline]
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
-/// Configuration options for [InstrumentationLibrary].
+/// Configuration options for [InstrumentationScope].
 ///
-/// An instrumentation library is a library or crate providing instrumentation.
+/// An instrumentation scope is a library or crate providing instrumentation.
 /// It should be named to follow any naming conventions of the instrumented
 /// library (e.g. 'middleware' for a web framework).
 ///
@@ -498,23 +496,20 @@ impl InstrumentationLibrary {
 ///
 /// [instrumentation libraries]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/overview.md#instrumentation-libraries
 #[derive(Debug)]
-pub struct InstrumentationLibraryBuilder {
+pub struct InstrumentationScopeBuilder {
     name: Cow<'static, str>,
-
     version: Option<Cow<'static, str>>,
-
     schema_url: Option<Cow<'static, str>>,
-
     attributes: Option<Vec<KeyValue>>,
 }
 
-impl InstrumentationLibraryBuilder {
-    /// Configure the version for the instrumentation library
+impl InstrumentationScopeBuilder {
+    /// Configure the version for the instrumentation scope
     ///
     /// # Examples
     ///
     /// ```
-    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    /// let scope = opentelemetry::InstrumentationScope::builder("my-crate")
     ///     .with_version("v0.1.0")
     ///     .build();
     /// ```
@@ -523,12 +518,12 @@ impl InstrumentationLibraryBuilder {
         self
     }
 
-    /// Configure the Schema URL for the instrumentation library
+    /// Configure the Schema URL for the instrumentation scope
     ///
     /// # Examples
     ///
     /// ```
-    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    /// let scope = opentelemetry::InstrumentationScope::builder("my-crate")
     ///     .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
     ///     .build();
     /// ```
@@ -537,14 +532,14 @@ impl InstrumentationLibraryBuilder {
         self
     }
 
-    /// Configure the attributes for the instrumentation library
+    /// Configure the attributes for the instrumentation scope
     ///
     /// # Examples
     ///
     /// ```
     /// use opentelemetry::KeyValue;
     ///
-    /// let library = opentelemetry::InstrumentationLibrary::builder("my-crate")
+    /// let scope = opentelemetry::InstrumentationScope::builder("my-crate")
     ///     .with_attributes([KeyValue::new("k", "v")])
     ///     .build();
     /// ```
@@ -556,9 +551,9 @@ impl InstrumentationLibraryBuilder {
         self
     }
 
-    /// Create a new [InstrumentationLibrary] from this configuration
-    pub fn build(self) -> InstrumentationLibrary {
-        InstrumentationLibrary {
+    /// Create a new [InstrumentationScope] from this configuration
+    pub fn build(self) -> InstrumentationScope {
+        InstrumentationScope {
             name: self.name,
             version: self.version,
             schema_url: self.schema_url,

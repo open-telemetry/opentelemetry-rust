@@ -7,12 +7,8 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry::trace::{Span, Tracer};
 
 #[cfg(feature = "metrics")]
-use opentelemetry_sdk::runtime;
-
-#[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
-use opentelemetry_sdk::trace::Config;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
@@ -25,19 +21,20 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 #[cfg(feature = "trace")]
-fn init_trace() {
+fn init_trace() -> TracerProvider {
     let exporter = opentelemetry_stdout::SpanExporter::default();
     let provider = TracerProvider::builder()
         .with_simple_exporter(exporter)
-        .with_config(Config::default().with_resource(RESOURCE.clone()))
+        .with_resource(RESOURCE.clone())
         .build();
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 #[cfg(feature = "metrics")]
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
-    let exporter = opentelemetry_stdout::MetricsExporter::default();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let exporter = opentelemetry_stdout::MetricExporter::default();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(RESOURCE.clone())
@@ -64,16 +61,17 @@ fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
 
 #[cfg(feature = "trace")]
 fn emit_span() {
-    use opentelemetry::trace::{
-        SpanContext, SpanId, TraceFlags, TraceId, TraceState, TracerProvider,
+    use opentelemetry::{
+        trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState},
+        InstrumentationScope,
     };
 
-    let tracer = global::tracer_provider()
-        .tracer_builder("stdout-example")
+    let scope = InstrumentationScope::builder("stdout-example")
         .with_version("v1")
-        .with_schema_url("schema_url")
         .with_attributes([KeyValue::new("scope_key", "scope_value")])
         .build();
+
+    let tracer = global::tracer_with_scope(scope);
     let mut span = tracer.start("example-span");
     span.set_attribute(KeyValue::new("attribute_key1", "attribute_value1"));
     span.set_attribute(KeyValue::new("attribute_key2", "attribute_value2"));
@@ -114,7 +112,7 @@ fn emit_span() {
 #[cfg(feature = "metrics")]
 fn emit_metrics() {
     let meter = global::meter("stdout-example");
-    let c = meter.u64_counter("example_counter").init();
+    let c = meter.u64_counter("example_counter").build();
     c.add(
         1,
         &[
@@ -151,7 +149,7 @@ fn emit_metrics() {
         ],
     );
 
-    let h = meter.f64_histogram("example_histogram").init();
+    let h = meter.f64_histogram("example_histogram").build();
     h.record(
         1.0,
         &[
@@ -198,7 +196,7 @@ fn emit_log() {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "trace")]
-    init_trace();
+    let tracer_provider = init_trace();
 
     #[cfg(feature = "metrics")]
     let meter_provider = init_metrics();
@@ -216,7 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     emit_metrics();
 
     #[cfg(feature = "trace")]
-    global::shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
 
     #[cfg(feature = "metrics")]
     meter_provider.shutdown()?;

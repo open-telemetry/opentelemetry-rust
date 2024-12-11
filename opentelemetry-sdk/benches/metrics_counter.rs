@@ -1,18 +1,19 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.3 LTS (5.15.146.1-microsoft-standard-WSL2)
+    rustc 1.82.0 (f6e511eec 2024-10-15)
+    OS: Ubuntu 22.04.3 LTS (5.15.167.4-microsoft-standard-WSL2)
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Counter_Add_Sorted             | 193 ns      |
-    | Counter_Add_Unsorted           | 209 ns      |
-    | Counter_Overflow               | 898 ns      |
+    | Counter_Add_Sorted             | 172 ns      |
+    | Counter_Add_Unsorted           | 183 ns      |
+    | Counter_Overflow               | 562 ns      |
     | ThreadLocal_Random_Generator_5 |  37 ns      |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
@@ -44,7 +45,7 @@ fn create_counter(name: &'static str) -> Counter<u64> {
     let meter = meter_provider.meter("benchmarks");
 
     println!("Counter_Created");
-    meter.u64_counter(name).init()
+    meter.u64_counter(name).build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -57,62 +58,72 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn counter_add_sorted(c: &mut Criterion) {
     let counter = create_counter("Counter_Add_Sorted");
     c.bench_function("Counter_Add_Sorted", |b| {
-        b.iter(|| {
-            // 4*4*10*10 = 1600 time series.
-            let rands = CURRENT_RNG.with(|rng| {
-                let mut rng = rng.borrow_mut();
-                [
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..10),
-                    rng.gen_range(0..10),
-                ]
-            });
-            let index_first_attribute = rands[0];
-            let index_second_attribute = rands[1];
-            let index_third_attribute = rands[2];
-            let index_fourth_attribute = rands[3];
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
-                ],
-            );
-        });
+        b.iter_batched(
+            || {
+                // 4*4*10*10 = 1600 time series.
+                CURRENT_RNG.with(|rng| {
+                    let mut rng = rng.borrow_mut();
+                    [
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..10),
+                        rng.gen_range(0..10),
+                    ]
+                })
+            },
+            |rands| {
+                let index_first_attribute = rands[0];
+                let index_second_attribute = rands[1];
+                let index_third_attribute = rands[2];
+                let index_fourth_attribute = rands[3];
+                counter.add(
+                    1,
+                    &[
+                        KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                        KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                        KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                        KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    ],
+                );
+            },
+            BatchSize::SmallInput,
+        );
     });
 }
 
 fn counter_add_unsorted(c: &mut Criterion) {
     let counter = create_counter("Counter_Add_Unsorted");
     c.bench_function("Counter_Add_Unsorted", |b| {
-        b.iter(|| {
-            // 4*4*10*10 = 1600 time series.
-            let rands = CURRENT_RNG.with(|rng| {
-                let mut rng = rng.borrow_mut();
-                [
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..10),
-                    rng.gen_range(0..10),
-                ]
-            });
-            let index_first_attribute = rands[0];
-            let index_second_attribute = rands[1];
-            let index_third_attribute = rands[2];
-            let index_fourth_attribute = rands[3];
-            counter.add(
-                1,
-                &[
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
-                ],
-            );
-        });
+        b.iter_batched(
+            || {
+                // 4*4*10*10 = 1600 time series.
+                CURRENT_RNG.with(|rng| {
+                    let mut rng = rng.borrow_mut();
+                    [
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..10),
+                        rng.gen_range(0..10),
+                    ]
+                })
+            },
+            |rands| {
+                let index_first_attribute = rands[0];
+                let index_second_attribute = rands[1];
+                let index_third_attribute = rands[2];
+                let index_fourth_attribute = rands[3];
+                counter.add(
+                    1,
+                    &[
+                        KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                        KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                        KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                        KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    ],
+                );
+            },
+            BatchSize::SmallInput,
+        );
     });
 }
 

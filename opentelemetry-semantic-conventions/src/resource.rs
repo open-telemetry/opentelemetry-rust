@@ -21,7 +21,6 @@
 //! let _tracer = TracerProvider::builder()
 //!     .with_config(config().with_resource(Resource::new(vec![
 //!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
-//!         KeyValue::new(semconv::resource::SERVICE_NAMESPACE, "my-namespace"),
 //!     ])))
 //!     .build();
 //! ```
@@ -359,6 +358,9 @@ pub use crate::attribute::PROCESS_EXECUTABLE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_EXECUTABLE_PATH;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_LINUX_CGROUP;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_OWNER;

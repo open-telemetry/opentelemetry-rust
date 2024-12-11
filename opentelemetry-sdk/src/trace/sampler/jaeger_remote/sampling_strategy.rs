@@ -4,9 +4,9 @@ use crate::trace::sampler::jaeger_remote::remote::{
 };
 use crate::trace::sampler::sample_based_on_probability;
 use opentelemetry::trace::{
-    SamplingDecision, SamplingResult, TraceContextExt, TraceError, TraceId, TraceState,
+    SamplingDecision, SamplingResult, TraceContextExt, TraceId, TraceState,
 };
-use opentelemetry::{global, Context};
+use opentelemetry::{otel_warn, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
@@ -107,9 +107,10 @@ impl Inner {
                 }
             })
             .unwrap_or_else(|_err| {
-                global::handle_error(TraceError::Other(
-                    "jaeger remote sampler mutex poisoned".into(),
-                ))
+                otel_warn!(
+                    name: "JaegerRemoteSampler.MutexPoisoned",
+                    message = "Unable to update Jaeger Remote sampling strategy: the sampler's internal mutex is poisoned, likely due to a panic in another thread holding the lock. No further attempts to update the strategy will be made until the application or process restarts, and the last known configuration will continue to be used.",
+                );
             });
     }
 
@@ -137,7 +138,13 @@ impl Inner {
             (_, _, Some(probabilistic)) => {
                 Some(Strategy::Probabilistic(probabilistic.sampling_rate))
             }
-            _ => None,
+            _ => {
+                otel_warn!(
+                    name: "JaegerRemoteSampler.InvalidStrategyReceived",
+                    message = "Invalid sampling strategy received from the remote endpoint. Expected one of: OperationSampling, RateLimitingSampling, or ProbabilisticSampling. Continuing to use the previous strategy or default sampler until a successful update.",
+                );
+                None
+            }
         }
     }
 

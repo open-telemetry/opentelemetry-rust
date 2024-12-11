@@ -1,11 +1,10 @@
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
-use crate::InstrumentationLibrary;
+use crate::InstrumentationScope;
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
-use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::SystemTime;
 
 /// Allows a specific [`crate::trace::Span`] to be used generically by [`BoxedSpan`]
@@ -305,10 +304,7 @@ where
 pub trait ObjectSafeTracerProvider {
     /// Creates a versioned named tracer instance that is a trait object through the underlying
     /// `TracerProvider`.
-    fn boxed_tracer(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-    ) -> Box<dyn ObjectSafeTracer + Send + Sync>;
+    fn boxed_tracer(&self, scope: InstrumentationScope) -> Box<dyn ObjectSafeTracer + Send + Sync>;
 }
 
 impl<S, T, P> ObjectSafeTracerProvider for P
@@ -318,11 +314,8 @@ where
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a versioned boxed tracer
-    fn boxed_tracer(
-        &self,
-        library: Arc<InstrumentationLibrary>,
-    ) -> Box<dyn ObjectSafeTracer + Send + Sync> {
-        Box::new(self.library_tracer(library))
+    fn boxed_tracer(&self, scope: InstrumentationScope) -> Box<dyn ObjectSafeTracer + Send + Sync> {
+        Box::new(self.tracer_with_scope(scope))
     }
 }
 
@@ -360,17 +353,19 @@ impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Create a tracer using the global provider.
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
-        BoxedTracer(self.provider.boxed_tracer(library))
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
+        BoxedTracer(self.provider.boxed_tracer(scope))
     }
 }
 
 /// The global `Tracer` provider singleton.
-static GLOBAL_TRACER_PROVIDER: Lazy<RwLock<GlobalTracerProvider>> = Lazy::new(|| {
-    RwLock::new(GlobalTracerProvider::new(
-        trace::noop::NoopTracerProvider::new(),
-    ))
-});
+static GLOBAL_TRACER_PROVIDER: OnceLock<RwLock<GlobalTracerProvider>> = OnceLock::new();
+
+#[inline]
+fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
+    GLOBAL_TRACER_PROVIDER
+        .get_or_init(|| RwLock::new(GlobalTracerProvider::new(NoopTracerProvider::new())))
+}
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
 /// [`GlobalTracerProvider`].
@@ -378,7 +373,7 @@ static GLOBAL_TRACER_PROVIDER: Lazy<RwLock<GlobalTracerProvider>> = Lazy::new(||
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub fn tracer_provider() -> GlobalTracerProvider {
-    GLOBAL_TRACER_PROVIDER
+    global_tracer_provider()
         .read()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned")
         .clone()
@@ -395,6 +390,33 @@ pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
     tracer_provider().tracer(name.into())
 }
 
+/// Creates a [`Tracer`] with the given instrumentation scope
+/// via the configured [`GlobalTracerProvider`].
+///
+/// This is a simpler alternative to `global::tracer_provider().tracer_with_scope(...)`
+///
+/// # Example
+///
+/// ```
+/// use std::sync::Arc;
+/// use opentelemetry::global::tracer_with_scope;
+/// use opentelemetry::InstrumentationScope;
+/// use opentelemetry::KeyValue;
+///
+/// let scope = InstrumentationScope::builder("io.opentelemetry")
+///     .with_version("0.17")
+///     .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+///     .with_attributes(vec![(KeyValue::new("key", "value"))])
+///     .build();
+///
+/// let tracer = tracer_with_scope(scope);
+/// ```
+///
+/// [`Tracer`]: crate::trace::Tracer
+pub fn tracer_with_scope(scope: InstrumentationScope) -> BoxedTracer {
+    tracer_provider().tracer_with_scope(scope)
+}
+
 /// Sets the given [`TracerProvider`] instance as the current global provider.
 ///
 /// It returns the [`TracerProvider`] instance that was previously mounted as global provider
@@ -407,24 +429,11 @@ where
     T: trace::Tracer<Span = S> + Send + Sync + 'static,
     P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
 {
-    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
+    let mut tracer_provider = global_tracer_provider()
         .write()
         .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
     mem::replace(
         &mut *tracer_provider,
         GlobalTracerProvider::new(new_provider),
     )
-}
-
-/// Shut down the current tracer provider. This will invoke the shutdown method on all span processors.
-/// span processors should export remaining spans before return
-pub fn shutdown_tracer_provider() {
-    let mut tracer_provider = GLOBAL_TRACER_PROVIDER
-        .write()
-        .expect("GLOBAL_TRACER_PROVIDER RwLock poisoned");
-
-    let _ = mem::replace(
-        &mut *tracer_provider,
-        GlobalTracerProvider::new(NoopTracerProvider::new()),
-    );
 }

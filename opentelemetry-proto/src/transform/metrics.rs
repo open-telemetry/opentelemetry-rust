@@ -8,12 +8,13 @@ pub mod tonic {
     use std::any::Any;
     use std::fmt;
 
-    use opentelemetry::{global, metrics::MetricsError, Key, Value};
+    use opentelemetry::{otel_debug, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
-        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum, Temporality,
+        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
+    use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
     use crate::proto::tonic::{
@@ -97,10 +98,12 @@ pub mod tonic {
                 Temporality::Cumulative => AggregationTemporality::Cumulative,
                 Temporality::Delta => AggregationTemporality::Delta,
                 other => {
-                    opentelemetry::global::handle_error(MetricsError::Other(format!(
-                        "Unknown temporality {:?}, using default instead.",
-                        other
-                    )));
+                    otel_debug!(
+                        name: "AggregationTemporality::Unknown",
+                        message = "Unknown temporality,using default instead.",
+                        unknown_temporality = format!("{:?}", other),
+                        default_temporality = format!("{:?}", Temporality::Cumulative)
+                    );
                     AggregationTemporality::Cumulative
                 }
             }
@@ -135,9 +138,8 @@ pub mod tonic {
                 metrics: sm.metrics.iter().map(Into::into).collect(),
                 schema_url: sm
                     .scope
-                    .schema_url
-                    .as_ref()
-                    .map(ToString::to_string)
+                    .schema_url()
+                    .map(ToOwned::to_owned)
                     .unwrap_or_default(),
             }
         }
@@ -184,7 +186,11 @@ pub mod tonic {
             } else if let Some(gauge) = data.downcast_ref::<SdkGauge<f64>>() {
                 Ok(TonicMetricData::Gauge(gauge.into()))
             } else {
-                global::handle_error(MetricsError::Other("unknown aggregator".into()));
+                otel_debug!(
+                    name: "TonicMetricData::UnknownAggregator",
+                    message= "Unknown aggregator type",
+                    unknown_type= format!("{:?}", data),
+                );
                 Err(())
             }
         }
@@ -224,8 +230,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: to_nanos(hist.start_time),
+                        time_unix_nano: to_nanos(hist.time),
                         count: dp.count,
                         sum: Some(dp.sum.into_f64()),
                         bucket_counts: dp.bucket_counts.clone(),
@@ -252,8 +258,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicExponentialHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: to_nanos(hist.start_time),
+                        time_unix_nano: to_nanos(hist.time),
                         count: dp.count as u64,
                         sum: Some(dp.sum.into_f64()),
                         scale: dp.scale.into(),
@@ -289,8 +295,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: dp.start_time.map(to_nanos).unwrap_or_default(),
-                        time_unix_nano: dp.time.map(to_nanos).unwrap_or_default(),
+                        start_time_unix_nano: to_nanos(sum.start_time),
+                        time_unix_nano: to_nanos(sum.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),
@@ -313,8 +319,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: dp.start_time.map(to_nanos).unwrap_or_default(),
-                        time_unix_nano: dp.time.map(to_nanos).unwrap_or_default(),
+                        start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),
+                        time_unix_nano: to_nanos(gauge.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),

@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Update to [v1.29.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
+- Update to [v0.11.0](https://github.com/open-telemetry/weaver/releases/tag/v0.11.0) of the semantic conventions.
+
+## 0.27.0
+
+Released 2024-Nov-11
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 - Update to [v1.28.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.28.0) of the semantic conventions.
 

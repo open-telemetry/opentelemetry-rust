@@ -2,23 +2,36 @@
 
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
-use opentelemetry::logs::LogError;
 use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_otlp::LogExporter;
+use opentelemetry_sdk::logs::{LogError, LoggerProvider};
 use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+    let exporter_builder = LogExporter::builder();
+    #[cfg(feature = "tonic-client")]
+    let exporter_builder = exporter_builder.with_tonic();
+    #[cfg(not(feature = "tonic-client"))]
+    #[cfg(any(
+        feature = "hyper-client",
+        feature = "reqwest-client",
+        feature = "reqwest-blocking-client"
+    ))]
+    let exporter_builder = exporter_builder.with_http();
+
+    let exporter = exporter_builder.build()?;
+
+    Ok(LoggerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(Resource::new(vec![KeyValue::new(
             opentelemetry_semantic_conventions::resource::SERVICE_NAME,
             "logs-integration-test",
         )]))
-        .install_batch()
+        .build())
 }
 
 pub async fn logs() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
