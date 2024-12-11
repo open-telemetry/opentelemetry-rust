@@ -28,6 +28,52 @@
      Migration Guidance: 
         - These methods were intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
+- *Breaking* - `PeriodicReader` Updates
+
+   `PeriodicReader` no longer requires an async runtime by default. Instead, it
+   now creates its own background thread for execution. This change allows
+   metrics to be used in environments without async runtimes.
+
+   For users who prefer the previous behavior of relying on a specific
+   `Runtime`, they can do so by enabling the feature flag
+   **`experimental_metrics_periodicreader_with_async_runtime`**.
+
+   Migration Guide:
+
+ 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+    new default implementation does not require a runtime argument. Replace the
+    builder method accordingly:
+    - *Before:* 
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```
+    - *After:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
+      ```
+
+ 2. *Async Runtime Support*
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_metrics_periodicreader_with_async_runtime" feature flag and
+    adjust code as below.  
+
+    - *Before:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```
+
+    - *After:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```      
+
+    *Requirements:*
+    - Enable the feature flag:
+      `experimental_metrics_periodicreader_with_async_runtime`.  
+    - Continue enabling one of the async runtime feature flags: `rt-tokio`,
+      `rt-tokio-current-thread`, or `rt-async-std`.
+
 ## 0.27.1
 
 Released 2024-Nov-27

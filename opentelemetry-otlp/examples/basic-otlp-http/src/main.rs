@@ -10,7 +10,7 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::{
     logs::LoggerProvider,
-    metrics::{MetricError, PeriodicReader, SdkMeterProvider},
+    metrics::{MetricError, SdkMeterProvider},
     runtime,
     trace::{self as sdktrace, TracerProvider},
 };
@@ -63,8 +63,19 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .with_endpoint("http://localhost:4318/v1/metrics")
         .build()?;
 
+    #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
+    let reader =
+        opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(
+            exporter,
+            runtime::Tokio,
+        )
+        .build();
+    // TODO: This does not work today. See https://github.com/open-telemetry/opentelemetry-rust/issues/2400
+    #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
+
     Ok(SdkMeterProvider::builder()
-        .with_reader(PeriodicReader::builder(exporter, runtime::Tokio).build())
+        .with_reader(reader)
         .with_resource(RESOURCE.clone())
         .build())
 }

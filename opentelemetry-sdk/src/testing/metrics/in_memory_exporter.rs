@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex};
 /// # Example
 ///
 /// ```
-///# use opentelemetry_sdk::{metrics, runtime};
+///# use opentelemetry_sdk::metrics;
 ///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
 ///# use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 ///
 ///  // Create a MeterProvider and register the exporter
 ///  let meter_provider = metrics::SdkMeterProvider::builder()
-///      .with_reader(PeriodicReader::builder(exporter.clone(), runtime::Tokio).build())
+///      .with_reader(PeriodicReader::builder(exporter.clone()).build())
 ///      .build();
 ///
 ///  // Create and record metrics using the MeterProvider
