@@ -82,12 +82,6 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let tracer_provider = init_traces()?;
-    global::set_tracer_provider(tracer_provider.clone());
-
-    let meter_provider = init_metrics()?;
-    global::set_meter_provider(meter_provider.clone());
-
     let logger_provider = init_logs()?;
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
@@ -125,6 +119,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with(otel_layer)
         .with(fmt_layer)
         .init();
+
+    let tracer_provider = init_traces()?;
+    global::set_tracer_provider(tracer_provider.clone());
+
+    let meter_provider = init_metrics()?;
+    global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
     let scope = InstrumentationScope::builder("basic")

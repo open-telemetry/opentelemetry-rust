@@ -15,7 +15,7 @@ experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/exp
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "metrics", "logs", "experimental_metrics_periodicreader_with_async_runtime"]}
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "experimental_metrics_periodicreader_with_async_runtime"]}
 opentelemetry-http = { path = "../../../opentelemetry-http", optional = true, default-features = false}
 opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs"] , default-features = false}
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
