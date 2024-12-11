@@ -295,8 +295,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: to_nanos(sum.start_time),
+                        time_unix_nano: to_nanos(sum.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),
@@ -319,8 +319,8 @@ pub mod tonic {
                     .iter()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(dp.start_time),
-                        time_unix_nano: to_nanos(dp.time),
+                        start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),
+                        time_unix_nano: to_nanos(gauge.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),

@@ -4,7 +4,7 @@ use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{
     Aggregation, Instrument, PeriodicReader, SdkMeterProvider, Stream, Temporality,
 };
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
@@ -49,7 +49,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_temporality(Temporality::Delta)
         .build();
 
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(Resource::new([KeyValue::new(

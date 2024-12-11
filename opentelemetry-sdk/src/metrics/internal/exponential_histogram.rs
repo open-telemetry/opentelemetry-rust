@@ -1440,7 +1440,7 @@ mod tests {
                 count = out_fn.call(Some(got.as_mut())).0
             }
 
-            assert_aggregation_eq::<T>(Box::new(test.want), got, true, test.name);
+            assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
             assert_eq!(test.want_count, count, "{}", test.name);
         }
     }
@@ -1448,7 +1448,6 @@ mod tests {
     fn assert_aggregation_eq<T: Number + PartialEq>(
         a: Box<dyn Aggregation>,
         b: Box<dyn Aggregation>,
-        ignore_timestamp: bool,
         test_name: &'static str,
     ) {
         assert_eq!(
@@ -1467,13 +1466,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching gauge data points",
-                    test_name,
-                );
+                assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
             let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
@@ -1494,13 +1487,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching sum data points",
-                    test_name,
-                );
+                assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
             let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
@@ -1516,13 +1503,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_hist_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching hist data points",
-                    test_name,
-                );
+                assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
             let b = b
@@ -1544,7 +1525,6 @@ mod tests {
                 assert_exponential_hist_data_points_eq(
                     a,
                     b,
-                    ignore_timestamp,
                     "mismatching hist data points",
                     test_name,
                 );
@@ -1554,10 +1534,9 @@ mod tests {
         }
     }
 
-    fn assert_data_points_eq<T: Number>(
-        a: &data::DataPoint<T>,
-        b: &data::DataPoint<T>,
-        ignore_timestamp: bool,
+    fn assert_sum_data_points_eq<T: Number>(
+        a: &data::SumDataPoint<T>,
+        b: &data::SumDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1567,21 +1546,25 @@ mod tests {
             test_name, message
         );
         assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+    }
 
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
+    fn assert_gauge_data_points_eq<T: Number>(
+        a: &data::GaugeDataPoint<T>,
+        b: &data::GaugeDataPoint<T>,
+        message: &'static str,
+        test_name: &'static str,
+    ) {
+        assert_eq!(
+            a.attributes, b.attributes,
+            "{}: {} attributes",
+            test_name, message
+        );
+        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
     }
 
     fn assert_hist_data_points_eq<T: Number>(
         a: &data::HistogramDataPoint<T>,
         b: &data::HistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1600,21 +1583,11 @@ mod tests {
         assert_eq!(a.min, b.min, "{}: {} min", test_name, message);
         assert_eq!(a.max, b.max, "{}: {} max", test_name, message);
         assert_eq!(a.sum, b.sum, "{}: {} sum", test_name, message);
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 
     fn assert_exponential_hist_data_points_eq<T: Number>(
         a: &data::ExponentialHistogramDataPoint<T>,
         b: &data::ExponentialHistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1645,14 +1618,5 @@ mod tests {
             "{}: {} neg",
             test_name, message
         );
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 }
