@@ -96,13 +96,17 @@ impl ZipkinPipelineBuilder {
         let service_name = self.service_name.take();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = Cow::Owned(Resource::new(
-                    cfg.resource
-                        .iter()
-                        .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>(),
-                ));
+                cfg.resource = Cow::Owned(
+                    Resource::builder_empty()
+                        .with_attributes(
+                            cfg.resource
+                                .iter()
+                                .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
+                                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                                .collect::<Vec<KeyValue>>(),
+                        )
+                        .build(),
+                );
                 cfg
             } else {
                 #[allow(deprecated)]

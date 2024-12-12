@@ -98,7 +98,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    pub fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+    fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         let mut attrs = HashMap::new();
         for kv in kvs {
             attrs.insert(kv.key, kv.value);
@@ -117,7 +117,7 @@ impl Resource {
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
     pub fn new_with_defaults<T: IntoIterator<Item = KeyValue>>(keys: T) -> Self {
-        Resource::default().merge(&mut Resource::new(keys))
+        Resource::builder().with_attributes(keys).build()
     }
 
     /// Create a new `Resource` from a key value pairs and [schema url].
@@ -355,7 +355,9 @@ mod tests {
         let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("final"));
 
-        let resource = Resource::new(args_with_dupe_keys);
+        let resource = Resource::builder_empty()
+            .with_attributes(args_with_dupe_keys)
+            .build();
         let resource_inner = Arc::try_unwrap(resource.inner).expect("Failed to unwrap Arc");
         assert_eq!(resource_inner.attrs, expected_attrs);
         assert_eq!(resource_inner.schema_url, None);
@@ -363,17 +365,21 @@ mod tests {
 
     #[test]
     fn merge_resource_key_value_pairs() {
-        let resource_a = Resource::new(vec![
-            KeyValue::new("a", ""),
-            KeyValue::new("b", "b-value"),
-            KeyValue::new("d", "d-value"),
-        ]);
+        let resource_a = Resource::builder_empty()
+            .with_attributes(vec![
+                KeyValue::new("a", ""),
+                KeyValue::new("b", "b-value"),
+                KeyValue::new("d", "d-value"),
+            ])
+            .build();
 
-        let resource_b = Resource::new(vec![
-            KeyValue::new("a", "a-value"),
-            KeyValue::new("c", "c-value"),
-            KeyValue::new("d", ""),
-        ]);
+        let resource_b = Resource::builder_empty()
+            .with_attributes(vec![
+                KeyValue::new("a", "a-value"),
+                KeyValue::new("c", "c-value"),
+                KeyValue::new("d", ""),
+            ])
+            .build();
 
         let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("a-value"));
@@ -434,7 +440,9 @@ mod tests {
         #[case] expected_schema_url: Option<&'static str>,
     ) {
         let resource = Resource::from_schema_url(key_values_a, schema_url);
-        let other_resource = Resource::new(key_values_b);
+        let other_resource = Resource::builder_empty()
+            .with_attributes(key_values_b)
+            .build();
 
         assert_eq!(
             resource.merge(&other_resource).schema_url(),
@@ -457,12 +465,14 @@ mod tests {
                 let resource = Resource::from_detectors(vec![Box::new(detector)]);
                 assert_eq!(
                     resource,
-                    Resource::new(vec![
-                        KeyValue::new("key", "value"),
-                        KeyValue::new("k", "v"),
-                        KeyValue::new("a", "x"),
-                        KeyValue::new("a", "z"),
-                    ])
+                    Resource::builder_empty()
+                        .with_attributes(vec![
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
                 )
             },
         )
@@ -531,15 +541,17 @@ mod tests {
 
                 assert_eq!(
                     resource,
-                    Resource::new(vec![
-                        KeyValue::new("key", "value"),
-                        KeyValue::new("test1", "test_value1"),
-                        KeyValue::new("test2", "test_value2"),
-                        KeyValue::new(SERVICE_NAME, "testing_service"),
-                        KeyValue::new("k", "v"),
-                        KeyValue::new("a", "x"),
-                        KeyValue::new("a", "z"),
-                    ])
+                    Resource::builder_empty()
+                        .with_attributes(vec![
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("test1", "test_value1"),
+                            KeyValue::new("test2", "test_value2"),
+                            KeyValue::new(SERVICE_NAME, "testing_service"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
                 )
             },
         )

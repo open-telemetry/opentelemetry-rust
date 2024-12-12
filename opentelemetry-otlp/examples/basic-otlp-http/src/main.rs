@@ -24,10 +24,9 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::new(vec![KeyValue::new(
-        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-        "basic-otlp-example",
-    )])
+    Resource::builder_empty()
+        .with_service_name("basic-otlp-example")
+        .build()
 });
 
 fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogError> {

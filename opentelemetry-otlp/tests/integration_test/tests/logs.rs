@@ -27,10 +27,11 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
 
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
-        .with_resource(Resource::new(vec![KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            "logs-integration-test",
-        )]))
+        .with_resource(
+            Resource::builder()
+                .with_service_name("logs-integration-test")
+                .build(),
+        )
         .build())
 }
 

@@ -767,13 +767,17 @@ mod tests {
         let processor = SimpleLogProcessor::new(exporter.clone());
         let _ = LoggerProvider::builder()
             .with_log_processor(processor)
-            .with_resource(Resource::new(vec![
-                KeyValue::new("k1", "v1"),
-                KeyValue::new("k2", "v3"),
-                KeyValue::new("k3", "v3"),
-                KeyValue::new("k4", "v4"),
-                KeyValue::new("k5", "v5"),
-            ]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![
+                        KeyValue::new("k1", "v1"),
+                        KeyValue::new("k2", "v3"),
+                        KeyValue::new("k3", "v3"),
+                        KeyValue::new("k4", "v4"),
+                        KeyValue::new("k5", "v5"),
+                    ])
+                    .build(),
+            )
             .build();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
     }
@@ -790,13 +794,17 @@ mod tests {
         );
         let provider = LoggerProvider::builder()
             .with_log_processor(processor)
-            .with_resource(Resource::new(vec![
-                KeyValue::new("k1", "v1"),
-                KeyValue::new("k2", "v3"),
-                KeyValue::new("k3", "v3"),
-                KeyValue::new("k4", "v4"),
-                KeyValue::new("k5", "v5"),
-            ]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![
+                        KeyValue::new("k1", "v1"),
+                        KeyValue::new("k2", "v3"),
+                        KeyValue::new("k3", "v3"),
+                        KeyValue::new("k4", "v4"),
+                        KeyValue::new("k5", "v5"),
+                    ])
+                    .build(),
+            )
             .build();
         tokio::time::sleep(Duration::from_secs(2)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
