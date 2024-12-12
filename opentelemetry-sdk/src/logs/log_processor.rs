@@ -77,13 +77,13 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// debugging and testing. For scenarios requiring higher
 /// performance/throughput, consider using [BatchLogProcessor].
 #[derive(Debug)]
-pub struct SimpleLogProcessor {
-    exporter: Mutex<Box<dyn LogExporter>>,
+pub struct SimpleLogProcessor<T: LogExporter> {
+    exporter: Mutex<T>,
     is_shutdown: AtomicBool,
 }
 
-impl SimpleLogProcessor {
-    pub(crate) fn new(exporter: Box<dyn LogExporter>) -> Self {
+impl<T: LogExporter> SimpleLogProcessor<T> {
+    pub(crate) fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -91,7 +91,7 @@ impl SimpleLogProcessor {
     }
 }
 
-impl LogProcessor for SimpleLogProcessor {
+impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
@@ -106,7 +106,7 @@ impl LogProcessor for SimpleLogProcessor {
             .exporter
             .lock()
             .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
-            .and_then(|mut exporter| {
+            .and_then(|exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
@@ -586,7 +586,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
+        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
             Ok(())
         }
 
@@ -764,7 +764,7 @@ mod tests {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
         };
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
         let _ = LoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(Resource::new(vec![
@@ -832,7 +832,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1013,7 +1013,7 @@ mod tests {
     #[test]
     fn test_simple_processor_sync_exporter_without_runtime() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1026,7 +1026,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_simple_processor_sync_exporter_with_runtime() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1039,7 +1039,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_simple_processor_sync_exporter_with_multi_thread_runtime() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = Arc::new(SimpleLogProcessor::new(Box::new(exporter.clone())));
+        let processor = Arc::new(SimpleLogProcessor::new(exporter.clone()));
 
         let mut handles = vec![];
         for _ in 0..10 {
@@ -1062,7 +1062,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_simple_processor_sync_exporter_with_current_thread_runtime() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1093,7 +1093,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl LogExporter for LogExporterThatRequiresTokio {
-        async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+        async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
             tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -1109,7 +1109,7 @@ mod tests {
         // Use `catch_unwind` to catch the panic caused by missing Tokio runtime
         let result = std::panic::catch_unwind(|| {
             let exporter = LogExporterThatRequiresTokio::new();
-            let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+            let processor = SimpleLogProcessor::new(exporter.clone());
 
             let mut record: LogRecord = Default::default();
             let instrumentation: InstrumentationScope = Default::default();
@@ -1158,7 +1158,7 @@ mod tests {
     // tasks nor the exporter can proceed.
     async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
         let exporter = LogExporterThatRequiresTokio::new();
-        let processor = Arc::new(SimpleLogProcessor::new(Box::new(exporter.clone())));
+        let processor = Arc::new(SimpleLogProcessor::new(exporter.clone()));
 
         let concurrent_emit = 4; // number of worker threads
 
@@ -1189,7 +1189,7 @@ mod tests {
     // tasks occupy the runtime.
     async fn test_simple_processor_async_exporter_with_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1208,7 +1208,7 @@ mod tests {
     async fn test_simple_processor_async_exporter_with_multi_thread_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
 
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();
@@ -1228,7 +1228,7 @@ mod tests {
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
 
-        let processor = SimpleLogProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleLogProcessor::new(exporter.clone());
 
         let mut record: LogRecord = Default::default();
         let instrumentation: InstrumentationScope = Default::default();

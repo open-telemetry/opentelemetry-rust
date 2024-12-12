@@ -69,7 +69,7 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -247,7 +247,7 @@ mod tests {
 
     #[async_trait]
     impl LogExporter for ReentrantLogExporter {
-        async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()> {
+        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
             // This will cause a deadlock as the export itself creates a log
             // while still within the lock of the SimpleLogProcessor.
             warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");

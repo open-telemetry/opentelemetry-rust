@@ -39,7 +39,6 @@ impl<'a> LogBatch<'a> {
     ///
     /// Note - this is not a public function, and should not be used directly. This would be
     /// made private in the future.
-
     pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
         LogBatch { data }
     }
@@ -82,7 +81,7 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()>;
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()>;
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
     #[cfg(feature = "spec_unstable_logs_enabled")]

@@ -219,10 +219,8 @@ impl TracerProvider {
     ///
     ///     // create more spans..
     ///
-    ///     // dropping provider and shutting down global provider ensure all
-    ///     // remaining spans are exported
+    ///     // dropping provider ensures all remaining spans are exported
     ///     drop(provider);
-    ///     global::shutdown_tracer_provider();
     /// }
     /// ```
     pub fn force_flush(&self) -> Vec<TraceResult<()>> {
@@ -338,7 +336,7 @@ impl Builder {
 
     /// Specify the number of events to be recorded per span.
     pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
-        self.config.span_limits.max_attributes_per_span = max_events;
+        self.config.span_limits.max_events_per_span = max_events;
         self
     }
 

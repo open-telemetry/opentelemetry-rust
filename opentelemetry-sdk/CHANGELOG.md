@@ -2,6 +2,78 @@
 
 ## vNext
 
+- *Breaking*
+  - SimpleLogProcessor modified to be generic over `LogExporter` to
+    avoid dynamic dispatch to invoke exporter. If you were using
+    `with_simple_exporter` to add `LogExporter` with SimpleLogProcessor, this is a
+    transparent change.
+    [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
+  - `ResourceDetector.detect()` no longer supports timeout option.
+  - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply cloneable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
+
+- *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
+  Before:
+     async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()>
+  After:
+     async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()>
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
+
+- *Breaking* Removed the following deprecated struct:
+  - logs::LogData - Previously deprecated in version 0.27.1
+  Migration Guidance: This structure is no longer utilized within the SDK, and users should not have dependencies on it.
+
+- *Breaking* Removed the following deprecated methods:
+  - `Logger::provider()` : Previously deprecated in version 0.27.1
+  - `Logger::instrumentation_scope()` : Previously deprecated in version 0.27.1.
+     Migration Guidance: 
+        - These methods were intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
+
+- *Breaking* - `PeriodicReader` Updates
+
+   `PeriodicReader` no longer requires an async runtime by default. Instead, it
+   now creates its own background thread for execution. This change allows
+   metrics to be used in environments without async runtimes.
+
+   For users who prefer the previous behavior of relying on a specific
+   `Runtime`, they can do so by enabling the feature flag
+   **`experimental_metrics_periodicreader_with_async_runtime`**.
+
+   Migration Guide:
+
+ 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+    new default implementation does not require a runtime argument. Replace the
+    builder method accordingly:
+    - *Before:* 
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```
+    - *After:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
+      ```
+
+ 2. *Async Runtime Support*
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_metrics_periodicreader_with_async_runtime" feature flag and
+    adjust code as below.  
+
+    - *Before:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```
+
+    - *After:*
+      ```rust
+      let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
+      ```      
+
+    *Requirements:*
+    - Enable the feature flag:
+      `experimental_metrics_periodicreader_with_async_runtime`.  
+    - Continue enabling one of the async runtime feature flags: `rt-tokio`,
+      `rt-tokio-current-thread`, or `rt-async-std`.
+
 ## 0.27.1
 
 Released 2024-Nov-27

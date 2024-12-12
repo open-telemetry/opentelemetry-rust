@@ -35,7 +35,6 @@ use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Inner structure of `Resource` holding the actual data.
 /// This structure is designed to be shared among `Resource` instances via `Arc`.
@@ -54,14 +53,11 @@ pub struct Resource {
 
 impl Default for Resource {
     fn default() -> Self {
-        Self::from_detectors(
-            Duration::from_secs(0),
-            vec![
-                Box::new(SdkProvidedResourceDetector),
-                Box::new(TelemetryResourceDetector),
-                Box::new(EnvResourceDetector::new()),
-            ],
-        )
+        Self::from_detectors(vec![
+            Box::new(SdkProvidedResourceDetector),
+            Box::new(TelemetryResourceDetector),
+            Box::new(EnvResourceDetector::new()),
+        ])
     }
 }
 
@@ -137,10 +133,10 @@ impl Resource {
     /// Create a new `Resource` from resource detectors.
     ///
     /// timeout will be applied to each detector.
-    pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
         let mut resource = Resource::empty();
         for detector in detectors {
-            let detected_res = detector.detect(timeout);
+            let detected_res = detector.detect();
             // This call ensures that if the Arc is not uniquely owned,
             // the data is cloned before modification, preserving safety.
             // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
@@ -262,13 +258,14 @@ pub trait ResourceDetector {
     ///
     /// If source information to construct a Resource is invalid, for example,
     /// missing required values. an empty Resource should be returned.
-    fn detect(&self, timeout: Duration) -> Resource;
+    fn detect(&self) -> Resource;
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
-    use std::time;
 
     #[test]
     fn new_resource() {
@@ -313,47 +310,55 @@ mod tests {
         assert_eq!(resource_a.merge(&resource_b), expected_resource);
     }
 
-    #[test]
-    fn merge_resource_schema_url() {
-        // if both resources contains key value pairs
-        let test_cases = vec![
-            (Some("http://schema/a"), None, Some("http://schema/a")),
-            (Some("http://schema/a"), Some("http://schema/b"), None),
-            (None, Some("http://schema/b"), Some("http://schema/b")),
-            (
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-            ),
-            (None, None, None),
-        ];
+    #[rstest]
+    #[case(Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(None, Some("http://schema/b"), Some("http://schema/b"))]
+    #[case(
+        Some("http://schema/a"),
+        Some("http://schema/a"),
+        Some("http://schema/a")
+    )]
+    #[case(None, None, None)]
+    fn merge_resource_schema_url(
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource_a =
+            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
+        let resource_b =
+            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
 
-        for (schema_url_a, schema_url_b, expected_schema_url) in test_cases.into_iter() {
-            let resource_a = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_a.unwrap_or(""),
-            );
-            let resource_b = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_b.unwrap_or(""),
-            );
+        let merged_resource = resource_a.merge(&resource_b);
+        let result_schema_url = merged_resource.schema_url();
 
-            let merged_resource = resource_a.merge(&resource_b);
-            let result_schema_url = merged_resource.schema_url();
+        assert_eq!(
+            result_schema_url.map(|s| s as &str),
+            expected_schema_url,
+            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
+            schema_url_a,
+            schema_url_b,
+            expected_schema_url
+        );
+    }
 
-            assert_eq!(
-                result_schema_url.map(|s| s as &str),
-                expected_schema_url,
-                "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-                schema_url_a, schema_url_b, expected_schema_url
-            );
-        }
+    #[rstest]
+    #[case(vec![], vec![KeyValue::new("key", "b")], "http://schema/a", None)]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], "http://schema/a", Some("http://schema/a"))]
+    fn merge_resource_with_missing_attribtes(
+        #[case] key_values_a: Vec<KeyValue>,
+        #[case] key_values_b: Vec<KeyValue>,
+        #[case] schema_url: &'static str,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource = Resource::from_schema_url(key_values_a, schema_url);
+        let other_resource = Resource::new(key_values_b);
 
-        // if only one resource contains key value pairs
-        let resource = Resource::from_schema_url(vec![], "http://schema/a");
-        let other_resource = Resource::new(vec![KeyValue::new("key", "")]);
-
-        assert_eq!(resource.merge(&other_resource).schema_url(), None);
+        assert_eq!(
+            resource.merge(&other_resource).schema_url(),
+            expected_schema_url
+        );
     }
 
     #[test]
@@ -368,10 +373,7 @@ mod tests {
             ],
             || {
                 let detector = EnvResourceDetector::new();
-                let resource = Resource::from_detectors(
-                    time::Duration::from_secs(5),
-                    vec![Box::new(detector)],
-                );
+                let resource = Resource::from_detectors(vec![Box::new(detector)]);
                 assert_eq!(
                     resource,
                     Resource::new(vec![

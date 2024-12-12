@@ -7,9 +7,6 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry::trace::{Span, Tracer};
 
 #[cfg(feature = "metrics")]
-use opentelemetry_sdk::runtime;
-
-#[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
 #[cfg(feature = "trace")]
@@ -24,19 +21,20 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 #[cfg(feature = "trace")]
-fn init_trace() {
+fn init_trace() -> TracerProvider {
     let exporter = opentelemetry_stdout::SpanExporter::default();
     let provider = TracerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 #[cfg(feature = "metrics")]
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricExporter::default();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(RESOURCE.clone())
@@ -198,7 +196,7 @@ fn emit_log() {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "trace")]
-    init_trace();
+    let tracer_provider = init_trace();
 
     #[cfg(feature = "metrics")]
     let meter_provider = init_metrics();
@@ -216,7 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     emit_metrics();
 
     #[cfg(feature = "trace")]
-    global::shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
 
     #[cfg(feature = "metrics")]
     meter_provider.shutdown()?;

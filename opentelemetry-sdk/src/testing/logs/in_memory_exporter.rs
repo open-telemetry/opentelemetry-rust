@@ -29,7 +29,6 @@ use std::sync::{Arc, Mutex};
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
-
 ///    let emitted_logs = exporter.get_emitted_logs().unwrap();
 ///    for log in emitted_logs {
 ///        println!("{:?}", log);
@@ -184,7 +183,7 @@ impl InMemoryLogExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogExporter {
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
