@@ -120,7 +120,7 @@ impl Resource {
     /// schema_url must be a valid URL using HTTP or HTTPS protocol.
     ///
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub fn from_schema_url<KV, S>(kvs: KV, schema_url: S) -> Self
+    fn from_schema_url<KV, S>(kvs: KV, schema_url: S) -> Self
     where
         KV: IntoIterator<Item = KeyValue>,
         S: Into<Cow<'static, str>>,
