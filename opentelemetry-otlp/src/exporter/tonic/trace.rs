@@ -1,7 +1,7 @@
 use core::fmt;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::trace::TraceError;
+use opentelemetry::{otel_debug, trace::TraceError};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
@@ -43,6 +43,8 @@ impl TonicTracesClient {
                 .accept_compressed(compression);
         }
 
+        otel_debug!(name: "TonicsTracesClientBuilt");
+
         TonicTracesClient {
             inner: Some(ClientInner {
                 client,
@@ -73,6 +75,8 @@ impl SpanExporter for TonicTracesClient {
         };
 
         let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
+
+        otel_debug!(name: "TonicsTracesClient.CallingExport");
 
         Box::pin(async move {
             client

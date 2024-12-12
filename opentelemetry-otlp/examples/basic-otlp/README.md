@@ -14,8 +14,16 @@ The example employs a `BatchExporter` for logs and traces, which is the
 recommended approach when using OTLP exporters. While it can be modified to use
 a `SimpleExporter`, this requires the main method to be a `tokio::main` function
 since the `tonic` client requires a Tokio runtime. If you prefer not to use
-`tokio::main`, then the `init_logs`, `init_traces`, and `init_metrics` functions
-must be executed within a Tokio runtime. Below is an example:
+`tokio::main`, then the `init_logs` and `init_traces` functions must be executed
+within a Tokio runtime. 
+
+This examples uses the default `PeriodicReader` for metrics, which uses own
+thread for background processing/exporting. Since the `tonic` client requires a
+Tokio runtime, the main method must be a `tokio::main` function. If you prefer not
+to use `tokio::main`, then the `init_metrics` function must be executed within a
+Tokio runtime.
+
+Below is an example on how to use non `tokio::main`:
 
 ```rust
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
