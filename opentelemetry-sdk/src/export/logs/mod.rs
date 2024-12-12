@@ -82,7 +82,7 @@ pub trait LogExporter: Send + Sync + Debug {
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
     async fn export(&self, batch: LogBatch<'_>) -> LogResult<()>;
-    
+
     /// Shuts down the exporter.
     fn shutdown(&mut self) -> LogResult<()> {
         Ok(())
