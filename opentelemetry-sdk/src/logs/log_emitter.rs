@@ -24,7 +24,7 @@ fn noop_logger_provider() -> &'static LoggerProvider {
     NOOP_LOGGER_PROVIDER.get_or_init(|| LoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
-            resource: Resource::empty(),
+            resource: Resource::builder_empty().build(),
             is_shutdown: AtomicBool::new(true),
         }),
     })
@@ -477,7 +477,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::LoggerProvider::builder()
-            .with_resource(Resource::empty())
+            .with_resource(Resource::builder_empty().build())
             .build();
         assert_eq!(no_service_name.resource().len(), 0);
     }
@@ -636,7 +636,7 @@ mod tests {
                     shutdown_called.clone(),
                     flush_called.clone(),
                 ))],
-                resource: Resource::empty(),
+                resource: Resource::builder_empty().build(),
                 is_shutdown: AtomicBool::new(false),
             });
 
@@ -677,7 +677,7 @@ mod tests {
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))],
-            resource: Resource::empty(),
+            resource: Resource::builder_empty().build(),
             is_shutdown: AtomicBool::new(false),
         });
 

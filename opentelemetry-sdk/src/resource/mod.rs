@@ -62,22 +62,21 @@ impl Default for Resource {
 }
 
 impl Resource {
-    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    /// Creates a [ResourceBuilder] Starting from [Resource::default()] that allows you to configure multiple aspects of the Resource.
     ///
-    /// Starts with a [Resource::default()].
-    /// The default Resource contains the following detectors
-    /// - SdkProvidedResourceDetector
-    /// - TelemetryResourceDetector
-    /// - EnvResourceDetector
+    /// This Resource will contain the following [ResourceDetector]s:
+    /// - [SdkProvidedResourceDetector]
+    /// - [TelemetryResourceDetector]
+    /// - [EnvResourceDetector]
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
             resource: Resource::default(),
         }
     }
 
-    /// Creates a Builder that allows you to configure multiple aspects of the Resource.
+    /// Creates a [ResourceBuilder] starting from [Resource::empty()] that allows you to configure multiple aspects of the Resource.
     ///
-    /// Starts with a [Resource::empty()].
+    /// This Resource will contain no attributes, and no [ResourceDetector]s.
     pub fn builder_empty() -> ResourceBuilder {
         ResourceBuilder {
             resource: Resource::empty(),
@@ -86,7 +85,7 @@ impl Resource {
 
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
-    pub fn empty() -> Self {
+    fn empty() -> Self {
         Resource {
             inner: Arc::new(ResourceInner {
                 attrs: HashMap::new(),

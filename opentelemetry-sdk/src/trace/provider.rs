@@ -93,7 +93,7 @@ fn noop_tracer_provider() -> &'static TracerProvider {
                     sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
                     id_generator: Box::<RandomIdGenerator>::default(),
                     span_limits: SpanLimits::default(),
-                    resource: Cow::Owned(Resource::empty()),
+                    resource: Cow::Owned(Resource::builder_empty().build()),
                 },
                 is_shutdown: AtomicBool::new(true),
             }),
@@ -639,7 +639,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
-            .with_resource(Resource::empty())
+            .with_resource(Resource::builder_empty().build())
             .build();
 
         assert_eq!(no_service_name.config().resource.len(), 0)

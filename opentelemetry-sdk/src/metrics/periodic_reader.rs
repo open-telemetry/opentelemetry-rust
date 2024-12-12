@@ -325,7 +325,7 @@ impl PeriodicReaderInner {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
         let mut rm = ResourceMetrics {
-            resource: Resource::empty(),
+            resource: Resource::builder_empty().build(),
             scope_metrics: Vec::new(),
         };
 
@@ -647,7 +647,7 @@ mod tests {
             .build();
 
         let rm = &mut ResourceMetrics {
-            resource: Resource::empty(),
+            resource: Resource::builder_empty().build(),
             scope_metrics: Vec::new(),
         };
         // Pipeline is not registered, so collect should return an error

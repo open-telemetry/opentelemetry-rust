@@ -106,7 +106,7 @@ impl ZipkinPipelineBuilder {
                 cfg
             } else {
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty())
+                Config::default().with_resource(Resource::builder_empty().build())
             };
             (config, Endpoint::new(service_name, self.service_addr))
         } else {
@@ -117,7 +117,7 @@ impl ZipkinPipelineBuilder {
                 .to_string();
             (
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty()),
+                Config::default().with_resource(Resource::builder_empty().build()),
                 Endpoint::new(service_name, self.service_addr),
             )
         }
