@@ -60,7 +60,7 @@ impl Resource {
     /// - [EnvResourceDetector]
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
-            resource: Self::from_detectors(vec![
+            resource: Self::from_detectors(&[
                 Box::new(SdkProvidedResourceDetector),
                 Box::new(TelemetryResourceDetector),
                 Box::new(EnvResourceDetector::new()),
@@ -140,7 +140,7 @@ impl Resource {
     /// Create a new `Resource` from resource detectors.
     ///
     /// timeout will be applied to each detector.
-    fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    fn from_detectors(detectors: &[Box<dyn ResourceDetector>]) -> Self {
         let mut resource = Resource::empty();
         for detector in detectors {
             let detected_res = detector.detect();
@@ -278,11 +278,11 @@ pub struct ResourceBuilder {
 impl ResourceBuilder {
     /// Add a single [ResourceDetector] to your resource.
     pub fn with_detector(self, detector: Box<dyn ResourceDetector>) -> Self {
-        self.with_detectors(vec![detector])
+        self.with_detectors(&[detector])
     }
 
     /// Add multiple [ResourceDetector] to your resource.
-    pub fn with_detectors(mut self, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    pub fn with_detectors(mut self, detectors: &[Box<dyn ResourceDetector>]) -> Self {
         self.resource = self.resource.merge(&Resource::from_detectors(detectors));
         self
     }
@@ -448,7 +448,7 @@ mod tests {
             ],
             || {
                 let detector = EnvResourceDetector::new();
-                let resource = Resource::from_detectors(vec![Box::new(detector)]);
+                let resource = Resource::from_detectors(&[Box::new(detector)]);
                 assert_eq!(
                     resource,
                     Resource::builder_empty()
