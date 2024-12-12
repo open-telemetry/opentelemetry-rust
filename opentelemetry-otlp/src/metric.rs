@@ -78,6 +78,7 @@ impl<C> MetricExporterBuilder<C> {
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
     pub fn build(self) -> MetricResult<MetricExporter> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
+        opentelemetry::otel_debug!(name: "MetricExporterBuilt");
         Ok(exporter)
     }
 }

@@ -263,6 +263,8 @@ pub trait ResourceDetector {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
 
     #[test]
@@ -308,47 +310,55 @@ mod tests {
         assert_eq!(resource_a.merge(&resource_b), expected_resource);
     }
 
-    #[test]
-    fn merge_resource_schema_url() {
-        // if both resources contains key value pairs
-        let test_cases = vec![
-            (Some("http://schema/a"), None, Some("http://schema/a")),
-            (Some("http://schema/a"), Some("http://schema/b"), None),
-            (None, Some("http://schema/b"), Some("http://schema/b")),
-            (
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-            ),
-            (None, None, None),
-        ];
+    #[rstest]
+    #[case(Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(None, Some("http://schema/b"), Some("http://schema/b"))]
+    #[case(
+        Some("http://schema/a"),
+        Some("http://schema/a"),
+        Some("http://schema/a")
+    )]
+    #[case(None, None, None)]
+    fn merge_resource_schema_url(
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource_a =
+            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
+        let resource_b =
+            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
 
-        for (schema_url_a, schema_url_b, expected_schema_url) in test_cases.into_iter() {
-            let resource_a = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_a.unwrap_or(""),
-            );
-            let resource_b = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_b.unwrap_or(""),
-            );
+        let merged_resource = resource_a.merge(&resource_b);
+        let result_schema_url = merged_resource.schema_url();
 
-            let merged_resource = resource_a.merge(&resource_b);
-            let result_schema_url = merged_resource.schema_url();
+        assert_eq!(
+            result_schema_url.map(|s| s as &str),
+            expected_schema_url,
+            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
+            schema_url_a,
+            schema_url_b,
+            expected_schema_url
+        );
+    }
 
-            assert_eq!(
-                result_schema_url.map(|s| s as &str),
-                expected_schema_url,
-                "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-                schema_url_a, schema_url_b, expected_schema_url
-            );
-        }
+    #[rstest]
+    #[case(vec![], vec![KeyValue::new("key", "b")], "http://schema/a", None)]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], "http://schema/a", Some("http://schema/a"))]
+    fn merge_resource_with_missing_attribtes(
+        #[case] key_values_a: Vec<KeyValue>,
+        #[case] key_values_b: Vec<KeyValue>,
+        #[case] schema_url: &'static str,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource = Resource::from_schema_url(key_values_a, schema_url);
+        let other_resource = Resource::new(key_values_b);
 
-        // if only one resource contains key value pairs
-        let resource = Resource::from_schema_url(vec![], "http://schema/a");
-        let other_resource = Resource::new(vec![KeyValue::new("key", "")]);
-
-        assert_eq!(resource.merge(&other_resource).schema_url(), None);
+        assert_eq!(
+            resource.merge(&other_resource).schema_url(),
+            expected_schema_url
+        );
     }
 
     #[test]

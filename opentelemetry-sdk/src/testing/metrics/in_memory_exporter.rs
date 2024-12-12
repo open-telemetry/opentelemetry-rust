@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex};
 /// # Example
 ///
 /// ```
-///# use opentelemetry_sdk::{metrics, runtime};
+///# use opentelemetry_sdk::metrics;
 ///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
 ///# use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 ///
 ///  // Create a MeterProvider and register the exporter
 ///  let meter_provider = metrics::SdkMeterProvider::builder()
-///      .with_reader(PeriodicReader::builder(exporter.clone(), runtime::Tokio).build())
+///      .with_reader(PeriodicReader::builder(exporter.clone()).build())
 ///      .build();
 ///
 ///  // Create and record metrics using the MeterProvider
@@ -195,47 +195,65 @@ impl InMemoryMetricExporter {
         if let Some(hist) = data.as_any().downcast_ref::<Histogram<i64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<f64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<u64>>() {
             Some(Box::new(Histogram {
                 data_points: hist.data_points.clone(),
+                start_time: hist.start_time,
+                time: hist.time,
                 temporality: hist.temporality,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<f64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<u64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
+                start_time: sum.start_time,
+                time: sum.time,
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<i64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<f64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<u64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
+                start_time: gauge.start_time,
+                time: gauge.time,
             }))
         } else {
             // unknown data type

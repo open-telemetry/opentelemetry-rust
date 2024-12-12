@@ -18,7 +18,7 @@ pub enum MetricError {
     #[error("Config error {0}")]
     Config(String),
     /// Fail to export metrics
-    #[error("Metrics exporter {} failed with {0}", .0.exporter_name())]
+    #[error("Metrics exporter {0} failed with {name}", name = .0.exporter_name())]
     ExportErr(Box<dyn ExportError>),
     /// Invalid instrument configuration such invalid instrument name, invalid instrument description, invalid instrument unit, etc.
     /// See [spec](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#general-characteristics)
