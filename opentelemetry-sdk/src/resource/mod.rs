@@ -177,7 +177,7 @@ impl Resource {
     /// 5. If both resources do not have a schema url, the schema url will be empty.
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
+    fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
         if self.is_empty() {
             return other.clone();
         }
