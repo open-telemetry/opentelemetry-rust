@@ -65,6 +65,10 @@ impl Resource {
     /// Creates a Builder that allows you to configure multiple aspects of the Resource.
     ///
     /// Starts with a [Resource::default()].
+    /// The default Resource contains the following detectors
+    /// - SdkProvidedResourceDetector
+    /// - TelemetryResourceDetector
+    /// - EnvResourceDetector
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
             resource: Resource::default(),
