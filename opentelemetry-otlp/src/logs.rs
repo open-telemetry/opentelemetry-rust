@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use opentelemetry::otel_debug;
 use std::fmt::Debug;
 
+use opentelemetry::logs::LogError;
 use opentelemetry_sdk::logs::LogResult;
+use opentelemetry_sdk::Resource;
 
 use opentelemetry_sdk::export::logs::LogBatch;
 

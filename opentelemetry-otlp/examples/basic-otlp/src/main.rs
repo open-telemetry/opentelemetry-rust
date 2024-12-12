@@ -50,7 +50,7 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
 
     Ok(LoggerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .build())
 }
 

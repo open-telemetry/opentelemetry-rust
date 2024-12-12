@@ -6,7 +6,7 @@ use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::{LogError, LoggerProvider};
-use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
+use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::error::Error;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
