@@ -6,7 +6,7 @@ license = "Apache-2.0"
 publish = false
 
 [features]
-default = ["reqwest"]
+default = ["reqwest", "experimental_metrics_periodicreader_with_async_runtime"]
 reqwest = ["opentelemetry-otlp/reqwest-client"]
 hyper = ["opentelemetry-otlp/hyper-client"]
 experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime"]
