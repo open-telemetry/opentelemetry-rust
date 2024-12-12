@@ -221,7 +221,7 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
-        let resource = self.resource.unwrap_or_default();
+        let resource = self.resource.unwrap_or(Resource::builder().build());
 
         let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {

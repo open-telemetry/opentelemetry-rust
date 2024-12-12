@@ -51,16 +51,6 @@ pub struct Resource {
     inner: Arc<ResourceInner>,
 }
 
-impl Default for Resource {
-    fn default() -> Self {
-        Self::from_detectors(vec![
-            Box::new(SdkProvidedResourceDetector),
-            Box::new(TelemetryResourceDetector),
-            Box::new(EnvResourceDetector::new()),
-        ])
-    }
-}
-
 impl Resource {
     /// Creates a [ResourceBuilder] Starting from [Resource::default()] that allows you to configure multiple aspects of the Resource.
     ///
@@ -70,7 +60,11 @@ impl Resource {
     /// - [EnvResourceDetector]
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
-            resource: Resource::default(),
+            resource: Self::from_detectors(vec![
+                Box::new(SdkProvidedResourceDetector),
+                Box::new(TelemetryResourceDetector),
+                Box::new(EnvResourceDetector::new()),
+            ]),
         }
     }
 

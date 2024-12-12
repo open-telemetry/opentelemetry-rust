@@ -265,7 +265,7 @@ impl MeterProviderBuilder {
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
-                    self.resource.unwrap_or_default(),
+                    self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
                 )),
