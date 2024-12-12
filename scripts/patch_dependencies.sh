@@ -6,3 +6,4 @@ function patch_version() {
     cargo update -p $1:$latest_version --precise $2
 }
 
+patch_version url 2.5.2 #https://github.com/servo/rust-url/issues/992
