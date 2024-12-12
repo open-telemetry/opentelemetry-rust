@@ -146,7 +146,7 @@ impl Resource {
     /// Create a new `Resource` from resource detectors.
     ///
     /// timeout will be applied to each detector.
-    pub fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    fn from_detectors(detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
         let mut resource = Resource::empty();
         for detector in detectors {
             let detected_res = detector.detect();
