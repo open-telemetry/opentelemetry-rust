@@ -112,14 +112,6 @@ impl Resource {
         }
     }
 
-    /// Create a new `Resource::default()` and merge with provided key value pairs.
-    ///
-    /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
-    /// will be retained
-    pub fn new_with_defaults<T: IntoIterator<Item = KeyValue>>(keys: T) -> Self {
-        Resource::builder().with_attributes(keys).build()
-    }
-
     /// Create a new `Resource` from a key value pairs and [schema url].
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
