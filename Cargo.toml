@@ -44,9 +44,10 @@ tonic = { version = "0.12.3", default-features = false }
 tonic-build = "0.12"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
-# Using `tracing 0.1.39` because it introduces the ability to set event names in macros, 
-# required for OpenTelemetry's internal logging macros. Falling back to 0.1.40 or later if unavailable.
-tracing = { version = ">=0.1.39", default-features = false }
-tracing-core = { version = ">=0.1.33", default-features = false } # tracing 0.1.40 needs tracing-core 0.1.33 and above
+# Using `tracing 0.1.40` because 0.1.39 (which is yanked) introduces the ability to set event names in macros, 
+# required for OpenTelemetry's internal logging macros.
+tracing = { version = ">=0.1.40", default-features = false }
+# `tracing-core >=0.1.33` is required for compatibility with `tracing >=0.1.40`.
+tracing-core = { version = ">=0.1.33", default-features = false } 
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5.2", default-features = false } #https://github.com/servo/rust-url/issues/992
