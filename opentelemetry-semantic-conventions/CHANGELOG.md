@@ -4,6 +4,8 @@
 
 - Update to [v1.29.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
 - Update to [v0.11.0](https://github.com/open-telemetry/weaver/releases/tag/v0.11.0) of the semantic conventions.
+- Bump msrv to 1.75.0.
+
 
 ## 0.27.0
 
