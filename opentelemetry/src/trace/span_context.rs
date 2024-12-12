@@ -544,6 +544,7 @@ impl SpanContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{trace::TraceContextExt, Context};
 
     #[rustfmt::skip]
     fn trace_id_test_data() -> Vec<(TraceId, &'static str, [u8; 16])> {
@@ -646,5 +647,28 @@ mod tests {
         let inserted_trace_state = trace_state.insert("testkey", "testvalue").unwrap();
         assert!(trace_state.get("testkey").is_none()); // The original state doesn't change
         assert_eq!(inserted_trace_state.get("testkey").unwrap(), "testvalue"); //
+    }
+
+    #[test]
+    fn test_context_span_debug() {
+        let cx = Context::current();
+        assert_eq!(
+            format!("{:?}", cx),
+            "Context { span: \"None\", entries: 0 }"
+        );
+        let cx = Context::current().with_remote_span_context(SpanContext::NONE);
+        assert_eq!(
+            format!("{:?}", cx),
+            "Context { \
+               span: SpanContext { \
+                       trace_id: 00000000000000000000000000000000, \
+                       span_id: 0000000000000000, \
+                       trace_flags: TraceFlags(0), \
+                       is_remote: false, \
+                       trace_state: TraceState(None) \
+                     }, \
+               entries: 1 \
+             }"
+        );
     }
 }
