@@ -437,7 +437,7 @@ pub struct HistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
@@ -520,7 +520,7 @@ pub struct ExponentialHistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
@@ -643,7 +643,7 @@ pub struct SummaryDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#summary>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
