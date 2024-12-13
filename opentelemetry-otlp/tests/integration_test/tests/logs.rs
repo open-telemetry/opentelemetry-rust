@@ -2,7 +2,6 @@
 
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use log::{info, Level};
-use opentelemetry::KeyValue;
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::{LogError, LoggerProvider};
@@ -28,7 +27,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, LogError> {
     Ok(LoggerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(
-            Resource::builder()
+            Resource::builder_empty()
                 .with_service_name("logs-integration-test")
                 .build(),
         )
