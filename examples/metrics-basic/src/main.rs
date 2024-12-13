@@ -12,10 +12,11 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
-        .with_resource(Resource::new([KeyValue::new(
-            "service.name",
-            "metrics-basic-example",
-        )]))
+        .with_resource(
+            Resource::builder()
+                .with_service_name("metrics-basic-example")
+                .build(),
+        )
         .build();
     global::set_meter_provider(provider.clone());
     provider
