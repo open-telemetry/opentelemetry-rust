@@ -327,9 +327,19 @@ impl Context {
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Context")
-            .field("entries", &self.entries.len())
-            .finish()
+        let mut dbg = f.debug_struct("Context");
+        let mut entries = self.entries.len();
+        #[cfg(feature = "trace")]
+        {
+            if let Some(span) = &self.span {
+                dbg.field("span", &span.span_context());
+                entries += 1;
+            } else {
+                dbg.field("span", &"None");
+            }
+        }
+
+        dbg.field("entries", &entries).finish()
     }
 }
 
