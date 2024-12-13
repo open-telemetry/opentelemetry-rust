@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_group_logs_by_resource_and_scope_single_scope() {
-        let resource = Resource::default();
+        let resource = Resource::builder().build();
         let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("test-lib", "Log 2");
 
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_group_logs_by_resource_and_scope_multiple_scopes() {
-        let resource = Resource::default();
+        let resource = Resource::builder().build();
         let (log_record1, instrum_lib1) = create_test_log_data("lib1", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("lib2", "Log 2");
 

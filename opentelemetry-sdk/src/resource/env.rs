@@ -22,7 +22,7 @@ impl ResourceDetector for EnvResourceDetector {
     fn detect(&self) -> Resource {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
             Ok(s) if !s.is_empty() => construct_otel_resources(s),
-            Ok(_) | Err(_) => Resource::new(vec![]), // return empty resource
+            Ok(_) | Err(_) => Resource::empty(), // return empty resource
         }
     }
 }
@@ -43,16 +43,18 @@ impl Default for EnvResourceDetector {
 /// Extract key value pairs and construct a resource from resources string like
 /// key1=value1,key2=value2,...
 fn construct_otel_resources(s: String) -> Resource {
-    Resource::new(s.split_terminator(',').filter_map(|entry| {
-        let mut parts = entry.splitn(2, '=');
-        let key = parts.next()?.trim();
-        let value = parts.next()?.trim();
-        if value.find('=').is_some() {
-            return None;
-        }
+    Resource::builder_empty()
+        .with_attributes(s.split_terminator(',').filter_map(|entry| {
+            let mut parts = entry.splitn(2, '=');
+            let key = parts.next()?.trim();
+            let value = parts.next()?.trim();
+            if value.find('=').is_some() {
+                return None;
+            }
 
-        Some(KeyValue::new(key.to_owned(), value.to_owned()))
-    }))
+            Some(KeyValue::new(key.to_owned(), value.to_owned()))
+        }))
+        .build()
 }
 
 /// There are attributes which MUST be provided by the SDK as specified in
@@ -72,19 +74,21 @@ pub struct SdkProvidedResourceDetector;
 
 impl ResourceDetector for SdkProvidedResourceDetector {
     fn detect(&self) -> Resource {
-        Resource::new(vec![KeyValue::new(
-            super::SERVICE_NAME,
-            env::var(OTEL_SERVICE_NAME)
-                .ok()
-                .filter(|s| !s.is_empty())
-                .map(Value::from)
-                .or_else(|| {
-                    EnvResourceDetector::new()
-                        .detect()
-                        .get(Key::new(super::SERVICE_NAME))
-                })
-                .unwrap_or_else(|| "unknown_service".into()),
-        )])
+        Resource::builder_empty()
+            .with_attributes(vec![KeyValue::new(
+                super::SERVICE_NAME,
+                env::var(OTEL_SERVICE_NAME)
+                    .ok()
+                    .filter(|s| !s.is_empty())
+                    .map(Value::from)
+                    .or_else(|| {
+                        EnvResourceDetector::new()
+                            .detect()
+                            .get(Key::new(super::SERVICE_NAME))
+                    })
+                    .unwrap_or_else(|| "unknown_service".into()),
+            )])
+            .build()
     }
 }
 
@@ -111,12 +115,14 @@ mod tests {
                 let resource = detector.detect();
                 assert_eq!(
                     resource,
-                    Resource::new(vec![
-                        KeyValue::new("key", "value"),
-                        KeyValue::new("k", "v"),
-                        KeyValue::new("a", "x"),
-                        KeyValue::new("a", "z"),
-                    ])
+                    Resource::builder_empty()
+                        .with_attributes(vec![
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
                 );
             },
         );
