@@ -75,7 +75,7 @@ pub struct SdkProvidedResourceDetector;
 impl ResourceDetector for SdkProvidedResourceDetector {
     fn detect(&self) -> Resource {
         Resource::builder_empty()
-            .with_attributes(vec![KeyValue::new(
+            .with_attributes([KeyValue::new(
                 super::SERVICE_NAME,
                 env::var(OTEL_SERVICE_NAME)
                     .ok()
@@ -116,7 +116,7 @@ mod tests {
                 assert_eq!(
                     resource,
                     Resource::builder_empty()
-                        .with_attributes(vec![
+                        .with_attributes([
                             KeyValue::new("key", "value"),
                             KeyValue::new("k", "v"),
                             KeyValue::new("a", "x"),

@@ -394,7 +394,7 @@ mod tests {
                     .with_reader(reader4)
                     .with_resource(
                         Resource::builder()
-                            .with_attributes(vec![
+                            .with_attributes([
                                 KeyValue::new("my-custom-key", "my-custom-value"),
                                 KeyValue::new("my-custom-key2", "my-custom-value2"),
                             ])

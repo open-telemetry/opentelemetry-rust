@@ -28,7 +28,7 @@ mod tests {
     fn logging_sdk_test() {
         // Arrange
         let resource = Resource::builder_empty()
-            .with_attributes(vec![
+            .with_attributes([
                 KeyValue::new("k1", "v1"),
                 KeyValue::new("k2", "v2"),
                 KeyValue::new("k3", "v3"),
