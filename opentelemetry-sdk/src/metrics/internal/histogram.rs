@@ -1,12 +1,13 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::{sync::Mutex, time::SystemTime};
+use std::sync::Mutex;
 
 use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
+use super::aggregate::AggregateTimeInitiator;
 use super::ValueMap;
 use super::{Aggregator, Number};
 
@@ -70,7 +71,7 @@ pub(crate) struct Histogram<T: Number> {
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,
-    start: Mutex<SystemTime>,
+    init_time: AggregateTimeInitiator,
 }
 
 impl<T: Number> Histogram<T> {
@@ -89,7 +90,7 @@ impl<T: Number> Histogram<T> {
             bounds,
             record_min_max,
             record_sum,
-            start: Mutex::new(SystemTime::now()),
+            init_time: AggregateTimeInitiator::default(),
         }
     }
 
@@ -109,18 +110,13 @@ impl<T: Number> Histogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), time))
-            .unwrap_or(time);
+        let time = self.init_time.delta();
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
-                start_time,
-                time,
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -128,8 +124,8 @@ impl<T: Number> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-        h.start_time = start_time;
-        h.time = time;
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
@@ -165,19 +161,13 @@ impl<T: Number> Histogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
-
+        let time = self.init_time.cumulative();
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
-                start_time,
-                time,
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -185,8 +175,8 @@ impl<T: Number> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
-        h.start_time = start_time;
-        h.time = time;
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, aggr| {

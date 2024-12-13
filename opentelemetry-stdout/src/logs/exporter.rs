@@ -16,7 +16,7 @@ pub struct LogExporter {
 impl Default for LogExporter {
     fn default() -> Self {
         LogExporter {
-            resource: Resource::default(),
+            resource: Resource::builder().build(),
             is_shutdown: atomic::AtomicBool::new(false),
             resource_emitted: atomic::AtomicBool::new(false),
         }

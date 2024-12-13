@@ -14,10 +14,9 @@ use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::default().merge(&Resource::new(vec![KeyValue::new(
-        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-        "basic-stdout-example",
-    )]))
+    Resource::builder()
+        .with_service_name("basic-stdout-example")
+        .build()
 });
 
 #[cfg(feature = "trace")]

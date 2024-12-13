@@ -120,7 +120,7 @@ impl InMemoryLogExporterBuilder {
     pub fn build(&self) -> InMemoryLogExporter {
         InMemoryLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
-            resource: Arc::new(Mutex::new(Resource::default())),
+            resource: Arc::new(Mutex::new(Resource::builder().build())),
             should_reset_on_shutdown: self.reset_on_shutdown,
         }
     }
