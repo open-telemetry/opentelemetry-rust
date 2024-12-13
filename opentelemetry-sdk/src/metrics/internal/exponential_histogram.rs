@@ -1,4 +1,4 @@
-use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
+use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
@@ -8,7 +8,7 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::{Aggregator, Number, ValueMap};
+use super::{aggregate::AggregateTimeInitiator, Aggregator, Number, ValueMap};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -350,7 +350,7 @@ struct BucketConfig {
 /// measurements were made in.
 pub(crate) struct ExpoHistogram<T: Number> {
     value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
-    start: Mutex<SystemTime>,
+    init_time: AggregateTimeInitiator,
     record_sum: bool,
     record_min_max: bool,
 }
@@ -370,7 +370,7 @@ impl<T: Number> ExpoHistogram<T> {
             }),
             record_sum,
             record_min_max,
-            start: Mutex::new(SystemTime::now()),
+            init_time: AggregateTimeInitiator::default(),
         }
     }
 
@@ -389,19 +389,14 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), time))
-            .unwrap_or(time);
+        let time = self.init_time.delta();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
-                start_time,
-                time,
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -409,8 +404,8 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-        h.start_time = start_time;
-        h.time = time;
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
@@ -451,19 +446,14 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+        let time = self.init_time.cumulative();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
-                start_time,
-                time,
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -471,8 +461,8 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
-        h.start_time = start_time;
-        h.time = time;
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, attr| {
@@ -512,7 +502,7 @@ impl<T: Number> ExpoHistogram<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
+    use std::{ops::Neg, time::SystemTime};
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
