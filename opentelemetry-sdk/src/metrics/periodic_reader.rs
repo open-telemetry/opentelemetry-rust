@@ -866,34 +866,28 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore] // This test is expected to fail as PeriodicReader (by default) will not work if callbacks involve any particular runtime.
 
     async fn tokio_async_inside_observable_callback_from_tokio_multi_with_one_worker() {
-        tokio_async_inside_observable_callback_helper();
+        tokio_async_inside_observable_callback_helper(true);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[ignore] // This test is expected to fail as PeriodicReader (by default) will not work if callbacks involve any particular runtime.
     async fn tokio_async_inside_observable_callback_from_tokio_multi_with_two_worker() {
-        // Run this test with stdout enabled to see output.
-        // cargo test async_inside_observable_callbacks --features=testing -- --nocapture
-        // Arrange
-        tokio_async_inside_observable_callback_helper();
+        tokio_async_inside_observable_callback_helper(true);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    #[ignore] // This test is expected to fail as PeriodicReader (by default) will not work if callbacks involve any particular runtime.
+    #[ignore] //TODO: Investigate if this can be fixed.
     async fn tokio_async_inside_observable_callback_from_tokio_current_thread() {
-        tokio_async_inside_observable_callback_helper();
+        tokio_async_inside_observable_callback_helper(true);
     }
 
     #[test]
-    // This works!! // TODO: Investigate why this works and others don't.
     fn tokio_async_inside_observable_callback_from_regular_main() {
-        async_inside_observable_callback_helper();
+        tokio_async_inside_observable_callback_helper(false);
     }
 
-    fn tokio_async_inside_observable_callback_helper() {
+    fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
         let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone())
@@ -902,15 +896,33 @@ mod tests {
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let _gauge = meter
-            .u64_observable_gauge("my_observable_gauge")
-            .with_callback(move |observer| {
-                // call tokio specific async function from here
-                let value = rt.block_on(some_tokio_async_function());
-                observer.observe(value, &[]);
-            })
-            .build();
+
+        if use_current_tokio_runtime {
+            let rt = tokio::runtime::Handle::current().clone();
+            let _gauge = meter
+                .u64_observable_gauge("my_observable_gauge")
+                .with_callback(move |observer| {
+                    // call tokio specific async function from here
+                    let value = rt.block_on(some_tokio_async_function());
+                    observer.observe(value, &[]);
+                })
+                .build();
+            // rt here is a reference to the current tokio runtime.
+            // Droppng it occurs when the tokio::main itself ends.
+        } else {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let _gauge = meter
+                .u64_observable_gauge("my_observable_gauge")
+                .with_callback(move |observer| {
+                    // call tokio specific async function from here
+                    let value = rt.block_on(some_tokio_async_function());
+                    observer.observe(value, &[]);
+                })
+                .build();
+            // rt is not dropped here as it is moved to the closure,
+            // and is dropped only when MeterProvider itself is dropped.
+            // This works when called from normal main.
+        };
 
         meter_provider.force_flush().expect("flush should succeed");
         let exported_metrics = exporter
