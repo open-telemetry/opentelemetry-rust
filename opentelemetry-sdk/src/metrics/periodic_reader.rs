@@ -158,7 +158,7 @@ impl PeriodicReader {
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
                 message_sender: Arc::new(message_sender),
-                is_shutdown: AtomicBool::new(false),
+                shutdown_invoked: AtomicBool::new(false),
                 producer: Mutex::new(None),
                 exporter: Arc::new(exporter),
             }),
@@ -300,7 +300,7 @@ struct PeriodicReaderInner {
     exporter: Arc<dyn PushMetricExporter>,
     message_sender: Arc<mpsc::Sender<Message>>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
-    is_shutdown: AtomicBool,
+    shutdown_invoked: AtomicBool,
 }
 
 impl PeriodicReaderInner {
@@ -374,8 +374,13 @@ impl PeriodicReaderInner {
     }
 
     fn force_flush(&self) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("reader is shut down".into()));
+        if self
+            .shutdown_invoked
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
+            return Err(MetricError::Other(
+                "Cannot perform flush as PeriodicReader shutdown already invoked.".into(),
+            ));
         }
 
         // TODO: Better message for this scenario.
@@ -410,7 +415,7 @@ impl PeriodicReaderInner {
 
     fn shutdown(&self) -> MetricResult<()> {
         if self
-            .is_shutdown
+            .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::Relaxed)
         {
             return Err(MetricError::Other(
