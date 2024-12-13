@@ -19,7 +19,7 @@
   Example Usage:
   ```rust
   // old
-  Resource::default().with_attributes(vec![
+  Resource::default().with_attributes([
       KeyValue::new("service.name", "test_service"),
       KeyValue::new("key", "value"),
   ]);

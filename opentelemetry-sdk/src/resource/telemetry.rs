@@ -17,7 +17,7 @@ pub struct TelemetryResourceDetector;
 impl ResourceDetector for TelemetryResourceDetector {
     fn detect(&self) -> Resource {
         Resource::builder_empty()
-            .with_attributes(vec![
+            .with_attributes([
                 KeyValue::new(super::TELEMETRY_SDK_NAME, "opentelemetry"),
                 KeyValue::new(super::TELEMETRY_SDK_LANGUAGE, "rust"),
                 KeyValue::new(super::TELEMETRY_SDK_VERSION, env!("CARGO_PKG_VERSION")),

@@ -289,7 +289,7 @@ impl ResourceBuilder {
 
     /// Add a [KeyValue] to the resource.
     pub fn with_attribute(self, kv: KeyValue) -> Self {
-        self.with_attributes(vec![kv])
+        self.with_attributes([kv])
     }
 
     /// Add multiple [KeyValue]s to the resource.
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn new_resource() {
-        let args_with_dupe_keys = vec![KeyValue::new("a", ""), KeyValue::new("a", "final")];
+        let args_with_dupe_keys = [KeyValue::new("a", ""), KeyValue::new("a", "final")];
 
         let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("final"));
@@ -360,7 +360,7 @@ mod tests {
             .build();
 
         let resource_b = Resource::builder_empty()
-            .with_attributes(vec![
+            .with_attributes([
                 KeyValue::new("a", "a-value"),
                 KeyValue::new("c", "c-value"),
                 KeyValue::new("d", ""),
@@ -399,9 +399,9 @@ mod tests {
         #[case] expected_schema_url: Option<&'static str>,
     ) {
         let resource_a =
-            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
+            Resource::from_schema_url([KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
         let resource_b =
-            Resource::from_schema_url(vec![KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
+            Resource::from_schema_url([KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
 
         let merged_resource = resource_a.merge(&resource_b);
         let result_schema_url = merged_resource.schema_url();
