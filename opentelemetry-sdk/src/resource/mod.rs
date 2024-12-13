@@ -79,7 +79,7 @@ impl Resource {
 
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
-    fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Resource {
             inner: Arc::new(ResourceInner {
                 attrs: HashMap::new(),
@@ -92,7 +92,7 @@ impl Resource {
     ///
     /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
     /// will be retained
-    fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+    pub(crate) fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         let mut attrs = HashMap::new();
         for kv in kvs {
             attrs.insert(kv.key, kv.value);

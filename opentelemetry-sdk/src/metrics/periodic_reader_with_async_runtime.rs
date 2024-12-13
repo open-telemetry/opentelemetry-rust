@@ -119,7 +119,7 @@ where
                     timeout: self.timeout,
                     runtime,
                     rm: ResourceMetrics {
-                        resource: Resource::builder_empty().build(),
+                        resource: Resource::empty(),
                         scope_metrics: Vec::new(),
                     },
                 }
@@ -466,7 +466,7 @@ mod tests {
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
         let mut rm = ResourceMetrics {
-            resource: Resource::builder_empty().build(),
+            resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };
 

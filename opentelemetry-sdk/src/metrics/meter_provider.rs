@@ -435,7 +435,7 @@ mod tests {
         let reader5 = TestMetricReader::new();
         let no_service_name = super::SdkMeterProvider::builder()
             .with_reader(reader5)
-            .with_resource(Resource::builder_empty().build())
+            .with_resource(Resource::empty())
             .build();
 
         assert_eq!(no_service_name.inner.pipes.0[0].resource.len(), 0)

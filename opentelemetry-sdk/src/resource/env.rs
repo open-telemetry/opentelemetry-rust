@@ -22,7 +22,7 @@ impl ResourceDetector for EnvResourceDetector {
     fn detect(&self) -> Resource {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
             Ok(s) if !s.is_empty() => construct_otel_resources(s),
-            Ok(_) | Err(_) => Resource::builder_empty().with_attributes(vec![]).build(), // return empty resource
+            Ok(_) | Err(_) => Resource::empty(), // return empty resource
         }
     }
 }
