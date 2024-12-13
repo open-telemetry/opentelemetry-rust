@@ -1,7 +1,7 @@
 {
   "1.75.0": [
     "opentelemetry/Cargo.toml",
-    "opentelemetry-sdk/Cargo.toml"
+    "opentelemetry-sdk/Cargo.toml",
     "opentelemetry-stdout/Cargo.toml",
     "opentelemetry-http/Cargo.toml",
     "opentelemetry-jaeger-propagator/Cargo.toml",
