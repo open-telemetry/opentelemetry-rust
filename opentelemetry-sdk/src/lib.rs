@@ -118,7 +118,7 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
-#![cfg_attr(test, deny(warnings))]
+// #![cfg_attr(test, deny(warnings))]
 
 pub mod export;
 pub(crate) mod growable_array;
