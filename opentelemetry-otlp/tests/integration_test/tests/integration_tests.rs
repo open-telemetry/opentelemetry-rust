@@ -54,6 +54,7 @@ impl TestSuite {
 async fn integration_tests() {
     trace_integration_tests().await;
     logs_integration_tests().await;
+    metrics_integration_tests().await;
 }
 
 async fn trace_integration_tests() {
@@ -134,6 +135,49 @@ async fn logs_integration_tests() {
     // bind mount mitigate the issue by set up the permission correctly on host system
     tokio::time::sleep(Duration::from_secs(5)).await;
     logs::assert_logs_results(
+        test_suites[0].result_file_path().as_str(),
+        test_suites[0].expected_file_path().as_str(),
+    );
+
+    collector_container.stop();
+}
+
+async fn metrics_integration_tests() {
+    let test_suites = [TestSuite::new("metrics.json")];
+
+    let mut collector_image = Collector::default();
+    for test in test_suites.as_ref() {
+        let _ = test.create_temporary_result_file();
+        collector_image = collector_image.with_volume(
+            test.result_file_path().as_str(),
+            test.result_file_path_in_container().as_str(),
+        );
+    }
+
+    let docker = Cli::default();
+    let mut image =
+        RunnableImage::from(collector_image).with_container_name(COLLECTOR_CONTAINER_NAME);
+
+    for port in [
+        4317, // gRPC port
+        4318, // HTTP port
+    ] {
+        image = image.with_mapped_port(Port {
+            local: port,
+            internal: port,
+        })
+    }
+
+    let collector_container = docker.run(image);
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    metrics::metrics().await.unwrap();
+
+    // wait for file to flush to disks
+    // ideally we should use volume mount but otel collector file exporter doesn't handle permission too well
+    // bind mount mitigate the issue by set up the permission correctly on host system
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    metrics::assert_metrics_results(
         test_suites[0].result_file_path().as_str(),
         test_suites[0].expected_file_path().as_str(),
     );
