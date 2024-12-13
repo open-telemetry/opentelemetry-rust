@@ -52,7 +52,7 @@ pub struct Resource {
 }
 
 impl Resource {
-    /// Creates a [ResourceBuilder] Starting from [Resource::default()] that allows you to configure multiple aspects of the Resource.
+    /// Creates a [ResourceBuilder] that allows you to configure multiple aspects of the Resource.
     ///
     /// This [ResourceBuilder] will always include the following [ResourceDetector]s:
     /// - [SdkProvidedResourceDetector]
@@ -68,7 +68,7 @@ impl Resource {
         }
     }
 
-    /// Creates a [ResourceBuilder] starting from [Resource::empty()] that allows you to configure multiple aspects of the Resource.
+    /// Creates a [ResourceBuilder] that allows you to configure multiple aspects of the Resource.
     ///
     /// This [ResourceBuilder] will not include any attributes or [ResourceDetector]s by default.
     pub fn builder_empty() -> ResourceBuilder {
@@ -256,7 +256,7 @@ impl<'a> IntoIterator for &'a Resource {
 /// ResourceDetector detects OpenTelemetry resource information
 ///
 /// Implementations of this trait can be passed to
-/// the [`Resource::from_detectors`] function to generate a Resource from the merged information.
+/// the [`ResourceBuilder::with_detectors`] function to generate a Resource from the merged information.
 pub trait ResourceDetector {
     /// detect returns an initialized Resource based on gathered information.
     ///
