@@ -3,6 +3,7 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
+- Include trace_id & span_id when logging from inside a tracing span
 
 
 ## 0.27.0
