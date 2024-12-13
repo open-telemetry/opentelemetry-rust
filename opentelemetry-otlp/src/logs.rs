@@ -3,6 +3,7 @@
 //! Defines a [LogExporter] to send logs via the OpenTelemetry Protocol (OTLP)
 
 use async_trait::async_trait;
+use opentelemetry::otel_debug;
 use std::fmt::Debug;
 
 use opentelemetry_sdk::logs::LogResult;
@@ -63,7 +64,9 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
 #[cfg(feature = "grpc-tonic")]
 impl LogExporterBuilder<TonicExporterBuilderSet> {
     pub fn build(self) -> Result<LogExporter, opentelemetry_sdk::logs::LogError> {
-        self.client.0.build_log_exporter()
+        let result = self.client.0.build_log_exporter();
+        otel_debug!(name: "LogExporterBuilt", result = format!("{:?}", &result));
+        result
     }
 }
 
