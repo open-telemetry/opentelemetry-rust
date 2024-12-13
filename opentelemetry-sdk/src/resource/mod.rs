@@ -54,7 +54,7 @@ pub struct Resource {
 impl Resource {
     /// Creates a [ResourceBuilder] Starting from [Resource::default()] that allows you to configure multiple aspects of the Resource.
     ///
-    /// This Resource will contain the following [ResourceDetector]s:
+    /// This [ResourceBuilder] will always include the following [ResourceDetector]s:
     /// - [SdkProvidedResourceDetector]
     /// - [TelemetryResourceDetector]
     /// - [EnvResourceDetector]
@@ -70,7 +70,7 @@ impl Resource {
 
     /// Creates a [ResourceBuilder] starting from [Resource::empty()] that allows you to configure multiple aspects of the Resource.
     ///
-    /// This Resource will contain no attributes, and no [ResourceDetector]s.
+    /// This [ResourceBuilder] will not include any attributes or [ResourceDetector]s by default.
     pub fn builder_empty() -> ResourceBuilder {
         ResourceBuilder {
             resource: Resource::empty(),
@@ -281,7 +281,7 @@ impl ResourceBuilder {
         self.with_detectors(&[detector])
     }
 
-    /// Add multiple [ResourceDetector] to your resource.
+    /// Add multiple [ResourceDetector]s to your resource.
     pub fn with_detectors(mut self, detectors: &[Box<dyn ResourceDetector>]) -> Self {
         self.resource = self.resource.merge(&Resource::from_detectors(detectors));
         self
