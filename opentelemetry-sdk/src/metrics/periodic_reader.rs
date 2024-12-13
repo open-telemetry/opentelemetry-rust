@@ -306,10 +306,6 @@ impl PeriodicReaderInner {
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("reader is shut down".into()));
-        }
-
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
@@ -373,6 +369,20 @@ impl PeriodicReaderInner {
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(MetricError::Other("reader is shut down".into()));
         }
+
+        // TODO: Better message for this scenario.
+        // Flush and Shutdown called from 2 threads Flush check shutdown
+        // flag before shutdown thread sets it. Both threads attempt to send
+        // message to the same channel. Case1: Flush thread sends message first,
+        // shutdown thread sends message next. Flush would succeed, as
+        // background thread won't process shutdown message until flush
+        // triggered export is done. Case2: Shutdown thread sends message first,
+        // flush thread sends message next. Shutdown would succeed, as
+        // background thread would process shutdown message first. The
+        // background exits so it won't receive the flush message. ForceFlush
+        // returns Failure, but we could indicate specifically that shutdown has
+        // completed. TODO is to see if this message can be improved.
+
         let (response_tx, response_rx) = mpsc::channel();
         match self.message_sender.lock() {
             Ok(sender) => {
@@ -402,8 +412,13 @@ impl PeriodicReaderInner {
     }
 
     fn shutdown(&self) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("Reader is already shut down".into()));
+        if self
+            .is_shutdown
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            return Err(MetricError::Other(
+                "PeriodicReader shutdown already invoked.".into(),
+            ));
         }
 
         // TODO: See if this is better to be created upfront.
@@ -424,16 +439,12 @@ impl PeriodicReaderInner {
         }
 
         if let Ok(response) = response_rx.recv() {
-            self.is_shutdown
-                .store(true, std::sync::atomic::Ordering::Relaxed);
             if response {
                 Ok(())
             } else {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
         } else {
-            self.is_shutdown
-                .store(true, std::sync::atomic::Ordering::Relaxed);
             Err(MetricError::Other("Failed to shutdown".into()))
         }
     }
@@ -711,6 +722,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -718,6 +730,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -725,6 +738,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -732,6 +746,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     fn collection_triggered_by_interval_helper() {
@@ -756,7 +771,13 @@ mod tests {
         });
     }
 
-    fn collection_helper(trigger: fn(&SdkMeterProvider)) {
+    fn collection_triggered_by_drop_helper() {
+        collection_helper(|meter_provider| {
+            drop(meter_provider);
+        });
+    }
+
+    fn collection_helper(trigger: fn(SdkMeterProvider)) {
         // Arrange
         let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
@@ -776,7 +797,7 @@ mod tests {
             .build();
 
         // Act
-        trigger(&meter_provider);
+        trigger(meter_provider);
 
         // Assert
         receiver
