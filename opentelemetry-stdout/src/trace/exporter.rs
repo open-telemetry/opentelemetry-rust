@@ -23,7 +23,7 @@ impl fmt::Debug for SpanExporter {
 impl Default for SpanExporter {
     fn default() -> Self {
         SpanExporter {
-            resource: Resource::default(),
+            resource: Resource::builder().build(),
             is_shutdown: atomic::AtomicBool::new(false),
             resource_emitted: false,
         }

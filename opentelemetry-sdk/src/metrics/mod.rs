@@ -14,7 +14,7 @@
 //! use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 //!
 //! // Generate SDK configuration, resource, views, etc
-//! let resource = Resource::default(); // default attributes about the current process
+//! let resource = Resource::builder().build(); // default attributes about the current process
 //!
 //! // Create a meter provider with the desired config
 //! let meter_provider = SdkMeterProvider::builder().with_resource(resource).build();

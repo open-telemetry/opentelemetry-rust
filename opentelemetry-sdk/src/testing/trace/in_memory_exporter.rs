@@ -87,7 +87,7 @@ impl InMemorySpanExporterBuilder {
     pub fn build(&self) -> InMemorySpanExporter {
         InMemorySpanExporter {
             spans: Arc::new(Mutex::new(Vec::new())),
-            resource: Arc::new(Mutex::new(Resource::default())),
+            resource: Arc::new(Mutex::new(Resource::builder().build())),
         }
     }
 }
