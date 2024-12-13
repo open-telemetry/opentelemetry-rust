@@ -77,6 +77,9 @@
       `experimental_metrics_periodicreader_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
+      
+  - Bump msrv to 1.75.0.
+
 
 ## 0.27.1
 
