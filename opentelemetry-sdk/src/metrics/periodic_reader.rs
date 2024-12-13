@@ -117,9 +117,6 @@ where
 /// return metric data to the user. It will not automatically send that data to
 /// the exporter outside of the predefined interval.
 ///
-/// As this spuns up own background thread, this is recommended to be used with push exporters
-/// that do not require any particular async runtime. As of now, this cannot be used with
-/// OTLP exporters as they requires async runtime
 ///
 /// [collect]: MetricReader::collect
 ///
@@ -160,8 +157,8 @@ impl PeriodicReader {
             mpsc::channel();
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender: Arc::new(Mutex::new(message_sender)),
-                is_shutdown: AtomicBool::new(false),
+                message_sender: Arc::new(message_sender),
+                shutdown_invoked: AtomicBool::new(false),
                 producer: Mutex::new(None),
                 exporter: Arc::new(exporter),
             }),
@@ -223,6 +220,11 @@ impl PeriodicReader {
                             } else {
                                 response_sender.send(true).unwrap();
                             }
+
+                            otel_debug!(
+                                name: "PeriodReaderThreadExiting",
+                                reason = "ShutdownRequested"
+                            );
                             break;
                         }
                         Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -255,8 +257,13 @@ impl PeriodicReader {
                                 interval_start = Instant::now();
                             }
                         }
-                        Err(_) => {
-                            // Some other error. Break out and exit the thread.
+                        Err(mpsc::RecvTimeoutError::Disconnected) => {
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "PeriodReaderThreadExiting",
+                                reason = "MessageReceiverDisconnected"
+                            );
                             break;
                         }
                     }
@@ -271,6 +278,7 @@ impl PeriodicReader {
         if let Err(e) = result_thread_creation {
             otel_error!(
                 name: "PeriodReaderThreadStartError",
+                message = "Failed to start PeriodicReader thread. Metrics will not be exported.",
                 error = format!("{:?}", e)
             );
         }
@@ -290,9 +298,9 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     exporter: Arc<dyn PushMetricExporter>,
-    message_sender: Arc<Mutex<mpsc::Sender<Message>>>,
+    message_sender: Arc<mpsc::Sender<Message>>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
-    is_shutdown: AtomicBool,
+    shutdown_invoked: AtomicBool,
 }
 
 impl PeriodicReaderInner {
@@ -306,10 +314,6 @@ impl PeriodicReaderInner {
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("reader is shut down".into()));
-        }
-
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
@@ -370,24 +374,32 @@ impl PeriodicReaderInner {
     }
 
     fn force_flush(&self) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("reader is shut down".into()));
+        if self
+            .shutdown_invoked
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
+            return Err(MetricError::Other(
+                "Cannot perform flush as PeriodicReader shutdown already invoked.".into(),
+            ));
         }
+
+        // TODO: Better message for this scenario.
+        // Flush and Shutdown called from 2 threads Flush check shutdown
+        // flag before shutdown thread sets it. Both threads attempt to send
+        // message to the same channel. Case1: Flush thread sends message first,
+        // shutdown thread sends message next. Flush would succeed, as
+        // background thread won't process shutdown message until flush
+        // triggered export is done. Case2: Shutdown thread sends message first,
+        // flush thread sends message next. Shutdown would succeed, as
+        // background thread would process shutdown message first. The
+        // background exits so it won't receive the flush message. ForceFlush
+        // returns Failure, but we could indicate specifically that shutdown has
+        // completed. TODO is to see if this message can be improved.
+
         let (response_tx, response_rx) = mpsc::channel();
-        match self.message_sender.lock() {
-            Ok(sender) => {
-                sender
-                    .send(Message::Flush(response_tx))
-                    .map_err(|e| MetricError::Other(e.to_string()))?;
-            }
-            Err(e) => {
-                otel_debug!(
-                    name: "PeriodReaderForceFlushError",
-                    error = format!("{:?}", e)
-                );
-                return Err(MetricError::Other(e.to_string()));
-            }
-        }
+        self.message_sender
+            .send(Message::Flush(response_tx))
+            .map_err(|e| MetricError::Other(e.to_string()))?;
 
         if let Ok(response) = response_rx.recv() {
             // TODO: call exporter's force_flush method.
@@ -402,38 +414,28 @@ impl PeriodicReaderInner {
     }
 
     fn shutdown(&self) -> MetricResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(MetricError::Other("Reader is already shut down".into()));
+        if self
+            .shutdown_invoked
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            return Err(MetricError::Other(
+                "PeriodicReader shutdown already invoked.".into(),
+            ));
         }
 
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
-        match self.message_sender.lock() {
-            Ok(sender) => {
-                sender
-                    .send(Message::Shutdown(response_tx))
-                    .map_err(|e| MetricError::Other(e.to_string()))?;
-            }
-            Err(e) => {
-                otel_debug!(
-                    name: "PeriodReaderShutdownError",
-                    error = format!("{:?}", e)
-                );
-                return Err(MetricError::Other(e.to_string()));
-            }
-        }
+        self.message_sender
+            .send(Message::Shutdown(response_tx))
+            .map_err(|e| MetricError::Other(e.to_string()))?;
 
         if let Ok(response) = response_rx.recv() {
-            self.is_shutdown
-                .store(true, std::sync::atomic::Ordering::Relaxed);
             if response {
                 Ok(())
             } else {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
         } else {
-            self.is_shutdown
-                .store(true, std::sync::atomic::Ordering::Relaxed);
             Err(MetricError::Other("Failed to shutdown".into()))
         }
     }
@@ -711,6 +713,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -718,6 +721,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -725,6 +729,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -732,6 +737,7 @@ mod tests {
         collection_triggered_by_interval_helper();
         collection_triggered_by_flush_helper();
         collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
     }
 
     fn collection_triggered_by_interval_helper() {
@@ -756,7 +762,13 @@ mod tests {
         });
     }
 
-    fn collection_helper(trigger: fn(&SdkMeterProvider)) {
+    fn collection_triggered_by_drop_helper() {
+        collection_helper(|meter_provider| {
+            drop(meter_provider);
+        });
+    }
+
+    fn collection_helper(trigger: fn(SdkMeterProvider)) {
         // Arrange
         let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
@@ -776,7 +788,7 @@ mod tests {
             .build();
 
         // Act
-        trigger(&meter_provider);
+        trigger(meter_provider);
 
         // Assert
         receiver
