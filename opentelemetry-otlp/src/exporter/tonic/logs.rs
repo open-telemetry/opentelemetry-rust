@@ -80,16 +80,16 @@ impl LogExporter for TonicLogsClient {
 
             let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        otel_debug!(name: "TonicsLogsClient.CallingExport");
+            otel_debug!(name: "TonicsLogsClient.CallingExport");
 
-        client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await
-            .map_err(crate::Error::from)?;
+            client
+                .export(Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportLogsServiceRequest { resource_logs },
+                ))
+                .await
+                .map_err(crate::Error::from)?;
             Ok(())
         }
     }
