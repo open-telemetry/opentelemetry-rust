@@ -16,7 +16,7 @@ fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::TracerProvider, Tr
     Ok(TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
         .with_resource(
-            Resource::builder_empty()
+            Resource::builder()
                 .with_service_name("tracing-jaeger")
                 .build(),
         )

@@ -15,7 +15,7 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::builder_empty()
+    Resource::builder()
         .with_service_name("basic-otlp-example")
         .build()
 });

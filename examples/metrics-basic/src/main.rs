@@ -13,7 +13,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(
-            Resource::builder_empty()
+            Resource::builder()
                 .with_service_name("metrics-basic-example")
                 .build(),
         )
