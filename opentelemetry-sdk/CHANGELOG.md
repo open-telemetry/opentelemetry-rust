@@ -2,6 +2,10 @@
 
 ## vNext
 
+- *Breaking(Affects custom metric exporter authors only)* `start_time` and `time` is moved from DataPoints to aggregations (Sum, Gauge, Histogram, ExpoHistogram) see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411), to reduce memory.
+
+- *Breaking* `start_time` is no longer optional for `Sum` aggregation, see [#2367](https://github.com/open-telemetry/opentelemetry-rust/pull/2367), but is still optional for `Gauge` aggregation see [#2389](https://github.com/open-telemetry/opentelemetry-rust/pull/2389).
+
 - *Breaking*
   - SimpleLogProcessor modified to be generic over `LogExporter` to
     avoid dynamic dispatch to invoke exporter. If you were using
@@ -73,6 +77,9 @@
       `experimental_metrics_periodicreader_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
+      
+  - Bump msrv to 1.75.0.
+
 
 ## 0.27.1
 
