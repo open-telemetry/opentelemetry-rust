@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn merge_resource_key_value_pairs() {
         let resource_a = Resource::builder_empty()
-            .with_attributes(vec![
+            .with_attributes([
                 KeyValue::new("a", ""),
                 KeyValue::new("b", "b-value"),
                 KeyValue::new("d", "d-value"),
@@ -452,7 +452,7 @@ mod tests {
                 assert_eq!(
                     resource,
                     Resource::builder_empty()
-                        .with_attributes(vec![
+                        .with_attributes([
                             KeyValue::new("key", "value"),
                             KeyValue::new("k", "v"),
                             KeyValue::new("a", "x"),
@@ -519,7 +519,7 @@ mod tests {
                     .with_detector(Box::new(EnvResourceDetector::new()))
                     .with_service_name("testing_service")
                     .with_attribute(KeyValue::new("test1", "test_value"))
-                    .with_attributes(vec![
+                    .with_attributes([
                         KeyValue::new("test1", "test_value1"),
                         KeyValue::new("test2", "test_value2"),
                     ])
@@ -528,7 +528,7 @@ mod tests {
                 assert_eq!(
                     resource,
                     Resource::builder_empty()
-                        .with_attributes(vec![
+                        .with_attributes([
                             KeyValue::new("key", "value"),
                             KeyValue::new("test1", "test_value1"),
                             KeyValue::new("test2", "test_value2"),
