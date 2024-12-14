@@ -162,7 +162,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::builder_empty().with_attributes(vec![KeyValue::new("service.name", "example")]).build()),
+//!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
 //!         ).build();
 //!     global::set_tracer_provider(tracer_provider);
 //!     let tracer = global::tracer("tracer-name");
@@ -186,7 +186,7 @@
 //!
 //!    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
 //!        .with_reader(reader)
-//!         .with_resource(Resource::builder_empty().with_attributes(vec![KeyValue::new("service.name", "example")]).build())
+//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
 //!         .build();
 //!     # }
 //!
