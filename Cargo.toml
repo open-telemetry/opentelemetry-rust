@@ -44,7 +44,10 @@ tonic = { version = "0.12.3", default-features = false }
 tonic-build = "0.12"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
-tracing = { version = "0.1", default-features = false }
-tracing-core = { version = "0.1", default-features = false }
+# Using `tracing 0.1.40` because 0.1.39 (which is yanked) introduces the ability to set event names in macros, 
+# required for OpenTelemetry's internal logging macros.
+tracing = { version = ">=0.1.40", default-features = false }
+# `tracing-core >=0.1.33` is required for compatibility with `tracing >=0.1.40`.
+tracing-core = { version = ">=0.1.33", default-features = false } 
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
