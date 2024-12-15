@@ -1,4 +1,4 @@
-use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
+use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
@@ -8,7 +8,7 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::{Aggregator, Number, ValueMap};
+use super::{aggregate::AggregateTimeInitiator, Aggregator, Number, ValueMap};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -350,7 +350,7 @@ struct BucketConfig {
 /// measurements were made in.
 pub(crate) struct ExpoHistogram<T: Number> {
     value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
-    start: Mutex<SystemTime>,
+    init_time: AggregateTimeInitiator,
     record_sum: bool,
     record_min_max: bool,
 }
@@ -370,7 +370,7 @@ impl<T: Number> ExpoHistogram<T> {
             }),
             record_sum,
             record_min_max,
-            start: Mutex::new(SystemTime::now()),
+            init_time: AggregateTimeInitiator::default(),
         }
     }
 
@@ -389,12 +389,14 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = self.init_time.delta();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -402,20 +404,14 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), t))
-            .unwrap_or(t);
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
                 let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)
@@ -450,12 +446,14 @@ impl<T: Number> ExpoHistogram<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = self.init_time.cumulative();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -463,20 +461,14 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, attr| {
                 let b = attr.lock().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)
@@ -510,7 +502,7 @@ impl<T: Number> ExpoHistogram<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
+    use std::{ops::Neg, time::SystemTime};
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
@@ -1270,8 +1262,6 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1285,6 +1275,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1318,8 +1310,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1328,6 +1318,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1364,8 +1356,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1374,6 +1364,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1410,8 +1402,6 @@ mod tests {
                             counts: vec![1, 6, 2],
                         },
                         attributes: vec![],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1420,6 +1410,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1430,6 +1422,8 @@ mod tests {
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: Temporality::Delta,
             });
             let mut count = 0;
@@ -1440,7 +1434,7 @@ mod tests {
                 count = out_fn.call(Some(got.as_mut())).0
             }
 
-            assert_aggregation_eq::<T>(Box::new(test.want), got, true, test.name);
+            assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
             assert_eq!(test.want_count, count, "{}", test.name);
         }
     }
@@ -1448,7 +1442,6 @@ mod tests {
     fn assert_aggregation_eq<T: Number + PartialEq>(
         a: Box<dyn Aggregation>,
         b: Box<dyn Aggregation>,
-        ignore_timestamp: bool,
         test_name: &'static str,
     ) {
         assert_eq!(
@@ -1467,13 +1460,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching gauge data points",
-                    test_name,
-                );
+                assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
             let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
@@ -1494,13 +1481,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching sum data points",
-                    test_name,
-                );
+                assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
             let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
@@ -1516,13 +1497,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_hist_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching hist data points",
-                    test_name,
-                );
+                assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
             let b = b
@@ -1544,7 +1519,6 @@ mod tests {
                 assert_exponential_hist_data_points_eq(
                     a,
                     b,
-                    ignore_timestamp,
                     "mismatching hist data points",
                     test_name,
                 );
@@ -1554,10 +1528,9 @@ mod tests {
         }
     }
 
-    fn assert_data_points_eq<T: Number>(
-        a: &data::DataPoint<T>,
-        b: &data::DataPoint<T>,
-        ignore_timestamp: bool,
+    fn assert_sum_data_points_eq<T: Number>(
+        a: &data::SumDataPoint<T>,
+        b: &data::SumDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1567,21 +1540,25 @@ mod tests {
             test_name, message
         );
         assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+    }
 
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
+    fn assert_gauge_data_points_eq<T: Number>(
+        a: &data::GaugeDataPoint<T>,
+        b: &data::GaugeDataPoint<T>,
+        message: &'static str,
+        test_name: &'static str,
+    ) {
+        assert_eq!(
+            a.attributes, b.attributes,
+            "{}: {} attributes",
+            test_name, message
+        );
+        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
     }
 
     fn assert_hist_data_points_eq<T: Number>(
         a: &data::HistogramDataPoint<T>,
         b: &data::HistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1600,21 +1577,11 @@ mod tests {
         assert_eq!(a.min, b.min, "{}: {} min", test_name, message);
         assert_eq!(a.max, b.max, "{}: {} max", test_name, message);
         assert_eq!(a.sum, b.sum, "{}: {} sum", test_name, message);
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 
     fn assert_exponential_hist_data_points_eq<T: Number>(
         a: &data::ExponentialHistogramDataPoint<T>,
         b: &data::ExponentialHistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1645,14 +1612,5 @@ mod tests {
             "{}: {} neg",
             test_name, message
         );
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 }

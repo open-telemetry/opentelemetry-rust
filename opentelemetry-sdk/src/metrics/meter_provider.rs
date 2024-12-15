@@ -265,7 +265,7 @@ impl MeterProviderBuilder {
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
-                    self.resource.unwrap_or_default(),
+                    self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
                 )),
@@ -354,10 +354,11 @@ mod tests {
         let reader2 = TestMetricReader::new();
         let custom_meter_provider = super::SdkMeterProvider::builder()
             .with_reader(reader2)
-            .with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "test_service",
-            )]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_meter_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_meter_provider.inner.pipes.0[0].resource.len(), 1);
@@ -391,10 +392,14 @@ mod tests {
                 let reader4 = TestMetricReader::new();
                 let user_provided_resource_config_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader4)
-                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
-                        KeyValue::new("my-custom-key", "my-custom-value"),
-                        KeyValue::new("my-custom-key2", "my-custom-value2"),
-                    ])))
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,

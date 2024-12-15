@@ -9,7 +9,7 @@ use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
         let client = self
             .client
             .lock()

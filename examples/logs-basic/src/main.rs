@@ -1,27 +1,22 @@
-use log::{error, Level};
-use opentelemetry::KeyValue;
-use opentelemetry_appender_log::OpenTelemetryLogBridge;
+use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::Resource;
-use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
+use tracing::error;
+use tracing_subscriber::prelude::*;
 
 fn main() {
-    // Setup LoggerProvider with a stdout exporter
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let logger_provider = LoggerProvider::builder()
-        .with_resource(Resource::new([KeyValue::new(
-            SERVICE_NAME,
-            "logs-basic-example",
-        )]))
+    let provider: LoggerProvider = LoggerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_service_name("log-appender-tracing-example")
+                .build(),
+        )
         .with_simple_exporter(exporter)
         .build();
+    let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+    tracing_subscriber::registry().with(layer).init();
 
-    // Setup Log Appender for the log crate.
-    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
-    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
-    log::set_max_level(Level::Error.to_level_filter());
-
-    // Emit logs using macros from the log crate.
-    // These logs gets piped through OpenTelemetry bridge and gets exported to stdout.
-    error!(target: "my-target", "hello from {}. My price is {}", "apple", 2.99);
+    error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
+    let _ = provider.shutdown();
 }

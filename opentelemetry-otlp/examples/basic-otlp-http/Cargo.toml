@@ -6,15 +6,16 @@ license = "Apache-2.0"
 publish = false
 
 [features]
-default = ["reqwest"]
+default = ["reqwest", "experimental_metrics_periodicreader_with_async_runtime"]
 reqwest = ["opentelemetry-otlp/reqwest-client"]
 hyper = ["opentelemetry-otlp/hyper-client"]
+experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime"]
 
 
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "metrics", "logs"]}
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "experimental_metrics_periodicreader_with_async_runtime"]}
 opentelemetry-http = { path = "../../../opentelemetry-http", optional = true, default-features = false}
 opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs"] , default-features = false}
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
@@ -27,4 +28,4 @@ http-body-util = { workspace = true, optional = true  }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std"] }
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }

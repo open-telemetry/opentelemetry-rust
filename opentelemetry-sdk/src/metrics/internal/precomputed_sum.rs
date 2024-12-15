@@ -1,16 +1,17 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, DataPoint};
+use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 
+use super::aggregate::AggregateTimeInitiator;
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
-use std::{collections::HashMap, mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
+use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
     value_map: ValueMap<Assign<T>>,
     monotonic: bool,
-    start: Mutex<SystemTime>,
+    init_time: AggregateTimeInitiator,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
@@ -19,7 +20,7 @@ impl<T: Number> PrecomputedSum<T> {
         PrecomputedSum {
             value_map: ValueMap::new(()),
             monotonic,
-            start: Mutex::new(SystemTime::now()),
+            init_time: AggregateTimeInitiator::default(),
             reported: Mutex::new(Default::default()),
         }
     }
@@ -33,12 +34,14 @@ impl<T: Number> PrecomputedSum<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = self.init_time.delta();
 
         let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
                 is_monotonic: self.monotonic,
             })
@@ -46,14 +49,10 @@ impl<T: Number> PrecomputedSum<T> {
             None
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
+        s_data.start_time = time.start;
+        s_data.time = time.current;
         s_data.temporality = Temporality::Delta;
         s_data.is_monotonic = self.monotonic;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), t))
-            .unwrap_or(t);
 
         let mut reported = match self.reported.lock() {
             Ok(r) => r,
@@ -66,10 +65,8 @@ impl<T: Number> PrecomputedSum<T> {
                 let value = aggr.value.get_value();
                 new_reported.insert(attributes.clone(), value);
                 let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
-                DataPoint {
+                SumDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     value: delta,
                     exemplars: vec![],
                 }
@@ -88,12 +85,14 @@ impl<T: Number> PrecomputedSum<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = self.init_time.cumulative();
 
         let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
                 is_monotonic: self.monotonic,
             })
@@ -101,16 +100,14 @@ impl<T: Number> PrecomputedSum<T> {
             None
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
+        s_data.start_time = time.start;
+        s_data.time = time.current;
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
-        let prev_start = self.start.lock().map(|start| *start).unwrap_or(t);
-
         self.value_map
-            .collect_readonly(&mut s_data.data_points, |attributes, aggr| DataPoint {
+            .collect_readonly(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
-                start_time: prev_start,
-                time: t,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });

@@ -7,9 +7,6 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry::trace::{Span, Tracer};
 
 #[cfg(feature = "metrics")]
-use opentelemetry_sdk::runtime;
-
-#[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
 #[cfg(feature = "trace")]
@@ -17,10 +14,9 @@ use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_sdk::Resource;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::default().merge(&Resource::new(vec![KeyValue::new(
-        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-        "basic-stdout-example",
-    )]))
+    Resource::builder()
+        .with_service_name("basic-stdout-example")
+        .build()
 });
 
 #[cfg(feature = "trace")]
@@ -37,7 +33,7 @@ fn init_trace() -> TracerProvider {
 #[cfg(feature = "metrics")]
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricExporter::default();
-    let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
+    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(RESOURCE.clone())

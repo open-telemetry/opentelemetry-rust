@@ -336,7 +336,7 @@ impl Builder {
 
     /// Specify the number of events to be recorded per span.
     pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
-        self.config.span_limits.max_attributes_per_span = max_events;
+        self.config.span_limits.max_events_per_span = max_events;
         self
     }
 
@@ -569,10 +569,11 @@ mod tests {
 
         // If user provided config, use that.
         let custom_config_provider = super::TracerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "test_service",
-            )]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.config().resource.len(), 1);
@@ -601,10 +602,14 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::TracerProvider::builder()
-                    .with_resource(Resource::new_with_defaults(vec![
-                        KeyValue::new("my-custom-key", "my-custom-value"),
-                        KeyValue::new("my-custom-key2", "my-custom-value2"),
-                    ]))
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,

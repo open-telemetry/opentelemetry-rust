@@ -121,7 +121,7 @@ impl InMemoryLogExporterBuilder {
     pub fn build(&self) -> InMemoryLogExporter {
         InMemoryLogExporter {
             logs: Arc::new(Mutex::new(Vec::new())),
-            resource: Arc::new(Mutex::new(Resource::default())),
+            resource: Arc::new(Mutex::new(Resource::builder().build())),
             should_reset_on_shutdown: self.reset_on_shutdown,
         }
     }
@@ -183,7 +183,7 @@ impl InMemoryLogExporter {
 
 #[async_trait]
 impl LogExporter for InMemoryLogExporter {
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
         let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {

@@ -1,5 +1,5 @@
 {
-  "1.70.0": [
+  "1.75.0": [
     "opentelemetry/Cargo.toml",
     "opentelemetry-sdk/Cargo.toml",
     "opentelemetry-stdout/Cargo.toml",
@@ -7,9 +7,7 @@
     "opentelemetry-jaeger-propagator/Cargo.toml",
     "opentelemetry-zipkin/Cargo.toml",
     "opentelemetry-appender-log/Cargo.toml",
-    "opentelemetry-appender-tracing/Cargo.toml"
-  ],
-  "1.71.1": [
+    "opentelemetry-appender-tracing/Cargo.toml",
     "opentelemetry-otlp/Cargo.toml",
     "opentelemetry-proto/Cargo.toml"
   ]
