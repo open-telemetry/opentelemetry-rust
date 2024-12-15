@@ -13,7 +13,6 @@
     | ot_layer_enabled            | 196 ns      |
 */
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
@@ -32,7 +31,6 @@ struct NoopExporter {
     enabled: bool,
 }
 
-#[async_trait]
 impl LogExporter for NoopExporter {
     #[allow(clippy::manual_async_fn)]
     fn export<'a>(

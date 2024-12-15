@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use core::fmt;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
@@ -56,7 +55,6 @@ impl TonicLogsClient {
     }
 }
 
-#[async_trait]
 impl LogExporter for TonicLogsClient {
     #[allow(clippy::manual_async_fn)]
     fn export<'a>(

@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;
 
-#[async_trait]
 impl LogExporter for OtlpHttpClient {
     #[allow(clippy::manual_async_fn)]
     fn export<'a>(
