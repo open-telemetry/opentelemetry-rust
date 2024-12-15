@@ -340,10 +340,10 @@ mod tests {
 
         // Validate common fields
         assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // Validate trace context is none.
-        assert!(log.record.trace_context.is_none());
+        assert!(log.record.trace_context().is_none());
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
@@ -434,25 +434,20 @@ mod tests {
 
         // validate common fields.
         assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
-        assert!(log.record.trace_context.is_some());
+        assert!(log.record.trace_context().is_some());
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().trace_id,
+            log.record.trace_context().unwrap().trace_id,
             trace_id_expected
         );
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().span_id,
+            log.record.trace_context().unwrap().span_id,
             span_id_expected
         );
         assert_eq!(
-            log.record
-                .trace_context
-                .as_ref()
-                .unwrap()
-                .trace_flags
-                .unwrap(),
+            log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
 
@@ -532,10 +527,10 @@ mod tests {
 
         // Validate common fields
         assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // Validate trace context is none.
-        assert!(log.record.trace_context.is_none());
+        assert!(log.record.trace_context().is_none());
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
@@ -611,25 +606,20 @@ mod tests {
 
         // validate common fields.
         assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
-        assert!(log.record.trace_context.is_some());
+        assert!(log.record.trace_context().is_some());
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().trace_id,
+            log.record.trace_context().unwrap().trace_id,
             trace_id_expected
         );
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().span_id,
+            log.record.trace_context().unwrap().span_id,
             span_id_expected
         );
         assert_eq!(
-            log.record
-                .trace_context
-                .as_ref()
-                .unwrap()
-                .trace_flags
-                .unwrap(),
+            log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
 
