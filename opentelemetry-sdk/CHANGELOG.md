@@ -15,7 +15,7 @@
   - The LogRecord struct has been updated:
     - All fields are now pub(crate) instead of pub.
     - Getter methods have been introduced to access field values.
-    This change impacts custom exporter developers by requiring updates to code that directly accessed LogRecord fields. Exporters must now use the provided getter methods (e.g., `log_record.event_name()` instead of `log_record.event_name`).
+    This change impacts custom exporter and processor developers by requiring updates to code that directly accessed LogRecord fields. They must now use the provided getter methods (e.g., `log_record.event_name()` instead of `log_record.event_name`).
 
 ## 0.27.1
 
