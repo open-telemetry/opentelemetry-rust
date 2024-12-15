@@ -24,28 +24,28 @@ pub(crate) type LogRecordAttributes =
 /// is provided to `LogExporter`s as input.
 pub struct LogRecord {
     /// Event name. Optional as not all the logging API support it.
-    pub event_name: Option<&'static str>,
+    pub(crate) event_name: Option<&'static str>,
 
     /// Target of the log record
-    pub target: Option<Cow<'static, str>>,
+    pub(crate) target: Option<Cow<'static, str>>,
 
     /// Record timestamp
-    pub timestamp: Option<SystemTime>,
+    pub(crate) timestamp: Option<SystemTime>,
 
     /// Timestamp for when the record was observed by OpenTelemetry
-    pub observed_timestamp: Option<SystemTime>,
+    pub(crate) observed_timestamp: Option<SystemTime>,
 
     /// Trace context for logs associated with spans
-    pub trace_context: Option<TraceContext>,
+    pub(crate) trace_context: Option<TraceContext>,
 
     /// The original severity string from the source
-    pub severity_text: Option<&'static str>,
+    pub(crate) severity_text: Option<&'static str>,
 
     /// The corresponding severity value, normalized
-    pub severity_number: Option<Severity>,
+    pub(crate) severity_number: Option<Severity>,
 
     /// Record body
-    pub body: Option<AnyValue>,
+    pub(crate) body: Option<AnyValue>,
 
     /// Additional attributes associated with this record
     pub(crate) attributes: LogRecordAttributes,
@@ -118,7 +118,56 @@ impl opentelemetry::logs::LogRecord for LogRecord {
 }
 
 impl LogRecord {
+    /// Returns the event name
+    #[inline]
+    pub fn event_name(&self) -> Option<&'static str> {
+        self.event_name
+    }
+
+    /// Returns the target
+    #[inline]
+    pub fn target(&self) -> Option<&Cow<'static, str>> {
+        self.target.as_ref()
+    }
+
+    /// Returns the timestamp
+    #[inline]
+    pub fn timestamp(&self) -> Option<SystemTime> {
+        self.timestamp
+    }
+
+    /// Returns the observed timestamp
+    #[inline]
+    pub fn observed_timestamp(&self) -> Option<SystemTime> {
+        self.observed_timestamp
+    }
+
+    /// Returns the trace context
+    #[inline]
+    pub fn trace_context(&self) -> Option<&TraceContext> {
+        self.trace_context.as_ref()
+    }
+
+    /// Returns the severity text
+    #[inline]
+    pub fn severity_text(&self) -> Option<&'static str> {
+        self.severity_text
+    }
+
+    /// Returns the severity number
+    #[inline]
+    pub fn severity_number(&self) -> Option<Severity> {
+        self.severity_number
+    }
+
+    /// Returns the body
+    #[inline]
+    pub fn body(&self) -> Option<&AnyValue> {
+        self.body.as_ref()
+    }
+
     /// Provides an iterator over the attributes.
+    #[inline]
     pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
         self.attributes.iter().filter_map(|opt| opt.as_ref())
     }

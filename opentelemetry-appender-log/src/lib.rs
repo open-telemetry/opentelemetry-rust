@@ -846,11 +846,11 @@ mod tests {
 
         assert_eq!(logs.len(), 5);
         for log in logs {
-            let body: String = match log.record.body.as_ref().unwrap() {
+            let body: String = match log.record.body().unwrap() {
                 super::AnyValue::String(s) => s.to_string(),
                 _ => panic!("AnyValue::String expected"),
             };
-            assert_eq!(body, log.record.severity_text.unwrap());
+            assert_eq!(body, log.record.severity_text().unwrap());
         }
     }
 
