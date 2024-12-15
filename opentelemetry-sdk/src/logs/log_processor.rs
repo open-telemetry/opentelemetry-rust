@@ -755,7 +755,7 @@ mod tests {
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
-                    .with_attributes(vec![
+                    .with_attributes([
                         KeyValue::new("k1", "v1"),
                         KeyValue::new("k2", "v3"),
                         KeyValue::new("k3", "v3"),
@@ -779,7 +779,7 @@ mod tests {
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
-                    .with_attributes(vec![
+                    .with_attributes([
                         KeyValue::new("k1", "v1"),
                         KeyValue::new("k2", "v3"),
                         KeyValue::new("k3", "v3"),
