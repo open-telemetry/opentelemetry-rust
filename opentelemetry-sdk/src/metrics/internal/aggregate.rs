@@ -1,4 +1,10 @@
-use std::{marker, sync::Arc};
+use std::{
+    marker,
+    mem::replace,
+    ops::DerefMut,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
 
 use opentelemetry::KeyValue;
 
@@ -50,6 +56,44 @@ where
 {
     fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         self(dest)
+    }
+}
+
+pub(crate) struct AggregateTime {
+    pub start: SystemTime,
+    pub current: SystemTime,
+}
+
+/// Initialized [`AggregateTime`] for specific [`Temporality`]
+pub(crate) struct AggregateTimeInitiator(Mutex<SystemTime>);
+
+impl AggregateTimeInitiator {
+    pub(crate) fn delta(&self) -> AggregateTime {
+        let current_time = SystemTime::now();
+        let start_time = self
+            .0
+            .lock()
+            .map(|mut start| replace(start.deref_mut(), current_time))
+            .unwrap_or(current_time);
+        AggregateTime {
+            start: start_time,
+            current: current_time,
+        }
+    }
+
+    pub(crate) fn cumulative(&self) -> AggregateTime {
+        let current_time = SystemTime::now();
+        let start_time = self.0.lock().map(|start| *start).unwrap_or(current_time);
+        AggregateTime {
+            start: start_time,
+            current: current_time,
+        }
+    }
+}
+
+impl Default for AggregateTimeInitiator {
+    fn default() -> Self {
+        Self(Mutex::new(SystemTime::now()))
     }
 }
 
