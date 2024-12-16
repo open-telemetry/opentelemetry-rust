@@ -102,6 +102,9 @@
     - Getter methods have been introduced to access field values.
     This change impacts custom exporter and processor developers by requiring updates to code that directly accessed LogRecord fields. They must now use the provided getter methods (e.g., `log_record.event_name()` instead of `log_record.event_name`).
 
+- Upgrade the tracing crate used for internal logging to version 0.1.40 or later. This is necessary because the internal logging macros utilize the name field as       
+metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/open-telemetry/opentelemetry-rust/pull/2418)
+
 ## 0.27.1
 
 Released 2024-Nov-27
