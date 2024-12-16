@@ -119,7 +119,10 @@ impl SdkMeterProvider {
 
 impl SdkMeterProviderInner {
     fn force_flush(&self) -> MetricResult<()> {
-        if self.shutdown_invoked.load(std::sync::atomic::Ordering::Relaxed) {
+        if self
+            .shutdown_invoked
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             Err(MetricError::Other(
                 "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
             ))
