@@ -38,7 +38,7 @@ pub struct SdkMeterProvider {
 struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
     meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
-    is_shutdown: AtomicBool,
+    shutdown_invoked: AtomicBool,
 }
 
 impl Default for SdkMeterProvider {
@@ -119,20 +119,26 @@ impl SdkMeterProvider {
 
 impl SdkMeterProviderInner {
     fn force_flush(&self) -> MetricResult<()> {
-        self.pipes.force_flush()
+        if self.shutdown_invoked.load(std::sync::atomic::Ordering::Relaxed) {
+            Err(MetricError::Other(
+                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
+            ))
+        } else {
+            self.pipes.force_flush()
+        }
     }
 
     fn shutdown(&self) -> MetricResult<()> {
         if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
+            .shutdown_invoked
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
-            self.pipes.shutdown()
-        } else {
+            // If the previous value was true, shutdown was already invoked.
             Err(MetricError::Other(
-                "metrics provider already shut down".into(),
+                "MeterProvider shutdown already invoked.".into(),
             ))
+        } else {
+            self.pipes.shutdown()
         }
     }
 }
@@ -141,7 +147,7 @@ impl Drop for SdkMeterProviderInner {
     fn drop(&mut self) {
         // If user has already shutdown the provider manually by calling
         // shutdown(), then we don't need to call shutdown again.
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.shutdown_invoked.load(Ordering::Relaxed) {
             otel_debug!(
                 name: "MeterProvider.Drop.AlreadyShutdown",
                 message = "MeterProvider was already shut down; drop will not attempt shutdown again."
@@ -173,7 +179,7 @@ impl MeterProvider for SdkMeterProvider {
     }
 
     fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
-        if self.inner.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.shutdown_invoked.load(Ordering::Relaxed) {
             otel_debug!(
                 name: "MeterProvider.NoOpMeterReturned",
                 meter_name = scope.name(),
@@ -270,7 +276,7 @@ impl MeterProviderBuilder {
                     self.views,
                 )),
                 meters: Default::default(),
-                is_shutdown: AtomicBool::new(false),
+                shutdown_invoked: AtomicBool::new(false),
             }),
         };
 
