@@ -34,7 +34,6 @@ futures-util = { workspace = true, optional = true }
 opentelemetry = { version = "0.27", path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.27", path = "../opentelemetry-sdk" }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
 ordered-float = { workspace = true }
 
 [dev-dependencies]

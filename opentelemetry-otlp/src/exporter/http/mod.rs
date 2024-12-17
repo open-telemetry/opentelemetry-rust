@@ -66,8 +66,11 @@ pub struct HttpConfig {
 impl Default for HttpConfig {
     fn default() -> Self {
         #[cfg(feature = "reqwest-blocking-client")]
-        let default_client =
-            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>);
+        let default_client = std::thread::spawn(|| {
+            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>)
+        })
+        .join()
+        .expect("creating reqwest::blocking::Client on a new thread not to fail");
         #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
         let default_client = Some(Arc::new(reqwest::Client::new()) as Arc<dyn HttpClient>);
         #[cfg(all(
