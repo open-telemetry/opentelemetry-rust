@@ -3,7 +3,7 @@
 ## vNext
 
 - Update proto definitions to v1.4.0 [#2315](https://github.com/open-telemetry/opentelemetry-rust/pull/2315)
-
+- Update protodef definitions to v1.5.0
 
 ## 0.27.0
 
