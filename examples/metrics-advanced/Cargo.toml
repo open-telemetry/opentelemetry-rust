@@ -10,4 +10,3 @@ opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["spec_unstable_metrics_views", "rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["metrics"] }
 tokio = { workspace = true, features = ["full"] }
-serde_json = { workspace = true }
