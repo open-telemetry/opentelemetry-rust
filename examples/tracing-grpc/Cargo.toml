@@ -17,6 +17,7 @@ path = "src/client.rs"
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] }
 opentelemetry-stdout = { path = "../../opentelemetry-stdout", features = ["trace"] }
+prost = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tonic = { workspace = true }
 
