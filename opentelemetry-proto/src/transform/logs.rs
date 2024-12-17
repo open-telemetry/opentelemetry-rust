@@ -118,6 +118,7 @@ pub mod tonic {
                     #[cfg(not(feature = "populate-logs-event-name"))]
                     attributes
                 },
+                event_name: log_record.event_name.unwrap_or_default().into(),
                 severity_number: severity_number.into(),
                 severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
                 body: log_record.body.clone().map(Into::into),
