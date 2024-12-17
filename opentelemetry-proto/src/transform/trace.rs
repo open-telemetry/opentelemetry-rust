@@ -231,7 +231,9 @@ mod tests {
 
     #[test]
     fn test_group_spans_by_resource_and_scope_single_scope() {
-        let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("resource_key", "resource_value"))
+            .build();
         let span_data = create_test_span_data("lib1");
 
         let spans = vec![span_data.clone()];
@@ -276,7 +278,9 @@ mod tests {
 
     #[test]
     fn test_group_spans_by_resource_and_scope_multiple_scopes() {
-        let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("resource_key", "resource_value"))
+            .build();
         let span_data1 = create_test_span_data("lib1");
         let span_data2 = create_test_span_data("lib1");
         let span_data3 = create_test_span_data("lib2");

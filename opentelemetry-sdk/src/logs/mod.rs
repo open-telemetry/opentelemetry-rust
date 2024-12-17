@@ -27,12 +27,14 @@ mod tests {
     #[test]
     fn logging_sdk_test() {
         // Arrange
-        let resource = Resource::new(vec![
-            KeyValue::new("k1", "v1"),
-            KeyValue::new("k2", "v2"),
-            KeyValue::new("k3", "v3"),
-            KeyValue::new("k4", "v4"),
-        ]);
+        let resource = Resource::builder_empty()
+            .with_attributes([
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])
+            .build();
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_resource(resource.clone())

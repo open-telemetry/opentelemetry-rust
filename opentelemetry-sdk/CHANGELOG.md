@@ -2,6 +2,10 @@
 
 ## vNext
 
+- *Breaking(Affects custom metric exporter authors only)* `start_time` and `time` is moved from DataPoints to aggregations (Sum, Gauge, Histogram, ExpoHistogram) see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411), to reduce memory.
+
+- *Breaking* `start_time` is no longer optional for `Sum` aggregation, see [#2367](https://github.com/open-telemetry/opentelemetry-rust/pull/2367), but is still optional for `Gauge` aggregation see [#2389](https://github.com/open-telemetry/opentelemetry-rust/pull/2389).
+
 - *Breaking*
   - SimpleLogProcessor modified to be generic over `LogExporter` to
     avoid dynamic dispatch to invoke exporter. If you were using
@@ -10,7 +14,22 @@
     [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
   - `ResourceDetector.detect()` no longer supports timeout option.
   - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply cloneable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
+- *Feature*: Add `ResourceBuilder` for an easy way to create new `Resource`s
+- *Breaking*: Remove `Resource::{new,empty,from_detectors,new_with_defaults,from_schema_url,merge,default}` from public api. To create Resources you should only use `Resource::builder()` or `Resource::builder_empty()`. See [#2322](https://github.com/open-telemetry/opentelemetry-rust/pull/2322) for a migration guide.
+  Example Usage:
+  ```rust
+  // old
+  Resource::default().with_attributes([
+      KeyValue::new("service.name", "test_service"),
+      KeyValue::new("key", "value"),
+  ]);
 
+  // new
+  Resource::builder()
+      .with_service_name("test_service")
+      .with_attribute(KeyValue::new("key", "value"))
+      .build();
+  ```
 - *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
   Before:
      async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()>
@@ -73,6 +92,18 @@
       `experimental_metrics_periodicreader_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
+      
+  - Bump msrv to 1.75.0.
+
+
+- *Breaking* : [#2314](https://github.com/open-telemetry/opentelemetry-rust/pull/2314)
+  - The LogRecord struct has been updated:
+    - All fields are now pub(crate) instead of pub.
+    - Getter methods have been introduced to access field values.
+    This change impacts custom exporter and processor developers by requiring updates to code that directly accessed LogRecord fields. They must now use the provided getter methods (e.g., `log_record.event_name()` instead of `log_record.event_name`).
+
+- Upgrade the tracing crate used for internal logging to version 0.1.40 or later. This is necessary because the internal logging macros utilize the name field as       
+metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/open-telemetry/opentelemetry-rust/pull/2418)
 
 ## 0.27.1
 

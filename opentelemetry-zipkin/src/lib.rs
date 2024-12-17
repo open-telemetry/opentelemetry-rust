@@ -148,7 +148,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::new(vec![KeyValue::new("key", "value")])),
+//!                 .with_resource(Resource::builder_empty().with_attribute(KeyValue::new("key", "value")).build()),
 //!         )
 //!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 //!

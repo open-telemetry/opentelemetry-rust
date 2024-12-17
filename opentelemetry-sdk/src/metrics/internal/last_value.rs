@@ -1,9 +1,10 @@
-use std::{mem::replace, ops::DerefMut, sync::Mutex, time::SystemTime};
-
 use crate::metrics::data::{self, Aggregation, GaugeDataPoint};
 use opentelemetry::KeyValue;
 
-use super::{Aggregator, AtomicTracker, AtomicallyUpdate, Number, ValueMap};
+use super::{
+    aggregate::AggregateTimeInitiator, Aggregator, AtomicTracker, AtomicallyUpdate, Number,
+    ValueMap,
+};
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -40,14 +41,14 @@ where
 /// Summarizes a set of measurements as the last one made.
 pub(crate) struct LastValue<T: Number> {
     value_map: ValueMap<Assign<T>>,
-    start: Mutex<SystemTime>,
+    init_time: AggregateTimeInitiator,
 }
 
 impl<T: Number> LastValue<T> {
     pub(crate) fn new() -> Self {
         LastValue {
             value_map: ValueMap::new(()),
-            start: Mutex::new(SystemTime::now()),
+            init_time: AggregateTimeInitiator::default(),
         }
     }
 
@@ -60,26 +61,21 @@ impl<T: Number> LastValue<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), time))
-            .unwrap_or(time);
+        let time = self.init_time.delta();
 
         let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
-                start_time: Some(start_time),
-                time,
+                start_time: Some(time.start),
+                time: time.current,
             })
         } else {
             None
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
-        s_data.start_time = Some(start_time);
-        s_data.time = time;
+        s_data.start_time = Some(time.start);
+        s_data.time = time.current;
 
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
@@ -98,22 +94,21 @@ impl<T: Number> LastValue<T> {
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = SystemTime::now();
-        let start_time = self.start.lock().map(|start| *start).unwrap_or(time);
+        let time = self.init_time.cumulative();
         let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
-                start_time: Some(start_time),
-                time,
+                start_time: Some(time.start),
+                time: time.current,
             })
         } else {
             None
         };
         let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
 
-        s_data.start_time = Some(start_time);
-        s_data.time = time;
+        s_data.start_time = Some(time.start);
+        s_data.time = time.current;
 
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
