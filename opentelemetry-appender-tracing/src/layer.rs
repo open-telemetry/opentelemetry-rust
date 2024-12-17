@@ -8,7 +8,6 @@ use tracing_core::Level;
 use tracing_core::Metadata;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
-use tracing_opentelemetry::OtelData;
 use tracing_subscriber::{registry::LookupSpan, Layer};
 
 const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
@@ -154,7 +153,11 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync + 'static,
     L: Logger + Send + Sync + 'static,
 {
-    fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
 
@@ -177,7 +180,9 @@ where
         // Visit fields.
         event.record(&mut visitor);
 
-        if let Some(span) = ctx.event_span(event) {
+        #[cfg(feature = "tracing")]
+        if let Some(span) = _ctx.event_span(event) {
+            use tracing_opentelemetry::OtelData;
             let opt_span_id = span
                 .extensions()
                 .get::<OtelData>()
@@ -232,7 +237,6 @@ mod tests {
     use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
-    use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -507,8 +511,11 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "tracing")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
+        use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
+
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()

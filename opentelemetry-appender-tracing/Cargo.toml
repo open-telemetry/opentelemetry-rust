@@ -18,7 +18,7 @@ tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { version = "0.2", optional = true }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
-tracing-opentelemetry = { version = "0.28" }
+tracing-opentelemetry = { version = "0.28", optional = true }
 
 [dev-dependencies]
 log = { workspace = true }
@@ -34,8 +34,10 @@ tokio = { workspace = true, features = ["full"]}
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
 [features]
+default = ["tracing"]
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
+tracing = ["tracing-opentelemetry"]
 
 
 [[bench]]
