@@ -37,7 +37,8 @@ pub struct ResourceSpans {
     #[prost(message, repeated, tag = "2")]
     pub scope_spans: ::prost::alloc::vec::Vec<ScopeSpans>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_spans" field which have their own schema_url field.
@@ -60,7 +61,8 @@ pub struct ScopeSpans {
     #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
     /// The Schema URL, if known. This is the identifier of the Schema that the span data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all spans and span events in the "spans" field.
     #[prost(string, tag = "3")]
