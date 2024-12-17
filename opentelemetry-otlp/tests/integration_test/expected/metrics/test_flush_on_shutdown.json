@@ -1,0 +1,39 @@
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "metrics-integration-test"
+            }
+          }
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": {
+            "name": "test_flush_on_shutdown"
+          },
+          "metrics": [
+            {
+              "name": "counter_",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": "1734370440803831000",
+                    "timeUnixNano": "1734370440803905000",
+                    "asInt": "123"
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
