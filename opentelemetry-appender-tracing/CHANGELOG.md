@@ -3,7 +3,7 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
-- Include trace_id & span_id when logging from inside a tracing span
+- New experimental feature to use trace\_id & span\_id from spans created through the tracing crate (experimental-use-tracing-span-context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
 
 
 ## 0.27.0
