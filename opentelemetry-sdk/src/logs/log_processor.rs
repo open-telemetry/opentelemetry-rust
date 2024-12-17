@@ -37,12 +37,6 @@ const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size.
 const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// Default timeout for forceflush and shutdown.
-const OTEL_LOGS_DEFAULT_FORCEFLUSH_TIMEOUT: Duration = Duration::from_secs(1);
-
-/// environment variable name for forceflush and shutdown timeout.
-const OTEL_LOGS_FORCEFLUSH_TIMEOUT_NAME: &str = "OTEL_LOG_EXPORT_INTERVAL";
-
 /// The interface for plugging into a [`Logger`].
 ///
 /// [`Logger`]: crate::logs::Logger
@@ -154,6 +148,23 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 }
 
+/// Messages sent between application thread and batch log processor's work thread.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
+enum BatchMessage {
+    /// Export logs, usually called when the log is emitted.
+    ExportLog(Box<(LogRecord, InstrumentationScope)>),
+    /// Flush the current buffer to the backend, it can be triggered by
+    /// pre configured interval or a call to `force_push` function.
+    // Flush(Option<oneshot::Sender<ExportResult>>),
+    /// ForceFlush flushes the current buffer to the backend.
+    ForceFlush(mpsc::SyncSender<ExportResult>),
+    /// Shut down the worker thread, push all logs in buffer to the backend.
+    Shutdown(mpsc::SyncSender<ExportResult>),
+    /// Set the resource for the exporter.
+    SetResource(Arc<Resource>),
+}
+
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor {
@@ -189,10 +200,8 @@ impl LogProcessor for BatchLogProcessor {
             return;
         }
 
-        let result = self.message_sender.try_send(BatchMessage::ExportLog((
-            record.clone(),
-            instrumentation.clone(),
-        )));
+        let result = self.message_sender.
+            try_send(BatchMessage::ExportLog(Box::new((record.clone(), instrumentation.clone()))));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
@@ -264,7 +273,7 @@ impl LogProcessor for BatchLogProcessor {
                     RecvTimeoutError::Timeout => {
                         otel_error!(
                             name: "BatchLogProcessor.Shutdown.Timeout",
-                            message = "BatchLogProcessor shutdown timed out."
+                            message = "BatchLogProcessor shutdown timing out."
                         );
                         LogError::ExportTimedOut(self.shutdown_timeout)
                     }
@@ -329,8 +338,7 @@ impl BatchLogProcessor {
                         exporter.set_resource(&resource);
                     }
                     Err(RecvTimeoutError::Timeout) => {
-                        // FIXME handle result
-                        let _result = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                        let _ = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
                     }
                     Err(err) => {
                         otel_error!(
@@ -342,19 +350,12 @@ impl BatchLogProcessor {
             }
         });
 
-
-        let forceflush_timeout = env::var(OTEL_LOGS_FORCEFLUSH_TIMEOUT_NAME)
-            .ok()
-            .and_then(|s| u64::from_str(&s).ok())
-            .map(Duration::from_secs)
-            .unwrap_or(OTEL_LOGS_DEFAULT_FORCEFLUSH_TIMEOUT);
-
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
             handle: Mutex::new(Some(handle)),
-            forceflush_timeout,
-            shutdown_timeout: Duration::from_secs(5), // TODO: make this configurable
+            forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
+            shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
             is_shutdown: AtomicBool::new(false),
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
@@ -376,7 +377,7 @@ impl BatchLogProcessor {
 fn export_with_timeout_sync<E>(
     _: Duration, // TODO, enforcing timeout in exporter.
     exporter: &mut E,
-    batch: Vec<(LogRecord, InstrumentationScope)>,
+    batch: Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
 ) -> ExportResult
 where
@@ -599,23 +600,6 @@ where
     pub fn build(self) -> BatchLogProcessor {
         BatchLogProcessor::new(Box::new(self.exporter), self.config)
     }
-}
-
-/// Messages sent between application thread and batch log processor's work thread.
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
-enum BatchMessage {
-    /// Export logs, usually called when the log is emitted.
-    ExportLog((LogRecord, InstrumentationScope)),
-    /// Flush the current buffer to the backend, it can be triggered by
-    /// pre configured interval or a call to `force_push` function.
-    // Flush(Option<oneshot::Sender<ExportResult>>),
-    /// ForceFlush flushes the current buffer to the backend.
-    ForceFlush(mpsc::SyncSender<ExportResult>),
-    /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(mpsc::SyncSender<ExportResult>),
-    /// Set the resource for the exporter.
-    SetResource(Arc<Resource>),
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
