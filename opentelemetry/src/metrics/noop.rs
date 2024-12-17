@@ -5,7 +5,7 @@
 //! runtime impact.
 use crate::{
     metrics::{InstrumentProvider, Meter, MeterProvider},
-    KeyValue,
+    otel_debug, KeyValue,
 };
 use std::sync::Arc;
 
@@ -25,7 +25,8 @@ impl NoopMeterProvider {
 }
 
 impl MeterProvider for NoopMeterProvider {
-    fn meter_with_scope(&self, _scope: crate::InstrumentationScope) -> Meter {
+    fn meter_with_scope(&self, scope: crate::InstrumentationScope) -> Meter {
+        otel_debug!(name: "NoopMeterProvider.MeterCreation", meter_name = scope.name(), message = "Meter was obtained from a NoopMeterProvider. No metrics will be recorded. If global::meter_with_scope()/meter() was used, ensure that a valid MeterProvider is set globally before creating Meter.");
         Meter::new(Arc::new(NoopMeter::new()))
     }
 }
