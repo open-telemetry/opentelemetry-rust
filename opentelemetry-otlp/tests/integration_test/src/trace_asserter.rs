@@ -1,3 +1,4 @@
+use anyhow::Result;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, Span, TracesData};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
@@ -213,9 +214,9 @@ fn span_eq(left: &Span, right: &Span) -> bool {
 }
 
 // read a file contains ResourceSpans in json format
-pub fn read_spans_from_json(file: File) -> Vec<ResourceSpans> {
+pub fn read_spans_from_json(file: File) -> Result<Vec<ResourceSpans>> {
     let reader = std::io::BufReader::new(file);
 
-    let trace_data: TracesData = serde_json::from_reader(reader).expect("Failed to read json file");
-    trace_data.resource_spans
+    let trace_data: TracesData = serde_json::from_reader(reader)?;
+    Ok(trace_data.resource_spans)
 }

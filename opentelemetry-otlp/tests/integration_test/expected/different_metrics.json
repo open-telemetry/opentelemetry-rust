@@ -26,7 +26,7 @@
                       {
                         "key": "mykey1",
                         "value": {
-                          "stringValue": "myvalue1"
+                          "stringValue": "mydifferentval"
                         }
                       },
                       {
@@ -38,7 +38,7 @@
                     ],
                     "startTimeUnixNano": "1734094309366798000",
                     "timeUnixNano": "1734094317871514000",
-                    "asInt": "10"
+                    "asInt": "15"
                   }
                 ],
                 "aggregationTemporality": 2,
