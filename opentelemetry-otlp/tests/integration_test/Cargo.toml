@@ -4,15 +4,19 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-
 [dependencies]
-opentelemetry = { path = "../../../opentelemetry", features = ["metrics", "logs"] }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "logs", "testing"] }
-opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "with-serde"] }
+opentelemetry = { path = "../../../opentelemetry", features = [] }
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "testing"] }
+opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "metrics", "with-serde"] }
 log = { workspace = true }
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1"
-testcontainers = "0.15.0"
+testcontainers = { version = "0.23.1", features = ["http_wait"]}
+once_cell.workspace = true
+anyhow = "1.0.94"
+ctor = "0.2.9"
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
 
 [target.'cfg(unix)'.dependencies]
 opentelemetry-appender-log = { path = "../../../opentelemetry-appender-log", default-features = false}
@@ -20,11 +24,12 @@ opentelemetry-otlp = { path = "../../../opentelemetry-otlp", default-features = 
 opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 
 [features]
-hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
-reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
-reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
-tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
+reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
+reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
+tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
+internal-logs = []
 
 # Keep tonic as the default client
-default = ["tonic-client"]
+default = ["tonic-client", "internal-logs"]
 

@@ -6,7 +6,7 @@
           {
             "key": "service.name",
             "value": {
-              "stringValue": "my.service"
+              "stringValue": "metrics-integration-test"
             }
           }
         ],
@@ -15,112 +15,81 @@
       "scopeMetrics": [
         {
           "scope": {
-            "name": "my.library",
-            "version": "1.0.0",
-            "attributes": [
-              {
-                "key": "my.scope.attribute",
-                "value": {
-                  "stringValue": "some scope attribute"
-                }
-              }
-            ],
+            "name": "meter",
+            "version": "",
+            "attributes": [],
             "droppedAttributesCount": 0
           },
           "metrics": [
             {
-              "name": "my.counter",
-              "description": "I am a Counter",
-              "unit": "1",
+              "name": "counter_u64",
+              "description": "",
+              "unit": "",
               "metadata": [],
               "sum": {
                 "dataPoints": [
                   {
                     "attributes": [
                       {
-                        "key": "my.counter.attr",
+                        "key": "mykey1",
                         "value": {
-                          "stringValue": "some value"
+                          "stringValue": "myvalue1"
+                        }
+                      },
+                      {
+                        "key": "mykey2",
+                        "value": {
+                          "stringValue": "myvalue2"
                         }
                       }
                     ],
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
+                    "startTimeUnixNano": "1734094309366798000",
+                    "timeUnixNano": "1734094317871514000",
                     "exemplars": [],
-                    "flags": 0,
-                    "asDouble": 5.0
+                    "flags": 0
                   }
                 ],
-                "aggregationTemporality": 1,
+                "aggregationTemporality": 2,
                 "isMonotonic": true
               }
             },
             {
-              "name": "my.gauge",
-              "description": "I am a Gauge",
-              "unit": "1",
-              "metadata": [],
-              "gauge": {
-                "dataPoints": [
-                  {
-                    "attributes": [
-                      {
-                        "key": "my.gauge.attr",
-                        "value": {
-                          "stringValue": "some value"
-                        }
-                      }
-                    ],
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
-                    "exemplars": [],
-                    "flags": 0,
-                    "asDouble": 10.0
-                  }
-                ]
-              }
+              "name": "example_histogram",
+              "description": "",
+              "unit": "",
+              "metadata": []
             },
             {
-              "name": "my.histogram",
-              "description": "I am a Histogram",
-              "unit": "1",
+              "name": "example_up_down_counter",
+              "description": "",
+              "unit": "",
               "metadata": [],
-              "histogram": {
+              "sum": {
                 "dataPoints": [
                   {
                     "attributes": [
                       {
-                        "key": "my.histogram.attr",
+                        "key": "mykey5",
                         "value": {
-                          "stringValue": "some value"
+                          "stringValue": "myvalue5"
                         }
                       }
                     ],
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
-                    "count": 2,
-                    "sum": 2.0,
-                    "bucketCounts": [
-                      1,
-                      1
-                    ],
-                    "explicitBounds": [
-                      1.0
-                    ],
+                    "startTimeUnixNano": "1734094309366941000",
+                    "timeUnixNano": "1734094317871548000",
                     "exemplars": [],
-                    "flags": 0,
-                    "min": 0.0,
-                    "max": 2.0
+                    "flags": 0
                   }
                 ],
-                "aggregationTemporality": 1
+                "aggregationTemporality": 2,
+                "isMonotonic": false
               }
             }
           ],
-          "schemaUrl": "whatever"
+          "schemaUrl": ""
         }
       ],
-      "schemaUrl": "whatever"
+      "schemaUrl": ""
     }
   ]
 }
