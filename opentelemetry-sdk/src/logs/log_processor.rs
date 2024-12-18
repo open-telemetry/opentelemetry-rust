@@ -384,8 +384,9 @@ impl BatchLogProcessor {
                         );
                     }
                     Err(err) => {
+                        // TODO: this should not happen! Log the error and continue for now.
                         otel_error!(
-                            name: "BatchLogProcessor.ReceiveError",
+                            name: "BatchLogProcessor.InternalError",
                             error = format!("{}", err)
                         );
                     }
@@ -417,6 +418,7 @@ impl BatchLogProcessor {
     }
 }
 
+#[allow(clippy::vec_box)]
 fn export_with_timeout_sync<E>(
     _: Duration, // TODO, enforcing timeout in exporter.
     exporter: &mut E,
@@ -440,7 +442,7 @@ where
     let export_result = futures_executor::block_on(export);
 
     match export_result {
-        Ok(__) => LogResult::Ok(()),
+        Ok(_) => LogResult::Ok(()),
         Err(err) => {
             otel_error!(
                 name: "BatchLogProcessor.ExportError",
@@ -717,6 +719,7 @@ where
 /// Batch log processor configuration.
 /// Use [`BatchConfigBuilder`] to configure your own instance of [`BatchConfig`].
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BatchConfig {
     /// The maximum queue size to buffer logs for delayed processing. If the
     /// queue gets full it drops the logs. The default value of is 2048.
@@ -1138,6 +1141,10 @@ mod tests {
                     .build(),
             )
             .build();
+
+        // wait for the batch processor to process the resource.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
