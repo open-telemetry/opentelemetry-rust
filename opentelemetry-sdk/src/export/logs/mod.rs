@@ -90,6 +90,25 @@ pub trait LogExporter: Send + Sync + Debug {
         // By default, all logs are enabled
         true
     }
+
+    /// This is a hint to ensure that the export of any Logs the exporter
+    /// has received prior to the call to this function SHOULD be completed
+    /// as soon as possible, preferably before returning from this method.
+    ///
+    /// This function SHOULD provide a way to let the caller know
+    /// whether it succeeded, failed or timed out.
+    ///
+    /// This function SHOULD only be called in cases where it is absolutely necessary,
+    /// such as when using some FaaS providers that may suspend the process after
+    /// an invocation, but before the exporter exports the completed logs.
+    ///
+    /// This function SHOULD complete or abort within some timeout. This function can be
+    /// implemented as a blocking API or an asynchronous API which notifies the caller via
+    /// a callback or an event. OpenTelemetry client authors can decide if they want to
+    /// make the flush timeout configurable.
+    fn force_flush(&mut self) -> ExportResult {
+        Ok(())
+    }
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
