@@ -20,7 +20,8 @@ async fn main() {
 
     // Setup Log Appender for the log crate.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
-    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();    log::set_max_level(Level::Info.to_level_filter());
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
 
     // Emit logs using macros from the log crate.
     let fruit = "apple";
