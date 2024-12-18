@@ -48,6 +48,9 @@ pub async fn test_logs() -> Result<()> {
     log::set_max_level(Level::Info.to_level_filter());
 
     info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+
+    // TODO: remove below wait before calling logger_provider.shutdown()
+    tokio::time::sleep(Duration::from_secs(10)).await;
     let _ = logger_provider.shutdown();
 
     tokio::time::sleep(Duration::from_secs(10)).await;
