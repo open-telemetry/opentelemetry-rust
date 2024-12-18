@@ -15,7 +15,7 @@ testcontainers = { version = "0.23.1", features = ["http_wait"]}
 once_cell.workspace = true
 anyhow = "1.0.94"
 ctor = "0.2.9"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 tracing = "0.1.41"
 
 [target.'cfg(unix)'.dependencies]
@@ -28,7 +28,7 @@ hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-prot
 reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
-internal-logs = []
+internal-logs = ["opentelemetry-otlp/internal-logs"]
 
 # Keep tonic as the default client
 default = ["tonic-client", "internal-logs"]
