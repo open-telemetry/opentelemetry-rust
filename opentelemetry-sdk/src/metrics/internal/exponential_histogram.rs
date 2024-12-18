@@ -13,7 +13,10 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::{aggregate::AggregateTimeInitiator, Aggregator, ComputeAggregation, Number, ValueMap};
+use super::{
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    Aggregator, ComputeAggregation, Measure, Number, ValueMap,
+};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -357,6 +360,7 @@ pub(crate) struct ExpoHistogram<T: Number> {
     value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
+    filter: AttributeSetFilter,
     record_sum: bool,
     record_min_max: bool,
 }
@@ -365,6 +369,7 @@ impl<T: Number> ExpoHistogram<T> {
     /// Create a new exponential histogram.
     pub(crate) fn new(
         temporality: Temporality,
+        filter: AttributeSetFilter,
         max_size: u32,
         max_scale: i8,
         record_min_max: bool,
@@ -377,20 +382,10 @@ impl<T: Number> ExpoHistogram<T> {
             }),
             init_time: AggregateTimeInitiator::default(),
             temporality,
+            filter,
             record_sum,
             record_min_max,
         }
-    }
-
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
-        let f_value = value.into_float();
-        // Ignore NaN and infinity.
-        // Only makes sense if T is f64, maybe this could be no-op for other cases?
-        if !f_value.is_finite() {
-            return;
-        }
-
-        self.value_map.measure(value, attrs);
     }
 
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
@@ -502,6 +497,24 @@ impl<T: Number> ExpoHistogram<T> {
             });
 
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+    }
+}
+
+impl<T> Measure<T> for Arc<ExpoHistogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        let f_value = measurement.into_float();
+        // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
+        if !f_value.is_finite() {
+            return;
+        }
+
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
     }
 }
 
@@ -682,9 +695,16 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(Temporality::Cumulative, 4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, &[]);
+                Measure::call(&h, v, &[]);
             }
             let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
@@ -731,9 +751,16 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(Temporality::Cumulative, 4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, &[]);
+                Measure::call(&h, v, &[]);
             }
             let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
