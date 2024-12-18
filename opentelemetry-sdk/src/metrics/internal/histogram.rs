@@ -1,12 +1,15 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::{sync::Mutex, time::SystemTime};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::metrics::data::HistogramDataPoint;
 use crate::metrics::data::{self, Aggregation};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
+use super::aggregate::AggregateTimeInitiator;
+use super::ComputeAggregation;
 use super::ValueMap;
 use super::{Aggregator, Number};
 
@@ -67,15 +70,21 @@ impl<T: Number> Buckets<T> {
 /// buckets.
 pub(crate) struct Histogram<T: Number> {
     value_map: ValueMap<Mutex<Buckets<T>>>,
+    init_time: AggregateTimeInitiator,
+    temporality: Temporality,
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,
-    start: Mutex<SystemTime>,
 }
 
 impl<T: Number> Histogram<T> {
     #[allow(unused_mut)]
-    pub(crate) fn new(mut bounds: Vec<f64>, record_min_max: bool, record_sum: bool) -> Self {
+    pub(crate) fn new(
+        temporality: Temporality,
+        mut bounds: Vec<f64>,
+        record_min_max: bool,
+        record_sum: bool,
+    ) -> Self {
         #[cfg(feature = "spec_unstable_metrics_views")]
         {
             // TODO: When views are used, validate this upfront
@@ -86,10 +95,11 @@ impl<T: Number> Histogram<T> {
         let buckets_count = bounds.len() + 1;
         Histogram {
             value_map: ValueMap::new(buckets_count),
+            init_time: AggregateTimeInitiator::default(),
+            temporality,
             bounds,
             record_min_max,
             record_sum,
-            start: Mutex::new(SystemTime::now()),
         }
     }
 
@@ -105,15 +115,15 @@ impl<T: Number> Histogram<T> {
         self.value_map.measure((measurement, index), attrs);
     }
 
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        let time = self.init_time.delta();
+
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -121,20 +131,14 @@ impl<T: Number> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|mut start| replace(start.deref_mut(), t))
-            .unwrap_or(t);
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
                 let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     bounds: self.bounds.clone(),
                     bucket_counts: b.counts,
@@ -160,15 +164,17 @@ impl<T: Number> Histogram<T> {
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 
-    pub(crate) fn cumulative(
+    fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
+        let time = self.init_time.cumulative();
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -176,20 +182,14 @@ impl<T: Number> Histogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
-
-        let prev_start = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+        h.start_time = time.start;
+        h.time = time.current;
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, aggr| {
                 let b = aggr.lock().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
-                    start_time: prev_start,
-                    time: t,
                     count: b.count,
                     bounds: self.bounds.clone(),
                     bucket_counts: b.counts.clone(),
@@ -216,17 +216,34 @@ impl<T: Number> Histogram<T> {
     }
 }
 
+impl<T> ComputeAggregation for Arc<Histogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn check_buckets_are_selected_correctly() {
-        let hist = Histogram::<i64>::new(vec![1.0, 3.0, 6.0], false, false);
+        let hist = Arc::new(Histogram::<i64>::new(
+            Temporality::Cumulative,
+            vec![1.0, 3.0, 6.0],
+            false,
+            false,
+        ));
         for v in 1..11 {
             hist.measure(v, &[]);
         }
-        let (count, dp) = hist.cumulative(None);
+        let (count, dp) = ComputeAggregation::call(&hist, None);
         let dp = dp.unwrap();
         let dp = dp.as_any().downcast_ref::<data::Histogram<i64>>().unwrap();
         assert_eq!(count, 1);

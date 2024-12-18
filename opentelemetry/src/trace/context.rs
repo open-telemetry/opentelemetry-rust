@@ -32,6 +32,12 @@ pub(crate) struct SynchronizedSpan {
     inner: Option<Mutex<global::BoxedSpan>>,
 }
 
+impl SynchronizedSpan {
+    pub(crate) fn span_context(&self) -> &SpanContext {
+        &self.span_context
+    }
+}
+
 impl From<SpanContext> for SynchronizedSpan {
     fn from(value: SpanContext) -> Self {
         Self {

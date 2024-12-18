@@ -5,7 +5,6 @@
 use crate::resource::{Resource, ResourceDetector};
 use opentelemetry::{Key, KeyValue, Value};
 use std::env;
-use std::time::Duration;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";
@@ -20,10 +19,10 @@ pub struct EnvResourceDetector {
 }
 
 impl ResourceDetector for EnvResourceDetector {
-    fn detect(&self, _timeout: Duration) -> Resource {
+    fn detect(&self) -> Resource {
         match env::var(OTEL_RESOURCE_ATTRIBUTES) {
             Ok(s) if !s.is_empty() => construct_otel_resources(s),
-            Ok(_) | Err(_) => Resource::new(vec![]), // return empty resource
+            Ok(_) | Err(_) => Resource::empty(), // return empty resource
         }
     }
 }
@@ -44,16 +43,18 @@ impl Default for EnvResourceDetector {
 /// Extract key value pairs and construct a resource from resources string like
 /// key1=value1,key2=value2,...
 fn construct_otel_resources(s: String) -> Resource {
-    Resource::new(s.split_terminator(',').filter_map(|entry| {
-        let mut parts = entry.splitn(2, '=');
-        let key = parts.next()?.trim();
-        let value = parts.next()?.trim();
-        if value.find('=').is_some() {
-            return None;
-        }
+    Resource::builder_empty()
+        .with_attributes(s.split_terminator(',').filter_map(|entry| {
+            let mut parts = entry.splitn(2, '=');
+            let key = parts.next()?.trim();
+            let value = parts.next()?.trim();
+            if value.find('=').is_some() {
+                return None;
+            }
 
-        Some(KeyValue::new(key.to_owned(), value.to_owned()))
-    }))
+            Some(KeyValue::new(key.to_owned(), value.to_owned()))
+        }))
+        .build()
 }
 
 /// There are attributes which MUST be provided by the SDK as specified in
@@ -72,20 +73,22 @@ fn construct_otel_resources(s: String) -> Resource {
 pub struct SdkProvidedResourceDetector;
 
 impl ResourceDetector for SdkProvidedResourceDetector {
-    fn detect(&self, _timeout: Duration) -> Resource {
-        Resource::new(vec![KeyValue::new(
-            super::SERVICE_NAME,
-            env::var(OTEL_SERVICE_NAME)
-                .ok()
-                .filter(|s| !s.is_empty())
-                .map(Value::from)
-                .or_else(|| {
-                    EnvResourceDetector::new()
-                        .detect(Duration::from_secs(0))
-                        .get(Key::new(super::SERVICE_NAME))
-                })
-                .unwrap_or_else(|| "unknown_service".into()),
-        )])
+    fn detect(&self) -> Resource {
+        Resource::builder_empty()
+            .with_attributes([KeyValue::new(
+                super::SERVICE_NAME,
+                env::var(OTEL_SERVICE_NAME)
+                    .ok()
+                    .filter(|s| !s.is_empty())
+                    .map(Value::from)
+                    .or_else(|| {
+                        EnvResourceDetector::new()
+                            .detect()
+                            .get(Key::new(super::SERVICE_NAME))
+                    })
+                    .unwrap_or_else(|| "unknown_service".into()),
+            )])
+            .build()
     }
 }
 
@@ -96,7 +99,6 @@ mod tests {
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry::{Key, KeyValue, Value};
-    use std::time::Duration;
 
     #[test]
     fn test_read_from_env() {
@@ -110,35 +112,37 @@ mod tests {
             ],
             || {
                 let detector = EnvResourceDetector::new();
-                let resource = detector.detect(Duration::from_secs(5));
+                let resource = detector.detect();
                 assert_eq!(
                     resource,
-                    Resource::new(vec![
-                        KeyValue::new("key", "value"),
-                        KeyValue::new("k", "v"),
-                        KeyValue::new("a", "x"),
-                        KeyValue::new("a", "z"),
-                    ])
+                    Resource::builder_empty()
+                        .with_attributes([
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
                 );
             },
         );
 
         let detector = EnvResourceDetector::new();
-        let resource = detector.detect(Duration::from_secs(5));
+        let resource = detector.detect();
         assert!(resource.is_empty());
     }
 
     #[test]
     fn test_sdk_provided_resource_detector() {
         // Ensure no env var set
-        let no_env = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+        let no_env = SdkProvidedResourceDetector.detect();
         assert_eq!(
             no_env.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
-            let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+            let with_service = SdkProvidedResourceDetector.detect();
             assert_eq!(
                 with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                 Some(Value::from("test service")),
@@ -149,7 +153,7 @@ mod tests {
             OTEL_RESOURCE_ATTRIBUTES,
             Some("service.name=test service1"),
             || {
-                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
                     with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service1")),
@@ -164,7 +168,7 @@ mod tests {
                 (OTEL_RESOURCE_ATTRIBUTES, Some("service.name=test service3")),
             ],
             || {
-                let with_service = SdkProvidedResourceDetector.detect(Duration::from_secs(1));
+                let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
                     with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service"))

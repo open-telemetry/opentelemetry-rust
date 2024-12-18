@@ -131,7 +131,7 @@ impl Default for Config {
             sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
             id_generator: Box::<RandomIdGenerator>::default(),
             span_limits: SpanLimits::default(),
-            resource: Cow::Owned(Resource::default()),
+            resource: Cow::Owned(Resource::builder().build()),
         };
 
         if let Some(max_attributes_per_span) = env::var("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT")

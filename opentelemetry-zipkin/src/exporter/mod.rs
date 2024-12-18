@@ -19,7 +19,6 @@ use opentelemetry_semantic_conventions as semcov;
 use std::borrow::Cow;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Zipkin span exporter
 #[derive(Debug)]
@@ -97,28 +96,32 @@ impl ZipkinPipelineBuilder {
         let service_name = self.service_name.take();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = Cow::Owned(Resource::new(
-                    cfg.resource
-                        .iter()
-                        .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>(),
-                ));
+                cfg.resource = Cow::Owned(
+                    Resource::builder_empty()
+                        .with_attributes(
+                            cfg.resource
+                                .iter()
+                                .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
+                                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                                .collect::<Vec<KeyValue>>(),
+                        )
+                        .build(),
+                );
                 cfg
             } else {
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty())
+                Config::default().with_resource(Resource::builder_empty().build())
             };
             (config, Endpoint::new(service_name, self.service_addr))
         } else {
             let service_name = SdkProvidedResourceDetector
-                .detect(Duration::from_secs(0))
+                .detect()
                 .get(semcov::resource::SERVICE_NAME.into())
                 .unwrap()
                 .to_string();
             (
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty()),
+                Config::default().with_resource(Resource::builder_empty().build()),
                 Endpoint::new(service_name, self.service_addr),
             )
         }
@@ -141,7 +144,9 @@ impl ZipkinPipelineBuilder {
 
     /// Install the Zipkin trace exporter pipeline with a simple span processor.
     #[allow(deprecated)]
-    pub fn install_simple(mut self) -> Result<Tracer, TraceError> {
+    pub fn install_simple(
+        mut self,
+    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder = TracerProvider::builder().with_simple_exporter(exporter);
@@ -152,14 +157,17 @@ impl ZipkinPipelineBuilder {
             .with_schema_url(semcov::SCHEMA_URL)
             .build();
         let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider);
-        Ok(tracer)
+        let _ = global::set_tracer_provider(provider.clone());
+        Ok((tracer, provider))
     }
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
     #[allow(deprecated)]
-    pub fn install_batch<R: RuntimeChannel>(mut self, runtime: R) -> Result<Tracer, TraceError> {
+    pub fn install_batch<R: RuntimeChannel>(
+        mut self,
+        runtime: R,
+    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
         let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);
@@ -170,8 +178,8 @@ impl ZipkinPipelineBuilder {
             .with_schema_url(semcov::SCHEMA_URL)
             .build();
         let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider);
-        Ok(tracer)
+        let _ = global::set_tracer_provider(provider.clone());
+        Ok((tracer, provider))
     }
 
     /// Assign the service name under which to group traces.

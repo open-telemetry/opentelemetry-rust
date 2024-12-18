@@ -27,7 +27,7 @@ use super::{
 /// # drop(reader)
 /// ```
 pub struct ManualReader {
-    inner: Box<Mutex<ManualReaderInner>>,
+    inner: Mutex<ManualReaderInner>,
     temporality: Temporality,
 }
 
@@ -58,10 +58,10 @@ impl ManualReader {
     /// A [MetricReader] which is directly called to collect metrics.
     pub(crate) fn new(temporality: Temporality) -> Self {
         ManualReader {
-            inner: Box::new(Mutex::new(ManualReaderInner {
+            inner: Mutex::new(ManualReaderInner {
                 sdk_producer: None,
                 is_shutdown: false,
-            })),
+            }),
             temporality,
         }
     }

@@ -264,6 +264,8 @@ pub use common::{
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub mod metrics;
 
+#[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod propagation;
 
 #[cfg(feature = "trace")]

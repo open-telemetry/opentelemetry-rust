@@ -241,7 +241,7 @@ fn counters(c: &mut Criterion) {
 
     let (rdr, cntr) = bench_counter(None, "cumulative");
     let mut rm = ResourceMetrics {
-        resource: Resource::empty(),
+        resource: Resource::builder_empty().build(),
         scope_metrics: Vec::new(),
     };
 
@@ -338,7 +338,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     }
 
     let mut rm = ResourceMetrics {
-        resource: Resource::empty(),
+        resource: Resource::builder_empty().build(),
         scope_metrics: Vec::new(),
     };
 

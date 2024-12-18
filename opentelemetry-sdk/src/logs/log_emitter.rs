@@ -221,7 +221,7 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
-        let resource = self.resource.unwrap_or_default();
+        let resource = self.resource.unwrap_or(Resource::builder().build());
 
         let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
@@ -257,21 +257,8 @@ impl Logger {
         Logger { scope, provider }
     }
 
-    #[deprecated(
-        since = "0.27.1",
-        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
-    )]
-    /// LoggerProvider associated with this logger.
-    pub fn provider(&self) -> &LoggerProvider {
-        &self.provider
-    }
-
-    #[deprecated(
-        since = "0.27.1",
-        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
-    )]
-    /// Instrumentation scope of this logger.
-    pub fn instrumentation_scope(&self) -> &InstrumentationScope {
+    #[cfg(test)]
+    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }
 }
@@ -426,10 +413,11 @@ mod tests {
 
         // If user provided a resource, use that.
         let custom_config_provider = super::LoggerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "test_service",
-            )]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.resource().len(), 1);
@@ -458,10 +446,14 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::LoggerProvider::builder()
-                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
-                        KeyValue::new("my-custom-key", "my-custom-value"),
-                        KeyValue::new("my-custom-key2", "my-custom-value2"),
-                    ])))
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,

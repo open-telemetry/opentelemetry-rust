@@ -162,7 +162,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
+//!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
 //!         ).build();
 //!     global::set_tracer_provider(tracer_provider);
 //!     let tracer = global::tracer("tracer-name");
@@ -179,14 +179,14 @@
 //!        .build()
 //!        .unwrap();
 //!
-//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio)
+//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
 //!        .with_interval(std::time::Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
 //!        .build();
 //!
 //!    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
 //!        .with_reader(reader)
-//!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
+//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
 //!         .build();
 //!     # }
 //!

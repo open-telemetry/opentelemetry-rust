@@ -38,7 +38,7 @@ pub struct SdkMeterProvider {
 struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
     meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
-    is_shutdown: AtomicBool,
+    shutdown_invoked: AtomicBool,
 }
 
 impl Default for SdkMeterProvider {
@@ -119,20 +119,29 @@ impl SdkMeterProvider {
 
 impl SdkMeterProviderInner {
     fn force_flush(&self) -> MetricResult<()> {
-        self.pipes.force_flush()
+        if self
+            .shutdown_invoked
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
+            Err(MetricError::Other(
+                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
+            ))
+        } else {
+            self.pipes.force_flush()
+        }
     }
 
     fn shutdown(&self) -> MetricResult<()> {
         if self
-            .is_shutdown
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
+            .shutdown_invoked
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
-            self.pipes.shutdown()
-        } else {
+            // If the previous value was true, shutdown was already invoked.
             Err(MetricError::Other(
-                "metrics provider already shut down".into(),
+                "MeterProvider shutdown already invoked.".into(),
             ))
+        } else {
+            self.pipes.shutdown()
         }
     }
 }
@@ -141,7 +150,7 @@ impl Drop for SdkMeterProviderInner {
     fn drop(&mut self) {
         // If user has already shutdown the provider manually by calling
         // shutdown(), then we don't need to call shutdown again.
-        if self.is_shutdown.load(Ordering::Relaxed) {
+        if self.shutdown_invoked.load(Ordering::Relaxed) {
             otel_debug!(
                 name: "MeterProvider.Drop.AlreadyShutdown",
                 message = "MeterProvider was already shut down; drop will not attempt shutdown again."
@@ -173,7 +182,7 @@ impl MeterProvider for SdkMeterProvider {
     }
 
     fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
-        if self.inner.is_shutdown.load(Ordering::Relaxed) {
+        if self.inner.shutdown_invoked.load(Ordering::Relaxed) {
             otel_debug!(
                 name: "MeterProvider.NoOpMeterReturned",
                 meter_name = scope.name(),
@@ -265,12 +274,12 @@ impl MeterProviderBuilder {
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
-                    self.resource.unwrap_or_default(),
+                    self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
                 )),
                 meters: Default::default(),
-                is_shutdown: AtomicBool::new(false),
+                shutdown_invoked: AtomicBool::new(false),
             }),
         };
 
@@ -354,10 +363,11 @@ mod tests {
         let reader2 = TestMetricReader::new();
         let custom_meter_provider = super::SdkMeterProvider::builder()
             .with_reader(reader2)
-            .with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "test_service",
-            )]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_meter_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_meter_provider.inner.pipes.0[0].resource.len(), 1);
@@ -391,10 +401,14 @@ mod tests {
                 let reader4 = TestMetricReader::new();
                 let user_provided_resource_config_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader4)
-                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
-                        KeyValue::new("my-custom-key", "my-custom-value"),
-                        KeyValue::new("my-custom-key2", "my-custom-value2"),
-                    ])))
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,
