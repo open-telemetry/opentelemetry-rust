@@ -16,7 +16,7 @@ async fn main() {
     let exporter = LogExporter::default();
     //Create a LoggerProvider and register the exporter
     let logger_provider = LoggerProvider::builder()
-        .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+        .with_log_processor(BatchLogProcessor::builder(exporter).build())
         .build();
 
     // Setup Log Appender for the log crate.

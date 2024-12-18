@@ -37,7 +37,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogEr
         .build()?;
 
     Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }

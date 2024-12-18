@@ -12,6 +12,11 @@ pub use log_processor::{
 };
 pub use record::{LogRecord, TraceContext};
 
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+pub use log_processor::{
+    BatchLogProcessorWithAsyncRuntime, BatchLogProcessorWithAsyncRuntimeBuilder,
+};
+
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
