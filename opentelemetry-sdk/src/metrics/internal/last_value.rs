@@ -1,9 +1,14 @@
-use crate::metrics::data::{self, Aggregation, GaugeDataPoint};
+use std::sync::Arc;
+
+use crate::metrics::{
+    data::{self, Aggregation, GaugeDataPoint},
+    Temporality,
+};
 use opentelemetry::KeyValue;
 
 use super::{
-    aggregate::AggregateTimeInitiator, Aggregator, AtomicTracker, AtomicallyUpdate, Number,
-    ValueMap,
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
 
 /// this is reused by PrecomputedSum
@@ -42,19 +47,18 @@ where
 pub(crate) struct LastValue<T: Number> {
     value_map: ValueMap<Assign<T>>,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    filter: AttributeSetFilter,
 }
 
 impl<T: Number> LastValue<T> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(temporality: Temporality, filter: AttributeSetFilter) -> Self {
         LastValue {
             value_map: ValueMap::new(()),
             init_time: AggregateTimeInitiator::default(),
+            temporality,
+            filter,
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to LastValue.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -121,5 +125,28 @@ impl<T: Number> LastValue<T> {
             s_data.data_points.len(),
             new_agg.map(|a| Box::new(a) as Box<_>),
         )
+    }
+}
+
+impl<T> Measure<T> for Arc<LastValue<T>>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Arc<LastValue<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }

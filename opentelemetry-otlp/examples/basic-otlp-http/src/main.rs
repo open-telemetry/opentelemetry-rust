@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     // Create a new tracing::Fmt layer to print the logs to stdout. It has a
     // default filter of `info` level and above, and `debug` and above for logs
-    // from OpenTelemtry crates. The filter levels can be customized as needed.
+    // from OpenTelemetry crates. The filter levels can be customized as needed.
     let filter_fmt = EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_thread_names(true)
@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let span = cx.span();
         span.add_event(
             "Nice operation!".to_string(),
-            vec![KeyValue::new("bogons", 100)],
+            vec![KeyValue::new("some.key", 100)],
         );
         span.set_attribute(KeyValue::new("another.key", "yes"));
 

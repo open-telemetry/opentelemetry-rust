@@ -10,9 +10,7 @@ once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio"] }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp" }
-opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 tokio = { version = "1.0", features = ["full"] }
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
 tracing = { workspace = true, features = ["std"]}
-tracing-core = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }

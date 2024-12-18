@@ -14,37 +14,9 @@
       "scopeMetrics": [
         {
           "scope": {
-            "name": "meter"
+            "name": "test_histogram_meter"
           },
           "metrics": [
-            {
-              "name": "counter_u64",
-              "sum": {
-                "dataPoints": [
-                  {
-                    "attributes": [
-                      {
-                        "key": "mykey1",
-                        "value": {
-                          "stringValue": "myvalue1"
-                        }
-                      },
-                      {
-                        "key": "mykey2",
-                        "value": {
-                          "stringValue": "myvalue2"
-                        }
-                      }
-                    ],
-                    "startTimeUnixNano": "1734094309366798000",
-                    "timeUnixNano": "1734094317871514000",
-                    "asInt": "10"
-                  }
-                ],
-                "aggregationTemporality": 2,
-                "isMonotonic": true
-              }
-            },
             {
               "name": "example_histogram",
               "histogram": {
@@ -58,8 +30,8 @@
                         }
                       }
                     ],
-                    "startTimeUnixNano": "1734094309366875000",
-                    "timeUnixNano": "1734094317871537000",
+                    "startTimeUnixNano": "1734259947902842000",
+                    "timeUnixNano": "1734259949551023000",
                     "count": "1",
                     "sum": 42,
                     "bucketCounts": [
@@ -99,27 +71,6 @@
                     ],
                     "min": 42,
                     "max": 42
-                  }
-                ],
-                "aggregationTemporality": 2
-              }
-            },
-            {
-              "name": "example_up_down_counter",
-              "sum": {
-                "dataPoints": [
-                  {
-                    "attributes": [
-                      {
-                        "key": "mykey5",
-                        "value": {
-                          "stringValue": "myvalue5"
-                        }
-                      }
-                    ],
-                    "startTimeUnixNano": "1734094309366941000",
-                    "timeUnixNano": "1734094317871548000",
-                    "asInt": "-1"
                   }
                 ],
                 "aggregationTemporality": 2

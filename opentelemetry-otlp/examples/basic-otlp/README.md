@@ -15,7 +15,7 @@ recommended approach when using OTLP exporters. While it can be modified to use
 a `SimpleExporter`, this requires the main method to be a `tokio::main` function
 since the `tonic` client requires a Tokio runtime. If you prefer not to use
 `tokio::main`, then the `init_logs` and `init_traces` functions must be executed
-within a Tokio runtime. 
+within a Tokio runtime.
 
 This examples uses the default `PeriodicReader` for metrics, which uses own
 thread for background processing/exporting. Since the `tonic` client requires a
@@ -154,7 +154,7 @@ SpanEvent #0
      -> Timestamp: 2024-05-22 20:25:42.8770471 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes::
-          -> bogons: Int(100)
+          -> some.key: Int(100)
     {"kind": "exporter", "data_type": "traces", "name": "logging"}
 ```
 
