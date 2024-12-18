@@ -194,10 +194,7 @@ impl Builder {
     }
 
     /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static>(
-        self,
-        exporter: T,
-    ) -> Self {
+    pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }

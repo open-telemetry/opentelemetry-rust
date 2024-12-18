@@ -3,7 +3,7 @@ use crate::{
     logs::{LogError, LogRecord, LogResult},
     Resource,
 };
-use std::sync::mpsc::{self, SyncSender, RecvTimeoutError};
+use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -210,8 +210,12 @@ impl LogProcessor for BatchLogProcessor {
             return;
         }
 
-        let result = self.message_sender.
-            try_send(BatchMessage::ExportLog(Box::new((record.clone(), instrumentation.clone()))));
+        let result = self
+            .message_sender
+            .try_send(BatchMessage::ExportLog(Box::new((
+                record.clone(),
+                instrumentation.clone(),
+            ))));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
@@ -226,33 +230,39 @@ impl LogProcessor for BatchLogProcessor {
 
     fn force_flush(&self) -> LogResult<()> {
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            otel_warn!(
-                name: "BatchLogProcessor.ForceFlush.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return LogResult::Err(LogError::Other("BatchLogProcessor is already shutdown".into()));
+            return LogResult::Err(LogError::Other(
+                "BatchLogProcessor is already shutdown".into(),
+            ));
         }
         let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender.try_send(BatchMessage::ForceFlush(sender))
+        self.message_sender
+            .try_send(BatchMessage::ForceFlush(sender))
             .map_err(|err| LogError::Other(err.into()))?;
 
-        receiver.recv_timeout(self.forceflush_timeout).map_err(|err| {
-            if err == RecvTimeoutError::Timeout {
-                LogError::ExportTimedOut(self.forceflush_timeout)
-            } else {
-                LogError::Other(err.into())
-            }
-        })?
+        receiver
+            .recv_timeout(self.forceflush_timeout)
+            .map_err(|err| {
+                if err == RecvTimeoutError::Timeout {
+                    LogError::ExportTimedOut(self.forceflush_timeout)
+                } else {
+                    LogError::Other(err.into())
+                }
+            })?
     }
 
     fn shutdown(&self) -> LogResult<()> {
         // test and set is_shutdown flag if it is not set
-        if self.is_shutdown.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        if self
+            .is_shutdown
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
             otel_warn!(
                 name: "BatchLogProcessor.Shutdown.ProcessorShutdown",
                 message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
             );
-            return LogResult::Err(LogError::Other("BatchLogProcessor is already shutdown".into()));
+            return LogResult::Err(LogError::AlreadyShutdown(
+                "BatchLogProcessor is already shutdown".into(),
+            ));
         }
 
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
@@ -267,10 +277,12 @@ impl LogProcessor for BatchLogProcessor {
         }
 
         let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender.try_send(BatchMessage::Shutdown(sender))
+        self.message_sender
+            .try_send(BatchMessage::Shutdown(sender))
             .map_err(|err| LogError::Other(err.into()))?;
 
-        receiver.recv_timeout(self.shutdown_timeout) 
+        receiver
+            .recv_timeout(self.shutdown_timeout)
             .map(|_| {
                 // join the background thread after receiving back the shutdown signal
                 if let Some(handle) = self.handle.lock().unwrap().take() {
@@ -278,22 +290,20 @@ impl LogProcessor for BatchLogProcessor {
                 }
                 LogResult::Ok(())
             })
-            .map_err(|err| {
-                match err {
-                    RecvTimeoutError::Timeout => {
-                        otel_error!(
-                            name: "BatchLogProcessor.Shutdown.Timeout",
-                            message = "BatchLogProcessor shutdown timing out."
-                        );
-                        LogError::ExportTimedOut(self.shutdown_timeout)
-                    }
-                    _ => {
-                        otel_error!(
-                            name: "BatchLogProcessor.Shutdown.Error",
-                            error = format!("{}", err)
-                        );
-                        LogError::Other(err.into())
-                    }
+            .map_err(|err| match err {
+                RecvTimeoutError::Timeout => {
+                    otel_error!(
+                        name: "BatchLogProcessor.Shutdown.Timeout",
+                        message = "BatchLogProcessor shutdown timing out."
+                    );
+                    LogError::ExportTimedOut(self.shutdown_timeout)
+                }
+                _ => {
+                    otel_error!(
+                        name: "BatchLogProcessor.Shutdown.Error",
+                        error = format!("{}", err)
+                    );
+                    LogError::Other(err.into())
                 }
             })?
     }
@@ -308,8 +318,7 @@ impl LogProcessor for BatchLogProcessor {
 
 impl BatchLogProcessor {
     pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig) -> Self {
-        let (message_sender, message_receiver) =
-            mpsc::sync_channel(config.max_queue_size);
+        let (message_sender, message_receiver) = mpsc::sync_channel(config.max_queue_size);
         let max_queue_size = config.max_queue_size;
 
         let handle = thread::spawn(move || {
@@ -318,7 +327,9 @@ impl BatchLogProcessor {
             logs.reserve(config.max_export_batch_size);
 
             loop {
-                let remaining_time_option = config.scheduled_delay.checked_sub(last_export_time.elapsed());
+                let remaining_time_option = config
+                    .scheduled_delay
+                    .checked_sub(last_export_time.elapsed());
                 let remaining_time = match remaining_time_option {
                     Some(remaining_time) => remaining_time,
                     None => config.scheduled_delay,
@@ -327,16 +338,33 @@ impl BatchLogProcessor {
                 match message_receiver.recv_timeout(remaining_time) {
                     Ok(BatchMessage::ExportLog(log)) => {
                         logs.push(log);
-                        if logs.len() == config.max_export_batch_size || last_export_time.elapsed() >= config.scheduled_delay {
-                            let _ = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                        if logs.len() == config.max_export_batch_size
+                            || last_export_time.elapsed() >= config.scheduled_delay
+                        {
+                            let _ = export_with_timeout_sync(
+                                remaining_time,
+                                exporter.as_mut(),
+                                logs.split_off(0),
+                                &mut last_export_time,
+                            );
                         }
                     }
                     Ok(BatchMessage::ForceFlush(sender)) => {
-                        let result = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                        let result = export_with_timeout_sync(
+                            remaining_time,
+                            exporter.as_mut(),
+                            logs.split_off(0),
+                            &mut last_export_time,
+                        );
                         let _ = sender.send(result);
                     }
                     Ok(BatchMessage::Shutdown(sender)) => {
-                        let result = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                        let result = export_with_timeout_sync(
+                            remaining_time,
+                            exporter.as_mut(),
+                            logs.split_off(0),
+                            &mut last_export_time,
+                        );
                         let _ = sender.send(result);
 
                         //
@@ -348,14 +376,19 @@ impl BatchLogProcessor {
                         exporter.set_resource(&resource);
                     }
                     Err(RecvTimeoutError::Timeout) => {
-                        let _ = export_with_timeout_sync(remaining_time, exporter.as_mut(), logs.split_off(0), &mut last_export_time);
+                        let _ = export_with_timeout_sync(
+                            remaining_time,
+                            exporter.as_mut(),
+                            logs.split_off(0),
+                            &mut last_export_time,
+                        );
                     }
                     Err(err) => {
                         otel_error!(
                             name: "BatchLogProcessor.ReceiveError",
                             error = format!("{}", err)
                         );
-                    },
+                    }
                 }
             }
         });
@@ -482,10 +515,12 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessorWithAsyncRuntime<R> {
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessorWithAsyncRuntime<R> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
-        let result = self.message_sender.try_send(BatchMessageWithAsyncRuntime::ExportLog((
-            record.clone(),
-            instrumentation.clone(),
-        )));
+        let result = self
+            .message_sender
+            .try_send(BatchMessageWithAsyncRuntime::ExportLog((
+                record.clone(),
+                instrumentation.clone(),
+            )));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
@@ -1015,8 +1050,7 @@ mod tests {
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {
-            let builder =
-                BatchLogProcessor::builder(InMemoryLogExporter::default());
+            let builder = BatchLogProcessor::builder(InMemoryLogExporter::default());
 
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
@@ -1036,8 +1070,7 @@ mod tests {
         env_vars.push((OTEL_BLRP_MAX_QUEUE_SIZE, Some("120")));
 
         temp_env::with_vars(env_vars, || {
-            let builder =
-                BatchLogProcessor::builder(InMemoryLogExporter::default());
+            let builder = BatchLogProcessor::builder(InMemoryLogExporter::default());
             assert_eq!(builder.config.max_export_batch_size, 120);
             assert_eq!(builder.config.max_queue_size, 120);
         });
@@ -1052,8 +1085,8 @@ mod tests {
             .with_max_queue_size(4)
             .build();
 
-        let builder = BatchLogProcessor::builder(InMemoryLogExporter::default())
-            .with_batch_config(expected);
+        let builder =
+            BatchLogProcessor::builder(InMemoryLogExporter::default()).with_batch_config(expected);
 
         let actual = &builder.config;
         assert_eq!(actual.max_export_batch_size, 1);
@@ -1090,10 +1123,7 @@ mod tests {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
         };
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
         let provider = LoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
@@ -1119,10 +1149,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
         let mut record = LogRecord::default();
         let instrumentation = InstrumentationScope::default();
@@ -1162,10 +1189,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
         //
         // deadloack happens in shutdown with tokio current_thread runtime
@@ -1176,7 +1200,8 @@ mod tests {
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-    async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread() {
+    async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
+    ) {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
             Box::new(exporter.clone()),
@@ -1193,10 +1218,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
         processor.shutdown().unwrap();
     }
@@ -1204,10 +1226,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
         processor.shutdown().unwrap();
     }
@@ -1215,10 +1234,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
         processor.shutdown().unwrap();
     }
