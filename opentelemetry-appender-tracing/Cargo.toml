@@ -35,7 +35,7 @@ pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
-experimental-use-tracing-span-context = ["tracing-opentelemetry"]
+experimental_use_tracing_span_context = ["tracing-opentelemetry"]
 
 
 [[bench]]

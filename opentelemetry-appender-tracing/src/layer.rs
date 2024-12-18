@@ -180,7 +180,7 @@ where
         // Visit fields.
         event.record(&mut visitor);
 
-        #[cfg(feature = "experimental-use-tracing-span-context")]
+        #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
             use tracing_opentelemetry::OtelData;
             let opt_span_id = span
@@ -511,7 +511,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "experimental-use-tracing-span-context")]
+    #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
         use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
