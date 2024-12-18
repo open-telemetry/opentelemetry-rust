@@ -97,6 +97,31 @@ impl Default for AggregateTimeInitiator {
     }
 }
 
+type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+
+/// Applies filter on provided attribute set
+/// No-op, if filter is not set
+#[derive(Clone)]
+pub(crate) struct AttributeSetFilter {
+    filter: Option<Filter>,
+}
+
+impl AttributeSetFilter {
+    pub(crate) fn new(filter: Option<Filter>) -> Self {
+        Self { filter }
+    }
+
+    pub(crate) fn apply(&self, attrs: &[KeyValue], run: impl FnOnce(&[KeyValue])) {
+        if let Some(filter) = &self.filter {
+            let filtered_attrs: Vec<KeyValue> =
+                attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+            run(&filtered_attrs);
+        } else {
+            run(attrs);
+        };
+    }
+}
+
 /// Builds aggregate functions
 pub(crate) struct AggregateBuilder<T> {
     /// The temporality used for the returned aggregate functions.
@@ -104,45 +129,24 @@ pub(crate) struct AggregateBuilder<T> {
 
     /// The attribute filter the aggregate function will use on the input of
     /// measurements.
-    filter: Option<Filter>,
+    filter: AttributeSetFilter,
 
     _marker: marker::PhantomData<T>,
 }
-
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 impl<T: Number> AggregateBuilder<T> {
     pub(crate) fn new(temporality: Temporality, filter: Option<Filter>) -> Self {
         AggregateBuilder {
             temporality,
-            filter,
+            filter: AttributeSetFilter::new(filter),
             _marker: marker::PhantomData,
-        }
-    }
-
-    /// Wraps the passed in measure with an attribute filtering function.
-    fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
-        let filter = self.filter.clone();
-        move |n, attrs: &[KeyValue]| {
-            if let Some(filter) = &filter {
-                let filtered_attrs: Vec<KeyValue> =
-                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
-                f.call(n, &filtered_attrs);
-            } else {
-                f.call(n, attrs);
-            };
         }
     }
 
     /// Builds a last-value aggregate function input and output.
     pub(crate) fn last_value(&self) -> (impl Measure<T>, impl ComputeAggregation) {
-        let lv = Arc::new(LastValue::new(self.temporality));
-        let agg_lv = Arc::clone(&lv);
-
-        (
-            self.filter(move |n, a: &[KeyValue]| lv.measure(n, a)),
-            agg_lv,
-        )
+        let lv = Arc::new(LastValue::new(self.temporality, self.filter.clone()));
+        (lv.clone(), lv)
     }
 
     /// Builds a precomputed sum aggregate function input and output.
@@ -150,24 +154,20 @@ impl<T: Number> AggregateBuilder<T> {
         &self,
         monotonic: bool,
     ) -> (impl Measure<T>, impl ComputeAggregation) {
-        let s = Arc::new(PrecomputedSum::new(self.temporality, monotonic));
-        let agg_sum = Arc::clone(&s);
+        let s = Arc::new(PrecomputedSum::new(
+            self.temporality,
+            self.filter.clone(),
+            monotonic,
+        ));
 
-        (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
-            agg_sum,
-        )
+        (s.clone(), s)
     }
 
     /// Builds a sum aggregate function input and output.
     pub(crate) fn sum(&self, monotonic: bool) -> (impl Measure<T>, impl ComputeAggregation) {
-        let s = Arc::new(Sum::new(self.temporality, monotonic));
-        let agg_sum = Arc::clone(&s);
+        let s = Arc::new(Sum::new(self.temporality, self.filter.clone(), monotonic));
 
-        (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
-            agg_sum,
-        )
+        (s.clone(), s)
     }
 
     /// Builds a histogram aggregate function input and output.
@@ -179,13 +179,13 @@ impl<T: Number> AggregateBuilder<T> {
     ) -> (impl Measure<T>, impl ComputeAggregation) {
         let h = Arc::new(Histogram::new(
             self.temporality,
+            self.filter.clone(),
             boundaries,
             record_min_max,
             record_sum,
         ));
-        let agg_h = Arc::clone(&h);
 
-        (self.filter(move |n, a: &[KeyValue]| h.measure(n, a)), agg_h)
+        (h.clone(), h)
     }
 
     /// Builds an exponential histogram aggregate function input and output.
@@ -198,14 +198,14 @@ impl<T: Number> AggregateBuilder<T> {
     ) -> (impl Measure<T>, impl ComputeAggregation) {
         let h = Arc::new(ExpoHistogram::new(
             self.temporality,
+            self.filter.clone(),
             max_size,
             max_scale,
             record_min_max,
             record_sum,
         ));
-        let agg_h = Arc::clone(&h);
 
-        (self.filter(move |n, a: &[KeyValue]| h.measure(n, a)), agg_h)
+        (h.clone(), h)
     }
 }
 
