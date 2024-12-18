@@ -30,7 +30,7 @@ async fn init_metrics() -> SdkMeterProvider {
     let exporter = create_exporter();
 
     let reader = PeriodicReader::builder(exporter)
-        .with_interval(Duration::from_millis(100))
+        .with_interval(Duration::from_millis(500))
         .with_timeout(Duration::from_secs(1))
         .build();
 
@@ -146,7 +146,7 @@ async fn setup_metrics_test() -> Result<()> {
         println!("Running setup before any tests...");
         *done = true; // Mark setup as done
 
-        // Initialise the metrics subsystem
+        // Initialize the metrics subsystem
         _ = init_metrics().await;
     }
 
@@ -184,13 +184,13 @@ pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
 }
 
 ///
-/// TODO - the HTTP metrics exporters do not seem to flush at the moment.
+/// TODO - the HTTP metrics exporters except reqwest-blocking-client do not seem
+/// to work at the moment.
 /// TODO - fix this asynchronously.
 ///
 #[cfg(test)]
 #[cfg(not(feature = "hyper-client"))]
 #[cfg(not(feature = "reqwest-client"))]
-#[cfg(not(feature = "reqwest-blocking-client"))]
 mod tests {
 
     use super::*;
@@ -293,7 +293,7 @@ mod tests {
         // Set up the exporter
         let exporter = create_exporter();
         let reader = PeriodicReader::builder(exporter)
-            .with_interval(Duration::from_millis(100))
+            .with_interval(Duration::from_secs(30))
             .with_timeout(Duration::from_secs(1))
             .build();
         let resource = Resource::builder_empty()

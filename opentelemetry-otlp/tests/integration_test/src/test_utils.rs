@@ -27,7 +27,9 @@ use std::sync::{Arc, Mutex, Once, OnceLock};
 use testcontainers::core::wait::HttpWaitStrategy;
 use testcontainers::core::{ContainerPort, Mount};
 use testcontainers::{core::WaitFor, runners::AsyncRunner, ContainerAsync, GenericImage, ImageExt};
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, Layer};
 
 // Static references for container management
 static COLLECTOR_ARC: OnceLock<Mutex<Option<Arc<ContainerAsync<GenericImage>>>>> = OnceLock::new();
@@ -40,13 +42,17 @@ static INIT_TRACING: Once = Once::new();
 
 fn init_tracing() {
     INIT_TRACING.call_once(|| {
-        let subscriber = FmtSubscriber::builder()
-            .with_max_level(tracing::Level::DEBUG)
-            .finish();
+        // Info and above for all, debug for opentelemetry
+        let filter_fmt =
+            EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
+        let fmt_layer = tracing_subscriber::fmt::layer()
+            .with_thread_names(true)
+            .with_filter(filter_fmt);
 
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("Failed to set tracing subscriber");
-        otel_info!(name: "init_tracing");
+        // Initialize the tracing subscriber with the OpenTelemetry layer and the
+        // Fmt layer.
+        tracing_subscriber::registry().with(fmt_layer).init();
+        otel_info!(name: "tracing initializing completed!");
     });
 }
 
