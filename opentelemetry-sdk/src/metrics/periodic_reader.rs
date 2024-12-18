@@ -367,6 +367,8 @@ impl PeriodicReaderInner {
             return Err(e);
         }
 
+        otel_debug!(name: "PeriodicReaderMetricsExported");
+
         Ok(())
     }
 

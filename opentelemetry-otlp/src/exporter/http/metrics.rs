@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
+use opentelemetry::otel_debug;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 
@@ -20,6 +21,8 @@ impl MetricsClient for OtlpHttpClient {
                 Some(client) => Ok(Arc::clone(client)),
                 _ => Err(MetricError::Other("exporter is already shut down".into())),
             })?;
+
+        otel_debug!(name: "MetricsClientExport");
 
         let (body, content_type) = self.build_metrics_export_body(metrics)?;
         let mut request = http::Request::builder()

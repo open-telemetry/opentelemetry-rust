@@ -41,7 +41,7 @@ static INIT_TRACING: Once = Once::new();
 fn init_tracing() {
     INIT_TRACING.call_once(|| {
         let subscriber = FmtSubscriber::builder()
-            .with_max_level(tracing::Level::DEBUG)
+            .with_max_level(tracing::Level::TRACE)
             .finish();
 
         tracing::subscriber::set_global_default(subscriber)

@@ -24,3 +24,4 @@ hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"],
 opentelemetry = { version = "0.27", path = "../opentelemetry", features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
+futures-timer = "3.0.3"

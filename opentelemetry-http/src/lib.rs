@@ -1,10 +1,14 @@
 use async_trait::async_trait;
 use std::fmt::Debug;
-
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
+use std::time::Duration;
 #[doc(no_inline)]
 pub use bytes::Bytes;
 #[doc(no_inline)]
 pub use http::{Request, Response};
+use opentelemetry::Context;
 use opentelemetry::propagation::{Extractor, Injector};
 
 /// Helper for injecting headers into HTTP Requests. This is used for OpenTelemetry context
@@ -102,7 +106,7 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use crate::ResponseExt;
+    use crate::{timeout, ResponseExt};
 
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use http::HeaderValue;
@@ -116,7 +120,7 @@ pub mod hyper {
     use std::pin::Pin;
     use std::task::{self, Poll};
     use std::time::Duration;
-    use tokio::time;
+
 
     #[derive(Debug, Clone)]
     pub struct HyperClient<C = HttpConnector>
@@ -163,7 +167,7 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
+            let mut response = timeout(self.timeout, self.inner.request(request)).await??;
             let headers = std::mem::take(response.headers_mut());
 
             let mut http_response = Response::builder()
@@ -217,6 +221,40 @@ impl<T> ResponseExt for Response<T> {
         }
     }
 }
+
+struct Timeout<F> {
+    future: F,
+    delay: Pin<Box<dyn Future<Output = ()> + Send>>,
+}
+
+impl<F: Future + std::marker::Unpin> Future for Timeout<F> where
+    F::Output: Send,
+{
+    type Output = Result<F::Output, &'static str>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+
+        // Poll the delay future
+        if this.delay.as_mut().poll(cx).is_ready() {
+            return Poll::Ready(Err("timeout"));
+        }
+
+        // Poll the main future
+        match Pin::new(&mut this.future).poll(cx) {
+            Poll::Ready(output) => Poll::Ready(Ok(output)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+fn timeout<F: Future + Send>(duration: Duration, future: F) -> Timeout<F> {
+    Timeout {
+        future,
+        delay: Box::pin(futures_timer::Delay::new(duration)),
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
