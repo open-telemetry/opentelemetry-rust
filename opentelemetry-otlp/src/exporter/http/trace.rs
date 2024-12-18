@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::trace::TraceError;
+use opentelemetry::{otel_debug, trace::TraceError};
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;
@@ -47,6 +47,7 @@ impl SpanExporter for OtlpHttpClient {
 
         Box::pin(async move {
             let request_uri = request.uri().to_string();
+            otel_debug!(name: "HttpTracesClient.CallingExport");
             let response = client.send(request).await?;
 
             if !response.status().is_success() {
