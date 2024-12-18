@@ -28,7 +28,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
     let exporter = exporter_builder.build()?;
 
     Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")

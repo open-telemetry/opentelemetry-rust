@@ -1198,9 +1198,6 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
 
-        //
-        // deadloack happens in shutdown with tokio current_thread runtime
-        //
         processor.shutdown().unwrap();
     }
 
