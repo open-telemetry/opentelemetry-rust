@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::vec;
 
 use crate::metrics::data::{self, Aggregation, SumDataPoint};
@@ -5,7 +6,7 @@ use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
-use super::{Aggregator, AtomicTracker, Number};
+use super::{Aggregator, AtomicTracker, ComputeAggregation, Number};
 use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
@@ -42,8 +43,9 @@ where
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number> {
     value_map: ValueMap<Increment<T>>,
-    monotonic: bool,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    monotonic: bool,
 }
 
 impl<T: Number> Sum<T> {
@@ -52,11 +54,12 @@ impl<T: Number> Sum<T> {
     ///
     /// Each sum is scoped by attributes and the aggregation cycle the measurements
     /// were made in.
-    pub(crate) fn new(monotonic: bool) -> Self {
+    pub(crate) fn new(temporality: Temporality, monotonic: bool) -> Self {
         Sum {
             value_map: ValueMap::new(()),
-            monotonic,
+            temporality,
             init_time: AggregateTimeInitiator::default(),
+            monotonic,
         }
     }
 
@@ -136,5 +139,17 @@ impl<T: Number> Sum<T> {
             s_data.data_points.len(),
             new_agg.map(|a| Box::new(a) as Box<_>),
         )
+    }
+}
+
+impl<T> ComputeAggregation for Arc<Sum<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }
