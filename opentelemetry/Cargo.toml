@@ -57,3 +57,8 @@ harness = false
 [[bench]]
 name = "anyvalue"
 harness = false
+
+[[bench]]
+name = "context_attach"
+harness = false
+required-features = ["tracing"]
