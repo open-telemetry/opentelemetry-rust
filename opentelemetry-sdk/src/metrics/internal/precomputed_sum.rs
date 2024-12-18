@@ -4,23 +4,27 @@ use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 
 use super::aggregate::AggregateTimeInitiator;
+use super::ComputeAggregation;
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+use std::sync::Arc;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
     value_map: ValueMap<Assign<T>>,
-    monotonic: bool,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    monotonic: bool,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
 impl<T: Number> PrecomputedSum<T> {
-    pub(crate) fn new(monotonic: bool) -> Self {
+    pub(crate) fn new(temporality: Temporality, monotonic: bool) -> Self {
         PrecomputedSum {
             value_map: ValueMap::new(()),
-            monotonic,
             init_time: AggregateTimeInitiator::default(),
+            temporality,
+            monotonic,
             reported: Mutex::new(Default::default()),
         }
     }
@@ -116,5 +120,17 @@ impl<T: Number> PrecomputedSum<T> {
             s_data.data_points.len(),
             new_agg.map(|a| Box::new(a) as Box<_>),
         )
+    }
+}
+
+impl<T> ComputeAggregation for Arc<PrecomputedSum<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }

@@ -1,9 +1,14 @@
-use crate::metrics::data::{self, Aggregation, GaugeDataPoint};
+use std::sync::Arc;
+
+use crate::metrics::{
+    data::{self, Aggregation, GaugeDataPoint},
+    Temporality,
+};
 use opentelemetry::KeyValue;
 
 use super::{
-    aggregate::AggregateTimeInitiator, Aggregator, AtomicTracker, AtomicallyUpdate, Number,
-    ValueMap,
+    aggregate::AggregateTimeInitiator, Aggregator, AtomicTracker, AtomicallyUpdate,
+    ComputeAggregation, Number, ValueMap,
 };
 
 /// this is reused by PrecomputedSum
@@ -42,13 +47,15 @@ where
 pub(crate) struct LastValue<T: Number> {
     value_map: ValueMap<Assign<T>>,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
 }
 
 impl<T: Number> LastValue<T> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(temporality: Temporality) -> Self {
         LastValue {
             value_map: ValueMap::new(()),
             init_time: AggregateTimeInitiator::default(),
+            temporality,
         }
     }
 
@@ -121,5 +128,17 @@ impl<T: Number> LastValue<T> {
             s_data.data_points.len(),
             new_agg.map(|a| Box::new(a) as Box<_>),
         )
+    }
+}
+
+impl<T> ComputeAggregation for Arc<LastValue<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }
