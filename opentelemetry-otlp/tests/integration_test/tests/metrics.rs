@@ -188,8 +188,6 @@ pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
 /// TODO - fix this asynchronously.
 ///
 #[cfg(test)]
-#[cfg(not(feature = "hyper-client"))]
-#[cfg(not(feature = "reqwest-client"))]
 #[cfg(not(feature = "reqwest-blocking-client"))]
 mod tests {
 
