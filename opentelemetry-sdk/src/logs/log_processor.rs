@@ -394,7 +394,8 @@ impl BatchLogProcessor {
                         }
                     }
                 }
-            }).expect("Thread spawn failed."); //TODO: Handle thread spawn failure
+            })
+            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 
         // Return batch processor with link to worker
         BatchLogProcessor {
