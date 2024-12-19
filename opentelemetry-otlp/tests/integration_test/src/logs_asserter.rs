@@ -1,3 +1,4 @@
+use anyhow::Result;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
 
@@ -96,9 +97,9 @@ impl std::fmt::Debug for LogRecordWrapper {
 }
 
 // read a file contains ResourceSpans in json format
-pub fn read_logs_from_json(file: File) -> Vec<ResourceLogs> {
+pub fn read_logs_from_json(file: File) -> Result<Vec<ResourceLogs>> {
     let reader = std::io::BufReader::new(file);
 
-    let log_data: LogsData = serde_json::from_reader(reader).unwrap();
-    log_data.resource_logs
+    let log_data: LogsData = serde_json::from_reader(reader)?;
+    Ok(log_data.resource_logs)
 }
