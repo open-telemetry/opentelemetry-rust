@@ -28,6 +28,7 @@ pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
+    BatchSpanProcessorDedicatedThread, BatchSpanProcessorDedicatedThreadBuilder,
     SimpleSpanProcessor, SpanProcessor,
 };
 pub use tracer::Tracer;
