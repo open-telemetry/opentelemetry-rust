@@ -55,6 +55,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
+use std::sync::atomic::AtomicBool;
+use std::thread;
+use std::time::Instant;
+
 /// Delay interval between two consecutive exports.
 const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
@@ -163,6 +167,201 @@ impl SpanProcessor for SimpleSpanProcessor {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
         }
+    }
+}
+
+use futures_executor::block_on;
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::RecvTimeoutError;
+use std::sync::mpsc::SyncSender;
+
+/// Messages exchanged between the main thread and the background thread.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
+enum BatchMessageDedicatedThread {
+    ExportSpan(SpanData),
+    ForceFlush(SyncSender<TraceResult<()>>),
+    Shutdown(SyncSender<TraceResult<()>>),
+}
+
+/// A batch span processor with a dedicated background thread.
+#[derive(Debug)]
+pub struct BatchSpanProcessorDedicatedThread {
+    message_sender: SyncSender<BatchMessageDedicatedThread>,
+    handle: Mutex<Option<thread::JoinHandle<()>>>,
+    shutdown_timeout: Duration,
+    is_shutdown: AtomicBool,
+    dropped_span_count: Arc<AtomicBool>,
+}
+
+impl BatchSpanProcessorDedicatedThread {
+    /// Creates a new instance of `BatchSpanProcessorDedicatedThread`.
+    pub fn new<E>(
+        mut exporter: E,
+        max_queue_size: usize,
+        scheduled_delay: Duration,
+        shutdown_timeout: Duration,
+    ) -> Self
+    where
+        E: SpanExporter + Send + 'static,
+    {
+        let (message_sender, message_receiver) = sync_channel(max_queue_size);
+
+        let handle = thread::Builder::new()
+            .name("BatchSpanProcessorThread".to_string())
+            .spawn(move || {
+                let mut spans = Vec::new();
+                let mut last_export_time = Instant::now();
+
+                loop {
+                    let timeout = scheduled_delay.saturating_sub(last_export_time.elapsed());
+                    match message_receiver.recv_timeout(timeout) {
+                        Ok(message) => match message {
+                            BatchMessageDedicatedThread::ExportSpan(span) => {
+                                spans.push(span);
+                                if spans.len() >= max_queue_size
+                                    || last_export_time.elapsed() >= scheduled_delay
+                                {
+                                    if let Err(err) = block_on(exporter.export(spans.split_off(0)))
+                                    {
+                                        eprintln!("Export error: {:?}", err);
+                                    }
+                                    last_export_time = Instant::now();
+                                }
+                            }
+                            BatchMessageDedicatedThread::ForceFlush(sender) => {
+                                let result = block_on(exporter.export(spans.split_off(0)));
+                                let _ = sender.send(result);
+                            }
+                            BatchMessageDedicatedThread::Shutdown(sender) => {
+                                let result = block_on(exporter.export(spans.split_off(0)));
+                                let _ = sender.send(result);
+                                break;
+                            }
+                        },
+                        Err(RecvTimeoutError::Timeout) => {
+                            if last_export_time.elapsed() >= scheduled_delay {
+                                if let Err(err) = block_on(exporter.export(spans.split_off(0))) {
+                                    eprintln!("Export error: {:?}", err);
+                                }
+                                last_export_time = Instant::now();
+                            }
+                        }
+                        Err(RecvTimeoutError::Disconnected) => {
+                            eprintln!("Channel disconnected, shutting down processor thread.");
+                            break;
+                        }
+                    }
+                }
+            })
+            .expect("Failed to spawn thread");
+
+        Self {
+            message_sender,
+            handle: Mutex::new(Some(handle)),
+            shutdown_timeout,
+            is_shutdown: AtomicBool::new(false),
+            dropped_span_count: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Handles span end.
+    pub fn on_end(&self, span: SpanData) {
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            eprintln!("Processor is shutdown. Dropping span.");
+            return;
+        }
+        if self
+            .message_sender
+            .try_send(BatchMessageDedicatedThread::ExportSpan(span))
+            .is_err() &&  !self.dropped_span_count.load(Ordering::Relaxed) {
+                eprintln!("Queue is full, dropping spans.");
+                self.dropped_span_count.store(true, Ordering::Relaxed);
+            }
+    }
+
+    /// Flushes all pending spans.
+    pub fn force_flush(&self) -> TraceResult<()> {
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            return Err(TraceError::Other("Processor already shutdown".into()));
+        }
+        let (sender, receiver) = sync_channel(1);
+        self.message_sender
+            .try_send(BatchMessageDedicatedThread::ForceFlush(sender))
+            .map_err(|_| TraceError::Other("Failed to send ForceFlush message".into()))?;
+
+        receiver
+            .recv_timeout(self.shutdown_timeout)
+            .map_err(|_| TraceError::ExportTimedOut(self.shutdown_timeout))?
+    }
+
+    /// Shuts down the processor.
+    pub fn shutdown(&self) -> TraceResult<()> {
+        if self.is_shutdown.swap(true, Ordering::Relaxed) {
+            return Err(TraceError::Other("Processor already shutdown".into()));
+        }
+        let (sender, receiver) = sync_channel(1);
+        self.message_sender
+            .try_send(BatchMessageDedicatedThread::Shutdown(sender))
+            .map_err(|_| TraceError::Other("Failed to send Shutdown message".into()))?;
+
+        let result = receiver
+            .recv_timeout(self.shutdown_timeout)
+            .map_err(|_| TraceError::ExportTimedOut(self.shutdown_timeout))?;
+        if let Some(handle) = self.handle.lock().unwrap().take() {
+            handle.join().expect("Failed to join thread");
+        }
+        result
+    }
+}
+
+/// Builder for `BatchSpanProcessorDedicatedThread`.
+#[derive(Debug, Default)]
+pub struct BatchSpanProcessorDedicatedThreadBuilder {
+    max_queue_size: usize,
+    scheduled_delay: Duration,
+    shutdown_timeout: Duration,
+}
+
+impl BatchSpanProcessorDedicatedThreadBuilder {
+    /// Creates a new builder with default values.
+    pub fn new() -> Self {
+        Self {
+            max_queue_size: 2048,
+            scheduled_delay: Duration::from_secs(5),
+            shutdown_timeout: Duration::from_secs(5),
+        }
+    }
+
+    /// Sets the maximum queue size for spans.
+    pub fn with_max_queue_size(mut self, size: usize) -> Self {
+        self.max_queue_size = size;
+        self
+    }
+
+    /// Sets the delay between exports.
+    pub fn with_scheduled_delay(mut self, delay: Duration) -> Self {
+        self.scheduled_delay = delay;
+        self
+    }
+
+    /// Sets the timeout for shutdown and flush operations.
+    pub fn with_shutdown_timeout(mut self, timeout: Duration) -> Self {
+        self.shutdown_timeout = timeout;
+        self
+    }
+
+    /// Builds the `BatchSpanProcessorDedicatedThread` instance.
+    pub fn build<E>(self, exporter: E) -> BatchSpanProcessorDedicatedThread
+    where
+        E: SpanExporter + Send + 'static,
+    {
+        BatchSpanProcessorDedicatedThread::new(
+            exporter,
+            self.max_queue_size,
+            self.scheduled_delay,
+            self.shutdown_timeout,
+        )
     }
 }
 
