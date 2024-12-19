@@ -16,7 +16,7 @@ recommended approach when using OTLP exporters. While it can be modified to use
 a `SimpleExporter`, this requires enabling feature flag `reqwest-blocking-client` and
 making the `main()` a normal main and *not* `tokio::main`
 
-// TODO: Metrics does not work with non tokio main when using `reqwest-blocking-client` today, fix that when switching 
+// TODO: Metrics does not work with non tokio main when using `reqwest-blocking-client` today, fix that when switching
 // default to use own thread.
 // TODO: Document `hyper` feature flag when using SimpleProcessor.
 
@@ -66,13 +66,11 @@ Run the app which exports logs, metrics and traces via OTLP to the collector
 cargo run
 ```
 
-
 By default the app will use a `reqwest` client to send. A hyper 0.14 client can be used with the `hyper` feature enabled
 
 ```shell
 cargo run --no-default-features --features=hyper
 ```
-
 
 ## View results
 
@@ -135,7 +133,7 @@ SpanEvent #0
      -> Timestamp: 2024-05-14 02:15:56.824201397 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes::
-          -> bogons: Int(100)
+          -> some.key: Int(100)
         {"kind": "exporter", "data_type": "traces", "name": "logging"}
 ...
 ```

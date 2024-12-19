@@ -95,7 +95,6 @@
       
   - Bump msrv to 1.75.0.
 
-
 - *Breaking* : [#2314](https://github.com/open-telemetry/opentelemetry-rust/pull/2314)
   - The LogRecord struct has been updated:
     - All fields are now pub(crate) instead of pub.
@@ -104,6 +103,58 @@
 
 - Upgrade the tracing crate used for internal logging to version 0.1.40 or later. This is necessary because the internal logging macros utilize the name field as       
 metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/open-telemetry/opentelemetry-rust/pull/2418)
+
+- **Breaking** [#2436](https://github.com/open-telemetry/opentelemetry-rust/pull/2436)
+
+  `BatchLogProcessor` no longer requires an async runtime by default. Instead, a dedicated
+  background thread is created to do the batch processing and exporting.
+
+  For users who prefer the previous behavior of relying on a specific
+  `Runtime`, they can do so by enabling the feature flag
+  **`experimental_logs_batch_log_processor_with_async_runtime`**.
+
+ 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+    new default implementation does not require a runtime argument. Replace the
+    builder method accordingly:
+    - *Before:*
+      ```rust
+      let logger_provider = LoggerProvider::builder()
+        .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let logger_provider = LoggerProvider::builder()
+        .with_log_processor(BatchLogProcessor::builder(exporter).build())
+        .build();
+      ```
+
+ 2. *Async Runtime Support*
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_logs_batch_log_processor_with_async_runtime" feature flag and
+    adjust code as below.
+
+    - *Before:*
+      ```rust
+      let logger_provider = LoggerProvider::builder()
+        .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let logger_provider = LoggerProvider::builder()
+        .with_log_processor(BatchLogProcessorWithAsyncRuntime::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    *Requirements:*
+    - Enable the feature flag:
+      `experimental_logs_batch_log_processor_with_async_runtime`.  
+    - Continue enabling one of the async runtime feature flags: `rt-tokio`,
+      `rt-tokio-current-thread`, or `rt-async-std`.
 
 ## 0.27.1
 
