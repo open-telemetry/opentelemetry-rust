@@ -1664,7 +1664,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1692,7 +1692,7 @@ mod tests {
             .keep_records_on_shutdown()
             .build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1714,7 +1714,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1731,7 +1731,7 @@ mod tests {
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::TokioCurrentThread,
         );
@@ -1744,7 +1744,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1757,7 +1757,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::TokioCurrentThread,
         );
