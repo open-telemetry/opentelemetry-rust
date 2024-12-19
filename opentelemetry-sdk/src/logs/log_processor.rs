@@ -1318,11 +1318,11 @@ mod tests {
 
     #[derive(Debug)]
     struct ThirdProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationLibrary)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for ThirdProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationLibrary) {
+        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("SecondProcessor".into())
