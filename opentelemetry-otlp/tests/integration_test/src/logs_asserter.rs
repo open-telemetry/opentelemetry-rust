@@ -43,6 +43,8 @@ impl LogsAsserter {
                 let result_scope_logs = &result_resource_logs.scope_logs[i];
                 let expected_scope_logs = &expected_resource_logs.scope_logs[i];
 
+                assert_eq!(result_scope_logs.scope, expected_scope_logs.scope);
+
                 results_logs.extend(result_scope_logs.log_records.clone());
                 expected_logs.extend(expected_scope_logs.log_records.clone());
             }
