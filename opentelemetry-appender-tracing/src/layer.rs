@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key,
 };
 use std::borrow::Cow;
 use tracing_core::Level;
@@ -69,7 +69,7 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
-impl<'a, LR: LogRecord> tracing::field::Visit for EventVisitor<'a, LR> {
+impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -136,11 +136,12 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
+        let scope = InstrumentationScope::builder(INSTRUMENTATION_LIBRARY_NAME)
+            .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
+            .build();
+
         OpenTelemetryTracingBridge {
-            logger: provider
-                .logger_builder(INSTRUMENTATION_LIBRARY_NAME)
-                .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-                .build(),
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
         }
     }
@@ -183,7 +184,7 @@ where
         self.logger.emit(log_record);
     }
 
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(
         &self,
         _event: &tracing_core::Event<'_>,
@@ -208,16 +209,19 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
+    use async_trait::async_trait;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
-    use opentelemetry_sdk::testing::logs::InMemoryLogsExporter;
-    use opentelemetry_sdk::trace;
+    use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
+    use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
-    use tracing::error;
-    use tracing_subscriber::layer::SubscriberExt;
+    use tracing::{error, warn};
+    use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::{EnvFilter, Layer};
 
     pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -225,17 +229,91 @@ mod tests {
             .any(|(k, v)| k == key && v == value)
     }
 
+    fn create_tracing_subscriber(
+        _exporter: InMemoryLogExporter,
+        logger_provider: &LoggerProvider,
+    ) -> impl tracing::Subscriber {
+        let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
+        let layer =
+            layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
+
+        tracing_subscriber::registry().with(layer)
+    }
+
     // cargo test --features=testing
+
+    #[derive(Clone, Debug, Default)]
+    struct ReentrantLogExporter;
+
+    #[async_trait]
+    impl LogExporter for ReentrantLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
+            // This will cause a deadlock as the export itself creates a log
+            // while still within the lock of the SimpleLogProcessor.
+            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+            Ok(())
+        }
+    }
+
     #[test]
-    fn tracing_appender_standalone() {
-        // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+    #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
+    fn simple_processor_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+
+        // Setting subscriber as global as that is the only way to test this scenario.
+        tracing_subscriber::registry().with(layer).init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[test]
+    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
+    fn simple_processor_no_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+        // This filter will prevent the deadlock as the reentrant log will be
+        // ignored.
+        let filter = EnvFilter::new("debug").add_directive("reentrant=error".parse().unwrap());
+        // Setting subscriber as global as that is the only way to test this scenario.
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(layer)
+            .init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
+    async fn batch_processor_no_deadlock() {
+        let exporter: ReentrantLogExporter = ReentrantLogExporter;
+        let logger_provider = LoggerProvider::builder()
+            .with_batch_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+        tracing_subscriber::registry().with(layer).init();
+        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[test]
+    fn tracing_appender_standalone() {
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = LoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -255,11 +333,11 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // Validate trace context is none.
-        assert!(log.record.trace_context.is_none());
+        assert!(log.record.trace_context().is_none());
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
@@ -310,13 +388,12 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -324,7 +401,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -350,26 +427,21 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
-        assert!(log.record.trace_context.is_some());
+        assert!(log.record.trace_context().is_some());
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().trace_id,
+            log.record.trace_context().unwrap().trace_id,
             trace_id_expected
         );
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().span_id,
+            log.record.trace_context().unwrap().span_id,
             span_id_expected
         );
         assert_eq!(
-            log.record
-                .trace_context
-                .as_ref()
-                .unwrap()
-                .trace_flags
-                .unwrap(),
+            log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
 
@@ -422,13 +494,12 @@ mod tests {
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -436,7 +507,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!("log from log crate");
+        log::error!(target: "my-system", "log from log crate");
         logger_provider.force_flush();
 
         // Assert TODO: move to helper methods
@@ -449,11 +520,11 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // Validate trace context is none.
-        assert!(log.record.trace_context.is_none());
+        assert!(log.record.trace_context().is_none());
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
@@ -488,13 +559,12 @@ mod tests {
     #[test]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
+        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -503,7 +573,7 @@ mod tests {
 
         // setup tracing as well.
         let tracer_provider = TracerProvider::builder()
-            .with_config(trace::Config::default().with_sampler(Sampler::AlwaysOn))
+            .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -513,7 +583,7 @@ mod tests {
             let span_id = cx.span().span_context().span_id();
 
             // logging is done inside span context.
-            log::error!("log from log crate");
+            log::error!(target: "my-system", "log from log crate");
             (trace_id, span_id)
         });
 
@@ -529,26 +599,21 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name, "opentelemetry-appender-tracing");
-        assert_eq!(log.record.severity_number, Some(Severity::Error));
+        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
-        assert!(log.record.trace_context.is_some());
+        assert!(log.record.trace_context().is_some());
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().trace_id,
+            log.record.trace_context().unwrap().trace_id,
             trace_id_expected
         );
         assert_eq!(
-            log.record.trace_context.as_ref().unwrap().span_id,
+            log.record.trace_context().unwrap().span_id,
             span_id_expected
         );
         assert_eq!(
-            log.record
-                .trace_context
-                .as_ref()
-                .unwrap()
-                .trace_flags
-                .unwrap(),
+            log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
 

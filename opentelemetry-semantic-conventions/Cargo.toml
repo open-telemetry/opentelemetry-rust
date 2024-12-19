@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-semantic-conventions"
-version = "0.25.0"
+version = "0.27.0"
 description = "Semantic conventions for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
@@ -13,11 +13,15 @@ categories = [
 keywords = ["opentelemetry", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.75.0"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+semconv_experimental = []
 
 [dev-dependencies]
 opentelemetry = { default-features = false, path = "../opentelemetry" } # for doctests

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-prometheus"
-version = "0.17.0"
+version = "0.27.0"
 description = "Prometheus exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust"
 repository = "https://github.com/open-telemetry/opentelemetry-rust"
@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "prometheus", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.75.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,17 +21,20 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { version = "0.24", default-features = false, features = ["metrics"] }
-opentelemetry_sdk = { version = "0.24", default-features = false, features = ["metrics"] }
+opentelemetry = { version = "0.27", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.27", default-features = false, features = ["metrics"] }
 prometheus = "0.13"
 protobuf = "2.14"
+tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 
 [dev-dependencies]
-opentelemetry-semantic-conventions = { version = "0.16" }
+opentelemetry-semantic-conventions = { version = "0.27" }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 
 [features]
+default = ["internal-logs"]
 prometheus-encoding = []
+internal-logs = ["tracing"]

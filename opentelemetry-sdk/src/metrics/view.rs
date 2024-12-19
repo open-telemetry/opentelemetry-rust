@@ -1,10 +1,10 @@
 use super::instrument::{Instrument, Stream};
+#[cfg(feature = "spec_unstable_metrics_views")]
+use crate::metrics::{MetricError, MetricResult};
+#[cfg(feature = "spec_unstable_metrics_views")]
 use glob::Pattern;
-use opentelemetry::{
-    global,
-    metrics::{MetricsError, Result},
-};
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 fn empty_view(_inst: &Instrument) -> Option<Stream> {
     None
 }
@@ -45,6 +45,7 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 /// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
+#[allow(unreachable_pub)]
 pub trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///
@@ -68,6 +69,7 @@ impl View for Box<dyn View> {
     }
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 /// Creates a [View] that applies the [Stream] mask for all instruments that
 /// match criteria.
 ///
@@ -100,27 +102,22 @@ impl View for Box<dyn View> {
 /// let view = new_view(criteria, mask);
 /// # drop(view);
 /// ```
-pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
+pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View>> {
     if criteria.is_empty() {
-        global::handle_error(MetricsError::Config(format!(
-            "no criteria provided, dropping view. mask: {mask:?}"
-        )));
+        // TODO - The error is getting lost here. Need to return or log.
         return Ok(Box::new(empty_view));
     }
     let contains_wildcard = criteria.name.contains(['*', '?']);
-    let err_msg_criteria = criteria.clone();
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
         if mask.name != "" {
-            global::handle_error(MetricsError::Config(format!(
-				"name replacement for multiple instruments, dropping view, criteria: {criteria:?}, mask: {mask:?}"
-			)));
+            // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }
 
         let pattern = criteria.name.clone();
         let glob_pattern =
-            Pattern::new(&pattern).map_err(|e| MetricsError::Config(e.to_string()))?;
+            Pattern::new(&pattern).map_err(|e| MetricError::Config(e.to_string()))?;
 
         Box::new(move |i| {
             glob_pattern.matches(&i.name)
@@ -137,11 +134,8 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> Result<Box<dyn View>> {
     if let Some(ma) = &mask.aggregation {
         match ma.validate() {
             Ok(_) => agg = Some(ma.clone()),
-            Err(err) => {
-                global::handle_error(MetricsError::Other(format!(
-                    "{}, proceeding as if view did not exist. criteria: {:?}, mask: {:?}",
-                    err, err_msg_criteria, mask
-                )));
+            Err(_) => {
+                // TODO - The error is getting lost here. Need to return or log.
                 return Ok(Box::new(empty_view));
             }
         }

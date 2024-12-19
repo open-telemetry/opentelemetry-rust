@@ -2,6 +2,28 @@
 
 ## vNext
 
+- Update to [v1.29.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
+- Update to [v0.11.0](https://github.com/open-telemetry/weaver/releases/tag/v0.11.0) of the semantic conventions.
+- Bump msrv to 1.75.0.
+
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+- Update to [v1.28.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.28.0) of the semantic conventions.
+
+## v0.26.0
+Released 2024-Sep-30
+
+### Changed
+
+- Starting with this version, this crate will use Weaver for the generation of
+  the semantic conventions.
+- **Breaking** Introduced a new feature `semconv_experimental` to enable experimental semantic conventions.
+  This feature is disabled by default.
+
 ## v0.25.0
 ### Changed
 

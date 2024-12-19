@@ -16,9 +16,10 @@ use std::time::SystemTime;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry_sdk::logs::LogResult;
 
-use opentelemetry::InstrumentationLibrary;
+use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LogRecord;
@@ -65,9 +66,9 @@ impl ExportingProcessorWithFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
+    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        let logs = [(record as &LogRecord, library)];
+        let logs = [(record as &LogRecord, scope)];
         futures_executor::block_on(exporter.export(LogBatch::new(&logs)));
     }
 
@@ -94,8 +95,8 @@ impl ExportingProcessorWithoutFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
-        let logs = [(record as &LogRecord, library)];
+    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
+        let logs = [(record as &LogRecord, scope)];
         self.exporter
             .lock()
             .expect("lock error")

@@ -1,15 +1,13 @@
 use once_cell::sync::Lazy;
-use opentelemetry::global;
-use opentelemetry::logs::LogError;
-use opentelemetry::metrics::MetricsError;
-use opentelemetry::trace::{TraceError, TracerProvider};
-use opentelemetry::{
-    trace::{TraceContextExt, Tracer},
-    KeyValue,
-};
+use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
+use opentelemetry::KeyValue;
+use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{ExportConfig, WithExportConfig};
-use opentelemetry_sdk::trace::Config;
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
+use opentelemetry_sdk::logs::LogError;
+use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::metrics::MetricError;
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -17,117 +15,104 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::new(vec![KeyValue::new(
-        opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-        "basic-otlp-example",
-    )])
+    Resource::builder()
+        .with_service_name("basic-otlp-example")
+        .build()
 });
 
-fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .with_trace_config(Config::default().with_resource(RESOURCE.clone()))
-        .install_batch(runtime::Tokio)
+fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+    let exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+    Ok(sdktrace::TracerProvider::builder()
+        .with_resource(RESOURCE.clone())
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricsError> {
-    let export_config = ExportConfig {
-        endpoint: "http://localhost:4317".to_string(),
-        ..ExportConfig::default()
-    };
-    opentelemetry_otlp::new_pipeline()
-        .metrics(runtime::Tokio)
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_export_config(export_config),
-        )
+fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
+    let exporter = MetricExporter::builder().with_tonic().build()?;
+    let reader = PeriodicReader::builder(exporter).build();
+
+    Ok(SdkMeterProvider::builder()
+        .with_reader(reader)
         .with_resource(RESOURCE.clone())
-        .build()
+        .build())
 }
 
 fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter = LogExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+
+    Ok(LoggerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .tonic()
-                .with_endpoint("http://localhost:4317"),
-        )
-        .install_batch(runtime::Tokio)
+        .with_batch_exporter(exporter)
+        .build())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // By binding the result to an unused variable, the lifetime of the variable
-    // matches the containing block, reporting traces and metrics during the whole
-    // execution.
-
-    let result = init_tracer_provider();
-    assert!(
-        result.is_ok(),
-        "Init tracer failed with error: {:?}",
-        result.err()
-    );
-    let tracer_provider = result.unwrap();
-    global::set_tracer_provider(tracer_provider.clone());
-
-    let result = init_metrics();
-    assert!(
-        result.is_ok(),
-        "Init metrics failed with error: {:?}",
-        result.err()
-    );
-    let meter_provider = result.unwrap();
-    global::set_meter_provider(meter_provider.clone());
-
-    // Initialize logs and save the logger_provider.
-    let logger_provider = init_logs().unwrap();
+    let logger_provider = init_logs()?;
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
-    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+    let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // Add a tracing filter to filter events from crates used by opentelemetry-otlp.
-    // The filter levels are set as follows:
+    // For the OpenTelemetry layer, add a tracing filter to filter events from
+    // OpenTelemetry and its dependent crates (opentelemetry-otlp uses crates
+    // like reqwest/tonic etc.) from being sent back to OTel itself, thus
+    // preventing infinite telemetry generation. The filter levels are set as
+    // follows:
     // - Allow `info` level and above by default.
-    // - Restrict `hyper`, `tonic`, and `reqwest` to `error` level logs only.
-    // This ensures events generated from these crates within the OTLP Exporter are not looped back,
-    // thus preventing infinite event generation.
-    // Note: This will also drop events from these crates used outside the OTLP Exporter.
-    // For more details, see: https://github.com/open-telemetry/opentelemetry-rust/issues/761
-    let filter = EnvFilter::new("info")
-        .add_directive("hyper=error".parse().unwrap())
-        .add_directive("tonic=error".parse().unwrap())
-        .add_directive("reqwest=error".parse().unwrap());
+    // - Restrict `opentelemetry`, `hyper`, `tonic`, and `reqwest` completely.
+    // Note: This will also drop events from crates like `tonic` etc. even when
+    // they are used outside the OTLP Exporter. For more details, see:
+    // https://github.com/open-telemetry/opentelemetry-rust/issues/761
+    let filter_otel = EnvFilter::new("info")
+        .add_directive("hyper=off".parse().unwrap())
+        .add_directive("opentelemetry=off".parse().unwrap())
+        .add_directive("tonic=off".parse().unwrap())
+        .add_directive("h2=off".parse().unwrap())
+        .add_directive("reqwest=off".parse().unwrap());
+    let otel_layer = otel_layer.with_filter(filter_otel);
 
+    // Create a new tracing::Fmt layer to print the logs to stdout. It has a
+    // default filter of `info` level and above, and `debug` and above for logs
+    // from OpenTelemetry crates. The filter levels can be customized as needed.
+    let filter_fmt = EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_thread_names(true)
+        .with_filter(filter_fmt);
+
+    // Initialize the tracing subscriber with the OpenTelemetry layer and the
+    // Fmt layer.
     tracing_subscriber::registry()
-        .with(filter)
-        .with(layer)
+        .with(otel_layer)
+        .with(fmt_layer)
         .init();
 
+    let tracer_provider = init_traces()?;
+    global::set_tracer_provider(tracer_provider.clone());
+
+    let meter_provider = init_metrics()?;
+    global::set_meter_provider(meter_provider.clone());
+
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
-    let tracer = global::tracer_provider()
-        .tracer_builder("basic")
-        .with_attributes(common_scope_attributes.clone())
+    let scope = InstrumentationScope::builder("basic")
+        .with_version("1.0")
+        .with_attributes(common_scope_attributes)
         .build();
-    let meter = global::meter_with_version(
-        "basic",
-        Some("v1.0"),
-        Some("schema_url"),
-        Some(common_scope_attributes.clone()),
-    );
+
+    let tracer = global::tracer_with_scope(scope.clone());
+    let meter = global::meter_with_scope(scope);
 
     let counter = meter
         .u64_counter("test_counter")
         .with_description("a simple counter for demo purposes.")
         .with_unit("my_unit")
-        .init();
+        .build();
     for _ in 0..10 {
         counter.add(1, &[KeyValue::new("test_key", "test_value")]);
     }
@@ -150,8 +135,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     });
 
     info!(name: "my-event", target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
-
-    global::shutdown_tracer_provider();
+    tracer_provider.shutdown()?;
     meter_provider.shutdown()?;
     logger_provider.shutdown()?;
 

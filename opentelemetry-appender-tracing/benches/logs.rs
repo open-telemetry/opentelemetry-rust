@@ -15,10 +15,10 @@
 
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::logs::LogResult;
-use opentelemetry::{InstrumentationLibrary, KeyValue};
+use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
@@ -34,7 +34,7 @@ struct NoopExporter {
 
 #[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
         LogResult::Ok(())
     }
 
@@ -55,7 +55,7 @@ impl NoopProcessor {
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
+    fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
         // no-op
     }
 
@@ -126,10 +126,11 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(Box::new(exporter));
     let provider = LoggerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "benchmark",
-        )]))
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name("benchmark")
+                .build(),
+        )
         .with_log_processor(processor)
         .build();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);

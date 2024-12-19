@@ -2,7 +2,29 @@
 
 ## vNext
 
+- Update proto definitions to v1.4.0 [#2315](https://github.com/open-telemetry/opentelemetry-rust/pull/2315)
+- Bump msrv to 1.75.0.
+- Update proto definitions to v1.5.0 [#2439](https://github.com/open-telemetry/opentelemetry-rust/pull/2439)
+
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+
+## v0.26.1
+
+- Require tonic 0.12.3 to match generated gRPC code [#2168](https://github.com/open-telemetry/opentelemetry-rust/pull/2168)
+
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- Update `opentelemetry_sdk` dependency version to 0.26
 - Fix JSON serialization of `metrics::Exemplar` and `trace::span::Link` [#2069](https://github.com/open-telemetry/opentelemetry-rust/pull/2069)
+- Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
 
 ## v0.25.0
 - Update `opentelemetry` dependency version to 0.25

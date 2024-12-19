@@ -44,6 +44,8 @@
 //!
 //! ```
 //! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider}};
+//! use opentelemetry::InstrumentationScope;
+//! use std::sync::Arc;
 //!
 //! fn my_library_function() {
 //!     // Use the global tracer provider to get access to the user-specified
@@ -51,10 +53,12 @@
 //!     let tracer_provider = global::tracer_provider();
 //!
 //!     // Get a tracer for this library
-//!     let tracer = tracer_provider.tracer_builder("my_name").
-//!         with_version(env!("CARGO_PKG_VERSION")).
-//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
-//!         build();
+//!     let scope = InstrumentationScope::builder("my_name")
+//!         .with_version(env!("CARGO_PKG_VERSION"))
+//!         .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+//!         .build();
+//!
+//!     let tracer = tracer_provider.tracer_with_scope(scope);
 //!
 //!     // Create spans
 //!     let mut span = tracer.start("doing_work");
@@ -182,8 +186,16 @@ pub use self::{
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
-use crate::{ExportError, KeyValue};
+use crate::KeyValue;
 use std::sync::PoisonError;
+
+// TODO - Move ExportError and TraceError to opentelemetry-sdk
+
+/// Trait for errors returned by exporters
+pub trait ExportError: std::error::Error + Send + Sync + 'static {
+    /// The name of exporter that returned this error
+    fn exporter_name(&self) -> &'static str;
+}
 
 /// Describe the result of operations in tracing API.
 pub type TraceResult<T> = Result<T, TraceError>;
@@ -193,12 +205,16 @@ pub type TraceResult<T> = Result<T, TraceError>;
 #[non_exhaustive]
 pub enum TraceError {
     /// Export failed with the error returned by the exporter
-    #[error("Exporter {} encountered the following error(s): {0}", .0.exporter_name())]
+    #[error("Exporter {0} encountered the following error(s): {name}", name = .0.exporter_name())]
     ExportFailed(Box<dyn ExportError>),
 
     /// Export failed to finish after certain period and processor stopped the export.
     #[error("Exporting timed out after {} seconds", .0.as_secs())]
     ExportTimedOut(time::Duration),
+
+    /// already shutdown error
+    #[error("TracerProvider already shutdown")]
+    TracerProviderAlreadyShutdown,
 
     /// Other errors propagated from trace SDK that weren't covered above
     #[error(transparent)]

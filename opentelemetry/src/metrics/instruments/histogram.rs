@@ -1,19 +1,17 @@
-use crate::{
-    metrics::{InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
-/// An SDK implemented instrument that records a distribution of values.
-pub trait SyncHistogram<T> {
-    /// Adds an additional value to the distribution.
-    fn record(&self, value: T, attributes: &[KeyValue]);
-}
+use super::SyncInstrument;
 
 /// An instrument that records a distribution of values.
+///
+/// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+/// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+/// duplicate [`Histogram`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
-pub struct Histogram<T>(Arc<dyn SyncHistogram<T> + Send + Sync>);
+#[non_exhaustive]
+pub struct Histogram<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Histogram<T>
 where
@@ -26,32 +24,12 @@ where
 
 impl<T> Histogram<T> {
     /// Create a new histogram.
-    pub fn new(inner: Arc<dyn SyncHistogram<T> + Send + Sync>) -> Self {
+    pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
         Histogram(inner)
     }
 
     /// Adds an additional value to the distribution.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
-        self.0.record(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Histogram<f64>>> for Histogram<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_histogram(builder.name, builder.description, builder.unit)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Histogram<u64>>> for Histogram<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Histogram<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_histogram(builder.name, builder.description, builder.unit)
+        self.0.measure(value, attributes)
     }
 }

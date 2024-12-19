@@ -45,12 +45,13 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
-use opentelemetry::global;
+use opentelemetry::{otel_debug, otel_error, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
 };
 use std::cmp::min;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{env, fmt, str::FromStr, time::Duration};
 
@@ -109,7 +110,8 @@ pub struct SimpleSpanProcessor {
 }
 
 impl SimpleSpanProcessor {
-    pub(crate) fn new(exporter: Box<dyn SpanExporter>) -> Self {
+    /// Create a new [SimpleSpanProcessor] using the provided exporter.
+    pub fn new(exporter: Box<dyn SpanExporter>) -> Self {
         Self {
             exporter: Mutex::new(exporter),
         }
@@ -133,7 +135,11 @@ impl SpanProcessor for SimpleSpanProcessor {
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
-            global::handle_error(err);
+            // TODO: check error type, and log `error` only if the error is user-actiobable, else log `debug`
+            otel_debug!(
+                name: "SimpleProcessor.OnEnd.Error",
+                reason = format!("{:?}", err)
+            );
         }
     }
 
@@ -222,6 +228,12 @@ impl SpanProcessor for SimpleSpanProcessor {
 /// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    // Track dropped spans
+    dropped_spans_count: AtomicUsize,
+
+    // Track the maximum queue size that was configured for this processor
+    max_queue_size: usize,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -244,8 +256,14 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
-        if let Err(err) = result {
-            global::handle_error(TraceError::Other(err.into()));
+        // If the queue is full, and we can't buffer a span
+        if result.is_err() {
+            // Increment the number of dropped spans. If this is the first time we've had to drop,
+            // emit a warning.
+            if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
+                    message = "Beginning to drop span messages due to full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
+            }
         }
     }
 
@@ -261,6 +279,17 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
+        let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
+        if dropped_spans > 0 {
+            otel_warn!(
+                name: "BatchSpanProcessor.Shutdown",
+                dropped_spans = dropped_spans,
+                max_queue_size = max_queue_size,
+                message = "Spans were dropped due to a full or closed queue. The count represents the total count of span records dropped in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+            );
+        }
+
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
@@ -312,14 +341,22 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             let result = export_task.await;
 
             if let Some(channel) = res_channel {
+                // If a response channel is provided, attempt to send the export result through it.
                 if let Err(result) = channel.send(result) {
-                    global::handle_error(TraceError::from(format!(
-                        "failed to send flush result: {:?}",
-                        result
-                    )));
+                    otel_debug!(
+                        name: "BatchSpanProcessor.Flush.SendResultError",
+                        reason = format!("{:?}", result)
+                    );
                 }
             } else if let Err(err) = result {
-                global::handle_error(err);
+                // If no channel is provided and the export operation encountered an error,
+                // log the error directly here.
+                // TODO: Consider returning the status instead of logging it.
+                otel_error!(
+                    name: "BatchSpanProcessor.Flush.ExportError",
+                    reason = format!("{:?}", err),
+                    message = "Failed during the export process"
+                );
             }
 
             Ok(())
@@ -353,7 +390,10 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                     let export_task = self.export();
                     let task = async move {
                         if let Err(err) = export_task.await {
-                            global::handle_error(err);
+                            otel_error!(
+                                name: "BatchSpanProcessor.Export.Error",
+                                reason = format!("{}", err)
+                            );
                         }
 
                         Ok(())
@@ -450,6 +490,8 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
 
+        let max_queue_size = config.max_queue_size;
+
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -474,7 +516,11 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         }));
 
         // Return batch processor with link to worker
-        BatchSpanProcessor { message_sender }
+        BatchSpanProcessor {
+            message_sender,
+            dropped_spans_count: AtomicUsize::new(0),
+            max_queue_size,
+        }
     }
 
     /// Create a new batch processor builder
@@ -708,7 +754,6 @@ mod tests {
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
-    use async_trait::async_trait;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::future::Future;
@@ -740,7 +785,7 @@ mod tests {
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_lib: Default::default(),
+            instrumentation_scope: Default::default(),
         };
         processor.on_end(unsampled);
         assert!(exporter.get_finished_spans().unwrap().is_empty());
@@ -944,7 +989,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,

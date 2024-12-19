@@ -37,7 +37,8 @@ pub struct ResourceSpans {
     #[prost(message, repeated, tag = "2")]
     pub scope_spans: ::prost::alloc::vec::Vec<ScopeSpans>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_spans" field which have their own schema_url field.
@@ -60,7 +61,8 @@ pub struct ScopeSpans {
     #[prost(message, repeated, tag = "2")]
     pub spans: ::prost::alloc::vec::Vec<Span>,
     /// The Schema URL, if known. This is the identifier of the Schema that the span data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all spans and span events in the "spans" field.
     #[prost(string, tag = "3")]
@@ -378,12 +380,12 @@ pub mod span {
         /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
-                SpanKind::Unspecified => "SPAN_KIND_UNSPECIFIED",
-                SpanKind::Internal => "SPAN_KIND_INTERNAL",
-                SpanKind::Server => "SPAN_KIND_SERVER",
-                SpanKind::Client => "SPAN_KIND_CLIENT",
-                SpanKind::Producer => "SPAN_KIND_PRODUCER",
-                SpanKind::Consumer => "SPAN_KIND_CONSUMER",
+                Self::Unspecified => "SPAN_KIND_UNSPECIFIED",
+                Self::Internal => "SPAN_KIND_INTERNAL",
+                Self::Server => "SPAN_KIND_SERVER",
+                Self::Client => "SPAN_KIND_CLIENT",
+                Self::Producer => "SPAN_KIND_PRODUCER",
+                Self::Consumer => "SPAN_KIND_CONSUMER",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -450,9 +452,9 @@ pub mod status {
         /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
-                StatusCode::Unset => "STATUS_CODE_UNSET",
-                StatusCode::Ok => "STATUS_CODE_OK",
-                StatusCode::Error => "STATUS_CODE_ERROR",
+                Self::Unset => "STATUS_CODE_UNSET",
+                Self::Ok => "STATUS_CODE_OK",
+                Self::Error => "STATUS_CODE_ERROR",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -504,10 +506,10 @@ impl SpanFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SpanFlags::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
-            SpanFlags::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
-            SpanFlags::ContextHasIsRemoteMask => "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK",
-            SpanFlags::ContextIsRemoteMask => "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK",
+            Self::DoNotUse => "SPAN_FLAGS_DO_NOT_USE",
+            Self::TraceFlagsMask => "SPAN_FLAGS_TRACE_FLAGS_MASK",
+            Self::ContextHasIsRemoteMask => "SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK",
+            Self::ContextIsRemoteMask => "SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

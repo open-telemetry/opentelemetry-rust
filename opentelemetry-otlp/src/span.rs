@@ -5,20 +5,21 @@
 use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::{
-    self as sdk,
-    export::trace::{ExportResult, SpanData},
-};
-use sdk::runtime::RuntimeChannel;
+use opentelemetry_sdk::export::trace::{ExportResult, SpanData};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::exporter::tonic::TonicExporterBuilder;
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::exporter::http::HttpExporterBuilder;
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
-use crate::{NoExporterConfig, OtlpPipeline};
+use crate::{exporter::HasExportConfig, NoExporterBuilderSet};
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 /// Learn about the relationship between this constant and default/metrics/logs at
@@ -34,167 +35,73 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
 
-impl OtlpPipeline {
-    /// Create a OTLP tracing pipeline.
-    pub fn tracing(self) -> OtlpTracePipeline<NoExporterConfig> {
-        OtlpTracePipeline {
-            exporter_builder: NoExporterConfig(()),
-            trace_config: None,
-            batch_config: None,
-        }
-    }
+#[derive(Debug, Default, Clone)]
+pub struct SpanExporterBuilder<C> {
+    client: C,
 }
 
-/// Recommended configuration for an OTLP exporter pipeline.
-///
-/// ## Examples
-///
-/// ```no_run
-/// let tracing_pipeline = opentelemetry_otlp::new_pipeline().tracing();
-/// ```
-#[derive(Debug)]
-pub struct OtlpTracePipeline<EB> {
-    exporter_builder: EB,
-    trace_config: Option<sdk::trace::Config>,
-    batch_config: Option<sdk::trace::BatchConfig>,
-}
-
-impl<EB> OtlpTracePipeline<EB> {
-    /// Set the trace provider configuration.
-    pub fn with_trace_config(mut self, trace_config: sdk::trace::Config) -> Self {
-        self.trace_config = Some(trace_config);
-        self
+impl SpanExporterBuilder<NoExporterBuilderSet> {
+    pub fn new() -> Self {
+        SpanExporterBuilder::default()
     }
 
-    /// Set the batch span processor configuration, and it will override the env vars.
-    pub fn with_batch_config(mut self, batch_config: sdk::trace::BatchConfig) -> Self {
-        self.batch_config = Some(batch_config);
-        self
-    }
-}
-
-impl OtlpTracePipeline<NoExporterConfig> {
-    /// Set the OTLP span exporter builder.
-    ///
-    /// Note that the pipeline will not build the exporter until [`install_batch`] or [`install_simple`]
-    /// is called.
-    ///
-    /// [`install_batch`]: OtlpTracePipeline::install_batch
-    /// [`install_simple`]: OtlpTracePipeline::install_simple
-    pub fn with_exporter<B: Into<SpanExporterBuilder>>(
-        self,
-        pipeline: B,
-    ) -> OtlpTracePipeline<SpanExporterBuilder> {
-        OtlpTracePipeline {
-            exporter_builder: pipeline.into(),
-            trace_config: self.trace_config,
-            batch_config: self.batch_config,
-        }
-    }
-}
-
-impl OtlpTracePipeline<SpanExporterBuilder> {
-    /// Install the configured span exporter.
-    ///
-    /// Returns a [`TracerProvider`].
-    ///
-    /// [`TracerProvider`]: opentelemetry::trace::TracerProvider
-    pub fn install_simple(self) -> Result<sdk::trace::TracerProvider, TraceError> {
-        Ok(build_simple_with_exporter(
-            self.exporter_builder.build_span_exporter()?,
-            self.trace_config,
-        ))
-    }
-
-    /// Install the configured span exporter and a batch span processor using the
-    /// specified runtime.
-    ///
-    /// Returns a [`TracerProvider`].
-    ///
-    /// `install_batch` will panic if not called within a tokio runtime
-    ///
-    /// [`TracerProvider`]: opentelemetry::trace::TracerProvider
-    pub fn install_batch<R: RuntimeChannel>(
-        self,
-        runtime: R,
-    ) -> Result<sdk::trace::TracerProvider, TraceError> {
-        Ok(build_batch_with_exporter(
-            self.exporter_builder.build_span_exporter()?,
-            self.trace_config,
-            runtime,
-            self.batch_config,
-        ))
-    }
-}
-
-fn build_simple_with_exporter(
-    exporter: SpanExporter,
-    trace_config: Option<sdk::trace::Config>,
-) -> sdk::trace::TracerProvider {
-    let mut provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
-    if let Some(config) = trace_config {
-        provider_builder = provider_builder.with_config(config);
-    }
-
-    provider_builder.build()
-}
-
-fn build_batch_with_exporter<R: RuntimeChannel>(
-    exporter: SpanExporter,
-    trace_config: Option<sdk::trace::Config>,
-    runtime: R,
-    batch_config: Option<sdk::trace::BatchConfig>,
-) -> sdk::trace::TracerProvider {
-    let mut provider_builder = sdk::trace::TracerProvider::builder();
-    let batch_processor = sdk::trace::BatchSpanProcessor::builder(exporter, runtime)
-        .with_batch_config(batch_config.unwrap_or_default())
-        .build();
-    provider_builder = provider_builder.with_span_processor(batch_processor);
-
-    if let Some(config) = trace_config {
-        provider_builder = provider_builder.with_config(config);
-    }
-    provider_builder.build()
-}
-
-/// OTLP span exporter builder.
-#[derive(Debug)]
-// This enum only used during initialization stage of application. The overhead should be OK.
-// Users can also disable the unused features to make the overhead on object size smaller.
-#[allow(clippy::large_enum_variant)]
-#[non_exhaustive]
-pub enum SpanExporterBuilder {
-    /// Tonic span exporter builder
     #[cfg(feature = "grpc-tonic")]
-    Tonic(TonicExporterBuilder),
-    /// Http span exporter builder
-    #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    Http(HttpExporterBuilder),
-}
+    pub fn with_tonic(self) -> SpanExporterBuilder<TonicExporterBuilderSet> {
+        SpanExporterBuilder {
+            client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
+        }
+    }
 
-impl SpanExporterBuilder {
-    /// Build a OTLP span exporter using the given tonic configuration and exporter configuration.
-    pub fn build_span_exporter(self) -> Result<SpanExporter, TraceError> {
-        match self {
-            #[cfg(feature = "grpc-tonic")]
-            SpanExporterBuilder::Tonic(builder) => builder.build_span_exporter(),
-            #[cfg(any(feature = "http-proto", feature = "http-json"))]
-            SpanExporterBuilder::Http(builder) => builder.build_span_exporter(),
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub fn with_http(self) -> SpanExporterBuilder<HttpExporterBuilderSet> {
+        SpanExporterBuilder {
+            client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
         }
     }
 }
 
 #[cfg(feature = "grpc-tonic")]
-impl From<TonicExporterBuilder> for SpanExporterBuilder {
-    fn from(exporter: TonicExporterBuilder) -> Self {
-        SpanExporterBuilder::Tonic(exporter)
+impl SpanExporterBuilder<TonicExporterBuilderSet> {
+    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+        let span_exporter = self.client.0.build_span_exporter()?;
+        opentelemetry::otel_debug!(name: "SpanExporterBuilt");
+        Ok(SpanExporter::new(span_exporter))
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-impl From<HttpExporterBuilder> for SpanExporterBuilder {
-    fn from(exporter: HttpExporterBuilder) -> Self {
-        SpanExporterBuilder::Http(exporter)
+impl SpanExporterBuilder<HttpExporterBuilderSet> {
+    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+        let span_exporter = self.client.0.build_span_exporter()?;
+        Ok(SpanExporter::new(span_exporter))
+    }
+}
+
+#[cfg(feature = "grpc-tonic")]
+impl HasExportConfig for SpanExporterBuilder<TonicExporterBuilderSet> {
+    fn export_config(&mut self) -> &mut crate::ExportConfig {
+        &mut self.client.0.exporter_config
+    }
+}
+
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl HasExportConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
+    fn export_config(&mut self) -> &mut crate::ExportConfig {
+        &mut self.client.0.exporter_config
+    }
+}
+
+#[cfg(feature = "grpc-tonic")]
+impl HasTonicConfig for SpanExporterBuilder<TonicExporterBuilderSet> {
+    fn tonic_config(&mut self) -> &mut crate::TonicConfig {
+        &mut self.client.0.tonic_config
+    }
+}
+
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+impl HasHttpConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
+    fn http_client_config(&mut self) -> &mut crate::exporter::http::HttpConfig {
+        &mut self.client.0.http_config
     }
 }
 
@@ -203,6 +110,11 @@ impl From<HttpExporterBuilder> for SpanExporterBuilder {
 pub struct SpanExporter(Box<dyn opentelemetry_sdk::export::trace::SpanExporter>);
 
 impl SpanExporter {
+    /// Obtain a builder to configure a [SpanExporter].
+    pub fn builder() -> SpanExporterBuilder<NoExporterBuilderSet> {
+        SpanExporterBuilder::default()
+    }
+
     /// Build a new span exporter from a client
     pub fn new(client: impl opentelemetry_sdk::export::trace::SpanExporter + 'static) -> Self {
         SpanExporter(Box::new(client))

@@ -17,30 +17,33 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.65+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ## Project Status
 
+The table below summarizes the overall status of each component. Some components
+include unstable features, which are documented in their respective crate
+documentation.
+
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
-| Logs-API              | Beta*              |
+| Logs-API              | RC*                |
 | Logs-SDK              | Beta               |
 | Logs-OTLP Exporter    | Beta               |
 | Logs-Appender-Tracing | Beta               |
-| Metrics-API           | Alpha              |
-| Metrics-SDK           | Alpha              |
-| Metrics-OTLP Exporter | Alpha              |
+| Metrics-API           | RC                 |
+| Metrics-SDK           | Beta               |
+| Metrics-OTLP Exporter | Beta               |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
 | Traces-OTLP Exporter  | Beta               |
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md),
+API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/api.md),
 that allows one to write log appenders that can bridge existing logging
 libraries to the OpenTelemetry log data model. The following log appenders are
 available:
@@ -80,7 +83,7 @@ fn main() {
     });
 
     // Shutdown trace pipeline
-    global::shutdown_tracer_provider();
+    provider.shutdown().expect("TracerProvider should shutdown successfully")
 }
 ```
 
@@ -159,7 +162,7 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.65. The current OpenTelemetry version is not guaranteed to build
+version is 1.75. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
@@ -198,12 +201,12 @@ you're more than welcome to participate!
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
 * [Shaun Cox](https://github.com/shaun-cox)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 
 ### Emeritus
 

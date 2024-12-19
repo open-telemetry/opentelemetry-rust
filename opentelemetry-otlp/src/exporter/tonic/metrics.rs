@@ -2,11 +2,12 @@ use core::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
+use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use super::BoxInterceptor;
@@ -40,6 +41,8 @@ impl TonicMetricsClient {
                 .accept_compressed(compression);
         }
 
+        otel_debug!(name: "TonicsMetricsClientBuilt");
+
         TonicMetricsClient {
             inner: Mutex::new(Some(ClientInner {
                 client,
@@ -51,7 +54,7 @@ impl TonicMetricsClient {
 
 #[async_trait]
 impl MetricsClient for TonicMetricsClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
         let (mut client, metadata, extensions) =
             self.inner
                 .lock()
@@ -62,15 +65,17 @@ impl MetricsClient for TonicMetricsClient {
                             .interceptor
                             .call(Request::new(()))
                             .map_err(|e| {
-                                MetricsError::Other(format!(
+                                MetricError::Other(format!(
                                     "unexpected status while exporting {e:?}"
                                 ))
                             })?
                             .into_parts();
                         Ok((inner.client.clone(), m, e))
                     }
-                    None => Err(MetricsError::Other("exporter is already shut down".into())),
+                    None => Err(MetricError::Other("exporter is already shut down".into())),
                 })?;
+
+        otel_debug!(name: "TonicsMetricsClient.CallingExport");
 
         client
             .export(Request::from_parts(
@@ -84,7 +89,7 @@ impl MetricsClient for TonicMetricsClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> MetricResult<()> {
         let _ = self.inner.lock()?.take();
 
         Ok(())

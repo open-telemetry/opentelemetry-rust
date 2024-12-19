@@ -1,12 +1,13 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
-    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
+    rustc 1.82.0 (f6e511eec 2024-10-15)
+    OS: Ubuntu 22.04.4 LTS (5.15.167.4-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Histogram_Record               | 193.04 ns   |
+    | Histogram_Record               | 225.04 ns   |
 
 */
 
@@ -16,6 +17,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
@@ -41,7 +43,7 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_histogram(name).init()
+    meter.u64_histogram(name).build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

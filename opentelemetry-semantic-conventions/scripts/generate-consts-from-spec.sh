@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.27.0
-SEMCOVGEN_VERSION=0.25.0
+SPEC_VERSION=1.29.0
+WEAVER_VERSION=v0.11.0
 
 cd "$CRATE_DIR"
 
@@ -20,54 +20,24 @@ git fetch origin "v$SPEC_VERSION"
 git reset --hard FETCH_HEAD
 cd "$CRATE_DIR"
 
-docker run --rm \
-	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
-	-v "${CRATE_DIR}/scripts/templates:/templates" \
-	-v "${CRATE_DIR}/src:/output" \
-	otel/semconvgen:$SEMCOVGEN_VERSION \
-  -f /source code \
-	--template /templates/semantic_attributes.rs.j2 \
-	--output /output/attribute.rs \
-	--parameters conventions=attribute
-
-docker run --rm \
-	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
-	-v "${CRATE_DIR}/scripts/templates:/templates" \
-	-v "${CRATE_DIR}/src:/output" \
-	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only span,event \
-  -f /source code \
-	--template /templates/semantic_attributes.rs.j2 \
-	--output /output/trace.rs \
-	--parameters conventions=trace
-
-docker run --rm \
-	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
-	-v "${CRATE_DIR}/scripts/templates:/templates" \
-	-v "${CRATE_DIR}/src:/output" \
-	otel/semconvgen:$SEMCOVGEN_VERSION \
-  --only resource \
-  -f /source code \
-	--template /templates/semantic_attributes.rs.j2 \
-	--output /output/resource.rs \
-	--parameters conventions=resource
-
-docker run --rm \
-	-v "${CRATE_DIR}/semantic-conventions/model:/source" \
-	-v "${CRATE_DIR}/scripts/templates:/templates" \
-	-v "${CRATE_DIR}/src:/output" \
-	otel/semconvgen:$SEMCOVGEN_VERSION \
-  -f /source code \
-	--template /templates/semantic_metrics.rs.j2 \
-	--output /output/metric.rs
-
 SED=(sed -i)
 if [[ "$(uname)" = "Darwin" ]]; then
   SED=(sed -i "")
 fi
 
 # Keep `SCHEMA_URL` key in sync with spec version
-"${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" src/lib.rs
+"${SED[@]}" "s/\(opentelemetry.io\/schemas\/\)[^\"]*\"/\1$SPEC_VERSION\"/" scripts/templates/registry/rust/weaver.yaml
+
+docker run --rm \
+  --mount type=bind,source=$CRATE_DIR/semantic-conventions/model,target=/home/weaver/source,readonly \
+  --mount type=bind,source=$CRATE_DIR/scripts/templates,target=/home/weaver/templates,readonly \
+  --mount type=bind,source=$CRATE_DIR/src,target=/home/weaver/target \
+  otel/weaver:$WEAVER_VERSION \
+  registry generate \
+  --registry=/home/weaver/source \
+  --templates=/home/weaver/templates \
+  rust \
+  /home/weaver/target/
 
 # handle doc generation failures
 "${SED[@]}" 's/\[2\]\.$//' src/attribute.rs # remove trailing [2] from few of the doc comments

@@ -1,20 +1,17 @@
-use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
-/// An SDK implemented instrument that records increasing values.
-pub trait SyncCounter<T> {
-    /// Records an increment to the counter.
-    fn add(&self, value: T, attributes: &[KeyValue]);
-}
+use super::SyncInstrument;
 
 /// An instrument that records increasing values.
+///
+/// [`Counter`] can be cloned to create multiple handles to the same instrument. If a [`Counter`] needs to be shared,
+/// users are recommended to clone the [`Counter`] instead of creating duplicate [`Counter`]s for the same metric. Creating
+/// duplicate [`Counter`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
-pub struct Counter<T>(Arc<dyn SyncCounter<T> + Send + Sync>);
+#[non_exhaustive]
+pub struct Counter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Counter<T>
 where
@@ -27,44 +24,30 @@ where
 
 impl<T> Counter<T> {
     /// Create a new counter.
-    pub fn new(inner: Arc<dyn SyncCounter<T> + Send + Sync>) -> Self {
+    pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
         Counter(inner)
     }
 
     /// Records an increment to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
-        self.0.add(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Counter<u64>>> for Counter<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Counter<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_counter(builder.name, builder.description, builder.unit)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Counter<f64>>> for Counter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Counter<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_counter(builder.name, builder.description, builder.unit)
+        self.0.measure(value, attributes)
     }
 }
 
 /// An async instrument that records increasing values.
 #[derive(Clone)]
-pub struct ObservableCounter<T>(Arc<dyn AsyncInstrument<T>>);
+#[non_exhaustive]
+pub struct ObservableCounter<T> {
+    _marker: std::marker::PhantomData<T>,
+}
 
 impl<T> ObservableCounter<T> {
     /// Create a new observable counter.
-    pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
-        ObservableCounter(inner)
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableCounter {
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
@@ -74,61 +57,5 @@ impl<T> fmt::Debug for ObservableCounter<T> {
             "ObservableCounter<{}>",
             std::any::type_name::<T>()
         ))
-    }
-}
-
-impl<T> ObservableCounter<T> {
-    /// Records an increment to the counter.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, value: T, attributes: &[KeyValue]) {
-        self.0.observe(value, attributes)
-    }
-
-    /// Used for SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
-}
-
-impl<T> AsyncInstrument<T> for ObservableCounter<T> {
-    fn observe(&self, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>> for ObservableCounter<u64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
-    ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>> for ObservableCounter<f64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_observable_counter(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
     }
 }

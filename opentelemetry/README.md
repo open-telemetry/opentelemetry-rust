@@ -28,7 +28,7 @@ can easily instrument your applications or systems, no matter their language,
 infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
-*Compiler support: [requires `rustc` 1.65+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
@@ -56,7 +56,7 @@ Here's a breakdown of its components:
   Allows for the attachment of metadata (baggage) to telemetry, which can be
   used for sharing application-specific information across service boundaries.
 - **[Logs Bridge
-  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md):**
+  API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/api.md):**
   Allows to bridge existing logging mechanisms with OpenTelemetry logging. This
   is **NOT** meant for end users to call, instead it is meant to enable writing
   bridges/appenders for existing logging mechanisms such as
@@ -133,7 +133,7 @@ See [docs](https://docs.rs/opentelemetry).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.65. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

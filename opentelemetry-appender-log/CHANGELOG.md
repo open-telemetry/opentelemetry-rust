@@ -2,6 +2,23 @@
 
 ## vNext
 
+- Bump msrv to 1.75.0.
+
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+
+- Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+- [2193](https://github.com/open-telemetry/opentelemetry-rust/pull/2193) `opentelemetry-appender-log`: Output experimental code attributes 
+- **Breaking** [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
+
+## v0.26.0
+Released 2024-Sep-30
+- Update `opentelemetry` dependency version to 0.26
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25

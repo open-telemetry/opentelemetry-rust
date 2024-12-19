@@ -21,6 +21,7 @@
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "cd7cf7bf939930b7",
               "parentSpanId": "",
+              "flags": 1,
               "name": "Sub operation...",
               "kind": 1,
               "startTimeUnixNano": "1703985537070566698",
@@ -40,32 +41,12 @@
                 }
               ],
               "status": {}
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "basic-otlp-tracing-example"
-            }
-          }
-        ]
-      },
-      "scopeSpans": [
-        {
-          "scope": {
-            "name": "ex.com/basic"
-          },
-          "spans": [
+            },
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "d58cf2d702a061e0",
               "parentSpanId": "cd7cf7bf939930b7",
+              "flags": 1,
               "name": "operation",
               "kind": 1,
               "startTimeUnixNano": "1703985537070558635",

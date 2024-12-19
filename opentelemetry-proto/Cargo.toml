@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.25.0"
+version = "0.27.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75.0"
 autotests = false
 
 [lib]
@@ -51,8 +51,8 @@ populate-logs-event-name = []
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
-opentelemetry = { version = "0.25", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.25", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.27", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.27", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { version = "0.8", optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }

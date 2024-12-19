@@ -1,0 +1,53 @@
+{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "metrics-integration-test"
+            }
+          }
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "scope": {
+            "name": "test_u64_counter_meter"
+          },
+          "metrics": [
+            {
+              "name": "counter_u64",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "attributes": [
+                      {
+                        "key": "mykey1",
+                        "value": {
+                          "stringValue": "myvalue1"
+                        }
+                      },
+                      {
+                        "key": "mykey2",
+                        "value": {
+                          "stringValue": "myvalue2"
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1734255506254812000",
+                    "timeUnixNano": "1734255533415552000",
+                    "asInt": "10"
+                  }
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

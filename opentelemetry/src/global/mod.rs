@@ -50,16 +50,21 @@
 //! ```
 //! # #[cfg(feature="trace")]
 //! # {
-//! use opentelemetry::trace::{Tracer, TracerProvider};
+//! use std::sync::Arc;
+//! use opentelemetry::trace::Tracer;
 //! use opentelemetry::global;
+//! use opentelemetry::InstrumentationScope;
 //!
 //! pub fn my_traced_library_function() {
 //!     // End users of your library will configure their global tracer provider
 //!     // so you can use the global tracer without any setup
-//!     let tracer = global::tracer_provider().tracer_builder("my-library-name").
-//!         with_version(env!("CARGO_PKG_VERSION")).
-//!         with_schema_url("https://opentelemetry.io/schemas/1.17.0").
-//!         build();
+//!
+//!     let scope = InstrumentationScope::builder("my_library-name")
+//!         .with_version(env!("CARGO_PKG_VERSION"))
+//!         .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+//!         .build();
+//!
+//!     let tracer = global::tracer_with_scope(scope);
 //!
 //!     tracer.in_span("doing_library_work", |cx| {
 //!         // Traced library logic here...
@@ -96,7 +101,7 @@
 //!     let meter = global::meter("my-component");
 //!     // It is recommended to reuse the same counter instance for the
 //!     // lifetime of the application
-//!     let counter = meter.u64_counter("my_counter").init();
+//!     let counter = meter.u64_counter("my_counter").build();
 //!
 //!     // record measurements
 //!     counter.add(1, &[KeyValue::new("mykey", "myvalue")]);
@@ -125,7 +130,7 @@
 //! [`MeterProvider`]: crate::metrics::MeterProvider
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 
-mod error_handler;
+mod internal_logging;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "trace")]
@@ -133,7 +138,6 @@ mod propagation;
 #[cfg(feature = "trace")]
 mod trace;
 
-pub use error_handler::{handle_error, set_error_handler, Error};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::*;

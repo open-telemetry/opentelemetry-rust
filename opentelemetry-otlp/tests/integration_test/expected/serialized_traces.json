@@ -26,7 +26,7 @@
               "spanId": "cd7cf7bf939930b7",
               "traceState": "",
               "parentSpanId": "d58cf2d702a061e0",
-              "flags": 0,
+              "flags": 1,
               "name": "Sub operation...",
               "kind": 1,
               "startTimeUnixNano": "1703985537070566698",
@@ -55,40 +55,13 @@
                 "message": "",
                 "code": 0
               }
-            }
-          ],
-          "schemaUrl": ""
-        }
-      ],
-      "schemaUrl": ""
-    },
-    {
-      "resource": {
-        "attributes": [
-          {
-            "key": "service.name",
-            "value": {
-              "stringValue": "basic-otlp-tracing-example"
-            }
-          }
-        ],
-        "droppedAttributesCount": 0
-      },
-      "scopeSpans": [
-        {
-          "scope": {
-            "name": "ex.com/basic",
-            "version": "",
-            "attributes": [],
-            "droppedAttributesCount": 0
-          },
-          "spans": [
+            },
             {
               "traceId": "9b458af7378cba65253d7042d34fc72e",
               "spanId": "d58cf2d702a061e0",
               "traceState": "",
               "parentSpanId": "",
-              "flags": 0,
+              "flags": 1,
               "name": "operation",
               "kind": 1,
               "startTimeUnixNano": "1703985537070558635",
@@ -109,12 +82,6 @@
                   "attributes": [
                     {
                       "key": "bogons",
-                      "value": {
-                        "intValue": "100"
-                      }
-                    },
-                    {
-                      "key": "number/int",
                       "value": {
                         "intValue": "100"
                       }

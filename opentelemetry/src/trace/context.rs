@@ -1,6 +1,6 @@
 //! Context extensions for tracing
 use crate::{
-    global,
+    global, otel_debug,
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
@@ -32,6 +32,12 @@ pub(crate) struct SynchronizedSpan {
     inner: Option<Mutex<global::BoxedSpan>>,
 }
 
+impl SynchronizedSpan {
+    pub(crate) fn span_context(&self) -> &SpanContext {
+        &self.span_context
+    }
+}
+
 impl From<SpanContext> for SynchronizedSpan {
     fn from(value: SpanContext) -> Self {
         Self {
@@ -55,7 +61,13 @@ impl SpanRef<'_> {
         if let Some(ref inner) = self.0.inner {
             match inner.lock() {
                 Ok(mut locked) => f(&mut locked),
-                Err(err) => global::handle_error(err),
+                Err(err) => {
+                    otel_debug!(
+                        name: "SpanRef.LockFailed",
+                        message = "Failed to acquire lock for SpanRef: {:?}",
+                        reason = format!("{:?}", err),
+                        span_context = format!("{:?}", self.0.span_context));
+                }
             }
         }
     }

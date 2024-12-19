@@ -140,7 +140,7 @@ For a deeper discussion, see:
 
 Currently, the Opentelemetry Rust SDK has two ways to handle errors. In the situation where errors are not allowed to return. One should call global error handler to process the errors. Otherwise, one should return the errors.
 
-The Opentelemetry Rust SDK comes with an error type `opentelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::metrics::MetricsError`. All errors returned by logs module MUST be wrapped in `opentelemetry::logs::LogsError`.
+The Opentelemetry Rust SDK comes with an error type `opentelemetry::Error`. For different function, one error has been defined. All error returned by trace module MUST be wrapped in `opentelemetry::trace::TraceError`. All errors returned by metrics module MUST be wrapped in `opentelemetry::metrics::MetricError`. All errors returned by logs module MUST be wrapped in `opentelemetry::logs::LogsError`.
 
 For users that want to implement their own exporters. It's RECOMMENDED to wrap all errors from the exporter into a crate-level error type, and implement `ExporterError` trait.
 
@@ -169,7 +169,7 @@ It's important to regularly review and remove the `otel_unstable` flag from the 
 The potential features include:
 
 - Stable and non-experimental features that compliant to specification, and have a feature flag to minimize compilation size. Example: feature flags for signals (like `logs`, `traces`, `metrics`) and runtimes (`rt-tokio`, `rt-tokio-current-thread`, `rt-async-std`).
-- Stable and non-experimental features, although not part of the specification, are crucial for enhancing the tracing/log crate's functionality or boosting performance. These features are also subject to discussion and approval by the OpenTelemetry Rust Maintainers. An example of such a feature is `logs_level_enabled`.
+- Stable and non-experimental features, although not part of the specification, are crucial for enhancing the tracing/log crate's functionality or boosting performance. These features are also subject to discussion and approval by the OpenTelemetry Rust Maintainers.
 
 All such features should adhere to naming convention  `<signal>_<feature_name>`
 

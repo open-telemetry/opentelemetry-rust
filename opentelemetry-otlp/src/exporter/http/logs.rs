@@ -2,14 +2,15 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::logs::{LogError, LogResult};
+use opentelemetry::otel_debug;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;
 
 #[async_trait]
 impl LogExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
         let client = self
             .client
             .lock()
@@ -32,6 +33,7 @@ impl LogExporter for OtlpHttpClient {
         }
 
         let request_uri = request.uri().to_string();
+        otel_debug!(name: "HttpLogsClient.CallingExport");
         let response = client.send(request).await?;
 
         if !response.status().is_success() {

@@ -1,8 +1,8 @@
-use std::{borrow::Cow, sync::Arc, time::SystemTime};
+use std::{borrow::Cow, time::SystemTime};
 
 use crate::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationLibrary, Key, KeyValue,
+    InstrumentationScope, Key,
 };
 
 /// A no-op implementation of a [`LoggerProvider`].
@@ -19,17 +19,7 @@ impl NoopLoggerProvider {
 impl LoggerProvider for NoopLoggerProvider {
     type Logger = NoopLogger;
 
-    fn library_logger(&self, _library: Arc<InstrumentationLibrary>) -> Self::Logger {
-        NoopLogger(())
-    }
-
-    fn versioned_logger(
-        &self,
-        _name: impl Into<Cow<'static, str>>,
-        _version: Option<Cow<'static, str>>,
-        _schema_url: Option<Cow<'static, str>>,
-        _attributes: Option<Vec<KeyValue>>,
-    ) -> Self::Logger {
+    fn logger_with_scope(&self, _scope: InstrumentationScope) -> Self::Logger {
         NoopLogger(())
     }
 }
@@ -88,7 +78,7 @@ impl Logger for NoopLogger {
         NoopLogRecord {}
     }
     fn emit(&self, _record: Self::LogRecord) {}
-    #[cfg(feature = "logs_level_enabled")]
+    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, _level: super::Severity, _target: &str) -> bool {
         false
     }

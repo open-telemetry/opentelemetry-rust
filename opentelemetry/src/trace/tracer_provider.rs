@@ -1,5 +1,5 @@
-use crate::{trace::Tracer, InstrumentationLibrary, InstrumentationLibraryBuilder, KeyValue};
-use std::{borrow::Cow, sync::Arc};
+use crate::{trace::Tracer, InstrumentationScope};
+use std::borrow::Cow;
 
 /// Types that can create instances of [`Tracer`].
 ///
@@ -27,30 +27,18 @@ pub trait TracerProvider {
     ///
     /// // tracer used in applications/binaries
     /// let tracer = provider.tracer("my_app");
-    ///
-    /// // tracer used in libraries/crates that optionally includes version and schema url
-    /// let tracer = provider.tracer_builder("my_library").
-    ///     with_version(env!("CARGO_PKG_VERSION")).
-    ///     with_schema_url("https://opentelemetry.io/schema/1.0.0").
-    ///     with_attributes([KeyValue::new("key", "value")]).
-    ///     build();
     /// ```
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
-        self.tracer_builder(name).build()
+        let scope = InstrumentationScope::builder(name).build();
+        self.tracer_with_scope(scope)
     }
 
-    /// Deprecated, use [`TracerProvider::tracer_builder()`]
-    ///
-    /// Returns a new versioned tracer with a given name.
-    ///
-    /// The `name` should be the application name or the name of the library
-    /// providing instrumentation. If the name is empty, then an
-    /// implementation-defined default name may be used instead.
+    /// Returns a new versioned tracer with the given instrumentation scope.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{global, trace::TracerProvider};
+    /// use opentelemetry::{global, InstrumentationScope, trace::TracerProvider};
     ///
     /// let provider = global::tracer_provider();
     ///
@@ -58,116 +46,13 @@ pub trait TracerProvider {
     /// let tracer = provider.tracer("my_app");
     ///
     /// // tracer used in libraries/crates that optionally includes version and schema url
-    /// let tracer = provider.versioned_tracer(
-    ///     "my_library",
-    ///     Some(env!("CARGO_PKG_VERSION")),
-    ///     Some("https://opentelemetry.io/schema/1.0.0"),
-    ///     None,
-    /// );
-    /// ```
-    #[deprecated(since = "0.23.0", note = "Please use tracer_builder() instead")]
-    fn versioned_tracer(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<KeyValue>>,
-    ) -> Self::Tracer {
-        let mut builder = self.tracer_builder(name);
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_version(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        builder.build()
-    }
-
-    /// Returns a new builder for creating a [`Tracer`] instance
-    ///
-    /// The `name` should be the application name or the name of the library
-    /// providing instrumentation. If the name is empty, then an
-    /// implementation-defined default name may be used instead.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::{global, trace::TracerProvider};
-    ///
-    /// let provider = global::tracer_provider();
-    ///
-    /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer_builder("my_app").build();
-    ///
-    /// // tracer used in libraries/crates that optionally includes version and schema url
-    /// let tracer = provider.tracer_builder("my_library")
-    ///     .with_version(env!("CARGO_PKG_VERSION"))
-    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///     .build();
-    /// ```
-    fn tracer_builder(&self, name: impl Into<Cow<'static, str>>) -> TracerBuilder<'_, Self> {
-        TracerBuilder {
-            provider: self,
-            library_builder: InstrumentationLibrary::builder(name),
-        }
-    }
-
-    /// Returns a new versioned tracer with the given instrumentation library.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::{global, InstrumentationLibrary, trace::TracerProvider};
-    ///
-    /// let provider = global::tracer_provider();
-    ///
-    /// // tracer used in applications/binaries
-    /// let tracer = provider.tracer("my_app");
-    ///
-    /// // tracer used in libraries/crates that optionally includes version and schema url
-    /// let library = std::sync::Arc::new(
-    ///     InstrumentationLibrary::builder(env!("CARGO_PKG_NAME"))
+    /// let scope =
+    ///     InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
     ///         .with_version(env!("CARGO_PKG_VERSION"))
     ///         .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-    ///         .build(),
-    /// );
+    ///         .build();
     ///
-    /// let tracer = provider.library_tracer(library);
+    /// let tracer = provider.tracer_with_scope(scope);
     /// ```
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer;
-}
-
-#[derive(Debug)]
-pub struct TracerBuilder<'a, T: TracerProvider + ?Sized> {
-    provider: &'a T,
-    library_builder: InstrumentationLibraryBuilder,
-}
-
-impl<'a, T: TracerProvider + ?Sized> TracerBuilder<'a, T> {
-    pub fn with_version(mut self, version: impl Into<Cow<'static, str>>) -> Self {
-        self.library_builder = self.library_builder.with_version(version);
-        self
-    }
-
-    pub fn with_schema_url(mut self, schema_url: impl Into<Cow<'static, str>>) -> Self {
-        self.library_builder = self.library_builder.with_schema_url(schema_url);
-        self
-    }
-
-    pub fn with_attributes<I>(mut self, attributes: I) -> Self
-    where
-        I: IntoIterator<Item = KeyValue>,
-    {
-        self.library_builder = self.library_builder.with_attributes(attributes);
-        self
-    }
-
-    pub fn build(self) -> T::Tracer {
-        self.provider
-            .library_tracer(Arc::new(self.library_builder.build()))
-    }
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer;
 }

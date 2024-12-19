@@ -1,19 +1,25 @@
-use std::{marker, sync::Arc};
+use std::{
+    marker,
+    mem::replace,
+    ops::DerefMut,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
 
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{Aggregation, Gauge, Temporality};
+use crate::metrics::{data::Aggregation, Temporality};
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
     precomputed_sum::PrecomputedSum, sum::Sum, Number,
 };
 
-const STREAM_CARDINALITY_LIMIT: u32 = 2000;
+pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
 pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
-    size < STREAM_CARDINALITY_LIMIT as usize
+    size < STREAM_CARDINALITY_LIMIT
 }
 
 /// Receives measurements to be aggregated.
@@ -53,76 +59,94 @@ where
     }
 }
 
-/// Builds aggregate functions
-pub(crate) struct AggregateBuilder<T> {
-    /// The temporality used for the returned aggregate functions.
-    ///
-    /// If this is not provided, a default of cumulative will be used (except for the
-    /// last-value aggregate function where delta is the only appropriate
-    /// temporality).
-    temporality: Option<Temporality>,
+pub(crate) struct AggregateTime {
+    pub start: SystemTime,
+    pub current: SystemTime,
+}
 
-    /// The attribute filter the aggregate function will use on the input of
-    /// measurements.
-    filter: Option<Filter>,
+/// Initialized [`AggregateTime`] for specific [`Temporality`]
+pub(crate) struct AggregateTimeInitiator(Mutex<SystemTime>);
 
-    _marker: marker::PhantomData<T>,
+impl AggregateTimeInitiator {
+    pub(crate) fn delta(&self) -> AggregateTime {
+        let current_time = SystemTime::now();
+        let start_time = self
+            .0
+            .lock()
+            .map(|mut start| replace(start.deref_mut(), current_time))
+            .unwrap_or(current_time);
+        AggregateTime {
+            start: start_time,
+            current: current_time,
+        }
+    }
+
+    pub(crate) fn cumulative(&self) -> AggregateTime {
+        let current_time = SystemTime::now();
+        let start_time = self.0.lock().map(|start| *start).unwrap_or(current_time);
+        AggregateTime {
+            start: start_time,
+            current: current_time,
+        }
+    }
+}
+
+impl Default for AggregateTimeInitiator {
+    fn default() -> Self {
+        Self(Mutex::new(SystemTime::now()))
+    }
 }
 
 type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
-impl<T: Number> AggregateBuilder<T> {
-    pub(crate) fn new(temporality: Option<Temporality>, filter: Option<Filter>) -> Self {
-        AggregateBuilder {
-            temporality,
-            filter,
-            _marker: marker::PhantomData,
-        }
+/// Applies filter on provided attribute set
+/// No-op, if filter is not set
+#[derive(Clone)]
+pub(crate) struct AttributeSetFilter {
+    filter: Option<Filter>,
+}
+
+impl AttributeSetFilter {
+    pub(crate) fn new(filter: Option<Filter>) -> Self {
+        Self { filter }
     }
 
-    /// Wraps the passed in measure with an attribute filtering function.
-    fn filter(&self, f: impl Measure<T>) -> impl Measure<T> {
-        let filter = self.filter.clone();
-        move |n, attrs: &[KeyValue]| {
-            if let Some(filter) = &filter {
-                let filtered_attrs: Vec<KeyValue> =
-                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
-                f.call(n, &filtered_attrs);
-            } else {
-                f.call(n, attrs);
-            };
+    pub(crate) fn apply(&self, attrs: &[KeyValue], run: impl FnOnce(&[KeyValue])) {
+        if let Some(filter) = &self.filter {
+            let filtered_attrs: Vec<KeyValue> =
+                attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+            run(&filtered_attrs);
+        } else {
+            run(attrs);
+        };
+    }
+}
+
+/// Builds aggregate functions
+pub(crate) struct AggregateBuilder<T> {
+    /// The temporality used for the returned aggregate functions.
+    temporality: Temporality,
+
+    /// The attribute filter the aggregate function will use on the input of
+    /// measurements.
+    filter: AttributeSetFilter,
+
+    _marker: marker::PhantomData<T>,
+}
+
+impl<T: Number> AggregateBuilder<T> {
+    pub(crate) fn new(temporality: Temporality, filter: Option<Filter>) -> Self {
+        AggregateBuilder {
+            temporality,
+            filter: AttributeSetFilter::new(filter),
+            _marker: marker::PhantomData,
         }
     }
 
     /// Builds a last-value aggregate function input and output.
     pub(crate) fn last_value(&self) -> (impl Measure<T>, impl ComputeAggregation) {
-        let lv_filter = Arc::new(LastValue::new());
-        let lv_agg = Arc::clone(&lv_filter);
-        let t = self.temporality;
-
-        (
-            self.filter(move |n, a: &[KeyValue]| lv_filter.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| {
-                let g = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
-                let mut new_agg = if g.is_none() {
-                    Some(Gauge {
-                        data_points: vec![],
-                    })
-                } else {
-                    None
-                };
-                let g = g.unwrap_or_else(|| new_agg.as_mut().expect("present if g is none"));
-
-                match t {
-                    Some(Temporality::Delta) => {
-                        lv_agg.compute_aggregation_delta(&mut g.data_points)
-                    }
-                    _ => lv_agg.compute_aggregation_cumulative(&mut g.data_points),
-                }
-
-                (g.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
-            },
-        )
+        let lv = Arc::new(LastValue::new(self.temporality, self.filter.clone()));
+        (lv.clone(), lv)
     }
 
     /// Builds a precomputed sum aggregate function input and output.
@@ -130,32 +154,20 @@ impl<T: Number> AggregateBuilder<T> {
         &self,
         monotonic: bool,
     ) -> (impl Measure<T>, impl ComputeAggregation) {
-        let s = Arc::new(PrecomputedSum::new(monotonic));
-        let agg_sum = Arc::clone(&s);
-        let t = self.temporality;
+        let s = Arc::new(PrecomputedSum::new(
+            self.temporality,
+            self.filter.clone(),
+            monotonic,
+        ));
 
-        (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| match t {
-                Some(Temporality::Delta) => agg_sum.delta(dest),
-                _ => agg_sum.cumulative(dest),
-            },
-        )
+        (s.clone(), s)
     }
 
     /// Builds a sum aggregate function input and output.
     pub(crate) fn sum(&self, monotonic: bool) -> (impl Measure<T>, impl ComputeAggregation) {
-        let s = Arc::new(Sum::new(monotonic));
-        let agg_sum = Arc::clone(&s);
-        let t = self.temporality;
+        let s = Arc::new(Sum::new(self.temporality, self.filter.clone(), monotonic));
 
-        (
-            self.filter(move |n, a: &[KeyValue]| s.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| match t {
-                Some(Temporality::Delta) => agg_sum.delta(dest),
-                _ => agg_sum.cumulative(dest),
-            },
-        )
+        (s.clone(), s)
     }
 
     /// Builds a histogram aggregate function input and output.
@@ -165,17 +177,15 @@ impl<T: Number> AggregateBuilder<T> {
         record_min_max: bool,
         record_sum: bool,
     ) -> (impl Measure<T>, impl ComputeAggregation) {
-        let h = Arc::new(Histogram::new(boundaries, record_min_max, record_sum));
-        let agg_h = Arc::clone(&h);
-        let t = self.temporality;
+        let h = Arc::new(Histogram::new(
+            self.temporality,
+            self.filter.clone(),
+            boundaries,
+            record_min_max,
+            record_sum,
+        ));
 
-        (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| match t {
-                Some(Temporality::Delta) => agg_h.delta(dest),
-                _ => agg_h.cumulative(dest),
-            },
-        )
+        (h.clone(), h)
     }
 
     /// Builds an exponential histogram aggregate function input and output.
@@ -187,29 +197,23 @@ impl<T: Number> AggregateBuilder<T> {
         record_sum: bool,
     ) -> (impl Measure<T>, impl ComputeAggregation) {
         let h = Arc::new(ExpoHistogram::new(
+            self.temporality,
+            self.filter.clone(),
             max_size,
             max_scale,
             record_min_max,
             record_sum,
         ));
-        let agg_h = Arc::clone(&h);
-        let t = self.temporality;
 
-        (
-            self.filter(move |n, a: &[KeyValue]| h.measure(n, a)),
-            move |dest: Option<&mut dyn Aggregation>| match t {
-                Some(Temporality::Delta) => agg_h.delta(dest),
-                _ => agg_h.cumulative(dest),
-            },
-        )
+        (h.clone(), h)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::metrics::data::{
-        DataPoint, ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint,
-        Histogram, HistogramDataPoint, Sum,
+        ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
+        GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };
     use std::{time::SystemTime, vec};
 
@@ -217,15 +221,16 @@ mod tests {
 
     #[test]
     fn last_value_aggregation() {
-        let (measure, agg) = AggregateBuilder::<u64>::new(None, None).last_value();
+        let (measure, agg) =
+            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value();
         let mut a = Gauge {
-            data_points: vec![DataPoint {
+            data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
-                start_time: Some(SystemTime::now()),
-                time: Some(SystemTime::now()),
                 value: 1u64,
                 exemplars: vec![],
             }],
+            start_time: Some(SystemTime::now()),
+            time: SystemTime::now(),
         };
         let new_attributes = [KeyValue::new("b", 2)];
         measure.call(2, &new_attributes[..]);
@@ -243,24 +248,22 @@ mod tests {
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let (measure, agg) =
-                AggregateBuilder::<u64>::new(Some(temporality), None).precomputed_sum(true);
+                AggregateBuilder::<u64>::new(temporality, None).precomputed_sum(true);
             let mut a = Sum {
                 data_points: vec![
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
                         value: 1u64,
                         exemplars: vec![],
                     },
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
                         value: 2u64,
                         exemplars: vec![],
                     },
                 ],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -286,24 +289,22 @@ mod tests {
     #[test]
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None).sum(true);
+            let (measure, agg) = AggregateBuilder::<u64>::new(temporality, None).sum(true);
             let mut a = Sum {
                 data_points: vec![
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
                         value: 1u64,
                         exemplars: vec![],
                     },
-                    DataPoint {
+                    SumDataPoint {
                         attributes: vec![KeyValue::new("a2", 1)],
-                        start_time: Some(SystemTime::now()),
-                        time: Some(SystemTime::now()),
                         value: 2u64,
                         exemplars: vec![],
                     },
                 ],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -329,13 +330,11 @@ mod tests {
     #[test]
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None)
+            let (measure, agg) = AggregateBuilder::<u64>::new(temporality, None)
                 .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = Histogram {
                 data_points: vec![HistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
                     count: 2,
                     bounds: vec![1.0, 2.0],
                     bucket_counts: vec![0, 1, 1],
@@ -344,6 +343,8 @@ mod tests {
                     sum: 3u64,
                     exemplars: vec![],
                 }],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -372,13 +373,11 @@ mod tests {
     #[test]
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let (measure, agg) = AggregateBuilder::<u64>::new(Some(temporality), None)
+            let (measure, agg) = AggregateBuilder::<u64>::new(temporality, None)
                 .exponential_bucket_histogram(4, 20, true, true);
             let mut a = ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
                     count: 2,
                     min: None,
                     max: None,
@@ -396,6 +395,8 @@ mod tests {
                     zero_threshold: 1.0,
                     exemplars: vec![],
                 }],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {

@@ -1,12 +1,13 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
-    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
+    rustc 1.82.0 (f6e511eec 2024-10-15)
+    OS: Ubuntu 22.04.4 LTS (5.15.167.4-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Gauge_Add                      | 178.37 ns   |
+    | Gauge_Add                      | 187.49 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -39,7 +40,7 @@ fn create_gauge() -> Gauge<u64> {
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_gauge("gauge_bench").init()
+    meter.u64_gauge("gauge_bench").build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

@@ -1,20 +1,17 @@
-use crate::{
-    metrics::{AsyncInstrument, AsyncInstrumentBuilder, InstrumentBuilder, MetricsError},
-    KeyValue,
-};
+use crate::KeyValue;
 use core::fmt;
-use std::any::Any;
 use std::sync::Arc;
 
-/// An SDK implemented instrument that records independent values
-pub trait SyncGauge<T> {
-    /// Records an independent value.
-    fn record(&self, value: T, attributes: &[KeyValue]);
-}
+use super::SyncInstrument;
 
 /// An instrument that records independent values
+///
+/// [`Gauge`] can be cloned to create multiple handles to the same instrument. If a [`Gauge`] needs to be shared,
+/// users are recommended to clone the [`Gauge`] instead of creating duplicate [`Gauge`]s for the same metric. Creating
+/// duplicate [`Gauge`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
-pub struct Gauge<T>(Arc<dyn SyncGauge<T> + Send + Sync>);
+#[non_exhaustive]
+pub struct Gauge<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Gauge<T>
 where
@@ -27,49 +24,22 @@ where
 
 impl<T> Gauge<T> {
     /// Create a new gauge.
-    pub fn new(inner: Arc<dyn SyncGauge<T> + Send + Sync>) -> Self {
+    pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
         Gauge(inner)
     }
 
     /// Records an independent value.
     pub fn record(&self, value: T, attributes: &[KeyValue]) {
-        self.0.record(value, attributes)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<u64>>> for Gauge<u64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<u64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .u64_gauge(builder.name, builder.description, builder.unit)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<f64>>> for Gauge<f64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<f64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .f64_gauge(builder.name, builder.description, builder.unit)
-    }
-}
-
-impl TryFrom<InstrumentBuilder<'_, Gauge<i64>>> for Gauge<i64> {
-    type Error = MetricsError;
-
-    fn try_from(builder: InstrumentBuilder<'_, Gauge<i64>>) -> Result<Self, Self::Error> {
-        builder
-            .instrument_provider
-            .i64_gauge(builder.name, builder.description, builder.unit)
+        self.0.measure(value, attributes)
     }
 }
 
 /// An async instrument that records independent readings.
 #[derive(Clone)]
-pub struct ObservableGauge<T>(Arc<dyn AsyncInstrument<T>>);
+#[non_exhaustive]
+pub struct ObservableGauge<T> {
+    _marker: std::marker::PhantomData<T>,
+}
 
 impl<T> fmt::Debug for ObservableGauge<T>
 where
@@ -84,79 +54,11 @@ where
 }
 
 impl<T> ObservableGauge<T> {
-    /// Records the state of the instrument.
-    ///
-    /// It is only valid to call this within a callback. If called outside of the
-    /// registered callback it should have no effect on the instrument, and an
-    /// error will be reported via the error handler.
-    pub fn observe(&self, measurement: T, attributes: &[KeyValue]) {
-        self.0.observe(measurement, attributes)
-    }
-
-    /// Used by SDKs to downcast instruments in callbacks.
-    pub fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
-}
-
-impl<M> AsyncInstrument<M> for ObservableGauge<M> {
-    fn observe(&self, measurement: M, attributes: &[KeyValue]) {
-        self.observe(measurement, attributes)
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        self.0.as_any()
-    }
-}
-
-impl<T> ObservableGauge<T> {
     /// Create a new gauge
-    pub fn new(inner: Arc<dyn AsyncInstrument<T>>) -> Self {
-        ObservableGauge(inner)
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>> for ObservableGauge<u64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<u64>, u64>,
-    ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.u64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>> for ObservableGauge<f64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<f64>, f64>,
-    ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.f64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
-    }
-}
-
-impl TryFrom<AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>> for ObservableGauge<i64> {
-    type Error = MetricsError;
-
-    fn try_from(
-        builder: AsyncInstrumentBuilder<'_, ObservableGauge<i64>, i64>,
-    ) -> Result<Self, Self::Error> {
-        builder.meter.instrument_provider.i64_observable_gauge(
-            builder.name,
-            builder.description,
-            builder.unit,
-            builder.callbacks,
-        )
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableGauge {
+            _marker: std::marker::PhantomData,
+        }
     }
 }

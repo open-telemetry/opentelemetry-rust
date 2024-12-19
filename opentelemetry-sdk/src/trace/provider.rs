@@ -1,71 +1,156 @@
-//! # Trace Provider SDK
-//!
-//! ## Tracer Creation
-//!
-//! New [`Tracer`] instances are always created through a [`TracerProvider`].
-//!
-//! All configuration objects and extension points (span processors,
-//! propagators) are provided by the [`TracerProvider`]. [`Tracer`] instances do
-//! not duplicate this data to avoid that different [`Tracer`] instances
-//! of the [`TracerProvider`] have different versions of these data.
+/// # Trace Provider SDK
+///
+/// The `TracerProvider` handles the creation and management of [`Tracer`] instances and coordinates
+/// span processing. It serves as the central configuration point for tracing, ensuring consistency
+/// across all [`Tracer`] instances it creates.
+///
+/// ## Tracer Creation
+///
+/// New [`Tracer`] instances are always created through a `TracerProvider`. These `Tracer`s share
+/// a common configuration, which includes the [`Resource`], span processors, sampling strategies,
+/// and span limits. This avoids the need for each `Tracer` to maintain its own version of these
+/// configurations, ensuring uniform behavior across all instances.
+///
+/// ## Cloning and Shutdown
+///
+/// The `TracerProvider` is designed to be clonable. Cloning a `TracerProvider`  creates a
+/// new reference to the same provider, not a new instance. Dropping the last reference
+/// to the `TracerProvider` will automatically trigger its shutdown. During shutdown, the provider
+/// will flush all remaining spans, ensuring they are passed to the configured processors.
+/// Users can also manually trigger shutdown using the [`shutdown`](TracerProvider::shutdown)
+/// method, which will ensure the same behavior.
+///
+/// Once shut down, the `TracerProvider` transitions into a disabled state. In this state, further
+/// operations on its associated `Tracer` instances will result in no-ops, ensuring that no spans
+/// are processed or exported after shutdown.
+///
+/// ## Span Processing and Force Flush
+///
+/// The `TracerProvider` manages the lifecycle of span processors, which are responsible for
+/// collecting, processing, and exporting spans. The [`force_flush`](TracerProvider::force_flush) method
+/// invoked at any time will trigger an immediate flush of all pending spans (if any) to the exporters.
+/// This will block the user thread till all the spans are passed to exporters.
+///
+/// # Examples
+///
+/// ```
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::trace::TracerProvider;
+/// use opentelemetry::trace::Tracer;
+///
+/// fn init_tracing() -> TracerProvider {
+///     let provider = TracerProvider::default();
+///
+///     // Set the provider to be used globally
+///     let _ = global::set_tracer_provider(provider.clone());
+///
+///     provider
+/// }
+///
+/// fn main() {
+///     let provider = init_tracing();
+///
+///     // create tracer..
+///     let tracer = global::tracer("example/client");
+///
+///     // create span...
+///     let span = tracer
+///         .span_builder("test_span")
+///         .start(&tracer);
+///
+///     // Explicitly shut down the provider
+///     provider.shutdown();
+/// }
+/// ```
 use crate::runtime::RuntimeChannel;
 use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
+use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
-use crate::{InstrumentationLibrary, Resource};
-use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::trace::TraceError;
-use opentelemetry::{global, trace::TraceResult};
+use opentelemetry::InstrumentationScope;
+use opentelemetry::{otel_debug, trace::TraceResult};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-/// Default tracer name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
-static PROVIDER_RESOURCE: OnceCell<Resource> = OnceCell::new();
+use super::IdGenerator;
+
+static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
-static NOOP_TRACER_PROVIDER: Lazy<TracerProvider> = Lazy::new(|| TracerProvider {
-    inner: Arc::new(TracerProviderInner {
-        processors: Vec::new(),
-        config: Config {
-            // cannot use default here as the default resource is not empty
-            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-            id_generator: Box::<RandomIdGenerator>::default(),
-            span_limits: SpanLimits::default(),
-            resource: Cow::Owned(Resource::empty()),
-        },
-    }),
-    is_shutdown: Arc::new(AtomicBool::new(true)),
-});
+// TODO Replace with LazyLock once it is stable
+static NOOP_TRACER_PROVIDER: OnceLock<TracerProvider> = OnceLock::new();
+#[inline]
+fn noop_tracer_provider() -> &'static TracerProvider {
+    NOOP_TRACER_PROVIDER.get_or_init(|| {
+        TracerProvider {
+            inner: Arc::new(TracerProviderInner {
+                processors: Vec::new(),
+                config: Config {
+                    // cannot use default here as the default resource is not empty
+                    sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+                    id_generator: Box::<RandomIdGenerator>::default(),
+                    span_limits: SpanLimits::default(),
+                    resource: Cow::Owned(Resource::empty()),
+                },
+                is_shutdown: AtomicBool::new(true),
+            }),
+        }
+    })
+}
 
 /// TracerProvider inner type
 #[derive(Debug)]
 pub(crate) struct TracerProviderInner {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
+    is_shutdown: AtomicBool,
+}
+
+impl TracerProviderInner {
+    /// Crate-private shutdown method to be called both from explicit shutdown
+    /// and from Drop when the last reference is released.
+    pub(crate) fn shutdown(&self) -> Vec<TraceError> {
+        let mut errs = vec![];
+        for processor in &self.processors {
+            if let Err(err) = processor.shutdown() {
+                // Log at debug level because:
+                //  - The error is also returned to the user for handling (if applicable)
+                //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
+                //    which is non-actionable by the user
+                otel_debug!(name: "TracerProvider.Drop.ShutdownError",
+                        error = format!("{err}"));
+                errs.push(err);
+            }
+        }
+        errs
+    }
 }
 
 impl Drop for TracerProviderInner {
     fn drop(&mut self) {
-        for processor in &mut self.processors {
-            if let Err(err) = processor.shutdown() {
-                global::handle_error(err);
-            }
+        if !self.is_shutdown.load(Ordering::Relaxed) {
+            let _ = self.shutdown(); // errors are handled within shutdown
+        } else {
+            otel_debug!(
+                name: "TracerProvider.Drop.AlreadyShutdown"
+            );
         }
     }
 }
 
 /// Creator and registry of named [`Tracer`] instances.
 ///
-/// `TracerProvider` is lightweight container holding pointers to `SpanProcessor` and other components.
-/// Cloning and dropping them will not stop the span processing. To stop span processing, users
-/// must either call `shutdown` method explicitly, or drop every clone of `TracerProvider`.
+/// `TracerProvider` is a container holding pointers to `SpanProcessor` and other components.
+/// Cloning a `TracerProvider` instance and dropping it will not stop span processing. To stop span processing, users
+/// must either call the `shutdown` method explicitly or allow the last reference to the `TracerProvider`
+/// to be dropped. When the last reference is dropped, the shutdown process will be automatically triggered
+/// to ensure proper cleanup.
 #[derive(Clone, Debug)]
 pub struct TracerProvider {
     inner: Arc<TracerProviderInner>,
-    is_shutdown: Arc<AtomicBool>,
 }
 
 impl Default for TracerProvider {
@@ -79,7 +164,6 @@ impl TracerProvider {
     pub(crate) fn new(inner: TracerProviderInner) -> Self {
         TracerProvider {
             inner: Arc::new(inner),
-            is_shutdown: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -101,7 +185,7 @@ impl TracerProvider {
     /// true if the provider has been shutdown
     /// Don't start span or export spans when provider is shutdown
     pub(crate) fn is_shutdown(&self) -> bool {
-        self.is_shutdown.load(Ordering::Relaxed)
+        self.inner.is_shutdown.load(Ordering::Relaxed)
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -135,10 +219,8 @@ impl TracerProvider {
     ///
     ///     // create more spans..
     ///
-    ///     // dropping provider and shutting down global provider ensure all
-    ///     // remaining spans are exported
+    ///     // dropping provider ensures all remaining spans are exported
     ///     drop(provider);
-    ///     global::shutdown_tracer_provider();
     /// }
     /// ```
     pub fn force_flush(&self) -> Vec<TraceResult<()>> {
@@ -153,72 +235,47 @@ impl TracerProvider {
     /// Note that shut down doesn't means the TracerProvider has dropped
     pub fn shutdown(&self) -> TraceResult<()> {
         if self
+            .inner
             .is_shutdown
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            // it's up to the processor to properly block new spans after shutdown
-            let mut errs = vec![];
-            for processor in &self.inner.processors {
-                if let Err(err) = processor.shutdown() {
-                    errs.push(err);
-                }
-            }
-
+            let errs = self.inner.shutdown();
             if errs.is_empty() {
                 Ok(())
             } else {
                 Err(TraceError::Other(format!("{errs:?}").into()))
             }
         } else {
-            Err(TraceError::Other(
-                "tracer provider already shut down".into(),
-            ))
+            Err(TraceError::TracerProviderAlreadyShutdown)
         }
     }
 }
+
+/// Default tracer name if empty string is provided.
+const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
 
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
-    /// Create a new versioned `Tracer` instance.
-    fn versioned_tracer(
-        &self,
-        name: impl Into<Cow<'static, str>>,
-        version: Option<impl Into<Cow<'static, str>>>,
-        schema_url: Option<impl Into<Cow<'static, str>>>,
-        attributes: Option<Vec<opentelemetry::KeyValue>>,
-    ) -> Self::Tracer {
-        // Use default value if name is invalid empty string
-        let name = name.into();
-        let component_name = if name.is_empty() {
-            Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        } else {
-            name
+    fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+        let mut name = name.into();
+
+        if name.is_empty() {
+            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
         };
 
-        let mut builder = self.tracer_builder(component_name);
-
-        if let Some(v) = version {
-            builder = builder.with_version(v);
-        }
-        if let Some(s) = schema_url {
-            builder = builder.with_schema_url(s);
-        }
-        if let Some(a) = attributes {
-            builder = builder.with_attributes(a);
-        }
-
-        builder.build()
+        let scope = InstrumentationScope::builder(name).build();
+        self.tracer_with_scope(scope)
     }
 
-    fn library_tracer(&self, library: Arc<InstrumentationLibrary>) -> Self::Tracer {
-        if self.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(library, NOOP_TRACER_PROVIDER.clone());
+    fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
+        if self.inner.is_shutdown.load(Ordering::Relaxed) {
+            return Tracer::new(scope, noop_tracer_provider().clone());
         }
-        Tracer::new(library, self.clone())
+        Tracer::new(scope, self.clone())
     }
 }
 
@@ -257,8 +314,75 @@ impl Builder {
     }
 
     /// The sdk [`crate::trace::Config`] that this provider will use.
+    #[deprecated(
+        since = "0.27.1",
+        note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
+    )]
     pub fn with_config(self, config: crate::trace::Config) -> Self {
         Builder { config, ..self }
+    }
+
+    /// Specify the sampler to be used.
+    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
+        self.config.sampler = Box::new(sampler);
+        self
+    }
+
+    /// Specify the id generator to be used.
+    pub fn with_id_generator<T: IdGenerator + 'static>(mut self, id_generator: T) -> Self {
+        self.config.id_generator = Box::new(id_generator);
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_events_per_span(mut self, max_events: u32) -> Self {
+        self.config.span_limits.max_events_per_span = max_events;
+        self
+    }
+
+    /// Specify the number of attributes to be recorded per span.
+    pub fn with_max_attributes_per_span(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_span = max_attributes;
+        self
+    }
+
+    /// Specify the number of events to be recorded per span.
+    pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
+        self.config.span_limits.max_links_per_span = max_links;
+        self
+    }
+
+    /// Specify the number of attributes one event can have.
+    pub fn with_max_attributes_per_event(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_event = max_attributes;
+        self
+    }
+
+    /// Specify the number of attributes one link can have.
+    pub fn with_max_attributes_per_link(mut self, max_attributes: u32) -> Self {
+        self.config.span_limits.max_attributes_per_link = max_attributes;
+        self
+    }
+
+    /// Specify all limit via the span_limits
+    pub fn with_span_limits(mut self, span_limits: SpanLimits) -> Self {
+        self.config.span_limits = span_limits;
+        self
+    }
+
+    /// Associates a [Resource] with a [TracerProvider].
+    ///
+    /// This [Resource] represents the entity producing telemetry and is associated
+    /// with all [Tracer]s the [TracerProvider] will create.
+    ///
+    /// By default, if this option is not used, the default [Resource] will be used.
+    ///
+    /// [Tracer]: opentelemetry::trace::Tracer
+    pub fn with_resource(self, resource: Resource) -> Self {
+        Builder {
+            config: self.config.with_resource(resource),
+            ..self
+        }
     }
 
     /// Create a new provider from this configuration.
@@ -272,16 +396,13 @@ impl Builder {
         // For the uncommon case where there are multiple tracer providers with different resource
         // configurations, users can optionally provide their own borrowed static resource.
         if matches!(config.resource, Cow::Owned(_)) {
-            config.resource = match PROVIDER_RESOURCE.try_insert(config.resource.into_owned()) {
-                Ok(static_resource) => Cow::Borrowed(static_resource),
-                Err((prev, new)) => {
-                    if prev == &new {
-                        Cow::Borrowed(prev)
-                    } else {
-                        Cow::Owned(new)
+            config.resource =
+                match PROVIDER_RESOURCE.get_or_init(|| config.resource.clone().into_owned()) {
+                    static_resource if *static_resource == *config.resource.as_ref() => {
+                        Cow::Borrowed(static_resource)
                     }
-                }
-            }
+                    _ => config.resource, // Use the new resource if different
+                };
         }
 
         // Create a new vector to hold the modified processors
@@ -292,7 +413,12 @@ impl Builder {
             p.set_resource(config.resource.as_ref());
         }
 
-        TracerProvider::new(TracerProviderInner { processors, config })
+        let is_shutdown = AtomicBool::new(false);
+        TracerProvider::new(TracerProviderInner {
+            processors,
+            config,
+            is_shutdown,
+        })
     }
 }
 
@@ -307,7 +433,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
-    use std::borrow::Cow;
+
     use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
@@ -391,6 +517,7 @@ mod tests {
                 Box::from(TestSpanProcessor::new(false)),
             ],
             config: Default::default(),
+            is_shutdown: AtomicBool::new(false),
         });
 
         let results = tracer_provider.force_flush();
@@ -440,15 +567,13 @@ mod tests {
             assert_telemetry_resource(&default_config_provider);
         });
 
-        // If user provided a resource, use that.
+        // If user provided config, use that.
         let custom_config_provider = super::TracerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::new(vec![KeyValue::new(
-                    SERVICE_NAME,
-                    "test_service",
-                )])),
-                ..Default::default()
-            })
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.config().resource.len(), 1);
@@ -477,13 +602,14 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::TracerProvider::builder()
-                    .with_config(Config {
-                        resource: Cow::Owned(Resource::default().merge(&mut Resource::new(vec![
-                            KeyValue::new("my-custom-key", "my-custom-value"),
-                            KeyValue::new("my-custom-key2", "my-custom-value2"),
-                        ]))),
-                        ..Default::default()
-                    })
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -518,10 +644,7 @@ mod tests {
 
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::TracerProvider::builder()
-            .with_config(Config {
-                resource: Cow::Owned(Resource::empty()),
-                ..Default::default()
-            })
+            .with_resource(Resource::empty())
             .build();
 
         assert_eq!(no_service_name.config().resource.len(), 0)
@@ -534,6 +657,7 @@ mod tests {
         let tracer_provider = super::TracerProvider::new(TracerProviderInner {
             processors: vec![Box::from(processor)],
             config: Default::default(),
+            is_shutdown: AtomicBool::new(false),
         });
 
         let test_tracer_1 = tracer_provider.tracer("test1");
@@ -554,14 +678,128 @@ mod tests {
 
         // after shutdown we should get noop tracer
         let noop_tracer = tracer_provider.tracer("noop");
+
         // noop tracer cannot start anything
         let _ = noop_tracer.start("test");
         assert!(assert_handle.started_span_count(2));
         // noop tracer's tracer provider should be shutdown
-        assert!(noop_tracer.provider().is_shutdown.load(Ordering::SeqCst));
+        assert!(noop_tracer.provider().is_shutdown());
 
         // existing tracer becomes noops after shutdown
         let _ = test_tracer_1.start("test");
         assert!(assert_handle.started_span_count(2));
+
+        // also existing tracer's tracer provider are in shutdown state
+        assert!(test_tracer_1.provider().is_shutdown());
+    }
+
+    #[derive(Debug)]
+    struct CountingShutdownProcessor {
+        shutdown_count: Arc<AtomicU32>,
+    }
+
+    impl CountingShutdownProcessor {
+        fn new(shutdown_count: Arc<AtomicU32>) -> Self {
+            CountingShutdownProcessor { shutdown_count }
+        }
+    }
+
+    impl SpanProcessor for CountingShutdownProcessor {
+        fn on_start(&self, _span: &mut Span, _cx: &Context) {
+            // No operation needed for this processor
+        }
+
+        fn on_end(&self, _span: SpanData) {
+            // No operation needed for this processor
+        }
+
+        fn force_flush(&self) -> TraceResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> TraceResult<()> {
+            self.shutdown_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn drop_test_with_multiple_providers() {
+        let shutdown_count = Arc::new(AtomicU32::new(0));
+
+        {
+            // Create a shared TracerProviderInner and use it across multiple providers
+            let shared_inner = Arc::new(TracerProviderInner {
+                processors: vec![Box::new(CountingShutdownProcessor::new(
+                    shutdown_count.clone(),
+                ))],
+                config: Config::default(),
+                is_shutdown: AtomicBool::new(false),
+            });
+
+            {
+                let tracer_provider1 = super::TracerProvider {
+                    inner: shared_inner.clone(),
+                };
+                let tracer_provider2 = super::TracerProvider {
+                    inner: shared_inner.clone(),
+                };
+
+                let tracer1 = tracer_provider1.tracer("test-tracer1");
+                let tracer2 = tracer_provider2.tracer("test-tracer2");
+
+                let _span1 = tracer1.start("span1");
+                let _span2 = tracer2.start("span2");
+
+                // TracerProviderInner should not be dropped yet, since both providers and `shared_inner`
+                // are still holding a reference.
+            }
+            // At this point, both `tracer_provider1` and `tracer_provider2` are dropped,
+            // but `shared_inner` still holds a reference, so `TracerProviderInner` is NOT dropped yet.
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 0);
+        }
+        // Verify shutdown was called during the drop of the shared TracerProviderInner
+        assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn drop_after_shutdown_test_with_multiple_providers() {
+        let shutdown_count = Arc::new(AtomicU32::new(0));
+
+        // Create a shared TracerProviderInner and use it across multiple providers
+        let shared_inner = Arc::new(TracerProviderInner {
+            processors: vec![Box::new(CountingShutdownProcessor::new(
+                shutdown_count.clone(),
+            ))],
+            config: Config::default(),
+            is_shutdown: AtomicBool::new(false),
+        });
+
+        // Create a scope to test behavior when providers are dropped
+        {
+            let tracer_provider1 = super::TracerProvider {
+                inner: shared_inner.clone(),
+            };
+            let tracer_provider2 = super::TracerProvider {
+                inner: shared_inner.clone(),
+            };
+
+            // Explicitly shut down the tracer provider
+            let shutdown_result = tracer_provider1.shutdown();
+            assert!(shutdown_result.is_ok());
+
+            // Verify that shutdown was called exactly once
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
+
+            // TracerProvider2 should observe the shutdown state but not trigger another shutdown
+            let shutdown_result2 = tracer_provider2.shutdown();
+            assert!(shutdown_result2.is_err());
+            assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
+
+            // Both tracer providers will be dropped at the end of this scope
+        }
+
+        // Verify that shutdown was only called once, even after drop
+        assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
     }
 }

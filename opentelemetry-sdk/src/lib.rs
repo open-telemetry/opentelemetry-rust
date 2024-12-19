@@ -1,6 +1,6 @@
 //! Implements the [`SDK`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.65+][msrv]*
+//! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
@@ -30,7 +30,7 @@
 //!     });
 //!
 //!     // Shutdown trace pipeline
-//!     global::shutdown_tracer_provider();
+//!     provider.shutdown().expect("TracerProvider should shutdown successfully")
 //!     # }
 //! }
 //! # }
@@ -60,7 +60,7 @@
 //! let meter = global::meter("my_service");
 //!
 //! // create an instrument
-//! let counter = meter.u64_counter("my_counter").init();
+//! let counter = meter.u64_counter("my_counter").build();
 //!
 //! // record a measurement
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
@@ -89,7 +89,7 @@
 //!
 //! For `logs` the following feature flags are available:
 //!
-//! * `logs_level_enabled`: control the log level
+//! * `spec_unstable_logs_enabled`: control the log level
 //!
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:
@@ -122,7 +122,7 @@
 
 pub mod export;
 pub(crate) mod growable_array;
-mod instrumentation;
+
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
@@ -146,6 +146,7 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;
+
+pub mod error;

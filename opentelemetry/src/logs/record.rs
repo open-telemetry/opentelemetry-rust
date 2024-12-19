@@ -1,4 +1,8 @@
-use crate::{Array, Key, StringValue, Value};
+use crate::{Key, StringValue};
+
+#[cfg(feature = "trace")]
+use crate::trace::{SpanId, TraceFlags, TraceId};
+
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
 /// SDK implemented trait for managing log records
@@ -41,10 +45,32 @@ pub trait LogRecord {
     where
         K: Into<Key>,
         V: Into<AnyValue>;
+
+    /// Sets the trace context of the log.
+    #[cfg(feature = "trace")]
+    fn set_trace_context(
+        &mut self,
+        trace_id: TraceId,
+        span_id: SpanId,
+        trace_flags: Option<TraceFlags>,
+    ) {
+        let _ = trace_id;
+        let _ = span_id;
+        let _ = trace_flags;
+    }
 }
 
 /// Value types for representing arbitrary values in a log record.
+/// Note: The `tracing` and `log` crates only support basic types that can be
+/// converted to these core variants: `i64`, `f64`, `StringValue`, and `bool`.
+/// Any complex and custom types are supported through their Debug implementation,
+/// and converted to String. More complex types (`Bytes`, `ListAny`, and `Map`) are
+/// included here to meet specification requirements and are available to support
+/// custom appenders that may be implemented for other logging crates.
+/// These types allow for handling dynamic data structures, so keep in mind the
+/// potential performance overhead of using boxed vectors and maps in appenders.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum AnyValue {
     /// An integer value
     Int(i64),
@@ -105,23 +131,6 @@ impl<K: Into<Key>, V: Into<AnyValue>> FromIterator<(K, V)> for AnyValue {
         AnyValue::Map(Box::new(HashMap::from_iter(
             iter.into_iter().map(|(k, v)| (k.into(), v.into())),
         )))
-    }
-}
-
-impl From<Value> for AnyValue {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Bool(b) => b.into(),
-            Value::I64(i) => i.into(),
-            Value::F64(f) => f.into(),
-            Value::String(s) => s.into(),
-            Value::Array(a) => match a {
-                Array::Bool(b) => AnyValue::from_iter(b),
-                Array::F64(f) => AnyValue::from_iter(f),
-                Array::I64(i) => AnyValue::from_iter(i),
-                Array::String(s) => AnyValue::from_iter(s),
-            },
-        }
     }
 }
 

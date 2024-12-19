@@ -37,7 +37,8 @@ pub struct ResourceLogs {
     #[prost(message, repeated, tag = "2")]
     pub scope_logs: ::prost::alloc::vec::Vec<ScopeLogs>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_logs" field which have their own schema_url field.
@@ -60,7 +61,8 @@ pub struct ScopeLogs {
     #[prost(message, repeated, tag = "2")]
     pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
     /// The Schema URL, if known. This is the identifier of the Schema that the log data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all logs in the "logs" field.
     #[prost(string, tag = "3")]
@@ -122,13 +124,6 @@ pub struct LogRecord {
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
     #[prost(message, optional, tag = "5")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::serializers::serialize_to_value",
-            deserialize_with = "crate::proto::serializers::deserialize_from_value"
-        )
-    )]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
@@ -185,6 +180,20 @@ pub struct LogRecord {
         )
     )]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
+    /// A unique identifier of event category/type.
+    /// All events with the same event_name are expected to conform to the same
+    /// schema for both their attributes and their body.
+    ///
+    /// Recommended to be fully qualified and short (no longer than 256 characters).
+    ///
+    /// Presence of event_name on the log record identifies this record
+    /// as an event.
+    ///
+    /// \[Optional\].
+    ///
+    /// Status: \[Development\]
+    #[prost(string, tag = "12")]
+    pub event_name: ::prost::alloc::string::String,
 }
 /// Possible values for LogRecord.SeverityNumber.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
@@ -227,31 +236,31 @@ impl SeverityNumber {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            SeverityNumber::Unspecified => "SEVERITY_NUMBER_UNSPECIFIED",
-            SeverityNumber::Trace => "SEVERITY_NUMBER_TRACE",
-            SeverityNumber::Trace2 => "SEVERITY_NUMBER_TRACE2",
-            SeverityNumber::Trace3 => "SEVERITY_NUMBER_TRACE3",
-            SeverityNumber::Trace4 => "SEVERITY_NUMBER_TRACE4",
-            SeverityNumber::Debug => "SEVERITY_NUMBER_DEBUG",
-            SeverityNumber::Debug2 => "SEVERITY_NUMBER_DEBUG2",
-            SeverityNumber::Debug3 => "SEVERITY_NUMBER_DEBUG3",
-            SeverityNumber::Debug4 => "SEVERITY_NUMBER_DEBUG4",
-            SeverityNumber::Info => "SEVERITY_NUMBER_INFO",
-            SeverityNumber::Info2 => "SEVERITY_NUMBER_INFO2",
-            SeverityNumber::Info3 => "SEVERITY_NUMBER_INFO3",
-            SeverityNumber::Info4 => "SEVERITY_NUMBER_INFO4",
-            SeverityNumber::Warn => "SEVERITY_NUMBER_WARN",
-            SeverityNumber::Warn2 => "SEVERITY_NUMBER_WARN2",
-            SeverityNumber::Warn3 => "SEVERITY_NUMBER_WARN3",
-            SeverityNumber::Warn4 => "SEVERITY_NUMBER_WARN4",
-            SeverityNumber::Error => "SEVERITY_NUMBER_ERROR",
-            SeverityNumber::Error2 => "SEVERITY_NUMBER_ERROR2",
-            SeverityNumber::Error3 => "SEVERITY_NUMBER_ERROR3",
-            SeverityNumber::Error4 => "SEVERITY_NUMBER_ERROR4",
-            SeverityNumber::Fatal => "SEVERITY_NUMBER_FATAL",
-            SeverityNumber::Fatal2 => "SEVERITY_NUMBER_FATAL2",
-            SeverityNumber::Fatal3 => "SEVERITY_NUMBER_FATAL3",
-            SeverityNumber::Fatal4 => "SEVERITY_NUMBER_FATAL4",
+            Self::Unspecified => "SEVERITY_NUMBER_UNSPECIFIED",
+            Self::Trace => "SEVERITY_NUMBER_TRACE",
+            Self::Trace2 => "SEVERITY_NUMBER_TRACE2",
+            Self::Trace3 => "SEVERITY_NUMBER_TRACE3",
+            Self::Trace4 => "SEVERITY_NUMBER_TRACE4",
+            Self::Debug => "SEVERITY_NUMBER_DEBUG",
+            Self::Debug2 => "SEVERITY_NUMBER_DEBUG2",
+            Self::Debug3 => "SEVERITY_NUMBER_DEBUG3",
+            Self::Debug4 => "SEVERITY_NUMBER_DEBUG4",
+            Self::Info => "SEVERITY_NUMBER_INFO",
+            Self::Info2 => "SEVERITY_NUMBER_INFO2",
+            Self::Info3 => "SEVERITY_NUMBER_INFO3",
+            Self::Info4 => "SEVERITY_NUMBER_INFO4",
+            Self::Warn => "SEVERITY_NUMBER_WARN",
+            Self::Warn2 => "SEVERITY_NUMBER_WARN2",
+            Self::Warn3 => "SEVERITY_NUMBER_WARN3",
+            Self::Warn4 => "SEVERITY_NUMBER_WARN4",
+            Self::Error => "SEVERITY_NUMBER_ERROR",
+            Self::Error2 => "SEVERITY_NUMBER_ERROR2",
+            Self::Error3 => "SEVERITY_NUMBER_ERROR3",
+            Self::Error4 => "SEVERITY_NUMBER_ERROR4",
+            Self::Fatal => "SEVERITY_NUMBER_FATAL",
+            Self::Fatal2 => "SEVERITY_NUMBER_FATAL2",
+            Self::Fatal3 => "SEVERITY_NUMBER_FATAL3",
+            Self::Fatal4 => "SEVERITY_NUMBER_FATAL4",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -313,8 +322,8 @@ impl LogRecordFlags {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            LogRecordFlags::DoNotUse => "LOG_RECORD_FLAGS_DO_NOT_USE",
-            LogRecordFlags::TraceFlagsMask => "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK",
+            Self::DoNotUse => "LOG_RECORD_FLAGS_DO_NOT_USE",
+            Self::TraceFlagsMask => "LOG_RECORD_FLAGS_TRACE_FLAGS_MASK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

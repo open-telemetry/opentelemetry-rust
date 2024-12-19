@@ -2,6 +2,77 @@
 
 ## vNext
 
+- Bump msrv to 1.75.0.
+
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-http` dependency version to 0.27
+- Update `opentelemetry-proto` dependency version to 0.27
+
+- **BREAKING**: 
+  - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
+    Previous Signature:
+    ```rust
+    MetricsExporterBuilder::default().with_temporality_selector(DeltaTemporalitySelector::new())
+    ```
+    Updated Signature:
+    ```rust
+    MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
+    ```
+  - ([#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221)) **Replaced**:
+    - The `opentelemetry_otlp::new_pipeline().{trace,logging,metrics}()` interface is now replaced with `{TracerProvider,SdkMeterProvider,LoggerProvider}::builder()`.
+    - The `opentelemetry_otlp::new_exporter()` interface is now replaced with `{SpanExporter,MetricsExporter,LogExporter}::builder()`.
+
+    Pull request [#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221) has a detailed migration guide in the description. See example below,
+    and [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) for more details:
+
+    Previous Signature:
+    ```rust
+    let logger_provider: LoggerProvider = opentelemetry_otlp::new_pipeline()
+      .logging()
+      .with_resource(RESOURCE.clone())
+      .with_exporter(
+          opentelemetry_otlp::new_exporter()
+              .tonic()
+              .with_endpoint("http://localhost:4317")
+      )
+      .install_batch(runtime::Tokio)?;
+    ```
+    Updated Signature:
+    ```rust
+    let exporter = LogExporter::builder()
+        .with_tonic()
+        .with_endpoint("http://localhost:4317")
+        .build()?;
+
+    Ok(LoggerProvider::builder()
+        .with_resource(RESOURCE.clone())
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build())
+    ```
+  - **Renamed**
+    - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
+      - `MetricsExporter` -> `MetricExporter`
+      - `MetricsExporterBuilder` -> `MetricExporterBuilder`
+
+  - [#2263](https://github.com/open-telemetry/opentelemetry-rust/pull/2263)
+  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`. 
+  Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
+  
+## v0.26.0
+Released 2024-Sep-30
+
+- Update `opentelemetry` dependency version to 0.26
+- Update `opentelemetry_sdk` dependency version to 0.26
+- Update `opentelemetry-http` dependency version to 0.26
+- Update `opentelemetry-proto` dependency version to 0.26
+- Bump MSRV to 1.71.1 [2140](https://github.com/open-telemetry/opentelemetry-rust/pull/2140)
+
 ## v0.25.0
 
 - Update `opentelemetry` dependency version to 0.25

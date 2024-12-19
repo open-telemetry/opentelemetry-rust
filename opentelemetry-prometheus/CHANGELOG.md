@@ -2,6 +2,16 @@
 
 ## vNext
 
+- Bump msrv to 1.75.0.
+
+
+## v0.27.0
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+- Update `opentelemetry-semantic-conventions` dependency version to 0.27
+
+
 ## v0.17.0
 
 ### Changed

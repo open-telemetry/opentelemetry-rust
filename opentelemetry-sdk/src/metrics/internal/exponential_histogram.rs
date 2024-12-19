@@ -1,14 +1,22 @@
-use std::{collections::HashMap, f64::consts::LOG2_E, sync::Mutex, time::SystemTime};
-
-use once_cell::sync::Lazy;
-use opentelemetry::{metrics::MetricsError, KeyValue};
-
-use crate::{
-    metrics::data::{self, Aggregation, Temporality},
-    metrics::AttributeSet,
+use std::{
+    f64::consts::LOG2_E,
+    mem::replace,
+    ops::DerefMut,
+    sync::{Arc, Mutex},
 };
 
-use super::Number;
+use opentelemetry::{otel_debug, KeyValue};
+use std::sync::OnceLock;
+
+use crate::metrics::{
+    data::{self, Aggregation},
+    Temporality,
+};
+
+use super::{
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    Aggregator, ComputeAggregation, Measure, Number, ValueMap,
+};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -16,33 +24,26 @@ pub(crate) const EXPO_MIN_SCALE: i8 = -10;
 /// A single data point in an exponential histogram.
 #[derive(Debug, PartialEq)]
 struct ExpoHistogramDataPoint<T> {
+    max_size: i32,
     count: usize,
     min: T,
     max: T,
     sum: T,
-
-    max_size: i32,
-    record_min_max: bool,
-    record_sum: bool,
-
     scale: i8,
-
     pos_buckets: ExpoBuckets,
     neg_buckets: ExpoBuckets,
     zero_count: u64,
 }
 
 impl<T: Number> ExpoHistogramDataPoint<T> {
-    fn new(max_size: i32, max_scale: i8, record_min_max: bool, record_sum: bool) -> Self {
+    fn new(config: &BucketConfig) -> Self {
         ExpoHistogramDataPoint {
+            max_size: config.max_size,
             count: 0,
             min: T::max(),
             max: T::min(),
             sum: T::default(),
-            max_size,
-            record_min_max,
-            record_sum,
-            scale: max_scale,
+            scale: config.max_scale,
             pos_buckets: ExpoBuckets::default(),
             neg_buckets: ExpoBuckets::default(),
             zero_count: 0,
@@ -57,17 +58,13 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
     fn record(&mut self, v: T) {
         self.count += 1;
 
-        if self.record_min_max {
-            if v < self.min {
-                self.min = v;
-            }
-            if v > self.max {
-                self.max = v;
-            }
+        if v < self.min {
+            self.min = v;
         }
-        if self.record_sum {
-            self.sum += v;
+        if v > self.max {
+            self.max = v;
         }
+        self.sum += v;
 
         let abs_v = v.into_float().abs();
 
@@ -100,9 +97,18 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             if (self.scale - scale_delta as i8) < EXPO_MIN_SCALE {
                 // With a scale of -10 there is only two buckets for the whole range of f64 values.
                 // This can only happen if there is a max size of 1.
-                opentelemetry::global::handle_error(MetricsError::Other(
-                    "exponential histogram scale underflow".into(),
-                ));
+
+                // TODO - to check if this should be logged as an error if this is auto-recoverable.
+                otel_debug!(
+                    name: "ExponentialHistogramDataPoint.Scale.Underflow",
+                    current_scale = self.scale,
+                    scale_delta = scale_delta,
+                    max_size = self.max_size,
+                    min_scale = EXPO_MIN_SCALE,
+                    value = format!("{:?}", v),
+                    message = "The measurement will be dropped due to scale underflow. Check the histogram configuration"
+                );
+
                 return;
             }
             // Downscale
@@ -133,7 +139,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             }
             return (exp - correction) >> -self.scale;
         }
-        (exp << self.scale) + (frac.ln() * SCALE_FACTORS[self.scale as usize]) as i32 - 1
+        (exp << self.scale) + (frac.ln() * scale_factors()[self.scale as usize]) as i32 - 1
     }
 }
 
@@ -167,32 +173,38 @@ fn scale_change(max_size: i32, bin: i32, start_bin: i32, length: i32) -> u32 {
     count
 }
 
-/// Constants used in calculating the logarithm index.
-static SCALE_FACTORS: Lazy<[f64; 21]> = Lazy::new(|| {
-    [
-        LOG2_E * 2f64.powi(0),
-        LOG2_E * 2f64.powi(1),
-        LOG2_E * 2f64.powi(2),
-        LOG2_E * 2f64.powi(3),
-        LOG2_E * 2f64.powi(4),
-        LOG2_E * 2f64.powi(5),
-        LOG2_E * 2f64.powi(6),
-        LOG2_E * 2f64.powi(7),
-        LOG2_E * 2f64.powi(8),
-        LOG2_E * 2f64.powi(9),
-        LOG2_E * 2f64.powi(10),
-        LOG2_E * 2f64.powi(11),
-        LOG2_E * 2f64.powi(12),
-        LOG2_E * 2f64.powi(13),
-        LOG2_E * 2f64.powi(14),
-        LOG2_E * 2f64.powi(15),
-        LOG2_E * 2f64.powi(16),
-        LOG2_E * 2f64.powi(17),
-        LOG2_E * 2f64.powi(18),
-        LOG2_E * 2f64.powi(19),
-        LOG2_E * 2f64.powi(20),
-    ]
-});
+// TODO - replace it with LazyLock once it is stable
+static SCALE_FACTORS: OnceLock<[f64; 21]> = OnceLock::new();
+
+/// returns constants used in calculating the logarithm index.
+#[inline]
+fn scale_factors() -> &'static [f64; 21] {
+    SCALE_FACTORS.get_or_init(|| {
+        [
+            LOG2_E * 2f64.powi(0),
+            LOG2_E * 2f64.powi(1),
+            LOG2_E * 2f64.powi(2),
+            LOG2_E * 2f64.powi(3),
+            LOG2_E * 2f64.powi(4),
+            LOG2_E * 2f64.powi(5),
+            LOG2_E * 2f64.powi(6),
+            LOG2_E * 2f64.powi(7),
+            LOG2_E * 2f64.powi(8),
+            LOG2_E * 2f64.powi(9),
+            LOG2_E * 2f64.powi(10),
+            LOG2_E * 2f64.powi(11),
+            LOG2_E * 2f64.powi(12),
+            LOG2_E * 2f64.powi(13),
+            LOG2_E * 2f64.powi(14),
+            LOG2_E * 2f64.powi(15),
+            LOG2_E * 2f64.powi(16),
+            LOG2_E * 2f64.powi(17),
+            LOG2_E * 2f64.powi(18),
+            LOG2_E * 2f64.powi(19),
+            LOG2_E * 2f64.powi(20),
+        ]
+    })
+}
 
 /// Breaks the number into a normalized fraction and a base-2 exponent.
 ///
@@ -306,76 +318,85 @@ impl ExpoBuckets {
     }
 }
 
+impl<T> Aggregator for Mutex<ExpoHistogramDataPoint<T>>
+where
+    T: Number,
+{
+    type InitConfig = BucketConfig;
+
+    type PreComputedValue = T;
+
+    fn create(init: &BucketConfig) -> Self {
+        Mutex::new(ExpoHistogramDataPoint::new(init))
+    }
+
+    fn update(&self, value: T) {
+        let mut this = match self.lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        this.record(value);
+    }
+
+    fn clone_and_reset(&self, init: &BucketConfig) -> Self {
+        let mut current = self.lock().unwrap_or_else(|err| err.into_inner());
+        let cloned = replace(current.deref_mut(), ExpoHistogramDataPoint::new(init));
+        Mutex::new(cloned)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct BucketConfig {
+    max_size: i32,
+    max_scale: i8,
+}
+
 /// An aggregator that summarizes a set of measurements as an exponential
 /// histogram.
 ///
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
-pub(crate) struct ExpoHistogram<T> {
+pub(crate) struct ExpoHistogram<T: Number> {
+    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
+    init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    filter: AttributeSetFilter,
     record_sum: bool,
     record_min_max: bool,
-    max_size: i32,
-    max_scale: i8,
-
-    values: Mutex<HashMap<AttributeSet, ExpoHistogramDataPoint<T>>>,
-
-    start: Mutex<SystemTime>,
 }
 
 impl<T: Number> ExpoHistogram<T> {
     /// Create a new exponential histogram.
     pub(crate) fn new(
+        temporality: Temporality,
+        filter: AttributeSetFilter,
         max_size: u32,
         max_scale: i8,
         record_min_max: bool,
         record_sum: bool,
     ) -> Self {
         ExpoHistogram {
+            value_map: ValueMap::new(BucketConfig {
+                max_size: max_size as i32,
+                max_scale,
+            }),
+            init_time: AggregateTimeInitiator::default(),
+            temporality,
+            filter,
             record_sum,
             record_min_max,
-            max_size: max_size as i32,
-            max_scale,
-            values: Mutex::new(HashMap::default()),
-            start: Mutex::new(SystemTime::now()),
         }
     }
 
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
-        let f_value = value.into_float();
-        // Ignore NaN and infinity.
-        if f_value.is_infinite() || f_value.is_nan() {
-            return;
-        }
-
-        let attrs: AttributeSet = attrs.into();
-        if let Ok(mut values) = self.values.lock() {
-            let v = values.entry(attrs).or_insert_with(|| {
-                ExpoHistogramDataPoint::new(
-                    self.max_size,
-                    self.max_scale,
-                    self.record_min_max,
-                    self.record_sum,
-                )
-            });
-            v.record(value)
-        }
-    }
-
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
-        let start = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        let time = self.init_time.delta();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Delta,
             })
         } else {
@@ -383,76 +404,56 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Delta;
-        h.data_points.clear();
+        h.start_time = time.start;
+        h.time = time.current;
 
-        let mut values = match self.values.lock() {
-            Ok(g) => g,
-            Err(_) => return (0, None),
-        };
-
-        let n = values.len();
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
-
-        for (a, b) in values.drain() {
-            h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
-                start_time: start,
-                time: t,
-                count: b.count,
-                min: if self.record_min_max {
-                    Some(b.min)
-                } else {
-                    None
-                },
-                max: if self.record_min_max {
-                    Some(b.max)
-                } else {
-                    None
-                },
-                sum: if self.record_sum { b.sum } else { T::default() },
-                scale: b.scale,
-                zero_count: b.zero_count,
-                positive_bucket: data::ExponentialBucket {
-                    offset: b.pos_buckets.start_bin,
-                    counts: b.pos_buckets.counts.clone(),
-                },
-                negative_bucket: data::ExponentialBucket {
-                    offset: b.neg_buckets.start_bin,
-                    counts: b.neg_buckets.counts.clone(),
-                },
-                zero_threshold: 0.0,
-                exemplars: vec![],
+        self.value_map
+            .collect_and_reset(&mut h.data_points, |attributes, attr| {
+                let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
+                data::ExponentialHistogramDataPoint {
+                    attributes,
+                    count: b.count,
+                    min: if self.record_min_max {
+                        Some(b.min)
+                    } else {
+                        None
+                    },
+                    max: if self.record_min_max {
+                        Some(b.max)
+                    } else {
+                        None
+                    },
+                    sum: if self.record_sum { b.sum } else { T::default() },
+                    scale: b.scale,
+                    zero_count: b.zero_count,
+                    positive_bucket: data::ExponentialBucket {
+                        offset: b.pos_buckets.start_bin,
+                        counts: b.pos_buckets.counts,
+                    },
+                    negative_bucket: data::ExponentialBucket {
+                        offset: b.neg_buckets.start_bin,
+                        counts: b.neg_buckets.counts,
+                    },
+                    zero_threshold: 0.0,
+                    exemplars: vec![],
+                }
             });
-        }
 
-        // The delta collection cycle resets.
-        if let Ok(mut start) = self.start.lock() {
-            *start = t;
-        }
-
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 
-    pub(crate) fn cumulative(
+    fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let t = SystemTime::now();
-        let start = self
-            .start
-            .lock()
-            .map(|s| *s)
-            .unwrap_or_else(|_| SystemTime::now());
+        let time = self.init_time.cumulative();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
+                start_time: time.start,
+                time: time.current,
                 temporality: Temporality::Cumulative,
             })
         } else {
@@ -460,66 +461,78 @@ impl<T: Number> ExpoHistogram<T> {
         };
         let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
         h.temporality = Temporality::Cumulative;
+        h.start_time = time.start;
+        h.time = time.current;
 
-        let values = match self.values.lock() {
-            Ok(g) => g,
-            Err(_) => return (0, None),
-        };
-        h.data_points.clear();
-
-        let n = values.len();
-        if n > h.data_points.capacity() {
-            h.data_points.reserve_exact(n - h.data_points.capacity());
-        }
-
-        // TODO: This will use an unbounded amount of memory if there
-        // are unbounded number of attribute sets being aggregated. Attribute
-        // sets that become "stale" need to be forgotten so this will not
-        // overload the system.
-        for (a, b) in values.iter() {
-            h.data_points.push(data::ExponentialHistogramDataPoint {
-                attributes: a
-                    .iter()
-                    .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                    .collect(),
-                start_time: start,
-                time: t,
-                count: b.count,
-                min: if self.record_min_max {
-                    Some(b.min)
-                } else {
-                    None
-                },
-                max: if self.record_min_max {
-                    Some(b.max)
-                } else {
-                    None
-                },
-                sum: if self.record_sum { b.sum } else { T::default() },
-                scale: b.scale,
-                zero_count: b.zero_count,
-                positive_bucket: data::ExponentialBucket {
-                    offset: b.pos_buckets.start_bin,
-                    counts: b.pos_buckets.counts.clone(),
-                },
-                negative_bucket: data::ExponentialBucket {
-                    offset: b.neg_buckets.start_bin,
-                    counts: b.neg_buckets.counts.clone(),
-                },
-                zero_threshold: 0.0,
-                exemplars: vec![],
+        self.value_map
+            .collect_readonly(&mut h.data_points, |attributes, attr| {
+                let b = attr.lock().unwrap_or_else(|err| err.into_inner());
+                data::ExponentialHistogramDataPoint {
+                    attributes,
+                    count: b.count,
+                    min: if self.record_min_max {
+                        Some(b.min)
+                    } else {
+                        None
+                    },
+                    max: if self.record_min_max {
+                        Some(b.max)
+                    } else {
+                        None
+                    },
+                    sum: if self.record_sum { b.sum } else { T::default() },
+                    scale: b.scale,
+                    zero_count: b.zero_count,
+                    positive_bucket: data::ExponentialBucket {
+                        offset: b.pos_buckets.start_bin,
+                        counts: b.pos_buckets.counts.clone(),
+                    },
+                    negative_bucket: data::ExponentialBucket {
+                        offset: b.neg_buckets.start_bin,
+                        counts: b.neg_buckets.counts.clone(),
+                    },
+                    zero_threshold: 0.0,
+                    exemplars: vec![],
+                }
             });
+
+        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+    }
+}
+
+impl<T> Measure<T> for Arc<ExpoHistogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        let f_value = measurement.into_float();
+        // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
+        if !f_value.is_finite() {
+            return;
         }
 
-        (n, new_agg.map(|a| Box::new(a) as Box<_>))
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Arc<ExpoHistogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Neg;
-
-    use opentelemetry::KeyValue;
+    use std::{ops::Neg, time::SystemTime};
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
@@ -621,7 +634,10 @@ mod tests {
         ];
 
         for test in test_cases {
-            let mut dp = ExpoHistogramDataPoint::<T>::new(test.max_size, 20, true, true);
+            let mut dp = ExpoHistogramDataPoint::<T>::new(&BucketConfig {
+                max_size: test.max_size,
+                max_scale: 20,
+            });
             for v in test.values {
                 dp.record(v);
                 dp.record(-v);
@@ -634,7 +650,6 @@ mod tests {
     }
 
     fn run_min_max_sum_f64() {
-        let alice = &[KeyValue::new("user", "alice")][..];
         struct Expected {
             min: f64,
             max: f64,
@@ -680,13 +695,18 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, alice);
+                Measure::call(&h, v, &[]);
             }
-            let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
-            let dp = values.get(&alice).unwrap();
+            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -696,7 +716,6 @@ mod tests {
     }
 
     fn run_min_max_sum<T: Number + From<u32>>() {
-        let alice = &[KeyValue::new("user", "alice")][..];
         struct Expected<T> {
             min: T,
             max: T,
@@ -732,13 +751,18 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, alice);
+                Measure::call(&h, v, &[]);
             }
-            let values = h.values.lock().unwrap();
-            let alice: AttributeSet = alice.into();
-            let dp = values.get(&alice).unwrap();
+            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -821,7 +845,10 @@ mod tests {
             },
         ];
         for test in test_cases {
-            let mut dp = ExpoHistogramDataPoint::new(test.max_size, 20, true, true);
+            let mut dp = ExpoHistogramDataPoint::new(&BucketConfig {
+                max_size: test.max_size,
+                max_scale: 20,
+            });
             for v in test.values {
                 dp.record(v);
                 dp.record(-v);
@@ -838,7 +865,11 @@ mod tests {
         // These bins are calculated from the following formula:
         // floor( log2( value) * 2^20 ) using an arbitrary precision calculator.
 
-        let mut fdp = ExpoHistogramDataPoint::new(4, 20, true, true);
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+        let mut fdp = ExpoHistogramDataPoint::new(&cfg);
         fdp.record(f64::MAX);
 
         assert_eq!(
@@ -846,7 +877,7 @@ mod tests {
             "start bin does not match for large f64 values",
         );
 
-        let mut fdp = ExpoHistogramDataPoint::new(4, 20, true, true);
+        let mut fdp = ExpoHistogramDataPoint::new(&cfg);
         fdp.record(f64::MIN_POSITIVE);
 
         assert_eq!(
@@ -854,7 +885,7 @@ mod tests {
             "start bin does not match for small positive values",
         );
 
-        let mut idp = ExpoHistogramDataPoint::new(4, 20, true, true);
+        let mut idp = ExpoHistogramDataPoint::new(&cfg);
         idp.record(i64::MAX);
 
         assert_eq!(
@@ -1200,12 +1231,13 @@ mod tests {
                 start_bin: 0,
                 counts: vec![],
             },
-            record_min_max: true,
-            record_sum: true,
             zero_count: 0,
         };
 
-        let mut ehdp = ExpoHistogramDataPoint::new(4, 20, true, true);
+        let mut ehdp = ExpoHistogramDataPoint::new(&BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        });
         ehdp.record(f64::MIN_POSITIVE);
         ehdp.record(f64::MIN_POSITIVE);
         ehdp.record(f64::MIN_POSITIVE);
@@ -1253,7 +1285,7 @@ mod tests {
                 name: "Delta Single",
                 build: Box::new(move || {
                     box_val(
-                        AggregateBuilder::new(Some(Temporality::Delta), None)
+                        AggregateBuilder::new(Temporality::Delta, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1274,8 +1306,6 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1289,6 +1319,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1296,7 +1328,7 @@ mod tests {
                 name: "Cumulative Single",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Cumulative), None)
+                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1322,8 +1354,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1332,6 +1362,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1339,7 +1371,7 @@ mod tests {
                 name: "Delta Multiple",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Delta), None)
+                        internal::AggregateBuilder::new(Temporality::Delta, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1368,8 +1400,6 @@ mod tests {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1378,6 +1408,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1385,7 +1417,7 @@ mod tests {
                 name: "Cumulative Multiple ",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Cumulative), None)
+                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1414,8 +1446,6 @@ mod tests {
                             counts: vec![1, 6, 2],
                         },
                         attributes: vec![],
-                        start_time: SystemTime::now(),
-                        time: SystemTime::now(),
                         negative_bucket: data::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
@@ -1424,6 +1454,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
                 },
                 want_count: 1,
             },
@@ -1434,6 +1466,8 @@ mod tests {
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
+                start_time: SystemTime::now(),
+                time: SystemTime::now(),
                 temporality: Temporality::Delta,
             });
             let mut count = 0;
@@ -1444,7 +1478,7 @@ mod tests {
                 count = out_fn.call(Some(got.as_mut())).0
             }
 
-            assert_aggregation_eq::<T>(Box::new(test.want), got, true, test.name);
+            assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
             assert_eq!(test.want_count, count, "{}", test.name);
         }
     }
@@ -1452,7 +1486,6 @@ mod tests {
     fn assert_aggregation_eq<T: Number + PartialEq>(
         a: Box<dyn Aggregation>,
         b: Box<dyn Aggregation>,
-        ignore_timestamp: bool,
         test_name: &'static str,
     ) {
         assert_eq!(
@@ -1471,13 +1504,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching gauge data points",
-                    test_name,
-                );
+                assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
             let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
@@ -1498,13 +1525,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching sum data points",
-                    test_name,
-                );
+                assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
             let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
@@ -1520,13 +1541,7 @@ mod tests {
                 test_name
             );
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_hist_data_points_eq(
-                    a,
-                    b,
-                    ignore_timestamp,
-                    "mismatching hist data points",
-                    test_name,
-                );
+                assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
         } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
             let b = b
@@ -1548,7 +1563,6 @@ mod tests {
                 assert_exponential_hist_data_points_eq(
                     a,
                     b,
-                    ignore_timestamp,
                     "mismatching hist data points",
                     test_name,
                 );
@@ -1558,10 +1572,9 @@ mod tests {
         }
     }
 
-    fn assert_data_points_eq<T: Number>(
-        a: &data::DataPoint<T>,
-        b: &data::DataPoint<T>,
-        ignore_timestamp: bool,
+    fn assert_sum_data_points_eq<T: Number>(
+        a: &data::SumDataPoint<T>,
+        b: &data::SumDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1571,21 +1584,25 @@ mod tests {
             test_name, message
         );
         assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+    }
 
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
+    fn assert_gauge_data_points_eq<T: Number>(
+        a: &data::GaugeDataPoint<T>,
+        b: &data::GaugeDataPoint<T>,
+        message: &'static str,
+        test_name: &'static str,
+    ) {
+        assert_eq!(
+            a.attributes, b.attributes,
+            "{}: {} attributes",
+            test_name, message
+        );
+        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
     }
 
     fn assert_hist_data_points_eq<T: Number>(
         a: &data::HistogramDataPoint<T>,
         b: &data::HistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1604,21 +1621,11 @@ mod tests {
         assert_eq!(a.min, b.min, "{}: {} min", test_name, message);
         assert_eq!(a.max, b.max, "{}: {} max", test_name, message);
         assert_eq!(a.sum, b.sum, "{}: {} sum", test_name, message);
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 
     fn assert_exponential_hist_data_points_eq<T: Number>(
         a: &data::ExponentialHistogramDataPoint<T>,
         b: &data::ExponentialHistogramDataPoint<T>,
-        ignore_timestamp: bool,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1649,14 +1656,5 @@ mod tests {
             "{}: {} neg",
             test_name, message
         );
-
-        if !ignore_timestamp {
-            assert_eq!(
-                a.start_time, b.start_time,
-                "{}: {} start time",
-                test_name, message
-            );
-            assert_eq!(a.time, b.time, "{}: {} time", test_name, message);
-        }
     }
 }
