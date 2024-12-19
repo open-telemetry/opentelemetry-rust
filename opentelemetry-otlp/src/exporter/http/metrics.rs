@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
+use opentelemetry::otel_debug;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 
@@ -33,6 +34,7 @@ impl MetricsClient for OtlpHttpClient {
             request.headers_mut().insert(k.clone(), v.clone());
         }
 
+        otel_debug!(name: "HttpMetricsClient.CallingExport");
         client
             .send(request)
             .await

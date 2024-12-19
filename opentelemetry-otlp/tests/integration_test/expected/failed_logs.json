@@ -14,8 +14,8 @@
       "scopeLogs": [
         {
           "scope": {
-            "name": "opentelemetry-log-appender",
-            "version": "0.3.0"
+            "name": "my-target",
+            "version": ""
           },
           "logRecords": [
             {

@@ -302,7 +302,7 @@ mod tests {
     async fn batch_processor_no_deadlock() {
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
-            .with_batch_exporter(exporter.clone(), opentelemetry_sdk::runtime::Tokio)
+            .with_batch_exporter(exporter.clone())
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);

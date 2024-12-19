@@ -1,4 +1,9 @@
-use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
+use std::{
+    f64::consts::LOG2_E,
+    mem::replace,
+    ops::DerefMut,
+    sync::{Arc, Mutex},
+};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
@@ -8,7 +13,10 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::{aggregate::AggregateTimeInitiator, Aggregator, Number, ValueMap};
+use super::{
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    Aggregator, ComputeAggregation, Measure, Number, ValueMap,
+};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -351,6 +359,8 @@ struct BucketConfig {
 pub(crate) struct ExpoHistogram<T: Number> {
     value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    filter: AttributeSetFilter,
     record_sum: bool,
     record_min_max: bool,
 }
@@ -358,6 +368,8 @@ pub(crate) struct ExpoHistogram<T: Number> {
 impl<T: Number> ExpoHistogram<T> {
     /// Create a new exponential histogram.
     pub(crate) fn new(
+        temporality: Temporality,
+        filter: AttributeSetFilter,
         max_size: u32,
         max_scale: i8,
         record_min_max: bool,
@@ -368,27 +380,15 @@ impl<T: Number> ExpoHistogram<T> {
                 max_size: max_size as i32,
                 max_scale,
             }),
+            init_time: AggregateTimeInitiator::default(),
+            temporality,
+            filter,
             record_sum,
             record_min_max,
-            init_time: AggregateTimeInitiator::default(),
         }
     }
 
-    pub(crate) fn measure(&self, value: T, attrs: &[KeyValue]) {
-        let f_value = value.into_float();
-        // Ignore NaN and infinity.
-        // Only makes sense if T is f64, maybe this could be no-op for other cases?
-        if !f_value.is_finite() {
-            return;
-        }
-
-        self.value_map.measure(value, attrs);
-    }
-
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
         let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
@@ -442,7 +442,7 @@ impl<T: Number> ExpoHistogram<T> {
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
     }
 
-    pub(crate) fn cumulative(
+    fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
@@ -497,6 +497,36 @@ impl<T: Number> ExpoHistogram<T> {
             });
 
         (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+    }
+}
+
+impl<T> Measure<T> for Arc<ExpoHistogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        let f_value = measurement.into_float();
+        // Ignore NaN and infinity.
+        // Only makes sense if T is f64, maybe this could be no-op for other cases?
+        if !f_value.is_finite() {
+            return;
+        }
+
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Arc<ExpoHistogram<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }
 
@@ -665,9 +695,16 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, &[]);
+                Measure::call(&h, v, &[]);
             }
             let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
@@ -714,9 +751,16 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = ExpoHistogram::new(4, 20, true, true);
+            let h = Arc::new(ExpoHistogram::new(
+                Temporality::Cumulative,
+                AttributeSetFilter::new(None),
+                4,
+                20,
+                true,
+                true,
+            ));
             for v in test.values {
-                h.measure(v, &[]);
+                Measure::call(&h, v, &[]);
             }
             let dp = h.value_map.no_attribute_tracker.lock().unwrap();
 
@@ -1241,7 +1285,7 @@ mod tests {
                 name: "Delta Single",
                 build: Box::new(move || {
                     box_val(
-                        AggregateBuilder::new(Some(Temporality::Delta), None)
+                        AggregateBuilder::new(Temporality::Delta, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1284,7 +1328,7 @@ mod tests {
                 name: "Cumulative Single",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Cumulative), None)
+                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1327,7 +1371,7 @@ mod tests {
                 name: "Delta Multiple",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Delta), None)
+                        internal::AggregateBuilder::new(Temporality::Delta, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,
@@ -1373,7 +1417,7 @@ mod tests {
                 name: "Cumulative Multiple ",
                 build: Box::new(move || {
                     box_val(
-                        internal::AggregateBuilder::new(Some(Temporality::Cumulative), None)
+                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
                             .exponential_bucket_histogram(
                                 max_size,
                                 max_scale,

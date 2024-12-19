@@ -384,7 +384,7 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
-            let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
+            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
             let (m, ca) = match aggregate_fn(b, &agg, kind) {
                 Ok(Some((m, ca))) => (m, ca),
                 other => return other.map(|fs| fs.map(|(m, _)| m)), // Drop aggregator or error

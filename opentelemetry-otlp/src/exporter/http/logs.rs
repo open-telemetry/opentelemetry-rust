@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use http::{header::CONTENT_TYPE, Method};
+use opentelemetry::otel_debug;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 
@@ -35,6 +36,7 @@ impl LogExporter for OtlpHttpClient {
             }
 
             let request_uri = request.uri().to_string();
+            otel_debug!(name: "HttpLogsClient.CallingExport");
             let response = client.send(request).await?;
 
             if !response.status().is_success() {

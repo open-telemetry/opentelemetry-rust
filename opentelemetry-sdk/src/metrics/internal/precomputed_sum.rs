@@ -3,31 +3,36 @@ use opentelemetry::KeyValue;
 use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 
-use super::aggregate::AggregateTimeInitiator;
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+use super::{ComputeAggregation, Measure};
+use std::sync::Arc;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
     value_map: ValueMap<Assign<T>>,
-    monotonic: bool,
     init_time: AggregateTimeInitiator,
+    temporality: Temporality,
+    filter: AttributeSetFilter,
+    monotonic: bool,
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
 impl<T: Number> PrecomputedSum<T> {
-    pub(crate) fn new(monotonic: bool) -> Self {
+    pub(crate) fn new(
+        temporality: Temporality,
+        filter: AttributeSetFilter,
+        monotonic: bool,
+    ) -> Self {
         PrecomputedSum {
             value_map: ValueMap::new(()),
-            monotonic,
             init_time: AggregateTimeInitiator::default(),
+            temporality,
+            filter,
+            monotonic,
             reported: Mutex::new(Default::default()),
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to PrecomputedSum.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -116,5 +121,28 @@ impl<T: Number> PrecomputedSum<T> {
             s_data.data_points.len(),
             new_agg.map(|a| Box::new(a) as Box<_>),
         )
+    }
+}
+
+impl<T> Measure<T> for Arc<PrecomputedSum<T>>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Arc<PrecomputedSum<T>>
+where
+    T: Number,
+{
+    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        match self.temporality {
+            Temporality::Delta => self.delta(dest),
+            _ => self.cumulative(dest),
+        }
     }
 }
