@@ -29,7 +29,7 @@ pub mod hello_world {
 
 struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
 
-impl<'a> Extractor for MetadataMap<'a> {
+impl Extractor for MetadataMap<'_> {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {
         self.0.get(key).and_then(|metadata| metadata.to_str().ok())

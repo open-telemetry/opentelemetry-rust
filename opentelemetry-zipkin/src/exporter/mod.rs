@@ -54,6 +54,7 @@ pub struct ZipkinPipelineBuilder {
 impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
         let timeout = env::get_timeout();
+
         ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Arc::new(
