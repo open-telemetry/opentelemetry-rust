@@ -4,7 +4,7 @@ mod log_emitter;
 mod log_processor;
 pub(crate) mod record;
 
-pub use error::{LogError, LogResult};
+pub use error::{LogError, LogResult, ShutdownError};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,

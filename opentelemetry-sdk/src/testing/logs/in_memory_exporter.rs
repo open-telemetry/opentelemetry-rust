@@ -1,6 +1,6 @@
 use crate::export::logs::{LogBatch, LogExporter};
-use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
+use crate::logs::{LogRecord, ShutdownError};
 use crate::Resource;
 use async_trait::async_trait;
 use opentelemetry::InstrumentationScope;
@@ -195,7 +195,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&mut self) -> Result<(), ShutdownError> {
         if self.should_reset_on_shutdown {
             self.reset();
         }

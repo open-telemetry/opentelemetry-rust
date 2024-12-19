@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::export::logs::{LogBatch, LogExporter, ShutdownResult};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;
@@ -49,7 +49,7 @@ impl LogExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         let _ = self.client.lock()?.take();
         Ok(())
     }

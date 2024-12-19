@@ -144,7 +144,9 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown()?;
+            exporter
+                .shutdown()
+                .map_err(|e| LogError::Other(Box::new(e)))?;
             Ok(())
         } else {
             Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))

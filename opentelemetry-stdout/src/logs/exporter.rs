@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::export::logs::{LogBatch, ShutdownResult};
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
@@ -60,7 +60,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

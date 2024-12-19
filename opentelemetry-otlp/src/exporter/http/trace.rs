@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
-use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry::trace::TraceError;
 use opentelemetry_sdk::export::trace::{ExportResult, ShutdownResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;

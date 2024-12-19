@@ -1,7 +1,6 @@
 use core::fmt;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::trace::TraceResult;
 use opentelemetry::{otel_debug, trace::TraceError};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,

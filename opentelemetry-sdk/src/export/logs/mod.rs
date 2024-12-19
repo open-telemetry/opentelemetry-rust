@@ -1,6 +1,6 @@
 //! Log exporters
 use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult};
+use crate::logs::{LogError, LogResult, ShutdownError};
 use crate::Resource;
 use async_trait::async_trait;
 #[cfg(feature = "spec_unstable_logs_enabled")]
@@ -83,7 +83,7 @@ pub trait LogExporter: Send + Sync + Debug {
     ///
     async fn export(&self, batch: LogBatch<'_>) -> LogResult<()>;
     /// Shuts down the exporter.
-    fn shutdown(&mut self) -> LogResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         Ok(())
     }
 
@@ -99,3 +99,6 @@ pub trait LogExporter: Send + Sync + Debug {
 
 /// Describes the result of an export.
 pub type ExportResult = Result<(), LogError>;
+
+/// Describes the result of a shutdown in the log SDK.
+pub type ShutdownResult = Result<(), ShutdownError>;

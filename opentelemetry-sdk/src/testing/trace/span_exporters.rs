@@ -6,7 +6,7 @@ use crate::{
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{
-    trace::{SpanContext, SpanId, SpanKind, Status, TraceError, TraceFlags, TraceId, TraceState},
+    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
     InstrumentationScope,
 };
 use std::fmt::{Display, Formatter};
