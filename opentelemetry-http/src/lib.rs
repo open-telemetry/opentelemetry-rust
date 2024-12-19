@@ -66,11 +66,14 @@ pub trait HttpClient: Debug + Send + Sync {
 
 #[cfg(feature = "reqwest")]
 mod reqwest {
+    use opentelemetry::otel_debug;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
@@ -87,6 +90,7 @@ mod reqwest {
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
@@ -102,9 +106,8 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use crate::ResponseExt;
-
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
@@ -112,6 +115,7 @@ pub mod hyper {
         connect::{Connect, HttpConnector},
         Client,
     };
+    use opentelemetry::otel_debug;
     use std::fmt::Debug;
     use std::pin::Pin;
     use std::task::{self, Poll};
@@ -156,6 +160,7 @@ pub mod hyper {
     #[async_trait]
     impl HttpClient for HyperClient {
         async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "HyperClient.Send");
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Body(Full::from(body)));
             if let Some(ref authorization) = self.authorization {
