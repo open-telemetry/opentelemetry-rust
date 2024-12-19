@@ -106,9 +106,8 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use crate::ResponseExt;
-
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
@@ -116,6 +115,7 @@ pub mod hyper {
         connect::{Connect, HttpConnector},
         Client,
     };
+    use opentelemetry::otel_debug;
     use std::fmt::Debug;
     use std::pin::Pin;
     use std::task::{self, Poll};
