@@ -25,7 +25,7 @@ use std::sync::{Arc, Mutex};
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
 ///    //Create a LoggerProvider and register the exporter
 ///    let logger_provider = LoggerProvider::builder()
-///        .with_log_processor(BatchLogProcessor::builder(exporter.clone(), runtime::Tokio).build())
+///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
@@ -84,7 +84,7 @@ pub struct LogDataWithResource {
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
 ///    let logger_provider = LoggerProvider::builder()
-///        .with_log_processor(BatchLogProcessor::builder(exporter.clone(), runtime::Tokio).build())
+///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
