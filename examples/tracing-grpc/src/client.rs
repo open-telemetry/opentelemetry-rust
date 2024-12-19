@@ -22,7 +22,7 @@ fn init_tracer() -> sdktrace::TracerProvider {
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
 
-impl<'a> Injector for MetadataMap<'a> {
+impl Injector for MetadataMap<'_> {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {

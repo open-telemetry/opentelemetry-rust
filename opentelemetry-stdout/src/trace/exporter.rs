@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry::trace::{TraceError};
 use opentelemetry_sdk::export::trace::ShutdownResult;
 use opentelemetry_sdk::export::{self, trace::ExportResult};
 use opentelemetry_sdk::resource::Resource;
