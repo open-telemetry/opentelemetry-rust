@@ -8,7 +8,7 @@ use log::{info, Level};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
-use opentelemetry_sdk::{logs as sdklogs, runtime, Resource};
+use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
@@ -28,7 +28,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
     let exporter = exporter_builder.build()?;
 
     Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")
@@ -48,6 +48,9 @@ pub async fn test_logs() -> Result<()> {
     log::set_max_level(Level::Info.to_level_filter());
 
     info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+
+    // TODO: remove below wait before calling logger_provider.shutdown()
+    tokio::time::sleep(Duration::from_secs(10)).await;
     let _ = logger_provider.shutdown();
 
     tokio::time::sleep(Duration::from_secs(10)).await;
