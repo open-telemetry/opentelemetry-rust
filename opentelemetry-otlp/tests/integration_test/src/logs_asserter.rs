@@ -1,6 +1,6 @@
+use anyhow::Result;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
-use anyhow::Result;
 
 // Given two ResourceLogs, assert that they are equal except for the timestamps
 pub struct LogsAsserter {

@@ -38,23 +38,25 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
 mod logtests {
     use super::*;
     use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
+    use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
     use std::{fs::File, time::Duration};
     use tracing::info;
     use tracing_subscriber::layer::SubscriberExt;
-    use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 
     #[test]
     #[should_panic(expected = "assertion `left == right` failed: body does not match")]
     pub fn test_assert_logs_eq_failure() {
-        let left = read_logs_from_json(File::open("./expected/logs.json")
-            .expect("failed to open expected file"))
-            .expect("Failed to read logs from expected file");
+        let left = read_logs_from_json(
+            File::open("./expected/logs.json").expect("failed to open expected file"),
+        )
+        .expect("Failed to read logs from expected file");
 
-        let right = read_logs_from_json(File::open("./expected/failed_logs.json")
-            .expect("failed to open expected failed log file"))
-            .expect("Failed to read logs from expected failed log file");
+        let right = read_logs_from_json(
+            File::open("./expected/failed_logs.json")
+                .expect("failed to open expected failed log file"),
+        )
+        .expect("Failed to read logs from expected failed log file");
         LogsAsserter::new(right, left).assert();
-
     }
 
     #[test]
@@ -99,14 +101,13 @@ mod logtests {
 
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
-    pub fn logs_batch_non_tokio_main()  -> Result<()>{
-
+    pub fn logs_batch_non_tokio_main() -> Result<()> {
         // Initialize the logger provider inside a tokio runtime
         // as this allows tonic client to capture the runtime,
         // but actual export occurs from the dedicated std::thread
         // created by BatchLogProcessor.
         let rt = tokio::runtime::Runtime::new()?;
-        let logger_provider = rt.block_on(async  {
+        let logger_provider = rt.block_on(async {
             // While we're here setup our collector container too, as this needs tokio to run
             test_utils::start_collector_container().await?;
             init_logs()
@@ -125,7 +126,6 @@ mod logtests {
 
         Ok(())
     }
-
 }
 
 pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
