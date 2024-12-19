@@ -39,18 +39,30 @@ mod logtests {
     use super::*;
     use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
     use std::{fs::File, time::Duration};
+    use tracing::info;
+    use tracing_subscriber::layer::SubscriberExt;
+    use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+
     #[test]
     #[should_panic(expected = "assertion `left == right` failed: body does not match")]
     pub fn test_assert_logs_eq_failure() {
-        let left = read_logs_from_json(File::open("./expected/logs.json").unwrap());
-        let right = read_logs_from_json(File::open("./expected/failed_logs.json").unwrap());
+        let left = read_logs_from_json(File::open("./expected/logs.json")
+            .expect("failed to open expected file"))
+            .expect("Failed to read logs from expected file");
+
+        let right = read_logs_from_json(File::open("./expected/failed_logs.json")
+            .expect("failed to open expected failed log file"))
+            .expect("Failed to read logs from expected failed log file");
         LogsAsserter::new(right, left).assert();
+
     }
 
     #[test]
-    pub fn test_assert_logs_eq() {
-        let logs = read_logs_from_json(File::open("./expected/logs.json").unwrap());
+    pub fn test_assert_logs_eq() -> Result<()> {
+        let logs = read_logs_from_json(File::open("./expected/logs.json")?)?;
         LogsAsserter::new(logs.clone(), logs).assert();
+
+        Ok(())
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -84,15 +96,46 @@ mod logtests {
 
         Ok(())
     }
+
+    #[test]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    pub fn logs_batch_non_tokio_main()  -> Result<()>{
+
+        // Initialize the logger provider inside a tokio runtime
+        // as this allows tonic client to capture the runtime,
+        // but actual export occurs from the dedicated std::thread
+        // created by BatchLogProcessor.
+        let rt = tokio::runtime::Runtime::new()?;
+        let logger_provider = rt.block_on(async  {
+            // While we're here setup our collector container too, as this needs tokio to run
+            test_utils::start_collector_container().await?;
+            init_logs()
+        })?;
+
+        info!("LoggerProvider created");
+        let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        {
+            let _guard = tracing::subscriber::set_default(subscriber);
+            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+        }
+        let _ = logger_provider.shutdown();
+        // tokio::time::sleep(Duration::from_secs(10)).await;
+        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json");
+
+        Ok(())
+    }
+
 }
 
-pub fn assert_logs_results(result: &str, expected: &str) {
-    let left = read_logs_from_json(File::open(expected).unwrap());
-    let right = read_logs_from_json(File::open(result).unwrap());
+pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
+    let left = read_logs_from_json(File::open(expected)?)?;
+    let right = read_logs_from_json(File::open(result)?)?;
 
     LogsAsserter::new(left, right).assert();
 
-    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0)
+    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
+    Ok(())
 }
 
 ///
