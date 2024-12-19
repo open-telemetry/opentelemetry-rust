@@ -633,7 +633,6 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                     BatchMessageWithAsyncRuntime::Flush(res_channel) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            //Arc::clone(&exporter ),
                             &mut exporter,
                             &timeout_runtime,
                             logs.split_off(0),
@@ -653,7 +652,6 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                     BatchMessageWithAsyncRuntime::Shutdown(ch) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            //Arc::clone(&exporter ),
                             &mut exporter,
                             &timeout_runtime,
                             logs.split_off(0),
@@ -701,7 +699,6 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 async fn export_with_timeout<E, R>(
     time_out: Duration,
-    //exporter: Arc<Mutex<E>>,
     exporter: &mut E,
     runtime: &R,
     batch: Vec<(LogRecord, InstrumentationScope)>,
