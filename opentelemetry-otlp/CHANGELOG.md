@@ -2,8 +2,7 @@
 
 ## vNext
 - Bump msrv to 1.75.0.
-- `OtlpHttpClient.shutdown` `TonicLogsClient.shutdown`, and `TonicTracesClient.shutdown` now explicitly return a result. The
-    semantics of the method have not changed, but you will have a new lint encouraging you to consume these results.
+- `OtlpHttpClient.shutdown` `TonicLogsClient.shutdown`, and `TonicTracesClient.shutdown` now explicitly return a result. 
 
 ## 0.27.0
 

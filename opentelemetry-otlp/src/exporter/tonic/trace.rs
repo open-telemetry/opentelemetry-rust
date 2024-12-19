@@ -7,7 +7,7 @@ use opentelemetry_proto::tonic::collector::trace::v1::{
 };
 use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
-
+use opentelemetry::trace::TraceResult;
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 
 use super::BoxInterceptor;
