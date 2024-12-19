@@ -534,11 +534,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessorWithAsyncRuntime<R> {
             )));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
-        if let Err(err) = result {
-            otel_error!(
-                name: "BatchLogProcessor.Export.Error",
-                error = format!("{}", err)
-            );
+        if result.is_err() {
+            // Increment dropped logs count. The first time we have to drop a log,
+            // emit a warning.
+            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+            }
         }
     }
 
