@@ -61,3 +61,22 @@ impl<T> From<PoisonError<T>> for LogError {
 #[derive(Error, Debug)]
 #[error("{0}")]
 struct Custom(String);
+
+/// Errors returned during shutdown
+#[derive(Error, Debug)]
+#[non_exhaustive]
+pub enum ShutdownError {
+    /// Mutex lock poisoning
+    #[error("mutex lock poisioning for {0}")]
+    MutexPoisoned(String),
+
+    /// Other errors propagated from log SDK that weren't covered above.
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl<T> From<PoisonError<T>> for ShutdownError {
+    fn from(err: PoisonError<T>) -> Self {
+        ShutdownError::Other(err.to_string().into())
+    }
+}

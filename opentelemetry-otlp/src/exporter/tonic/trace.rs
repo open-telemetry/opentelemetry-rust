@@ -5,10 +5,9 @@ use opentelemetry::{otel_debug, trace::TraceError};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
-use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
-use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
-
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use opentelemetry_sdk::export::trace::{ExportResult, ShutdownResult, SpanData, SpanExporter};
+use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use super::BoxInterceptor;
 
@@ -92,8 +91,9 @@ impl SpanExporter for TonicTracesClient {
         })
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> ShutdownResult {
         let _ = self.inner.take();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
