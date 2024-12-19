@@ -1,5 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use crate::{export::logs::LogExporter, Resource};
 use crate::{logs::LogError, logs::LogResult};
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
@@ -194,12 +194,8 @@ impl Builder {
     }
 
     /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel>(
-        self,
-        exporter: T,
-        runtime: R,
-    ) -> Self {
-        let batch = BatchLogProcessor::builder(exporter, runtime).build();
+    pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
+        let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
