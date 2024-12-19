@@ -5,15 +5,15 @@ use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
 use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::time::SystemTime;
+use std::sync::PoisonError;
+use std::time::{Duration, SystemTime};
+use thiserror::Error;
 
-/// Describes the results of other operations on the trace API.
-pub type TraceResult<T> = Result<T, TraceError>;
+/// Results of an export operation
+pub type ExportResult = Result<(), TraceError>;
 
-/// Describes the results of an export
-/// Note: This is an alias we will remove in the future, favouring
-/// using TraceResult directly.
-pub type ExportResult = TraceResult<()>;
+/// Result of a  shutdown operation
+pub type ShutdownResult = Result<(), ShutdownError>;
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -35,7 +35,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     ///
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, TraceResult<()>>;
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, Result<(), TraceError>>;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
@@ -48,7 +48,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         Ok(())
     }
 
@@ -104,4 +104,32 @@ pub struct SpanData {
     pub status: Status,
     /// Instrumentation scope that produced this span
     pub instrumentation_scope: InstrumentationScope,
+}
+
+/// Errors returned by shutdown operations in the Export API.
+#[derive(Error, Debug)]
+#[non_exhaustive]
+pub enum ShutdownError {
+    /// The exporter has already been shut down.
+    #[error("Shutdown already performed")]
+    AlreadyShutdown,
+
+    /// Shutdown timed out before completing.
+    #[error("Shutdown timed out after {0:?}")]
+    Timeout(Duration),
+
+    /// An unexpected error occurred during shutdown.
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+/// Custom error wrapper for string messages.
+#[derive(Error, Debug)]
+#[error("{0}")]
+struct CustomError(String);
+
+impl<T> From<PoisonError<T>> for ShutdownError {
+    fn from(err: PoisonError<T>) -> Self {
+        ShutdownError::Other(Box::new(CustomError(err.to_string())))
+    }
 }

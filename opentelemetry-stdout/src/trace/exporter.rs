@@ -2,10 +2,10 @@ use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{TraceError, TraceResult};
+use opentelemetry_sdk::export::trace::ShutdownResult;
 use opentelemetry_sdk::export::{self, trace::ExportResult};
-use std::sync::atomic;
-
 use opentelemetry_sdk::resource::Resource;
+use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes Spans to stdout on export.
 pub struct SpanExporter {
@@ -59,7 +59,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

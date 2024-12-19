@@ -149,7 +149,10 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
-        self.exporter.lock()?.shutdown()
+        self.exporter
+            .lock()?
+            .shutdown()
+            .map_err(|e| TraceError::Other(Box::new(e)))
     }
 
     fn set_resource(&mut self, resource: &Resource) {

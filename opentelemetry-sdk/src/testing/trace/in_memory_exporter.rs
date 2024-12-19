@@ -1,4 +1,4 @@
-use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::export::trace::{ExportResult, ShutdownResult, SpanData, SpanExporter};
 use crate::resource::Resource;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{TraceError, TraceResult};
@@ -142,7 +142,7 @@ impl SpanExporter for InMemorySpanExporter {
         Box::pin(std::future::ready(Ok(())))
     }
 
-    fn shutdown(&mut self) -> TraceResult<()> {
+    fn shutdown(&mut self) -> ShutdownResult {
         self.reset();
         Ok(())
     }
