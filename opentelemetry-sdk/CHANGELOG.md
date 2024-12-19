@@ -158,7 +158,17 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       `experimental_logs_batch_log_processor_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
-
+      
+- Added Two new methods to the LogRecord struct's public API:
+```rust
+  update_attribute(&Key, &AnyValue) -> Option<AnyValue>
+```
+  - Updates the value of the first occurrence of an attribute with the specified key. 
+  - If the key exists, the old value is returned. If not, the new key-value pair is added, and None is returned.
+```rust
+remove_attribute(&mut self, key: &Key) -> usize
+```
+- Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
 ## 0.27.1
 
 Released 2024-Nov-27
@@ -275,6 +285,7 @@ Released 2024-Sep-30
 - *Breaking* - Remove support for `MetricProducer` which allowed metrics from
   external sources to be sent through OpenTelemetry.
   [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
+
 - Feature: `SimpleSpanProcessor::new` is now public [#2119](https://github.com/open-telemetry/opentelemetry-rust/pull/2119)
 - For Delta Temporality, exporters are not invoked unless there were new
   measurements since the last collect/export.
