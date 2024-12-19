@@ -321,26 +321,63 @@ impl BatchLogProcessor {
         let (message_sender, message_receiver) = mpsc::sync_channel(config.max_queue_size);
         let max_queue_size = config.max_queue_size;
 
-        let handle = thread::spawn(move || {
-            let mut last_export_time = Instant::now();
-            let mut logs = Vec::new();
-            logs.reserve(config.max_export_batch_size);
+        let handle = thread::Builder::new()
+            .name("OpenTelemetry.Logs.BatchProcessor".to_string())
+            .spawn(move || {
+                let mut last_export_time = Instant::now();
+                let mut logs = Vec::new();
+                logs.reserve(config.max_export_batch_size);
 
-            loop {
-                let remaining_time_option = config
-                    .scheduled_delay
-                    .checked_sub(last_export_time.elapsed());
-                let remaining_time = match remaining_time_option {
-                    Some(remaining_time) => remaining_time,
-                    None => config.scheduled_delay,
-                };
+                loop {
+                    let remaining_time_option = config
+                        .scheduled_delay
+                        .checked_sub(last_export_time.elapsed());
+                    let remaining_time = match remaining_time_option {
+                        Some(remaining_time) => remaining_time,
+                        None => config.scheduled_delay,
+                    };
 
-                match message_receiver.recv_timeout(remaining_time) {
-                    Ok(BatchMessage::ExportLog(log)) => {
-                        logs.push(log);
-                        if logs.len() == config.max_export_batch_size
-                            || last_export_time.elapsed() >= config.scheduled_delay
-                        {
+                    match message_receiver.recv_timeout(remaining_time) {
+                        Ok(BatchMessage::ExportLog(log)) => {
+                            logs.push(log);
+                            if logs.len() == config.max_export_batch_size
+                                || last_export_time.elapsed() >= config.scheduled_delay
+                            {
+                                let _ = export_with_timeout_sync(
+                                    remaining_time,
+                                    exporter.as_mut(),
+                                    logs.split_off(0),
+                                    &mut last_export_time,
+                                );
+                            }
+                        }
+                        Ok(BatchMessage::ForceFlush(sender)) => {
+                            let result = export_with_timeout_sync(
+                                remaining_time,
+                                exporter.as_mut(),
+                                logs.split_off(0),
+                                &mut last_export_time,
+                            );
+                            let _ = sender.send(result);
+                        }
+                        Ok(BatchMessage::Shutdown(sender)) => {
+                            let result = export_with_timeout_sync(
+                                remaining_time,
+                                exporter.as_mut(),
+                                logs.split_off(0),
+                                &mut last_export_time,
+                            );
+                            let _ = sender.send(result);
+
+                            //
+                            // break out the loop and return from the current background thread.
+                            //
+                            break;
+                        }
+                        Ok(BatchMessage::SetResource(resource)) => {
+                            exporter.set_resource(&resource);
+                        }
+                        Err(RecvTimeoutError::Timeout) => {
                             let _ = export_with_timeout_sync(
                                 remaining_time,
                                 exporter.as_mut(),
@@ -348,51 +385,17 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                             );
                         }
-                    }
-                    Ok(BatchMessage::ForceFlush(sender)) => {
-                        let result = export_with_timeout_sync(
-                            remaining_time,
-                            exporter.as_mut(),
-                            logs.split_off(0),
-                            &mut last_export_time,
-                        );
-                        let _ = sender.send(result);
-                    }
-                    Ok(BatchMessage::Shutdown(sender)) => {
-                        let result = export_with_timeout_sync(
-                            remaining_time,
-                            exporter.as_mut(),
-                            logs.split_off(0),
-                            &mut last_export_time,
-                        );
-                        let _ = sender.send(result);
-
-                        //
-                        // break out the loop and return from the current background thread.
-                        //
-                        break;
-                    }
-                    Ok(BatchMessage::SetResource(resource)) => {
-                        exporter.set_resource(&resource);
-                    }
-                    Err(RecvTimeoutError::Timeout) => {
-                        let _ = export_with_timeout_sync(
-                            remaining_time,
-                            exporter.as_mut(),
-                            logs.split_off(0),
-                            &mut last_export_time,
-                        );
-                    }
-                    Err(err) => {
-                        // TODO: this should not happen! Log the error and continue for now.
-                        otel_error!(
-                            name: "BatchLogProcessor.InternalError",
-                            error = format!("{}", err)
-                        );
+                        Err(err) => {
+                            // TODO: this should not happen! Log the error and continue for now.
+                            otel_error!(
+                                name: "BatchLogProcessor.InternalError",
+                                error = format!("{}", err)
+                            );
+                        }
                     }
                 }
-            }
-        });
+            })
+            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 
         // Return batch processor with link to worker
         BatchLogProcessor {
