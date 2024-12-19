@@ -554,6 +554,16 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessorWithAsyncRuntime<R> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
+        let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
+        let max_queue_size = self.max_queue_size;
+        if dropped_logs > 0 {
+            otel_warn!(
+                name: "BatchLogProcessor.LogsDropped",
+                dropped_logs_count = dropped_logs,
+                max_queue_size = max_queue_size,
+                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+            );
+        }
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessageWithAsyncRuntime::Shutdown(res_sender))
@@ -669,7 +679,7 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
         BatchLogProcessorWithAsyncRuntime {
             message_sender,
             dropped_logs_count: AtomicUsize::new(0),
-            max_queue_size,
+            max_queue_size: config.max_queue_size,
         }
     }
 
