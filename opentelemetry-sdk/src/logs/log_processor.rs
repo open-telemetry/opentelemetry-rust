@@ -317,7 +317,10 @@ impl LogProcessor for BatchLogProcessor {
 }
 
 impl BatchLogProcessor {
-    pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig) -> Self {
+    pub(crate) fn new<E>(mut exporter: E, config: BatchConfig) -> Self
+    where
+        E: LogExporter + Send + Sync + 'static,
+    {
         let (message_sender, message_receiver) = mpsc::sync_channel(config.max_queue_size);
         let max_queue_size = config.max_queue_size;
 
@@ -345,7 +348,7 @@ impl BatchLogProcessor {
                             {
                                 let _ = export_with_timeout_sync(
                                     remaining_time,
-                                    exporter.as_mut(),
+                                    &mut exporter,
                                     logs.split_off(0),
                                     &mut last_export_time,
                                 );
@@ -354,7 +357,7 @@ impl BatchLogProcessor {
                         Ok(BatchMessage::ForceFlush(sender)) => {
                             let result = export_with_timeout_sync(
                                 remaining_time,
-                                exporter.as_mut(),
+                                &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
@@ -363,7 +366,7 @@ impl BatchLogProcessor {
                         Ok(BatchMessage::Shutdown(sender)) => {
                             let result = export_with_timeout_sync(
                                 remaining_time,
-                                exporter.as_mut(),
+                                &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
@@ -380,7 +383,7 @@ impl BatchLogProcessor {
                         Err(RecvTimeoutError::Timeout) => {
                             let _ = export_with_timeout_sync(
                                 remaining_time,
-                                exporter.as_mut(),
+                                &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
@@ -476,7 +479,7 @@ where
 
     /// Build a batch processor
     pub fn build(self) -> BatchLogProcessor {
-        BatchLogProcessor::new(Box::new(self.exporter), self.config)
+        BatchLogProcessor::new(self.exporter, self.config)
     }
 }
 
@@ -560,7 +563,6 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessorWithAsyncRuntime<R> {
                 message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
-
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessageWithAsyncRuntime::Shutdown(res_sender))
@@ -581,11 +583,13 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessorWithAsyncRuntime<R> {
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
-    pub(crate) fn new(mut exporter: Box<dyn LogExporter>, config: BatchConfig, runtime: R) -> Self {
+    pub(crate) fn new<E>(mut exporter: E, config: BatchConfig, runtime: R) -> Self
+    where
+        E: LogExporter + Send + Sync + 'static,
+    {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
-        let max_queue_size = config.max_queue_size;
 
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(Box::pin(async move {
@@ -607,7 +611,7 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                         if logs.len() == config.max_export_batch_size {
                             let result = export_with_timeout(
                                 config.max_export_timeout,
-                                exporter.as_mut(),
+                                &mut exporter,
                                 &timeout_runtime,
                                 logs.split_off(0),
                             )
@@ -625,7 +629,7 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                     BatchMessageWithAsyncRuntime::Flush(res_channel) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            exporter.as_mut(),
+                            &mut exporter,
                             &timeout_runtime,
                             logs.split_off(0),
                         )
@@ -644,7 +648,7 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                     BatchMessageWithAsyncRuntime::Shutdown(ch) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
-                            exporter.as_mut(),
+                            &mut exporter,
                             &timeout_runtime,
                             logs.split_off(0),
                         )
@@ -667,12 +671,11 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                 }
             }
         }));
-
         // Return batch processor with link to worker
         BatchLogProcessorWithAsyncRuntime {
             message_sender,
             dropped_logs_count: AtomicUsize::new(0),
-            max_queue_size,
+            max_queue_size: config.max_queue_size,
         }
     }
 
@@ -690,7 +693,7 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
 }
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-async fn export_with_timeout<R, E>(
+async fn export_with_timeout<E, R>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
@@ -883,7 +886,7 @@ where
 
     /// Build a batch processor
     pub fn build(self) -> BatchLogProcessorWithAsyncRuntime<R> {
-        BatchLogProcessorWithAsyncRuntime::new(Box::new(self.exporter), self.config, self.runtime)
+        BatchLogProcessorWithAsyncRuntime::new(self.exporter, self.config, self.runtime)
     }
 }
 
@@ -908,7 +911,6 @@ mod tests {
         testing::logs::InMemoryLogExporter,
         Resource,
     };
-    use async_trait::async_trait;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::{Logger, LoggerProvider as _};
@@ -928,10 +930,13 @@ mod tests {
         resource: Arc<Mutex<Option<Resource>>>,
     }
 
-    #[async_trait]
     impl LogExporter for MockLogExporter {
-        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
-            Ok(())
+        #[allow(clippy::manual_async_fn)]
+        fn export(
+            &self,
+            _batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+            async { Ok(()) }
         }
 
         fn shutdown(&mut self) {}
@@ -1129,7 +1134,7 @@ mod tests {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
         };
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         let provider = LoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
@@ -1159,7 +1164,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
         let mut record = LogRecord::default();
         let instrumentation = InstrumentationScope::default();
@@ -1199,7 +1204,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
         processor.shutdown().unwrap();
     }
@@ -1211,7 +1216,7 @@ mod tests {
     ) {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1225,24 +1230,21 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
-
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
-
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(Box::new(exporter.clone()), BatchConfig::default());
-
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
     }
 
@@ -1434,16 +1436,21 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
     impl LogExporter for LogExporterThatRequiresTokio {
-        async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
+        #[allow(clippy::manual_async_fn)]
+        fn export(
+            &self,
+            batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            async move {
+                tokio::time::sleep(Duration::from_millis(50)).await;
 
-            for _ in batch.iter() {
-                self.export_count.fetch_add(1, Ordering::Acquire);
+                for _ in batch.iter() {
+                    self.export_count.fetch_add(1, Ordering::Acquire);
+                }
+                Ok(())
             }
-            Ok(())
         }
     }
 
@@ -1652,7 +1659,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1680,7 +1687,7 @@ mod tests {
             .keep_records_on_shutdown()
             .build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1702,7 +1709,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1719,7 +1726,7 @@ mod tests {
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::TokioCurrentThread,
         );
@@ -1732,7 +1739,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::Tokio,
         );
@@ -1745,7 +1752,7 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessorWithAsyncRuntime::new(
-            Box::new(exporter.clone()),
+            exporter.clone(),
             BatchConfig::default(),
             runtime::TokioCurrentThread,
         );
