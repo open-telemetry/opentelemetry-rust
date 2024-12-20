@@ -271,7 +271,7 @@ impl opentelemetry::logs::Logger for Logger {
         if self.provider.inner.is_shutdown.load(Ordering::Relaxed) {
             // Optionally, log a debug message indicating logs are being discarded due to shutdown.
             otel_debug!(
-                name: "Logger.Emit.Discarded",
+                name: "Logger.Emit.ProviderShutdown",
                 message = "Log discarded because the LoggerProvider is shut down."
             );
             return;
