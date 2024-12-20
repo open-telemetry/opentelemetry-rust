@@ -1,6 +1,6 @@
 //! Log exporters
 use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult, ShutdownError};
+use crate::logs::{LogError, ShutdownError};
 use crate::Resource;
 use async_trait::async_trait;
 #[cfg(feature = "spec_unstable_logs_enabled")]
@@ -81,8 +81,10 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()>;
-    /// Shuts down the exporter.
+    async fn export(&self, batch: LogBatch<'_>) -> ExportResult;
+
+    /// Shuts down the exporter. This function is idempotent; calling it
+    /// more than once has no additional effect.
     fn shutdown(&mut self) -> ShutdownResult {
         Ok(())
     }

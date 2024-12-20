@@ -141,9 +141,9 @@ impl LoggerProviderInner {
                 //    which is non-actionable by the user
                 match err {
                     // specific handling for mutex poisioning
-                    LogError::MutexPoisoned(_) => {
+                    LogError::ClientFailed(_) => {
                         otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
+                            name: "LoggerProvider.Drop.ShutdownClientFailed",
                         );
                     }
                     _ => {

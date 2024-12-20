@@ -18,13 +18,15 @@ pub enum LogError {
     #[error("Exporter timed out after {} seconds", .0.as_secs())]
     ExportTimedOut(Duration),
 
+    /// The export client failed while holding the client lock. It is not
+    /// possible to complete the shutdown and a retry will not help.
+    /// This is something that should not happen and should likely emit some diagnostic.
+    #[error("export client failed while holding lock; cannot retry.")]
+    ClientFailed(String),
+
     /// Processor is already shutdown
     #[error("{0} already shutdown")]
     AlreadyShutdown(String),
-
-    /// Mutex lock poisoning
-    #[error("mutex lock poisioning for {0}")]
-    MutexPoisoned(String),
 
     /// Other errors propagated from log SDK that weren't covered above.
     #[error(transparent)]
@@ -54,9 +56,10 @@ impl From<&'static str> for LogError {
 
 impl<T> From<PoisonError<T>> for LogError {
     fn from(err: PoisonError<T>) -> Self {
-        LogError::Other(err.to_string().into())
+        LogError::ClientFailed(err.to_string().into())
     }
 }
+
 /// Wrap type for string
 #[derive(Error, Debug)]
 #[error("{0}")]
@@ -66,9 +69,11 @@ struct Custom(String);
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum ShutdownError {
-    /// Mutex lock poisoning
-    #[error("mutex lock poisioning for {0}")]
-    MutexPoisoned(String),
+    /// The export client failed while holding the client lock. It is not
+    /// possible to complete the shutdown and a retry will not help.
+    /// This is something that should not happen and should likely emit some diagnostic.
+    #[error("export client failed while holding lock; cannot retry.")]
+    ClientFailed(String),
 
     /// Other errors propagated from log SDK that weren't covered above.
     #[error(transparent)]
@@ -77,6 +82,6 @@ pub enum ShutdownError {
 
 impl<T> From<PoisonError<T>> for ShutdownError {
     fn from(err: PoisonError<T>) -> Self {
-        ShutdownError::Other(err.to_string().into())
+        ShutdownError::ClientFailed(format!("Mutex poisoned during shutdown: {}", err))
     }
 }

@@ -1,4 +1,4 @@
-use crate::export::logs::{LogBatch, LogExporter};
+use crate::export::logs::{ExportResult, LogBatch, LogExporter};
 use crate::logs::{LogError, LogResult};
 use crate::logs::{LogRecord, ShutdownError};
 use crate::Resource;
@@ -172,19 +172,21 @@ impl InMemoryLogExporter {
     /// exporter.reset();
     /// ```
     ///
-    pub fn reset(&self) {
-        let _ = self
-            .logs
-            .lock()
-            .map(|mut logs_guard| logs_guard.clear())
-            .map_err(LogError::from);
+    pub fn reset(&self) -> Result<(), LogError> {
+        let _ = self.logs.lock().map(|mut logs_guard| logs_guard.clear())?;
+
+        Ok(())
     }
 }
 
 #[async_trait]
 impl LogExporter for InMemoryLogExporter {
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+    async fn export(&self, batch: LogBatch<'_>) -> ExportResult {
+        let mut logs_guard = self
+            .logs
+            .lock()
+            .map_err(|e| LogError::ClientFailed(e.to_string()))?;
+
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
                 record: (*log_record).clone(),
@@ -197,7 +199,8 @@ impl LogExporter for InMemoryLogExporter {
 
     fn shutdown(&mut self) -> Result<(), ShutdownError> {
         if self.should_reset_on_shutdown {
-            self.reset();
+            self.reset()
+                .map_err(|e| ShutdownError::Other(Box::new(e)))?;
         }
         Ok(())
     }

@@ -118,18 +118,19 @@ pub enum ShutdownError {
     #[error("Shutdown timed out after {0:?}")]
     Timeout(Duration),
 
+    /// The export client failed while holding the client lock. It is not
+    /// possible to complete the shutdown and a retry will not help.
+    /// This is something that should not happen and should likely emit some diagnostic.
+    #[error("export client failed while holding lock; cannot retry.")]
+    ClientFailed(String),
+
     /// An unexpected error occurred during shutdown.
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-/// Custom error wrapper for string messages.
-#[derive(Error, Debug)]
-#[error("{0}")]
-struct CustomError(String);
-
 impl<T> From<PoisonError<T>> for ShutdownError {
     fn from(err: PoisonError<T>) -> Self {
-        ShutdownError::Other(Box::new(CustomError(err.to_string())))
+        ShutdownError::ClientFailed(format!("Mutex poisoned during shutdown: {}", err))
     }
 }
