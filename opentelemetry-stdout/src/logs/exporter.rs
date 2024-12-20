@@ -46,7 +46,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                     .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
                     .is_err()
                 {
-                    print_logs(&batch);
+                    print_logs(batch);
                 } else {
                     println!("Resource");
                     if let Some(schema_url) = self.resource.schema_url() {
@@ -55,7 +55,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                     self.resource.iter().for_each(|(k, v)| {
                         println!("\t ->  {}={:?}", k, v);
                     });
-                    print_logs(&batch);
+                    print_logs(batch);
                 }
 
                 Ok(())
@@ -72,7 +72,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     }
 }
 
-fn print_logs(batch: &LogBatch<'_>) {
+fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
         let (record, _library) = log;

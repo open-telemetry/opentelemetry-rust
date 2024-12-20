@@ -39,8 +39,7 @@ pub struct MockLogProcessor {
 impl LogProcessor for MockLogProcessor {
     fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
         let log_tuple = &[(record as &LogRecord, scope)];
-        let log_batch = LogBatch::new(log_tuple);
-        let _ = futures_executor::block_on(self.exporter.export(log_batch));
+        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
     fn force_flush(&self) -> LogResult<()> {

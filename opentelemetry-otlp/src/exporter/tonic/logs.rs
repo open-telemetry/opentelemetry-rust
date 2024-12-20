@@ -76,7 +76,7 @@ impl LogExporter for TonicLogsClient {
                 None => return Err(LogError::Other("exporter is already shut down".into())),
             };
 
-            let resource_logs = group_logs_by_resource_and_scope(&batch, &self.resource);
+            let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
             otel_debug!(name: "TonicsLogsClient.CallingExport");
 

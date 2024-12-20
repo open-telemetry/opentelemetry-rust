@@ -9,8 +9,7 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
-use std::sync::atomic::Ordering;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -613,7 +612,6 @@ impl<R: RuntimeChannel> BatchLogProcessorWithAsyncRuntime<R> {
                             let result = export_with_timeout(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                // Arc::clone(&exporter ),
                                 &timeout_runtime,
                                 logs.split_off(0),
                             )
