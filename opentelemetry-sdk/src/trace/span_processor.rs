@@ -191,7 +191,7 @@ pub struct BatchSpanProcessorDedicatedThread {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
-    dropped_span_count: Arc<AtomicBool>,
+    dropped_span_count: Arc<AtomicUsize>,
 }
 
 impl BatchSpanProcessorDedicatedThread {
@@ -261,7 +261,7 @@ impl BatchSpanProcessorDedicatedThread {
             handle: Mutex::new(Some(handle)),
             shutdown_timeout,
             is_shutdown: AtomicBool::new(false),
-            dropped_span_count: Arc::new(AtomicBool::new(false)),
+            dropped_span_count: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -271,13 +271,19 @@ impl BatchSpanProcessorDedicatedThread {
             eprintln!("Processor is shutdown. Dropping span.");
             return;
         }
-        if self
+        let result = self
             .message_sender
-            .try_send(BatchMessageDedicatedThread::ExportSpan(span))
-            .is_err() &&  !self.dropped_span_count.load(Ordering::Relaxed) {
-                eprintln!("Queue is full, dropping spans.");
-                self.dropped_span_count.store(true, Ordering::Relaxed);
+            .try_send(BatchMessageDedicatedThread::ExportSpan(span));
+
+        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
+        if result.is_err() {
+            // Increment dropped logs count. The first time we have to drop a log,
+            // emit a warning.
+            if self.dropped_span_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchSpanProcessorDedicatedThread.SpanDroppingStarted",
+                    message = "BatchSpanProcessorDedicatedThread dropped a Span due to queue full/internal errors. No further span will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
             }
+        }
     }
 
     /// Flushes all pending spans.
@@ -1284,5 +1290,143 @@ mod tests {
         }
         let shutdown_res = processor.shutdown();
         assert!(shutdown_res.is_ok());
+    }
+
+    // Helper function to create a default test span
+    fn create_test_span(name: &str) -> SpanData {
+        SpanData {
+            span_context: SpanContext::empty_context(),
+            parent_span_id: SpanId::INVALID,
+            span_kind: SpanKind::Internal,
+            name: name.to_string().into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope: Default::default(),
+        }
+    }
+
+    use crate::trace::BatchSpanProcessorDedicatedThread;
+    use futures_util::future::BoxFuture;
+    use futures_util::FutureExt;
+    use std::sync::Arc;
+    use std::sync::Mutex;
+
+    // Mock exporter to test functionality
+    #[derive(Debug)]
+    struct MockSpanExporter {
+        exported_spans: Arc<Mutex<Vec<SpanData>>>,
+    }
+
+    impl MockSpanExporter {
+        fn new() -> Self {
+            Self {
+                exported_spans: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+    }
+
+    impl SpanExporter for MockSpanExporter {
+        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+            let exported_spans = self.exported_spans.clone();
+            async move {
+                exported_spans.lock().unwrap().extend(batch);
+                Ok(())
+            }
+            .boxed()
+        }
+
+        fn shutdown(&mut self) {}
+    }
+
+    #[test]
+    fn batchspanprocessor_dedicatedthread_handles_on_end() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+        let processor = BatchSpanProcessorDedicatedThread::new(
+            exporter,
+            10, // max queue size
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        );
+
+        let test_span = create_test_span("test_span");
+        processor.on_end(test_span.clone());
+
+        // Wait for flush interval to ensure the span is processed
+        std::thread::sleep(Duration::from_secs(6));
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 1);
+        assert_eq!(exported_spans[0].name, "test_span");
+    }
+
+    #[test]
+    fn batchspanprocessor_deficatedthread_force_flush() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
+        let processor = BatchSpanProcessorDedicatedThread::new(
+            exporter,
+            10, // max queue size
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        );
+
+        // Create a test span and send it to the processor
+        let test_span = create_test_span("force_flush_span");
+        processor.on_end(test_span.clone());
+
+        // Call force_flush to immediately export the spans
+        let flush_result = processor.force_flush();
+        assert!(flush_result.is_ok(), "Force flush failed unexpectedly");
+
+        // Verify the exported spans in the mock exporter
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(
+            exported_spans.len(),
+            1,
+            "Unexpected number of exported spans"
+        );
+        assert_eq!(exported_spans[0].name, "force_flush_span");
+    }
+
+    #[test]
+    fn batchspanprocessor_shutdown() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
+        let processor = BatchSpanProcessorDedicatedThread::new(
+            exporter,
+            10, // max queue size
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        );
+
+        // Create a test span and send it to the processor
+        let test_span = create_test_span("shutdown_span");
+        processor.on_end(test_span.clone());
+
+        // Call shutdown to flush and export all pending spans
+        let shutdown_result = processor.shutdown();
+        assert!(shutdown_result.is_ok(), "Shutdown failed unexpectedly");
+
+        // Verify the exported spans in the mock exporter
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(
+            exported_spans.len(),
+            1,
+            "Unexpected number of exported spans"
+        );
+        assert_eq!(exported_spans[0].name, "shutdown_span");
+
+        // Ensure further calls to shutdown are idempotent
+        let second_shutdown_result = processor.shutdown();
+        assert!(
+            second_shutdown_result.is_err(),
+            "Shutdown should fail when called a second time"
+        );
     }
 }
