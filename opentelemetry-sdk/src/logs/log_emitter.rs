@@ -268,6 +268,14 @@ impl opentelemetry::logs::Logger for Logger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
+        if self.provider.inner.is_shutdown.load(Ordering::Relaxed) {
+            // Optionally, log a debug message indicating logs are being discarded due to shutdown.
+            otel_debug!(
+                name: "Logger.Emit.Discarded",
+                message = "Log discarded because the LoggerProvider is shut down."
+            );
+            return;
+        }
         let provider = &self.provider;
         let processors = provider.log_processors();
 

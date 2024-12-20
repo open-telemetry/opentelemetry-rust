@@ -9,7 +9,7 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -87,29 +87,18 @@ pub trait LogProcessor: Send + Sync + Debug {
 #[derive(Debug)]
 pub struct SimpleLogProcessor<T: LogExporter> {
     exporter: Mutex<T>,
-    is_shutdown: AtomicBool,
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
     pub(crate) fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
-            is_shutdown: AtomicBool::new(false),
         }
     }
 }
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
-        // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            // this is a warning, as the user is trying to log after the processor has been shutdown
-            otel_warn!(
-                name: "SimpleLogProcessor.Emit.ProcessorShutdown",
-            );
-            return;
-        }
-
         let result = self
             .exporter
             .lock()
@@ -141,8 +130,6 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.shutdown();
             Ok(())
@@ -182,7 +169,6 @@ pub struct BatchLogProcessor {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
-    is_shutdown: AtomicBool,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -201,15 +187,6 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
-        // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            otel_warn!(
-                name: "BatchLogProcessor.Emit.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return;
-        }
-
         let result = self
             .message_sender
             .try_send(BatchMessage::ExportLog(Box::new((
@@ -229,11 +206,6 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return LogResult::Err(LogError::Other(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
         let (sender, receiver) = mpsc::sync_channel(1);
         self.message_sender
             .try_send(BatchMessage::ForceFlush(sender))
@@ -251,20 +223,6 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        // test and set is_shutdown flag if it is not set
-        if self
-            .is_shutdown
-            .swap(true, std::sync::atomic::Ordering::Relaxed)
-        {
-            otel_warn!(
-                name: "BatchLogProcessor.Shutdown.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return LogResult::Err(LogError::AlreadyShutdown(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
-
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -406,7 +364,6 @@ impl BatchLogProcessor {
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
-            is_shutdown: AtomicBool::new(false),
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
         }
@@ -1183,20 +1140,18 @@ mod tests {
             .keep_records_on_shutdown()
             .build();
         let processor = SimpleLogProcessor::new(exporter.clone());
+        let provider = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .build();
+        let logger = provider.logger("test-simple-logger");
 
-        let mut record: LogRecord = Default::default();
-        let instrumentation: InstrumentationScope = Default::default();
+        let record: LogRecord = Default::default();
 
-        processor.emit(&mut record, &instrumentation);
+        logger.emit(record.clone());
 
-        processor.shutdown().unwrap();
+        provider.shutdown().unwrap();
 
-        let is_shutdown = processor
-            .is_shutdown
-            .load(std::sync::atomic::Ordering::Relaxed);
-        assert!(is_shutdown);
-
-        processor.emit(&mut record, &instrumentation);
+        logger.emit(record);
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
     }
