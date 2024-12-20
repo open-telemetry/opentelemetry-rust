@@ -17,6 +17,12 @@ pub enum MetricError {
     /// Invalid configuration
     #[error("Config error {0}")]
     Config(String),
+    /// Shutdown already invoked
+    #[error("Shutdown already invoked")]
+    AlreadyShutdown,
+    /// Shutdown failed due to timeout exceeding
+    #[error("Shutdown failed due to timeout exceeding")]
+    ShutdownTimeout,
     /// Fail to export metrics
     #[error("Metrics exporter {0} failed with {name}", name = .0.exporter_name())]
     ExportErr(Box<dyn ExportError>),
@@ -25,6 +31,25 @@ pub enum MetricError {
     /// for full list of requirements.
     #[error("Invalid instrument configuration: {0}")]
     InvalidInstrumentConfiguration(&'static str),
+}
+
+impl PartialEq for MetricError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (MetricError::Other(a), MetricError::Other(b)) => a == b,
+            (MetricError::Config(a), MetricError::Config(b)) => a == b,
+            (MetricError::AlreadyShutdown, MetricError::AlreadyShutdown) => true,
+            (MetricError::ShutdownTimeout, MetricError::ShutdownTimeout) => true,
+            (MetricError::ExportErr(a), MetricError::ExportErr(b)) => {
+                a.exporter_name() == b.exporter_name()
+            }
+            (
+                MetricError::InvalidInstrumentConfiguration(a),
+                MetricError::InvalidInstrumentConfiguration(b),
+            ) => a == b,
+            _ => false,
+        }
+    }
 }
 
 impl<T: ExportError> From<T> for MetricError {

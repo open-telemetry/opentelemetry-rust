@@ -123,9 +123,7 @@ impl SdkMeterProviderInner {
             .shutdown_invoked
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            Err(MetricError::Other(
-                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(MetricError::AlreadyShutdown)
         } else {
             self.pipes.force_flush()
         }
@@ -137,9 +135,7 @@ impl SdkMeterProviderInner {
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(MetricError::Other(
-                "MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(MetricError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }
