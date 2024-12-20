@@ -9,10 +9,10 @@ use super::OtlpHttpClient;
 
 impl LogExporter for OtlpHttpClient {
     #[allow(clippy::manual_async_fn)]
-    fn export<'a>(
-        &'a self,
-        batch: &'a LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+    fn export(
+        &self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
         async move {
             let client = self
                 .client
@@ -23,7 +23,7 @@ impl LogExporter for OtlpHttpClient {
                     _ => Err(LogError::Other("exporter is already shut down".into())),
                 })?;
 
-            let (body, content_type) = { self.build_logs_export_body(batch)? };
+            let (body, content_type) = { self.build_logs_export_body(&batch)? };
             let mut request = http::Request::builder()
                 .method(Method::POST)
                 .uri(&self.collector_endpoint)

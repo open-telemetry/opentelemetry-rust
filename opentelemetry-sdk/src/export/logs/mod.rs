@@ -79,13 +79,10 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    /// Note:
-    /// The `Send` bound ensures the future can be safely moved across threads, which is crucial for multi-threaded async runtimes like Tokio.
-    /// Explicit lifetimes (`'a`) synchronize the lifetimes of `self`, `batch`, and the returned future.
-    fn export<'a>(
-        &'a self,
-        batch: &'a LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a;
+    fn export(
+        &self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send;
 
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}

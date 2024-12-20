@@ -118,7 +118,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
             .and_then(|exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 let log_batch = LogBatch::new(log_tuple);
-                futures_executor::block_on(exporter.export(&log_batch))
+                futures_executor::block_on(exporter.export(log_batch))
             });
         // Handle errors with specific static names
         match result {
@@ -447,7 +447,7 @@ where
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
     let log_batch = LogBatch::new(log_vec.as_slice());
-    let export = exporter.export(&log_batch);
+    let export = exporter.export(log_batch);
     let export_result = futures_executor::block_on(export);
 
     match export_result {
@@ -717,7 +717,7 @@ where
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
     let log_batch = LogBatch::new(log_vec.as_slice());
-    let export = exporter.export(&log_batch);
+    let export = exporter.export(log_batch);
     let timeout = runtime.delay(time_out);
     pin_mut!(export);
     pin_mut!(timeout);
@@ -937,10 +937,10 @@ mod tests {
 
     impl LogExporter for MockLogExporter {
         #[allow(clippy::manual_async_fn)]
-        fn export<'a>(
-            &'a self,
-            _batch: &'a LogBatch<'a>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+        fn export(
+            &self,
+            _batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
             async { Ok(()) }
         }
 
@@ -1443,10 +1443,10 @@ mod tests {
 
     impl LogExporter for LogExporterThatRequiresTokio {
         #[allow(clippy::manual_async_fn)]
-        fn export<'a>(
-            &'a self,
-            batch: &'a LogBatch<'a>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+        fn export(
+            &self,
+            batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
             async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;

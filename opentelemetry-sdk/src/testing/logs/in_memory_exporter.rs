@@ -182,10 +182,10 @@ impl InMemoryLogExporter {
 
 impl LogExporter for InMemoryLogExporter {
     #[allow(clippy::manual_async_fn)]
-    fn export<'a>(
-        &'a self,
-        batch: &'a LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+    fn export(
+        &self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
         async move {
             let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
             for (log_record, instrumentation) in batch.iter() {

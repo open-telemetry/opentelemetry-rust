@@ -32,10 +32,10 @@ impl fmt::Debug for LogExporter {
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     #[allow(clippy::manual_async_fn)]
-    fn export<'a>(
-        &'a self,
-        batch: &'a LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+    fn export(
+        &self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
         async move {
             if self.is_shutdown.load(atomic::Ordering::SeqCst) {
                 Err("exporter is shut down".into())
@@ -46,7 +46,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                     .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
                     .is_err()
                 {
-                    print_logs(batch);
+                    print_logs(&batch);
                 } else {
                     println!("Resource");
                     if let Some(schema_url) = self.resource.schema_url() {
@@ -55,7 +55,7 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                     self.resource.iter().for_each(|(k, v)| {
                         println!("\t ->  {}={:?}", k, v);
                     });
-                    print_logs(batch);
+                    print_logs(&batch);
                 }
 
                 Ok(())

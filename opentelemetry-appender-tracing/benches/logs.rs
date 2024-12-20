@@ -33,10 +33,10 @@ struct NoopExporter {
 
 impl LogExporter for NoopExporter {
     #[allow(clippy::manual_async_fn)]
-    fn export<'a>(
-        &'a self,
-        _batch: &'a LogBatch<'a>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send + 'a {
+    fn export(
+        &self,
+        _batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
         async { LogResult::Ok(()) }
     }
 
