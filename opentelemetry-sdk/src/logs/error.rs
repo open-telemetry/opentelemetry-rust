@@ -56,7 +56,7 @@ impl From<&'static str> for LogError {
 
 impl<T> From<PoisonError<T>> for LogError {
     fn from(err: PoisonError<T>) -> Self {
-        LogError::ClientFailed(err.to_string().into())
+        LogError::ClientFailed(err.to_string())
     }
 }
 

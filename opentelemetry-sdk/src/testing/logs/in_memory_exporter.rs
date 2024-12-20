@@ -173,7 +173,7 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn reset(&self) -> Result<(), LogError> {
-        let _ = self.logs.lock().map(|mut logs_guard| logs_guard.clear())?;
+        self.logs.lock().map(|mut logs_guard| logs_guard.clear())?;
 
         Ok(())
     }
