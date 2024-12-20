@@ -209,7 +209,6 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
-    use async_trait::async_trait;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
@@ -245,7 +244,6 @@ mod tests {
     #[derive(Clone, Debug, Default)]
     struct ReentrantLogExporter;
 
-    #[async_trait]
     impl LogExporter for ReentrantLogExporter {
         #[allow(clippy::manual_async_fn)]
         fn export<'a>(
