@@ -82,6 +82,9 @@ fn print_logs(batch: LogBatch<'_>) {
         if let Some(trace_context) = record.trace_context() {
             println!("\t TraceId: {:?}", trace_context.trace_id);
             println!("\t SpanId: {:?}", trace_context.span_id);
+            if let Some(trace_flags) = trace_context.trace_flags {
+                println!("\t TraceFlags: {:?}", trace_flags);
+            }
         }
         if let Some(timestamp) = record.timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();

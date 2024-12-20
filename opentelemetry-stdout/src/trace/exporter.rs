@@ -96,6 +96,7 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
         println!("\tName        : {}", &span.name);
         println!("\tTraceId     : {}", &span.span_context.trace_id());
         println!("\tSpanId      : {}", &span.span_context.span_id());
+        println!("\tTraceFlags  : {:?}", &span.span_context.trace_flags());
         println!("\tParentSpanId: {}", &span.parent_span_id);
         println!("\tKind        : {:?}", &span.span_kind);
 
