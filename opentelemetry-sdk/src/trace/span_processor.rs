@@ -208,7 +208,7 @@ impl BatchSpanProcessorDedicatedThread {
         let (message_sender, message_receiver) = sync_channel(max_queue_size);
 
         let handle = thread::Builder::new()
-            .name("BatchSpanProcessorThread".to_string())
+            .name("BatchSpanProcessorDedicatedThread".to_string())
             .spawn(move || {
                 let mut spans = Vec::new();
                 let mut last_export_time = Instant::now();
@@ -1366,7 +1366,7 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_deficatedthread_force_flush() {
+    fn batchspanprocessor_dedicatedthread_force_flush() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
         let processor = BatchSpanProcessorDedicatedThread::new(
@@ -1395,7 +1395,7 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_shutdown() {
+    fn batchspanprocessor_dedicatedthread_shutdown() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
         let processor = BatchSpanProcessorDedicatedThread::new(
