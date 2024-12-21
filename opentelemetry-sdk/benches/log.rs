@@ -126,10 +126,36 @@ fn logging_comparable_to_appender(c: &mut Criterion) {
     });
 }
 
+fn logger_emit(c: &mut Criterion) {
+    // Provider is created once, outside of the benchmark
+    let provider = LoggerProvider::builder()
+        .with_log_processor(NoopProcessor {})
+        .build();
+
+    let logger = provider.logger("benchmark_emit");
+
+    // Create the log record once
+    let mut log_record = logger.create_log_record();
+    log_record.set_body("simple log".into());
+
+    // Convert log_record into a raw pointer
+    let log_record_ptr: *mut _ = &mut log_record;
+
+    c.bench_function("logger_emit", |b| {
+        b.iter(|| {
+            unsafe {
+                // Dereference the raw pointer to pass it to emit
+                logger.emit(std::ptr::read(log_record_ptr));
+            }
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     logger_creation(c);
     log_provider_creation(c);
     logging_comparable_to_appender(c);
+    logger_emit(c);
     log_benchmark_group(c, "simple-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("simple log".into());
