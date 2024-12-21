@@ -149,7 +149,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - *After:*
       ```rust
       let logger_provider = LoggerProvider::builder()
-        .with_log_processor(BatchLogProcessorWithAsyncRuntime::builder(exporter, runtime::Tokio).build())
+        .with_log_processor(log_processor_with_async_runtime::BatchLogProcessor::builder(exporter, runtime::Tokio).build())
         .build();
       ```
 
