@@ -37,6 +37,7 @@
 use crate::export::trace::{SpanData, SpanExporter};
 use crate::resource::Resource;
 use crate::trace::Span;
+use opentelemetry::otel_error;
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
@@ -162,6 +163,60 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 }
 
+/// The `BatchSpanProcessor` collects finished spans in a buffer and exports them
+/// in batches to the configured `SpanExporter`. This processor is ideal for
+/// high-throughput environments, as it minimizes the overhead of exporting spans
+/// individually. It uses a **dedicated background thread** to manage and export spans
+/// asynchronously, ensuring that the application's main execution flow is not blocked.
+///
+/// /// # Example
+///
+/// This example demonstrates how to configure and use the `BatchSpanProcessor`
+/// with a custom configuration. Note that a dedicated thread is used internally
+/// to manage the export process.
+///
+/// ```rust
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::{
+///     trace::{BatchSpanProcessor, BatchConfigBuilder, TracerProvider},
+///     runtime,
+///     testing::trace::NoopSpanExporter,
+/// };
+/// use opentelemetry::trace::Tracer as _;
+/// use opentelemetry::trace::Span;
+/// use std::time::Duration;
+///
+/// fn main() {
+///     // Step 1: Create an exporter (e.g., a No-Op Exporter for demonstration).
+///     let exporter = NoopSpanExporter::new();
+///
+///     // Step 2: Configure the BatchSpanProcessor.
+///     let batch_processor = BatchSpanProcessor::builder(exporter)
+///         .with_batch_config(
+///             BatchConfigBuilder::default()
+///                 .with_max_queue_size(1024) // Buffer up to 1024 spans.
+///                 .with_max_export_batch_size(256) // Export in batches of up to 256 spans.
+///                 .with_scheduled_delay(Duration::from_secs(5)) // Export every 5 seconds.
+///                 .with_max_export_timeout(Duration::from_secs(10)) // Timeout after 10 seconds.
+///                 .build(),
+///         )
+///         .build();
+///
+///     // Step 3: Set up a TracerProvider with the configured processor.
+///     let provider = TracerProvider::builder()
+///         .with_span_processor(batch_processor)
+///         .build();
+///     global::set_tracer_provider(provider.clone());
+///
+///     // Step 4: Create spans and record operations.
+///     let tracer = global::tracer("example-tracer");
+///     let mut span = tracer.start("example-span");
+///     span.end(); // Mark the span as completed.
+///
+///     // Step 5: Ensure all spans are flushed before exiting.
+///     provider.shutdown();
+/// }
+/// ```
 use futures_executor::block_on;
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::RecvTimeoutError;
@@ -220,7 +275,10 @@ impl BatchSpanProcessor {
                                 {
                                     if let Err(err) = block_on(exporter.export(spans.split_off(0)))
                                     {
-                                        eprintln!("Export error: {:?}", err);
+                                        otel_error!(
+                                            name: "BatchSpanProcessor.ExportError",
+                                            error = format!("{}", err)
+                                        );
                                     }
                                     last_export_time = Instant::now();
                                 }
@@ -238,19 +296,25 @@ impl BatchSpanProcessor {
                         Err(RecvTimeoutError::Timeout) => {
                             if last_export_time.elapsed() >= config.scheduled_delay {
                                 if let Err(err) = block_on(exporter.export(spans.split_off(0))) {
-                                    eprintln!("Export error: {:?}", err);
+                                    otel_error!(
+                                        name: "BatchSpanProcessor.ExportError",
+                                        error = format!("{}", err)
+                                    );
                                 }
                                 last_export_time = Instant::now();
                             }
                         }
                         Err(RecvTimeoutError::Disconnected) => {
-                            eprintln!("Channel disconnected, shutting down processor thread.");
+                            otel_error!(
+                                name: "BatchLogProcessor.InternalError.ChannelDisconnected",
+                                message = "Channel disconnected, shutting down processor thread."
+                            );
                             break;
                         }
                     }
                 }
             })
-            .expect("Failed to spawn thread");
+            .expect("Failed to spawn thread"); //TODO: Handle thread spawn failure
 
         Self {
             message_sender,
@@ -720,7 +784,7 @@ mod tests {
 
     use futures_util::future::BoxFuture;
     use futures_util::FutureExt;
-    use std::sync::{Arc, Mutex};
+    use std::sync::{atomic::Ordering, Arc, Mutex};
 
     // Mock exporter to test functionality
     #[derive(Debug)]
@@ -837,5 +901,50 @@ mod tests {
             second_shutdown_result.is_err(),
             "Shutdown should fail when called a second time"
         );
+    }
+
+    #[test]
+    fn batchspanprocessor_handles_dropped_spans() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(2) // Small queue size to test span dropping
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(2))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        // Create test spans and send them to the processor
+        let span1 = create_test_span("span1");
+        let span2 = create_test_span("span2");
+        let span3 = create_test_span("span3"); // This span should be dropped
+
+        processor.on_end(span1.clone());
+        processor.on_end(span2.clone());
+        processor.on_end(span3.clone()); // This span exceeds the queue size
+
+        // Wait for the scheduled delay to expire
+        std::thread::sleep(Duration::from_secs(3));
+
+        let exported_spans = exporter_shared.lock().unwrap();
+
+        // Verify that only the first two spans are exported
+        assert_eq!(
+            exported_spans.len(),
+            2,
+            "Unexpected number of exported spans"
+        );
+        assert!(exported_spans.iter().any(|s| s.name == "span1"));
+        assert!(exported_spans.iter().any(|s| s.name == "span2"));
+
+        // Ensure the third span is dropped
+        assert!(
+            !exported_spans.iter().any(|s| s.name == "span3"),
+            "Span3 should have been dropped"
+        );
+
+        // Verify dropped spans count (if accessible in your implementation)
+        let dropped_count = processor.dropped_span_count.load(Ordering::Relaxed);
+        assert_eq!(dropped_count, 1, "Unexpected number of dropped spans");
     }
 }

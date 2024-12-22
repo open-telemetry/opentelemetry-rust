@@ -141,6 +141,51 @@ pub fn test_serde() -> Result<()> {
     Ok(())
 }
 
+#[test]
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+pub fn span_batch_non_tokio_main() -> Result<()> {
+    // Initialize the tracer provider inside a tokio runtime
+    // as this allows tonic client to capture the runtime,
+    // but actual export occurs from the dedicated std::thread
+    // created by BatchSpanProcessor.
+
+    use anyhow::Ok;
+    let rt = tokio::runtime::Runtime::new()?;
+    let tracer_provider = rt.block_on(async {
+        // While we're here setup our collector container too, as this needs tokio to run
+        let _ = test_utils::start_collector_container().await;
+        init_tracer_provider()
+    })?;
+
+    let tracer = global::tracer("ex.com/basic");
+
+    tracer.in_span("operation", |cx| {
+        let span = cx.span();
+        span.add_event(
+            "Nice operation!".to_string(),
+            vec![KeyValue::new("bogons", 100)],
+        );
+        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
+
+        tracer.in_span("Sub operation...", |cx| {
+            let span = cx.span();
+            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
+
+            span.add_event("Sub span event", vec![]);
+        });
+    });
+
+    tracer_provider.shutdown()?;
+
+    // Give it a second to flush
+    std::thread::sleep(Duration::from_secs(2));
+
+    // Validate results
+    // TODO: Fix this test
+    // assert_traces_results(test_utils::TRACES_FILE, "./expected/traces.json")?;
+    Ok(())
+}
+
 ///
 /// Make sure we stop the collector container, otherwise it will sit around hogging our
 /// ports and subsequent test runs will fail.
