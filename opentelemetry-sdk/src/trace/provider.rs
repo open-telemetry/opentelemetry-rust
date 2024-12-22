@@ -62,6 +62,7 @@
 ///     provider.shutdown();
 /// }
 /// ```
+#[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
 use crate::runtime::RuntimeChannel;
 use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
@@ -295,12 +296,20 @@ impl Builder {
         Builder { processors, ..self }
     }
 
+    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
     pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel>(
         self,
         exporter: T,
         runtime: R,
     ) -> Self {
+        let batch = BatchSpanProcessor::builder(exporter, runtime).build();
+        self.with_span_processor(batch)
+    }
+
+    #[cfg(not(feature = "experimental_trace_batch_span_processor_with_async_runtime"))]
+    /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
+    pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }

@@ -181,6 +181,7 @@ enum BatchMessage {
 pub struct BatchSpanProcessor {
     message_sender: SyncSender<BatchMessage>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
+    forceflush_timeout: Duration,
     shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
     dropped_span_count: Arc<AtomicUsize>,
@@ -190,14 +191,15 @@ impl BatchSpanProcessor {
     /// Creates a new instance of `BatchSpanProcessor`.
     pub fn new<E>(
         mut exporter: E,
-        max_queue_size: usize,
-        scheduled_delay: Duration,
-        shutdown_timeout: Duration,
+        config: BatchConfig,
+        //ax_queue_size: usize,
+        //scheduled_delay: Duration,
+        //shutdown_timeout: Duration,
     ) -> Self
     where
         E: SpanExporter + Send + 'static,
     {
-        let (message_sender, message_receiver) = sync_channel(max_queue_size);
+        let (message_sender, message_receiver) = sync_channel(config.max_queue_size);
 
         let handle = thread::Builder::new()
             .name("BatchSpanProcessorDedicatedThread".to_string())
@@ -206,13 +208,15 @@ impl BatchSpanProcessor {
                 let mut last_export_time = Instant::now();
 
                 loop {
-                    let timeout = scheduled_delay.saturating_sub(last_export_time.elapsed());
+                    let timeout = config
+                        .scheduled_delay
+                        .saturating_sub(last_export_time.elapsed());
                     match message_receiver.recv_timeout(timeout) {
                         Ok(message) => match message {
                             BatchMessage::ExportSpan(span) => {
                                 spans.push(span);
-                                if spans.len() >= max_queue_size
-                                    || last_export_time.elapsed() >= scheduled_delay
+                                if spans.len() >= config.max_queue_size
+                                    || last_export_time.elapsed() >= config.scheduled_delay
                                 {
                                     if let Err(err) = block_on(exporter.export(spans.split_off(0)))
                                     {
@@ -232,7 +236,7 @@ impl BatchSpanProcessor {
                             }
                         },
                         Err(RecvTimeoutError::Timeout) => {
-                            if last_export_time.elapsed() >= scheduled_delay {
+                            if last_export_time.elapsed() >= config.scheduled_delay {
                                 if let Err(err) = block_on(exporter.export(spans.split_off(0))) {
                                     eprintln!("Export error: {:?}", err);
                                 }
@@ -251,7 +255,8 @@ impl BatchSpanProcessor {
         Self {
             message_sender,
             handle: Mutex::new(Some(handle)),
-            shutdown_timeout,
+            forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
+            shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
             is_shutdown: AtomicBool::new(false),
             dropped_span_count: Arc::new(AtomicUsize::new(0)),
         }
@@ -262,7 +267,10 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + 'static,
     {
-        BatchSpanProcessorBuilder::new(exporter)
+        BatchSpanProcessorBuilder {
+            exporter,
+            config: BatchConfig::default(),
+        }
     }
 }
 
@@ -302,8 +310,8 @@ impl SpanProcessor for BatchSpanProcessor {
             .map_err(|_| TraceError::Other("Failed to send ForceFlush message".into()))?;
 
         receiver
-            .recv_timeout(self.shutdown_timeout)
-            .map_err(|_| TraceError::ExportTimedOut(self.shutdown_timeout))?
+            .recv_timeout(self.forceflush_timeout)
+            .map_err(|_| TraceError::ExportTimedOut(self.forceflush_timeout))?
     }
 
     /// Shuts down the processor.
@@ -333,51 +341,21 @@ where
     E: SpanExporter + Send + 'static,
 {
     exporter: E,
-    max_queue_size: usize,
-    scheduled_delay: Duration,
-    shutdown_timeout: Duration,
+    config: BatchConfig,
 }
 
 impl<E> BatchSpanProcessorBuilder<E>
 where
     E: SpanExporter + Send + 'static,
 {
-    /// Creates a new builder with default values.
-    pub fn new(exporter: E) -> Self {
-        Self {
-            exporter,
-            max_queue_size: 2048,
-            scheduled_delay: Duration::from_secs(5),
-            shutdown_timeout: Duration::from_secs(5),
-        }
+    /// Set the BatchConfig for [BatchSpanProcessorBuilder]
+    pub fn with_batch_config(self, config: BatchConfig) -> Self {
+        BatchSpanProcessorBuilder { config, ..self }
     }
 
-    /// Sets the maximum queue size for spans.
-    pub fn with_max_queue_size(mut self, size: usize) -> Self {
-        self.max_queue_size = size;
-        self
-    }
-
-    /// Sets the delay between exports.
-    pub fn with_scheduled_delay(mut self, delay: Duration) -> Self {
-        self.scheduled_delay = delay;
-        self
-    }
-
-    /// Sets the timeout for shutdown and flush operations.
-    pub fn with_shutdown_timeout(mut self, timeout: Duration) -> Self {
-        self.shutdown_timeout = timeout;
-        self
-    }
-
-    /// Builds the `BatchSpanProcessorDedicatedThread` instance.
+    /// Build a new instance of `BatchSpanProcessor`.
     pub fn build(self) -> BatchSpanProcessor {
-        BatchSpanProcessor::new(
-            self.exporter,
-            self.max_queue_size,
-            self.scheduled_delay,
-            self.shutdown_timeout,
-        )
+        BatchSpanProcessor::new(self.exporter, self.config)
     }
 }
 
@@ -773,12 +751,13 @@ mod tests {
     fn batchspanprocessor_handles_on_end() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
-        let processor = BatchSpanProcessor::new(
-            exporter,
-            10, // max queue size
-            Duration::from_secs(5),
-            Duration::from_secs(2),
-        );
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(10)
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(2))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
         processor.on_end(test_span.clone());
@@ -795,12 +774,13 @@ mod tests {
     fn batchspanprocessor_force_flush() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
-        let processor = BatchSpanProcessor::new(
-            exporter,
-            10, // max queue size
-            Duration::from_secs(5),
-            Duration::from_secs(2),
-        );
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(10)
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(2))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config);
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
@@ -824,12 +804,13 @@ mod tests {
     fn batchspanprocessor_shutdown() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
-        let processor = BatchSpanProcessor::new(
-            exporter,
-            10, // max queue size
-            Duration::from_secs(5),
-            Duration::from_secs(2),
-        );
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(10)
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(2))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config);
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("shutdown_span");

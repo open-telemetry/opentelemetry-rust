@@ -46,6 +46,7 @@ impl SpanCountExporter {
     }
 }
 
+#[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 fn build_batch_tracer_provider<R: RuntimeChannel>(
     exporter: SpanCountExporter,
