@@ -56,6 +56,7 @@ use std::sync::Arc;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
 /// use opentelemetry_sdk::trace::BatchConfigBuilder;
 /// use std::time::Duration;
+/// use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -63,7 +64,7 @@ use std::sync::Arc;
 ///     let exporter = NoopSpanExporter::new();
 ///
 ///     // Create a batch span processor using an exporter and a runtime
-///     let batch = trace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
+///     let batch = BatchSpanProcessor::builder(exporter, runtime::Tokio)
 ///         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
 ///         .build();
 ///

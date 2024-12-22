@@ -371,15 +371,18 @@ pub struct BatchConfig {
     /// of batches. The default value is 5 seconds.
     pub(crate) scheduled_delay: Duration,
 
+    #[allow(dead_code)]
     /// The maximum number of spans to process in a single batch. If there are
     /// more than one batch worth of spans then it processes multiple batches
     /// of spans one batch after the other without any delay. The default value
     /// is 512.
     pub(crate) max_export_batch_size: usize,
 
+    #[allow(dead_code)]
     /// The maximum duration to export a batch of data.
     pub(crate) max_export_timeout: Duration,
 
+    #[allow(dead_code)]
     /// Maximum number of concurrent exports
     ///
     /// Limits the number of spawned tasks for exports and thus memory consumed

@@ -64,9 +64,11 @@
 /// ```
 #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
 use crate::runtime::RuntimeChannel;
-use crate::trace::{
-    BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
-};
+#[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+use crate::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+#[cfg(not(feature = "experimental_trace_batch_span_processor_with_async_runtime"))]
+use crate::trace::BatchSpanProcessor;
+use crate::trace::{Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer};
 use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::trace::TraceError;

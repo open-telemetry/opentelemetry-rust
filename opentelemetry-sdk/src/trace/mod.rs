@@ -16,6 +16,7 @@ mod span;
 mod span_limit;
 mod span_processor;
 #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+/// Experimental feature to use async runtime with batch span processor.
 pub mod span_processor_with_async_runtime;
 mod tracer;
 
