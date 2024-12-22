@@ -301,7 +301,7 @@ impl Builder {
         exporter: T,
         runtime: R,
     ) -> Self {
-        let batch = BatchSpanProcessor::builder(exporter, runtime).build();
+        let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }
 

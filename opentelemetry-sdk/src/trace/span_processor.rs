@@ -34,18 +34,10 @@
 //! [`is_recording`]: opentelemetry::trace::Span::is_recording()
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
-use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::export::trace::{SpanData, SpanExporter};
 use crate::resource::Resource;
-use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::Span;
-use futures_channel::oneshot;
-use futures_util::{
-    future::{self, BoxFuture, Either},
-    select,
-    stream::{self, FusedStream, FuturesUnordered},
-    StreamExt as _,
-};
-use opentelemetry::{otel_debug, otel_error, otel_warn};
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
@@ -53,33 +45,33 @@ use opentelemetry::{
 use std::cmp::min;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::{env, fmt, str::FromStr, time::Duration};
+use std::{env, str::FromStr, time::Duration};
 
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Instant;
 
 /// Delay interval between two consecutive exports.
-const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
+pub(crate) const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: u64 = 5_000;
+pub(crate) const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: u64 = 5_000;
 /// Maximum queue size
-const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
+pub(crate) const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
 /// Default maximum queue size
-const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+pub(crate) const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
 /// Maximum batch size, must be less than or equal to OTEL_BSP_MAX_QUEUE_SIZE
-const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
+pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
-const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// Maximum allowed time to export data.
-const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
+pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 /// Environment variable to configure max concurrent exports for batch span
 /// processor.
-const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
+pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
-const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
+pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
@@ -178,7 +170,7 @@ use std::sync::mpsc::SyncSender;
 /// Messages exchanged between the main thread and the background thread.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
-enum BatchMessageDedicatedThread {
+enum BatchMessage {
     ExportSpan(SpanData),
     ForceFlush(SyncSender<TraceResult<()>>),
     Shutdown(SyncSender<TraceResult<()>>),
@@ -186,16 +178,16 @@ enum BatchMessageDedicatedThread {
 
 /// A batch span processor with a dedicated background thread.
 #[derive(Debug)]
-pub struct BatchSpanProcessorDedicatedThread {
-    message_sender: SyncSender<BatchMessageDedicatedThread>,
+pub struct BatchSpanProcessor {
+    message_sender: SyncSender<BatchMessage>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
     dropped_span_count: Arc<AtomicUsize>,
 }
 
-impl BatchSpanProcessorDedicatedThread {
-    /// Creates a new instance of `BatchSpanProcessorDedicatedThread`.
+impl BatchSpanProcessor {
+    /// Creates a new instance of `BatchSpanProcessor`.
     pub fn new<E>(
         mut exporter: E,
         max_queue_size: usize,
@@ -217,7 +209,7 @@ impl BatchSpanProcessorDedicatedThread {
                     let timeout = scheduled_delay.saturating_sub(last_export_time.elapsed());
                     match message_receiver.recv_timeout(timeout) {
                         Ok(message) => match message {
-                            BatchMessageDedicatedThread::ExportSpan(span) => {
+                            BatchMessage::ExportSpan(span) => {
                                 spans.push(span);
                                 if spans.len() >= max_queue_size
                                     || last_export_time.elapsed() >= scheduled_delay
@@ -229,11 +221,11 @@ impl BatchSpanProcessorDedicatedThread {
                                     last_export_time = Instant::now();
                                 }
                             }
-                            BatchMessageDedicatedThread::ForceFlush(sender) => {
+                            BatchMessage::ForceFlush(sender) => {
                                 let result = block_on(exporter.export(spans.split_off(0)));
                                 let _ = sender.send(result);
                             }
-                            BatchMessageDedicatedThread::Shutdown(sender) => {
+                            BatchMessage::Shutdown(sender) => {
                                 let result = block_on(exporter.export(spans.split_off(0)));
                                 let _ = sender.send(result);
                                 break;
@@ -265,15 +257,28 @@ impl BatchSpanProcessorDedicatedThread {
         }
     }
 
+    /// builder
+    pub fn builder<E>(exporter: E) -> BatchSpanProcessorBuilder<E>
+    where
+        E: SpanExporter + Send + 'static,
+    {
+        BatchSpanProcessorBuilder::new(exporter)
+    }
+}
+
+impl SpanProcessor for BatchSpanProcessor {
+    /// Handles span start.
+    fn on_start(&self, _span: &mut Span, _cx: &Context) {
+        // Ignored
+    }
+
     /// Handles span end.
-    pub fn on_end(&self, span: SpanData) {
+    fn on_end(&self, span: SpanData) {
         if self.is_shutdown.load(Ordering::Relaxed) {
             eprintln!("Processor is shutdown. Dropping span.");
             return;
         }
-        let result = self
-            .message_sender
-            .try_send(BatchMessageDedicatedThread::ExportSpan(span));
+        let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
@@ -287,13 +292,13 @@ impl BatchSpanProcessorDedicatedThread {
     }
 
     /// Flushes all pending spans.
-    pub fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> TraceResult<()> {
         if self.is_shutdown.load(Ordering::Relaxed) {
             return Err(TraceError::Other("Processor already shutdown".into()));
         }
         let (sender, receiver) = sync_channel(1);
         self.message_sender
-            .try_send(BatchMessageDedicatedThread::ForceFlush(sender))
+            .try_send(BatchMessage::ForceFlush(sender))
             .map_err(|_| TraceError::Other("Failed to send ForceFlush message".into()))?;
 
         receiver
@@ -302,13 +307,13 @@ impl BatchSpanProcessorDedicatedThread {
     }
 
     /// Shuts down the processor.
-    pub fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> TraceResult<()> {
         if self.is_shutdown.swap(true, Ordering::Relaxed) {
             return Err(TraceError::Other("Processor already shutdown".into()));
         }
         let (sender, receiver) = sync_channel(1);
         self.message_sender
-            .try_send(BatchMessageDedicatedThread::Shutdown(sender))
+            .try_send(BatchMessage::Shutdown(sender))
             .map_err(|_| TraceError::Other("Failed to send Shutdown message".into()))?;
 
         let result = receiver
@@ -323,16 +328,24 @@ impl BatchSpanProcessorDedicatedThread {
 
 /// Builder for `BatchSpanProcessorDedicatedThread`.
 #[derive(Debug, Default)]
-pub struct BatchSpanProcessorDedicatedThreadBuilder {
+pub struct BatchSpanProcessorBuilder<E>
+where
+    E: SpanExporter + Send + 'static,
+{
+    exporter: E,
     max_queue_size: usize,
     scheduled_delay: Duration,
     shutdown_timeout: Duration,
 }
 
-impl BatchSpanProcessorDedicatedThreadBuilder {
+impl<E> BatchSpanProcessorBuilder<E>
+where
+    E: SpanExporter + Send + 'static,
+{
     /// Creates a new builder with default values.
-    pub fn new() -> Self {
+    pub fn new(exporter: E) -> Self {
         Self {
+            exporter,
             max_queue_size: 2048,
             scheduled_delay: Duration::from_secs(5),
             shutdown_timeout: Duration::from_secs(5),
@@ -358,386 +371,13 @@ impl BatchSpanProcessorDedicatedThreadBuilder {
     }
 
     /// Builds the `BatchSpanProcessorDedicatedThread` instance.
-    pub fn build<E>(self, exporter: E) -> BatchSpanProcessorDedicatedThread
-    where
-        E: SpanExporter + Send + 'static,
-    {
-        BatchSpanProcessorDedicatedThread::new(
-            exporter,
+    pub fn build(self) -> BatchSpanProcessor {
+        BatchSpanProcessor::new(
+            self.exporter,
             self.max_queue_size,
             self.scheduled_delay,
             self.shutdown_timeout,
         )
-    }
-}
-
-/// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
-/// them at a preconfigured interval.
-///
-/// Batch span processors need to run a background task to collect and send
-/// spans. Different runtimes need different ways to handle the background task.
-///
-/// Note: Configuring an opentelemetry `Runtime` that's not compatible with the
-/// underlying runtime can cause deadlocks (see tokio section).
-///
-/// ### Use with Tokio
-///
-/// Tokio currently offers two different schedulers. One is
-/// `current_thread_scheduler`, the other is `multiple_thread_scheduler`. Both
-/// of them default to use batch span processors to install span exporters.
-///
-/// Tokio's `current_thread_scheduler` can cause the program to hang forever if
-/// blocking work is scheduled with other tasks in the same runtime. To avoid
-/// this, be sure to enable the `rt-tokio-current-thread` feature in this crate
-/// if you are using that runtime (e.g. users of actix-web), and blocking tasks
-/// will then be scheduled on a different thread.
-///
-/// # Examples
-///
-/// This processor can be configured with an [`executor`] of your choice to
-/// batch and upload spans asynchronously when they end. If you have added a
-/// library like [`tokio`] or [`async-std`], you can pass in their respective
-/// `spawn` and `interval` functions to have batching performed in those
-/// contexts.
-///
-/// ```
-/// # #[cfg(feature="tokio")]
-/// # {
-/// use opentelemetry::global;
-/// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
-/// use opentelemetry_sdk::trace::BatchConfigBuilder;
-/// use std::time::Duration;
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Configure your preferred exporter
-///     let exporter = NoopSpanExporter::new();
-///
-///     // Create a batch span processor using an exporter and a runtime
-///     let batch = trace::BatchSpanProcessor::builder(exporter, runtime::Tokio)
-///         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
-///         .build();
-///
-///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-///     let provider = trace::TracerProvider::builder()
-///         .with_span_processor(batch)
-///         .build();
-///
-///     let _ = global::set_tracer_provider(provider);
-/// }
-/// # }
-/// ```
-///
-/// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
-/// [`tokio`]: https://tokio.rs
-/// [`async-std`]: https://async.rs
-pub struct BatchSpanProcessor<R: RuntimeChannel> {
-    message_sender: R::Sender<BatchMessage>,
-
-    // Track dropped spans
-    dropped_spans_count: AtomicUsize,
-
-    // Track the maximum queue size that was configured for this processor
-    max_queue_size: usize,
-}
-
-impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BatchSpanProcessor")
-            .field("message_sender", &self.message_sender)
-            .finish()
-    }
-}
-
-impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
-    fn on_start(&self, _span: &mut Span, _cx: &Context) {
-        // Ignored
-    }
-
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
-            return;
-        }
-
-        let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
-
-        // If the queue is full, and we can't buffer a span
-        if result.is_err() {
-            // Increment the number of dropped spans. If this is the first time we've had to drop,
-            // emit a warning.
-            if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
-                otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
-                    message = "Beginning to drop span messages due to full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
-            }
-        }
-    }
-
-    fn force_flush(&self) -> TraceResult<()> {
-        let (res_sender, res_receiver) = oneshot::channel();
-        self.message_sender
-            .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| TraceError::Other(err.into()))?;
-
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
-    }
-
-    fn shutdown(&self) -> TraceResult<()> {
-        let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
-        let max_queue_size = self.max_queue_size;
-        if dropped_spans > 0 {
-            otel_warn!(
-                name: "BatchSpanProcessor.Shutdown",
-                dropped_spans = dropped_spans,
-                max_queue_size = max_queue_size,
-                message = "Spans were dropped due to a full or closed queue. The count represents the total count of span records dropped in the lifetime of the BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
-            );
-        }
-
-        let (res_sender, res_receiver) = oneshot::channel();
-        self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| TraceError::Other(err.into()))?;
-
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
-    }
-
-    fn set_resource(&mut self, resource: &Resource) {
-        let resource = Arc::new(resource.clone());
-        let _ = self
-            .message_sender
-            .try_send(BatchMessage::SetResource(resource));
-    }
-}
-
-/// Messages sent between application thread and batch span processor's work thread.
-// In this enum the size difference is not a concern because:
-// 1. If we wrap SpanData into a pointer, it will add overhead when processing.
-// 2. Most of the messages will be ExportSpan.
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
-enum BatchMessage {
-    /// Export spans, usually called when span ends
-    ExportSpan(SpanData),
-    /// Flush the current buffer to the backend, it can be triggered by
-    /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
-    /// Shut down the worker thread, push all spans in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
-    /// Set the resource for the exporter.
-    SetResource(Arc<Resource>),
-}
-
-struct BatchSpanProcessorInternal<R> {
-    spans: Vec<SpanData>,
-    export_tasks: FuturesUnordered<BoxFuture<'static, ExportResult>>,
-    runtime: R,
-    exporter: Box<dyn SpanExporter>,
-    config: BatchConfig,
-}
-
-impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
-    async fn flush(&mut self, res_channel: Option<oneshot::Sender<ExportResult>>) {
-        let export_task = self.export();
-        let task = Box::pin(async move {
-            let result = export_task.await;
-
-            if let Some(channel) = res_channel {
-                // If a response channel is provided, attempt to send the export result through it.
-                if let Err(result) = channel.send(result) {
-                    otel_debug!(
-                        name: "BatchSpanProcessor.Flush.SendResultError",
-                        reason = format!("{:?}", result)
-                    );
-                }
-            } else if let Err(err) = result {
-                // If no channel is provided and the export operation encountered an error,
-                // log the error directly here.
-                // TODO: Consider returning the status instead of logging it.
-                otel_error!(
-                    name: "BatchSpanProcessor.Flush.ExportError",
-                    reason = format!("{:?}", err),
-                    message = "Failed during the export process"
-                );
-            }
-
-            Ok(())
-        });
-
-        if self.config.max_concurrent_exports == 1 {
-            let _ = task.await;
-        } else {
-            self.export_tasks.push(task);
-            while self.export_tasks.next().await.is_some() {}
-        }
-    }
-
-    /// Process a single message
-    ///
-    /// A return value of false indicates shutdown
-    async fn process_message(&mut self, message: BatchMessage) -> bool {
-        match message {
-            // Span has finished, add to buffer of pending spans.
-            BatchMessage::ExportSpan(span) => {
-                self.spans.push(span);
-
-                if self.spans.len() == self.config.max_export_batch_size {
-                    // If concurrent exports are saturated, wait for one to complete.
-                    if !self.export_tasks.is_empty()
-                        && self.export_tasks.len() == self.config.max_concurrent_exports
-                    {
-                        self.export_tasks.next().await;
-                    }
-
-                    let export_task = self.export();
-                    let task = async move {
-                        if let Err(err) = export_task.await {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Export.Error",
-                                reason = format!("{}", err)
-                            );
-                        }
-
-                        Ok(())
-                    };
-                    // Special case when not using concurrent exports
-                    if self.config.max_concurrent_exports == 1 {
-                        let _ = task.await;
-                    } else {
-                        self.export_tasks.push(Box::pin(task));
-                    }
-                }
-            }
-            // Span batch interval time reached or a force flush has been invoked, export
-            // current spans.
-            //
-            // This is a hint to ensure that any tasks associated with Spans for which the
-            // SpanProcessor had already received events prior to the call to ForceFlush
-            // SHOULD be completed as soon as possible, preferably before returning from
-            // this method.
-            //
-            // In particular, if any SpanProcessor has any associated exporter, it SHOULD
-            // try to call the exporter's Export with all spans for which this was not
-            // already done and then invoke ForceFlush on it. The built-in SpanProcessors
-            // MUST do so. If a timeout is specified (see below), the SpanProcessor MUST
-            // prioritize honoring the timeout over finishing all calls. It MAY skip or
-            // abort some or all Export or ForceFlush calls it has made to achieve this
-            // goal.
-            //
-            // NB: `force_flush` is not currently implemented on exporters; the equivalent
-            // would be waiting for exporter tasks to complete. In the case of
-            // channel-coupled exporters, they will need a `force_flush` implementation to
-            // properly block.
-            BatchMessage::Flush(res_channel) => {
-                self.flush(res_channel).await;
-            }
-            // Stream has terminated or processor is shutdown, return to finish execution.
-            BatchMessage::Shutdown(ch) => {
-                self.flush(Some(ch)).await;
-                self.exporter.shutdown();
-                return false;
-            }
-            // propagate the resource
-            BatchMessage::SetResource(resource) => {
-                self.exporter.set_resource(&resource);
-            }
-        }
-        true
-    }
-
-    fn export(&mut self) -> BoxFuture<'static, ExportResult> {
-        // Batch size check for flush / shutdown. Those methods may be called
-        // when there's no work to do.
-        if self.spans.is_empty() {
-            return Box::pin(future::ready(Ok(())));
-        }
-
-        let export = self.exporter.export(self.spans.split_off(0));
-        let timeout = self.runtime.delay(self.config.max_export_timeout);
-        let time_out = self.config.max_export_timeout;
-
-        Box::pin(async move {
-            match future::select(export, timeout).await {
-                Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => ExportResult::Err(TraceError::ExportTimedOut(time_out)),
-            }
-        })
-    }
-
-    async fn run(mut self, mut messages: impl FusedStream<Item = BatchMessage> + Unpin) {
-        loop {
-            select! {
-                // FuturesUnordered implements Fuse intelligently such that it
-                // will become eligible again once new tasks are added to it.
-                _ = self.export_tasks.next() => {
-                    // An export task completed; do we need to do anything with it?
-                },
-                message = messages.next() => {
-                    match message {
-                        Some(message) => {
-                            if !self.process_message(message).await {
-                                break;
-                            }
-                        },
-                        None => break,
-                    }
-                },
-            }
-        }
-    }
-}
-
-impl<R: RuntimeChannel> BatchSpanProcessor<R> {
-    pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
-        let (message_sender, message_receiver) =
-            runtime.batch_message_channel(config.max_queue_size);
-
-        let max_queue_size = config.max_queue_size;
-
-        let inner_runtime = runtime.clone();
-        // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(async move {
-            // Timer will take a reference to the current runtime, so its important we do this within the
-            // runtime.spawn()
-            let ticker = inner_runtime
-                .interval(config.scheduled_delay)
-                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                .map(|_| BatchMessage::Flush(None));
-            let timeout_runtime = inner_runtime.clone();
-
-            let messages = Box::pin(stream::select(message_receiver, ticker));
-            let processor = BatchSpanProcessorInternal {
-                spans: Vec::new(),
-                export_tasks: FuturesUnordered::new(),
-                runtime: timeout_runtime,
-                config,
-                exporter,
-            };
-
-            processor.run(messages).await
-        }));
-
-        // Return batch processor with link to worker
-        BatchSpanProcessor {
-            message_sender,
-            dropped_spans_count: AtomicUsize::new(0),
-            max_queue_size,
-        }
-    }
-
-    /// Create a new batch processor builder
-    pub fn builder<E>(exporter: E, runtime: R) -> BatchSpanProcessorBuilder<E, R>
-    where
-        E: SpanExporter,
-    {
-        BatchSpanProcessorBuilder {
-            exporter,
-            config: Default::default(),
-            runtime,
-        }
     }
 }
 
@@ -747,27 +387,27 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
 pub struct BatchConfig {
     /// The maximum queue size to buffer spans for delayed processing. If the
     /// queue gets full it drops the spans. The default value of is 2048.
-    max_queue_size: usize,
+    pub(crate) max_queue_size: usize,
 
     /// The delay interval in milliseconds between two consecutive processing
     /// of batches. The default value is 5 seconds.
-    scheduled_delay: Duration,
+    pub(crate) scheduled_delay: Duration,
 
     /// The maximum number of spans to process in a single batch. If there are
     /// more than one batch worth of spans then it processes multiple batches
     /// of spans one batch after the other without any delay. The default value
     /// is 512.
-    max_export_batch_size: usize,
+    pub(crate) max_export_batch_size: usize,
 
     /// The maximum duration to export a batch of data.
-    max_export_timeout: Duration,
+    pub(crate) max_export_timeout: Duration,
 
     /// Maximum number of concurrent exports
     ///
     /// Limits the number of spawned tasks for exports and thus memory consumed
     /// by an exporter. A value of 1 will cause exports to be performed
     /// synchronously on the BatchSpanProcessor task.
-    max_concurrent_exports: usize,
+    pub(crate) max_concurrent_exports: usize,
 }
 
 impl Default for BatchConfig {
@@ -916,31 +556,6 @@ impl BatchConfigBuilder {
     }
 }
 
-/// A builder for creating [`BatchSpanProcessor`] instances.
-///
-#[derive(Debug)]
-pub struct BatchSpanProcessorBuilder<E, R> {
-    exporter: E,
-    config: BatchConfig,
-    runtime: R,
-}
-
-impl<E, R> BatchSpanProcessorBuilder<E, R>
-where
-    E: SpanExporter + 'static,
-    R: RuntimeChannel,
-{
-    /// Set the BatchConfig for [BatchSpanProcessorBuilder]
-    pub fn with_batch_config(self, config: BatchConfig) -> Self {
-        BatchSpanProcessorBuilder { config, ..self }
-    }
-
-    /// Build a batch processor
-    pub fn build(self) -> BatchSpanProcessor<R> {
-        BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
-    }
-}
-
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
@@ -950,10 +565,7 @@ mod tests {
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::export::trace::{ExportResult, SpanData, SpanExporter};
-    use crate::runtime;
-    use crate::testing::trace::{
-        new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
-    };
+    use crate::testing::trace::{new_test_export_span_data, InMemorySpanExporterBuilder};
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
@@ -961,7 +573,6 @@ mod tests {
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
-    use std::future::Future;
     use std::time::Duration;
 
     #[test]
@@ -1108,190 +719,6 @@ mod tests {
         assert_eq!(batch.max_queue_size, 10);
     }
 
-    #[test]
-    fn test_build_batch_span_processor_builder() {
-        let mut env_vars = vec![
-            (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("500")),
-            (OTEL_BSP_SCHEDULE_DELAY, Some("I am not number")),
-            (OTEL_BSP_EXPORT_TIMEOUT, Some("2046")),
-        ];
-        temp_env::with_vars(env_vars.clone(), || {
-            let builder = BatchSpanProcessor::builder(
-                InMemorySpanExporterBuilder::new().build(),
-                runtime::Tokio,
-            );
-            // export batch size cannot exceed max queue size
-            assert_eq!(builder.config.max_export_batch_size, 500);
-            assert_eq!(
-                builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
-            );
-            assert_eq!(
-                builder.config.max_queue_size,
-                OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT
-            );
-            assert_eq!(
-                builder.config.max_export_timeout,
-                Duration::from_millis(2046)
-            );
-        });
-
-        env_vars.push((OTEL_BSP_MAX_QUEUE_SIZE, Some("120")));
-
-        temp_env::with_vars(env_vars, || {
-            let builder = BatchSpanProcessor::builder(
-                InMemorySpanExporterBuilder::new().build(),
-                runtime::Tokio,
-            );
-            assert_eq!(builder.config.max_export_batch_size, 120);
-            assert_eq!(builder.config.max_queue_size, 120);
-        });
-    }
-
-    #[tokio::test]
-    async fn test_batch_span_processor() {
-        let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
-        let config = BatchConfig {
-            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
-            ..Default::default()
-        };
-        let processor =
-            BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
-        let handle = tokio::spawn(async move {
-            loop {
-                if let Some(span) = export_receiver.recv().await {
-                    assert_eq!(span.span_context, new_test_export_span_data().span_context);
-                    break;
-                }
-            }
-        });
-        tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
-        assert!(flush_res.is_ok());
-        let _shutdown_result = processor.shutdown();
-
-        assert!(
-            tokio::time::timeout(Duration::from_secs(5), handle)
-                .await
-                .is_ok(),
-            "timed out in 5 seconds. force_flush may not export any data when called"
-        );
-    }
-
-    struct BlockingExporter<D> {
-        delay_for: Duration,
-        delay_fn: D,
-    }
-
-    impl<D, DS> Debug for BlockingExporter<D>
-    where
-        D: Fn(Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
-    {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str("blocking exporter for testing")
-        }
-    }
-
-    impl<D, DS> SpanExporter for BlockingExporter<D>
-    where
-        D: Fn(Duration) -> DS + 'static + Send + Sync,
-        DS: Future<Output = ()> + Send + Sync + 'static,
-    {
-        fn export(
-            &mut self,
-            _batch: Vec<SpanData>,
-        ) -> futures_util::future::BoxFuture<'static, ExportResult> {
-            use futures_util::FutureExt;
-            Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
-        }
-    }
-
-    #[test]
-    fn test_timeout_tokio_timeout() {
-        // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
-        // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
-        // Either way, the test should be finished within 5s.
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        runtime.block_on(timeout_test_tokio(true));
-    }
-
-    #[test]
-    fn test_timeout_tokio_not_timeout() {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        runtime.block_on(timeout_test_tokio(false));
-    }
-
-    #[test]
-    #[cfg(feature = "rt-async-std")]
-    fn test_timeout_async_std_timeout() {
-        async_std::task::block_on(timeout_test_std_async(true));
-    }
-
-    #[test]
-    #[cfg(feature = "rt-async-std")]
-    fn test_timeout_async_std_not_timeout() {
-        async_std::task::block_on(timeout_test_std_async(false));
-    }
-
-    // If the time_out is true, then the result suppose to ended with timeout.
-    // otherwise the exporter should be able to export within time out duration.
-    #[cfg(feature = "rt-async-std")]
-    async fn timeout_test_std_async(time_out: bool) {
-        let config = BatchConfig {
-            max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
-            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
-            ..Default::default()
-        };
-        let exporter = BlockingExporter {
-            delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
-            delay_fn: async_std::task::sleep,
-        };
-        let processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::AsyncStd);
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
-        if time_out {
-            assert!(flush_res.is_err());
-        } else {
-            assert!(flush_res.is_ok());
-        }
-        let shutdown_res = processor.shutdown();
-        assert!(shutdown_res.is_ok());
-    }
-
-    // If the time_out is true, then the result suppose to ended with timeout.
-    // otherwise the exporter should be able to export within time out duration.
-    async fn timeout_test_tokio(time_out: bool) {
-        let config = BatchConfig {
-            max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
-            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush,
-            ..Default::default()
-        };
-        let exporter = BlockingExporter {
-            delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
-            delay_fn: tokio::time::sleep,
-        };
-        let processor =
-            BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
-        tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
-        if time_out {
-            assert!(flush_res.is_err());
-        } else {
-            assert!(flush_res.is_ok());
-        }
-        let shutdown_res = processor.shutdown();
-        assert!(shutdown_res.is_ok());
-    }
-
     // Helper function to create a default test span
     fn create_test_span(name: &str) -> SpanData {
         SpanData {
@@ -1310,7 +737,6 @@ mod tests {
         }
     }
 
-    use crate::trace::BatchSpanProcessorDedicatedThread;
     use futures_util::future::BoxFuture;
     use futures_util::FutureExt;
     use std::sync::Arc;
@@ -1344,10 +770,10 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_dedicatedthread_handles_on_end() {
+    fn batchspanprocessor_handles_on_end() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
-        let processor = BatchSpanProcessorDedicatedThread::new(
+        let processor = BatchSpanProcessor::new(
             exporter,
             10, // max queue size
             Duration::from_secs(5),
@@ -1366,10 +792,10 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_dedicatedthread_force_flush() {
+    fn batchspanprocessor_force_flush() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
-        let processor = BatchSpanProcessorDedicatedThread::new(
+        let processor = BatchSpanProcessor::new(
             exporter,
             10, // max queue size
             Duration::from_secs(5),
@@ -1395,10 +821,10 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_dedicatedthread_shutdown() {
+    fn batchspanprocessor_shutdown() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
-        let processor = BatchSpanProcessorDedicatedThread::new(
+        let processor = BatchSpanProcessor::new(
             exporter,
             10, // max queue size
             Duration::from_secs(5),

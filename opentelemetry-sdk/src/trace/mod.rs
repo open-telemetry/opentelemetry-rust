@@ -15,6 +15,8 @@ mod sampler;
 mod span;
 mod span_limit;
 mod span_processor;
+mod span_processor_with_async_runtime;
+
 mod tracer;
 
 pub use config::{config, Config};
@@ -28,9 +30,14 @@ pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
-    BatchSpanProcessorDedicatedThread, BatchSpanProcessorDedicatedThreadBuilder,
     SimpleSpanProcessor, SpanProcessor,
 };
+
+/// Re-export asynchronous runtime span processor components.
+// TODO: make them available without re-export
+#[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+pub mod span_processor_with_async_runtime;
+
 pub use tracer::Tracer;
 
 #[cfg(feature = "jaeger_remote_sampler")]
