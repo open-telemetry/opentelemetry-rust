@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
 use opentelemetry_sdk::export::logs::LogBatch;
@@ -30,33 +29,37 @@ impl fmt::Debug for LogExporter {
     }
 }
 
-#[async_trait]
 impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
     /// Export spans to stdout
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            return Err("exporter is shut down".into());
-        } else {
-            println!("Logs");
-            if self
-                .resource_emitted
-                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                .is_err()
-            {
-                print_logs(batch);
+    #[allow(clippy::manual_async_fn)]
+    fn export(
+        &self,
+        batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        async move {
+            if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+                Err("exporter is shut down".into())
             } else {
-                println!("Resource");
-                if let Some(schema_url) = self.resource.schema_url() {
-                    println!("\t Resource SchemaUrl: {:?}", schema_url);
+                println!("Logs");
+                if self
+                    .resource_emitted
+                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_err()
+                {
+                    print_logs(batch);
+                } else {
+                    println!("Resource");
+                    if let Some(schema_url) = self.resource.schema_url() {
+                        println!("\t Resource SchemaUrl: {:?}", schema_url);
+                    }
+                    self.resource.iter().for_each(|(k, v)| {
+                        println!("\t ->  {}={:?}", k, v);
+                    });
+                    print_logs(batch);
                 }
-                self.resource.iter().for_each(|(k, v)| {
-                    println!("\t ->  {}={:?}", k, v);
-                });
 
-                print_logs(batch);
+                Ok(())
             }
-
-            Ok(())
         }
     }
 
