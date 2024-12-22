@@ -13,7 +13,7 @@ fn init_tracer() -> sdktrace::TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = sdktrace::TracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default(), Tokio)
+        .with_batch_exporter(SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider.clone());

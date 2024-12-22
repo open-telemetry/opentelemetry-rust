@@ -35,7 +35,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     let exporter = exporter_builder.build()?;
 
     Ok(opentelemetry_sdk::trace::TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("basic-otlp-tracing-example")

@@ -46,15 +46,18 @@ impl SpanCountExporter {
     }
 }
 
-#[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 fn build_batch_tracer_provider<R: RuntimeChannel>(
     exporter: SpanCountExporter,
     runtime: R,
 ) -> crate::trace::TracerProvider {
     use crate::trace::TracerProvider;
+    let processor = crate::trace::span_processor_with_async_runtime::BatchSpanProcessor::builder(
+        exporter, runtime,
+    )
+    .build();
     TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime)
+        .with_span_processor(processor)
         .build()
 }
 

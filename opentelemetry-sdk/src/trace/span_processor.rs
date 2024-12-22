@@ -720,8 +720,7 @@ mod tests {
 
     use futures_util::future::BoxFuture;
     use futures_util::FutureExt;
-    use std::sync::Arc;
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
 
     // Mock exporter to test functionality
     #[derive(Debug)]

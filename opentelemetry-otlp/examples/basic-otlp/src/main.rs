@@ -27,7 +27,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
         .build()?;
     Ok(sdktrace::TracerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .build())
 }
 
