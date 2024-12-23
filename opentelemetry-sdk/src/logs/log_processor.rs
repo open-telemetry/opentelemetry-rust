@@ -323,8 +323,7 @@ impl BatchLogProcessor {
                     max_queue_size = max_queue_size,
                 );
                 let mut last_export_time = Instant::now();
-                let mut logs = Vec::new();
-                logs.reserve(config.max_export_batch_size);
+                let mut logs = Vec::with_capacity(config.max_export_batch_size);
 
                 loop {
                     let remaining_time_option = config
