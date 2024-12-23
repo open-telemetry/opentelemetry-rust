@@ -2,6 +2,7 @@
 //!
 //! Defines a [LogExporter] to send logs via the OpenTelemetry Protocol (OTLP)
 
+#[cfg(feature = "grpc-tonic")]
 use opentelemetry::otel_debug;
 use std::fmt::Debug;
 

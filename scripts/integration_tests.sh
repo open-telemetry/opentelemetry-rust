@@ -16,13 +16,13 @@ if [ -d "$TEST_DIR" ]; then
     # Run tests with the reqwest-client feature
     echo
     echo ####
-    echo Integration Tests: Reqwest Client
+    echo "Integration Tests: Reqwest Client (Disabled now)"
     echo ####
     echo
     # TODO: reqwest client is not supported with thread based processor and reader. Enable this test once it is supported.
     #cargo test --no-default-features --features "reqwest-client","internal-logs"
 
-    # Run tests with the reqwest-client feature
+    # Run tests with the reqwest-blocking-client feature
     echo
     echo ####
     echo Integration Tests: Reqwest Blocking Client
@@ -33,10 +33,10 @@ if [ -d "$TEST_DIR" ]; then
     # Run tests with the hyper-client feature
     echo
     echo ####
-    echo Integration Tests: Hyper Client
+    echo "Integration Tests: Hyper Client (Disabled now)"
     echo ####
     echo
-    # TODO: reqwest client is not supported with thread based processor and reader. Enable this test once it is supported.
+    # TODO: hyper client is not supported with thread based processor and reader. Enable this test once it is supported.
     #cargo test --no-default-features --features "hyper-client","internal-logs"
 else
     echo "Directory $TEST_DIR does not exist. Skipping tests."
