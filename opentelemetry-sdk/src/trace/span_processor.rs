@@ -93,7 +93,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// Implementation should make sure shutdown can be called multiple times.
     fn shutdown(&self) -> TraceResult<()>;
-    /// Set the resource for the log processor.
+    /// Set the resource for the span processor.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
 
@@ -310,7 +310,7 @@ impl BatchSpanProcessor {
                         }
                         Err(RecvTimeoutError::Disconnected) => {
                             otel_error!(
-                                name: "BatchLogProcessor.InternalError.ChannelDisconnected",
+                                name: "BatchSpanProcessor.InternalError.ChannelDisconnected",
                                 message = "Channel disconnected, shutting down processor thread."
                             );
                             break;
