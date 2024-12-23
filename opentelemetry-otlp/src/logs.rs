@@ -33,6 +33,20 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
 
+/// Certificate file to validate the OTLP server connection when sending metrics
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE";
+/// Path to the certificate file to use for client authentication (mTLS) when sending metrics.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE: &str =
+    "OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE";
+/// Path to the key file to use for client authentication (mTLS) when sending metrics.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY";
+/// Use insecure connection when sending metrics. Disable TLS
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSECURE";
+
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,

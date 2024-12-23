@@ -6,6 +6,7 @@
 - Feature flag "populate-logs-event-name" is removed as no longer relevant.
   LogRecord's `event_name()` is now automatically populated on the newly added
   "event_name" field in LogRecord proto definition.
+- TLS configuration via environment variables for GRPc exporters.
 
 
 ## 0.27.0

@@ -235,11 +235,22 @@ pub use crate::span::{
     OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
+#[cfg(all(feature = "trace", feature = "tls"))]
+pub use crate::span::{
+    OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE, OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY, OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+};
+
 #[cfg(feature = "metrics")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
     MetricExporter, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
     OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+};
+#[cfg(all(feature = "metrics", feature = "tls"))]
+pub use crate::metric::{
+    OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE, OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY, OTEL_EXPORTER_OTLP_METRICS_INSECURE,
 };
 
 #[cfg(feature = "logs")]
@@ -247,6 +258,11 @@ pub use crate::metric::{
 pub use crate::logs::{
     LogExporter, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
     OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+};
+#[cfg(all(feature = "metrics", feature = "tls"))]
+pub use crate::logs::{
+    OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE, OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY, OTEL_EXPORTER_OTLP_LOGS_INSECURE,
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -260,6 +276,12 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
     OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+};
+
+#[cfg(feature = "tls")]
+pub use crate::exporter::{
+    OTEL_EXPORTER_OTLP_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_INSECURE,
 };
 
 use opentelemetry_sdk::export::ExportError;
@@ -357,6 +379,10 @@ pub enum Error {
     #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
     #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
     FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
+
+    /// TLS configuration error.
+    #[error("TLS configuration error: {0}")]
+    TLSConfigError(String),
 }
 
 #[cfg(feature = "grpc-tonic")]
