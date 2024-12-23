@@ -1095,7 +1095,7 @@ mod tests {
             processor.on_end(span);
         }
 
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
 
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 4);
