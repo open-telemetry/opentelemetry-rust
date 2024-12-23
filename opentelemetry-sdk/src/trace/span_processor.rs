@@ -248,7 +248,7 @@ impl BatchSpanProcessor {
     pub fn new<E>(
         mut exporter: E,
         config: BatchConfig,
-        //ax_queue_size: usize,
+        //max_queue_size: usize,
         //scheduled_delay: Duration,
         //shutdown_timeout: Duration,
     ) -> Self
@@ -258,16 +258,21 @@ impl BatchSpanProcessor {
         let (message_sender, message_receiver) = sync_channel(config.max_queue_size);
 
         let handle = thread::Builder::new()
-            .name("BatchSpanProcessorDedicatedThread".to_string())
+            .name("BatchSpanProcessorThread".to_string())
             .spawn(move || {
                 let mut spans = Vec::new();
+                spans.reserve(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
 
                 loop {
-                    let timeout = config
+                    let remaining_time_option = config
                         .scheduled_delay
-                        .saturating_sub(last_export_time.elapsed());
-                    match message_receiver.recv_timeout(timeout) {
+                        .checked_sub(last_export_time.elapsed());
+                    let remaining_time = match remaining_time_option {
+                        Some(remaining_time) => remaining_time,
+                        None => config.scheduled_delay,
+                    };
+                    match message_receiver.recv_timeout(remaining_time) {
                         Ok(message) => match message {
                             BatchMessage::ExportSpan(span) => {
                                 spans.push(span);
@@ -351,14 +356,17 @@ impl SpanProcessor for BatchSpanProcessor {
     /// Handles span end.
     fn on_end(&self, span: SpanData) {
         if self.is_shutdown.load(Ordering::Relaxed) {
-            eprintln!("Processor is shutdown. Dropping span.");
+            // this is a warning, as the user is trying to emit after the processor has been shutdown
+            otel_warn!(
+                name: "BatchSpanProcessor.Emit.ProcessorShutdown",
+            );
             return;
         }
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
         // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
-            // Increment dropped logs count. The first time we have to drop a log,
+            // Increment dropped span count. The first time we have to drop a span,
             // emit a warning.
             if self.dropped_span_count.fetch_add(1, Ordering::Relaxed) == 0 {
                 otel_warn!(name: "BatchSpanProcessorDedicatedThread.SpanDroppingStarted",
@@ -384,6 +392,14 @@ impl SpanProcessor for BatchSpanProcessor {
 
     /// Shuts down the processor.
     fn shutdown(&self) -> TraceResult<()> {
+        let dropped_spans = self.dropped_span_count.load(Ordering::Relaxed);
+        if dropped_spans > 0 {
+            otel_warn!(
+                name: "BatchSpanProcessor.LogsDropped",
+                dropped_span_count = dropped_spans,
+                message = "Spans were dropped due to a queue being full or other error. The count represents the total count of spans dropped in the lifetime of this BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+            );
+        }
         if self.is_shutdown.swap(true, Ordering::Relaxed) {
             return Err(TraceError::Other("Processor already shutdown".into()));
         }
@@ -396,7 +412,12 @@ impl SpanProcessor for BatchSpanProcessor {
             .recv_timeout(self.shutdown_timeout)
             .map_err(|_| TraceError::ExportTimedOut(self.shutdown_timeout))?;
         if let Some(handle) = self.handle.lock().unwrap().take() {
-            handle.join().expect("Failed to join thread");
+            if let Err(err) = handle.join() {
+                return Err(TraceError::Other(format!(
+                    "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {:?}",
+                    err
+                ).into()));
+            }
         }
         result
     }
@@ -1031,5 +1052,89 @@ mod tests {
                 .get(Key::new("service.name")),
             Some(Value::from("test_service"))
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_processor_current_thread_runtime() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .with_scheduled_delay(Duration::from_millis(50))
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_count_1_runtime() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .with_scheduled_delay(Duration::from_millis(50))
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_batch_processor_multi_thread() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(20)
+            .with_max_export_batch_size(5)
+            .with_scheduled_delay(Duration::from_millis(50))
+            .build();
+
+        // Create the processor with the thread-safe exporter
+        let processor = Arc::new(BatchSpanProcessor::new(exporter, config));
+
+        let mut handles = vec![];
+        for _ in 0..10 {
+            let processor_clone = Arc::clone(&processor);
+            let handle = tokio::spawn(async move {
+                let span = new_test_export_span_data();
+                processor_clone.on_end(span);
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // Allow time for batching and export
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Verify exported spans
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 10);
     }
 }
