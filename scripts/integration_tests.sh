@@ -16,7 +16,7 @@ if [ -d "$TEST_DIR" ]; then
     # Run tests with the reqwest-client feature
     echo
     echo ####
-    echo Integration Tests: Reqwest Client (Disabled now)
+    echo "Integration Tests: Reqwest Client (Disabled now)"
     echo ####
     echo
     # TODO: reqwest client is not supported with thread based processor and reader. Enable this test once it is supported.
@@ -33,7 +33,7 @@ if [ -d "$TEST_DIR" ]; then
     # Run tests with the hyper-client feature
     echo
     echo ####
-    echo Integration Tests: Hyper Client (Disabled now)
+    echo "Integration Tests: Hyper Client (Disabled now)
     echo ####
     echo
     # TODO: hyper client is not supported with thread based processor and reader. Enable this test once it is supported.
