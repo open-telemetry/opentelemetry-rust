@@ -159,6 +159,58 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
+- **Breaking** [#2456](https://github.com/open-telemetry/opentelemetry-rust/pull/2456)
+
+  `BatchSpanProcessor` no longer requires an async runtime by default. Instead, a dedicated
+  background thread is created to do the batch processing and exporting.
+
+  For users who prefer the previous behavior of relying on a specific
+  `Runtime`, they can do so by enabling the feature flag
+  **`experimental_trace_batch_span_processor_with_async_runtime`**.
+
+ 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+    new default implementation does not require a runtime argument. Replace the
+    builder method accordingly:
+    - *Before:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter).build())
+        .build();
+      ```
+
+ 2. *Async Runtime Support*
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_trace_batch_span_processor_with_async_runtime" feature flag and
+    adjust code as below.
+
+    - *Before:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(span_processor_with_async_runtime::BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    *Requirements:*
+    - Enable the feature flag:
+      `experimental_trace_batch_span_processor_with_async_runtime`.  
+    - Continue enabling one of the async runtime feature flags: `rt-tokio`,
+      `rt-tokio-current-thread`, or `rt-async-std`.
+
 ## 0.27.1
 
 Released 2024-Nov-27

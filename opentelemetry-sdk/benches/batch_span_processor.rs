@@ -3,7 +3,6 @@ use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_sdk::export::trace::SpanData;
-use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
 use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
@@ -49,14 +48,13 @@ fn criterion_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     let rt = Runtime::new().unwrap();
                     rt.block_on(async move {
-                        let span_processor =
-                            BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio)
-                                .with_batch_config(
-                                    BatchConfigBuilder::default()
-                                        .with_max_queue_size(10_000)
-                                        .build(),
-                                )
-                                .build();
+                        let span_processor = BatchSpanProcessor::builder(NoopSpanExporter::new())
+                            .with_batch_config(
+                                BatchConfigBuilder::default()
+                                    .with_max_queue_size(10_000)
+                                    .build(),
+                            )
+                            .build();
                         let mut shared_span_processor = Arc::new(span_processor);
                         let mut handles = Vec::with_capacity(10);
                         for _ in 0..task_num {
@@ -70,10 +68,9 @@ fn criterion_benchmark(c: &mut Criterion) {
                             }));
                         }
                         futures_util::future::join_all(handles).await;
-                        let _ =
-                            Arc::<BatchSpanProcessor<Tokio>>::get_mut(&mut shared_span_processor)
-                                .unwrap()
-                                .shutdown();
+                        let _ = Arc::<BatchSpanProcessor>::get_mut(&mut shared_span_processor)
+                            .unwrap()
+                            .shutdown();
                     });
                 })
             },
