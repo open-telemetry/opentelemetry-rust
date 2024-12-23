@@ -8,7 +8,7 @@ use opentelemetry_sdk::logs::LogError;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::metrics::MetricError;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;

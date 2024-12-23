@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
@@ -207,7 +207,6 @@ impl LogProcessor for BatchLogProcessor {
                 instrumentation.clone(),
             ))));
 
-        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
             // Increment dropped logs count. The first time we have to drop a log,
             // emit a warning.
@@ -317,6 +316,12 @@ impl BatchLogProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
+                otel_info!(
+                    name: "BatchLogProcessor.ThreadStarted",
+                    interval_in_millisecs = config.scheduled_delay.as_millis(),
+                    max_export_batch_size = config.max_export_batch_size,
+                    max_queue_size = max_queue_size,
+                );
                 let mut last_export_time = Instant::now();
                 let mut logs = Vec::new();
                 logs.reserve(config.max_export_batch_size);
@@ -387,6 +392,9 @@ impl BatchLogProcessor {
                         }
                     }
                 }
+                otel_info!(
+                    name: "BatchLogProcessor.ThreadStopped"
+                );
             })
             .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 

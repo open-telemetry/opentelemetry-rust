@@ -37,7 +37,7 @@
 use crate::export::trace::{SpanData, SpanExporter};
 use crate::resource::Resource;
 use crate::trace::Span;
-use opentelemetry::otel_error;
+use opentelemetry::{otel_error, otel_info};
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
@@ -258,8 +258,14 @@ impl BatchSpanProcessor {
         let (message_sender, message_receiver) = sync_channel(config.max_queue_size);
 
         let handle = thread::Builder::new()
-            .name("BatchSpanProcessorThread".to_string())
+            .name("OpenTelemetry.Traces.BatchProcessor".to_string())
             .spawn(move || {
+                otel_info!(
+                    name: "BatchSpanProcessor.ThreadStarted",
+                    interval_in_millisecs = config.scheduled_delay.as_millis(),
+                    max_export_batch_size = config.max_export_batch_size,
+                    max_queue_size = config.max_queue_size,
+                );
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
 
@@ -321,6 +327,9 @@ impl BatchSpanProcessor {
                         }
                     }
                 }
+                otel_info!(
+                    name: "BatchSpanProcessor.ThreadStopped"
+                );
             })
             .expect("Failed to spawn thread"); //TODO: Handle thread spawn failure
 
@@ -363,13 +372,12 @@ impl SpanProcessor for BatchSpanProcessor {
         }
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
-        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
             // Increment dropped span count. The first time we have to drop a span,
             // emit a warning.
             if self.dropped_span_count.fetch_add(1, Ordering::Relaxed) == 0 {
-                otel_warn!(name: "BatchSpanProcessorDedicatedThread.SpanDroppingStarted",
-                    message = "BatchSpanProcessorDedicatedThread dropped a Span due to queue full/internal errors. No further span will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+                otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
+                    message = "BatchSpanProcessor dropped a Span due to queue full/internal errors. No further internal log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total Spans dropped.");
             }
         }
     }
