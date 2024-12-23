@@ -29,6 +29,19 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
+/// Certificate file to validate the OTLP server connection
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CERTIFICATE";
+/// Path to the certificate file to use for client authentication (mTLS).
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE";
+/// Path to the key file to use for client authentication (mTLS).
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_CLIENT_KEY";
+/// Use insecure connection. Disable TLS
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_INSECURE: &str = "OTEL_EXPORTER_OTLP_INSECURE";
+
 #[cfg(feature = "http-json")]
 /// Default protocol, using http-json.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
@@ -82,6 +95,18 @@ pub struct ExportConfig {
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub timeout: Option<Duration>,
+
+    /// Disable TLS
+    pub insecure: Option<bool>,
+
+    /// The certificate file to validate the OTLP server connection
+    pub certificate: Option<String>,
+
+    /// The path to the certificate file to use for client authentication (mTLS).
+    pub client_certificate: Option<String>,
+
+    /// The path to the key file to use for client authentication (mTLS).
+    pub client_key: Option<String>,
 }
 
 impl Default for ExportConfig {
@@ -94,6 +119,10 @@ impl Default for ExportConfig {
             // won't know if user provided a value
             protocol,
             timeout: None,
+            insecure: None,
+            certificate: None,
+            client_certificate: None,
+            client_key: None,
         }
     }
 }
@@ -247,6 +276,17 @@ pub trait WithExportConfig {
     ///
     /// Note: Programmatically setting this will override any value set via environment variables.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
+    /// Set insecure connection. Disable TLS
+    fn with_insecure(self) -> Self;
+    /// Set the certificate file to validate the OTLP server connection
+    /// This is only available when the `tls` feature is enabled.
+    fn with_certificate<T: Into<String>>(self, certificate: T) -> Self;
+    /// Set the path to the certificate file to use for client authentication (mTLS).
+    /// This is only available when the `tls` feature is enabled.
+    fn with_client_certificate<T: Into<String>>(self, client_certificate: T) -> Self;
+    /// Set the path to the key file to use for client authentication (mTLS).
+    /// This is only available when the `tls` feature is enabled.
+    fn with_client_key<T: Into<String>>(self, client_key: T) -> Self;
 }
 
 impl<B: HasExportConfig> WithExportConfig for B {
@@ -269,6 +309,27 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self.export_config().endpoint = exporter_config.endpoint;
         self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
+        self.export_config().insecure = Some(true);
+        self
+    }
+
+    fn with_insecure(mut self) -> Self {
+        self.export_config().insecure = Some(true);
+        self
+    }
+
+    fn with_certificate<T: Into<String>>(mut self, certificate: T) -> Self {
+        self.export_config().certificate = Some(certificate.into());
+        self
+    }
+
+    fn with_client_certificate<T: Into<String>>(mut self, client_certificate: T) -> Self {
+        self.export_config().client_certificate = Some(client_certificate.into());
+        self
+    }
+
+    fn with_client_key<T: Into<String>>(mut self, client_key: T) -> Self {
+        self.export_config().client_key = Some(client_key.into());
         self
     }
 }
