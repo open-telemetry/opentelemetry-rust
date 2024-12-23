@@ -148,8 +148,17 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
-        let logs_guard = self.logs.lock().map_err(LogError::from)?;
-        let resource_guard = self.resource.lock().map_err(LogError::from)?;
+        let logs_guard = self.logs.lock().map_err(|_| {
+            LogError::from(
+                "InMemoryLogExporter: log buffer mutex poisoned trying to get_emitted_logs",
+            )
+        })?;
+        let resource_guard = self.resource.lock().map_err(|_| {
+            LogError::from(
+                "InMemoryLogExporter: resource mutex poisoned trying to get_emitted_logs",
+            )
+        })?;
+
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
@@ -173,8 +182,12 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn reset(&self) -> Result<(), LogError> {
-        self.logs.lock().map(|mut logs_guard| logs_guard.clear())?;
-
+        self.logs
+            .lock()
+            .map_err(|_| {
+                LogError::from("InMemoryLogExporter: log buffer mutex poisoned trying to reset()")
+            })
+            .map(|mut logs_guard| logs_guard.clear())?;
         Ok(())
     }
 }

@@ -110,10 +110,6 @@ pub struct SpanData {
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum ShutdownError {
-    /// The exporter has already been shut down.
-    #[error("Shutdown already performed")]
-    AlreadyShutdown,
-
     /// Shutdown timed out before completing.
     #[error("Shutdown timed out after {0:?}")]
     Timeout(Duration),
