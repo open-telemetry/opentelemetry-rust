@@ -319,9 +319,11 @@ impl BatchSpanProcessor {
                             }
                         }
                         Err(RecvTimeoutError::Disconnected) => {
-                            otel_error!(
-                                name: "BatchSpanProcessor.InternalError.ChannelDisconnected",
-                                message = "Channel disconnected, shutting down processor thread."
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "BatchSpanProcessor.ThreadExiting",
+                                reason = "MessageReceiverDisconnected"
                             );
                             break;
                         }
