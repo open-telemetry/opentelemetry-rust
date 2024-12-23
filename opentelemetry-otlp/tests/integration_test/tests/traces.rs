@@ -181,8 +181,7 @@ pub fn span_batch_non_tokio_main() -> Result<()> {
     std::thread::sleep(Duration::from_secs(2));
 
     // Validate results
-    // TODO: Fix this test
-    // assert_traces_results(test_utils::TRACES_FILE, "./expected/traces.json")?;
+    assert_traces_results(test_utils::TRACES_FILE, "./expected/traces.json")?;
     Ok(())
 }
 
