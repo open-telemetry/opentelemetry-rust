@@ -100,7 +100,6 @@ async fn smoke_tracer() {
                     .with_metadata(metadata)
                     .build()
                     .expect("NON gzip-tonic SpanExporter failed to build"),
-                opentelemetry_sdk::runtime::Tokio,
             )
             .build();
 

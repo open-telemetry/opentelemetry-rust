@@ -49,9 +49,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
         .build()?;
 
     Ok(TracerProvider::builder()
-        // TODO: Enable BatchExporter after
-        // https://github.com/open-telemetry/opentelemetry-rust/pull/2456
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
@@ -73,7 +71,6 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
 
 // #[tokio::main]
 // TODO: Re-enable tokio::main, if needed, after
-// https://github.com/open-telemetry/opentelemetry-rust/pull/2456
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let logger_provider = init_logs()?;
 
