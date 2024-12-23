@@ -260,8 +260,7 @@ impl BatchSpanProcessor {
         let handle = thread::Builder::new()
             .name("BatchSpanProcessorThread".to_string())
             .spawn(move || {
-                let mut spans = Vec::new();
-                spans.reserve(config.max_export_batch_size);
+                let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
 
                 loop {
