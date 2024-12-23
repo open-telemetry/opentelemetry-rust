@@ -37,8 +37,8 @@
 use crate::export::trace::{SpanData, SpanExporter};
 use crate::resource::Resource;
 use crate::trace::Span;
-use opentelemetry::{otel_error, otel_info};
 use opentelemetry::{otel_debug, otel_warn};
+use opentelemetry::{otel_error, otel_info};
 use opentelemetry::{
     trace::{TraceError, TraceResult},
     Context,
