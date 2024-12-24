@@ -3,6 +3,7 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
+- TLS configuration via environment variables for GRPc exporters.
 
 
 ## 0.27.0
