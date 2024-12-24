@@ -26,7 +26,7 @@
 //! ```ascii
 //!   +-----+---------------+   +-----------------------+   +-------------------+
 //!   |     |               |   |                       |   |                   |
-//!   | SDK | Logger.emit() +---> (Simple)LogProcessor  +--->  LogExporter       |
+//!   | SDK | Logger.emit() +---> (Simple)LogProcessor  +--->  LogExporter      |
 //!   |     |               |   | (Batch)LogProcessor   +--->  (OTLPExporter)   |
 //!   +-----+---------------+   +-----------------------+   +-------------------+
 //! ```
