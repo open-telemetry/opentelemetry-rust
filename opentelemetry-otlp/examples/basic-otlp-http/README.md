@@ -13,11 +13,9 @@ applications, these filters should be adjusted appropriately.
 
 The example employs a `BatchExporter` for logs and traces, which is the
 recommended approach when using OTLP exporters. While it can be modified to use
-a `SimpleExporter`, this requires enabling feature flag `reqwest-blocking-client` and
-making the `main()` a normal main and *not* `tokio::main`
+a `SimpleExporter`, this requires making the main function a regular main and
+*not* tokio main.
 
-// TODO: Metrics does not work with non tokio main when using `reqwest-blocking-client` today, fix that when switching
-// default to use own thread.
 // TODO: Document `hyper` feature flag when using SimpleProcessor.
 
 ## Usage

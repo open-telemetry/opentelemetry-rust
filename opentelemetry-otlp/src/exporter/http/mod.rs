@@ -28,7 +28,7 @@ use std::time::Duration;
 mod metrics;
 
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "trace")]
 mod trace;
@@ -239,7 +239,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
-        Ok(crate::LogExporter::new(client))
+        Ok(crate::LogExporter::from_http(client))
     }
 
     /// Create a metrics exporter with the current configuration
@@ -265,7 +265,7 @@ impl HttpExporterBuilder {
 }
 
 #[derive(Debug)]
-struct OtlpHttpClient {
+pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,

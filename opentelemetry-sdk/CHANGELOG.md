@@ -98,7 +98,10 @@
       `experimental_metrics_periodicreader_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
-      
+
+    Feature flag "experimental_metrics_periodic_reader_no_runtime" is removed as the PeriodicReader
+    offered under that feature flag is now the default.
+
   - Bump msrv to 1.75.0.
 
 - *Breaking* : [#2314](https://github.com/open-telemetry/opentelemetry-rust/pull/2314)
@@ -152,7 +155,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - *After:*
       ```rust
       let logger_provider = LoggerProvider::builder()
-        .with_log_processor(BatchLogProcessorWithAsyncRuntime::builder(exporter, runtime::Tokio).build())
+        .with_log_processor(log_processor_with_async_runtime::BatchLogProcessor::builder(exporter, runtime::Tokio).build())
         .build();
       ```
 
