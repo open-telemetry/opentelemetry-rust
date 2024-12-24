@@ -167,6 +167,71 @@ enum BatchMessage {
 
 /// A [`LogProcessor`] that buffers log records and reports
 /// them at a pre-configured interval from a dedicated background thread.
+
+// **Memory Management in BatchLogProcessor**
+//
+// The `BatchLogProcessor` manages memory through the following stages of log processing:
+//
+// 1. **Record Ingestion**:
+//    - Each `LogRecord` is **cloned** upon entering the processor.
+//    - `LogRecordAttributes` utilize a hybrid memory model:
+//      - Attributes up to `PREALLOCATED_ATTRIBUTE_CAPACITY` are **stack-allocated**.
+//      - Exceeding attributes trigger **heap allocation** in a dynamically growing vector.
+//    - The `LogRecord` and its associated `InstrumentationScope` are **boxed together**
+//      to allocate them on the heap before entering the queue.
+//
+// 2. **Queue Management**:
+//    - Uses a **bounded synchronous channel** (`sync_channel`) with a maximum size defined by `max_queue_size`.
+//    - Each queued item is a **heap-allocated** `Box<(LogRecord, InstrumentationScope)>`.
+//    - When the queue is full:
+//      - Records are **dropped** (counted but not stored).
+//      - A warning is logged the first time this occurs.
+//
+// 3. **Worker Thread Storage**:
+//    - The worker thread maintains a pre-allocated `Vec` of boxed record pairs:
+//      - The vector’s capacity is fixed at `max_export_batch_size`.
+//    - Records are **moved** (not cloned) from the queue to the vector for processing.
+//
+// 4. **Export Process**:
+//    - A temporary `Vec` is created during the export process to hold ownership of the boxed records:
+//        - The contents of the worker thread's buffer (`Vec<Box<(LogRecord, InstrumentationScope)>>`)
+//          are moved into this temporary vector using `logs.split_off(0)`.
+//        - Ownership of the boxed records is transferred to the new vector, ensuring efficient
+//          memory usage without additional cloning.
+//    - The temporary vector is then used to construct references passed to the exporter via `LogBatch`.
+//        - The `export()` method receives references to the log records and `InstrumentationScope`
+//          contained in `LogBatch`.
+//        - If the exporter requires retaining the log records (e.g., for retries or asynchronous
+//          operations), it must **clone** the records inside the `export()` implementation.
+//    - After successful export:
+//        - The original boxed records are dropped, releasing heap memory.
+//    - Export is triggered in the following scenarios:
+//        - When the batch size reaches `max_export_batch_size`.
+//        - When the scheduled delay timer expires.
+//        - When `force_flush` is called.
+//        - During processor shutdown.
+//
+/// 5. **Memory Limits**:
+///    - **Worst-Case Memory Usage**:
+///      - **Queue Memory** = `max_queue_size * size of boxed (LogRecord + InstrumentationScope)`.
+///      - **Batch Memory** = `max_export_batch_size * size of boxed (LogRecord + InstrumentationScope)`.
+///    - **Total Maximum Memory:**
+///      - When both the queue and batch vector are full:
+///        ```
+///        (max_queue_size + max_export_batch_size) * size of boxed (LogRecord + InstrumentationScope)
+///        ```
+///    - The temporary vector used during export only holds references to records,
+///      so it does not contribute additional significant memory allocation.
+//
+// 6. **Key Notes on Memory Behavior**:
+//    - Boxing a `LogRecord` and `InstrumentationScope` moves the record to the heap,
+//      including stack-allocated attributes.
+//    - During the export process, ownership of the boxed records is transferred
+//      to a temporary vector created by `logs.split_off(0)`.
+//    - This temporary vector is then used to construct references passed to the exporter.
+//    - No additional cloning or copying occurs during the export process, minimizing
+//      memory overhead while ensuring efficient handling of log records.
+//
 pub struct BatchLogProcessor {
     message_sender: SyncSender<BatchMessage>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
