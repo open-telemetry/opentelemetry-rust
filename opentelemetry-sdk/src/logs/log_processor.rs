@@ -167,7 +167,6 @@ enum BatchMessage {
 
 /// A [`LogProcessor`] that buffers log records and reports
 /// them at a pre-configured interval from a dedicated background thread.
-
 // **Memory Management in BatchLogProcessor**
 //
 // The `BatchLogProcessor` manages memory through the following stages of log processing:
@@ -181,7 +180,6 @@ enum BatchMessage {
 //      to allocate them on the heap before entering the queue. Which means:
 //      - The entire `LogRecord` object, including its stack-allocated inline attributes, is moved to the heap.
 //      - Any overflow attributes already on the heap remain unaffected.
-
 //
 // 2. **Queue Management**:
 //    - Uses a **bounded synchronous channel** (`sync_channel`) with a maximum size defined by `max_queue_size`.
@@ -202,7 +200,7 @@ enum BatchMessage {
 //        - Ownership of the boxed records is transferred to the new vector, ensuring efficient
 //          memory usage without additional cloning.
 //    - The temporary vector is then used to construct references passed to the exporter via `LogBatch`.
-//        - The `export()` method receives references to the log records and `InstrumentationScope`
+//        - The exporter's `export()` method receives references to the log records and `InstrumentationScope`
 //          contained in `LogBatch`.
 //        - If the exporter requires retaining the log records (e.g., for retries or asynchronous
 //          operations), it must **clone** the records inside the `export()` implementation.
