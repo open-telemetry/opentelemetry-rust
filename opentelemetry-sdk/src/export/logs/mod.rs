@@ -79,10 +79,8 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = ExportResult> + Send;
+    fn export(&self, batch: LogBatch<'_>)
+        -> impl std::future::Future<Output = ExportResult> + Send;
 
     /// Shuts down the exporter. This function is idempotent; calling it
     /// more than once has no additional effect.
