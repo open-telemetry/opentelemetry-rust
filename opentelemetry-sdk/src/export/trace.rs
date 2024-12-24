@@ -5,9 +5,10 @@ use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
 use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::sync::PoisonError;
-use std::time::{Duration, SystemTime};
-use thiserror::Error;
+use std::time::SystemTime;
+
+// Re-export ShutdownError
+pub use crate::error::ShutdownError;
 
 /// Results of an export operation
 pub type ExportResult = Result<(), TraceError>;
@@ -104,29 +105,4 @@ pub struct SpanData {
     pub status: Status,
     /// Instrumentation scope that produced this span
     pub instrumentation_scope: InstrumentationScope,
-}
-
-/// Errors returned by shutdown operations in the Export API.
-#[derive(Error, Debug)]
-#[non_exhaustive]
-pub enum ShutdownError {
-    /// Shutdown timed out before completing.
-    #[error("Shutdown timed out after {0:?}")]
-    Timeout(Duration),
-
-    /// The export client failed while holding the client lock. It is not
-    /// possible to complete the shutdown and a retry will not help.
-    /// This is something that should not happen and should likely emit some diagnostic.
-    #[error("export client failed while holding lock; cannot retry.")]
-    ClientFailed(String),
-
-    /// An unexpected error occurred during shutdown.
-    #[error(transparent)]
-    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
-}
-
-impl<T> From<PoisonError<T>> for ShutdownError {
-    fn from(err: PoisonError<T>) -> Self {
-        ShutdownError::ClientFailed(format!("Mutex poisoned during shutdown: {}", err))
-    }
 }

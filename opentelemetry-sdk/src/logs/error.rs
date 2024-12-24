@@ -1,6 +1,9 @@
+// Re-export ShutdownError
+pub use crate::error::ShutdownError;
+
 use crate::export::ExportError;
 
-use std::{sync::PoisonError, time::Duration};
+use std::time::Duration;
 use thiserror::Error;
 
 /// Describe the result of operations in log SDK.
@@ -58,24 +61,3 @@ impl From<&'static str> for LogError {
 #[derive(Error, Debug)]
 #[error("{0}")]
 struct Custom(String);
-
-/// Errors returned during shutdown
-#[derive(Error, Debug)]
-#[non_exhaustive]
-pub enum ShutdownError {
-    /// The export client failed while holding the client lock. It is not
-    /// possible to complete the shutdown and a retry will not help.
-    /// This is something that should not happen and should likely emit some diagnostic.
-    #[error("export client failed while holding lock; cannot retry.")]
-    ClientFailed(String),
-
-    /// Other errors propagated from log SDK that weren't covered above.
-    #[error(transparent)]
-    Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
-}
-
-impl<T> From<PoisonError<T>> for ShutdownError {
-    fn from(err: PoisonError<T>) -> Self {
-        ShutdownError::ClientFailed(format!("Mutex poisoned during shutdown: {}", err))
-    }
-}

@@ -1,11 +1,14 @@
 //! Log exporters
+use crate::logs::LogError;
 use crate::logs::LogRecord;
-use crate::logs::{LogError, ShutdownError};
 use crate::Resource;
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
+
+// Re-export ShutdownError
+pub use crate::error::ShutdownError;
 
 /// A batch of log records to be exported by a `LogExporter`.
 ///

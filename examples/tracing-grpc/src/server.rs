@@ -5,9 +5,7 @@ use opentelemetry::{
     propagation::Extractor,
     trace::{Span, SpanKind, Tracer},
 };
-use opentelemetry_sdk::{
-    propagation::TraceContextPropagator, trace::TracerProvider,
-};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
 use opentelemetry_stdout::SpanExporter;
 use tonic::{transport::Server, Request, Response, Status};
 
