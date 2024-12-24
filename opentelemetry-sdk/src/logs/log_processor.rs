@@ -337,11 +337,12 @@ impl BatchLogProcessor {
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(BatchMessage::ExportLog(log)) => {
                             logs.push(log);
-                            if logs.len() == config.max_export_batch_size
-                                || last_export_time.elapsed() >= config.scheduled_delay
-                            {
+                            if logs.len() == config.max_export_batch_size {
+                                otel_debug!(
+                                    name: "BatchLogProcessor.ExportingDueToBatchSize",
+                                );
                                 let _ = export_with_timeout_sync(
-                                    remaining_time,
+                                    config.max_export_timeout,
                                     &mut exporter,
                                     logs.split_off(0),
                                     &mut last_export_time,
@@ -349,8 +350,9 @@ impl BatchLogProcessor {
                             }
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
                             let result = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
@@ -358,14 +360,19 @@ impl BatchLogProcessor {
                             let _ = sender.send(result);
                         }
                         Ok(BatchMessage::Shutdown(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToShutdown");
                             let result = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
 
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "ShutdownRequested"
+                            );
                             //
                             // break out the loop and return from the current background thread.
                             //
@@ -375,19 +382,24 @@ impl BatchLogProcessor {
                             exporter.set_resource(&resource);
                         }
                         Err(RecvTimeoutError::Timeout) => {
+                            otel_debug!(
+                                name: "BatchLogProcessor.ExportingDueToTimer",
+                            );
                             let _ = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
                         }
-                        Err(err) => {
-                            // TODO: this should not happen! Log the error and continue for now.
-                            otel_error!(
-                                name: "BatchLogProcessor.InternalError",
-                                error = format!("{}", err)
+                        Err(RecvTimeoutError::Disconnected) => {
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "MessageSenderDisconnected"
                             );
+                            break;
                         }
                     }
                 }
