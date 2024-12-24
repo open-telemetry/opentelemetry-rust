@@ -260,7 +260,7 @@ impl PeriodicReader {
                             // out (i.e exit the thread)
                             otel_debug!(
                                 name: "PeriodReaderThreadExiting",
-                                reason = "MessageReceiverDisconnected"
+                                reason = "MessageSenderDisconnected"
                             );
                             break;
                         }

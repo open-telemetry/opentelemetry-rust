@@ -1,7 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::{global, propagation::Injector};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, runtime::Tokio, trace as sdktrace};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace as sdktrace};
 use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
@@ -13,7 +13,7 @@ fn init_tracer() -> sdktrace::TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = sdktrace::TracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default(), Tokio)
+        .with_batch_exporter(SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider.clone());

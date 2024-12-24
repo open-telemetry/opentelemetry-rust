@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
@@ -210,7 +210,6 @@ impl LogProcessor for BatchLogProcessor {
                 instrumentation.clone(),
             ))));
 
-        // TODO - Implement throttling to prevent error flooding when the queue is full or closed.
         if result.is_err() {
             // Increment dropped logs count. The first time we have to drop a log,
             // emit a warning.
@@ -320,9 +319,14 @@ impl BatchLogProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
+                otel_info!(
+                    name: "BatchLogProcessor.ThreadStarted",
+                    interval_in_millisecs = config.scheduled_delay.as_millis(),
+                    max_export_batch_size = config.max_export_batch_size,
+                    max_queue_size = max_queue_size,
+                );
                 let mut last_export_time = Instant::now();
-                let mut logs = Vec::new();
-                logs.reserve(config.max_export_batch_size);
+                let mut logs = Vec::with_capacity(config.max_export_batch_size);
 
                 loop {
                     let remaining_time_option = config
@@ -336,11 +340,12 @@ impl BatchLogProcessor {
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(BatchMessage::ExportLog(log)) => {
                             logs.push(log);
-                            if logs.len() == config.max_export_batch_size
-                                || last_export_time.elapsed() >= config.scheduled_delay
-                            {
+                            if logs.len() == config.max_export_batch_size {
+                                otel_debug!(
+                                    name: "BatchLogProcessor.ExportingDueToBatchSize",
+                                );
                                 let _ = export_with_timeout_sync(
-                                    remaining_time,
+                                    config.max_export_timeout,
                                     &mut exporter,
                                     logs.split_off(0),
                                     &mut last_export_time,
@@ -348,8 +353,9 @@ impl BatchLogProcessor {
                             }
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
                             let result = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
@@ -357,14 +363,19 @@ impl BatchLogProcessor {
                             let _ = sender.send(result);
                         }
                         Ok(BatchMessage::Shutdown(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToShutdown");
                             let result = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
 
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "ShutdownRequested"
+                            );
                             //
                             // break out the loop and return from the current background thread.
                             //
@@ -374,22 +385,30 @@ impl BatchLogProcessor {
                             exporter.set_resource(&resource);
                         }
                         Err(RecvTimeoutError::Timeout) => {
+                            otel_debug!(
+                                name: "BatchLogProcessor.ExportingDueToTimer",
+                            );
                             let _ = export_with_timeout_sync(
-                                remaining_time,
+                                config.max_export_timeout,
                                 &mut exporter,
                                 logs.split_off(0),
                                 &mut last_export_time,
                             );
                         }
-                        Err(err) => {
-                            // TODO: this should not happen! Log the error and continue for now.
-                            otel_error!(
-                                name: "BatchLogProcessor.InternalError",
-                                error = format!("{}", err)
+                        Err(RecvTimeoutError::Disconnected) => {
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "MessageSenderDisconnected"
                             );
+                            break;
                         }
                     }
                 }
+                otel_info!(
+                    name: "BatchLogProcessor.ThreadStopped"
+                );
             })
             .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 
