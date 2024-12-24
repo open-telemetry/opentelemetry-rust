@@ -6,6 +6,7 @@ members = [
     "opentelemetry-otlp/tests/*",
     "examples/*",
     "stress",
+    "xtask",
 ]
 resolver = "2"
 
