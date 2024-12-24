@@ -287,7 +287,12 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             // Stream has terminated or processor is shutdown, return to finish execution.
             BatchMessage::Shutdown(ch) => {
                 self.flush(Some(ch)).await;
-                self.exporter.shutdown();
+                if let Err(shutdown_error) = self.exporter.shutdown() {
+                    otel_debug!(
+                        name: "BatchSpanProcessor.ShutdownError",
+                        msg = format!("{:?}", shutdown_error)
+                    );
+                }
                 return false;
             }
             // propagate the resource

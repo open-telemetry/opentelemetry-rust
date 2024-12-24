@@ -103,14 +103,14 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
+            .map_err(|_| LogError::ClientFailed("SimpleLogProcessor".into()))
             .and_then(|exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         // Handle errors with specific static names
         match result {
-            Err(LogError::MutexPoisoned(_)) => {
+            Err(LogError::ClientFailed(_)) => {
                 // logging as debug as this is not a user error
                 otel_debug!(
                     name: "SimpleLogProcessor.Emit.MutexPoisoning",
@@ -134,10 +134,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
+            exporter
+                .shutdown()
+                .map_err(|e| LogError::Other(Box::new(e)))?;
             Ok(())
         } else {
-            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
+            // Failing to get the mutex means the export client failed whilst holding it
+            Err(LogError::ClientFailed("SimpleLogProcessor".into()))
         }
     }
 
@@ -676,8 +679,6 @@ mod tests {
         ) -> impl std::future::Future<Output = LogResult<()>> + Send {
             async { Ok(()) }
         }
-
-        fn shutdown(&mut self) {}
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource

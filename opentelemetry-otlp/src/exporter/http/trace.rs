@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::{otel_debug, trace::TraceError};
-use opentelemetry_sdk::export::trace::{ExportResult, SpanData, SpanExporter};
+use opentelemetry::otel_debug;
+use opentelemetry::trace::TraceError;
+use opentelemetry_sdk::export::trace::{ExportResult, ShutdownResult, SpanData, SpanExporter};
 
 use super::OtlpHttpClient;
 
@@ -64,8 +65,9 @@ impl SpanExporter for OtlpHttpClient {
         })
     }
 
-    fn shutdown(&mut self) {
-        let _ = self.client.lock().map(|mut c| c.take());
+    fn shutdown(&mut self) -> ShutdownResult {
+        let _ = self.client.lock()?.take();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

@@ -1,6 +1,6 @@
-use crate::export::logs::{LogBatch, LogExporter};
-use crate::logs::LogRecord;
+use crate::export::logs::{ExportResult, LogBatch, LogExporter};
 use crate::logs::{LogError, LogResult};
+use crate::logs::{LogRecord, ShutdownError};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
@@ -147,8 +147,17 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
-        let logs_guard = self.logs.lock().map_err(LogError::from)?;
-        let resource_guard = self.resource.lock().map_err(LogError::from)?;
+        let logs_guard = self.logs.lock().map_err(|_| {
+            LogError::from(
+                "InMemoryLogExporter: log buffer mutex poisoned trying to get_emitted_logs",
+            )
+        })?;
+        let resource_guard = self.resource.lock().map_err(|_| {
+            LogError::from(
+                "InMemoryLogExporter: resource mutex poisoned trying to get_emitted_logs",
+            )
+        })?;
+
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
@@ -171,12 +180,14 @@ impl InMemoryLogExporter {
     /// exporter.reset();
     /// ```
     ///
-    pub fn reset(&self) {
-        let _ = self
-            .logs
+    pub fn reset(&self) -> Result<(), LogError> {
+        self.logs
             .lock()
-            .map(|mut logs_guard| logs_guard.clear())
-            .map_err(LogError::from);
+            .map_err(|_| {
+                LogError::from("InMemoryLogExporter: log buffer mutex poisoned trying to reset()")
+            })
+            .map(|mut logs_guard| logs_guard.clear())?;
+        Ok(())
     }
 }
 
@@ -185,9 +196,15 @@ impl LogExporter for InMemoryLogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = ExportResult> + Send {
         async move {
-            let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+            // Lock the logs, returning an error if the lock is poisoned.
+            let mut logs_guard = self
+                .logs
+                .lock()
+                .map_err(|e| LogError::ClientFailed(e.to_string()))?;
+
+            // Iterate over the log batch and push each log into the guard.
             for (log_record, instrumentation) in batch.iter() {
                 let owned_log = OwnedLogData {
                     record: (*log_record).clone(),
@@ -195,14 +212,18 @@ impl LogExporter for InMemoryLogExporter {
                 };
                 logs_guard.push(owned_log);
             }
+
+            // Indicate success.
             Ok(())
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> Result<(), ShutdownError> {
         if self.should_reset_on_shutdown {
-            self.reset();
+            self.reset()
+                .map_err(|e| ShutdownError::Other(Box::new(e)))?;
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

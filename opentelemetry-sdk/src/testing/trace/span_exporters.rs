@@ -1,3 +1,4 @@
+use crate::export::trace::{ShutdownError, ShutdownResult};
 use crate::{
     export::trace::{ExportResult, SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
@@ -53,8 +54,11 @@ impl SpanExporter for TokioSpanExporter {
         Box::pin(std::future::ready(Ok(())))
     }
 
-    fn shutdown(&mut self) {
-        self.tx_shutdown.send(()).unwrap();
+    fn shutdown(&mut self) -> ShutdownResult {
+        self.tx_shutdown
+            .send(())
+            .map_err::<ShutdownError, _>(|err| ShutdownError::Other(Box::new(err)))?;
+        Ok(())
     }
 }
 

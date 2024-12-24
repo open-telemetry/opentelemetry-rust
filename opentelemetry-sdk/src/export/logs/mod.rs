@@ -1,11 +1,14 @@
 //! Log exporters
+use crate::logs::LogError;
 use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult};
 use crate::Resource;
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
+
+// Re-export ShutdownError
+pub use crate::error::ShutdownError;
 
 /// A batch of log records to be exported by a `LogExporter`.
 ///
@@ -79,13 +82,15 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send;
+    fn export(&self, batch: LogBatch<'_>)
+        -> impl std::future::Future<Output = ExportResult> + Send;
 
-    /// Shuts down the exporter.
-    fn shutdown(&mut self) {}
+    /// Shuts down the exporter. This function is idempotent; calling it
+    /// more than once has no additional effect.
+    fn shutdown(&mut self) -> ShutdownResult {
+        Ok(())
+    }
+
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -98,3 +103,6 @@ pub trait LogExporter: Send + Sync + Debug {
 
 /// Describes the result of an export.
 pub type ExportResult = Result<(), LogError>;
+
+/// Describes the result of a shutdown in the log SDK.
+pub type ShutdownResult = Result<(), ShutdownError>;

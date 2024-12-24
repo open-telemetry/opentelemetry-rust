@@ -146,14 +146,10 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 
     fn shutdown(&self) -> TraceResult<()> {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
-            Ok(())
-        } else {
-            Err(TraceError::Other(
-                "SimpleSpanProcessor mutex poison at shutdown".into(),
-            ))
-        }
+        self.exporter
+            .lock()?
+            .shutdown()
+            .map_err(|e| TraceError::Other(Box::new(e)))
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -651,7 +647,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+    use crate::export::trace::{ExportResult, ShutdownError, SpanData, SpanExporter};
     use crate::testing::trace::{new_test_export_span_data, InMemorySpanExporterBuilder};
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -856,7 +852,9 @@ mod tests {
             .boxed()
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> Result<(), ShutdownError> {
+            Ok(())
+        }
         fn set_resource(&mut self, resource: &Resource) {
             let mut exported_resource = self.exported_resource.lock().unwrap();
             *exported_resource = Some(resource.clone());
