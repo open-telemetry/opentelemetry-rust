@@ -13,7 +13,7 @@ use anyhow::Result;
 use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry_proto::tonic::trace::v1::TracesData;
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{trace as sdktrace, Resource};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::fs::MetadataExt;

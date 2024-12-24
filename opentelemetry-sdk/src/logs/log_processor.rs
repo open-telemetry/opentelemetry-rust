@@ -152,14 +152,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum BatchMessage {
-    /// Export logs, usually called when the log is emitted.
+    /// Export logs, called when the log is emitted.
     ExportLog(Box<(LogRecord, InstrumentationScope)>),
-    /// Flush the current buffer to the backend, it can be triggered by
-    /// pre configured interval or a call to `force_push` function.
-    // Flush(Option<oneshot::Sender<ExportResult>>),
-    /// ForceFlush flushes the current buffer to the backend.
+    /// ForceFlush flushes the current buffer to the exporter.
     ForceFlush(mpsc::SyncSender<ExportResult>),
-    /// Shut down the worker thread, push all logs in buffer to the backend.
+    /// Shut down the worker thread, push all logs in buffer to the exporter.
     Shutdown(mpsc::SyncSender<ExportResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),

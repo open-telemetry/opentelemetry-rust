@@ -94,7 +94,7 @@ mod logtests {
 
         tokio::time::sleep(Duration::from_secs(10)).await;
 
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json");
+        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
         Ok(())
     }
@@ -122,7 +122,7 @@ mod logtests {
         }
         let _ = logger_provider.shutdown();
         // tokio::time::sleep(Duration::from_secs(10)).await;
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json");
+        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
         Ok(())
     }
