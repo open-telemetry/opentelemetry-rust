@@ -408,14 +408,19 @@ impl PeriodicReaderInner {
             .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricError::Other(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
-            if response {
-                Ok(())
-            } else {
+        // TODO: accept timeout from caller.
+        match response_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(response) => {
+                if response {
+                    Ok(())
+                } else {
+                    Err(MetricError::Other("Failed to shutdown".into()))
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::ShutdownTimeout),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
-        } else {
-            Err(MetricError::Other("Failed to shutdown".into()))
         }
     }
 }
@@ -573,10 +578,12 @@ mod tests {
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), MetricError::AlreadyShutdown);
 
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), MetricError::AlreadyShutdown);
     }
 
     #[test]
@@ -598,6 +605,7 @@ mod tests {
         // calling force_flush after shutdown should return Err
         let result = meter_provider.force_flush();
         assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), MetricError::AlreadyShutdown);
     }
 
     #[test]
