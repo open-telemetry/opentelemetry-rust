@@ -323,7 +323,7 @@ impl BatchSpanProcessor {
                             // out (i.e exit the thread)
                             otel_debug!(
                                 name: "BatchSpanProcessor.ThreadExiting",
-                                reason = "MessageReceiverDisconnected"
+                                reason = "MessageSenderDisconnected"
                             );
                             break;
                         }

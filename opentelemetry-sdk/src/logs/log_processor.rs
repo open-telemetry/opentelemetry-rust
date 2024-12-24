@@ -397,7 +397,7 @@ impl BatchLogProcessor {
                             // out (i.e exit the thread)
                             otel_debug!(
                                 name: "BatchLogProcessor.ThreadExiting",
-                                reason = "MessageReceiverDisconnected"
+                                reason = "MessageSenderDisconnected"
                             );
                             break;
                         }
