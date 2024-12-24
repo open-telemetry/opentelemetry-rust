@@ -178,7 +178,10 @@ enum BatchMessage {
 //      - Attributes up to `PREALLOCATED_ATTRIBUTE_CAPACITY` are **stack-allocated**.
 //      - Exceeding attributes trigger **heap allocation** in a dynamically growing vector.
 //    - The `LogRecord` and its associated `InstrumentationScope` are **boxed together**
-//      to allocate them on the heap before entering the queue.
+//      to allocate them on the heap before entering the queue. Which means:
+//      - The entire `LogRecord` object, including its stack-allocated inline attributes, is moved to the heap.
+//      - Any overflow attributes already on the heap remain unaffected.
+
 //
 // 2. **Queue Management**:
 //    - Uses a **bounded synchronous channel** (`sync_channel`) with a maximum size defined by `max_queue_size`.
