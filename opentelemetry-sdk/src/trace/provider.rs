@@ -680,7 +680,7 @@ mod tests {
         // noop tracer's tracer provider should be shutdown
         assert!(noop_tracer.provider().is_shutdown());
 
-        // existing tracer becomes noops after shutdown
+        // existing tracer becomes noop after shutdown
         let _ = test_tracer_1.start("test");
         assert!(assert_handle.started_span_count(2));
 
