@@ -13,7 +13,7 @@
     transparent change.
     [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
   - `ResourceDetector.detect()` no longer supports timeout option.
-  - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply clonable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
+  - `opentelemetry::global::shutdown_tracer_provider()` removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply clonable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
 - *Feature*: Add `ResourceBuilder` for an easy way to create new `Resource`s
 - *Breaking*: Remove `Resource::{new,empty,from_detectors,new_with_defaults,from_schema_url,merge,default}` from public api. To create Resources you should only use `Resource::builder()` or `Resource::builder_empty()`. See [#2322](https://github.com/open-telemetry/opentelemetry-rust/pull/2322) for a migration guide.
   Example Usage:
