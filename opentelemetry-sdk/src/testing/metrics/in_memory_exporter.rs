@@ -278,11 +278,6 @@ impl PushMetricExporter for InMemoryMetricExporter {
     }
 
     fn shutdown(&self) -> MetricResult<()> {
-        self.metrics
-            .lock()
-            .map(|mut metrics_guard| metrics_guard.clear())
-            .map_err(MetricError::from)?;
-
         Ok(())
     }
 
