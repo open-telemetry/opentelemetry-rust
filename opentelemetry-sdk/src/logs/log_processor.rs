@@ -610,7 +610,7 @@ pub struct BatchConfigBuilder {
 
 impl Default for BatchConfigBuilder {
     /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
-    /// The values are overriden by environment variables if set.
+    /// The values are overridden by environment variables if set.
     /// The supported environment variables are:
     /// * `OTEL_BLRP_MAX_QUEUE_SIZE`
     /// * `OTEL_BLRP_SCHEDULE_DELAY`

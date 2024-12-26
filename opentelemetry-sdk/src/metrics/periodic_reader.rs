@@ -350,7 +350,7 @@ impl PeriodicReaderInner {
         });
         otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
 
-        // TODO: substract the time taken for collect from the timeout. collect
+        // TODO: subtract the time taken for collect from the timeout. collect
         // involves observable callbacks too, which are user defined and can
         // take arbitrary time.
         //
@@ -887,7 +887,7 @@ mod tests {
                 })
                 .build();
             // rt here is a reference to the current tokio runtime.
-            // Droppng it occurs when the tokio::main itself ends.
+            // Dropping it occurs when the tokio::main itself ends.
         } else {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let _gauge = meter

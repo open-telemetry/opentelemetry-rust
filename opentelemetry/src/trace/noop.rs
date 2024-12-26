@@ -1,4 +1,4 @@
-//! No-op trace impls
+//! No-op trace implementation
 //!
 //! This implementation is returned as the global tracer if no `Tracer`
 //! has been set. It is also useful for testing purposes as it is intended
