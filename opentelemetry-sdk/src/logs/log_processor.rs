@@ -422,7 +422,7 @@ impl BatchLogProcessor {
                                 let _ = export_with_timeout_sync(
                                     config.max_export_timeout,
                                     &mut exporter,
-                                    logs.split_off(0),
+                                    &mut logs,
                                     &mut last_export_time,
                                 );
                             }
@@ -432,7 +432,7 @@ impl BatchLogProcessor {
                             let result = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
@@ -442,7 +442,7 @@ impl BatchLogProcessor {
                             let result = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
@@ -466,7 +466,7 @@ impl BatchLogProcessor {
                             let _ = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                         }
@@ -515,7 +515,7 @@ impl BatchLogProcessor {
 fn export_with_timeout_sync<E>(
     _: Duration, // TODO, enforcing timeout in exporter.
     exporter: &mut E,
-    batch: Vec<Box<(LogRecord, InstrumentationScope)>>,
+    batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
 ) -> ExportResult
 where
@@ -531,8 +531,12 @@ where
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
+
     let export = exporter.export(LogBatch::new(log_vec.as_slice()));
     let export_result = futures_executor::block_on(export);
+
+    // Clear the batch vec after exporting
+    batch.clear();
 
     match export_result {
         Ok(_) => LogResult::Ok(()),
