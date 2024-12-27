@@ -472,7 +472,7 @@ mod tests {
     use crate::{
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
+            MetricResult, SdkMeterProvider,
         },
         testing::metrics::InMemoryMetricExporter,
         Resource,
