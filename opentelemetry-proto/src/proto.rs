@@ -56,6 +56,11 @@ pub(crate) mod serializers {
                 map.serialize_entry("intValue", &i.to_string());
                 map.end()
             }
+            Some(Value::BytesValue(b)) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("bytesValue", &base64::encode(b));
+                map.end()
+            }
             Some(value) => value.serialize(serializer),
             None => serializer.serialize_none(),
         }
@@ -127,8 +132,10 @@ pub(crate) mod serializers {
                             value = Some(any_value::Value::KvlistValue(kv));
                         }
                         "bytesValue" => {
-                            let bytes = map.next_value()?;
-                            value = Some(any_value::Value::BytesValue(bytes));
+                            let base64: String = map.next_value()?;
+                            let decoded = base64::decode(base64.as_bytes())
+                                .map_err(|e| de::Error::custom(e))?;
+                            value = Some(any_value::Value::BytesValue(decoded));
                         }
                         _ => {
                             //skip unknown keys, and handle error later.
@@ -181,6 +188,17 @@ pub(crate) mod serializers {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<i64>().map_err(de::Error::custom)
+    }
+
+    pub fn serialize_vec_u8_as_base64_string<S: Serializer>(v: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
+        let base64 = base64::encode(v);
+        String::serialize(&base64, s)
+    }
+
+    pub fn deserialize_base64_string_to_vec_u8<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+        let base64 = String::deserialize(d)?;
+        base64::decode(base64.as_bytes())
+            .map_err(|e| serde::de::Error::custom(e))
     }
 }
 
