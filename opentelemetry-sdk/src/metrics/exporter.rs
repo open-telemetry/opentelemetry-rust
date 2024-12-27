@@ -21,8 +21,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
 
     /// Flushes any metric data held by an exporter.
-    async fn force_flush(&self) -> MetricResult<()>
-    {
+    async fn force_flush(&self) -> MetricResult<()> {
         Ok(())
     }
 
@@ -30,14 +29,12 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     ///
     /// After Shutdown is called, calls to Export will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> MetricResult<()>
-    {
+    fn shutdown(&self) -> MetricResult<()> {
         Ok(())
     }
 
     /// Access the [Temporality] of the MetricExporter.
-    fn temporality(&self) -> Temporality
-    {
+    fn temporality(&self) -> Temporality {
         Temporality::Cumulative
     }
 }
