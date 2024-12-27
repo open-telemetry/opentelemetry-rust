@@ -46,7 +46,6 @@ testing = ["opentelemetry/testing"]
 # add ons
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex"]
-populate-logs-event-name = []
 
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
