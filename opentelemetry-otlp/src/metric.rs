@@ -144,11 +144,6 @@ impl PushMetricExporter for MetricExporter {
         self.client.export(metrics).await
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
-        // this component is stateless
-        Ok(())
-    }
-
     fn shutdown(&self) -> MetricResult<()> {
         self.client.shutdown()
     }

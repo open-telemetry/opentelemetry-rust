@@ -273,14 +273,6 @@ impl PushMetricExporter for InMemoryMetricExporter {
             .map_err(MetricError::from)
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
-        Ok(()) // In this implementation, flush does nothing
-    }
-
-    fn shutdown(&self) -> MetricResult<()> {
-        Ok(())
-    }
-
     fn temporality(&self) -> Temporality {
         self.temporality
     }

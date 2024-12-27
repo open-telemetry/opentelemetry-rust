@@ -54,11 +54,6 @@ impl PushMetricExporter for MetricExporter {
         }
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
-        // exporter holds no state, nothing to flush
-        Ok(())
-    }
-
     fn shutdown(&self) -> MetricResult<()> {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
