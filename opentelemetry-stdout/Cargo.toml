@@ -24,7 +24,6 @@ default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
 metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror", "opentelemetry_sdk/spec_unstable_logs_enabled"]
-populate-logs-event-name = []
 
 [dependencies]
 async-trait = { workspace = true, optional = true }
@@ -34,7 +33,6 @@ futures-util = { workspace = true, optional = true }
 opentelemetry = { version = "0.27", path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.27", path = "../opentelemetry-sdk" }
 serde = { workspace = true, features = ["derive"] }
-ordered-float = { workspace = true }
 
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
