@@ -57,7 +57,6 @@ temp-env = { workspace = true }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-populate-logs-event-name = ["opentelemetry-proto/populate-logs-event-name"]
 internal-logs = ["tracing", "opentelemetry/internal-logs"]
 
 # add ons
