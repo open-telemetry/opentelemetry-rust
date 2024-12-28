@@ -404,13 +404,10 @@ impl BatchLogProcessor {
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
 
                 loop {
-                    let remaining_time_option = config
+                    let remaining_time = config
                         .scheduled_delay
-                        .checked_sub(last_export_time.elapsed());
-                    let remaining_time = match remaining_time_option {
-                        Some(remaining_time) => remaining_time,
-                        None => config.scheduled_delay,
-                    };
+                        .checked_sub(last_export_time.elapsed())
+                        .unwrap_or(config.scheduled_delay);
 
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(BatchMessage::ExportLog(log)) => {
