@@ -472,7 +472,7 @@ mod tests {
     use crate::{
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
+            MetricResult, SdkMeterProvider,
         },
         testing::metrics::InMemoryMetricExporter,
         Resource,
@@ -518,18 +518,6 @@ mod tests {
                 Ok(())
             }
         }
-
-        async fn force_flush(&self) -> MetricResult<()> {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> MetricResult<()> {
-            Ok(())
-        }
-
-        fn temporality(&self) -> Temporality {
-            Temporality::Cumulative
-        }
     }
 
     #[derive(Debug, Clone, Default)]
@@ -543,17 +531,9 @@ mod tests {
             Ok(())
         }
 
-        async fn force_flush(&self) -> MetricResult<()> {
-            Ok(())
-        }
-
         fn shutdown(&self) -> MetricResult<()> {
             self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
-        }
-
-        fn temporality(&self) -> Temporality {
-            Temporality::Cumulative
         }
     }
 

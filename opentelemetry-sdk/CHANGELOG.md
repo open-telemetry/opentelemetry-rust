@@ -211,6 +211,15 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
+`PushMetricExporter` now provides default implementation for the following methods.
+Custom exporter authors may rely on the defaults, if applicable. 
+  * `force_flush()`
+default implementation returns Ok(()) Result. 
+  * `shutdown()` default
+implementation returns Ok(()) Result. 
+  * `temporality()` default implementation
+returns `Temporality::Cumulative`.
+
 ## 0.27.1
 
 Released 2024-Nov-27
