@@ -68,8 +68,8 @@ use crate::trace::{
 use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::trace::TraceError;
-use opentelemetry::InstrumentationScope;
 use opentelemetry::{otel_debug, trace::TraceResult};
+use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -252,20 +252,11 @@ impl TracerProvider {
     }
 }
 
-/// Default tracer name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
-
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
-        let mut name = name.into();
-
-        if name.is_empty() {
-            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        };
-
         let scope = InstrumentationScope::builder(name).build();
         self.tracer_with_scope(scope)
     }
@@ -274,6 +265,9 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Tracer::new(scope, noop_tracer_provider().clone());
         }
+        if scope.name().is_empty() {
+            otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");
+        };
         Tracer::new(scope, self.clone())
     }
 }
