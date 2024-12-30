@@ -18,9 +18,18 @@ use std::fmt::Debug;
 ///
 #[derive(Debug)]
 pub struct LogBatch<'a> {
-    /// The data field contains a slice of tuples, where each tuple consists of a reference to
-    /// a `LogRecord` and a reference to an `InstrumentationScope`.
-    data: &'a [(&'a LogRecord, &'a InstrumentationScope)],
+    data: LogBatchData<'a>,
+}
+
+/// The `LogBatchData` enum represents the data field of a `LogBatch`.
+/// It can either be:
+/// - A mutable reference to a vector of tuples, where each tuple consists of a `LogRecord` and an `InstrumentationScope`.
+/// - Or it can be a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
+#[derive(Debug)]
+#[allow(clippy::vec_box)] // TODO: Revisit this. Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
+enum LogBatchData<'a> {
+    BorrowedVec(&'a mut Vec<Box<(LogRecord, InstrumentationScope)>>), // Used by BatchProcessor which clones the LogRecords for its own use.
+    BorrowedSlice(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
 }
 
 impl<'a> LogBatch<'a> {
@@ -39,7 +48,18 @@ impl<'a> LogBatch<'a> {
     /// Note - this is not a public function, and should not be used directly. This would be
     /// made private in the future.
     pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
-        LogBatch { data }
+        LogBatch {
+            data: LogBatchData::BorrowedSlice(data),
+        }
+    }
+
+    #[allow(clippy::vec_box)] // TODO: Revisit this. Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
+    pub(crate) fn new_with_owned_data(
+        data: &'a mut Vec<Box<(LogRecord, InstrumentationScope)>>,
+    ) -> LogBatch<'a> {
+        LogBatch {
+            data: LogBatchData::BorrowedVec(data),
+        }
     }
 }
 
@@ -54,9 +74,42 @@ impl LogBatch<'_> {
     /// An iterator that yields references to the `LogRecord` and `InstrumentationScope` in the batch.
     ///
     pub fn iter(&self) -> impl Iterator<Item = (&LogRecord, &InstrumentationScope)> {
-        self.data
-            .iter()
-            .map(|(record, library)| (*record, *library))
+        LogBatchDataIter {
+            data: &self.data,
+            index: 0,
+        }
+    }
+}
+
+struct LogBatchDataIter<'a> {
+    data: &'a LogBatchData<'a>,
+    index: usize,
+}
+
+impl<'a> Iterator for LogBatchDataIter<'a> {
+    type Item = (&'a LogRecord, &'a InstrumentationScope);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.data {
+            LogBatchData::BorrowedVec(data) => {
+                if self.index < data.len() {
+                    let record = &*data[self.index];
+                    self.index += 1;
+                    Some((&record.0, &record.1))
+                } else {
+                    None
+                }
+            }
+            LogBatchData::BorrowedSlice(data) => {
+                if self.index < data.len() {
+                    let record = &data[self.index];
+                    self.index += 1;
+                    Some((record.0, record.1))
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 

@@ -524,12 +524,7 @@ where
         return LogResult::Ok(());
     }
 
-    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
-        .iter()
-        .map(|log_data| (&log_data.0, &log_data.1))
-        .collect();
-
-    let export = exporter.export(LogBatch::new(log_vec.as_slice()));
+    let export = exporter.export(LogBatch::new_with_owned_data(batch));
     let export_result = futures_executor::block_on(export);
 
     // Clear the batch vec after exporting
