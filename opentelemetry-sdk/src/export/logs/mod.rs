@@ -26,7 +26,7 @@ pub struct LogBatch<'a> {
 /// - A shared reference to a vector of tuples, where each tuple consists of a `LogRecord` and an `InstrumentationScope`.
 /// - Or it can be a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
 #[derive(Debug)]
-#[allow(clippy::vec_box)] // TODO: Revisit this. Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
+#[allow(clippy::vec_box)] // Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
 enum LogBatchData<'a> {
     BorrowedVec(&'a Vec<Box<(LogRecord, InstrumentationScope)>>), // Used by BatchProcessor which clones the LogRecords for its own use.
     BorrowedSlice(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
