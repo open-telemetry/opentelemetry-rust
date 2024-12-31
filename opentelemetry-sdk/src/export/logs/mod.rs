@@ -23,7 +23,7 @@ pub struct LogBatch<'a> {
 
 /// The `LogBatchData` enum represents the data field of a `LogBatch`.
 /// It can either be:
-/// - A shared reference to a slice of tuples, where each tuple consists of an owned `LogRecord` and an owned `InstrumentationScope`.
+/// - A shared reference to a slice of boxed tuples, where each tuple consists of an owned `LogRecord` and an owned `InstrumentationScope`.
 /// - Or it can be a shared reference to a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
 #[derive(Debug)]
 enum LogBatchData<'a> {
