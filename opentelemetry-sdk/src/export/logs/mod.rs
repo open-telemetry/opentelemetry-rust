@@ -23,12 +23,11 @@ pub struct LogBatch<'a> {
 
 /// The `LogBatchData` enum represents the data field of a `LogBatch`.
 /// It can either be:
-/// - A shared reference to a vector of tuples, where each tuple consists of a `LogRecord` and an `InstrumentationScope`.
-/// - Or it can be a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
+/// - A shared reference to a slice of tuples, where each tuple consists of an owned `LogRecord` and an owned `InstrumentationScope`.
+/// - Or it can be a shared reference to a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
 #[derive(Debug)]
-#[allow(clippy::vec_box)] // Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
 enum LogBatchData<'a> {
-    BorrowedVec(&'a Vec<Box<(LogRecord, InstrumentationScope)>>), // Used by BatchProcessor which clones the LogRecords for its own use.
+    BorrowedVec(&'a [Box<(LogRecord, InstrumentationScope)>]), // Used by BatchProcessor which clones the LogRecords for its own use.
     BorrowedSlice(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
 }
 
@@ -53,9 +52,8 @@ impl<'a> LogBatch<'a> {
         }
     }
 
-    #[allow(clippy::vec_box)] // Clippy complains about using Box in a Vec, but it's done here for performant moves of the data between channel and the vec.
     pub(crate) fn new_with_owned_data(
-        data: &'a Vec<Box<(LogRecord, InstrumentationScope)>>,
+        data: &'a [Box<(LogRecord, InstrumentationScope)>],
     ) -> LogBatch<'a> {
         LogBatch {
             data: LogBatchData::BorrowedVec(data),
