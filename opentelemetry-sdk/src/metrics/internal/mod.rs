@@ -125,25 +125,47 @@ where
 
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
+        let tracker = trackers.get(attributes);
+        if let Some(tracker) = tracker {
+            let tracker = tracker.clone();
+            drop(trackers); // Drop the write lock before updating the tracker
             tracker.update(value);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            return;
+        }
+
+        let tracker = trackers.get(sorted_attrs.as_slice());
+        if let Some(tracker) = tracker {
+            let tracker = tracker.clone();
+            drop(trackers); // Drop the write lock before updating the tracker
             tracker.update(value);
-        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
+            return;
+        }
+
+        if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
             let new_tracker = Arc::new(A::create(&self.config));
-            new_tracker.update(value);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
-            trackers.insert(sorted_attrs, new_tracker);
+            trackers.insert(sorted_attrs, new_tracker.clone());
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
-            overflow_value.update(value);
-        } else {
-            let new_tracker = A::create(&self.config);
+
+            drop(trackers); // Drop the write lock before updating the tracker
+
             new_tracker.update(value);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            return;
+        }
+
+        let overflow_tracker = trackers.get(stream_overflow_attributes().as_slice());
+        if let Some(overflow_tracker) = overflow_tracker {
+            let overflow_tracker = overflow_tracker.clone();
+            drop(trackers); // Drop the write lock before updating the tracker
+            overflow_tracker.update(value);
+        } else {
+            let new_tracker = Arc::new(A::create(&self.config));
+            trackers.insert(stream_overflow_attributes().clone(), new_tracker.clone());
+            drop(trackers); // Drop the write lock before updating the tracker
+            new_tracker.update(value);
             otel_warn!( name: "ValueMap.measure",
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );
