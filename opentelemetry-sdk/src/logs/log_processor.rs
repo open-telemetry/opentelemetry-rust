@@ -524,7 +524,7 @@ where
         return LogResult::Ok(());
     }
 
-    let export = exporter.export(LogBatch::new_with_owned_data(batch));
+    let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
     let export_result = futures_executor::block_on(export);
 
     // Clear the batch vec after exporting
