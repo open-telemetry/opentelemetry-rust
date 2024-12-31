@@ -48,7 +48,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        testing::trace::InMemorySpanExporterBuilder,
+        testing::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
     };
     use opentelemetry::trace::{
@@ -341,5 +341,47 @@ mod tests {
         assert!(instrumentation_scope
             .attributes()
             .eq(&[KeyValue::new("test_k", "test_v")]));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn empty_tracer_name_retained() {
+        async fn tracer_name_retained_helper(
+            tracer: super::Tracer,
+            provider: TracerProvider,
+            exporter: InMemorySpanExporter,
+        ) {
+            // Act
+            tracer.start("my_span").end();
+
+            // Force flush to ensure spans are exported
+            provider.force_flush().into_iter().for_each(|result| {
+                result.expect("failed to flush spans");
+            });
+
+            // Assert
+            let finished_spans = exporter
+                .get_finished_spans()
+                .expect("spans are expected to be exported.");
+            assert_eq!(finished_spans.len(), 1, "There should be a single span");
+
+            let tracer_name = finished_spans[0].instrumentation_scope.name();
+            assert_eq!(tracer_name, "", "The tracer name should be an empty string");
+
+            exporter.reset();
+        }
+
+        let exporter = InMemorySpanExporter::default();
+        let span_processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let tracer_provider = TracerProvider::builder()
+            .with_span_processor(span_processor)
+            .build();
+
+        // Test Tracer creation in 2 ways, both with empty string as tracer name
+        let tracer1 = tracer_provider.tracer("");
+        tracer_name_retained_helper(tracer1, tracer_provider.clone(), exporter.clone()).await;
+
+        let tracer_scope = InstrumentationScope::builder("").build();
+        let tracer2 = tracer_provider.tracer_with_scope(tracer_scope);
+        tracer_name_retained_helper(tracer2, tracer_provider, exporter).await;
     }
 }

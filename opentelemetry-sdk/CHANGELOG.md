@@ -211,6 +211,10 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
+- Bug fix: Empty Tracer names are retained as-is instead of replacing with
+  "rust.opentelemetry.io/sdk/tracer"
+  [#2486](https://github.com/open-telemetry/opentelemetry-rust/pull/2486)
+
 ## 0.27.1
 
 Released 2024-Nov-27
