@@ -50,3 +50,5 @@ tracing = { version = ">=0.1.40", default-features = false }
 tracing-core = { version = ">=0.1.33", default-features = false } 
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
+rcgen = { version = "0.13", features = ["crypto"] }
+tempfile = "3.14"
