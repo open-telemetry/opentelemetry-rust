@@ -1,9 +1,4 @@
-use std::{
-    f64::consts::LOG2_E,
-    mem::replace,
-    ops::DerefMut,
-    sync::{Arc, Mutex},
-};
+use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
@@ -500,7 +495,7 @@ impl<T: Number> ExpoHistogram<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<ExpoHistogram<T>>
+impl<T> Measure<T> for ExpoHistogram<T>
 where
     T: Number,
 {
@@ -518,7 +513,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<ExpoHistogram<T>>
+impl<T> ComputeAggregation for ExpoHistogram<T>
 where
     T: Number,
 {
@@ -529,10 +524,11 @@ where
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::{ops::Neg, time::SystemTime};
+
+    use tests::internal::AggregateFns;
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
@@ -695,14 +691,14 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = Arc::new(ExpoHistogram::new(
+            let h = ExpoHistogram::new(
                 Temporality::Cumulative,
                 AttributeSetFilter::new(None),
                 4,
                 20,
                 true,
                 true,
-            ));
+            );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
@@ -751,14 +747,14 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = Arc::new(ExpoHistogram::new(
+            let h = ExpoHistogram::new(
                 Temporality::Cumulative,
                 AttributeSetFilter::new(None),
                 4,
                 20,
                 true,
                 true,
-            ));
+            );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
@@ -1252,15 +1248,6 @@ mod tests {
         hist_aggregation::<f64>();
     }
 
-    fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
-    ) -> (
-        Box<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-    ) {
-        (Box::new(m), Box::new(ca))
-    }
-
     fn hist_aggregation<T: Number + From<u32>>() {
         let max_size = 4;
         let max_scale = 20;
@@ -1270,12 +1257,7 @@ mod tests {
         #[allow(clippy::type_complexity)]
         struct TestCase<T> {
             name: &'static str,
-            build: Box<
-                dyn Fn() -> (
-                    Box<dyn internal::Measure<T>>,
-                    Box<dyn internal::ComputeAggregation>,
-                ),
-            >,
+            build: Box<dyn Fn() -> AggregateFns<T>>,
             input: Vec<Vec<T>>,
             want: data::ExponentialHistogram<T>,
             want_count: usize,
@@ -1284,14 +1266,11 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    box_val(
-                        AggregateBuilder::new(Temporality::Delta, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
+                    AggregateBuilder::new(Temporality::Delta, None).exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
                     )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
@@ -1327,15 +1306,13 @@ mod tests {
             TestCase {
                 name: "Cumulative Single",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1370,15 +1347,13 @@ mod tests {
             TestCase {
                 name: "Delta Multiple",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Delta, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Delta, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),
@@ -1416,15 +1391,13 @@ mod tests {
             TestCase {
                 name: "Cumulative Multiple ",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),
@@ -1462,7 +1435,7 @@ mod tests {
         ];
 
         for test in test_cases {
-            let (in_fn, out_fn) = (test.build)();
+            let AggregateFns { measure, collect } = (test.build)();
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
@@ -1473,9 +1446,9 @@ mod tests {
             let mut count = 0;
             for n in test.input {
                 for v in n {
-                    in_fn.call(v, &[])
+                    measure.call(v, &[])
                 }
-                count = out_fn.call(Some(got.as_mut())).0
+                count = collect.call(Some(got.as_mut())).0
             }
 
             assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
