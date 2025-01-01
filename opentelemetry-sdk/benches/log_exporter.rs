@@ -24,6 +24,7 @@ use opentelemetry_sdk::export::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
