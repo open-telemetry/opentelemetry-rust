@@ -228,7 +228,7 @@ impl JaegerRemoteSampler {
     {
         let request = http::Request::get(endpoint)
             .header("Content-Type", "application/json")
-            .body(Vec::new())
+            .body(Default::default())
             .unwrap();
 
         let resp = client
