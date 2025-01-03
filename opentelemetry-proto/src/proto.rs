@@ -189,17 +189,6 @@ pub(crate) mod serializers {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<i64>().map_err(de::Error::custom)
     }
-
-    pub fn serialize_vec_u8_as_base64_string<S: Serializer>(v: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
-        let base64 = base64::encode(v);
-        String::serialize(&base64, s)
-    }
-
-    pub fn deserialize_base64_string_to_vec_u8<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
-        let base64 = String::deserialize(d)?;
-        base64::decode(base64.as_bytes())
-            .map_err(|e| serde::de::Error::custom(e))
-    }
 }
 
 #[cfg(feature = "gen-tonic-messages")]
