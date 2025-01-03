@@ -431,6 +431,13 @@ pub struct HistogramDataPoint {
     /// value must be equal to the sum of the "count" fields in buckets if a
     /// histogram is provided.
     #[prost(fixed64, tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -450,6 +457,13 @@ pub struct HistogramDataPoint {
     /// The number of elements in bucket_counts array must be by one greater than
     /// the number of elements in explicit_bounds array.
     #[prost(fixed64, repeated, tag = "6")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_vec_u64_to_strings",
+            deserialize_with = "crate::proto::serializers::deserialize_strings_to_vec_u64"
+        )
+    )]
     pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
     /// explicit_bounds specifies buckets with explicitly defined bounds for values.
     ///
@@ -503,17 +517,38 @@ pub struct ExponentialHistogramDataPoint {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "3")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be
     /// non-negative. This value must be equal to the sum of the "bucket_counts"
     /// values in the positive and negative Buckets plus the "zero_count" field.
     #[prost(fixed64, tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -551,6 +586,13 @@ pub struct ExponentialHistogramDataPoint {
     /// Implementations MAY consider the zero bucket to have probability
     /// mass equal to (zero_count / count).
     #[prost(fixed64, tag = "7")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub zero_count: u64,
     /// positive carries the positive range of exponential bucket counts.
     #[prost(message, optional, tag = "8")]
@@ -628,15 +670,36 @@ pub struct SummaryDataPoint {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "3")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative.
     #[prost(fixed64, tag = "4")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
     /// must be zero.
@@ -704,6 +767,13 @@ pub struct Exemplar {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
     #[prost(fixed64, tag = "2")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
+        )
+    )]
     pub time_unix_nano: u64,
     /// (Optional) Span ID of the exemplar trace.
     /// span_id may be missing if the measurement is not recorded inside a trace
