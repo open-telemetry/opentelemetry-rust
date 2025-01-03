@@ -288,6 +288,18 @@ impl LogProcessor for BatchLogProcessor {
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
 
+        if result.is_err() {
+            // Increment dropped logs count. The first time we have to drop a log,
+            // emit a warning.
+            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+            }
+            return;
+        }
+
+        // At this point, sending the log record to the data channel was successful.
+        // Increment the current batch size and check if it has reached the max export batch size.
         if self.current_batch_size.fetch_add(1, Ordering::Relaxed) >= self.max_export_batch_size {
             // Check if the a control message for exporting logs is already sent to the worker thread.
             // If not, send a control message to export logs.
@@ -296,15 +308,6 @@ impl LogProcessor for BatchLogProcessor {
                 let _ = self.message_sender.try_send(BatchMessage::ExportLog(
                     self.export_log_message_sent.clone(),
                 )); // TODO: Handle error
-            }
-        }
-
-        if result.is_err() {
-            // Increment dropped logs count. The first time we have to drop a log,
-            // emit a warning.
-            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
-                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
             }
         }
     }
