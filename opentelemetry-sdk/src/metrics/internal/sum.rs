@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::vec;
-
 use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
@@ -143,7 +140,7 @@ impl<T: Number> Sum<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<Sum<T>>
+impl<T> Measure<T> for Sum<T>
 where
     T: Number,
 {
@@ -154,7 +151,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<Sum<T>>
+impl<T> ComputeAggregation for Sum<T>
 where
     T: Number,
 {
