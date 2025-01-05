@@ -141,6 +141,10 @@ impl SdkMeterProviderInner {
                 "MeterProvider shutdown already invoked.".into(),
             ))
         } else {
+            let mut meters = self.meters.lock().unwrap();
+            for (_, meter) in meters.drain() {
+                meter.sync_instruments.lock().unwrap().clear(); // Clear all `SyncInstrument` trait objects to avoid any further updates from instruments.
+            }
             self.pipes.shutdown()
         }
     }

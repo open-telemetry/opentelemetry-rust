@@ -278,8 +278,18 @@ impl InstrumentId {
     }
 }
 
+pub(crate) trait SyncInstrumentUpdate: Send + Sync {}
+
+impl<T> SyncInstrumentUpdate for ResolvedMeasures<T> {}
+
 pub(crate) struct ResolvedMeasures<T> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
+}
+
+impl<T: 'static> ResolvedMeasures<T> {
+    pub(crate) fn as_sync_instrument_update(self: Arc<Self>) -> Arc<dyn SyncInstrumentUpdate> {
+        self
+    }
 }
 
 impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {

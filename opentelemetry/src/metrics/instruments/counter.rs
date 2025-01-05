@@ -1,6 +1,6 @@
 use crate::KeyValue;
 use core::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use super::SyncInstrument;
 
@@ -11,7 +11,7 @@ use super::SyncInstrument;
 /// duplicate [`Counter`]s for the same metric could lower SDK performance.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct Counter<T>(Arc<dyn SyncInstrument<T> + Send + Sync>);
+pub struct Counter<T>(Weak<dyn SyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for Counter<T>
 where
@@ -25,12 +25,16 @@ where
 impl<T> Counter<T> {
     /// Create a new counter.
     pub fn new(inner: Arc<dyn SyncInstrument<T> + Send + Sync>) -> Self {
-        Counter(inner)
+        Counter(Arc::downgrade(&inner))
     }
 
     /// Records an increment to the counter.
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
-        self.0.measure(value, attributes)
+        if let Some(inner) = self.0.upgrade() {
+            inner.measure(value, attributes);
+        } else {
+            // TODO: Log error
+        }
     }
 }
 
