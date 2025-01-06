@@ -300,14 +300,31 @@ impl LogProcessor for BatchLogProcessor {
 
         // At this point, sending the log record to the data channel was successful.
         // Increment the current batch size and check if it has reached the max export batch size.
-        if self.current_batch_size.fetch_add(1, Ordering::Relaxed) >= self.max_export_batch_size {
+        if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1 >= self.max_export_batch_size
+        {
             // Check if the a control message for exporting logs is already sent to the worker thread.
             // If not, send a control message to export logs.
             // `export_log_message_sent` is set to false ONLY when the worker thread has processed the control message.
-            if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
-                let _ = self.message_sender.try_send(BatchMessage::ExportLog(
-                    self.export_log_message_sent.clone(),
-                )); // TODO: Handle error
+
+            if !self.export_log_message_sent.load(Ordering::Relaxed) {
+                // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
+                // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation abbove returns false.
+                // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
+                // We could have used compare_exchange as well here, but it's more verbose than swap. Also, swap uses compare_exchange internally anyway.
+                if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
+                    match self.message_sender.try_send(BatchMessage::ExportLog(
+                        self.export_log_message_sent.clone(),
+                    )) {
+                        Ok(_) => {
+                            // Control message sent successfully.
+                        }
+                        Err(_err) => {
+                            // TODO: Log error
+                            // If the control message could not be sent, reset the `export_log_message_sent` flag.
+                            self.export_log_message_sent.store(false, Ordering::Relaxed);
+                        }
+                    }
+                }
             }
         }
     }
