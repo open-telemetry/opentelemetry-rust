@@ -310,7 +310,7 @@ impl LogProcessor for BatchLogProcessor {
                 // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
                 // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
                 // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
-                // We could have used compare_exchange as well here, but it's more verbose than swap. Also, swap uses compare_exchange internally anyway.
+                // We could have used compare_exchange as well here, but it's more verbose than swap.
                 if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
                     match self.message_sender.try_send(BatchMessage::ExportLog(
                         self.export_log_message_sent.clone(),
