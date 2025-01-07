@@ -787,11 +787,25 @@ pub mod summary_data_point {
         /// The quantile of a distribution. Must be in the interval
         /// \[0.0, 1.0\].
         #[prost(double, tag = "1")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         pub quantile: f64,
         /// The value at the given quantile of a distribution.
         ///
         /// Quantile values must NOT be negative.
         #[prost(double, tag = "2")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         pub value: f64,
     }
 }
