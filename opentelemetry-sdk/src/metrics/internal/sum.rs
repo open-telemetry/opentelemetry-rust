@@ -2,7 +2,9 @@ use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::aggregate::{
+    AggregateTime, AggregateTimeInitiator, AggregationData, AttributeSetFilter, InitAggregationData,
+};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
 
@@ -66,28 +68,8 @@ impl<T: Number> Sum<T> {
         }
     }
 
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.delta();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
-        let mut new_agg = if s_data.is_none() {
-            Some(data::Sum {
-                data_points: vec![],
-                start_time: time.start,
-                time: time.current,
-                temporality: Temporality::Delta,
-                is_monotonic: self.monotonic,
-            })
-        } else {
-            None
-        };
-        let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
-        s_data.start_time = time.start;
-        s_data.time = time.current;
-        s_data.temporality = Temporality::Delta;
-        s_data.is_monotonic = self.monotonic;
+    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        let mut s_data = AggregationData::init(self, dest, self.init_time.delta());
 
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
@@ -96,35 +78,14 @@ impl<T: Number> Sum<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 
-    pub(crate) fn cumulative(
+    fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
-        let mut new_agg = if s_data.is_none() {
-            Some(data::Sum {
-                data_points: vec![],
-                start_time: time.start,
-                time: time.current,
-                temporality: Temporality::Cumulative,
-                is_monotonic: self.monotonic,
-            })
-        } else {
-            None
-        };
-        let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
-
-        s_data.start_time = time.start;
-        s_data.time = time.current;
-        s_data.temporality = Temporality::Cumulative;
-        s_data.is_monotonic = self.monotonic;
+        let mut s_data = AggregationData::init(self, dest, self.init_time.cumulative());
 
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
@@ -133,10 +94,7 @@ impl<T: Number> Sum<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 }
 
@@ -160,5 +118,30 @@ where
             Temporality::Delta => self.delta(dest),
             _ => self.cumulative(dest),
         }
+    }
+}
+
+impl<T> InitAggregationData for Sum<T>
+where
+    T: Number,
+{
+    type Aggr = data::Sum<T>;
+
+    fn create_new(&self, time: AggregateTime) -> Self::Aggr {
+        data::Sum {
+            data_points: vec![],
+            start_time: time.start,
+            time: time.current,
+            temporality: self.temporality,
+            is_monotonic: self.monotonic,
+        }
+    }
+
+    fn reset_existing(&self, existing: &mut Self::Aggr, time: AggregateTime) {
+        existing.data_points.clear();
+        existing.start_time = time.start;
+        existing.time = time.current;
+        existing.temporality = self.temporality;
+        existing.is_monotonic = self.monotonic;
     }
 }

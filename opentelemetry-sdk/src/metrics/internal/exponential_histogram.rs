@@ -9,7 +9,10 @@ use crate::metrics::{
 };
 
 use super::{
-    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    aggregate::{
+        AggregateTime, AggregateTimeInitiator, AggregationData, AttributeSetFilter,
+        InitAggregationData,
+    },
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
 
@@ -384,26 +387,10 @@ impl<T: Number> ExpoHistogram<T> {
     }
 
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.delta();
-
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
-        let mut new_agg = if h.is_none() {
-            Some(data::ExponentialHistogram {
-                data_points: vec![],
-                start_time: time.start,
-                time: time.current,
-                temporality: Temporality::Delta,
-            })
-        } else {
-            None
-        };
-        let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
-        h.temporality = Temporality::Delta;
-        h.start_time = time.start;
-        h.time = time.current;
+        let mut s_data = AggregationData::init(self, dest, self.init_time.delta());
 
         self.value_map
-            .collect_and_reset(&mut h.data_points, |attributes, attr| {
+            .collect_and_reset(&mut s_data.data_points, |attributes, attr| {
                 let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
@@ -434,33 +421,17 @@ impl<T: Number> ExpoHistogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 
     fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.cumulative();
-
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
-        let mut new_agg = if h.is_none() {
-            Some(data::ExponentialHistogram {
-                data_points: vec![],
-                start_time: time.start,
-                time: time.current,
-                temporality: Temporality::Cumulative,
-            })
-        } else {
-            None
-        };
-        let h = h.unwrap_or_else(|| new_agg.as_mut().expect("present if h is none"));
-        h.temporality = Temporality::Cumulative;
-        h.start_time = time.start;
-        h.time = time.current;
+        let mut s_data = AggregationData::init(self, dest, self.init_time.cumulative());
 
         self.value_map
-            .collect_readonly(&mut h.data_points, |attributes, attr| {
+            .collect_readonly(&mut s_data.data_points, |attributes, attr| {
                 let b = attr.lock().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
@@ -491,7 +462,7 @@ impl<T: Number> ExpoHistogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 }
 
@@ -524,6 +495,30 @@ where
         }
     }
 }
+
+impl<T> InitAggregationData for ExpoHistogram<T>
+where
+    T: Number,
+{
+    type Aggr = data::ExponentialHistogram<T>;
+
+    fn create_new(&self, time: AggregateTime) -> Self::Aggr {
+        data::ExponentialHistogram {
+            data_points: vec![],
+            start_time: time.start,
+            time: time.current,
+            temporality: self.temporality,
+        }
+    }
+
+    fn reset_existing(&self, existing: &mut Self::Aggr, time: AggregateTime) {
+        existing.data_points.clear();
+        existing.start_time = time.start;
+        existing.time = time.current;
+        existing.temporality = self.temporality;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{ops::Neg, time::SystemTime};

@@ -1,7 +1,7 @@
 use std::{
     marker,
     mem::replace,
-    ops::DerefMut,
+    ops::{Deref, DerefMut},
     sync::{Arc, Mutex},
     time::SystemTime,
 };
@@ -118,6 +118,65 @@ impl AttributeSetFilter {
         } else {
             run(attrs);
         };
+    }
+}
+
+pub(crate) trait InitAggregationData {
+    type Aggr;
+    fn create_new(&self, time: AggregateTime) -> Self::Aggr;
+    fn reset_existing(&self, existing: &mut Self::Aggr, time: AggregateTime);
+}
+
+pub(crate) enum AggregationData<'a, Aggr> {
+    Existing(&'a mut Aggr),
+    New(Aggr),
+}
+
+impl<'a, Aggr> AggregationData<'a, Aggr>
+where
+    Aggr: Aggregation,
+{
+    pub(crate) fn init(
+        init: &impl InitAggregationData<Aggr = Aggr>,
+        existing: Option<&'a mut dyn Aggregation>,
+        time: AggregateTime,
+    ) -> Self {
+        match existing.and_then(|aggr| aggr.as_mut().downcast_mut::<Aggr>()) {
+            Some(existing) => {
+                init.reset_existing(existing, time);
+                AggregationData::Existing(existing)
+            }
+            None => AggregationData::New(init.create_new(time)),
+        }
+    }
+
+    pub(crate) fn into_new_boxed(self) -> Option<Box<dyn Aggregation>> {
+        match self {
+            AggregationData::Existing(_) => None,
+            AggregationData::New(aggregation) => {
+                Some(Box::new(aggregation) as Box<dyn Aggregation>)
+            }
+        }
+    }
+}
+
+impl<Aggr> Deref for AggregationData<'_, Aggr> {
+    type Target = Aggr;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            AggregationData::Existing(existing) => existing,
+            AggregationData::New(new) => new,
+        }
+    }
+}
+
+impl<Aggr> DerefMut for AggregationData<'_, Aggr> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            AggregationData::Existing(existing) => existing,
+            AggregationData::New(new) => new,
+        }
     }
 }
 

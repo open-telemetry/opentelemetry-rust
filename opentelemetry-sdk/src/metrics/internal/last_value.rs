@@ -5,7 +5,10 @@ use crate::metrics::{
 use opentelemetry::KeyValue;
 
 use super::{
-    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    aggregate::{
+        AggregateTime, AggregateTimeInitiator, AggregationData, AttributeSetFilter,
+        InitAggregationData,
+    },
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
 
@@ -59,25 +62,8 @@ impl<T: Number> LastValue<T> {
         }
     }
 
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.delta();
-
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
-        let mut new_agg = if s_data.is_none() {
-            Some(data::Gauge {
-                data_points: vec![],
-                start_time: Some(time.start),
-                time: time.current,
-            })
-        } else {
-            None
-        };
-        let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
-        s_data.start_time = Some(time.start);
-        s_data.time = time.current;
+    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+        let mut s_data = AggregationData::init(self, dest, self.init_time.delta());
 
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
@@ -86,31 +72,14 @@ impl<T: Number> LastValue<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 
-    pub(crate) fn cumulative(
+    fn cumulative(
         &self,
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
-        let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
-        let mut new_agg = if s_data.is_none() {
-            Some(data::Gauge {
-                data_points: vec![],
-                start_time: Some(time.start),
-                time: time.current,
-            })
-        } else {
-            None
-        };
-        let s_data = s_data.unwrap_or_else(|| new_agg.as_mut().expect("present if s_data is none"));
-
-        s_data.start_time = Some(time.start);
-        s_data.time = time.current;
+        let mut s_data = AggregationData::init(self, dest, self.init_time.cumulative());
 
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
@@ -119,10 +88,7 @@ impl<T: Number> LastValue<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), s_data.into_new_boxed())
     }
 }
 
@@ -146,5 +112,26 @@ where
             Temporality::Delta => self.delta(dest),
             _ => self.cumulative(dest),
         }
+    }
+}
+
+impl<T> InitAggregationData for LastValue<T>
+where
+    T: Number,
+{
+    type Aggr = data::Gauge<T>;
+
+    fn create_new(&self, time: AggregateTime) -> Self::Aggr {
+        data::Gauge {
+            data_points: vec![],
+            start_time: Some(time.start),
+            time: time.current,
+        }
+    }
+
+    fn reset_existing(&self, existing: &mut Self::Aggr, time: AggregateTime) {
+        existing.data_points.clear();
+        existing.start_time = Some(time.start);
+        existing.time = time.current;
     }
 }
