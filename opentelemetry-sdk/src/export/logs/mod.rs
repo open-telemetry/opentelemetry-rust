@@ -27,8 +27,8 @@ pub struct LogBatch<'a> {
 /// - Or it can be a shared reference to a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
 #[derive(Debug)]
 enum LogBatchData<'a> {
-    BorrowedVec(&'a [Box<(LogRecord, InstrumentationScope)>]), // Used by BatchProcessor which clones the LogRecords for its own use.
-    BorrowedSlice(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
+    SliceOfOwnedData(&'a [Box<(LogRecord, InstrumentationScope)>]), // Used by BatchProcessor which clones the LogRecords for its own use.
+    SliceOfBorrowedData(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
 }
 
 impl<'a> LogBatch<'a> {
@@ -48,7 +48,7 @@ impl<'a> LogBatch<'a> {
     /// made private in the future.
     pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
         LogBatch {
-            data: LogBatchData::BorrowedSlice(data),
+            data: LogBatchData::SliceOfBorrowedData(data),
         }
     }
 
@@ -56,7 +56,7 @@ impl<'a> LogBatch<'a> {
         data: &'a [Box<(LogRecord, InstrumentationScope)>],
     ) -> LogBatch<'a> {
         LogBatch {
-            data: LogBatchData::BorrowedVec(data),
+            data: LogBatchData::SliceOfOwnedData(data),
         }
     }
 }
@@ -89,7 +89,7 @@ impl<'a> Iterator for LogBatchDataIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.data {
-            LogBatchData::BorrowedVec(data) => {
+            LogBatchData::SliceOfOwnedData(data) => {
                 if self.index < data.len() {
                     let record = &*data[self.index];
                     self.index += 1;
@@ -98,7 +98,7 @@ impl<'a> Iterator for LogBatchDataIter<'a> {
                     None
                 }
             }
-            LogBatchData::BorrowedSlice(data) => {
+            LogBatchData::SliceOfBorrowedData(data) => {
                 if self.index < data.len() {
                     let record = &data[self.index];
                     self.index += 1;
