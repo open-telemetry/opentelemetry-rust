@@ -1002,11 +1002,11 @@ mod json_serde {
                     ],
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2.0,
                     "bucketCounts": [
-                      1,
-                      1
+                      "1",
+                      "1"
                     ],
                     "explicitBounds": [
                       1.0
@@ -1114,9 +1114,9 @@ mod json_serde {
                   {
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2,
-                    "bucketCounts": [1,1],
+                    "bucketCounts": ["1","1"],
                     "explicitBounds": [1],
                     "min": 0,
                     "max": 2,
