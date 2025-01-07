@@ -1,6 +1,5 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::metrics::data::HistogramDataPoint;
@@ -209,7 +208,7 @@ impl<T: Number> Histogram<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<Histogram<T>>
+impl<T> Measure<T> for Histogram<T>
 where
     T: Number,
 {
@@ -228,7 +227,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<Histogram<T>>
+impl<T> ComputeAggregation for Histogram<T>
 where
     T: Number,
 {
@@ -246,13 +245,13 @@ mod tests {
 
     #[test]
     fn check_buckets_are_selected_correctly() {
-        let hist = Arc::new(Histogram::<i64>::new(
+        let hist = Histogram::<i64>::new(
             Temporality::Cumulative,
             AttributeSetFilter::new(None),
             vec![1.0, 3.0, 6.0],
             false,
             false,
-        ));
+        );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
         }
