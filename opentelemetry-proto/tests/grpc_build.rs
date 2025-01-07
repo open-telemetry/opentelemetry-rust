@@ -163,6 +163,19 @@ fn build_tonic() {
     );
     }
 
+    // Special handling for floating-point fields that might contain NaN, Infinity, or -Infinity
+    // TODO: More needs to be added here as we find more fields that need this special handling
+    for path in [
+        // metrics
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.value",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
+    ] {
+        builder = builder.field_attribute(
+        path,
+        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
+    );
+    }
+
     // special serializer and deserializer for value
     // The Value::value field must be hidden
     builder = builder
