@@ -53,18 +53,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     counter_add_sorted(c);
     counter_add_unsorted(c);
 
-    let attribute_values = [
-        "value1".to_owned(),
-        "value2".to_owned(),
-        "value3".to_owned(),
-        "value4".to_owned(),
-        "value5".to_owned(),
-        "value6".to_owned(),
-        "value7".to_owned(),
-        "value8".to_owned(),
-        "value9".to_owned(),
-        "value10".to_owned(),
-    ];
+    let attribute_values: [String; 10] = (1..=10)
+        .map(|i| format!("value{}", i))
+        .collect::<Vec<String>>()
+        .try_into()
+        .expect("Expected a Vec of length 10");
 
     counter_add_sorted_with_non_static_values(c, attribute_values);
 
