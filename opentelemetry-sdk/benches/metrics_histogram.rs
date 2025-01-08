@@ -7,8 +7,8 @@
     RAM: 64.0 GB
     | Test                                                  | Average time|
     |-------------------------------------------------------|-------------|
-    | Histogram_Record                                      | 206.35 ns   |
-    | Histogram_Record_With_Non_Static_Values               | 483.58 ns   |
+    | Histogram_Record                                      | 186.24 ns   |
+    | Histogram_Record_With_Non_Static_Values               | 264.70 ns   |
 
 */
 
@@ -49,71 +49,64 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     histogram_record(c);
-    histogram_record_with_non_static_values(c);
+
+    let attribute_values = ["value1".to_owned(), "value2".to_owned(), "value3".to_owned(), "value4".to_owned(), "value5".to_owned(), "value6".to_owned(), "value7".to_owned(), "value8".to_owned(), "value9".to_owned(), "value10".to_owned()];
+    histogram_record_with_non_static_values(c, attribute_values);
 }
 
 fn histogram_record(c: &mut Criterion) {
     let histogram = create_histogram("Histogram_Record");
     c.bench_function("Histogram_Record", |b| {
-        b.iter(|| {
-            // 4*4*10*10 = 1600 time series.
-            let rands = CURRENT_RNG.with(|rng| {
-                let mut rng = rng.borrow_mut();
-                [
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..10),
-                    rng.gen_range(0..10),
-                ]
-            });
-            let index_first_attribute = rands[0];
-            let index_second_attribute = rands[1];
-            let index_third_attribute = rands[2];
-            let index_fourth_attribute = rands[3];
-            histogram.record(
-                1,
-                &[
-                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
-                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
-                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
-                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
-                ],
-            );
-        });
+        b.iter_batched(
+            || {
+                // 4*4*10*10 = 1600 time series.
+                CURRENT_RNG.with(|rng| {
+                    let mut rng = rng.borrow_mut();
+                    [
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..10),
+                        rng.gen_range(0..10),
+                    ]
+                })
+            },
+            |rands| {
+                let index_first_attribute = rands[0];
+                let index_second_attribute = rands[1];
+                let index_third_attribute = rands[2];
+                let index_fourth_attribute = rands[3];
+                histogram.record(
+                    1,
+                    &[
+                        KeyValue::new("attribute1", ATTRIBUTE_VALUES[index_first_attribute]),
+                        KeyValue::new("attribute2", ATTRIBUTE_VALUES[index_second_attribute]),
+                        KeyValue::new("attribute3", ATTRIBUTE_VALUES[index_third_attribute]),
+                        KeyValue::new("attribute4", ATTRIBUTE_VALUES[index_fourth_attribute]),
+                    ],
+                );
+            },
+            BatchSize::SmallInput,
+        );
     });
 }
 
-fn histogram_record_with_non_static_values(c: &mut Criterion) {
+fn histogram_record_with_non_static_values(c: &mut Criterion, attribute_values: [String; 10]) {
     let histogram = create_histogram("Histogram_Record_With_Non_Static_Values");
     c.bench_function("Histogram_Record_With_Non_Static_Values", |b| {
         b.iter_batched(
             || {
-                (
+                // 4*4*10*10 = 1600 time series.
+                CURRENT_RNG.with(|rng| {
+                    let mut rng = rng.borrow_mut();
                     [
-                        "value1".to_owned(),
-                        "value2".to_owned(),
-                        "value3".to_owned(),
-                        "value4".to_owned(),
-                        "value5".to_owned(),
-                        "value6".to_owned(),
-                        "value7".to_owned(),
-                        "value8".to_owned(),
-                        "value9".to_owned(),
-                        "value10".to_owned(),
-                    ],
-                    // 4*4*10*10 = 1600 time series.
-                    CURRENT_RNG.with(|rng| {
-                        let mut rng = rng.borrow_mut();
-                        [
-                            rng.gen_range(0..4),
-                            rng.gen_range(0..4),
-                            rng.gen_range(0..10),
-                            rng.gen_range(0..10),
-                        ]
-                    }),
-                )
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..10),
+                        rng.gen_range(0..10),
+                    ]
+                })
             },
-            |(attribute_values, rands)| {
+            |rands| {
                 let index_first_attribute = rands[0];
                 let index_second_attribute = rands[1];
                 let index_third_attribute = rands[2];

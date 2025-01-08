@@ -9,7 +9,7 @@
     |-------------------------------------------------------|-------------|
     | Counter_Add_Sorted                                    | 160 ns      |
     | Counter_Add_Unsorted                                  | 164 ns      |
-    | Counter_Add_Sorted_With_Non_Static_Values             | 439 ns      |
+    | Counter_Add_Sorted_With_Non_Static_Values             | 238 ns      |
     | Counter_Overflow                                      | 562 ns      |
     | ThreadLocal_Random_Generator_5                        |  37 ns      |
 */
@@ -52,7 +52,11 @@ fn create_counter(name: &'static str) -> Counter<u64> {
 fn criterion_benchmark(c: &mut Criterion) {
     counter_add_sorted(c);
     counter_add_unsorted(c);
-    counter_add_sorted_with_non_static_values(c);
+
+    let attribute_values = ["value1".to_owned(), "value2".to_owned(), "value3".to_owned(), "value4".to_owned(), "value5".to_owned(), "value6".to_owned(), "value7".to_owned(), "value8".to_owned(), "value9".to_owned(), "value10".to_owned()];
+
+    counter_add_sorted_with_non_static_values(c, attribute_values);
+
     counter_overflow(c);
     random_generator(c);
 }
@@ -129,37 +133,23 @@ fn counter_add_unsorted(c: &mut Criterion) {
     });
 }
 
-fn counter_add_sorted_with_non_static_values(c: &mut Criterion) {
+fn counter_add_sorted_with_non_static_values(c: &mut Criterion, attribute_values: [String; 10]) {
     let counter = create_counter("Counter_Add_Sorted_With_Non_Static_Values");
     c.bench_function("Counter_Add_Sorted_With_Non_Static_Values", |b| {
         b.iter_batched(
             || {
-                (
+                // 4*4*10*10 = 1600 time series.
+                CURRENT_RNG.with(|rng| {
+                    let mut rng = rng.borrow_mut();
                     [
-                        "value1".to_owned(),
-                        "value2".to_owned(),
-                        "value3".to_owned(),
-                        "value4".to_owned(),
-                        "value5".to_owned(),
-                        "value6".to_owned(),
-                        "value7".to_owned(),
-                        "value8".to_owned(),
-                        "value9".to_owned(),
-                        "value10".to_owned(),
-                    ],
-                    // 4*4*10*10 = 1600 time series.
-                    CURRENT_RNG.with(|rng| {
-                        let mut rng = rng.borrow_mut();
-                        [
-                            rng.gen_range(0..4),
-                            rng.gen_range(0..4),
-                            rng.gen_range(0..10),
-                            rng.gen_range(0..10),
-                        ]
-                    }),
-                )
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..4),
+                        rng.gen_range(0..10),
+                        rng.gen_range(0..10),
+                    ]
+                })
             },
-            |(attribute_values, rands)| {
+            |rands| {
                 let index_first_attribute = rands[0];
                 let index_second_attribute = rands[1];
                 let index_third_attribute = rands[2];
