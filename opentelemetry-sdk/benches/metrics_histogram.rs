@@ -50,7 +50,18 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
 fn criterion_benchmark(c: &mut Criterion) {
     histogram_record(c);
 
-    let attribute_values = ["value1".to_owned(), "value2".to_owned(), "value3".to_owned(), "value4".to_owned(), "value5".to_owned(), "value6".to_owned(), "value7".to_owned(), "value8".to_owned(), "value9".to_owned(), "value10".to_owned()];
+    let attribute_values = [
+        "value1".to_owned(),
+        "value2".to_owned(),
+        "value3".to_owned(),
+        "value4".to_owned(),
+        "value5".to_owned(),
+        "value6".to_owned(),
+        "value7".to_owned(),
+        "value8".to_owned(),
+        "value9".to_owned(),
+        "value10".to_owned(),
+    ];
     histogram_record_with_non_static_values(c, attribute_values);
 }
 
