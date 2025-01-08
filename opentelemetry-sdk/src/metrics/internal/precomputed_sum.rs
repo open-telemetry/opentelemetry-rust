@@ -6,7 +6,6 @@ use crate::metrics::Temporality;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use super::{ComputeAggregation, Measure};
-use std::sync::Arc;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
@@ -124,7 +123,7 @@ impl<T: Number> PrecomputedSum<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<PrecomputedSum<T>>
+impl<T> Measure<T> for PrecomputedSum<T>
 where
     T: Number,
 {
@@ -135,7 +134,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<PrecomputedSum<T>>
+impl<T> ComputeAggregation for PrecomputedSum<T>
 where
     T: Number,
 {

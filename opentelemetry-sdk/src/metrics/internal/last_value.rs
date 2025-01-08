@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::metrics::{
     data::{self, Aggregation, GaugeDataPoint},
     Temporality,
@@ -128,7 +126,7 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<LastValue<T>>
+impl<T> Measure<T> for LastValue<T>
 where
     T: Number,
 {
@@ -139,7 +137,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<LastValue<T>>
+impl<T> ComputeAggregation for LastValue<T>
 where
     T: Number,
 {
