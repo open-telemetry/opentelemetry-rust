@@ -378,7 +378,7 @@ impl BytesValue {
     pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
-    
+
     /// Retruns a Vec<u8> from the BytesValue
     pub fn into_vec(self) -> Vec<u8> {
         match self.0 {

@@ -30,12 +30,10 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")
-                .with_attribute(
-                    KeyValue::new(
-                        "data",
-                        Value::Bytes(b"\x80\x80\x80".to_vec().into()),
-                    )
-                )
+                .with_attribute(KeyValue::new(
+                    "data",
+                    Value::Bytes(b"\x80\x80\x80".to_vec().into()),
+                ))
                 .build(),
         )
         .build())
