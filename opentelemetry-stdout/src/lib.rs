@@ -11,10 +11,6 @@
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
-//! The following feature flags generate additional code and types:
-//! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
-//!    with the key `name`
-//!
 //! # Examples
 //!
 //! ```no_run
@@ -63,8 +59,6 @@
     feature(doc_cfg, doc_auto_cfg),
     deny(rustdoc::broken_intra_doc_links)
 )]
-
-pub(crate) mod common;
 
 #[cfg(feature = "metrics")]
 mod metrics;

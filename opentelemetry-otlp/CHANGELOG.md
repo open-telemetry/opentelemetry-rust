@@ -3,6 +3,9 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
+- Feature flag "populate-logs-event-name" is removed as no longer relevant.
+  LogRecord's `event_name()` is now automatically populated on the newly added
+  "event_name" field in LogRecord proto definition.
 
 
 ## 0.27.0

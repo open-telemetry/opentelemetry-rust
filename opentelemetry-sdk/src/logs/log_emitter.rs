@@ -140,7 +140,7 @@ impl LoggerProviderInner {
                 //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
                 match err {
-                    // specific handling for mutex poisioning
+                    // specific handling for mutex poisoning
                     LogError::MutexPoisoned(_) => {
                         otel_debug!(
                             name: "LoggerProvider.Drop.ShutdownMutexPoisoned",

@@ -404,13 +404,10 @@ impl BatchLogProcessor {
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
 
                 loop {
-                    let remaining_time_option = config
+                    let remaining_time = config
                         .scheduled_delay
-                        .checked_sub(last_export_time.elapsed());
-                    let remaining_time = match remaining_time_option {
-                        Some(remaining_time) => remaining_time,
-                        None => config.scheduled_delay,
-                    };
+                        .checked_sub(last_export_time.elapsed())
+                        .unwrap_or(config.scheduled_delay);
 
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(BatchMessage::ExportLog(log)) => {
@@ -422,7 +419,7 @@ impl BatchLogProcessor {
                                 let _ = export_with_timeout_sync(
                                     config.max_export_timeout,
                                     &mut exporter,
-                                    logs.split_off(0),
+                                    &mut logs,
                                     &mut last_export_time,
                                 );
                             }
@@ -432,7 +429,7 @@ impl BatchLogProcessor {
                             let result = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
@@ -442,7 +439,7 @@ impl BatchLogProcessor {
                             let result = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                             let _ = sender.send(result);
@@ -466,7 +463,7 @@ impl BatchLogProcessor {
                             let _ = export_with_timeout_sync(
                                 config.max_export_timeout,
                                 &mut exporter,
-                                logs.split_off(0),
+                                &mut logs,
                                 &mut last_export_time,
                             );
                         }
@@ -515,7 +512,7 @@ impl BatchLogProcessor {
 fn export_with_timeout_sync<E>(
     _: Duration, // TODO, enforcing timeout in exporter.
     exporter: &mut E,
-    batch: Vec<Box<(LogRecord, InstrumentationScope)>>,
+    batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
 ) -> ExportResult
 where
@@ -527,12 +524,11 @@ where
         return LogResult::Ok(());
     }
 
-    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
-        .iter()
-        .map(|log_data| (&log_data.0, &log_data.1))
-        .collect();
-    let export = exporter.export(LogBatch::new(log_vec.as_slice()));
+    let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
     let export_result = futures_executor::block_on(export);
+
+    // Clear the batch vec after exporting
+    batch.clear();
 
     match export_result {
         Ok(_) => LogResult::Ok(()),
@@ -610,7 +606,7 @@ pub struct BatchConfigBuilder {
 
 impl Default for BatchConfigBuilder {
     /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
-    /// The values are overriden by environment variables if set.
+    /// The values are overridden by environment variables if set.
     /// The supported environment variables are:
     /// * `OTEL_BLRP_MAX_QUEUE_SIZE`
     /// * `OTEL_BLRP_SCHEDULE_DELAY`

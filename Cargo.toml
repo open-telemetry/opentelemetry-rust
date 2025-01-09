@@ -29,7 +29,6 @@ hyper = { version = "1.3", default-features = false }
 hyper-util = "0.1"
 log = "0.4.21"
 once_cell = "1.13"
-ordered-float = "4.0"
 pin-project-lite = "0.2"
 prost = "0.13"
 prost-build = "0.13"

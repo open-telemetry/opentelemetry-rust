@@ -591,7 +591,7 @@ mod tests {
         );
 
         //
-        // deadloack happens in shutdown with tokio current_thread runtime
+        // deadlock happens in shutdown with tokio current_thread runtime
         //
         processor.shutdown().unwrap();
     }
@@ -837,7 +837,7 @@ mod tests {
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         //
-        // deadloack happens in shutdown with tokio current_thread runtime
+        // deadlock happens in shutdown with tokio current_thread runtime
         //
         processor.shutdown().unwrap();
     }

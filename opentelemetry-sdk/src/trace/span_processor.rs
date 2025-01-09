@@ -132,7 +132,7 @@ impl SpanProcessor for SimpleSpanProcessor {
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
-            // TODO: check error type, and log `error` only if the error is user-actiobable, else log `debug`
+            // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
             otel_debug!(
                 name: "SimpleProcessor.OnEnd.Error",
                 reason = format!("{:?}", err)
