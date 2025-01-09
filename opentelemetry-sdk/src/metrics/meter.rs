@@ -1,5 +1,8 @@
 use core::fmt;
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    sync::{Arc, Mutex},
+};
 
 use opentelemetry::{
     metrics::{
@@ -11,7 +14,7 @@ use opentelemetry::{
 };
 
 use crate::metrics::{
-    instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
+    instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures, SyncInstrumentUpdate},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
     MetricError, MetricResult,
@@ -50,6 +53,7 @@ pub(crate) struct SdkMeter {
     u64_resolver: Resolver<u64>,
     i64_resolver: Resolver<i64>,
     f64_resolver: Resolver<f64>,
+    pub(crate) sync_instruments: Mutex<Vec<Arc<dyn SyncInstrumentUpdate>>>,
 }
 
 impl SdkMeter {
@@ -62,6 +66,7 @@ impl SdkMeter {
             u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
             f64_resolver: Resolver::new(pipes, view_cache),
+            sync_instruments: Mutex::new(Vec::new()),
         }
     }
 
@@ -93,8 +98,16 @@ impl SdkMeter {
                 builder.unit,
                 None,
             )
-            .map(|i| Counter::new(Arc::new(i)))
-        {
+            .map(|i| {
+                let resolved_measures = Arc::new(i);
+                let sync_instrument_update = resolved_measures.clone().as_sync_instrument_update();
+
+                self.sync_instruments
+                    .lock()
+                    .unwrap()
+                    .push(sync_instrument_update);
+                Counter::new(resolved_measures)
+            }) {
             Ok(counter) => counter,
             Err(err) => {
                 otel_error!(
