@@ -45,12 +45,12 @@ impl Default for EnvResourceDetector {
 fn construct_otel_resources(s: String) -> Resource {
     Resource::builder_empty()
         .with_attributes(s.split_terminator(',').filter_map(|entry| {
-            let mut parts = entry.splitn(2, '=');
-            let key = parts.next()?.trim();
-            let value = parts.next()?.trim();
-            if value.find('=').is_some() {
-                return None;
-            }
+            let parts = match entry.split_once('=') {
+                Some(p) => p,
+                None => return None,
+            };
+            let key = parts.0.trim();
+            let value = parts.1.trim();
 
             Some(KeyValue::new(key.to_owned(), value.to_owned()))
         }))
@@ -106,7 +106,7 @@ mod tests {
             [
                 (
                     "OTEL_RESOURCE_ATTRIBUTES",
-                    Some("key=value, k = v , a= x, a=z"),
+                    Some("key=value, k = v , a= x, a=z,base64=SGVsbG8sIFdvcmxkIQ=="),
                 ),
                 ("IRRELEVANT", Some("20200810")),
             ],
@@ -121,6 +121,7 @@ mod tests {
                             KeyValue::new("k", "v"),
                             KeyValue::new("a", "x"),
                             KeyValue::new("a", "z"),
+                            KeyValue::new("base64", "SGVsbG8sIFdvcmxkIQ=="), // base64('Hello, World!')
                         ])
                         .build()
                 );
