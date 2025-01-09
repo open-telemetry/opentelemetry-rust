@@ -4,6 +4,7 @@ use anyhow::Result;
 use ctor::dtor;
 use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use integration_test_runner::test_utils;
+use opentelemetry::{KeyValue, Value};
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
@@ -29,6 +30,12 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")
+                .with_attribute(
+                    KeyValue::new(
+                        "data",
+                        Value::Bytes(b"\x80\x80\x80".to_vec().into()),
+                    )
+                )
                 .build(),
         )
         .build())

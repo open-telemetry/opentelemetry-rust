@@ -8,6 +8,12 @@
             "value": {
               "stringValue": "logs-integration-test"
             }
+          },
+          {
+            "key": "data",
+            "value": {
+              "bytesValue": "gICA"
+            }
           }
         ]
       },

@@ -44,10 +44,12 @@ impl Hash for KeyValue {
                 Array::I64(i) => i.hash(state),
                 Array::F64(f) => f.iter().for_each(|f| F64Hashable(*f).hash(state)),
                 Array::String(s) => s.hash(state),
+                Array::Bytes(b) => b.hash(state),
             },
             Value::Bool(b) => b.hash(state),
             Value::I64(i) => i.hash(state),
             Value::String(s) => s.hash(state),
+            Value::Bytes(b) => b.hash(state),
         };
     }
 }
