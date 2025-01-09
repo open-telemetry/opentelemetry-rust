@@ -57,6 +57,12 @@
                   "value": {
                     "stringValue": "yes"
                   }
+                },
+                {
+                  "key": "data",
+                  "value": {
+                    "bytesValue": "gICA"
+                  }
                 }
               ],
               "events": [

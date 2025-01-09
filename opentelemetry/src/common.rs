@@ -148,6 +148,34 @@ impl hash::Hash for OtelString {
         self.as_str().hash(state)
     }
 }
+#[derive(Clone, Debug, Eq)]
+enum OtelBytes {
+    Owned(Vec<u8>),
+    Static(&'static [u8]),
+    RefCounted(Arc<[u8]>),
+}
+
+impl OtelBytes {
+    fn as_slice(&self) -> &[u8] {
+        match self {
+            OtelBytes::Owned(b) => b.as_ref(),
+            OtelBytes::Static(b) => b,
+            OtelBytes::RefCounted(b) => b.as_ref(),
+        }
+    }
+}
+
+impl PartialEq for OtelBytes {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice().eq(other.as_slice())
+    }
+}
+
+impl hash::Hash for OtelBytes {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.as_slice().hash(state)
+    }
+}
 
 /// A [Value::Array] containing homogeneous values.
 #[non_exhaustive]
@@ -161,6 +189,8 @@ pub enum Array {
     F64(Vec<f64>),
     /// Array of strings
     String(Vec<StringValue>),
+    /// Array of bytes
+    Bytes(Vec<BytesValue>),
 }
 
 impl fmt::Display for Array {
@@ -176,6 +206,16 @@ impl fmt::Display for Array {
                         write!(fmt, ",")?;
                     }
                     write!(fmt, "\"{}\"", t)?;
+                }
+                write!(fmt, "]")
+            }
+            Array::Bytes(values) => {
+                write!(fmt, "[")?;
+                for (i, b) in values.iter().enumerate() {
+                    if i > 0 {
+                        write!(fmt, ",")?;
+                    }
+                    write!(fmt, "{}", b)?;
                 }
                 write!(fmt, "]")
             }
@@ -211,6 +251,7 @@ into_array!(
     (Vec<i64>, Array::I64),
     (Vec<f64>, Array::F64),
     (Vec<StringValue>, Array::String),
+    (Vec<BytesValue>, Array::Bytes),
 );
 
 /// The value part of attribute [KeyValue] pairs.
@@ -227,6 +268,8 @@ pub enum Value {
     String(StringValue),
     /// Array of homogeneous values
     Array(Array),
+    /// Bytes values
+    Bytes(BytesValue),
 }
 
 /// Wrapper for string-like values
@@ -300,6 +343,80 @@ impl From<Cow<'static, str>> for StringValue {
     }
 }
 
+/// Wrapper for byte array values
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct BytesValue(OtelBytes);
+
+impl fmt::Debug for BytesValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl fmt::Display for BytesValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (i, b) in self.as_slice().iter().enumerate() {
+            if i > 0 {
+                write!(f, ",")?;
+            }
+            write!(f, "{:#04x}", b)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl AsRef<[u8]> for BytesValue {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl BytesValue {
+    /// Returns a slice to the underlying bytes
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
+    /// Retruns a Vec<u8> from the BytesValue
+    pub fn into_vec(self) -> Vec<u8> {
+        match self.0 {
+            OtelBytes::Owned(b) => b.to_vec(),
+            OtelBytes::Static(b) => b.to_vec(),
+            OtelBytes::RefCounted(b) => b.to_vec(),
+        }
+    }
+}
+
+impl From<BytesValue> for Vec<u8> {
+    fn from(b: BytesValue) -> Self {
+        match b.0 {
+            OtelBytes::Owned(b) => b.to_vec(),
+            OtelBytes::Static(b) => b.to_vec(),
+            OtelBytes::RefCounted(b) => b.to_vec(),
+        }
+    }
+}
+
+impl From<&'static [u8]> for BytesValue {
+    fn from(b: &'static [u8]) -> Self {
+        BytesValue(OtelBytes::Static(b))
+    }
+}
+
+impl From<Vec<u8>> for BytesValue {
+    fn from(b: Vec<u8>) -> Self {
+        BytesValue(OtelBytes::Owned(b))
+    }
+}
+
+impl From<Arc<[u8]>> for BytesValue {
+    fn from(b: Arc<[u8]>) -> Self {
+        BytesValue(OtelBytes::RefCounted(b))
+    }
+}
+
 impl Value {
     /// String representation of the `Value`
     ///
@@ -311,16 +428,13 @@ impl Value {
             Value::F64(v) => format!("{}", v).into(),
             Value::String(v) => Cow::Borrowed(v.as_str()),
             Value::Array(v) => format!("{}", v).into(),
+            Value::Bytes(v) => format!("{}", v).into(),
         }
     }
 }
 
 macro_rules! from_values {
-   (
-        $(
-            ($t:ty, $val:expr);
-        )+
-    ) => {
+    ($(($t:ty, $val:expr);)+) => {
         $(
             impl From<$t> for Value {
                 fn from(t: $t) -> Self {
@@ -336,6 +450,7 @@ from_values!(
     (i64, Value::I64);
     (f64, Value::F64);
     (StringValue, Value::String);
+    (BytesValue, Value::Bytes);
 );
 
 impl From<&'static str> for Value {
@@ -362,6 +477,24 @@ impl From<Cow<'static, str>> for Value {
     }
 }
 
+impl From<&'static [u8]> for Value {
+    fn from(b: &'static [u8]) -> Self {
+        Value::Bytes(b.into())
+    }
+}
+
+impl From<Vec<u8>> for Value {
+    fn from(b: Vec<u8>) -> Self {
+        Value::Bytes(b.into())
+    }
+}
+
+impl From<Arc<[u8]>> for Value {
+    fn from(b: Arc<[u8]>) -> Self {
+        Value::Bytes(b.into())
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -370,6 +503,7 @@ impl fmt::Display for Value {
             Value::F64(v) => v.fmt(fmt),
             Value::String(v) => fmt.write_str(v.as_str()),
             Value::Array(v) => v.fmt(fmt),
+            Value::Bytes(v) => v.fmt(fmt),
         }
     }
 }

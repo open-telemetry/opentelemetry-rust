@@ -143,11 +143,13 @@ pub mod tonic {
                     Value::I64(val) => Some(any_value::Value::IntValue(val)),
                     Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
                     Value::String(val) => Some(any_value::Value::StringValue(val.to_string())),
+                    Value::Bytes(val) => Some(any_value::Value::BytesValue(val.into_vec())),
                     Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
                         Array::Bool(vals) => array_into_proto(vals),
                         Array::I64(vals) => array_into_proto(vals),
                         Array::F64(vals) => array_into_proto(vals),
                         Array::String(vals) => array_into_proto(vals),
+                        Array::Bytes(vals) => array_into_proto(vals),
                         _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
                     })),
                     _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added

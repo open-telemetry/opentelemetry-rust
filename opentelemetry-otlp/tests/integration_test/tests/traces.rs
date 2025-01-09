@@ -63,6 +63,7 @@ pub async fn traces() -> Result<()> {
             vec![KeyValue::new("bogons", 100)],
         );
         span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
+        span.set_attribute(KeyValue::new("data", b"\x80\x80\x80".to_vec()));
 
         tracer.in_span("Sub operation...", |cx| {
             let span = cx.span();
