@@ -253,6 +253,7 @@ into_array!(
     (Vec<StringValue>, Array::String),
     (Vec<BytesValue>, Array::Bytes),
 );
+
 /// The value part of attribute [KeyValue] pairs.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
@@ -616,6 +617,7 @@ impl InstrumentationScope {
         self.attributes.iter()
     }
 }
+
 /// Configuration options for [InstrumentationScope].
 ///
 /// An instrumentation scope is a library or crate providing instrumentation.
