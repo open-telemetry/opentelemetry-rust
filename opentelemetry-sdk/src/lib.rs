@@ -150,3 +150,7 @@ pub mod util;
 pub use resource::Resource;
 
 pub mod error;
+
+/// The crate's version string, useful for populating [`Resource`] keys like
+/// [`telemetry.sdk.version`](https://docs.rs/opentelemetry-semantic-conventions/latest/opentelemetry_semantic_conventions/attribute/constant.TELEMETRY_SDK_VERSION.html)
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
