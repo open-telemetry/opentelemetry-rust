@@ -53,6 +53,14 @@ pub trait Aggregation: fmt::Debug + any::Any + Send + Sync {
     fn as_mut(&mut self) -> &mut dyn any::Any;
 }
 
+/// Allow to access data points of an [Aggregation].
+pub trait AggregationDataPoints {
+    /// The type of data point in the aggregation.
+    type Point;
+    /// The data points of the aggregation.
+    fn points(&mut self) -> &mut Vec<Self::Point>;
+}
+
 /// DataPoint is a single data point in a time series.
 #[derive(Debug, PartialEq)]
 pub struct GaugeDataPoint<T> {
@@ -225,6 +233,14 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
     }
     fn as_mut(&mut self) -> &mut dyn any::Any {
         self
+    }
+}
+
+impl<T> AggregationDataPoints for ExponentialHistogram<T> {
+    type Point = ExponentialHistogramDataPoint<T>;
+
+    fn points(&mut self) -> &mut Vec<Self::Point> {
+        &mut self.data_points
     }
 }
 
