@@ -8,11 +8,19 @@ use std::{
 
 use opentelemetry::KeyValue;
 
-use crate::metrics::{data::Aggregation, Temporality};
+use crate::metrics::{
+    data::{Aggregation, AggregationDataPoints},
+    Temporality,
+};
 
 use super::{
-    exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, Number,
+    collector::{Collector, CumulativeValueMap, DeltaValueMap},
+    exponential_histogram::{ExpoHistogram, ExpoHistogramBucketConfig},
+    histogram::Histogram,
+    last_value::LastValue,
+    precomputed_sum::PrecomputedSum,
+    sum::Sum,
+    Number,
 };
 
 pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
@@ -58,6 +66,7 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct AggregateTime {
     pub start: SystemTime,
     pub current: SystemTime,
@@ -121,6 +130,12 @@ impl AttributeSetFilter {
     }
 }
 
+pub(crate) trait InitAggregationData {
+    type Aggr: Aggregation + AggregationDataPoints;
+    fn create_new(&self, time: AggregateTime) -> Self::Aggr;
+    fn reset_existing(&self, existing: &mut Self::Aggr, time: AggregateTime);
+}
+
 /// Builds aggregate functions
 pub(crate) struct AggregateBuilder<T> {
     /// The temporality used for the returned aggregate functions.
@@ -182,15 +197,32 @@ impl<T: Number> AggregateBuilder<T> {
         record_min_max: bool,
         record_sum: bool,
     ) -> AggregateFns<T> {
-        ExpoHistogram::new(
-            self.temporality,
-            self.filter.clone(),
-            max_size,
-            max_scale,
-            record_min_max,
-            record_sum,
-        )
-        .into()
+        match self.temporality {
+            Temporality::Delta => ExpoHistogram {
+                aggregate_collector: Collector::new(
+                    self.filter.clone(),
+                    DeltaValueMap::new(ExpoHistogramBucketConfig {
+                        max_size: max_size as i32,
+                        max_scale,
+                    }),
+                ),
+                record_min_max,
+                record_sum,
+            }
+            .into(),
+            _ => ExpoHistogram {
+                aggregate_collector: Collector::new(
+                    self.filter.clone(),
+                    CumulativeValueMap::new(ExpoHistogramBucketConfig {
+                        max_size: max_size as i32,
+                        max_scale,
+                    }),
+                ),
+                record_min_max,
+                record_sum,
+            }
+            .into(),
+        }
     }
 }
 
