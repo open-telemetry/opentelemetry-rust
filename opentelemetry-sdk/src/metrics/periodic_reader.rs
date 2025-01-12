@@ -154,11 +154,12 @@ impl PeriodicReader {
     {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
+        let exporter_arc = Arc::new(exporter);
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
                 message_sender: Arc::new(message_sender),
                 producer: Mutex::new(None),
-                exporter: Arc::new(exporter),
+                exporter: exporter_arc.clone(),
             }),
         };
         let cloned_reader = reader.clone();
@@ -213,7 +214,13 @@ impl PeriodicReader {
                         Ok(Message::Shutdown(response_sender)) => {
                             // Perform final export and break out of loop and exit the thread
                             otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                            let export_result = cloned_reader.collect_and_export(timeout);
+                            let shutdown_result = exporter_arc.shutdown();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExporterShutdown",
+                                shutdown_result = format!("{:?}", shutdown_result)
+                            );
+                            if export_result.is_err() || shutdown_result.is_err() {
                                 response_sender.send(false).unwrap();
                             } else {
                                 response_sender.send(true).unwrap();
@@ -260,7 +267,7 @@ impl PeriodicReader {
                             // out (i.e exit the thread)
                             otel_debug!(
                                 name: "PeriodReaderThreadExiting",
-                                reason = "MessageReceiverDisconnected"
+                                reason = "MessageSenderDisconnected"
                             );
                             break;
                         }
@@ -350,7 +357,7 @@ impl PeriodicReaderInner {
         });
         otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
 
-        // TODO: substract the time taken for collect from the timeout. collect
+        // TODO: subtract the time taken for collect from the timeout. collect
         // involves observable callbacks too, which are user defined and can
         // take arbitrary time.
         //
@@ -474,7 +481,7 @@ mod tests {
     use opentelemetry::metrics::MeterProvider;
     use std::{
         sync::{
-            atomic::{AtomicUsize, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
             mpsc, Arc,
         },
         time::Duration,
@@ -517,6 +524,31 @@ mod tests {
         }
 
         fn shutdown(&self) -> MetricResult<()> {
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[derive(Debug, Clone, Default)]
+    struct MockMetricExporter {
+        is_shutdown: Arc<AtomicBool>,
+    }
+
+    #[async_trait]
+    impl PushMetricExporter for MockMetricExporter {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+            Ok(())
+        }
+
+        async fn force_flush(&self) -> MetricResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> MetricResult<()> {
+            self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }
 
@@ -685,6 +717,24 @@ mod tests {
 
         // Assert that atleast 2 exports are attempted given the 1st one fails.
         assert!(exporter.get_count() >= 2);
+    }
+
+    #[test]
+    fn shutdown_passed_to_exporter() {
+        // Arrange
+        let exporter = MockMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("sync_counter").build();
+        counter.add(1, &[]);
+
+        // shutdown the provider, which should call shutdown on periodic reader
+        // which in turn should call shutdown on exporter.
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+        assert!(exporter.is_shutdown.load(Ordering::Relaxed));
     }
 
     #[test]
@@ -887,7 +937,7 @@ mod tests {
                 })
                 .build();
             // rt here is a reference to the current tokio runtime.
-            // Droppng it occurs when the tokio::main itself ends.
+            // Dropping it occurs when the tokio::main itself ends.
         } else {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let _gauge = meter

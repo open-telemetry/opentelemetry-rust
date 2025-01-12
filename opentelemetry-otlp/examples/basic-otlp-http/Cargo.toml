@@ -6,11 +6,9 @@ license = "Apache-2.0"
 publish = false
 
 [features]
-default = ["reqwest", "experimental_metrics_periodicreader_with_async_runtime"]
-reqwest = ["opentelemetry-otlp/reqwest-client"]
+default = ["reqwest-blocking"]
+reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
 hyper = ["opentelemetry-otlp/hyper-client"]
-experimental_metrics_periodicreader_with_async_runtime = ["opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime"]
-
 
 [dependencies]
 once_cell = { workspace = true }

@@ -62,15 +62,14 @@
 ///     provider.shutdown();
 /// }
 /// ```
-use crate::runtime::RuntimeChannel;
 use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
 use crate::Resource;
 use crate::{export::trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::trace::TraceError;
-use opentelemetry::InstrumentationScope;
 use opentelemetry::{otel_debug, trace::TraceResult};
+use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -253,20 +252,11 @@ impl TracerProvider {
     }
 }
 
-/// Default tracer name if empty string is provided.
-const DEFAULT_COMPONENT_NAME: &str = "rust.opentelemetry.io/sdk/tracer";
-
 impl opentelemetry::trace::TracerProvider for TracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
-        let mut name = name.into();
-
-        if name.is_empty() {
-            name = Cow::Borrowed(DEFAULT_COMPONENT_NAME)
-        };
-
         let scope = InstrumentationScope::builder(name).build();
         self.tracer_with_scope(scope)
     }
@@ -275,6 +265,9 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             return Tracer::new(scope, noop_tracer_provider().clone());
         }
+        if scope.name().is_empty() {
+            otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");
+        };
         Tracer::new(scope, self.clone())
     }
 }
@@ -296,12 +289,8 @@ impl Builder {
     }
 
     /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
-    pub fn with_batch_exporter<T: SpanExporter + 'static, R: RuntimeChannel>(
-        self,
-        exporter: T,
-        runtime: R,
-    ) -> Self {
-        let batch = BatchSpanProcessor::builder(exporter, runtime).build();
+    pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }
 
@@ -685,7 +674,7 @@ mod tests {
         // noop tracer's tracer provider should be shutdown
         assert!(noop_tracer.provider().is_shutdown());
 
-        // existing tracer becomes noops after shutdown
+        // existing tracer becomes noop after shutdown
         let _ = test_tracer_1.start("test");
         assert!(assert_handle.started_span_count(2));
 

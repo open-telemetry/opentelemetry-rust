@@ -13,7 +13,7 @@
     transparent change.
     [#2338](https://github.com/open-telemetry/opentelemetry-rust/pull/2338)
   - `ResourceDetector.detect()` no longer supports timeout option.
-  - `opentelemetry::global::shutdown_tracer_provider()` Removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply cloneable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
+  - `opentelemetry::global::shutdown_tracer_provider()` removed from the API, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example. "Tracer provider" is cheaply clonable, so users are encouraged to set a clone of it as the global (ex: `global::set_tracer_provider(provider.clone()))`, so that instrumentations and other components can obtain tracers from `global::tracer()`. The tracer_provider must be kept around to call shutdown on it at the end of application (ex: `tracer_provider.shutdown()`)
 - *Feature*: Add `ResourceBuilder` for an easy way to create new `Resource`s
 - *Breaking*: Remove `Resource::{new,empty,from_detectors,new_with_defaults,from_schema_url,merge,default}` from public api. To create Resources you should only use `Resource::builder()` or `Resource::builder_empty()`. See [#2322](https://github.com/open-telemetry/opentelemetry-rust/pull/2322) for a migration guide.
   Example Usage:
@@ -92,7 +92,10 @@
       `experimental_metrics_periodicreader_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
-      
+
+    Feature flag "experimental_metrics_periodic_reader_no_runtime" is removed as the PeriodicReader
+    offered under that feature flag is now the default.
+
   - Bump msrv to 1.75.0.
 
 - *Breaking* : [#2314](https://github.com/open-telemetry/opentelemetry-rust/pull/2314)
@@ -146,7 +149,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     - *After:*
       ```rust
       let logger_provider = LoggerProvider::builder()
-        .with_log_processor(BatchLogProcessorWithAsyncRuntime::builder(exporter, runtime::Tokio).build())
+        .with_log_processor(log_processor_with_async_runtime::BatchLogProcessor::builder(exporter, runtime::Tokio).build())
         .build();
       ```
 
@@ -155,6 +158,62 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       `experimental_logs_batch_log_processor_with_async_runtime`.  
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
+
+- **Breaking** [#2456](https://github.com/open-telemetry/opentelemetry-rust/pull/2456)
+
+  `BatchSpanProcessor` no longer requires an async runtime by default. Instead, a dedicated
+  background thread is created to do the batch processing and exporting.
+
+  For users who prefer the previous behavior of relying on a specific
+  `Runtime`, they can do so by enabling the feature flag
+  **`experimental_trace_batch_span_processor_with_async_runtime`**.
+
+ 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+    new default implementation does not require a runtime argument. Replace the
+    builder method accordingly:
+    - *Before:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter).build())
+        .build();
+      ```
+
+ 2. *Async Runtime Support*
+    If your application cannot spin up new threads or you prefer using async
+    runtimes, enable the
+    "experimental_trace_batch_span_processor_with_async_runtime" feature flag and
+    adjust code as below.
+
+    - *Before:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    - *After:*
+      ```rust
+      let tracer_provider = TracerProvider::builder()
+        .with_span_processor(span_processor_with_async_runtime::BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
+        .build();
+      ```
+
+    *Requirements:*
+    - Enable the feature flag:
+      `experimental_trace_batch_span_processor_with_async_runtime`.  
+    - Continue enabling one of the async runtime feature flags: `rt-tokio`,
+      `rt-tokio-current-thread`, or `rt-async-std`.
+
+- Bug fix: Empty Tracer names are retained as-is instead of replacing with
+  "rust.opentelemetry.io/sdk/tracer"
+  [#2486](https://github.com/open-telemetry/opentelemetry-rust/pull/2486)
 
 ## 0.27.1
 
