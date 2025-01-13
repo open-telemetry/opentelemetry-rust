@@ -41,9 +41,9 @@ impl JsonV2Client {
             .method(Method::POST)
             .uri(self.collector_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_vec(&spans).unwrap_or_default())
+            .body(serde_json::to_vec(&spans).unwrap_or_default().into())
             .map_err::<Error, _>(Into::into)?;
-        let _ = self.client.send(req).await?.error_for_status()?;
+        let _ = self.client.send_bytes(req).await?.error_for_status()?;
         Ok(())
     }
 }
