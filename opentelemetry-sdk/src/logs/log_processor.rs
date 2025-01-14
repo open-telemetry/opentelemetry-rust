@@ -306,7 +306,7 @@ impl LogProcessor for BatchLogProcessor {
             // If not, send a control message to export logs.
             // `export_log_message_sent` is set to false ONLY when the worker thread has processed the control message.
 
-            if !self.export_log_message_sent.load(Ordering::Acquire) {
+            if !self.export_log_message_sent.load(Ordering::Relaxed) {
                 // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
                 // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
                 // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
@@ -493,6 +493,9 @@ impl BatchLogProcessor {
 
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(BatchMessage::ExportLog(export_log_message_sent)) => {
+                            // Reset the export log message sent flag now it has has been processed.
+                            export_log_message_sent.store(false, Ordering::Relaxed);
+
                             otel_debug!(
                                 name: "BatchLogProcessor.ExportingDueToBatchSize",
                             );
@@ -505,9 +508,6 @@ impl BatchLogProcessor {
                                 &current_batch_size,
                                 &config,
                             );
-
-                            // Reset the export log message sent flag now it has has been processed.
-                            export_log_message_sent.store(false, Ordering::Release);
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
                             otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
