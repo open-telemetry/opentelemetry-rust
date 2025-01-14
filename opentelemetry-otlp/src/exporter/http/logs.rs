@@ -28,7 +28,7 @@ impl LogExporter for OtlpHttpClient {
                 .method(Method::POST)
                 .uri(&self.collector_endpoint)
                 .header(CONTENT_TYPE, content_type)
-                .body(body)
+                .body(body.into())
                 .map_err(|e| crate::Error::RequestFailed(Box::new(e)))?;
 
             for (k, v) in &self.headers {
@@ -37,7 +37,7 @@ impl LogExporter for OtlpHttpClient {
 
             let request_uri = request.uri().to_string();
             otel_debug!(name: "HttpLogsClient.CallingExport");
-            let response = client.send(request).await?;
+            let response = client.send_bytes(request).await?;
 
             if !response.status().is_success() {
                 let error = format!(

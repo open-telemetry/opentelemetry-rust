@@ -55,13 +55,24 @@ pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// users to bring their choice of HTTP client.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
-    /// Send the specified HTTP request
+    /// Send the specified HTTP request with `Vec<u8>` payload
     ///
     /// Returns the HTTP response including the status code and body.
     ///
     /// Returns an error if it can't connect to the server or the request could not be completed,
     /// e.g. because of a timeout, infinite redirects, or a loss of connection.
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError>;
+    #[deprecated(note = "Use `send_bytes` with `Bytes` payload instead.")]
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        self.send_bytes(request.map(Into::into)).await
+    }
+
+    /// Send the specified HTTP request with `Bytes` payload.
+    ///
+    /// Returns the HTTP response including the status code and body.
+    ///
+    /// Returns an error if it can't connect to the server or the request could not be completed,
+    /// e.g. because of a timeout, infinite redirects, or a loss of connection.
+    async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
 #[cfg(feature = "reqwest")]
@@ -72,7 +83,7 @@ mod reqwest {
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
@@ -89,7 +100,7 @@ mod reqwest {
     #[cfg(not(target_arch = "wasm32"))]
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
@@ -159,7 +170,7 @@ pub mod hyper {
 
     #[async_trait]
     impl HttpClient for HyperClient {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "HyperClient.Send");
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Body(Full::from(body)));
