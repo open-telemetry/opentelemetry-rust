@@ -415,14 +415,21 @@ impl PeriodicReaderInner {
             .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricError::Other(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
-            if response {
-                Ok(())
-            } else {
+        // TODO: Make this timeout configurable.
+        match response_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(response) => {
+                if response {
+                    Ok(())
+                } else {
+                    Err(MetricError::Other("Failed to shutdown".into()))
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                Err(MetricError::Other("Failed to shutdown due to Timeout".into()))
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
-        } else {
-            Err(MetricError::Other("Failed to shutdown".into()))
         }
     }
 }
