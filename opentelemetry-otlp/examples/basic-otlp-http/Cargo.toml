@@ -6,14 +6,14 @@ license = "Apache-2.0"
 publish = false
 
 [features]
+default = ["reqwest-blocking"]
 reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
-hyper = ["opentelemetry-otlp/hyper-client"]
 
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "experimental_metrics_periodicreader_with_async_runtime"]}
-opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs", "internal-logs"]}
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
+opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs", "internal-logs"], default-features = false}
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
 
 tokio = { workspace = true, features = ["full"] }
