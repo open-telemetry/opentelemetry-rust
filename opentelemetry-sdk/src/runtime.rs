@@ -288,7 +288,7 @@ impl<T: Send> TrySend for async_std::channel::Sender<T> {
 #[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental", feature = "rt-async-std")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
 )]
 impl RuntimeChannel for AsyncStd {
     type Receiver<T: Debug + Send> = async_std::channel::Receiver<T>;
