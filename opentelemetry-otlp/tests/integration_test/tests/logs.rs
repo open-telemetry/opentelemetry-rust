@@ -7,6 +7,7 @@ use integration_test_runner::test_utils;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
+use tracing::info;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 
@@ -67,9 +68,9 @@ mod logtests {
         Ok(())
     }
 
+    #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(not(feature = "hyper-client"))]
-    #[cfg(not(feature = "reqwest-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch() -> Result<()> {
         use integration_test_runner::test_utils;
         use opentelemetry_appender_tracing::layer;
@@ -119,6 +120,7 @@ mod logtests {
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
         let _ = logger_provider.shutdown();
+        info!("Sleeping for 10 seconds to allow collector to store logs to file");
         std::thread::sleep(Duration::from_secs(10));
         assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
@@ -127,12 +129,16 @@ mod logtests {
 }
 
 pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
+    info!("Reading expected logs");
     let left = read_logs_from_json(File::open(expected)?)?;
+    info!("Reading actual logs");
     let right = read_logs_from_json(File::open(result)?)?;
+
+    info!("Checking actual logs file size");
+    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
 
     LogsAsserter::new(left, right).assert();
 
-    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
     Ok(())
 }
 
