@@ -353,7 +353,8 @@ impl LogProcessor for BatchLogProcessor {
 
     fn shutdown(&self) -> LogResult<()> {
         // Set is_shutdown to true
-        self.is_shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
 
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
