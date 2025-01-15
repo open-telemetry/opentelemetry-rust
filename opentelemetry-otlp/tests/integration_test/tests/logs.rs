@@ -7,9 +7,9 @@ use integration_test_runner::test_utils;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
-use tracing::info;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
+use tracing::info;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider> {
     let exporter_builder = LogExporter::builder();
