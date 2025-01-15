@@ -564,9 +564,6 @@ mod tests {
     #[test]
     #[cfg(feature = "gzip-tonic")]
     fn test_with_gzip_compression() {
-        // metadata should merge with the current one with priority instead of just replacing it
-        let mut metadata = MetadataMap::new();
-        metadata.insert("foo", "bar".parse().unwrap());
         let builder = TonicExporterBuilder::default().with_compression(Compression::Gzip);
         assert_eq!(builder.tonic_config.compression.unwrap(), Compression::Gzip);
     }
