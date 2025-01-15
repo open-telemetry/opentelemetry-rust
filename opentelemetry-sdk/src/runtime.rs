@@ -15,7 +15,7 @@ use thiserror::Error;
 ///
 /// [Tokio]: https://crates.io/crates/tokio
 /// [async-std]: https://crates.io/crates/async-std
-#[cfg(feature = "experimental_runtime")]
+#[cfg(feature = "experimental_async_runtime")]
 pub trait Runtime: Clone + Send + Sync + 'static {
     /// A future stream, which returns items in a previously specified interval. The item type is
     /// not important.
@@ -45,18 +45,18 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 }
 
 /// Runtime implementation, which works with Tokio's multi thread runtime.
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 #[derive(Debug, Clone)]
 pub struct Tokio;
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl Runtime for Tokio {
     type Interval = tokio_stream::wrappers::IntervalStream;
@@ -78,18 +78,30 @@ impl Runtime for Tokio {
 }
 
 /// Runtime implementation, which works with Tokio's current thread runtime.
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread"))]
+#[cfg(all(
+    feature = "experimental_async_runtime",
+    feature = "rt-tokio-current-thread"
+))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread")))
+    doc(cfg(all(
+        feature = "experimental_async_runtime",
+        feature = "rt-tokio-current-thread"
+    )))
 )]
 #[derive(Debug, Clone)]
 pub struct TokioCurrentThread;
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread"))]
+#[cfg(all(
+    feature = "experimental_async_runtime",
+    feature = "rt-tokio-current-thread"
+))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread")))
+    doc(cfg(all(
+        feature = "experimental_async_runtime",
+        feature = "rt-tokio-current-thread"
+    )))
 )]
 impl Runtime for TokioCurrentThread {
     type Interval = tokio_stream::wrappers::IntervalStream;
@@ -121,18 +133,18 @@ impl Runtime for TokioCurrentThread {
 }
 
 /// Runtime implementation, which works with async-std.
-#[cfg(all(feature = "experimental_runtime", feature = "rt-async-std"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-async-std")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
 )]
 #[derive(Debug, Clone)]
 pub struct AsyncStd;
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-async-std"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-async-std")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
 )]
 impl Runtime for AsyncStd {
     type Interval = async_std::stream::Interval;
@@ -157,7 +169,7 @@ impl Runtime for AsyncStd {
 ///
 /// [log]: crate::logs::BatchLogProcessor
 /// [span]: crate::trace::BatchSpanProcessor
-#[cfg(feature = "experimental_runtime")]
+#[cfg(feature = "experimental_async_runtime")]
 pub trait RuntimeChannel: Runtime {
     /// A future stream to receive batch messages from channels.
     type Receiver<T: Debug + Send>: Stream<Item = T> + Send;
@@ -172,7 +184,7 @@ pub trait RuntimeChannel: Runtime {
 }
 
 /// Error returned by a [`TrySend`] implementation.
-#[cfg(feature = "experimental_runtime")]
+#[cfg(feature = "experimental_async_runtime")]
 #[derive(Debug, Error)]
 pub enum TrySendError {
     /// Send failed due to the channel being full.
@@ -187,7 +199,7 @@ pub enum TrySendError {
 }
 
 /// TrySend is an abstraction of `Sender` that is capable of sending messages through a reference.
-#[cfg(feature = "experimental_runtime")]
+#[cfg(feature = "experimental_async_runtime")]
 pub trait TrySend: Sync + Send {
     /// The message that will be sent.
     type Message;
@@ -199,7 +211,7 @@ pub trait TrySend: Sync + Send {
 }
 
 #[cfg(all(
-    feature = "experimental_runtime",
+    feature = "experimental_async_runtime",
     any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
 ))]
 impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
@@ -213,10 +225,10 @@ impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
     }
 }
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio")))
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl RuntimeChannel for Tokio {
     type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
@@ -234,10 +246,16 @@ impl RuntimeChannel for Tokio {
     }
 }
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread"))]
+#[cfg(all(
+    feature = "experimental_async_runtime",
+    feature = "rt-tokio-current-thread"
+))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(all(feature = "experimental_runtime", feature = "rt-tokio-current-thread")))
+    doc(cfg(all(
+        feature = "experimental_async_runtime",
+        feature = "rt-tokio-current-thread"
+    )))
 )]
 impl RuntimeChannel for TokioCurrentThread {
     type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
@@ -255,7 +273,7 @@ impl RuntimeChannel for TokioCurrentThread {
     }
 }
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-async-std"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
 impl<T: Send> TrySend for async_std::channel::Sender<T> {
     type Message = T;
 
@@ -267,7 +285,7 @@ impl<T: Send> TrySend for async_std::channel::Sender<T> {
     }
 }
 
-#[cfg(all(feature = "experimental_runtime", feature = "rt-async-std"))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
 #[cfg_attr(
     docsrs,
     doc(cfg(all(feature = "experimental", feature = "rt-async-std")))

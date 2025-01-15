@@ -215,22 +215,22 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
   "rust.opentelemetry.io/sdk/tracer"
   [#2486](https://github.com/open-telemetry/opentelemetry-rust/pull/2486)
 
-- **Breaking** Introduced `experimental_runtime` feature for runtime-specific traits.
+- **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
   - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
-  now depend on the `experimental_runtime` feature.
-  - Custom runtime implementations must enable the `experimental_runtime` feature.
+  now depend on the `experimental_async_runtime` feature.
+  - Custom runtime implementations must enable the `experimental_async_runtime` feature.
   - For users needing to enable the runtime related features
     - **For users enabling runtime features**: No additional steps are required. 
-    Enabling `rt-tokio`, `rt-tokio-current-thread`, or `rt-async-std` automatically enables `experimental_runtime`.
+    Enabling `rt-tokio`, `rt-tokio-current-thread`, or `rt-async-std` automatically enables `experimental_async_runtime`.
     ```toml
     [dependencies]
     opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] } 
     ```
-    - **For users implementing a custom runtime**: Enable the experimental_runtime feature in your Cargo.toml 
+    - **For users implementing a custom runtime**: Enable the experimental_async_runtime feature in your Cargo.toml 
     and implement the Runtime trait:
     ```toml
     [dependencies]
-    opentelemetry_sdk = { version = "0.27.1", features = ["experimental_runtime"] }
+    opentelemetry_sdk = { version = "0.27.1", features = ["experimental_async_runtime"] }
     ```
   
 ## 0.27.1
