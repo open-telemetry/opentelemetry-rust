@@ -97,11 +97,11 @@ where
 /// seconds. The export time is not counted towards the interval between
 /// attempts. `PeriodicReader` itself does not enforce a timeout. Instead, the
 /// timeout is passed on to the configured exporter for each export attempt.
-/// 
+///
 /// `PeriodicReader` spawns a background thread to handle the periodic
 /// collection and export of metrics. The background thread will continue to run
 /// until `shutdown()` is called.
-/// 
+///
 /// When using this reader with the OTLP Exporter, the following exporter
 /// features are supported:
 /// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
