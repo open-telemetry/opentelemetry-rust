@@ -36,7 +36,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogEr
         .build()?;
 
     Ok(LoggerProvider::builder()
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
@@ -49,7 +49,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
         .build()?;
 
     Ok(TracerProvider::builder()
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
