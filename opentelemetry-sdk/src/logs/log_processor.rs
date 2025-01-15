@@ -352,19 +352,9 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        // test and set is_shutdown flag if it is not set
-        if self
-            .is_shutdown
-            .swap(true, std::sync::atomic::Ordering::Relaxed)
-        {
-            otel_warn!(
-                name: "BatchLogProcessor.Shutdown.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return LogResult::Err(LogError::AlreadyShutdown(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
+        // Set is_shutdown to true
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
 
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
