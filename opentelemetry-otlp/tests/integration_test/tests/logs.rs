@@ -68,7 +68,7 @@ mod logtests {
         Ok(())
     }
 
-    #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
+    // #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch() -> Result<()> {
