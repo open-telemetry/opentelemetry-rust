@@ -102,6 +102,21 @@ impl Clone for Box<dyn ShouldSample> {
     }
 }
 
+impl ShouldSample for Box<dyn ShouldSample> {
+    fn should_sample(
+        &self,
+        parent_context: Option<&Context>,
+        trace_id: TraceId,
+        name: &str,
+        span_kind: &SpanKind,
+        attributes: &[KeyValue],
+        links: &[Link],
+    ) -> SamplingResult {
+        self.as_ref()
+            .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+    }
+}
+
 /// Default Sampling options
 ///
 /// The [built-in samplers] allow for simple decisions. For more complex scenarios consider
