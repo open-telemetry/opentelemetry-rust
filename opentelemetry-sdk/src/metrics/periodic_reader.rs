@@ -424,9 +424,9 @@ impl PeriodicReaderInner {
                     Err(MetricError::Other("Failed to shutdown".into()))
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                Err(MetricError::Other("Failed to shutdown due to Timeout".into()))
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::Other(
+                "Failed to shutdown due to Timeout".into(),
+            )),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
