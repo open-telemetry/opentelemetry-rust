@@ -1,6 +1,7 @@
 use anyhow::Result;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
-use std::fs::File;
+use tracing::info;
+use std::{fs::File, io::Read};
 
 // Given two ResourceLogs, assert that they are equal except for the timestamps
 pub struct LogsAsserter {
@@ -98,8 +99,12 @@ impl std::fmt::Debug for LogRecordWrapper {
 
 // read a file contains ResourceSpans in json format
 pub fn read_logs_from_json(file: File) -> Result<Vec<ResourceLogs>> {
-    let reader = std::io::BufReader::new(file);
+    // print file contents
+    let mut contents = String::new();
+    let mut reader = std::io::BufReader::new(&file);
+    reader.read_to_string(&mut contents)?;
+    info!(file_contents=contents);
 
-    let log_data: LogsData = serde_json::from_reader(reader)?;
+    let log_data: LogsData = serde_json::from_str(&contents)?;
     Ok(log_data.resource_logs)
 }
