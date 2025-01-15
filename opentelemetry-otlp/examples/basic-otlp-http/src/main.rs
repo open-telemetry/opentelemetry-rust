@@ -36,7 +36,7 @@ fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogEr
         .build()?;
 
     Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
@@ -49,7 +49,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
         .build()?;
 
     Ok(TracerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
@@ -69,9 +69,8 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .build())
 }
 
-// #[tokio::main]
-// TODO: Re-enable tokio::main, if needed, after
-fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let logger_provider = init_logs()?;
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
