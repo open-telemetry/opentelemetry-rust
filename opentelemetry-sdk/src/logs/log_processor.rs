@@ -223,6 +223,14 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 ///     - **Export timeout**: Maximum duration allowed for an export operation.
 ///     - **Scheduled delay**: Frequency at which the batch is exported.
 ///
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+///   runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+///
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
+///
 /// ### Using a BatchLogProcessor:
 ///
 /// ```rust
