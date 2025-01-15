@@ -70,9 +70,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(not(feature = "hyper-client"))]
     #[cfg(not(feature = "reqwest-client"))]
-    pub async fn test_logs() -> Result<()> {
-        // Make sure the container is running
-
+    pub async fn logs_batch() -> Result<()> {
         use integration_test_runner::test_utils;
         use opentelemetry_appender_tracing::layer;
         use tracing::info;
@@ -88,8 +86,7 @@ mod logtests {
             let _guard = tracing::subscriber::set_default(subscriber);
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
-        // TODO: remove below wait before calling logger_provider.shutdown()
-        // tokio::time::sleep(Duration::from_secs(10)).await;
+
         let _ = logger_provider.shutdown();
 
         tokio::time::sleep(Duration::from_secs(10)).await;
@@ -99,7 +96,7 @@ mod logtests {
         Ok(())
     }
 
-    #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
+    //#[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
@@ -122,7 +119,7 @@ mod logtests {
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
         let _ = logger_provider.shutdown();
-        // tokio::time::sleep(Duration::from_secs(10)).await;
+        std::thread::sleep(Duration::from_secs(10));
         assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
         Ok(())
