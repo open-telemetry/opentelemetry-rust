@@ -94,6 +94,7 @@
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:
 //!
+//! * `experimental_runtime`: Enables the experimental `Runtime` trait and related functionality.
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
 //! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
@@ -133,6 +134,7 @@ pub mod metrics;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod propagation;
 pub mod resource;
+#[cfg(feature = "experimental_runtime")]
 pub mod runtime;
 #[cfg(any(feature = "testing", test))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
