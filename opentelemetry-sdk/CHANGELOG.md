@@ -44,7 +44,7 @@
 - *Breaking* Removed the following deprecated methods:
   - `Logger::provider()` : Previously deprecated in version 0.27.1
   - `Logger::instrumentation_scope()` : Previously deprecated in version 0.27.1.
-     Migration Guidance: 
+     Migration Guidance:
         - These methods were intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 - *Breaking* - `PeriodicReader` Updates
@@ -82,7 +82,7 @@
     If your application cannot spin up new threads or you prefer using async
     runtimes, enable the
     "experimental_metrics_periodicreader_with_async_runtime" feature flag and
-    adjust code as below.  
+    adjust code as below.
 
     - *Before:*
 
@@ -98,7 +98,7 @@
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_metrics_periodicreader_with_async_runtime`.  
+      `experimental_metrics_periodicreader_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
@@ -175,7 +175,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_logs_batch_log_processor_with_async_runtime`.  
+      `experimental_logs_batch_log_processor_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
@@ -239,13 +239,23 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_trace_batch_span_processor_with_async_runtime`.  
+      `experimental_trace_batch_span_processor_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
 - Bug fix: Empty Tracer names are retained as-is instead of replacing with
   "rust.opentelemetry.io/sdk/tracer"
   [#2486](https://github.com/open-telemetry/opentelemetry-rust/pull/2486)
+- Update `EnvResourceDetector` to allow resource attribute values containing
+  equal signs (`"="`). [#2120](https://github.com/open-telemetry/opentelemetry-rust/pull/2120)
+
+- **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
+  - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
+  now depend on the `experimental_async_runtime` feature.
+  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`, 
+  or `rt-async-std` will automatically enable the `experimental_async_runtime` feature.
+  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
+  Cargo.toml and implement the required `Runtime` traits.
 
 ## 0.27.1
 
@@ -274,10 +284,10 @@ Released 2024-Nov-27
   - Bug fix: Empty Logger names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/logger"
     [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
-  
+
   - `Logger::provider`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`.
   - `Logger::instrumentation_scope`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`
-     Migration Guidance: 
+     Migration Guidance:
         - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 
@@ -303,7 +313,7 @@ Released 2024-Nov-11
   - **Replaced**
     - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
   - **Renamed**
-    - ([#2232](https://github.com/open-telemetry/opentelemetry-rust/pull/2232)): The `init` method used to create instruments has been renamed to `build`.  
+    - ([#2232](https://github.com/open-telemetry/opentelemetry-rust/pull/2232)): The `init` method used to create instruments has been renamed to `build`.
       Before:
       ```rust
       let counter = meter.u64_counter("my_counter").init();
