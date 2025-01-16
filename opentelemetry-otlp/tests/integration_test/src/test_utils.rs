@@ -18,6 +18,7 @@
 //!
 #![cfg(unix)]
 
+use anyhow::Ok;
 use anyhow::Result;
 use opentelemetry::{otel_debug, otel_info};
 use std::fs;
@@ -130,19 +131,11 @@ fn upsert_empty_file(path: &str) -> File {
 ///
 /// This function is meant to cleanup the generated json file before a test starts,
 /// preventing entries from previous tests from interfering with the current test's results.
-pub fn cleanup_logs_file(file_path: &str) -> Result<()> {
-    let file = OpenOptions::new()
+pub fn cleanup_logs_file(file_path: &str) {
+    let _ = OpenOptions::new()
         .write(true)
         .truncate(true)
-        .open(file_path);
-    match file {
-        Ok(_) => Ok(()),
-        Err(err) => Err(anyhow::anyhow!(
-            "Failed to clean up file '{}': {:?}",
-            file_path,
-            err
-        )),
-    }
+        .open(file_path); // ignore result, as file may not exist
 }
 
 ///

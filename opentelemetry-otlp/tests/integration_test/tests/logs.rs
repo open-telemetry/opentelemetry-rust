@@ -72,7 +72,7 @@ mod logtests {
     #[cfg(not(feature = "reqwest-client"))]
     #[serial_test::serial]
     pub async fn test_logs() -> Result<()> {
-        test_utils::cleanup_logs_file("./actual/logs.json")?; // Ensure logs.json is empty before the test
+        test_utils::cleanup_logs_file("./actual/logs.json"); // Ensure logs.json is empty before the test
 
         // Make sure the container is running
         use integration_test_runner::test_utils;
@@ -102,7 +102,7 @@ mod logtests {
     #[serial_test::serial]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
-        test_utils::cleanup_logs_file("./actual/logs.json")?; // Ensure logs.json is empty before the test
+        test_utils::cleanup_logs_file("./actual/logs.json"); // Ensure logs.json is empty before the test
 
         // Initialize the logger provider inside a tokio runtime
         // as this allows tonic client to capture the runtime,
