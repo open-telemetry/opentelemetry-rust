@@ -217,6 +217,14 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 - Update `EnvResourceDetector` to allow resource attribute values containing
   equal signs (`"="`). [#2120](https://github.com/open-telemetry/opentelemetry-rust/pull/2120)
 
+- **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
+  - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
+  now depend on the `experimental_async_runtime` feature.
+  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`, 
+  or `rt-async-std` will automatically enable the `experimental_async_runtime` feature.
+  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
+  Cargo.toml and implement the required `Runtime` traits.
+
 ## 0.27.1
 
 Released 2024-Nov-27
