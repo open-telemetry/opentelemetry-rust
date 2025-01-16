@@ -16,6 +16,7 @@ anyhow = "1.0.94"
 ctor = "0.2.9"
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 tracing = {workspace = true}
+serial_test = "3.2.0"
 
 [target.'cfg(unix)'.dependencies]
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}

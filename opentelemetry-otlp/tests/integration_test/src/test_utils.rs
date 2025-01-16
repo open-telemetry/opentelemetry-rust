@@ -22,6 +22,7 @@ use anyhow::Result;
 use opentelemetry::{otel_debug, otel_info};
 use std::fs;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex, Once, OnceLock};
 use testcontainers::core::wait::HttpWaitStrategy;
@@ -123,6 +124,25 @@ fn upsert_empty_file(path: &str) -> File {
     file.set_permissions(std::fs::Permissions::from_mode(0o666))
         .unwrap();
     file
+}
+
+/// Cleans up file specificed as argument by truncating its content.
+///
+/// This function is meant to cleanup the generated json file before a test starts,
+/// preventing entries from previous tests from interfering with the current test's results.
+pub fn cleanup_logs_file(file_path: &str) -> Result<()> {
+    let file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(file_path);
+    match file {
+        Ok(_) => Ok(()),
+        Err(err) => Err(anyhow::anyhow!(
+            "Failed to clean up file '{}': {:?}",
+            file_path,
+            err
+        )),
+    }
 }
 
 ///

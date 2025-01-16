@@ -39,7 +39,7 @@ mod logtests {
     use super::*;
     use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
     use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-    use std::{fs::File, time::Duration};
+    use std::fs::File;
     use tracing::info;
     use tracing_subscriber::layer::SubscriberExt;
 
@@ -70,9 +70,11 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(not(feature = "hyper-client"))]
     #[cfg(not(feature = "reqwest-client"))]
+    #[serial_test::serial]
     pub async fn test_logs() -> Result<()> {
-        // Make sure the container is running
+        test_utils::cleanup_logs_file("./actual/logs.json")?; // Ensure logs.json is empty before the test
 
+        // Make sure the container is running
         use integration_test_runner::test_utils;
         use opentelemetry_appender_tracing::layer;
         use tracing::info;
@@ -88,21 +90,20 @@ mod logtests {
             let _guard = tracing::subscriber::set_default(subscriber);
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
-        // TODO: remove below wait before calling logger_provider.shutdown()
-        // tokio::time::sleep(Duration::from_secs(10)).await;
+
         let _ = logger_provider.shutdown();
-
-        tokio::time::sleep(Duration::from_secs(10)).await;
-
         assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
         Ok(())
     }
 
-    #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
+    //#[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[test]
+    #[serial_test::serial]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
+        test_utils::cleanup_logs_file("./actual/logs.json")?; // Ensure logs.json is empty before the test
+
         // Initialize the logger provider inside a tokio runtime
         // as this allows tonic client to capture the runtime,
         // but actual export occurs from the dedicated std::thread
@@ -114,7 +115,6 @@ mod logtests {
             init_logs()
         })?;
 
-        info!("LoggerProvider created");
         let layer = OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
         {
@@ -122,7 +122,7 @@ mod logtests {
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
         let _ = logger_provider.shutdown();
-        // tokio::time::sleep(Duration::from_secs(10)).await;
+
         assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
         Ok(())
