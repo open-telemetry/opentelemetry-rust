@@ -218,21 +218,11 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 - **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
   - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
   now depend on the `experimental_async_runtime` feature.
-  - Custom runtime implementations must enable the `experimental_async_runtime` feature.
-  - For users needing to enable the runtime related features
-    - **For users enabling runtime features**: No additional steps are required. 
-    Enabling `rt-tokio`, `rt-tokio-current-thread`, or `rt-async-std` automatically enables `experimental_async_runtime`.
-    ```toml
-    [dependencies]
-    opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] } 
-    ```
-    - **For users implementing a custom runtime**: Enable the experimental_async_runtime feature in your Cargo.toml 
-    and implement the Runtime trait:
-    ```toml
-    [dependencies]
-    opentelemetry_sdk = { version = "0.27.1", features = ["experimental_async_runtime"] }
-    ```
-  
+  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`, 
+  or `rt-async-std` will automatically enable the `experimental_async_runtime` feature.
+  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
+  Cargo.toml and implement the required `Runtime` traits.
+
 ## 0.27.1
 
 Released 2024-Nov-27
