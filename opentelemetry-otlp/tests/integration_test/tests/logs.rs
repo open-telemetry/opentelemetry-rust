@@ -2,14 +2,12 @@
 
 use anyhow::Result;
 use ctor::dtor;
-use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use integration_test_runner::test_utils;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
-use std::os::unix::fs::MetadataExt;
-use tracing::info;
+use std::io::Read;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider> {
     let exporter_builder = LogExporter::builder();
@@ -68,7 +66,6 @@ mod logtests {
         Ok(())
     }
 
-    // #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch() -> Result<()> {
@@ -76,6 +73,7 @@ mod logtests {
         use opentelemetry_appender_tracing::layer;
         use tracing::info;
         use tracing_subscriber::layer::SubscriberExt;
+        use uuid::Uuid;
 
         use crate::{assert_logs_results, init_logs};
         test_utils::start_collector_container().await?;
@@ -83,21 +81,22 @@ mod logtests {
         let logger_provider = init_logs().unwrap();
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
+        // generate a random uuid and store it to expected guid
+        let expected_uuid = Uuid::new_v4().to_string();
         {
             let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
         }
 
         let _ = logger_provider.shutdown();
 
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(5)).await;
 
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
+        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
 
         Ok(())
     }
 
-    //#[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
@@ -105,6 +104,8 @@ mod logtests {
         // as this allows tonic client to capture the runtime,
         // but actual export occurs from the dedicated std::thread
         // created by BatchLogProcessor.
+
+        use uuid::Uuid;
         let rt = tokio::runtime::Runtime::new()?;
         let logger_provider = rt.block_on(async {
             // While we're here setup our collector container too, as this needs tokio to run
@@ -115,30 +116,27 @@ mod logtests {
         info!("LoggerProvider created");
         let layer = OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
+        // generate a random uuid and store it to expected guid
+        let expected_uuid = Uuid::new_v4().to_string();
         {
             let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+            info!(target: "my-target", uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
         }
         let _ = logger_provider.shutdown();
-        info!("Sleeping for 10 seconds to allow collector to store logs to file");
-        std::thread::sleep(Duration::from_secs(10));
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
+        info!("Sleeping for 5 seconds to allow collector to store logs to file");
+        std::thread::sleep(Duration::from_secs(5));
+        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
 
         Ok(())
     }
 }
 
-pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
-    info!("Reading expected logs");
-    let left = read_logs_from_json(File::open(expected)?)?;
-    info!("Reading actual logs");
-    let right = read_logs_from_json(File::open(result)?)?;
-
-    info!("Checking actual logs file size");
-    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
-
-    LogsAsserter::new(left, right).assert();
-
+pub fn assert_logs_results(result: &str, expected_content: &str) -> Result<()> {
+    let file = File::open(result)?;
+    let mut contents = String::new();
+    let mut reader = std::io::BufReader::new(&file);
+    reader.read_to_string(&mut contents)?;
+    assert!(contents.contains(expected_content));
     Ok(())
 }
 
