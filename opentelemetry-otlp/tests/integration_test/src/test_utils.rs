@@ -135,28 +135,6 @@ pub fn cleanup_file(file_path: &str) {
         .open(file_path); // ignore result, as file may not exist
 }
 
-pub fn print_file_content(file_path: &str) {
-    use std::io::BufRead;
-    use std::io::BufReader;
-    // Open the file for reading
-    let file_result = File::open(file_path);
-
-    match file_result {
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            for line in reader.lines() {
-                match line {
-                    Ok(content) => println!("{}", content), // Print each line
-                    Err(e) => eprintln!("Error reading a line: {}", e),
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to open file: {}", e);
-        }
-    }
-}
-
 ///
 /// Shuts down our collector container. This should be run as part of each test
 /// suite shutting down!
