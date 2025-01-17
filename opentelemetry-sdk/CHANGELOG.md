@@ -44,7 +44,7 @@
 - *Breaking* Removed the following deprecated methods:
   - `Logger::provider()` : Previously deprecated in version 0.27.1
   - `Logger::instrumentation_scope()` : Previously deprecated in version 0.27.1.
-     Migration Guidance: 
+     Migration Guidance:
         - These methods were intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 - *Breaking* - `PeriodicReader` Updates
@@ -58,11 +58,10 @@
    **`experimental_metrics_periodicreader_with_async_runtime`**.
 
    Migration Guide:
-
- 1. *Default Implementation, requires no async runtime* (**Recommended**) The
+   1. *Default Implementation, requires no async runtime* (**Recommended**) The
     new default implementation does not require a runtime argument. Replace the
     builder method accordingly:
-    - *Before:* 
+    - *Before:*
       ```rust
       let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
       ```
@@ -71,25 +70,35 @@
       let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
       ```
 
+    The new PeriodicReader can be used with OTLP Exporter, and supports
+    following exporter features:
+    - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+      runtime.
+    - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+
+    In other words, other clients like `reqwest` and `hyper` are not supported.
+
  2. *Async Runtime Support*
     If your application cannot spin up new threads or you prefer using async
     runtimes, enable the
     "experimental_metrics_periodicreader_with_async_runtime" feature flag and
-    adjust code as below.  
+    adjust code as below.
 
     - *Before:*
+
       ```rust
       let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
       ```
 
     - *After:*
+
       ```rust
       let reader = opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(exporter, runtime::Tokio).build();
-      ```      
+      ```
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_metrics_periodicreader_with_async_runtime`.  
+      `experimental_metrics_periodicreader_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
@@ -104,11 +113,10 @@
     - Getter methods have been introduced to access field values.
     This change impacts custom exporter and processor developers by requiring updates to code that directly accessed LogRecord fields. They must now use the provided getter methods (e.g., `log_record.event_name()` instead of `log_record.event_name`).
 
-- Upgrade the tracing crate used for internal logging to version 0.1.40 or later. This is necessary because the internal logging macros utilize the name field as       
+- Upgrade the tracing crate used for internal logging to version 0.1.40 or later. This is necessary because the internal logging macros utilize the name field as
 metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/open-telemetry/opentelemetry-rust/pull/2418)
 
-- **Breaking** [#2436](https://github.com/open-telemetry/opentelemetry-rust/pull/2436)
-
+- *Breaking* - `BatchLogProcessor` Updates [#2436](https://github.com/open-telemetry/opentelemetry-rust/pull/2436)
   `BatchLogProcessor` no longer requires an async runtime by default. Instead, a dedicated
   background thread is created to do the batch processing and exporting.
 
@@ -120,6 +128,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     new default implementation does not require a runtime argument. Replace the
     builder method accordingly:
     - *Before:*
+
       ```rust
       let logger_provider = LoggerProvider::builder()
         .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
@@ -127,11 +136,20 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       ```
 
     - *After:*
+
       ```rust
       let logger_provider = LoggerProvider::builder()
         .with_log_processor(BatchLogProcessor::builder(exporter).build())
         .build();
       ```
+
+    The new BatchLogProcessor can be used with OTLP Exporter, and supports
+    following exporter features:
+    - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+      runtime.
+    - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+
+    In other words, other clients like `reqwest` and `hyper` are not supported.
 
  2. *Async Runtime Support*
     If your application cannot spin up new threads or you prefer using async
@@ -140,6 +158,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     adjust code as below.
 
     - *Before:*
+
       ```rust
       let logger_provider = LoggerProvider::builder()
         .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
@@ -147,6 +166,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       ```
 
     - *After:*
+
       ```rust
       let logger_provider = LoggerProvider::builder()
         .with_log_processor(log_processor_with_async_runtime::BatchLogProcessor::builder(exporter, runtime::Tokio).build())
@@ -155,11 +175,11 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_logs_batch_log_processor_with_async_runtime`.  
+      `experimental_logs_batch_log_processor_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
-- **Breaking** [#2456](https://github.com/open-telemetry/opentelemetry-rust/pull/2456)
+- *Breaking* - `BatchSpanProcessor` Updates [#2435](https://github.com/open-telemetry/opentelemetry-rust/pull/2456)
 
   `BatchSpanProcessor` no longer requires an async runtime by default. Instead, a dedicated
   background thread is created to do the batch processing and exporting.
@@ -172,6 +192,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     new default implementation does not require a runtime argument. Replace the
     builder method accordingly:
     - *Before:*
+
       ```rust
       let tracer_provider = TracerProvider::builder()
         .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
@@ -179,11 +200,20 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       ```
 
     - *After:*
+
       ```rust
       let tracer_provider = TracerProvider::builder()
         .with_span_processor(BatchSpanProcessor::builder(exporter).build())
         .build();
       ```
+
+    The new BatchLogProcessor can be used with OTLP Exporter, and supports
+    following exporter features:
+    - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+      runtime.
+    - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+
+    In other words, other clients like `reqwest` and `hyper` are not supported.
 
  2. *Async Runtime Support*
     If your application cannot spin up new threads or you prefer using async
@@ -192,6 +222,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
     adjust code as below.
 
     - *Before:*
+
       ```rust
       let tracer_provider = TracerProvider::builder()
         .with_span_processor(BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
@@ -199,6 +230,7 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
       ```
 
     - *After:*
+
       ```rust
       let tracer_provider = TracerProvider::builder()
         .with_span_processor(span_processor_with_async_runtime::BatchSpanProcessor::builder(exporter, runtime::Tokio).build())
@@ -207,13 +239,23 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
 
     *Requirements:*
     - Enable the feature flag:
-      `experimental_trace_batch_span_processor_with_async_runtime`.  
+      `experimental_trace_batch_span_processor_with_async_runtime`.
     - Continue enabling one of the async runtime feature flags: `rt-tokio`,
       `rt-tokio-current-thread`, or `rt-async-std`.
 
 - Bug fix: Empty Tracer names are retained as-is instead of replacing with
   "rust.opentelemetry.io/sdk/tracer"
   [#2486](https://github.com/open-telemetry/opentelemetry-rust/pull/2486)
+- Update `EnvResourceDetector` to allow resource attribute values containing
+  equal signs (`"="`). [#2120](https://github.com/open-telemetry/opentelemetry-rust/pull/2120)
+
+- **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
+  - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
+  now depend on the `experimental_async_runtime` feature.
+  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`, 
+  or `rt-async-std` will automatically enable the `experimental_async_runtime` feature.
+  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
+  Cargo.toml and implement the required `Runtime` traits.
 
 ## 0.27.1
 
@@ -242,10 +284,10 @@ Released 2024-Nov-27
   - Bug fix: Empty Logger names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/logger"
     [#2316](https://github.com/open-telemetry/opentelemetry-rust/pull/2316)
-  
+
   - `Logger::provider`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`.
   - `Logger::instrumentation_scope`: This method is deprecated as of version `0.27.1`. To be removed in `0.28.0`
-     Migration Guidance: 
+     Migration Guidance:
         - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
 
@@ -271,7 +313,7 @@ Released 2024-Nov-11
   - **Replaced**
     - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)): Removed `{Delta,Cumulative}TemporalitySelector::new()` in favor of directly using `Temporality` enum to simplify the configuration of MetricsExporterBuilder with different temporalities.
   - **Renamed**
-    - ([#2232](https://github.com/open-telemetry/opentelemetry-rust/pull/2232)): The `init` method used to create instruments has been renamed to `build`.  
+    - ([#2232](https://github.com/open-telemetry/opentelemetry-rust/pull/2232)): The `init` method used to create instruments has been renamed to `build`.
       Before:
       ```rust
       let counter = meter.u64_counter("my_counter").init();
