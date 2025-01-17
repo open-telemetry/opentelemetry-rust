@@ -221,12 +221,15 @@ use futures_executor::block_on;
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::Receiver;
+use crate::export::trace::ExportResult;
 
 /// Messages exchanged between the main thread and the background thread.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum BatchMessage {
-    ExportSpan(SpanData),
+    //ExportSpan(SpanData),
+    ExportSpan(Arc<AtomicBool>),
     ForceFlush(SyncSender<TraceResult<()>>),
     Shutdown(SyncSender<TraceResult<()>>),
     SetResource(Arc<Resource>),
@@ -235,12 +238,16 @@ enum BatchMessage {
 /// A batch span processor with a dedicated background thread.
 #[derive(Debug)]
 pub struct BatchSpanProcessor {
-    message_sender: SyncSender<BatchMessage>,
+    span_sender: SyncSender<SpanData>, // Data channel to store spans
+    message_sender: SyncSender<BatchMessage>, // Control channel to store control messages.
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
     dropped_span_count: Arc<AtomicUsize>,
+    export_span_message_sent: Arc<AtomicBool>,
+    current_batch_size: Arc<AtomicUsize>,
+    max_export_batch_size: usize,
 }
 
 impl BatchSpanProcessor {
@@ -255,7 +262,12 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + 'static,
     {
-        let (message_sender, message_receiver) = sync_channel(config.max_queue_size);
+        let (message_sender, message_receiver) = sync_channel::<SpanData>(config.max_queue_size);
+        let (message_sender, message_receiver) = sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
+        let max_queue_size = config.max_queue_size;
+        let max_export_batch_size = config.max_export_batch_size;
+        let current_batch_size = Arc::new(AtomicUsize::new(0));
+        let current_batch_size_for_thread = current_batch_size.clone();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
@@ -268,7 +280,41 @@ impl BatchSpanProcessor {
                 );
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
+                let current_batch_size = current_batch_size_for_thread;
+                // This method gets upto `max_export_batch_size` amount of spans from the channel and exports them.
+                // It returns the result of the export operation.
+                // It expects the span vec to be empty when it's called.
+                #[inline]
+                fn get_spans_and_export<E>(
+                    spans_receiver: &Receiver<SpanData>,
+                    exporter: &E,
+                    spans: &mut Vec<SpanData>,
+                    last_export_time: &mut Instant,
+                    current_batch_size: &AtomicUsize,
+                    config: &BatchConfig,
+                ) -> ExportResult
+                where
+                    E: SpanExporter + Send + Sync + 'static,
+                {
+                    // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
+                    while let Ok(log) = spans_receiver.try_recv() {
+                        spans.push(log);
+                        if spans.len() == config.max_export_batch_size {
+                            break;
+                        }
+                    }
 
+                    let count_of_logs = spans.len(); // Count of logs that will be exported
+                    let result = export_with_timeout_sync(
+                        config.max_export_timeout,
+                        exporter,
+                        spans,
+                        last_export_time,
+                    ); // This method clears the logs vec after exporting
+
+                    current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
+                    result
+                }
                 loop {
                     let remaining_time_option = config
                         .scheduled_delay
@@ -280,6 +326,9 @@ impl BatchSpanProcessor {
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(message) => match message {
                             BatchMessage::ExportSpan(span) => {
+                                otel_debug!(
+                                    name: "BatchSpanProcessor.ExportingDueToBatchSize",
+                                );
                                 spans.push(span);
                                 if spans.len() >= config.max_queue_size
                                     || last_export_time.elapsed() >= config.scheduled_delay
