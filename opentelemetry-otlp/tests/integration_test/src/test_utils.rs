@@ -20,8 +20,7 @@
 
 use anyhow::Result;
 use opentelemetry::{otel_debug, otel_info};
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File, OpenOptions};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex, Once, OnceLock};
 use testcontainers::core::wait::HttpWaitStrategy;
@@ -123,6 +122,39 @@ fn upsert_empty_file(path: &str) -> File {
     file.set_permissions(std::fs::Permissions::from_mode(0o666))
         .unwrap();
     file
+}
+
+/// Cleans up file specificed as argument by truncating its content.
+///
+/// This function is meant to cleanup the generated json file before a test starts,
+/// preventing entries from previous tests from interfering with the current test's results.
+pub fn cleanup_file(file_path: &str) {
+    let _ = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(file_path); // ignore result, as file may not exist
+}
+
+pub fn print_file_content(file_path: &str) {
+    use std::io::BufRead;
+    use std::io::BufReader;
+    // Open the file for reading
+    let file_result = File::open(file_path);
+
+    match file_result {
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                match line {
+                    Ok(content) => println!("{}", content), // Print each line
+                    Err(e) => eprintln!("Error reading a line: {}", e),
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to open file: {}", e);
+        }
+    }
 }
 
 ///

@@ -2,12 +2,14 @@
 
 use anyhow::Result;
 use ctor::dtor;
+use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use integration_test_runner::test_utils;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
 use std::io::Read;
+use std::os::unix::fs::MetadataExt;
 
 fn init_logs(is_simple: bool) -> Result<sdklogs::LoggerProvider> {
     let exporter_builder = LogExporter::builder();
@@ -87,27 +89,57 @@ mod logtests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::serial]
+    pub async fn test_logs() -> Result<()> {
+        // Make sure the container is running
+        use crate::{assert_logs_results, init_logs};
+        use integration_test_runner::test_utils;
+        use opentelemetry_appender_tracing::layer;
+        use tracing::info;
+        use tracing_subscriber::layer::SubscriberExt;
+        test_utils::start_collector_container().await?;
+        test_utils::cleanup_file("./actual/logs.json"); // Ensure logs.json is empty before the test
+        let logger_provider = init_logs(false).unwrap();
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        {
+            let _guard = tracing::subscriber::set_default(subscriber);
+            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+        }
+        // TODO: remove below wait before calling logger_provider.shutdown()
+        // tokio::time::sleep(Duration::from_secs(10)).await;
+        let _ = logger_provider.shutdown();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::parallel]
     pub async fn logs_batch_tokio_multi_thread() -> Result<()> {
-        logs_batch_tokio_helper().await
+        logs_tokio_helper(false).await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::parallel]
     pub async fn logs_batch_tokio_multi_with_one_worker() -> Result<()> {
-        logs_batch_tokio_helper().await
+        logs_tokio_helper(false).await
     }
 
     #[tokio::test(flavor = "current_thread")]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::parallel]
     pub async fn logs_batch_tokio_current() -> Result<()> {
-        logs_batch_tokio_helper().await
+        logs_tokio_helper(false).await
     }
 
-    async fn logs_batch_tokio_helper() -> Result<()> {
-        use crate::{assert_logs_results, init_logs};
+    async fn logs_tokio_helper(is_simple: bool) -> Result<()> {
+        use crate::{assert_logs_results_contains, init_logs};
         test_utils::start_collector_container().await?;
 
-        let logger_provider = init_logs(false).unwrap();
+        let logger_provider = init_logs(is_simple).unwrap();
         let layer = OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
         // generate a random uuid and store it to expected guid
@@ -119,58 +151,41 @@ mod logtests {
 
         let _ = logger_provider.shutdown();
         tokio::time::sleep(Duration::from_secs(5)).await;
-        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
+        assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
         Ok(())
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
+    #[serial_test::parallel]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
-        logs_simple_tokio_helper().await
+        logs_tokio_helper(true).await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
+    #[serial_test::parallel]
     pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
-        logs_simple_tokio_helper().await
+        logs_tokio_helper(true).await
     }
 
     // Ignored, to be investigated
     #[ignore]
     #[tokio::test(flavor = "current_thread")]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
+    #[serial_test::parallel]
     pub async fn logs_simple_tokio_current() -> Result<()> {
-        logs_simple_tokio_helper().await
-    }
-
-    async fn logs_simple_tokio_helper() -> Result<()> {
-        use crate::{assert_logs_results, init_logs};
-        test_utils::start_collector_container().await?;
-
-        let logger_provider = init_logs(true).unwrap();
-        let layer = OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
-        info!("Tracing initialized");
-        // generate a random uuid and store it to expected guid
-        let expected_uuid = Uuid::new_v4().to_string();
-        {
-            let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
-        }
-
-        let _ = logger_provider.shutdown();
-        tokio::time::sleep(Duration::from_secs(5)).await;
-        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
-        Ok(())
+        logs_tokio_helper(true).await
     }
 
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::parallel]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
-        logs_batch_non_tokio_helper()
+        logs_non_tokio_helper(false)
     }
 
-    fn logs_batch_non_tokio_helper() -> Result<()> {
+    fn logs_non_tokio_helper(is_simple: bool) -> Result<()> {
         // Initialize the logger provider inside a tokio runtime
         // as this allows tonic client to capture the runtime,
         // but actual export occurs from the dedicated std::thread
@@ -179,7 +194,7 @@ mod logtests {
         let logger_provider = rt.block_on(async {
             // While we're here setup our collector container too, as this needs tokio to run
             test_utils::start_collector_container().await?;
-            init_logs(false)
+            init_logs(is_simple)
         })?;
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
@@ -192,48 +207,34 @@ mod logtests {
 
         let _ = logger_provider.shutdown();
         std::thread::sleep(Duration::from_secs(5));
-        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
+        assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
         Ok(())
     }
 
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    #[serial_test::parallel]
     pub fn logs_simple_non_tokio_main() -> Result<()> {
-        logs_simple_non_tokio_helper()
-    }
-
-    fn logs_simple_non_tokio_helper() -> Result<()> {
-        // Initialize the logger provider inside a tokio runtime
-        // as this allows tonic client to capture the runtime,
-        // but actual export occurs from the main non-tokio thread.
-        let rt = tokio::runtime::Runtime::new()?;
-        let logger_provider = rt.block_on(async {
-            // While we're here setup our collector container too, as this needs tokio to run
-            test_utils::start_collector_container().await?;
-            init_logs(true)
-        })?;
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
-        // generate a random uuid and store it to expected guid
-        let expected_uuid = Uuid::new_v4().to_string();
-        {
-            let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
-        }
-
-        let _ = logger_provider.shutdown();
-        std::thread::sleep(Duration::from_secs(5));
-        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
-        Ok(())
+        logs_non_tokio_helper(true)
     }
 }
 
-pub fn assert_logs_results(result: &str, expected_content: &str) -> Result<()> {
+pub fn assert_logs_results_contains(result: &str, expected_content: &str) -> Result<()> {
     let file = File::open(result)?;
     let mut contents = String::new();
     let mut reader = std::io::BufReader::new(&file);
     reader.read_to_string(&mut contents)?;
     assert!(contents.contains(expected_content));
+    Ok(())
+}
+
+pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
+    let left = read_logs_from_json(File::open(expected)?)?;
+    let right = read_logs_from_json(File::open(result)?)?;
+
+    LogsAsserter::new(left, right).assert();
+
+    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
     Ok(())
 }
 
