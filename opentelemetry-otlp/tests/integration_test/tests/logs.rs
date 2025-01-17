@@ -93,10 +93,6 @@ mod logtests {
     pub async fn test_logs() -> Result<()> {
         // Make sure the container is running
         use crate::{assert_logs_results, init_logs};
-        use integration_test_runner::test_utils;
-        use opentelemetry_appender_tracing::layer;
-        use tracing::info;
-        use tracing_subscriber::layer::SubscriberExt;
         test_utils::start_collector_container().await?;
         test_utils::cleanup_file("./actual/logs.json"); // Ensure logs.json is empty before the test
         let logger_provider = init_logs(false).unwrap();
@@ -106,10 +102,8 @@ mod logtests {
             let _guard = tracing::subscriber::set_default(subscriber);
             info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
         }
-        // TODO: remove below wait before calling logger_provider.shutdown()
-        // tokio::time::sleep(Duration::from_secs(10)).await;
         let _ = logger_provider.shutdown();
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(Duration::from_secs(5)).await;
         assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
         Ok(())
     }
