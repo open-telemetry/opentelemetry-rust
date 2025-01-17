@@ -64,6 +64,7 @@
         "shoppingcart",
         "struct",
         "Tescher",
+        "testcontainers",
         "testresults",
         "thiserror",
         "tracerprovider",

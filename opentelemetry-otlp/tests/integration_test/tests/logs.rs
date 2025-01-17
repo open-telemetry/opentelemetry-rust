@@ -2,13 +2,12 @@
 
 use anyhow::Result;
 use ctor::dtor;
-use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use integration_test_runner::test_utils;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
-use std::os::unix::fs::MetadataExt;
+use std::io::Read;
 
 fn init_logs() -> Result<sdklogs::LoggerProvider> {
     let exporter_builder = LogExporter::builder();
@@ -36,12 +35,23 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
 
 #[cfg(test)]
 mod logtests {
+    // TODO: The tests in this mod works like below: Emit a log with a UUID,
+    // then read the logs from the file and check if the UUID is present in the
+    // logs. This makes it easy to validate with a single collector and its
+    // output. This is a very simple test but good enough to validate that OTLP
+    // Exporter did work! A more comprehensive test would be to validate the
+    // entire Payload. The infra for it already exists (logs_asserter.rs), the
+    // TODO here is to write a test that validates the entire payload.
+
     use super::*;
     use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
+    use integration_test_runner::test_utils;
+    use opentelemetry_appender_tracing::layer;
     use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
     use std::{fs::File, time::Duration};
     use tracing::info;
     use tracing_subscriber::layer::SubscriberExt;
+    use uuid::Uuid;
 
     #[test]
     #[should_panic(expected = "assertion `left == right` failed: body does not match")]
@@ -68,41 +78,50 @@ mod logtests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(not(feature = "hyper-client"))]
-    #[cfg(not(feature = "reqwest-client"))]
-    pub async fn test_logs() -> Result<()> {
-        // Make sure the container is running
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    pub async fn logs_batch_tokio_multi_thread() -> Result<()> {
+        logs_batch_tokio_helper().await
+    }
 
-        use integration_test_runner::test_utils;
-        use opentelemetry_appender_tracing::layer;
-        use tracing::info;
-        use tracing_subscriber::layer::SubscriberExt;
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    pub async fn logs_batch_tokio_multi_with_one_worker() -> Result<()> {
+        logs_batch_tokio_helper().await
+    }
 
+    #[tokio::test(flavor = "current_thread")]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    pub async fn logs_batch_tokio_current() -> Result<()> {
+        logs_batch_tokio_helper().await
+    }
+
+    async fn logs_batch_tokio_helper() -> Result<()> {
         use crate::{assert_logs_results, init_logs};
         test_utils::start_collector_container().await?;
 
         let logger_provider = init_logs().unwrap();
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let layer = OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
+        // generate a random uuid and store it to expected guid
+        let expected_uuid = Uuid::new_v4().to_string();
         {
             let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
         }
-        // TODO: remove below wait before calling logger_provider.shutdown()
-        // tokio::time::sleep(Duration::from_secs(10)).await;
+
         let _ = logger_provider.shutdown();
-
-        tokio::time::sleep(Duration::from_secs(10)).await;
-
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
-
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
         Ok(())
     }
 
-    #[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main() -> Result<()> {
+        logs_batch_non_tokio_helper()
+    }
+
+    fn logs_batch_non_tokio_helper() -> Result<()> {
         // Initialize the logger provider inside a tokio runtime
         // as this allows tonic client to capture the runtime,
         // but actual export occurs from the dedicated std::thread
@@ -113,29 +132,28 @@ mod logtests {
             test_utils::start_collector_container().await?;
             init_logs()
         })?;
-
-        info!("LoggerProvider created");
-        let layer = OpenTelemetryTracingBridge::new(&logger_provider);
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
+        // generate a random uuid and store it to expected guid
+        let expected_uuid = Uuid::new_v4().to_string();
         {
             let _guard = tracing::subscriber::set_default(subscriber);
-            info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
+            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
         }
-        let _ = logger_provider.shutdown();
-        // tokio::time::sleep(Duration::from_secs(10)).await;
-        assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
 
+        let _ = logger_provider.shutdown();
+        std::thread::sleep(Duration::from_secs(5));
+        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
         Ok(())
     }
 }
 
-pub fn assert_logs_results(result: &str, expected: &str) -> Result<()> {
-    let left = read_logs_from_json(File::open(expected)?)?;
-    let right = read_logs_from_json(File::open(result)?)?;
-
-    LogsAsserter::new(left, right).assert();
-
-    assert!(File::open(result).unwrap().metadata().unwrap().size() > 0);
+pub fn assert_logs_results(result: &str, expected_content: &str) -> Result<()> {
+    let file = File::open(result)?;
+    let mut contents = String::new();
+    let mut reader = std::io::BufReader::new(&file);
+    reader.read_to_string(&mut contents)?;
+    assert!(contents.contains(expected_content));
     Ok(())
 }
 

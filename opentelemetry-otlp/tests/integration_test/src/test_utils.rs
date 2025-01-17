@@ -52,7 +52,7 @@ fn init_tracing() {
         // Initialize the tracing subscriber with the OpenTelemetry layer and the
         // Fmt layer.
         tracing_subscriber::registry().with(fmt_layer).init();
-        otel_info!(name: "tracing initializing completed!");
+        otel_info!(name: "tracing::fmt initializing completed! SDK internal logs will be printed to stdout.");
     });
 }
 
