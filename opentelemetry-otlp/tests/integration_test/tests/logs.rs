@@ -9,7 +9,7 @@ use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
 use std::io::Read;
 
-fn init_logs() -> Result<sdklogs::LoggerProvider> {
+fn init_logs(is_simple: bool) -> Result<sdklogs::LoggerProvider> {
     let exporter_builder = LogExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
@@ -23,14 +23,22 @@ fn init_logs() -> Result<sdklogs::LoggerProvider> {
 
     let exporter = exporter_builder.build()?;
 
-    Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter)
+    let mut logger_provider_builder = LoggerProvider::builder();
+    if is_simple {
+        logger_provider_builder = logger_provider_builder.with_simple_exporter(exporter)
+    } else {
+        logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter)
+    };
+
+    let logger_provider = logger_provider_builder
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")
                 .build(),
         )
-        .build())
+        .build();
+
+    Ok(logger_provider)
 }
 
 #[cfg(test)]
@@ -99,7 +107,7 @@ mod logtests {
         use crate::{assert_logs_results, init_logs};
         test_utils::start_collector_container().await?;
 
-        let logger_provider = init_logs().unwrap();
+        let logger_provider = init_logs(false).unwrap();
         let layer = OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
         // generate a random uuid and store it to expected guid
@@ -130,7 +138,38 @@ mod logtests {
         let logger_provider = rt.block_on(async {
             // While we're here setup our collector container too, as this needs tokio to run
             test_utils::start_collector_container().await?;
-            init_logs()
+            init_logs(false)
+        })?;
+        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        // generate a random uuid and store it to expected guid
+        let expected_uuid = Uuid::new_v4().to_string();
+        {
+            let _guard = tracing::subscriber::set_default(subscriber);
+            info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
+        }
+
+        let _ = logger_provider.shutdown();
+        std::thread::sleep(Duration::from_secs(5));
+        assert_logs_results(test_utils::LOGS_FILE, expected_uuid.as_str())?;
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+    pub fn logs_simple_non_tokio_main() -> Result<()> {
+        logs_simple_non_tokio_helper()
+    }
+
+    fn logs_simple_non_tokio_helper() -> Result<()> {
+        // Initialize the logger provider inside a tokio runtime
+        // as this allows tonic client to capture the runtime,
+        // but actual export occurs from the main non-tokio thread.
+        let rt = tokio::runtime::Runtime::new()?;
+        let logger_provider = rt.block_on(async {
+            // While we're here setup our collector container too, as this needs tokio to run
+            test_utils::start_collector_container().await?;
+            init_logs(true)
         })?;
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
         let subscriber = tracing_subscriber::registry().with(layer);
