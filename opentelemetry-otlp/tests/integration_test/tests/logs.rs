@@ -124,13 +124,13 @@ mod logtests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(any(feature = "tonic-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
         logs_simple_tokio_helper().await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[cfg(any(feature = "tonic-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
     pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
         logs_simple_tokio_helper().await
     }
@@ -138,7 +138,7 @@ mod logtests {
     // Ignored, to be investigated
     #[ignore]
     #[tokio::test(flavor = "current_thread")]
-    #[cfg(any(feature = "tonic-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
     pub async fn logs_simple_tokio_current() -> Result<()> {
         logs_simple_tokio_helper().await
     }
@@ -155,9 +155,7 @@ mod logtests {
         let expected_uuid = Uuid::new_v4().to_string();
         {
             let _guard = tracing::subscriber::set_default(subscriber);
-            info!("Tracing subscriber initialized");
             info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
-            info!("Log emitted");
         }
 
         let _ = logger_provider.shutdown();
