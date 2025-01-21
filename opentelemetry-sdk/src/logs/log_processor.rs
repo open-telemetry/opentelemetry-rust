@@ -480,7 +480,7 @@ impl BatchLogProcessor {
                             exporter.as_mut(),
                             logs.split_off(0),
                             &mut last_export_time,
-                        )
+                        );
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
