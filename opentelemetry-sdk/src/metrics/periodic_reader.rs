@@ -26,20 +26,6 @@ const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
 const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 
 /// Configuration options for [PeriodicReader].
-///
-/// A periodic reader is a [MetricReader] that collects and exports metric data
-/// to the exporter at a defined interval.
-///
-/// By default, the returned [MetricReader] will collect and export data every
-/// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeout. Instead timeout
-/// is passed on to the exporter for each export attempt.
-///
-/// The [collect] method of the returned [MetricReader] continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
-///
-/// [collect]: MetricReader::collect
 #[derive(Debug)]
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
@@ -104,20 +90,25 @@ where
     }
 }
 
-/// A [MetricReader] that continuously collects and exports metric data at a set
+/// A [MetricReader] that continuously collects and exports metrics at a set
 /// interval.
 ///
-/// By default, PeriodicReader will collect and export data every
-/// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeout.
-/// Instead timeout is passed on to the exporter for each export attempt.
+/// By default, `PeriodicReader` will collect and export metrics every 60
+/// seconds. The export time is not counted towards the interval between
+/// attempts. `PeriodicReader` itself does not enforce a timeout. Instead, the
+/// timeout is passed on to the configured exporter for each export attempt.
 ///
-/// The [collect] method of the returned continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
+/// `PeriodicReader` spawns a background thread to handle the periodic
+/// collection and export of metrics. The background thread will continue to run
+/// until `shutdown()` is called.
 ///
+/// When using this reader with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+///   runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
-/// [collect]: MetricReader::collect
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
 ///
 /// # Example
 ///
@@ -415,14 +406,21 @@ impl PeriodicReaderInner {
             .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricError::Other(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
-            if response {
-                Ok(())
-            } else {
+        // TODO: Make this timeout configurable.
+        match response_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(response) => {
+                if response {
+                    Ok(())
+                } else {
+                    Err(MetricError::Other("Failed to shutdown".into()))
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::Other(
+                "Failed to shutdown due to Timeout".into(),
+            )),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(MetricError::Other("Failed to shutdown".into()))
             }
-        } else {
-            Err(MetricError::Other("Failed to shutdown".into()))
         }
     }
 }
