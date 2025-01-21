@@ -346,7 +346,7 @@ impl BatchSpanProcessor {
                         },
                         Err(RecvTimeoutError::Timeout) => {
                             otel_debug!(
-                                name: "BatchLogProcessor.ExportingDueToTimer",
+                                name: "BatchSpanProcessor.ExportingDueToTimer",
                             );
 
                             let _ = Self::get_spans_and_export(
@@ -416,23 +416,23 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + Sync + 'static,
     {
-        // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
-        while let Ok(log) = spans_receiver.try_recv() {
-            spans.push(log);
+        // Get upto `max_export_batch_size` amount of spans from the channel and push them to the span vec
+        while let Ok(span) = spans_receiver.try_recv() {
+            spans.push(span);
             if spans.len() == config.max_export_batch_size {
                 break;
             }
         }
 
-        let count_of_logs = spans.len(); // Count of logs that will be exported
+        let count_of_spans = spans.len(); // Count of spans that will be exported
         let result = Self::export_with_timeout_sync(
             config.max_export_timeout,
             exporter,
             spans,
             last_export_time,
-        ); // This method clears the logs vec after exporting
+        ); // This method clears the spans vec after exporting
 
-        current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
+        current_batch_size.fetch_sub(count_of_spans, Ordering::Relaxed);
         result
     }
 
@@ -459,7 +459,7 @@ impl BatchSpanProcessor {
             Ok(_) => TraceResult::Ok(()),
             Err(err) => {
                 otel_error!(
-                    name: "BatchLogProcessor.ExportError",
+                    name: "BatchSpanProcessor.ExportError",
                     error = format!("{}", err)
                 );
                 TraceResult::Err(err)
@@ -494,17 +494,17 @@ impl SpanProcessor for BatchSpanProcessor {
                     message = "BatchSpanProcessor dropped a Span due to queue full/internal errors. No further internal log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total Spans dropped.");
             }
         }
-        // At this point, sending the log record to the data channel was successful.
+        // At this point, sending the span to the data channel was successful.
         // Increment the current batch size and check if it has reached the max export batch size.
         if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1 >= self.max_export_batch_size
         {
-            // Check if the a control message for exporting logs is already sent to the worker thread.
-            // If not, send a control message to export logs.
+            // Check if the a control message for exporting spans is already sent to the worker thread.
+            // If not, send a control message to export spans.
             // `export_span_message_sent` is set to false ONLY when the worker thread has processed the control message.
 
             if !self.export_span_message_sent.load(Ordering::Relaxed) {
                 // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
-                // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
+                // Perform atomic swap to `export_span_message_sent` ONLY when the atomic load operation above returns false.
                 // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
                 // We could have used compare_exchange as well here, but it's more verbose than swap.
                 if !self.export_span_message_sent.swap(true, Ordering::Relaxed) {
@@ -516,7 +516,7 @@ impl SpanProcessor for BatchSpanProcessor {
                         }
                         Err(_err) => {
                             // TODO: Log error
-                            // If the control message could not be sent, reset the `export_log_message_sent` flag.
+                            // If the control message could not be sent, reset the `export_span_message_sent` flag.
                             self.export_span_message_sent
                                 .store(false, Ordering::Relaxed);
                         }
@@ -550,7 +550,7 @@ impl SpanProcessor for BatchSpanProcessor {
         let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
             otel_warn!(
-                name: "BatchSpanProcessor.LogsDropped",
+                name: "BatchSpanProcessor.SpansDropped",
                 dropped_span_count = dropped_spans,
                 max_queue_size = max_queue_size,
                 message = "Spans were dropped due to a queue being full or other error. The count represents the total count of spans dropped in the lifetime of this BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
