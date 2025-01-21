@@ -98,8 +98,6 @@
 //!
 //! The following feature flags generate additional code and types:
 //! * `serialize`: Enables serialization support for type defined in this create via `serde`.
-//! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
-//!    with the key `name`
 //!
 //! The following feature flags offer additional configurations on gRPC:
 //!
@@ -108,7 +106,7 @@
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
-//! * `tls-webkpi-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webkpi-roots crate
+//! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate
 //!
 //! The following feature flags offer additional configurations on http:
 //!
@@ -116,7 +114,7 @@
 //! * `reqwest-blocking-client`: Use reqwest blocking http client.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
-//! * `reqwest-rustls-webkpi-roots`: Use reqwest with TLS with Mozilla's trust roots via `webkpi-roots` crate.
+//! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
 //!
 //! # Kitchen Sink Full Configuration
 //!
@@ -162,7 +160,7 @@
 //!                 .with_max_events_per_span(64)
 //!                 .with_max_attributes_per_span(16)
 //!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")])),
+//!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
 //!         ).build();
 //!     global::set_tracer_provider(tracer_provider);
 //!     let tracer = global::tracer("tracer-name");
@@ -179,14 +177,14 @@
 //!        .build()
 //!        .unwrap();
 //!
-//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, opentelemetry_sdk::runtime::Tokio)
+//!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
 //!        .with_interval(std::time::Duration::from_secs(3))
 //!         .with_timeout(Duration::from_secs(10))
 //!        .build();
 //!
 //!    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
 //!        .with_reader(reader)
-//!         .with_resource(Resource::new(vec![KeyValue::new("service.name", "example")]))
+//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
 //!         .build();
 //!     # }
 //!

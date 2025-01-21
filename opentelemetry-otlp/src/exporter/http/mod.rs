@@ -28,7 +28,7 @@ use std::time::Duration;
 mod metrics;
 
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "trace")]
 mod trace;
@@ -66,8 +66,11 @@ pub struct HttpConfig {
 impl Default for HttpConfig {
     fn default() -> Self {
         #[cfg(feature = "reqwest-blocking-client")]
-        let default_client =
-            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>);
+        let default_client = std::thread::spawn(|| {
+            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>)
+        })
+        .join()
+        .expect("creating reqwest::blocking::Client on a new thread not to fail");
         #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
         let default_client = Some(Arc::new(reqwest::Client::new()) as Arc<dyn HttpClient>);
         #[cfg(all(
@@ -236,7 +239,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
-        Ok(crate::LogExporter::new(client))
+        Ok(crate::LogExporter::from_http(client))
     }
 
     /// Create a metrics exporter with the current configuration
@@ -262,7 +265,7 @@ impl HttpExporterBuilder {
 }
 
 #[derive(Debug)]
-struct OtlpHttpClient {
+pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,

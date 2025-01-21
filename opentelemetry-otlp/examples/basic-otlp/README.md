@@ -1,49 +1,69 @@
-# Basic OTLP exporter Example
+# Basic OTLP Exporter Example
 
-This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
-and traces to exports them to the [OpenTelemetry
-Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP over gRPC.
-The Collector then sends the data to the appropriate backend, in this case,
-the logging Exporter, which displays data to console.
+This example demonstrates how to set up an OpenTelemetry OTLP exporter for logs,
+metrics, and traces to send data to the [OpenTelemetry
+Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP
+over gRPC. The Collector then forwards the data to the configured backend, which
+in this case is the logging exporter, displaying data on the console.
+Additionally, the example configures a `tracing::fmt` layer to output logs
+emitted via `tracing` to `stdout`. For demonstration, this layer uses a filter
+to display `DEBUG` level logs from various OpenTelemetry components. In real
+applications, these filters should be adjusted appropriately.
+
+The example employs a `BatchExporter` for logs and traces, which is the
+recommended approach when using OTLP exporters. While it can be modified to use
+a `SimpleExporter`, this requires the main method to be a `tokio::main` function
+since the `tonic` client requires a Tokio runtime. If you prefer not to use
+`tokio::main`, then the `init_logs` and `init_traces` functions must be executed
+within a Tokio runtime.
+
+This examples uses the default `PeriodicReader` for metrics, which uses own
+thread for background processing/exporting. Since the `tonic` client requires a
+Tokio runtime, the main method must be a `tokio::main` function. If you prefer not
+to use `tokio::main`, then the `init_metrics` function must be executed within a
+Tokio runtime.
+
+Below is an example on how to use non `tokio::main`:
+
+```rust
+fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+     let rt = tokio::runtime::Runtime::new()?;
+     let tracer_provider = rt.block_on(async {
+          init_traces()
+     })?;
+     global::set_tracer_provider(tracer_provider.clone());
+
+     let meter_provider = rt.block_on(async {
+          init_metrics()
+     })?;
+     global::set_meter_provider(meter_provider.clone());
+
+     let logger_provider = rt.block_on(async {
+          init_logs()
+     })?;
+
+     // Ensure the runtime (`rt`) remains active until the program ends
+     // Additional code goes here...
+}
+```
 
 ## Usage
 
-### `docker-compose`
-
-By default runs against the `otel/opentelemetry-collector:latest` image, and uses the `tonic`'s
-`grpc` example as the transport.
-
-```shell
-docker-compose up
-```
-
-In another terminal run the application `cargo run`
-
-The docker-compose terminal will display logs, traces, metrics.
-
-Press Ctrl+C to stop the collector, and then tear it down:
-
-```shell
-docker-compose down
-```
-
-### Manual
-
-If you don't want to use `docker-compose`, you can manually run the `otel/opentelemetry-collector` container
-and inspect the logs to see traces being transferred.
+Run the `otel/opentelemetry-collector` container using docker
+and inspect the logs to see the exported telemetry.
 
 On Unix based systems use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 On Windows use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4317:4317 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 Run the app which exports logs, metrics and traces via OTLP to the collector
@@ -113,7 +133,7 @@ SpanEvent #0
      -> Timestamp: 2024-05-22 20:25:42.8770471 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes::
-          -> bogons: Int(100)
+          -> some.key: Int(100)
     {"kind": "exporter", "data_type": "traces", "name": "logging"}
 ```
 

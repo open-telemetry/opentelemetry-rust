@@ -2,6 +2,7 @@ use core::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
+use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
@@ -40,6 +41,8 @@ impl TonicMetricsClient {
                 .accept_compressed(compression);
         }
 
+        otel_debug!(name: "TonicsMetricsClientBuilt");
+
         TonicMetricsClient {
             inner: Mutex::new(Some(ClientInner {
                 client,
@@ -71,6 +74,8 @@ impl MetricsClient for TonicMetricsClient {
                     }
                     None => Err(MetricError::Other("exporter is already shut down".into())),
                 })?;
+
+        otel_debug!(name: "TonicsMetricsClient.CallingExport");
 
         client
             .export(Request::from_parts(

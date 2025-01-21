@@ -58,8 +58,8 @@ pub mod tonic {
 
     impl From<&opentelemetry_sdk::logs::LogRecord> for LogRecord {
         fn from(log_record: &opentelemetry_sdk::logs::LogRecord) -> Self {
-            let trace_context = log_record.trace_context.as_ref();
-            let severity_number = match log_record.severity_number {
+            let trace_context = log_record.trace_context();
+            let severity_number = match log_record.severity_number() {
                 Some(Severity::Trace) => SeverityNumber::Trace,
                 Some(Severity::Trace2) => SeverityNumber::Trace2,
                 Some(Severity::Trace3) => SeverityNumber::Trace3,
@@ -88,10 +88,10 @@ pub mod tonic {
             };
 
             LogRecord {
-                time_unix_nano: log_record.timestamp.map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp.unwrap()),
+                time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
+                observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
                 attributes: {
-                    let attributes: Vec<KeyValue> = log_record
+                    log_record
                         .attributes_iter()
                         .map(|kv| KeyValue {
                             key: kv.0.to_string(),
@@ -99,28 +99,15 @@ pub mod tonic {
                                 value: Some(kv.1.clone().into()),
                             }),
                         })
-                        .collect();
-                    #[cfg(feature = "populate-logs-event-name")]
-                    {
-                        if let Some(event_name) = &log_record.event_name {
-                            let mut attributes_with_name = attributes;
-                            attributes_with_name.push(KeyValue {
-                                key: "event.name".into(),
-                                value: Some(AnyValue {
-                                    value: Some(Value::StringValue(event_name.to_string())),
-                                }),
-                            });
-                            attributes_with_name
-                        } else {
-                            attributes
-                        }
-                    }
-                    #[cfg(not(feature = "populate-logs-event-name"))]
-                    attributes
+                        .collect()
                 },
+                event_name: log_record.event_name().unwrap_or_default().into(),
                 severity_number: severity_number.into(),
-                severity_text: log_record.severity_text.map(Into::into).unwrap_or_default(),
-                body: log_record.body.clone().map(Into::into),
+                severity_text: log_record
+                    .severity_text()
+                    .map(Into::into)
+                    .unwrap_or_default(),
+                body: log_record.body().cloned().map(Into::into),
                 dropped_attributes_count: 0,
                 flags: trace_context
                     .map(|ctx| {
@@ -170,7 +157,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target.clone()).into()),
+                    scope: Some((instrumentation, log_record.target().cloned()).into()),
                     log_records: vec![log_record.into()],
                 }],
             }
@@ -193,8 +180,8 @@ pub mod tonic {
             >,
              (log_record, instrumentation)| {
                 let key = log_record
-                    .target
-                    .clone()
+                    .target()
+                    .cloned()
                     .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
                 scope_map
                     .entry(key)
@@ -252,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_group_logs_by_resource_and_scope_single_scope() {
-        let resource = Resource::default();
+        let resource = Resource::builder().build();
         let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("test-lib", "Log 2");
 
@@ -273,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_group_logs_by_resource_and_scope_multiple_scopes() {
-        let resource = Resource::default();
+        let resource = Resource::builder().build();
         let (log_record1, instrum_lib1) = create_test_log_data("lib1", "Log 1");
         let (log_record2, instrum_lib2) = create_test_log_data("lib2", "Log 2");
 

@@ -13,9 +13,8 @@
     | ot_layer_enabled            | 196 ns      |
 */
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::{InstrumentationScope, KeyValue};
+use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::LogResult;
@@ -32,10 +31,13 @@ struct NoopExporter {
     enabled: bool,
 }
 
-#[async_trait]
 impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
+    #[allow(clippy::manual_async_fn)]
+    fn export(
+        &self,
+        _batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        async { LogResult::Ok(()) }
     }
 
     fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
@@ -44,17 +46,17 @@ impl LogExporter for NoopExporter {
 }
 
 #[derive(Debug)]
-struct NoopProcessor {
-    exporter: Box<dyn LogExporter>,
+struct NoopProcessor<E: LogExporter> {
+    exporter: E,
 }
 
-impl NoopProcessor {
-    fn new(exporter: Box<dyn LogExporter>) -> Self {
+impl<E: LogExporter> NoopProcessor<E> {
+    fn new(exporter: E) -> Self {
         Self { exporter }
     }
 }
 
-impl LogProcessor for NoopProcessor {
+impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
     fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
         // no-op
     }
@@ -124,12 +126,13 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
-    let processor = NoopProcessor::new(Box::new(exporter));
+    let processor = NoopProcessor::new(exporter);
     let provider = LoggerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "benchmark",
-        )]))
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name("benchmark")
+                .build(),
+        )
         .with_log_processor(processor)
         .build();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);

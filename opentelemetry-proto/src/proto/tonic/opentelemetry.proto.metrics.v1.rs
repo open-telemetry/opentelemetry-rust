@@ -55,7 +55,8 @@ pub struct ResourceMetrics {
     #[prost(message, repeated, tag = "2")]
     pub scope_metrics: ::prost::alloc::vec::Vec<ScopeMetrics>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_metrics" field which have their own schema_url field.
@@ -78,7 +79,8 @@ pub struct ScopeMetrics {
     #[prost(message, repeated, tag = "2")]
     pub metrics: ::prost::alloc::vec::Vec<Metric>,
     /// The Schema URL, if known. This is the identifier of the Schema that the metric data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all metrics in the "metrics" field.
     #[prost(string, tag = "3")]
@@ -437,7 +439,7 @@ pub struct HistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
@@ -520,7 +522,7 @@ pub struct ExponentialHistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
@@ -643,7 +645,7 @@ pub struct SummaryDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#summary>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated

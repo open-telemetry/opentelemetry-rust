@@ -162,7 +162,7 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.70. The current OpenTelemetry version is not guaranteed to build
+version is 1.75. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
@@ -184,7 +184,7 @@ for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
 Meeting notes are available as a public [Google
-doc](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit).
+doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
 If you have trouble accessing the doc, please get in touch on
 [Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
 

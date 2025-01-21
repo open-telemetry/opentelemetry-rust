@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.71.1"
+rust-version = "1.75.0"
 autotests = false
 
 [[test]]
@@ -57,13 +57,12 @@ temp-env = { workspace = true }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-populate-logs-event-name = ["opentelemetry-proto/populate-logs-event-name"]
-internal-logs = ["tracing"]
+internal-logs = ["tracing", "opentelemetry/internal-logs"]
 
 # add ons
 serialize = ["serde", "serde_json"]
 
-default = ["grpc-tonic", "trace", "metrics", "logs", "internal-logs"]
+default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]

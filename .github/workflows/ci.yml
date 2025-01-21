@@ -25,7 +25,7 @@ jobs:
           - rust: stable
             os: macos-latest
           - rust: stable
-            os: actuated-arm64-4cpu-16gb
+            os: otel-linux-arm64
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'beta' }}
     steps:
@@ -88,7 +88,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
-        rust: [1.70.0, 1.71.1]
+        rust: [1.75.0]
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     steps:
@@ -148,7 +148,7 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: cargo llvm-cov
-        run: cargo llvm-cov --locked --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --locked --all-features --workspace --lcov --lib --output-path lcov.info
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
         env:

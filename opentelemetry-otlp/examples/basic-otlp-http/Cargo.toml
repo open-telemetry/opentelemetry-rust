@@ -6,25 +6,16 @@ license = "Apache-2.0"
 publish = false
 
 [features]
-default = ["reqwest"]
-reqwest = ["opentelemetry-otlp/reqwest-client"]
-hyper = ["opentelemetry-otlp/hyper-client"]
-
+default = ["reqwest-blocking"]
+reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
 
 [dependencies]
 once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "metrics", "logs"]}
-opentelemetry-http = { path = "../../../opentelemetry-http", optional = true, default-features = false}
-opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs"] , default-features = false}
+opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
+opentelemetry-otlp = { path = "../..", features = ["http-proto", "http-json", "logs", "internal-logs"], default-features = false}
 opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
-opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
 
-async-trait = { workspace = true, optional = true }
-bytes = { workspace = true, optional = true }
-http = { workspace = true, optional = true }
-http-body-util = { workspace = true, optional = true  }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["std"]}
-tracing-core = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std"] }
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }

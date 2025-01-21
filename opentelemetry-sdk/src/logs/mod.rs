@@ -10,21 +10,11 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-use opentelemetry::InstrumentationScope;
 pub use record::{LogRecord, TraceContext};
 
-#[deprecated(
-    since = "0.27.1",
-    note = "The struct is not used anywhere in the SDK and will be removed in the next major release."
-)]
-/// `LogData` represents a single log event without resource context.
-#[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationScope,
-}
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+/// Module for BatchLogProcessor with async runtime.
+pub mod log_processor_with_async_runtime;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
@@ -33,6 +23,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;
     use std::collections::HashMap;
@@ -40,12 +31,14 @@ mod tests {
     #[test]
     fn logging_sdk_test() {
         // Arrange
-        let resource = Resource::new(vec![
-            KeyValue::new("k1", "v1"),
-            KeyValue::new("k2", "v2"),
-            KeyValue::new("k3", "v3"),
-            KeyValue::new("k4", "v4"),
-        ]);
+        let resource = Resource::builder_empty()
+            .with_attributes([
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])
+            .build();
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = LoggerProvider::builder()
             .with_resource(resource.clone())

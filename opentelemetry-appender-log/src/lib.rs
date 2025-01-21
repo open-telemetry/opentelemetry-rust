@@ -239,7 +239,7 @@ mod any_value {
     pub(crate) fn serialize(value: log::kv::Value) -> Option<AnyValue> {
         struct ValueVisitor(Option<AnyValue>);
 
-        impl<'kvs> log::kv::VisitValue<'kvs> for ValueVisitor {
+        impl log::kv::VisitValue<'_> for ValueVisitor {
             fn visit_any(&mut self, value: log::kv::Value) -> Result<(), log::kv::Error> {
                 self.0 = Some(AnyValue::String(StringValue::from(value.to_string())));
 
@@ -846,11 +846,11 @@ mod tests {
 
         assert_eq!(logs.len(), 5);
         for log in logs {
-            let body: String = match log.record.body.as_ref().unwrap() {
+            let body: String = match log.record.body().unwrap() {
                 super::AnyValue::String(s) => s.to_string(),
                 _ => panic!("AnyValue::String expected"),
             };
-            assert_eq!(body, log.record.severity_text.unwrap());
+            assert_eq!(body, log.record.severity_text().unwrap());
         }
     }
 

@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering}
 use std::sync::{Arc, OnceLock, RwLock};
 
 use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
-pub(crate) use aggregate::{AggregateBuilder, ComputeAggregation, Measure};
+pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 

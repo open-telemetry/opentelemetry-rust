@@ -11,7 +11,6 @@ use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::{
     export::{trace, ExportError},
     resource::{ResourceDetector, SdkProvidedResourceDetector},
-    runtime::RuntimeChannel,
     trace::{Config, Tracer, TracerProvider},
     Resource,
 };
@@ -54,6 +53,7 @@ pub struct ZipkinPipelineBuilder {
 impl Default for ZipkinPipelineBuilder {
     fn default() -> Self {
         let timeout = env::get_timeout();
+
         ZipkinPipelineBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Arc::new(
@@ -96,17 +96,21 @@ impl ZipkinPipelineBuilder {
         let service_name = self.service_name.take();
         if let Some(service_name) = service_name {
             let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = Cow::Owned(Resource::new(
-                    cfg.resource
-                        .iter()
-                        .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
-                        .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                        .collect::<Vec<KeyValue>>(),
-                ));
+                cfg.resource = Cow::Owned(
+                    Resource::builder_empty()
+                        .with_attributes(
+                            cfg.resource
+                                .iter()
+                                .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
+                                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
+                                .collect::<Vec<KeyValue>>(),
+                        )
+                        .build(),
+                );
                 cfg
             } else {
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty())
+                Config::default().with_resource(Resource::builder_empty().build())
             };
             (config, Endpoint::new(service_name, self.service_addr))
         } else {
@@ -117,7 +121,7 @@ impl ZipkinPipelineBuilder {
                 .to_string();
             (
                 #[allow(deprecated)]
-                Config::default().with_resource(Resource::empty()),
+                Config::default().with_resource(Resource::builder_empty().build()),
                 Endpoint::new(service_name, self.service_addr),
             )
         }
@@ -160,13 +164,12 @@ impl ZipkinPipelineBuilder {
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
     #[allow(deprecated)]
-    pub fn install_batch<R: RuntimeChannel>(
+    pub fn install_batch(
         mut self,
-        runtime: R,
     ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
         let (config, endpoint) = self.init_config_and_endpoint();
         let exporter = self.init_exporter_with_endpoint(endpoint)?;
-        let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter, runtime);
+        let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter);
         provider_builder = provider_builder.with_config(config);
         let provider = provider_builder.build();
         let scope = InstrumentationScope::builder("opentelemetry-zipkin")

@@ -7,14 +7,23 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 exporters:
-  file:
-    path: /testresults/result.json
+  file/traces:
+    path: /testresults/traces.json
+  file/logs:
+    path: /testresults/logs.json
+    rotation:
+  file/metrics:
+    path: /testresults/metrics.json
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [file]
+      exporters: [file/traces]
     logs:
       receivers: [otlp]
-      exporters: [file]
+      exporters: [file/logs]
+    metrics:
+      receivers: [otlp]
+      exporters: [file/metrics]
+

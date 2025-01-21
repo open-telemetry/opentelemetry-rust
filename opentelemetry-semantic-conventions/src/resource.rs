@@ -19,9 +19,7 @@
 //! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(Resource::new(vec![
-//!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
-//!     ])))
+//!     .with_config(config().with_resource(Resource::builder_empty().with_service_name("my-service").build()))
 //!     .build();
 //! ```
 
@@ -358,6 +356,9 @@ pub use crate::attribute::PROCESS_EXECUTABLE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_EXECUTABLE_PATH;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_LINUX_CGROUP;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_OWNER;

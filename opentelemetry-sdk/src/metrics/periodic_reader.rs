@@ -1,25 +1,23 @@
 use std::{
-    env, fmt, mem,
-    sync::{Arc, Mutex, Weak},
-    time::Duration,
+    env, fmt,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex, Weak,
+    },
+    thread,
+    time::{Duration, Instant},
 };
 
-use futures_channel::{mpsc, oneshot};
-use futures_util::{
-    future::{self, Either},
-    pin_mut,
-    stream::{self, FusedStream},
-    StreamExt,
-};
-use opentelemetry::{otel_debug, otel_error};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
-use crate::runtime::Runtime;
 use crate::{
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
 
-use super::{data::ResourceMetrics, reader::MetricReader, InstrumentKind, Pipeline};
+use super::{
+    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -28,33 +26,18 @@ const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
 const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 
 /// Configuration options for [PeriodicReader].
-///
-/// A periodic reader is a [MetricReader] that collects and exports metric data
-/// to the exporter at a defined interval.
-///
-/// By default, the returned [MetricReader] will collect and export data every
-/// 60 seconds, and will cancel export attempts that exceed 30 seconds. The
-/// export time is not counted towards the interval between attempts.
-///
-/// The [collect] method of the returned [MetricReader] continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
-///
-/// [collect]: MetricReader::collect
 #[derive(Debug)]
-pub struct PeriodicReaderBuilder<E, RT> {
+pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
     timeout: Duration,
     exporter: E,
-    runtime: RT,
 }
 
-impl<E, RT> PeriodicReaderBuilder<E, RT>
+impl<E> PeriodicReaderBuilder<E>
 where
     E: PushMetricExporter,
-    RT: Runtime,
 {
-    fn new(exporter: E, runtime: RT) -> Self {
+    fn new(exporter: E) -> Self {
         let interval = env::var(METRIC_EXPORT_INTERVAL_NAME)
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
@@ -68,7 +51,6 @@ where
             interval,
             timeout,
             exporter,
-            runtime,
         }
     }
 
@@ -86,8 +68,9 @@ where
         self
     }
 
-    /// Configures the time a [PeriodicReader] waits for an export to complete
-    /// before canceling it.
+    /// Configures the timeout for an export to complete. PeriodicReader itself
+    /// does not enforce timeout. Instead timeout is passed on to the exporter
+    /// for each export attempt.
     ///
     /// This option overrides any value set for the `OTEL_METRIC_EXPORT_TIMEOUT`
     /// environment variable.
@@ -103,100 +86,203 @@ where
 
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
-        let (message_sender, message_receiver) = mpsc::channel(256);
-
-        let worker = move |reader: &PeriodicReader| {
-            let runtime = self.runtime.clone();
-            let reader = reader.clone();
-            self.runtime.spawn(Box::pin(async move {
-                let ticker = runtime
-                    .interval(self.interval)
-                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                    .map(|_| Message::Export);
-                let messages = Box::pin(stream::select(message_receiver, ticker));
-                PeriodicReaderWorker {
-                    reader,
-                    timeout: self.timeout,
-                    runtime,
-                    rm: ResourceMetrics {
-                        resource: Resource::empty(),
-                        scope_metrics: Vec::new(),
-                    },
-                }
-                .run(messages)
-                .await
-            }));
-        };
-
-        otel_debug!(
-            name: "PeriodicReader.BuildCompleted",
-            message = "Periodic reader built.",
-            interval_in_secs = self.interval.as_secs(),
-            temporality = format!("{:?}", self.exporter.temporality()),
-        );
-
-        PeriodicReader {
-            exporter: Arc::new(self.exporter),
-            inner: Arc::new(Mutex::new(PeriodicReaderInner {
-                message_sender,
-                is_shutdown: false,
-                sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
-            })),
-        }
+        PeriodicReader::new(self.exporter, self.interval, self.timeout)
     }
 }
 
-/// A [MetricReader] that continuously collects and exports metric data at a set
+/// A [MetricReader] that continuously collects and exports metrics at a set
 /// interval.
 ///
-/// By default it will collect and export data every 60 seconds, and will cancel
-/// export attempts that exceed 30 seconds. The export time is not counted
-/// towards the interval between attempts.
+/// By default, `PeriodicReader` will collect and export metrics every 60
+/// seconds. The export time is not counted towards the interval between
+/// attempts. `PeriodicReader` itself does not enforce a timeout. Instead, the
+/// timeout is passed on to the configured exporter for each export attempt.
 ///
-/// The [collect] method of the returned continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
+/// `PeriodicReader` spawns a background thread to handle the periodic
+/// collection and export of metrics. The background thread will continue to run
+/// until `shutdown()` is called.
 ///
-/// The [runtime] can be selected based on feature flags set for this crate.
+/// When using this reader with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+///   runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
-/// The exporter can be any exporter that implements [PushMetricExporter] such
-/// as [opentelemetry-otlp].
-///
-/// [collect]: MetricReader::collect
-/// [runtime]: crate::runtime
-/// [opentelemetry-otlp]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
 ///
 /// # Example
 ///
 /// ```no_run
 /// use opentelemetry_sdk::metrics::PeriodicReader;
-/// # fn example<E, R>(get_exporter: impl Fn() -> E, get_runtime: impl Fn() -> R)
+/// # fn example<E>(get_exporter: impl Fn() -> E)
 /// # where
 /// #     E: opentelemetry_sdk::metrics::exporter::PushMetricExporter,
-/// #     R: opentelemetry_sdk::runtime::Runtime,
 /// # {
 ///
-/// let exporter = get_exporter(); // set up a push exporter like OTLP
-/// let runtime = get_runtime(); // select runtime: e.g. opentelemetry_sdk:runtime::Tokio
+/// let exporter = get_exporter(); // set up a push exporter
 ///
-/// let reader = PeriodicReader::builder(exporter, runtime).build();
+/// let reader = PeriodicReader::builder(exporter).build();
 /// # drop(reader);
 /// # }
 /// ```
 #[derive(Clone)]
 pub struct PeriodicReader {
-    exporter: Arc<dyn PushMetricExporter>,
-    inner: Arc<Mutex<PeriodicReaderInner>>,
+    inner: Arc<PeriodicReaderInner>,
 }
 
 impl PeriodicReader {
-    /// Configuration options for a periodic reader
-    pub fn builder<E, RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
+    /// Configuration options for a periodic reader with own thread
+    pub fn builder<E>(exporter: E) -> PeriodicReaderBuilder<E>
     where
         E: PushMetricExporter,
-        RT: Runtime,
     {
-        PeriodicReaderBuilder::new(exporter, runtime)
+        PeriodicReaderBuilder::new(exporter)
+    }
+
+    fn new<E>(exporter: E, interval: Duration, timeout: Duration) -> Self
+    where
+        E: PushMetricExporter,
+    {
+        let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
+            mpsc::channel();
+        let exporter_arc = Arc::new(exporter);
+        let reader = PeriodicReader {
+            inner: Arc::new(PeriodicReaderInner {
+                message_sender: Arc::new(message_sender),
+                producer: Mutex::new(None),
+                exporter: exporter_arc.clone(),
+            }),
+        };
+        let cloned_reader = reader.clone();
+
+        let result_thread_creation = thread::Builder::new()
+            .name("OpenTelemetry.Metrics.PeriodicReader".to_string())
+            .spawn(move || {
+                let mut interval_start = Instant::now();
+                let mut remaining_interval = interval;
+                otel_info!(
+                    name: "PeriodReaderThreadStarted",
+                    interval_in_millisecs = interval.as_millis(),
+                    timeout_in_millisecs = timeout.as_millis()
+                );
+                loop {
+                    otel_debug!(
+                        name: "PeriodReaderThreadLoopAlive", message = "Next export will happen after interval, unless flush or shutdown is triggered.", interval_in_millisecs = remaining_interval.as_millis()
+                    );
+                    match message_receiver.recv_timeout(remaining_interval) {
+                        Ok(Message::Flush(response_sender)) => {
+                            otel_debug!(
+                                name: "PeriodReaderThreadExportingDueToFlush"
+                            );
+                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                                response_sender.send(false).unwrap();
+                            } else {
+                                response_sender.send(true).unwrap();
+                            }
+
+                            // Adjust the remaining interval after the flush
+                            let elapsed = interval_start.elapsed();
+                            if elapsed < interval {
+                                remaining_interval = interval - elapsed;
+                                otel_debug!(
+                                    name: "PeriodReaderThreadAdjustingRemainingIntervalAfterFlush",
+                                    remaining_interval = remaining_interval.as_secs()
+                                );
+                            } else {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadAdjustingExportAfterFlush",
+                                );
+                                // Reset the interval if the flush finishes after the expected export time
+                                // effectively missing the normal export.
+                                // Should we attempt to do the missed export immediately?
+                                // Or do the next export at the next interval?
+                                // Currently this attempts the next export immediately.
+                                // i.e calling Flush can affect the regularity.
+                                interval_start = Instant::now();
+                                remaining_interval = Duration::ZERO;
+                            }
+                        }
+                        Ok(Message::Shutdown(response_sender)) => {
+                            // Perform final export and break out of loop and exit the thread
+                            otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
+                            let export_result = cloned_reader.collect_and_export(timeout);
+                            let shutdown_result = exporter_arc.shutdown();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExporterShutdown",
+                                shutdown_result = format!("{:?}", shutdown_result)
+                            );
+                            if export_result.is_err() || shutdown_result.is_err() {
+                                response_sender.send(false).unwrap();
+                            } else {
+                                response_sender.send(true).unwrap();
+                            }
+
+                            otel_debug!(
+                                name: "PeriodReaderThreadExiting",
+                                reason = "ShutdownRequested"
+                            );
+                            break;
+                        }
+                        Err(mpsc::RecvTimeoutError::Timeout) => {
+                            let export_start = Instant::now();
+                            otel_debug!(
+                                name: "PeriodReaderThreadExportingDueToTimer"
+                            );
+
+                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadExportingDueToTimerFailed"
+                                );
+                            }
+
+                            let time_taken_for_export = export_start.elapsed();
+                            if time_taken_for_export > interval {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadExportTookLongerThanInterval"
+                                );
+                                // if export took longer than interval, do the
+                                // next export immediately.
+                                // Alternatively, we could skip the next export
+                                // and wait for the next interval.
+                                // Or enforce that export timeout is less than interval.
+                                // What is the desired behavior?
+                                interval_start = Instant::now();
+                                remaining_interval = Duration::ZERO;
+                            } else {
+                                remaining_interval = interval - time_taken_for_export;
+                                interval_start = Instant::now();
+                            }
+                        }
+                        Err(mpsc::RecvTimeoutError::Disconnected) => {
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "PeriodReaderThreadExiting",
+                                reason = "MessageSenderDisconnected"
+                            );
+                            break;
+                        }
+                    }
+                }
+                otel_info!(
+                    name: "PeriodReaderThreadStopped"
+                );
+            });
+
+        // TODO: Should we fail-fast here and bubble up the error to user?
+        #[allow(unused_variables)]
+        if let Err(e) = result_thread_creation {
+            otel_error!(
+                name: "PeriodReaderThreadStartError",
+                message = "Failed to start PeriodicReader thread. Metrics will not be exported.",
+                error = format!("{:?}", e)
+            );
+        }
+        reader
+    }
+
+    fn collect_and_export(&self, timeout: Duration) -> MetricResult<()> {
+        self.inner.collect_and_export(timeout)
     }
 }
 
@@ -207,195 +293,163 @@ impl fmt::Debug for PeriodicReader {
 }
 
 struct PeriodicReaderInner {
-    message_sender: mpsc::Sender<Message>,
-    is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker,
+    exporter: Arc<dyn PushMetricExporter>,
+    message_sender: Arc<mpsc::Sender<Message>>,
+    producer: Mutex<Option<Weak<dyn SdkProducer>>>,
 }
 
-#[derive(Debug)]
-enum Message {
-    Export,
-    Flush(oneshot::Sender<MetricResult<()>>),
-    Shutdown(oneshot::Sender<MetricResult<()>>),
-}
-
-enum ProducerOrWorker {
-    Producer(Weak<dyn SdkProducer>),
-    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
-}
-
-struct PeriodicReaderWorker<RT: Runtime> {
-    reader: PeriodicReader,
-    timeout: Duration,
-    runtime: RT,
-    rm: ResourceMetrics,
-}
-
-impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> MetricResult<()> {
-        self.reader.collect(&mut self.rm)?;
-        if self.rm.scope_metrics.is_empty() {
-            otel_debug!(
-                name: "PeriodicReaderWorker.NoMetricsToExport",
-            );
-            // No metrics to export.
-            return Ok(());
-        }
-
-        otel_debug!(
-            name: "PeriodicReaderWorker.InvokeExporter",
-            message = "Calling exporter's export method with collected metrics.",
-            count = self.rm.scope_metrics.len(),
-        );
-        let export = self.reader.exporter.export(&mut self.rm);
-        let timeout = self.runtime.delay(self.timeout);
-        pin_mut!(export);
-        pin_mut!(timeout);
-
-        match future::select(export, timeout).await {
-            Either::Left((res, _)) => {
-                res // return the status of export.
-            }
-            Either::Right(_) => Err(MetricError::Other("export timed out".into())),
-        }
+impl PeriodicReaderInner {
+    fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
+        let mut inner = self.producer.lock().expect("lock poisoned");
+        *inner = Some(producer);
     }
 
-    async fn process_message(&mut self, message: Message) -> bool {
-        match message {
-            Message::Export => {
-                otel_debug!(
-                    name: "PeriodicReader.ExportTriggered",
-                    message = "Export message received.",
-                );
-                if let Err(err) = self.collect_and_export().await {
-                    otel_error!(
-                        name: "PeriodicReader.ExportFailed",
-                        message = "Failed to export metrics",
-                        reason = format!("{}", err));
-                }
-            }
-            Message::Flush(ch) => {
-                otel_debug!(
-                    name: "PeriodicReader.ForceFlushCalled",
-                    message = "Flush message received.",
-                );
-                let res = self.collect_and_export().await;
-                if let Err(send_error) = ch.send(res) {
-                    otel_debug!(
-                        name: "PeriodicReader.Flush.SendResultError",
-                        message = "Failed to send flush result.",
-                        reason = format!("{:?}", send_error),
-                    );
-                }
-            }
-            Message::Shutdown(ch) => {
-                otel_debug!(
-                    name: "PeriodicReader.ShutdownCalled",
-                    message = "Shutdown message received",
-                );
-                let res = self.collect_and_export().await;
-                let _ = self.reader.exporter.shutdown();
-                if let Err(send_error) = ch.send(res) {
-                    otel_debug!(
-                        name: "PeriodicReader.Shutdown.SendResultError",
-                        message = "Failed to send shutdown result",
-                        reason = format!("{:?}", send_error),
-                    );
-                }
-                return false;
-            }
-        }
-
-        true
-    }
-
-    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) {
-        while let Some(message) = messages.next().await {
-            if !self.process_message(message).await {
-                break;
-            }
-        }
-    }
-}
-
-impl MetricReader for PeriodicReader {
-    fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
-        let mut inner = match self.inner.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-
-        let worker = match &mut inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(_) => {
-                // Only register once. If producer is already set, do nothing.
-                otel_debug!(name: "PeriodicReader.DuplicateRegistration",
-                    message = "duplicate registration found, did not register periodic reader.");
-                return;
-            }
-            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
-        };
-
-        inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
-        worker(self);
+    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
+        self.exporter.temporality()
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        let inner = self.inner.lock()?;
-        if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
+        let producer = self.producer.lock().expect("lock poisoned");
+        if let Some(p) = producer.as_ref() {
+            p.upgrade()
+                .ok_or_else(|| MetricError::Other("pipeline is dropped".into()))?
+                .produce(rm)?;
+            Ok(())
+        } else {
+            Err(MetricError::Other("pipeline is not registered".into()))
+        }
+    }
+
+    fn collect_and_export(&self, _timeout: Duration) -> MetricResult<()> {
+        // TODO: Reuse the internal vectors. Or refactor to avoid needing any
+        // owned data structures to be passed to exporters.
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+
+        let collect_result = self.collect(&mut rm);
+        #[allow(clippy::question_mark)]
+        if let Err(e) = collect_result {
+            otel_warn!(
+                name: "PeriodReaderCollectError",
+                error = format!("{:?}", e)
+            );
+            return Err(e);
         }
 
-        if let Some(producer) = match &inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
-            ProducerOrWorker::Worker(_) => None,
-        } {
-            producer.produce(rm)?;
-        } else {
-            return Err(MetricError::Other("reader is not registered".into()));
+        if rm.scope_metrics.is_empty() {
+            otel_debug!(name: "NoMetricsCollected");
+            return Ok(());
+        }
+
+        let metrics_count = rm.scope_metrics.iter().fold(0, |count, scope_metrics| {
+            count + scope_metrics.metrics.len()
+        });
+        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
+
+        // TODO: subtract the time taken for collect from the timeout. collect
+        // involves observable callbacks too, which are user defined and can
+        // take arbitrary time.
+        //
+        // Relying on futures executor to execute async call.
+        // TODO: Add timeout and pass it to exporter or consider alternative
+        // design to enforce timeout here.
+        let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm));
+        #[allow(clippy::question_mark)]
+        if let Err(e) = exporter_result {
+            otel_warn!(
+                name: "PeriodReaderExportError",
+                error = format!("{:?}", e)
+            );
+            return Err(e);
         }
 
         Ok(())
     }
 
     fn force_flush(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
-        if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
-        }
-        let (sender, receiver) = oneshot::channel();
-        inner
-            .message_sender
-            .try_send(Message::Flush(sender))
+        // TODO: Better message for this scenario.
+        // Flush and Shutdown called from 2 threads Flush check shutdown
+        // flag before shutdown thread sets it. Both threads attempt to send
+        // message to the same channel. Case1: Flush thread sends message first,
+        // shutdown thread sends message next. Flush would succeed, as
+        // background thread won't process shutdown message until flush
+        // triggered export is done. Case2: Shutdown thread sends message first,
+        // flush thread sends message next. Shutdown would succeed, as
+        // background thread would process shutdown message first. The
+        // background exits so it won't receive the flush message. ForceFlush
+        // returns Failure, but we could indicate specifically that shutdown has
+        // completed. TODO is to see if this message can be improved.
+
+        let (response_tx, response_rx) = mpsc::channel();
+        self.message_sender
+            .send(Message::Flush(response_tx))
             .map_err(|e| MetricError::Other(e.to_string()))?;
 
-        drop(inner); // don't hold lock when blocking on future
-
-        futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))
-            .and_then(|res| res)
+        if let Ok(response) = response_rx.recv() {
+            // TODO: call exporter's force_flush method.
+            if response {
+                Ok(())
+            } else {
+                Err(MetricError::Other("Failed to flush".into()))
+            }
+        } else {
+            Err(MetricError::Other("Failed to flush".into()))
+        }
     }
 
     fn shutdown(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
-        if inner.is_shutdown {
-            return Err(MetricError::Other("reader is already shut down".into()));
-        }
-
-        let (sender, receiver) = oneshot::channel();
-        inner
-            .message_sender
-            .try_send(Message::Shutdown(sender))
+        // TODO: See if this is better to be created upfront.
+        let (response_tx, response_rx) = mpsc::channel();
+        self.message_sender
+            .send(Message::Shutdown(response_tx))
             .map_err(|e| MetricError::Other(e.to_string()))?;
-        drop(inner); // don't hold lock when blocking on future
 
-        let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))?;
+        // TODO: Make this timeout configurable.
+        match response_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(response) => {
+                if response {
+                    Ok(())
+                } else {
+                    Err(MetricError::Other("Failed to shutdown".into()))
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::Other(
+                "Failed to shutdown due to Timeout".into(),
+            )),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                Err(MetricError::Other("Failed to shutdown".into()))
+            }
+        }
+    }
+}
 
-        // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
-        inner.is_shutdown = true;
+#[derive(Debug)]
+enum Message {
+    Flush(Sender<bool>),
+    Shutdown(Sender<bool>),
+}
 
-        shutdown_result
+impl MetricReader for PeriodicReader {
+    fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
+        self.inner.register_pipeline(pipeline);
+    }
+
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
+        self.inner.collect(rm)
+    }
+
+    fn force_flush(&self) -> MetricResult<()> {
+        self.inner.force_flush()
+    }
+
+    // TODO: Offer an async version of shutdown so users can await the shutdown
+    // completion, and avoid blocking the thread. The default shutdown on drop
+    // can still use blocking call. If user already explicitly called shutdown,
+    // drop won't call shutdown again.
+    fn shutdown(&self) -> MetricResult<()> {
+        self.inner.shutdown()
     }
 
     /// To construct a [MetricReader][metric-reader] when setting up an SDK,
@@ -405,90 +459,112 @@ impl MetricReader for PeriodicReader {
     /// If not configured, the Cumulative temporality SHOULD be used.
     ///  
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
-    fn temporality(&self, kind: InstrumentKind) -> super::Temporality {
-        kind.temporality_preference(self.exporter.temporality())
+    fn temporality(&self, kind: InstrumentKind) -> Temporality {
+        kind.temporality_preference(self.inner.temporality(kind))
     }
 }
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
-    use crate::metrics::reader::MetricReader;
-    use crate::metrics::MetricError;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::SdkMeterProvider, runtime,
-        testing::metrics::InMemoryMetricExporter, Resource,
+        metrics::{
+            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
+            MetricResult, SdkMeterProvider, Temporality,
+        },
+        testing::metrics::InMemoryMetricExporter,
+        Resource,
     };
+    use async_trait::async_trait;
     use opentelemetry::metrics::MeterProvider;
-    use std::sync::mpsc;
+    use std::{
+        sync::{
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+            mpsc, Arc,
+        },
+        time::Duration,
+    };
+
+    // use below command to run all tests
+    // cargo test metrics::periodic_reader::tests --features=testing,spec_unstable_metrics_views -- --nocapture
+
+    #[derive(Debug, Clone)]
+    struct MetricExporterThatFailsOnlyOnFirst {
+        count: Arc<AtomicUsize>,
+    }
+
+    impl Default for MetricExporterThatFailsOnlyOnFirst {
+        fn default() -> Self {
+            MetricExporterThatFailsOnlyOnFirst {
+                count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    impl MetricExporterThatFailsOnlyOnFirst {
+        fn get_count(&self) -> usize {
+            self.count.load(Ordering::Relaxed)
+        }
+    }
+
+    #[async_trait]
+    impl PushMetricExporter for MetricExporterThatFailsOnlyOnFirst {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+            if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
+                Err(MetricError::Other("export failed".into()))
+            } else {
+                Ok(())
+            }
+        }
+
+        async fn force_flush(&self) -> MetricResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> MetricResult<()> {
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[derive(Debug, Clone, Default)]
+    struct MockMetricExporter {
+        is_shutdown: Arc<AtomicBool>,
+    }
+
+    #[async_trait]
+    impl PushMetricExporter for MockMetricExporter {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+            Ok(())
+        }
+
+        async fn force_flush(&self) -> MetricResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> MetricResult<()> {
+            self.is_shutdown.store(true, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
 
     #[test]
-    fn collection_triggered_by_interval_tokio_current() {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio() {
-        collection_triggered_by_interval_helper(runtime::Tokio);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio() {
-        collection_triggered_by_interval_helper(runtime::Tokio);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current()
-    {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current()
-    {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/2056"]
-    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio() {
-        collection_triggered_by_interval_helper(runtime::Tokio);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio_current() {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[test]
-    fn unregistered_collect() {
+    fn collection_triggered_by_interval_multiple() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let mut rm = ResourceMetrics {
-            resource: Resource::empty(),
-            scope_metrics: Vec::new(),
-        };
-
-        // Act
-        let result = reader.collect(&mut rm);
-
-        // Assert
-        assert!(
-            matches!(result.unwrap_err(), MetricError::Other(err) if err == "reader is not registered")
-        );
-    }
-
-    fn collection_triggered_by_interval_helper<RT>(runtime: RT)
-    where
-        RT: crate::runtime::Runtime,
-    {
         let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime)
+        let reader = PeriodicReader::builder(exporter.clone())
             .with_interval(interval)
             .build();
-        let (sender, receiver) = mpsc::channel();
+        let i = Arc::new(AtomicUsize::new(0));
+        let i_clone = i.clone();
 
         // Act
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
@@ -496,13 +572,392 @@ mod tests {
         let _counter = meter
             .u64_observable_counter("testcounter")
             .with_callback(move |_| {
+                i_clone.fetch_add(1, Ordering::Relaxed);
+            })
+            .build();
+
+        // Sleep for a duration 5X (plus liberal buffer to account for potential
+        // CI slowness) the interval to ensure multiple collection.
+        // Not a fan of such tests, but this seems to be the only way to test
+        // if periodic reader is doing its job.
+        // TODO: Decide if this should be ignored in CI
+        std::thread::sleep(interval * 5 * 20);
+
+        // Assert
+        assert!(i.load(Ordering::Relaxed) >= 5);
+    }
+
+    #[test]
+    fn shutdown_repeat() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+
+        // calling shutdown again should return Err
+        let result = meter_provider.shutdown();
+        assert!(result.is_err());
+
+        // calling shutdown again should return Err
+        let result = meter_provider.shutdown();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flush_after_shutdown() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+
+        // calling force_flush after shutdown should return Err
+        let result = meter_provider.force_flush();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flush_repeat() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+
+        // calling force_flush again should return Ok
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn periodic_reader_without_pipeline() {
+        // Arrange
+        let interval = std::time::Duration::from_millis(1);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let rm = &mut ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        // Pipeline is not registered, so collect should return an error
+        let result = reader.collect(rm);
+        assert!(result.is_err());
+
+        // Pipeline is not registered, so flush should return an error
+        let result = reader.force_flush();
+        assert!(result.is_err());
+
+        // Adding reader to meter provider should register the pipeline
+        // TODO: This part might benefit from a different design.
+        let meter_provider = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+
+        // Now collect and flush should succeed
+        let result = reader.collect(rm);
+        assert!(result.is_ok());
+
+        let result = meter_provider.force_flush();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn exporter_failures_are_handled() {
+        // create a mock exporter that fails 1st time and succeeds 2nd time
+        // Validate using this exporter that periodic reader can handle exporter failure
+        // and continue to export metrics.
+        // Arrange
+        let interval = std::time::Duration::from_millis(10);
+        let exporter = MetricExporterThatFailsOnlyOnFirst::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("sync_counter").build();
+        counter.add(1, &[]);
+        let _obs_counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |observer| {
+                observer.observe(1, &[]);
+            })
+            .build();
+
+        // Sleep for a duration much longer than the interval to trigger
+        // multiple exports, including failures.
+        // Not a fan of such tests, but this seems to be the
+        // only way to test if periodic reader is doing its job. TODO: Decide if
+        // this should be ignored in CI
+        std::thread::sleep(Duration::from_millis(500));
+
+        // Assert that atleast 2 exports are attempted given the 1st one fails.
+        assert!(exporter.get_count() >= 2);
+    }
+
+    #[test]
+    fn shutdown_passed_to_exporter() {
+        // Arrange
+        let exporter = MockMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("sync_counter").build();
+        counter.add(1, &[]);
+
+        // shutdown the provider, which should call shutdown on periodic reader
+        // which in turn should call shutdown on exporter.
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+        assert!(exporter.is_shutdown.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn collection() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn collection_from_tokio_multi_with_one_worker() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_from_tokio_with_two_worker() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn collection_from_tokio_current() {
+        collection_triggered_by_interval_helper();
+        collection_triggered_by_flush_helper();
+        collection_triggered_by_shutdown_helper();
+        collection_triggered_by_drop_helper();
+    }
+
+    fn collection_triggered_by_interval_helper() {
+        collection_helper(|_| {
+            // Sleep for a duration longer than the interval to ensure at least one collection
+            // Not a fan of such tests, but this seems to be the only way to test
+            // if periodic reader is doing its job.
+            // TODO: Decide if this should be ignored in CI
+            std::thread::sleep(Duration::from_millis(500));
+        });
+    }
+
+    fn collection_triggered_by_flush_helper() {
+        collection_helper(|meter_provider| {
+            meter_provider.force_flush().expect("flush should succeed");
+        });
+    }
+
+    fn collection_triggered_by_shutdown_helper() {
+        collection_helper(|meter_provider| {
+            meter_provider.shutdown().expect("shutdown should succeed");
+        });
+    }
+
+    fn collection_triggered_by_drop_helper() {
+        collection_helper(|meter_provider| {
+            drop(meter_provider);
+        });
+    }
+
+    fn collection_helper(trigger: fn(SdkMeterProvider)) {
+        // Arrange
+        let interval = std::time::Duration::from_millis(10);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+        let (sender, receiver) = mpsc::channel();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |observer| {
+                observer.observe(1, &[]);
                 sender.send(()).expect("channel should still be open");
             })
             .build();
 
+        // Act
+        trigger(meter_provider);
+
         // Assert
         receiver
-            .recv()
-            .expect("message should be available in channel, indicating a collection occurred");
+            .recv_timeout(Duration::ZERO)
+            .expect("message should be available in channel, indicating a collection occurred, which should trigger observable callback");
+
+        let exported_metrics = exporter
+            .get_finished_metrics()
+            .expect("this should not fail");
+        assert!(
+            !exported_metrics.is_empty(),
+            "Metrics should be available in exporter."
+        );
+    }
+
+    async fn some_async_function() -> u64 {
+        // No dependency on any particular async runtime.
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        1
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn async_inside_observable_callback_from_tokio_multi_with_one_worker() {
+        async_inside_observable_callback_helper();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn async_inside_observable_callback_from_tokio_multi_with_two_worker() {
+        async_inside_observable_callback_helper();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn async_inside_observable_callback_from_tokio_current_thread() {
+        async_inside_observable_callback_helper();
+    }
+
+    #[test]
+    fn async_inside_observable_callback_from_regular_main() {
+        async_inside_observable_callback_helper();
+    }
+
+    fn async_inside_observable_callback_helper() {
+        let interval = std::time::Duration::from_millis(10);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _gauge = meter
+            .u64_observable_gauge("my_observable_gauge")
+            .with_callback(|observer| {
+                // using futures_executor::block_on intentionally and avoiding
+                // any particular async runtime.
+                let value = futures_executor::block_on(some_async_function());
+                observer.observe(value, &[]);
+            })
+            .build();
+
+        meter_provider.force_flush().expect("flush should succeed");
+        let exported_metrics = exporter
+            .get_finished_metrics()
+            .expect("this should not fail");
+        assert!(
+            !exported_metrics.is_empty(),
+            "Metrics should be available in exporter."
+        );
+    }
+
+    async fn some_tokio_async_function() -> u64 {
+        // Tokio specific async function
+        tokio::time::sleep(Duration::from_millis(1)).await;
+        1
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+
+    async fn tokio_async_inside_observable_callback_from_tokio_multi_with_one_worker() {
+        tokio_async_inside_observable_callback_helper(true);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn tokio_async_inside_observable_callback_from_tokio_multi_with_two_worker() {
+        tokio_async_inside_observable_callback_helper(true);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[ignore] //TODO: Investigate if this can be fixed.
+    async fn tokio_async_inside_observable_callback_from_tokio_current_thread() {
+        tokio_async_inside_observable_callback_helper(true);
+    }
+
+    #[test]
+    fn tokio_async_inside_observable_callback_from_regular_main() {
+        tokio_async_inside_observable_callback_helper(false);
+    }
+
+    fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
+        let interval = std::time::Duration::from_millis(10);
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(interval)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+
+        if use_current_tokio_runtime {
+            let rt = tokio::runtime::Handle::current().clone();
+            let _gauge = meter
+                .u64_observable_gauge("my_observable_gauge")
+                .with_callback(move |observer| {
+                    // call tokio specific async function from here
+                    let value = rt.block_on(some_tokio_async_function());
+                    observer.observe(value, &[]);
+                })
+                .build();
+            // rt here is a reference to the current tokio runtime.
+            // Dropping it occurs when the tokio::main itself ends.
+        } else {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let _gauge = meter
+                .u64_observable_gauge("my_observable_gauge")
+                .with_callback(move |observer| {
+                    // call tokio specific async function from here
+                    let value = rt.block_on(some_tokio_async_function());
+                    observer.observe(value, &[]);
+                })
+                .build();
+            // rt is not dropped here as it is moved to the closure,
+            // and is dropped only when MeterProvider itself is dropped.
+            // This works when called from normal main.
+        };
+
+        meter_provider.force_flush().expect("flush should succeed");
+        let exported_metrics = exporter
+            .get_finished_metrics()
+            .expect("this should not fail");
+        assert!(
+            !exported_metrics.is_empty(),
+            "Metrics should be available in exporter."
+        );
     }
 }

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
+use opentelemetry::otel_debug;
 use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
@@ -19,7 +20,7 @@ use crate::{
 };
 
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -153,7 +154,7 @@ impl TonicExporterBuilder {
     ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
         let compression = self.resolve_compression(signal_compression_var)?;
 
-        let headers_from_env = parse_headers_from_env(signal_headers_var);
+        let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
         let metadata = merge_metadata_with_headers_from_env(
             self.tonic_config.metadata.unwrap_or_default(),
             headers_from_env,
@@ -190,6 +191,9 @@ impl TonicExporterBuilder {
 
         let endpoint = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
 
+        // Used for logging the endpoint
+        let endpoint_clone = endpoint.clone();
+
         let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
         let timeout = match env::var(signal_timeout_var)
             .ok()
@@ -215,6 +219,7 @@ impl TonicExporterBuilder {
         #[cfg(not(feature = "tls"))]
         let channel = endpoint.timeout(timeout).connect_lazy();
 
+        otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
         Ok((channel, interceptor, compression))
     }
 
@@ -257,6 +262,8 @@ impl TonicExporterBuilder {
     ) -> Result<crate::logs::LogExporter, opentelemetry_sdk::logs::LogError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
+        otel_debug!(name: "LogsTonicChannelBuilding");
+
         let (channel, interceptor, compression) = self.build_channel(
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
@@ -266,7 +273,7 @@ impl TonicExporterBuilder {
 
         let client = TonicLogsClient::new(channel, interceptor, compression);
 
-        Ok(crate::logs::LogExporter::new(client))
+        Ok(crate::logs::LogExporter::from_tonic(client))
     }
 
     /// Build a new tonic metrics exporter
@@ -277,6 +284,8 @@ impl TonicExporterBuilder {
     ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
         use crate::MetricExporter;
         use metrics::TonicMetricsClient;
+
+        otel_debug!(name: "MetricsTonicChannelBuilding");
 
         let (channel, interceptor, compression) = self.build_channel(
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
@@ -296,6 +305,8 @@ impl TonicExporterBuilder {
         self,
     ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
+
+        otel_debug!(name: "TracesTonicChannelBuilding");
 
         let (channel, interceptor, compression) = self.build_channel(
             crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -324,20 +335,26 @@ fn merge_metadata_with_headers_from_env(
     }
 }
 
-fn parse_headers_from_env(signal_headers_var: &str) -> HeaderMap {
-    env::var(signal_headers_var)
-        .or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
-        .map(|input| {
-            parse_header_string(&input)
-                .filter_map(|(key, value)| {
-                    Some((
-                        HeaderName::from_str(key).ok()?,
-                        HeaderValue::from_str(&value).ok()?,
-                    ))
-                })
-                .collect::<HeaderMap>()
-        })
-        .unwrap_or_default()
+fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<(String, String)>) {
+    let mut headers = Vec::new();
+
+    (
+        env::var(signal_headers_var)
+            .or_else(|_| env::var(OTEL_EXPORTER_OTLP_HEADERS))
+            .map(|input| {
+                parse_header_string(&input)
+                    .filter_map(|(key, value)| {
+                        headers.push((key.to_owned(), value.clone()));
+                        Some((
+                            HeaderName::from_str(key).ok()?,
+                            HeaderValue::from_str(&value).ok()?,
+                        ))
+                    })
+                    .collect::<HeaderMap>()
+            })
+            .unwrap_or_default(),
+        headers,
+    )
 }
 
 /// Expose interface for modifying [TonicConfig] fields within the exporter builders.
@@ -516,7 +533,7 @@ mod tests {
             ],
             || {
                 assert_eq!(
-                    super::parse_headers_from_env(OTEL_EXPORTER_OTLP_TRACES_HEADERS),
+                    super::parse_headers_from_env(OTEL_EXPORTER_OTLP_TRACES_HEADERS).0,
                     HeaderMap::from_iter([
                         (
                             HeaderName::from_static("k1"),
@@ -530,7 +547,7 @@ mod tests {
                 );
 
                 assert_eq!(
-                    super::parse_headers_from_env("EMPTY_ENV"),
+                    super::parse_headers_from_env("EMPTY_ENV").0,
                     HeaderMap::from_iter([(
                         HeaderName::from_static("k3"),
                         HeaderValue::from_static("v3")
@@ -553,7 +570,7 @@ mod tests {
                 metadata.insert("k1", "v0".parse().unwrap());
 
                 let result =
-                    super::merge_metadata_with_headers_from_env(metadata, headers_from_env);
+                    super::merge_metadata_with_headers_from_env(metadata, headers_from_env.0);
 
                 assert_eq!(
                     result.get("foo").unwrap(),

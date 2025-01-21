@@ -140,8 +140,8 @@ struct UnsafeSlice<'a> {
     slice: &'a [UnsafeCell<WorkerStats>],
 }
 
-unsafe impl<'a> Send for UnsafeSlice<'a> {}
-unsafe impl<'a> Sync for UnsafeSlice<'a> {}
+unsafe impl Send for UnsafeSlice<'_> {}
+unsafe impl Sync for UnsafeSlice<'_> {}
 
 impl<'a> UnsafeSlice<'a> {
     fn new(slice: &'a mut [WorkerStats]) -> Self {
@@ -155,7 +155,7 @@ impl<'a> UnsafeSlice<'a> {
     #[inline(always)]
     unsafe fn increment(&self, i: usize) {
         let value = self.slice[i].get();
-        (*value).count = (*value).count + 1;
+        (*value).count += 1;
     }
 
     #[inline(always)]

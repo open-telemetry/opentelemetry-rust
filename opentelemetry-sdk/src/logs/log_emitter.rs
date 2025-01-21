@@ -1,5 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
+use crate::{export::logs::LogExporter, Resource};
 use crate::{logs::LogError, logs::LogResult};
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
@@ -140,7 +140,7 @@ impl LoggerProviderInner {
                 //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
                 match err {
-                    // specific handling for mutex poisioning
+                    // specific handling for mutex poisoning
                     LogError::MutexPoisoned(_) => {
                         otel_debug!(
                             name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
@@ -194,12 +194,8 @@ impl Builder {
     }
 
     /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel>(
-        self,
-        exporter: T,
-        runtime: R,
-    ) -> Self {
-        let batch = BatchLogProcessor::builder(exporter, runtime).build();
+    pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
+        let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
@@ -221,7 +217,7 @@ impl Builder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> LoggerProvider {
-        let resource = self.resource.unwrap_or_default();
+        let resource = self.resource.unwrap_or(Resource::builder().build());
 
         let logger_provider = LoggerProvider {
             inner: Arc::new(LoggerProviderInner {
@@ -257,21 +253,8 @@ impl Logger {
         Logger { scope, provider }
     }
 
-    #[deprecated(
-        since = "0.27.1",
-        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
-    )]
-    /// LoggerProvider associated with this logger.
-    pub fn provider(&self) -> &LoggerProvider {
-        &self.provider
-    }
-
-    #[deprecated(
-        since = "0.27.1",
-        note = "This method was intended for appender developers, but has no defined use-case in typical workflows. It is deprecated and will be removed in the next major release."
-    )]
-    /// Instrumentation scope of this logger.
-    pub fn instrumentation_scope(&self) -> &InstrumentationScope {
+    #[cfg(test)]
+    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }
 }
@@ -426,10 +409,11 @@ mod tests {
 
         // If user provided a resource, use that.
         let custom_config_provider = super::LoggerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new(
-                SERVICE_NAME,
-                "test_service",
-            )]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("test_service")
+                    .build(),
+            )
             .build();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.resource().len(), 1);
@@ -458,10 +442,14 @@ mod tests {
             Some("my-custom-key=env-val,k2=value2"),
             || {
                 let user_provided_resource_config_provider = super::LoggerProvider::builder()
-                    .with_resource(Resource::default().merge(&mut Resource::new(vec![
-                        KeyValue::new("my-custom-key", "my-custom-value"),
-                        KeyValue::new("my-custom-key2", "my-custom-value2"),
-                    ])))
+                    .with_resource(
+                        Resource::builder()
+                            .with_attributes([
+                                KeyValue::new("my-custom-key", "my-custom-value"),
+                                KeyValue::new("my-custom-key2", "my-custom-value2"),
+                            ])
+                            .build(),
+                    )
                     .build();
                 assert_resource(
                     &user_provided_resource_config_provider,

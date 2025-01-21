@@ -22,6 +22,8 @@ use crate::{
     Resource,
 };
 
+use self::internal::AggregateFns;
+
 use super::Aggregation;
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
@@ -176,7 +178,7 @@ struct InstrumentSync {
     name: Cow<'static, str>,
     description: Cow<'static, str>,
     unit: Cow<'static, str>,
-    comp_agg: Box<dyn internal::ComputeAggregation>,
+    comp_agg: Arc<dyn internal::ComputeAggregation>,
 }
 
 impl fmt::Debug for InstrumentSync {
@@ -384,10 +386,10 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
-            let b = AggregateBuilder::new(Some(self.pipeline.reader.temporality(kind)), filter);
-            let (m, ca) = match aggregate_fn(b, &agg, kind) {
-                Ok(Some((m, ca))) => (m, ca),
-                other => return other.map(|fs| fs.map(|(m, _)| m)), // Drop aggregator or error
+            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
+            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
+                Ok(Some(inst)) => inst,
+                other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
 
             self.pipeline.add_sync(
@@ -396,11 +398,11 @@ where
                     name: stream.name,
                     description: stream.description,
                     unit: stream.unit,
-                    comp_agg: ca,
+                    comp_agg: collect,
                 },
             );
 
-            Ok(Some(m))
+            Ok(Some(measure))
         });
 
         match cached {
@@ -476,11 +478,6 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
     }
 }
 
-type AggregateFns<T> = (
-    Arc<dyn internal::Measure<T>>,
-    Box<dyn internal::ComputeAggregation>,
-);
-
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
@@ -489,25 +486,16 @@ fn aggregate_fn<T: Number>(
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> MetricResult<Option<AggregateFns<T>>> {
-    fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
-    ) -> (
-        Arc<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-    ) {
-        (Arc::new(m), Box::new(ca))
-    }
-
     match agg {
         Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
         Aggregation::Drop => Ok(None),
-        Aggregation::LastValue => Ok(Some(box_val(b.last_value()))),
+        Aggregation::LastValue => Ok(Some(b.last_value())),
         Aggregation::Sum => {
             let fns = match kind {
-                InstrumentKind::ObservableCounter => box_val(b.precomputed_sum(true)),
-                InstrumentKind::ObservableUpDownCounter => box_val(b.precomputed_sum(false)),
-                InstrumentKind::Counter | InstrumentKind::Histogram => box_val(b.sum(true)),
-                _ => box_val(b.sum(false)),
+                InstrumentKind::ObservableCounter => b.precomputed_sum(true),
+                InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
+                InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),
+                _ => b.sum(false),
             };
             Ok(Some(fns))
         }
@@ -521,11 +509,11 @@ fn aggregate_fn<T: Number>(
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
             );
-            Ok(Some(box_val(b.explicit_bucket_histogram(
+            Ok(Some(b.explicit_bucket_histogram(
                 boundaries.to_vec(),
                 *record_min_max,
                 record_sum,
-            ))))
+            )))
         }
         Aggregation::Base2ExponentialHistogram {
             max_size,
@@ -538,12 +526,12 @@ fn aggregate_fn<T: Number>(
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
             );
-            Ok(Some(box_val(b.exponential_bucket_histogram(
+            Ok(Some(b.exponential_bucket_histogram(
                 *max_size,
                 *max_scale,
                 *record_min_max,
                 record_sum,
-            ))))
+            )))
         }
     }
 }

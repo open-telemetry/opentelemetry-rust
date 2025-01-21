@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Bump msrv to 1.75.0.
+- Add "internal-logs" feature flag (enabled by default), and emit internal logs.
+
 ## 0.27.0
 
 Released 2024-Nov-08

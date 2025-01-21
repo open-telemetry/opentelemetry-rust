@@ -6,7 +6,7 @@
           {
             "key": "service.name",
             "value": {
-              "stringValue": "my.service"
+              "stringValue": "metrics-integration-test"
             }
           }
         ]
@@ -14,106 +14,120 @@
       "scopeMetrics": [
         {
           "scope": {
-            "name": "my.library",
-            "version": "1.0.0",
-            "attributes": [
-              {
-                "key": "my.scope.attribute",
-                "value": {
-                  "stringValue": "some scope attribute"
-                }
-              }
-            ]
+            "name": "meter"
           },
           "metrics": [
             {
-              "name": "my.counter",
-              "unit": "1",
-              "description": "I am a Counter",
-              "metadata": [],
+              "name": "counter_u64",
               "sum": {
-                "aggregationTemporality": 1,
-                "isMonotonic": true,
                 "dataPoints": [
                   {
-                    "asDouble": 5,
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
                     "attributes": [
                       {
-                        "key": "my.counter.attr",
+                        "key": "mykey1",
                         "value": {
-                          "stringValue": "some value"
+                          "stringValue": "myvalue1"
+                        }
+                      },
+                      {
+                        "key": "mykey2",
+                        "value": {
+                          "stringValue": "myvalue2"
                         }
                       }
                     ],
-                    "exemplars": [],
-                    "flags": 0
+                    "startTimeUnixNano": "1734094309366798000",
+                    "timeUnixNano": "1734094317871514000",
+                    "asInt": "10"
                   }
-                ]
+                ],
+                "aggregationTemporality": 2,
+                "isMonotonic": true
               }
             },
             {
-              "name": "my.gauge",
-              "unit": "1",
-              "description": "I am a Gauge",
-              "metadata": [],
-              "gauge": {
-                "dataPoints": [
-                  {
-                    "asDouble": 10,
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
-                    "attributes": [
-                      {
-                        "key": "my.gauge.attr",
-                        "value": {
-                          "stringValue": "some value"
-                        }
-                      }
-                    ],
-                    "exemplars": [],
-                    "flags": 0
-                  }
-                ]
-              }
-            },
-            {
-              "name": "my.histogram",
-              "unit": "1",
-              "description": "I am a Histogram",
-              "metadata": [],
+              "name": "example_histogram",
               "histogram": {
-                "aggregationTemporality": 1,
                 "dataPoints": [
                   {
-                    "startTimeUnixNano": "1544712660300000000",
-                    "timeUnixNano": "1544712660300000000",
-                    "count": 2,
-                    "sum": 2,
-                    "bucketCounts": [1,1],
-                    "explicitBounds": [1],
-                    "min": 0,
-                    "max": 2,
                     "attributes": [
                       {
-                        "key": "my.histogram.attr",
+                        "key": "mykey3",
                         "value": {
-                          "stringValue": "some value"
+                          "stringValue": "myvalue4"
                         }
                       }
                     ],
-                    "exemplars": [],
-                    "flags": 0
+                    "startTimeUnixNano": "1734094309366875000",
+                    "timeUnixNano": "1734094317871537000",
+                    "count": "1",
+                    "sum": 42,
+                    "bucketCounts": [
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "1",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0",
+                      "0"
+                    ],
+                    "explicitBounds": [
+                      0,
+                      5,
+                      10,
+                      25,
+                      50,
+                      75,
+                      100,
+                      250,
+                      500,
+                      750,
+                      1000,
+                      2500,
+                      5000,
+                      7500,
+                      10000
+                    ],
+                    "min": 42,
+                    "max": 42
                   }
-                ]
+                ],
+                "aggregationTemporality": 2
+              }
+            },
+            {
+              "name": "example_up_down_counter",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "attributes": [
+                      {
+                        "key": "mykey5",
+                        "value": {
+                          "stringValue": "myvalue5"
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1734094309366941000",
+                    "timeUnixNano": "1734094317871548000",
+                    "asInt": "-1"
+                  }
+                ],
+                "aggregationTemporality": 2
               }
             }
-          ],
-          "schemaUrl": "whatever"
+          ]
         }
-      ],
-      "schemaUrl": "whatever"
+      ]
     }
   ]
 }
