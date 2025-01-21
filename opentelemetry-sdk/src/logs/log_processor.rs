@@ -478,8 +478,8 @@ impl BatchLogProcessor {
                         result = export_with_timeout_sync(
                             config.max_export_timeout,
                             exporter.as_mut(),
-                            &timeout_runtime,
                             logs.split_off(0),
+                            &mut last_export_time,
                         )
                         .await
                         .and(exporter.as_mut().force_flush());
