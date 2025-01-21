@@ -481,8 +481,6 @@ impl BatchLogProcessor {
                             logs.split_off(0),
                             &mut last_export_time,
                         )
-                        .await
-                        .and(exporter.as_mut().force_flush());
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
