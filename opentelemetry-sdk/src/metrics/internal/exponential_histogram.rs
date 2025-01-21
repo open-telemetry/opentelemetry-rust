@@ -349,9 +349,19 @@ pub(crate) struct ExpoHistogramBucketConfig {
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
 pub(crate) struct ExpoHistogram<AC> {
-    pub(crate) aggregate_collector: AC,
-    pub(crate) record_sum: bool,
-    pub(crate) record_min_max: bool,
+    aggregate_collector: AC,
+    record_sum: bool,
+    record_min_max: bool,
+}
+
+impl<AC> ExpoHistogram<AC> {
+    pub(crate) fn new(aggregate_collector: AC, record_sum: bool, record_min_max: bool) -> Self {
+        Self {
+            aggregate_collector,
+            record_sum,
+            record_min_max,
+        }
+    }
 }
 
 impl<AC, T> Measure<T> for ExpoHistogram<AC>

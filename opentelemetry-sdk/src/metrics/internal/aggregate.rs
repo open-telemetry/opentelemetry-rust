@@ -198,29 +198,29 @@ impl<T: Number> AggregateBuilder<T> {
         record_sum: bool,
     ) -> AggregateFns<T> {
         match self.temporality {
-            Temporality::Delta => ExpoHistogram {
-                aggregate_collector: Collector::new(
+            Temporality::Delta => ExpoHistogram::new(
+                Collector::new(
                     self.filter.clone(),
                     DeltaValueMap::new(ExpoHistogramBucketConfig {
                         max_size: max_size as i32,
                         max_scale,
                     }),
                 ),
-                record_min_max,
                 record_sum,
-            }
+                record_min_max,
+            )
             .into(),
-            _ => ExpoHistogram {
-                aggregate_collector: Collector::new(
+            _ => ExpoHistogram::new(
+                Collector::new(
                     self.filter.clone(),
                     CumulativeValueMap::new(ExpoHistogramBucketConfig {
                         max_size: max_size as i32,
                         max_scale,
                     }),
                 ),
-                record_min_max,
                 record_sum,
-            }
+                record_min_max,
+            )
             .into(),
         }
     }

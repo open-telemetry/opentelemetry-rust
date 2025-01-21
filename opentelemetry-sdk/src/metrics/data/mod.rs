@@ -54,11 +54,11 @@ pub trait Aggregation: fmt::Debug + any::Any + Send + Sync {
 }
 
 /// Allow to access data points of an [Aggregation].
-pub trait AggregationDataPoints {
+pub(crate) trait AggregationDataPoints {
     /// The type of data point in the aggregation.
-    type Point;
+    type DataPoint;
     /// The data points of the aggregation.
-    fn points(&mut self) -> &mut Vec<Self::Point>;
+    fn points(&mut self) -> &mut Vec<Self::DataPoint>;
 }
 
 /// DataPoint is a single data point in a time series.
@@ -237,9 +237,9 @@ impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram
 }
 
 impl<T> AggregationDataPoints for ExponentialHistogram<T> {
-    type Point = ExponentialHistogramDataPoint<T>;
+    type DataPoint = ExponentialHistogramDataPoint<T>;
 
-    fn points(&mut self) -> &mut Vec<Self::Point> {
+    fn points(&mut self) -> &mut Vec<Self::DataPoint> {
         &mut self.data_points
     }
 }

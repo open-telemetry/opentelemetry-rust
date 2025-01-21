@@ -40,7 +40,7 @@ pub(crate) trait AggregateCollector: Send + Sync + 'static {
         F: FnMut(
             Vec<KeyValue>,
             &Self::Aggr,
-        ) -> <InitAggregate::Aggr as AggregationDataPoints>::Point;
+        ) -> <InitAggregate::Aggr as AggregationDataPoints>::DataPoint;
 }
 
 pub(crate) struct Collector<AM> {
@@ -92,7 +92,10 @@ where
     ) -> (usize, Option<Box<dyn Aggregation>>)
     where
         InitAggregate: InitAggregationData,
-        F: FnMut(Vec<KeyValue>, &AM::Aggr) -> <InitAggregate::Aggr as AggregationDataPoints>::Point,
+        F: FnMut(
+            Vec<KeyValue>,
+            &AM::Aggr,
+        ) -> <InitAggregate::Aggr as AggregationDataPoints>::DataPoint,
     {
         let time = self.init_time();
         let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<InitAggregate::Aggr>());
