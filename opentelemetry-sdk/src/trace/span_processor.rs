@@ -293,6 +293,8 @@ impl BatchSpanProcessor {
                     match message_receiver.recv_timeout(remaining_time) {
                         Ok(message) => match message {
                             BatchMessage::ExportSpan(export_span_message_sent) => {
+                                // Reset the export span message sent flag now it has has been processed.
+                                export_span_message_sent.store(false, Ordering::Relaxed);
                                 otel_debug!(
                                     name: "BatchSpanProcessor.ExportingDueToBatchSize",
                                 );
@@ -304,8 +306,6 @@ impl BatchSpanProcessor {
                                     &current_batch_size,
                                     &config,
                                 );
-                                // Reset the export span message sent flag now it has has been processed.
-                                export_span_message_sent.store(false, Ordering::Relaxed);
                             }
                             BatchMessage::ForceFlush(sender) => {
                                 otel_debug!(name: "BatchSpanProcessor.ExportingDueToForceFlush");
