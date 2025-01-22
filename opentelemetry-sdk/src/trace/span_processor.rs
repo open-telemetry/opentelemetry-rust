@@ -107,7 +107,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
 /// - `grpc-tonic`: This requires TracerProvider to be created within a tokio
-///   runtime. Spans can emitted from any thread, including tokio runtime
+///   runtime. Spans can be emitted from any thread, including tokio runtime
 ///   threads.
 /// - `reqwest-blocking-client`: TracerProvider may be created anywhere, but
 ///   spans must be emitted from a non-tokio runtime thread.
