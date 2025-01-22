@@ -1071,10 +1071,7 @@ mod tests {
     async fn test_batch_forceflush() {
         let exporter = InMemoryLogExporterBuilder::default().build();
 
-        let processor = BatchLogProcessor::new(
-            Box::new(exporter.clone()),
-            BatchConfig::default(),
-        );
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
         let mut record = LogRecord::default();
         let instrumentation = InstrumentationScope::default();
