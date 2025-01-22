@@ -109,7 +109,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
 /// - `grpc-tonic`: This requires LoggerProvider to be created within a tokio
-///   runtime. Logs can emitted from any thread, including tokio runtime
+///   runtime. Logs can be emitted from any thread, including tokio runtime
 ///   threads.
 /// - `reqwest-blocking-client`: LoggerProvider may be created anywhere, but
 ///   logs must be emitted from a non-tokio runtime thread.
