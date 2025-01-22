@@ -479,7 +479,7 @@ impl BatchLogProcessor {
                             config.max_export_timeout,
                             exporter,
                             logs,
-                            &mut last_export_time,
+                            last_export_time,
                         );
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
