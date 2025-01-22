@@ -18,8 +18,11 @@ use super::{
 pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
 
 /// Checks whether aggregator has hit cardinality limit for metric streams
-pub(crate) fn is_under_cardinality_limit(size: usize) -> bool {
-    size < STREAM_CARDINALITY_LIMIT
+pub(crate) fn is_under_cardinality_limit(_size: usize) -> bool {
+    true
+
+    // TODO: Implement this feature, after allowing the ability to customize the cardinality limit.
+    // size < STREAM_CARDINALITY_LIMIT
 }
 
 /// Receives measurements to be aggregated.

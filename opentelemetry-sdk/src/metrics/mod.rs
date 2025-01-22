@@ -259,11 +259,13 @@ mod tests {
         assert_eq!(data_point.value, 50, "Unexpected data point value");
     }
 
+    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
     }
 
+    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
