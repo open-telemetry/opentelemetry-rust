@@ -102,7 +102,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// `SpanExporter`, as soon as they are finished, without any batching. This is
 /// typically useful for debugging and testing. For scenarios requiring higher
 /// performance/throughput, consider using [BatchSpanProcessor].
-/// Log records are exported synchronously
+/// Spans are exported synchronously
 /// in the same thread that emits the log record.
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
