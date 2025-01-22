@@ -477,8 +477,8 @@ impl BatchLogProcessor {
 
                         result = export_with_timeout_sync(
                             config.max_export_timeout,
-                            exporter.as_mut(),
-                            logs.split_off(0),
+                            &exporter,
+                            logs,
                             &mut last_export_time,
                         );
 
