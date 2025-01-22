@@ -1,7 +1,5 @@
-use crate::metrics::{
-    data::{self, Aggregation, GaugeDataPoint},
-    Temporality,
-};
+use crate::export::metrics::{Aggregation, GaugeDataPoint};
+use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::{
@@ -65,9 +63,12 @@ impl<T: Number> LastValue<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::Gauge<T>>()
+        });
         let mut new_agg = if s_data.is_none() {
-            Some(data::Gauge {
+            Some(crate::export::metrics::Gauge {
                 data_points: vec![],
                 start_time: Some(time.start),
                 time: time.current,
@@ -97,9 +98,12 @@ impl<T: Number> LastValue<T> {
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::Gauge<T>>()
+        });
         let mut new_agg = if s_data.is_none() {
-            Some(data::Gauge {
+            Some(crate::export::metrics::Gauge {
                 data_points: vec![],
                 start_time: Some(time.start),
                 time: time.current,

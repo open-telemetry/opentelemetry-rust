@@ -2,8 +2,7 @@ use std::mem::replace;
 use std::ops::DerefMut;
 use std::sync::Mutex;
 
-use crate::metrics::data::HistogramDataPoint;
-use crate::metrics::data::{self, Aggregation};
+use crate::export::metrics::{Aggregation, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
@@ -110,9 +109,12 @@ impl<T: Number> Histogram<T> {
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let h = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::Histogram<T>>()
+        });
         let mut new_agg = if h.is_none() {
-            Some(data::Histogram {
+            Some(crate::export::metrics::Histogram {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,
@@ -161,9 +163,12 @@ impl<T: Number> Histogram<T> {
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let h = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::Histogram<T>>()
+        });
         let mut new_agg = if h.is_none() {
-            Some(data::Histogram {
+            Some(crate::export::metrics::Histogram {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,
@@ -257,7 +262,10 @@ mod tests {
         }
         let (count, dp) = ComputeAggregation::call(&hist, None);
         let dp = dp.unwrap();
-        let dp = dp.as_any().downcast_ref::<data::Histogram<i64>>().unwrap();
+        let dp = dp
+            .as_any()
+            .downcast_ref::<crate::export::metrics::Histogram<i64>>()
+            .unwrap();
         assert_eq!(count, 1);
         assert_eq!(dp.data_points[0].count, 10);
         assert_eq!(dp.data_points[0].bucket_counts.len(), 4);

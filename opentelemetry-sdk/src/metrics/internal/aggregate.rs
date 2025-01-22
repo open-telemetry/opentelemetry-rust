@@ -8,7 +8,8 @@ use std::{
 
 use opentelemetry::KeyValue;
 
-use crate::metrics::{data::Aggregation, Temporality};
+use crate::export::metrics::Aggregation;
+use crate::metrics::Temporality;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
@@ -199,7 +200,7 @@ impl<T: Number> AggregateBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::metrics::data::{
+    use crate::export::metrics::{
         ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
         GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };

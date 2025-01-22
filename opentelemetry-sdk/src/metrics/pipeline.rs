@@ -8,9 +8,9 @@ use std::{
 use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
+    export::metrics::{Metric, ResourceMetrics, ScopeMetrics},
     metrics::{
         aggregation,
-        data::{Metric, ResourceMetrics, ScopeMetrics},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal,
         internal::AggregateBuilder,
@@ -24,7 +24,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::Aggregation;
+use super::aggregation::Aggregation;
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///

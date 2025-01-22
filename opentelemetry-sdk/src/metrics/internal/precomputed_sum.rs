@@ -1,6 +1,6 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, SumDataPoint};
+use crate::export::metrics::{Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
@@ -40,9 +40,9 @@ impl<T: Number> PrecomputedSum<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<crate::export::metrics::Sum<T>>());
         let mut new_agg = if s_data.is_none() {
-            Some(data::Sum {
+            Some(crate::export::metrics::Sum {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,
@@ -91,9 +91,9 @@ impl<T: Number> PrecomputedSum<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<crate::export::metrics::Sum<T>>());
         let mut new_agg = if s_data.is_none() {
-            Some(data::Sum {
+            Some(crate::export::metrics::Sum {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,

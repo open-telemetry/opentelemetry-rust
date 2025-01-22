@@ -1,8 +1,7 @@
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::metrics::{
-    data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
-};
+use crate::export::metrics::ResourceMetrics;
+use crate::metrics::{pipeline::Pipeline, reader::MetricReader, InstrumentKind};
 use crate::metrics::{MetricResult, Temporality};
 
 #[derive(Debug, Clone)]

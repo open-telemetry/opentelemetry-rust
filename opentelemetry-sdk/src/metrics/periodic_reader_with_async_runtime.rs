@@ -15,11 +15,13 @@ use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
+    export::metrics::PushMetricExporter,
+    metrics::{reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
 
-use super::{data::ResourceMetrics, reader::MetricReader, InstrumentKind, Pipeline};
+use super::{reader::MetricReader, InstrumentKind, Pipeline};
+use crate::export::metrics::ResourceMetrics;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);

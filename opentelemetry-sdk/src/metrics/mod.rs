@@ -40,8 +40,8 @@
 //! [Resource]: crate::Resource
 
 pub(crate) mod aggregation;
-pub mod data;
 mod error;
+/// Metrics exporter traits and data types.
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
@@ -103,12 +103,9 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::*;
-    use crate::metrics::data::ResourceMetrics;
     use crate::testing::metrics::InMemoryMetricExporter;
     use crate::testing::metrics::InMemoryMetricExporterBuilder;
-    use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -225,7 +222,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -248,7 +245,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -450,7 +447,7 @@ mod tests {
 
         for (iter, v) in values_clone.iter().enumerate() {
             test_context.flush_metrics();
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_observable_counter", None);
+            let sum = test_context.get_aggregation::<Sum<u64>>("my_observable_counter", None);
             assert_eq!(sum.data_points.len(), 1);
             assert!(sum.is_monotonic, "Counter should produce monotonic.");
             if let Temporality::Cumulative = temporality {
@@ -567,7 +564,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series.
@@ -633,7 +630,7 @@ mod tests {
             let sum1 = metric1
                 .data
                 .as_any()
-                .downcast_ref::<data::Sum<u64>>()
+                .downcast_ref::<Sum<u64>>()
                 .expect("Sum aggregation expected for Counter instruments by default");
 
             // Expecting 1 time-series.
@@ -653,7 +650,7 @@ mod tests {
             let sum2 = metric2
                 .data
                 .as_any()
-                .downcast_ref::<data::Sum<u64>>()
+                .downcast_ref::<Sum<u64>>()
                 .expect("Sum aggregation expected for Counter instruments by default");
 
             // Expecting 1 time-series.
@@ -737,7 +734,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series.
@@ -860,7 +857,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for ObservableCounter instruments by default");
 
         // Expecting 1 time-series only, as the view drops all attributes resulting
@@ -937,7 +934,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series only, as the view drops all attributes resulting
@@ -957,7 +954,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -980,7 +977,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -1002,12 +999,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -1029,12 +1026,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -1056,12 +1053,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(50, &[KeyValue::new("a", "b")]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         let no_attr_data_point = sum.data_points.iter().find(|x| x.attributes.is_empty());
 
@@ -1092,7 +1089,7 @@ mod tests {
         counter.add(1, &[KeyValue::new("key1", "value2")]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
@@ -1217,7 +1214,7 @@ mod tests {
             match instrument_name {
                 "counter" => {
                     let counter_data =
-                        test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
+                        test_context.get_aggregation::<Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_sum_datapoint_with_no_attributes(&counter_data.data_points)
@@ -1233,7 +1230,7 @@ mod tests {
                 }
                 "updown_counter" => {
                     let updown_counter_data =
-                        test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
+                        test_context.get_aggregation::<Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
@@ -1248,8 +1245,8 @@ mod tests {
                     assert_eq!(data_point1.value, 20);
                 }
                 "histogram" => {
-                    let histogram_data = test_context
-                        .get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+                    let histogram_data =
+                        test_context.get_aggregation::<Histogram<u64>>("test_histogram", None);
                     assert_eq!(histogram_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_histogram_datapoint_with_no_attributes(&histogram_data.data_points)
@@ -1270,8 +1267,7 @@ mod tests {
                     assert_eq!(data_point1.max, Some(30));
                 }
                 "gauge" => {
-                    let gauge_data =
-                        test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
+                    let gauge_data = test_context.get_aggregation::<Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
@@ -1370,7 +1366,7 @@ mod tests {
             match instrument_name {
                 "counter" => {
                     let counter_data =
-                        test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
+                        test_context.get_aggregation::<Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     assert!(counter_data.is_monotonic);
                     let zero_attribute_datapoint =
@@ -1387,7 +1383,7 @@ mod tests {
                 }
                 "updown_counter" => {
                     let updown_counter_data =
-                        test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
+                        test_context.get_aggregation::<Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     assert!(!updown_counter_data.is_monotonic);
                     let zero_attribute_datapoint =
@@ -1403,8 +1399,7 @@ mod tests {
                     assert_eq!(data_point1.value, 20);
                 }
                 "gauge" => {
-                    let gauge_data =
-                        test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
+                    let gauge_data = test_context.get_aggregation::<Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
@@ -1453,8 +1448,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let sums =
-            test_context.get_from_multiple_aggregations::<data::Sum<u64>>("my_counter", None, 6);
+        let sums = test_context.get_from_multiple_aggregations::<Sum<u64>>("my_counter", None, 6);
 
         let mut sum_zero_attributes = 0;
         let mut sum_key1_value1 = 0;
@@ -1506,8 +1500,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let sums =
-            test_context.get_from_multiple_aggregations::<data::Sum<f64>>("test_counter", None, 6);
+        let sums = test_context.get_from_multiple_aggregations::<Sum<f64>>("test_counter", None, 6);
 
         let mut sum_zero_attributes = 0.0;
         let mut sum_key1_value1 = 0.0;
@@ -1560,7 +1553,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let histograms = test_context.get_from_multiple_aggregations::<data::Histogram<u64>>(
+        let histograms = test_context.get_from_multiple_aggregations::<Histogram<u64>>(
             "test_histogram",
             None,
             6,
@@ -1697,7 +1690,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let histograms = test_context.get_from_multiple_aggregations::<data::Histogram<f64>>(
+        let histograms = test_context.get_from_multiple_aggregations::<Histogram<f64>>(
             "test_histogram",
             None,
             6,
@@ -1827,8 +1820,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("my_histogram", None);
         // Expecting 2 time-series.
         assert_eq!(histogram_data.data_points.len(), 2);
         if let Temporality::Cumulative = temporality {
@@ -1874,8 +1866,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("my_histogram", None);
         assert_eq!(histogram_data.data_points.len(), 2);
         let data_point1 =
             find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
@@ -1924,8 +1915,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("test_histogram", None);
         // Expecting 2 time-series.
         assert_eq!(histogram_data.data_points.len(), 1);
         if let Temporality::Cumulative = temporality {
@@ -1978,7 +1968,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let gauge_data_point = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        let gauge_data_point = test_context.get_aggregation::<Gauge<i64>>("my_gauge", None);
         // Expecting 2 time-series.
         assert_eq!(gauge_data_point.data_points.len(), 2);
 
@@ -2007,7 +1997,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("my_gauge", None);
         assert_eq!(gauge.data_points.len(), 2);
         let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2036,7 +2026,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("test_observable_gauge", None);
         // Expecting 2 time-series.
         let expected_time_series_count = if use_empty_attributes { 3 } else { 2 };
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
@@ -2064,7 +2054,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("test_observable_gauge", None);
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
 
         if use_empty_attributes {
@@ -2102,7 +2092,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
         assert!(sum.is_monotonic, "Counter should produce monotonic.");
@@ -2139,7 +2129,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         assert_eq!(sum.data_points.len(), 2);
         let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2179,7 +2169,7 @@ mod tests {
         counter.add(100, &[KeyValue::new("A", "yet_another")]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 2002 metric points. (2000 + 1 overflow + Empty attributes)
         assert_eq!(sum.data_points.len(), 2002);
@@ -2273,7 +2263,7 @@ mod tests {
         );
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 1 time-series.
         assert_eq!(sum.data_points.len(), 1);
@@ -2302,7 +2292,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_updown_counter", None);
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
         assert!(
@@ -2338,7 +2328,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_updown_counter", None);
         assert_eq!(sum.data_points.len(), 2);
         let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2493,7 +2483,7 @@ mod tests {
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
 
-        fn get_aggregation<T: data::Aggregation>(
+        fn get_aggregation<T: Aggregation>(
             &mut self,
             counter_name: &str,
             unit_name: Option<&str>,
@@ -2536,7 +2526,7 @@ mod tests {
                 .expect("Failed to cast aggregation to expected type")
         }
 
-        fn get_from_multiple_aggregations<T: data::Aggregation>(
+        fn get_from_multiple_aggregations<T: Aggregation>(
             &mut self,
             counter_name: &str,
             unit_name: Option<&str>,

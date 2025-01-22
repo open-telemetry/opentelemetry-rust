@@ -3,10 +3,8 @@ use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
 
-use crate::metrics::{
-    data::{self, Aggregation},
-    Temporality,
-};
+use crate::export::metrics::Aggregation;
+use crate::metrics::Temporality;
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
@@ -386,9 +384,12 @@ impl<T: Number> ExpoHistogram<T> {
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::ExponentialHistogram<T>>()
+        });
         let mut new_agg = if h.is_none() {
-            Some(data::ExponentialHistogram {
+            Some(crate::export::metrics::ExponentialHistogram {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,
@@ -405,7 +406,7 @@ impl<T: Number> ExpoHistogram<T> {
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
                 let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
-                data::ExponentialHistogramDataPoint {
+                crate::export::metrics::ExponentialHistogramDataPoint {
                     attributes,
                     count: b.count,
                     min: if self.record_min_max {
@@ -421,11 +422,11 @@ impl<T: Number> ExpoHistogram<T> {
                     sum: if self.record_sum { b.sum } else { T::default() },
                     scale: b.scale,
                     zero_count: b.zero_count,
-                    positive_bucket: data::ExponentialBucket {
+                    positive_bucket: crate::export::metrics::ExponentialBucket {
                         offset: b.pos_buckets.start_bin,
                         counts: b.pos_buckets.counts,
                     },
-                    negative_bucket: data::ExponentialBucket {
+                    negative_bucket: crate::export::metrics::ExponentialBucket {
                         offset: b.neg_buckets.start_bin,
                         counts: b.neg_buckets.counts,
                     },
@@ -443,9 +444,12 @@ impl<T: Number> ExpoHistogram<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| {
+            d.as_mut()
+                .downcast_mut::<crate::export::metrics::ExponentialHistogram<T>>()
+        });
         let mut new_agg = if h.is_none() {
-            Some(data::ExponentialHistogram {
+            Some(crate::export::metrics::ExponentialHistogram {
                 data_points: vec![],
                 start_time: time.start,
                 time: time.current,
@@ -462,7 +466,7 @@ impl<T: Number> ExpoHistogram<T> {
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, attr| {
                 let b = attr.lock().unwrap_or_else(|err| err.into_inner());
-                data::ExponentialHistogramDataPoint {
+                crate::export::metrics::ExponentialHistogramDataPoint {
                     attributes,
                     count: b.count,
                     min: if self.record_min_max {
@@ -478,11 +482,11 @@ impl<T: Number> ExpoHistogram<T> {
                     sum: if self.record_sum { b.sum } else { T::default() },
                     scale: b.scale,
                     zero_count: b.zero_count,
-                    positive_bucket: data::ExponentialBucket {
+                    positive_bucket: crate::export::metrics::ExponentialBucket {
                         offset: b.pos_buckets.start_bin,
                         counts: b.pos_buckets.counts.clone(),
                     },
-                    negative_bucket: data::ExponentialBucket {
+                    negative_bucket: crate::export::metrics::ExponentialBucket {
                         offset: b.neg_buckets.start_bin,
                         counts: b.neg_buckets.counts.clone(),
                     },
@@ -1259,7 +1263,7 @@ mod tests {
             name: &'static str,
             build: Box<dyn Fn() -> AggregateFns<T>>,
             input: Vec<Vec<T>>,
-            want: data::ExponentialHistogram<T>,
+            want: crate::export::metrics::ExponentialHistogram<T>,
             want_count: usize,
         }
         let test_cases: Vec<TestCase<T>> = vec![
@@ -1277,20 +1281,20 @@ mod tests {
                     .into_iter()
                     .map(Into::into)
                     .collect()],
-                want: data::ExponentialHistogram {
+                want: crate::export::metrics::ExponentialHistogram {
                     temporality: Temporality::Delta,
-                    data_points: vec![data::ExponentialHistogramDataPoint {
+                    data_points: vec![crate::export::metrics::ExponentialHistogramDataPoint {
                         attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
                         scale: -1,
-                        positive_bucket: data::ExponentialBucket {
+                        positive_bucket: crate::export::metrics::ExponentialBucket {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        negative_bucket: data::ExponentialBucket {
+                        negative_bucket: crate::export::metrics::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
                         },
@@ -1318,20 +1322,20 @@ mod tests {
                     .into_iter()
                     .map(Into::into)
                     .collect()],
-                want: data::ExponentialHistogram {
+                want: crate::export::metrics::ExponentialHistogram {
                     temporality: Temporality::Cumulative,
-                    data_points: vec![data::ExponentialHistogramDataPoint {
+                    data_points: vec![crate::export::metrics::ExponentialHistogramDataPoint {
                         attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
                         scale: -1,
-                        positive_bucket: data::ExponentialBucket {
+                        positive_bucket: crate::export::metrics::ExponentialBucket {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        negative_bucket: data::ExponentialBucket {
+                        negative_bucket: crate::export::metrics::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
                         },
@@ -1362,20 +1366,20 @@ mod tests {
                         .map(Into::into)
                         .collect(),
                 ],
-                want: data::ExponentialHistogram {
+                want: crate::export::metrics::ExponentialHistogram {
                     temporality: Temporality::Delta,
-                    data_points: vec![data::ExponentialHistogramDataPoint {
+                    data_points: vec![crate::export::metrics::ExponentialHistogramDataPoint {
                         attributes: vec![],
                         count: 6,
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
                         scale: -1,
-                        positive_bucket: data::ExponentialBucket {
+                        positive_bucket: crate::export::metrics::ExponentialBucket {
                             offset: -1,
                             counts: vec![1, 4, 1],
                         },
-                        negative_bucket: data::ExponentialBucket {
+                        negative_bucket: crate::export::metrics::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
                         },
@@ -1406,20 +1410,20 @@ mod tests {
                         .map(Into::into)
                         .collect(),
                 ],
-                want: data::ExponentialHistogram {
+                want: crate::export::metrics::ExponentialHistogram {
                     temporality: Temporality::Cumulative,
-                    data_points: vec![data::ExponentialHistogramDataPoint {
+                    data_points: vec![crate::export::metrics::ExponentialHistogramDataPoint {
                         count: 9,
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 44.into(),
                         scale: -1,
-                        positive_bucket: data::ExponentialBucket {
+                        positive_bucket: crate::export::metrics::ExponentialBucket {
                             offset: -1,
                             counts: vec![1, 6, 2],
                         },
                         attributes: vec![],
-                        negative_bucket: data::ExponentialBucket {
+                        negative_bucket: crate::export::metrics::ExponentialBucket {
                             offset: 0,
                             counts: vec![],
                         },
@@ -1437,12 +1441,13 @@ mod tests {
         for test in test_cases {
             let AggregateFns { measure, collect } = (test.build)();
 
-            let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
-                data_points: vec![],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
-                temporality: Temporality::Delta,
-            });
+            let mut got: Box<dyn crate::export::metrics::Aggregation> =
+                Box::new(crate::export::metrics::ExponentialHistogram::<T> {
+                    data_points: vec![],
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
+                    temporality: Temporality::Delta,
+                });
             let mut count = 0;
             for n in test.input {
                 for v in n {
@@ -1468,8 +1473,14 @@ mod tests {
             test_name
         );
 
-        if let Some(a) = a.as_any().downcast_ref::<data::Gauge<T>>() {
-            let b = b.as_any().downcast_ref::<data::Gauge<T>>().unwrap();
+        if let Some(a) = a
+            .as_any()
+            .downcast_ref::<crate::export::metrics::Gauge<T>>()
+        {
+            let b = b
+                .as_any()
+                .downcast_ref::<crate::export::metrics::Gauge<T>>()
+                .unwrap();
             assert_eq!(
                 a.data_points.len(),
                 b.data_points.len(),
@@ -1479,8 +1490,11 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
-            let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
+        } else if let Some(a) = a.as_any().downcast_ref::<crate::export::metrics::Sum<T>>() {
+            let b = b
+                .as_any()
+                .downcast_ref::<crate::export::metrics::Sum<T>>()
+                .unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{} mismatching sum temporality",
@@ -1500,8 +1514,14 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
-            let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
+        } else if let Some(a) = a
+            .as_any()
+            .downcast_ref::<crate::export::metrics::Histogram<T>>()
+        {
+            let b = b
+                .as_any()
+                .downcast_ref::<crate::export::metrics::Histogram<T>>()
+                .unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{}: mismatching hist temporality",
@@ -1516,10 +1536,13 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
+        } else if let Some(a) = a
+            .as_any()
+            .downcast_ref::<crate::export::metrics::ExponentialHistogram<T>>()
+        {
             let b = b
                 .as_any()
-                .downcast_ref::<data::ExponentialHistogram<T>>()
+                .downcast_ref::<crate::export::metrics::ExponentialHistogram<T>>()
                 .unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
@@ -1546,8 +1569,8 @@ mod tests {
     }
 
     fn assert_sum_data_points_eq<T: Number>(
-        a: &data::SumDataPoint<T>,
-        b: &data::SumDataPoint<T>,
+        a: &crate::export::metrics::SumDataPoint<T>,
+        b: &crate::export::metrics::SumDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1560,8 +1583,8 @@ mod tests {
     }
 
     fn assert_gauge_data_points_eq<T: Number>(
-        a: &data::GaugeDataPoint<T>,
-        b: &data::GaugeDataPoint<T>,
+        a: &crate::export::metrics::GaugeDataPoint<T>,
+        b: &crate::export::metrics::GaugeDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1574,8 +1597,8 @@ mod tests {
     }
 
     fn assert_hist_data_points_eq<T: Number>(
-        a: &data::HistogramDataPoint<T>,
-        b: &data::HistogramDataPoint<T>,
+        a: &crate::export::metrics::HistogramDataPoint<T>,
+        b: &crate::export::metrics::HistogramDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {
@@ -1597,8 +1620,8 @@ mod tests {
     }
 
     fn assert_exponential_hist_data_points_eq<T: Number>(
-        a: &data::ExponentialHistogramDataPoint<T>,
-        b: &data::ExponentialHistogramDataPoint<T>,
+        a: &crate::export::metrics::ExponentialHistogramDataPoint<T>,
+        b: &crate::export::metrics::ExponentialHistogramDataPoint<T>,
         message: &'static str,
         test_name: &'static str,
     ) {

@@ -5,10 +5,10 @@ use std::{
 
 use opentelemetry::otel_debug;
 
+use crate::export::metrics::ResourceMetrics;
 use crate::metrics::{MetricError, MetricResult, Temporality};
 
 use super::{
-    data::ResourceMetrics,
     pipeline::Pipeline,
     reader::{MetricReader, SdkProducer},
 };

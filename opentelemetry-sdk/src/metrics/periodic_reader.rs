@@ -11,13 +11,12 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
+    export::metrics::{PushMetricExporter, ResourceMetrics},
+    metrics::{reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
 
-use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
-};
+use super::{instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -468,10 +467,8 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
-        },
+        export::metrics::*,
+        metrics::{reader::MetricReader, MetricError, MetricResult, SdkMeterProvider, Temporality},
         testing::metrics::InMemoryMetricExporter,
         Resource,
     };
