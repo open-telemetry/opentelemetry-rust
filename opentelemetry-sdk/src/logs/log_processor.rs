@@ -480,7 +480,7 @@ impl BatchLogProcessor {
                             exporter,
                             logs,
                             last_export_time,
-                        );
+                        ); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
@@ -1070,12 +1070,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_forceflush() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        // TODO: Verify exporter.force_flush() is called
 
         let processor = BatchLogProcessor::new(
             Box::new(exporter.clone()),
             BatchConfig::default(),
-            runtime::Tokio,
         );
 
         let mut record = LogRecord::default();
@@ -1099,6 +1097,7 @@ mod tests {
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
         processor.emit(&mut record, &instrumentation);
