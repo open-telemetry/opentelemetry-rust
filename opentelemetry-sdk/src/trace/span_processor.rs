@@ -101,7 +101,18 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// A [SpanProcessor] that passes finished spans to the configured
 /// `SpanExporter`, as soon as they are finished, without any batching. This is
 /// typically useful for debugging and testing. For scenarios requiring higher
-/// performance/throughput, consider using [BatchSpanProcessor].
+/// performance/throughput, consider using [BatchSpanProcessor]. 
+/// Log records are exported synchronously
+/// in the same thread that emits the log record. 
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires TracerProvider to be created within a tokio
+///   runtime. Spans can emitted from any thread, including tokio runtime
+///   threads.
+/// - `reqwest-blocking-client`: TracerProvider may be created anywhere, but
+///   spans must be emitted from a non-tokio runtime thread.
+/// - `reqwest-client`: TracerProvider may be created anywhere, but spans must be
+///   emitted from a tokio runtime thread.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor {
     exporter: Mutex<Box<dyn SpanExporter>>,
@@ -171,6 +182,13 @@ use crate::export::trace::ExportResult;
 /// individually. It uses a **dedicated background thread** to manage and export spans
 /// asynchronously, ensuring that the application's main execution flow is not blocked.
 ///
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires `TracerProvider` to be created within a tokio
+///   runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+///
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
 /// /// # Example
 ///
 /// This example demonstrates how to configure and use the `BatchSpanProcessor`
