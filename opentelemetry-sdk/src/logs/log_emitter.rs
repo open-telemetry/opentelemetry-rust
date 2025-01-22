@@ -185,7 +185,17 @@ pub struct Builder {
 }
 
 impl Builder {
-    /// The `LogExporter` that this provider should use.
+    /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
@@ -193,13 +203,33 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
-    /// The `LogProcessor` that this provider should use.
+    /// Adds a custom [LogProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `LogProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `LogProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_log_processor<T: LogProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
