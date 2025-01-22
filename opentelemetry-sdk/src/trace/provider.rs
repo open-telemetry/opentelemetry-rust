@@ -281,15 +281,15 @@ pub struct Builder {
 
 impl Builder {
     /// Adds a [SimpleSpanProcessor] with the configured exporter to the pipeline.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `exporter` - The exporter to be used by the SimpleSpanProcessor.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new `Builder` instance with the SimpleSpanProcessor added to the pipeline.
-    /// 
+    ///
     /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
@@ -299,15 +299,15 @@ impl Builder {
     }
 
     /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `exporter` - The exporter to be used by the BatchSpanProcessor.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new `Builder` instance with the BatchSpanProcessor added to the pipeline.
-    /// 
+    ///
     /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchSpanProcessor::builder(exporter).build();
@@ -315,15 +315,15 @@ impl Builder {
     }
 
     /// Adds a custom [SpanProcessor] to the pipeline.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `processor` - The `SpanProcessor` to be added.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new `Builder` instance with the custom `SpanProcessor` added to the pipeline.
-    /// 
+    ///
     /// Processors are invoked in the order they are added.
     pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;

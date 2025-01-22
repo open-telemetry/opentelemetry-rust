@@ -105,7 +105,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
-/// in the same thread that emits the log record. 
+/// in the same thread that emits the log record.
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
 /// - `grpc-tonic`: This requires LoggerProvider to be created within a tokio
