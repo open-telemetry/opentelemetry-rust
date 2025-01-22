@@ -32,8 +32,7 @@
 //! ```
 
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::{LogError, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
