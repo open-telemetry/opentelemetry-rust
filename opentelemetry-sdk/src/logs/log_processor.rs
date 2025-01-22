@@ -185,7 +185,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        Ok(())
+        if let Ok(mut exporter) = self.exporter.lock() {
+            exporter.force_flush()
+        } else {
+            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
+        }
     }
 
     fn shutdown(&self) -> LogResult<()> {
@@ -1072,6 +1076,20 @@ mod tests {
 
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_forceflush() {
+        let exporter = InMemoryLogExporterBuilder::default().build();
+
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+
+        let mut record = LogRecord::default();
+        let instrumentation = InstrumentationScope::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().unwrap();
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
     }
 
     #[tokio::test(flavor = "multi_thread")]

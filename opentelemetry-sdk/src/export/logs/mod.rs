@@ -143,6 +143,14 @@ pub trait LogExporter: Send + Sync + Debug {
         // By default, all logs are enabled
         true
     }
+
+    ///
+    /// This method SHOULD block the current thread until all pending log records are exported.
+    /// If the export was not successful, an error is returned.
+    ///
+    fn force_flush(&mut self) -> ExportResult {
+        Ok(())
+    }
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
