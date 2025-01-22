@@ -11,8 +11,13 @@ use opentelemetry::KeyValue;
 use crate::metrics::{data::Aggregation, Temporality};
 
 use super::{
-    exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, Number,
+    aggregate_impl::{create_aggregation, CumulativeValueMap, DeltaValueMap},
+    exponential_histogram::ExpoHistogram,
+    histogram::Histogram,
+    last_value::LastValue,
+    precomputed_sum::PrecomputedSum,
+    sum::{Sum, SumNew},
+    Number,
 };
 
 pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
@@ -157,7 +162,23 @@ impl<T: Number> AggregateBuilder<T> {
 
     /// Builds a sum aggregate function input and output.
     pub(crate) fn sum(&self, monotonic: bool) -> AggregateFns<T> {
-        Sum::new(self.temporality, self.filter.clone(), monotonic).into()
+        // this if statement does nothing, but it allows to preserve old code, without compile warnings
+        if true {
+            match self.temporality {
+                Temporality::Delta => create_aggregation(
+                    SumNew { monotonic },
+                    DeltaValueMap::new(()),
+                    self.filter.clone(),
+                ),
+                _ => create_aggregation(
+                    SumNew { monotonic },
+                    CumulativeValueMap::new(()),
+                    self.filter.clone(),
+                ),
+            }
+        } else {
+            Sum::new(self.temporality, self.filter.clone(), monotonic).into()
+        }
     }
 
     /// Builds a histogram aggregate function input and output.
