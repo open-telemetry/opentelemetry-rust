@@ -11,7 +11,7 @@ pub mod tonic {
     use opentelemetry::{otel_debug, Key, Value};
     use opentelemetry_sdk::metrics::data::{
         self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
-        Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric,
+        Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric, ResourceMetrics,
         ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
     use opentelemetry_sdk::metrics::Temporality;
@@ -110,8 +110,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&data::ResourceMetrics> for ExportMetricsServiceRequest {
-        fn from(rm: &data::ResourceMetrics) -> Self {
+    impl From<&ResourceMetrics> for ExportMetricsServiceRequest {
+        fn from(rm: &ResourceMetrics) -> Self {
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
                     resource: Some((&rm.resource).into()),
