@@ -23,13 +23,16 @@ use super::noop::NoopSyncInstrument;
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
 const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
+#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
 // instrument validation error strings
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
 const INSTRUMENT_NAME_LENGTH: &str = "instrument name must be less than 256 characters";
+#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_INVALID_CHAR: &str =
     "characters in instrument name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
+#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
     "instrument name must start with an alphabetic character";
 const INSTRUMENT_UNIT_LENGTH: &str = "instrument unit must be less than 64 characters";
@@ -572,6 +575,15 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
     Ok(())
 }
 
+// Regex pattern for Windows Performance Counter names
+// #[cfg(feature = "experimental_metrics_disable_name_validation")]
+// fn is_valid_windows_perf_counter_name(name: &str) -> bool {
+//     let pattern = r"^\\[A-Za-z0-9_ ]+\\[A-Za-z0-9_ /%-]+$";
+//     let re = Regex::new(pattern).unwrap();
+//     re.is_match(name)
+// }
+
+#[cfg(feature = "experimental_metrics_disable_name_validation")]
 fn validate_instrument_name(name: &str) -> MetricResult<()> {
     if name.is_empty() {
         return Err(MetricError::InvalidInstrumentConfiguration(
@@ -583,6 +595,25 @@ fn validate_instrument_name(name: &str) -> MetricResult<()> {
             INSTRUMENT_NAME_LENGTH,
         ));
     }
+
+    // No name restrictions when name validation is disabled,
+    // except for empty names and length
+    Ok(())
+}
+
+#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
+fn validate_instrument_name(name: &str) -> MetricResult<()> {
+    if name.is_empty() {
+        return Err(MetricError::InvalidInstrumentConfiguration(
+            INSTRUMENT_NAME_EMPTY,
+        ));
+    }
+    if name.len() > INSTRUMENT_NAME_MAX_LENGTH {
+        return Err(MetricError::InvalidInstrumentConfiguration(
+            INSTRUMENT_NAME_LENGTH,
+        ));
+    }
+
     if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
         return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_FIRST_ALPHABETIC,
@@ -676,12 +707,17 @@ mod tests {
     use crate::metrics::MetricError;
 
     use super::{
-        validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_FIRST_ALPHABETIC,
-        INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
-        INSTRUMENT_UNIT_LENGTH,
+        validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,
+        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+    };
+
+    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
+    use super::{
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
     };
 
     #[test]
+    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
     fn instrument_name_validation() {
         // (name, expected error)
         let instrument_name_test_cases = vec![
@@ -694,6 +730,45 @@ mod tests {
             ("allow/slash", ""),
             ("allow_under_score", ""),
             ("allow.dots.ok", ""),
+            ("", INSTRUMENT_NAME_EMPTY),
+            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+        ];
+        for (name, expected_error) in instrument_name_test_cases {
+            let assert = |result: Result<_, MetricError>| {
+                if expected_error.is_empty() {
+                    assert!(result.is_ok());
+                } else {
+                    assert!(matches!(
+                        result.unwrap_err(),
+                        MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
+                    ));
+                }
+            };
+
+            assert(validate_instrument_name(name).map(|_| ()));
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_metrics_disable_name_validation")]
+    fn instrument_name_validation() {
+        // (name, expected error)
+        let instrument_name_test_cases = vec![
+            ("validateName", ""),
+            ("_startWithNoneAlphabet", ""),
+            ("utf8char锈", ""),
+            ("a".repeat(255).leak(), ""),
+            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
+            ("invalid name", ""),
+            ("allow/slash", ""),
+            ("allow_under_score", ""),
+            ("allow.dots.ok", ""),
+            ("", INSTRUMENT_NAME_EMPTY),
+            ("\\allow\\slash /sec", ""),
+            ("\\allow\\$$slash /sec", ""),
+            ("/not / allowed", ""),
         ];
         for (name, expected_error) in instrument_name_test_cases {
             let assert = |result: Result<_, MetricError>| {
