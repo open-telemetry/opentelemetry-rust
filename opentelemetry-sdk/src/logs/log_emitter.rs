@@ -1,6 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
+use crate::logs::{LogError, LogExporter, LogResult};
 use crate::Resource;
-use crate::{logs::LogError, logs::LogExporter, logs::LogResult};
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]

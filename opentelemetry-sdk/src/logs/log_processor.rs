@@ -120,9 +120,8 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider};
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::logs::LogExporter;
 /// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
