@@ -14,7 +14,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "trace")]
-use opentelemetry_sdk::export::trace::SpanData;
+use opentelemetry_sdk::trace::SpanData;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 use prost::Message;

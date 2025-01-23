@@ -1,5 +1,5 @@
 use crate::{
-    export::trace::{ExportResult, SpanData, SpanExporter},
+    trace::{ExportResult, SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
 };
 use futures_util::future::BoxFuture;

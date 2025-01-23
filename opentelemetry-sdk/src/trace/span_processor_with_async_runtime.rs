@@ -1,4 +1,4 @@
-use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::trace::{ExportResult, SpanData, SpanExporter};
 use crate::resource::Resource;
 use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
@@ -420,7 +420,7 @@ where
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{BatchSpanProcessor, SpanProcessor};
-    use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+    use crate::trace::{ExportResult, SpanData, SpanExporter};
     use crate::runtime;
     use crate::testing::trace::{
         new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,

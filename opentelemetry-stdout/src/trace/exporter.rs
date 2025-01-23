@@ -30,9 +30,9 @@ impl Default for SpanExporter {
     }
 }
 
-impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
+impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
-    fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, ExportResult> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Box::pin(std::future::ready(Err(TraceError::from(
                 "exporter is shut down",
@@ -68,7 +68,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     }
 }
 
-fn print_spans(batch: Vec<export::trace::SpanData>) {
+fn print_spans(batch: Vec<trace::SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{}", i);
         println!("\tInstrumentation Scope");
