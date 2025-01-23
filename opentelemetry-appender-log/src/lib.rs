@@ -769,7 +769,7 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogExporter};
+    use opentelemetry_sdk::{logs::InMemoryLogExporter, logs::LoggerProvider};
 
     use log::Log;
 

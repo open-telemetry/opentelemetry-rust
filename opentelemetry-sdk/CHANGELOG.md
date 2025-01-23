@@ -268,11 +268,17 @@ hardcoded limit of 2000 and no ability to change it. This feature will be
 re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
-- *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces
+- *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces for Log exporter structs/traits.
   before:
   `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`
   now:
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
+
+- *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
+  before:
+  `opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
+  now:
+  `opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
 
 ## 0.27.1
 
