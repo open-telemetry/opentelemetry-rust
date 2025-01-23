@@ -66,51 +66,37 @@ async fn logs_tokio_helper(is_simple: bool) -> Result<()> {
     Ok(())
 }
 
-fn logs_non_tokio_helper_with_init_logs_inside_rt(is_simple: bool) -> Result<()> {
-    // Initialize the logger provider inside a tokio runtime
-    // as this allows tonic client to capture the runtime,
-    // but actual export occurs from the dedicated std::thread
-    // created by BatchLogProcessor.
+fn logs_non_tokio_helper(is_simple: bool, init_logs_inside_rt: bool) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
-    let logger_provider = rt.block_on(async {
-        // While we're here setup our collector container too, as this needs tokio to run
-        test_utils::start_collector_container().await?;
-        init_logs(is_simple)
-    })?;
+    let logger_provider = if init_logs_inside_rt {
+        // Initialize the logger provider inside the Tokio runtime
+        rt.block_on(async {
+            // Setup the collector container inside Tokio runtime
+            test_utils::start_collector_container().await?;
+            init_logs(is_simple)
+        })?
+    } else {
+        // Initialize the logger provider outside the Tokio runtime
+        rt.block_on(async {
+            let _ = test_utils::start_collector_container().await;
+        });
+        init_logs(is_simple)?
+    };
+
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
     let subscriber = tracing_subscriber::registry().with(layer);
-    // generate a random uuid and store it to expected guid
+
+    // Generate a random UUID and store it to expected guid
     let expected_uuid = Uuid::new_v4().to_string();
     {
         let _guard = tracing::subscriber::set_default(subscriber);
-        info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
-    }
-
-    let _ = logger_provider.shutdown();
-    std::thread::sleep(Duration::from_secs(5));
-    assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
-    Ok(())
-}
-
-#[cfg(feature = "reqwest-blocking-client")]
-fn logs_non_tokio_helper_with_init_logs_outside_rt(is_simple: bool) -> Result<()> {
-    // Initialize the logger provider outside a tokio runtime
-    // to validate non-tonic clients (reqwest)
-    // and the actual export occurs from the dedicated std::thread
-    // created by BatchLogProcessor.
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async {
-        // While we're here setup our collector container too, as this needs tokio to run
-        let _ = test_utils::start_collector_container().await;
-    });
-    let logger_provider = init_logs(is_simple).unwrap();
-    let layer = OpenTelemetryTracingBridge::new(&logger_provider);
-    let subscriber = tracing_subscriber::registry().with(layer);
-    // generate a random uuid and store it to expected guid
-    let expected_uuid = Uuid::new_v4().to_string();
-    {
-        let _guard = tracing::subscriber::set_default(subscriber);
-        info!(target: "my-target",  uuid = expected_uuid, "hello from {}. My price is {}.", "banana", 2.99);
+        info!(
+            target: "my-target",
+            uuid = expected_uuid,
+            "hello from {}. My price is {}.",
+            "banana",
+            2.99
+        );
     }
 
     let _ = logger_provider.shutdown();
@@ -187,13 +173,13 @@ mod logtests {
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_batch_non_tokio_main_init_logs_inside_rt() -> Result<()> {
-        logs_non_tokio_helper_with_init_logs_inside_rt(false)
+        logs_non_tokio_helper(false, true)
     }
 
     #[test]
     #[cfg(feature = "reqwest-blocking-client")]
     pub fn logs_batch_non_tokio_main_with_init_logs_outside_rt() -> Result<()> {
-        logs_non_tokio_helper_with_init_logs_outside_rt(false)
+        logs_non_tokio_helper(false, false)
     }
 
     // Simple Processor
@@ -201,49 +187,30 @@ mod logtests {
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub fn logs_simple_non_tokio_main_with_init_logs_inside_rt() -> Result<()> {
-        logs_non_tokio_helper_with_init_logs_inside_rt(true)
+        logs_non_tokio_helper(true, true)
     }
 
     #[test]
     #[cfg(any(feature = "reqwest-blocking-client"))]
     pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt() -> Result<()> {
-        logs_non_tokio_helper_with_init_logs_outside_rt(true)
+        logs_non_tokio_helper(true, false)
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
         logs_tokio_helper(true).await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
     pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
         logs_tokio_helper(true).await
     }
 
     #[ignore] // https://github.com/open-telemetry/opentelemetry-rust/issues/2539
     #[tokio::test(flavor = "current_thread")]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
-    pub async fn logs_simple_tokio_current() -> Result<()> {
-        logs_tokio_helper(true).await
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(feature = "hyper-client")]
-    pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
-        logs_tokio_helper(true).await
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[cfg(feature = "hyper-client")]
-    pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
-        logs_tokio_helper(true).await
-    }
-
-    #[ignore] // https://github.com/open-telemetry/opentelemetry-rust/issues/2539
-    #[tokio::test(flavor = "current_thread")]
-    #[cfg(feature = "hyper-client")]
+    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
     pub async fn logs_simple_tokio_current() -> Result<()> {
         logs_tokio_helper(true).await
     }
