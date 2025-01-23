@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::{
     data::{
-        self, ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
+        ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
         ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
     },
     exporter::PushMetricExporter,
