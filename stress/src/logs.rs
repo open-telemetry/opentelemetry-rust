@@ -11,7 +11,7 @@
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
 
 use tracing::error;

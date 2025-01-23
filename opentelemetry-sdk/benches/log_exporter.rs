@@ -20,7 +20,7 @@ use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Seve
 use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry::InstrumentationScope;
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LogRecord;
 use opentelemetry_sdk::logs::LoggerProvider;

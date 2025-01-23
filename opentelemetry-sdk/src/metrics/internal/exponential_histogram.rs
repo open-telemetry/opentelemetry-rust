@@ -4,7 +4,7 @@ use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
 
 use crate::metrics::{
-    data::{self, Aggregation},
+    data::{self, Aggregation, ExponentialHistogram},
     Temporality,
 };
 
@@ -386,7 +386,7 @@ impl<T: Number> ExpoHistogram<T> {
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -443,7 +443,7 @@ impl<T: Number> ExpoHistogram<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -528,6 +528,7 @@ where
 mod tests {
     use std::{ops::Neg, time::SystemTime};
 
+    use data::{ExponentialHistogram, Gauge, Histogram, Sum};
     use tests::internal::AggregateFns;
 
     use crate::metrics::internal::{self, AggregateBuilder};
@@ -1468,8 +1469,8 @@ mod tests {
             test_name
         );
 
-        if let Some(a) = a.as_any().downcast_ref::<data::Gauge<T>>() {
-            let b = b.as_any().downcast_ref::<data::Gauge<T>>().unwrap();
+        if let Some(a) = a.as_any().downcast_ref::<Gauge<T>>() {
+            let b = b.as_any().downcast_ref::<Gauge<T>>().unwrap();
             assert_eq!(
                 a.data_points.len(),
                 b.data_points.len(),
@@ -1479,8 +1480,8 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
-            let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
+        } else if let Some(a) = a.as_any().downcast_ref::<Sum<T>>() {
+            let b = b.as_any().downcast_ref::<Sum<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{} mismatching sum temporality",
@@ -1500,8 +1501,8 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
-            let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
+        } else if let Some(a) = a.as_any().downcast_ref::<Histogram<T>>() {
+            let b = b.as_any().downcast_ref::<Histogram<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{}: mismatching hist temporality",
@@ -1516,10 +1517,10 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
+        } else if let Some(a) = a.as_any().downcast_ref::<ExponentialHistogram<T>>() {
             let b = b
                 .as_any()
-                .downcast_ref::<data::ExponentialHistogram<T>>()
+                .downcast_ref::<ExponentialHistogram<T>>()
                 .unwrap();
             assert_eq!(
                 a.temporality, b.temporality,

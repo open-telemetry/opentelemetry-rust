@@ -13,10 +13,10 @@ use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
-#[cfg(feature = "logs")]
-use opentelemetry_sdk::export::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::export::trace::SpanData;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::logs::LogBatch;
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
@@ -26,6 +26,9 @@ use std::time::Duration;
 
 #[cfg(feature = "metrics")]
 mod metrics;
+
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
 #[cfg(feature = "logs")]
 pub(crate) mod logs;
@@ -336,7 +339,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
+        metrics: &mut ResourceMetrics,
     ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
