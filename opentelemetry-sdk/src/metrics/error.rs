@@ -2,7 +2,7 @@ use std::result;
 use std::sync::PoisonError;
 use thiserror::Error;
 
-use crate::export::ExportError;
+use crate::ExportError;
 
 /// A specialized `Result` type for metric operations.
 pub type MetricResult<T> = result::Result<T, MetricError>;

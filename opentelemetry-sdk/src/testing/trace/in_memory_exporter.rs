@@ -1,5 +1,5 @@
-use crate::export::trace::{ExportResult, SpanData, SpanExporter};
 use crate::resource::Resource;
+use crate::trace::{ExportResult, SpanData, SpanExporter};
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{TraceError, TraceResult};
 use std::sync::{Arc, Mutex};

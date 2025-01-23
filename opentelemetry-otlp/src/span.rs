@@ -5,7 +5,7 @@
 use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
-use opentelemetry_sdk::export::trace::{ExportResult, SpanData};
+use opentelemetry_sdk::trace::{ExportResult, SpanData};
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{
@@ -107,7 +107,7 @@ impl HasHttpConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
 
 /// OTLP exporter that sends tracing information
 #[derive(Debug)]
-pub struct SpanExporter(Box<dyn opentelemetry_sdk::export::trace::SpanExporter>);
+pub struct SpanExporter(Box<dyn opentelemetry_sdk::trace::SpanExporter>);
 
 impl SpanExporter {
     /// Obtain a builder to configure a [SpanExporter].
@@ -116,12 +116,12 @@ impl SpanExporter {
     }
 
     /// Build a new span exporter from a client
-    pub fn new(client: impl opentelemetry_sdk::export::trace::SpanExporter + 'static) -> Self {
+    pub fn new(client: impl opentelemetry_sdk::trace::SpanExporter + 'static) -> Self {
         SpanExporter(Box::new(client))
     }
 }
 
-impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
+impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
         self.0.export(batch)
     }
