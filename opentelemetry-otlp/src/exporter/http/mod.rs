@@ -13,10 +13,10 @@ use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
-#[cfg(feature = "logs")]
-use opentelemetry_sdk::export::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::export::trace::SpanData;
+#[cfg(feature = "logs")]
+use opentelemetry_sdk::logs::LogBatch;
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
@@ -27,8 +27,11 @@ use std::time::Duration;
 #[cfg(feature = "metrics")]
 mod metrics;
 
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "trace")]
 mod trace;
@@ -239,7 +242,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
         )?;
 
-        Ok(crate::LogExporter::new(client))
+        Ok(crate::LogExporter::from_http(client))
     }
 
     /// Create a metrics exporter with the current configuration
@@ -265,7 +268,7 @@ impl HttpExporterBuilder {
 }
 
 #[derive(Debug)]
-struct OtlpHttpClient {
+pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
     headers: HashMap<HeaderName, HeaderValue>,
@@ -336,7 +339,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
+        metrics: &mut ResourceMetrics,
     ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 

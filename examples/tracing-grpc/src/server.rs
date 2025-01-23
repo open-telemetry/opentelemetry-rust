@@ -5,9 +5,7 @@ use opentelemetry::{
     propagation::Extractor,
     trace::{Span, SpanKind, Tracer},
 };
-use opentelemetry_sdk::{
-    propagation::TraceContextPropagator, runtime::Tokio, trace::TracerProvider,
-};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
 use opentelemetry_stdout::SpanExporter;
 use tonic::{transport::Server, Request, Response, Status};
 
@@ -15,7 +13,7 @@ fn init_tracer() -> TracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = TracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default(), Tokio)
+        .with_batch_exporter(SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider.clone());
@@ -29,7 +27,7 @@ pub mod hello_world {
 
 struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
 
-impl<'a> Extractor for MetadataMap<'a> {
+impl Extractor for MetadataMap<'_> {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
     fn get(&self, key: &str) -> Option<&str> {
         self.0.get(key).and_then(|metadata| metadata.to_str().ok())

@@ -1,6 +1,5 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::metrics::data::HistogramDataPoint;
@@ -9,7 +8,9 @@ use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
+use super::aggregate::AttributeSetFilter;
 use super::ComputeAggregation;
+use super::Measure;
 use super::ValueMap;
 use super::{Aggregator, Number};
 
@@ -72,6 +73,7 @@ pub(crate) struct Histogram<T: Number> {
     value_map: ValueMap<Mutex<Buckets<T>>>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
+    filter: AttributeSetFilter,
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,
@@ -81,6 +83,7 @@ impl<T: Number> Histogram<T> {
     #[allow(unused_mut)]
     pub(crate) fn new(
         temporality: Temporality,
+        filter: AttributeSetFilter,
         mut bounds: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
@@ -97,22 +100,11 @@ impl<T: Number> Histogram<T> {
             value_map: ValueMap::new(buckets_count),
             init_time: AggregateTimeInitiator::default(),
             temporality,
+            filter,
             bounds,
             record_min_max,
             record_sum,
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        let f = measurement.into_float();
-        // This search will return an index in the range `[0, bounds.len()]`, where
-        // it will return `bounds.len()` if value is greater than the last element
-        // of `bounds`. This aligns with the buckets in that the length of buckets
-        // is `bounds.len()+1`, with the last bucket representing:
-        // `(bounds[bounds.len()-1], +∞)`.
-        let index = self.bounds.partition_point(|&x| x < f);
-
-        self.value_map.measure((measurement, index), attrs);
     }
 
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
@@ -216,7 +208,26 @@ impl<T: Number> Histogram<T> {
     }
 }
 
-impl<T> ComputeAggregation for Arc<Histogram<T>>
+impl<T> Measure<T> for Histogram<T>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        let f = measurement.into_float();
+        // This search will return an index in the range `[0, bounds.len()]`, where
+        // it will return `bounds.len()` if value is greater than the last element
+        // of `bounds`. This aligns with the buckets in that the length of buckets
+        // is `bounds.len()+1`, with the last bucket representing:
+        // `(bounds[bounds.len()-1], +∞)`.
+        let index = self.bounds.partition_point(|&x| x < f);
+
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure((measurement, index), filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Histogram<T>
 where
     T: Number,
 {
@@ -234,14 +245,15 @@ mod tests {
 
     #[test]
     fn check_buckets_are_selected_correctly() {
-        let hist = Arc::new(Histogram::<i64>::new(
+        let hist = Histogram::<i64>::new(
             Temporality::Cumulative,
+            AttributeSetFilter::new(None),
             vec![1.0, 3.0, 6.0],
             false,
             false,
-        ));
+        );
         for v in 1..11 {
-            hist.measure(v, &[]);
+            Measure::call(&hist, v, &[]);
         }
         let (count, dp) = ComputeAggregation::call(&hist, None);
         let dp = dp.unwrap();

@@ -1,14 +1,12 @@
-use std::sync::Arc;
-
 use crate::metrics::{
-    data::{self, Aggregation, GaugeDataPoint},
+    data::{self, Aggregation, Gauge, GaugeDataPoint},
     Temporality,
 };
 use opentelemetry::KeyValue;
 
 use super::{
-    aggregate::AggregateTimeInitiator, Aggregator, AtomicTracker, AtomicallyUpdate,
-    ComputeAggregation, Number, ValueMap,
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
+    Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
 
 /// this is reused by PrecomputedSum
@@ -48,20 +46,17 @@ pub(crate) struct LastValue<T: Number> {
     value_map: ValueMap<Assign<T>>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
+    filter: AttributeSetFilter,
 }
 
 impl<T: Number> LastValue<T> {
-    pub(crate) fn new(temporality: Temporality) -> Self {
+    pub(crate) fn new(temporality: Temporality, filter: AttributeSetFilter) -> Self {
         LastValue {
             value_map: ValueMap::new(()),
             init_time: AggregateTimeInitiator::default(),
             temporality,
+            filter,
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to LastValue.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -70,7 +65,7 @@ impl<T: Number> LastValue<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -102,7 +97,7 @@ impl<T: Number> LastValue<T> {
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -131,7 +126,18 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> ComputeAggregation for Arc<LastValue<T>>
+impl<T> Measure<T> for LastValue<T>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for LastValue<T>
 where
     T: Number,
 {

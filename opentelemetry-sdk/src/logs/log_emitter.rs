@@ -1,6 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, runtime::RuntimeChannel, Resource};
-use crate::{logs::LogError, logs::LogResult};
+use crate::logs::{LogError, LogExporter, LogResult};
+use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
@@ -140,7 +140,7 @@ impl LoggerProviderInner {
                 //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
                 match err {
-                    // specific handling for mutex poisioning
+                    // specific handling for mutex poisoning
                     LogError::MutexPoisoned(_) => {
                         otel_debug!(
                             name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
@@ -185,7 +185,17 @@ pub struct Builder {
 }
 
 impl Builder {
-    /// The `LogExporter` that this provider should use.
+    /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
@@ -193,17 +203,33 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: LogExporter + 'static, R: RuntimeChannel>(
-        self,
-        exporter: T,
-        runtime: R,
-    ) -> Self {
-        let batch = BatchLogProcessor::builder(exporter, runtime).build();
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
+    pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
+        let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
-    /// The `LogProcessor` that this provider should use.
+    /// Adds a custom [LogProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `LogProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `LogProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_log_processor<T: LogProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
@@ -297,13 +323,10 @@ impl opentelemetry::logs::Logger for Logger {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = &self.provider;
-
-        let mut enabled = false;
-        for processor in provider.log_processors() {
-            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
-        }
-        enabled
+        self.provider
+            .log_processors()
+            .iter()
+            .any(|processor| processor.event_enabled(level, target, self.scope.name().as_ref()))
     }
 }
 

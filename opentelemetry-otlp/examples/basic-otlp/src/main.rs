@@ -8,7 +8,7 @@ use opentelemetry_sdk::logs::LogError;
 use opentelemetry_sdk::logs::LoggerProvider;
 use opentelemetry_sdk::metrics::MetricError;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
@@ -27,7 +27,7 @@ fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
         .build()?;
     Ok(sdktrace::TracerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .build())
 }
 
@@ -49,7 +49,7 @@ fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
 
     Ok(LoggerProvider::builder()
         .with_resource(RESOURCE.clone())
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .build())
 }
 

@@ -20,8 +20,7 @@
 
 use anyhow::Result;
 use opentelemetry::{otel_debug, otel_info};
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File, OpenOptions};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex, Once, OnceLock};
 use testcontainers::core::wait::HttpWaitStrategy;
@@ -52,7 +51,7 @@ fn init_tracing() {
         // Initialize the tracing subscriber with the OpenTelemetry layer and the
         // Fmt layer.
         tracing_subscriber::registry().with(fmt_layer).init();
-        otel_info!(name: "tracing initializing completed!");
+        otel_info!(name: "tracing::fmt initializing completed! SDK internal logs will be printed to stdout.");
     });
 }
 
@@ -123,6 +122,17 @@ fn upsert_empty_file(path: &str) -> File {
     file.set_permissions(std::fs::Permissions::from_mode(0o666))
         .unwrap();
     file
+}
+
+/// Cleans up file specificed as argument by truncating its content.
+///
+/// This function is meant to cleanup the generated json file before a test starts,
+/// preventing entries from previous tests from interfering with the current test's results.
+pub fn cleanup_file(file_path: &str) {
+    let _ = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(file_path); // ignore result, as file may not exist
 }
 
 ///

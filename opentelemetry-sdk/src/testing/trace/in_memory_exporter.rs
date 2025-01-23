@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 ///# async fn main() {
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
 ///     let provider = TracerProvider::builder()
-///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone(), runtime::Tokio).build())
+///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build())
 ///         .build();
 ///
 ///     global::set_tracer_provider(provider.clone());

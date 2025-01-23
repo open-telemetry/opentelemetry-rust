@@ -1,16 +1,22 @@
 //! # OpenTelemetry Log SDK
 mod error;
+mod export;
 mod log_emitter;
 mod log_processor;
 pub(crate) mod record;
 
 pub use error::{LogError, LogResult};
+pub use export::{ExportResult, LogBatch, LogExporter};
 pub use log_emitter::{Builder, Logger, LoggerProvider};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
 pub use record::{LogRecord, TraceContext};
+
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+/// Module for BatchLogProcessor with async runtime.
+pub mod log_processor_with_async_runtime;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {

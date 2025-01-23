@@ -11,21 +11,23 @@
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
+
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
-use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
 struct MockLogExporter;
 
-#[async_trait]
 impl LogExporter for MockLogExporter {
-    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
+    fn export(
+        &self,
+        _batch: LogBatch<'_>,
+    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        async { Ok(()) }
     }
 }
 
@@ -40,11 +42,11 @@ impl LogProcessor for MockLogProcessor {
         let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
-    fn force_flush(&self) -> opentelemetry_sdk::logs::LogResult<()> {
+    fn force_flush(&self) -> LogResult<()> {
         Ok(())
     }
 
-    fn shutdown(&self) -> opentelemetry_sdk::logs::LogResult<()> {
+    fn shutdown(&self) -> LogResult<()> {
         Ok(())
     }
 }

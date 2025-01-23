@@ -209,12 +209,11 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
-    use async_trait::async_trait;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+    use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
@@ -245,13 +244,18 @@ mod tests {
     #[derive(Clone, Debug, Default)]
     struct ReentrantLogExporter;
 
-    #[async_trait]
     impl LogExporter for ReentrantLogExporter {
-        async fn export(&self, _batch: LogBatch<'_>) -> LogResult<()> {
-            // This will cause a deadlock as the export itself creates a log
-            // while still within the lock of the SimpleLogProcessor.
-            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-            Ok(())
+        #[allow(clippy::manual_async_fn)]
+        fn export(
+            &self,
+            _batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+            async {
+                // This will cause a deadlock as the export itself creates a log
+                // while still within the lock of the SimpleLogProcessor.
+                warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+                Ok(())
+            }
         }
     }
 
@@ -296,7 +300,7 @@ mod tests {
     async fn batch_processor_no_deadlock() {
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = LoggerProvider::builder()
-            .with_batch_exporter(exporter.clone(), opentelemetry_sdk::runtime::Tokio)
+            .with_batch_exporter(exporter.clone())
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);

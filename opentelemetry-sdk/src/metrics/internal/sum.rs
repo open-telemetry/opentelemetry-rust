@@ -1,12 +1,9 @@
-use std::sync::Arc;
-use std::vec;
-
 use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::AggregateTimeInitiator;
-use super::{Aggregator, AtomicTracker, ComputeAggregation, Number};
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
@@ -45,6 +42,7 @@ pub(crate) struct Sum<T: Number> {
     value_map: ValueMap<Increment<T>>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
+    filter: AttributeSetFilter,
     monotonic: bool,
 }
 
@@ -54,18 +52,18 @@ impl<T: Number> Sum<T> {
     ///
     /// Each sum is scoped by attributes and the aggregation cycle the measurements
     /// were made in.
-    pub(crate) fn new(temporality: Temporality, monotonic: bool) -> Self {
+    pub(crate) fn new(
+        temporality: Temporality,
+        filter: AttributeSetFilter,
+        monotonic: bool,
+    ) -> Self {
         Sum {
             value_map: ValueMap::new(()),
-            temporality,
             init_time: AggregateTimeInitiator::default(),
+            temporality,
+            filter,
             monotonic,
         }
-    }
-
-    pub(crate) fn measure(&self, measurement: T, attrs: &[KeyValue]) {
-        // The argument index is not applicable to Sum.
-        self.value_map.measure(measurement, attrs);
     }
 
     pub(crate) fn delta(
@@ -142,7 +140,18 @@ impl<T: Number> Sum<T> {
     }
 }
 
-impl<T> ComputeAggregation for Arc<Sum<T>>
+impl<T> Measure<T> for Sum<T>
+where
+    T: Number,
+{
+    fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        self.filter.apply(attrs, |filtered| {
+            self.value_map.measure(measurement, filtered);
+        })
+    }
+}
+
+impl<T> ComputeAggregation for Sum<T>
 where
     T: Number,
 {

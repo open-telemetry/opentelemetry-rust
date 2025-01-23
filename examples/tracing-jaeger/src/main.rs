@@ -4,7 +4,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::trace::TracerProvider;
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::Resource;
 
 use std::error::Error;
 
@@ -14,7 +14,7 @@ fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::TracerProvider, Tr
         .build()?;
 
     Ok(TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder()
                 .with_service_name("tracing-jaeger")

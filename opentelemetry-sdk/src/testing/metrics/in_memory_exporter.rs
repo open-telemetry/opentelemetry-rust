@@ -1,4 +1,4 @@
-use crate::metrics::data;
+use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::MetricError;
@@ -213,7 +213,7 @@ impl InMemoryMetricExporter {
                 time: hist.time,
                 temporality: hist.temporality,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<i64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -221,7 +221,7 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<f64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<f64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -229,7 +229,7 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<u64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<u64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -237,19 +237,19 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<i64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<i64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
                 time: gauge.time,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<f64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<f64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
                 time: gauge.time,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<u64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<u64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
@@ -278,11 +278,6 @@ impl PushMetricExporter for InMemoryMetricExporter {
     }
 
     fn shutdown(&self) -> MetricResult<()> {
-        self.metrics
-            .lock()
-            .map(|mut metrics_guard| metrics_guard.clear())
-            .map_err(MetricError::from)?;
-
         Ok(())
     }
 

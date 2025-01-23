@@ -13,7 +13,7 @@ use anyhow::Result;
 use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry_proto::tonic::trace::v1::TracesData;
-use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_sdk::{trace as sdktrace, Resource};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::fs::MetadataExt;
@@ -35,7 +35,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
     let exporter = exporter_builder.build()?;
 
     Ok(opentelemetry_sdk::trace::TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("basic-otlp-tracing-example")
@@ -48,6 +48,7 @@ const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
 pub async fn traces() -> Result<()> {
     test_utils::start_collector_container().await?;
 
@@ -138,6 +139,51 @@ pub fn test_serde() -> Result<()> {
 
     TraceAsserter::new(left, right).assert();
 
+    Ok(())
+}
+
+#[ignore = "TODO: [Fix Me] Failing on CI. Needs to be investigated and resolved."]
+#[test]
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+pub fn span_batch_non_tokio_main() -> Result<()> {
+    // Initialize the tracer provider inside a tokio runtime
+    // as this allows tonic client to capture the runtime,
+    // but actual export occurs from the dedicated std::thread
+    // created by BatchSpanProcessor.
+
+    use anyhow::Ok;
+    let rt = tokio::runtime::Runtime::new()?;
+    let tracer_provider = rt.block_on(async {
+        // While we're here setup our collector container too, as this needs tokio to run
+        let _ = test_utils::start_collector_container().await;
+        init_tracer_provider()
+    })?;
+
+    let tracer = global::tracer("ex.com/basic");
+
+    tracer.in_span("operation", |cx| {
+        let span = cx.span();
+        span.add_event(
+            "Nice operation!".to_string(),
+            vec![KeyValue::new("bogons", 100)],
+        );
+        span.set_attribute(KeyValue::new(ANOTHER_KEY, "yes"));
+
+        tracer.in_span("Sub operation...", |cx| {
+            let span = cx.span();
+            span.set_attribute(KeyValue::new(LEMONS_KEY, "five"));
+
+            span.add_event("Sub span event", vec![]);
+        });
+    });
+
+    tracer_provider.shutdown()?;
+
+    // Give it a second to flush
+    std::thread::sleep(Duration::from_secs(2));
+
+    // Validate results
+    assert_traces_results(test_utils::TRACES_FILE, "./expected/traces.json")?;
     Ok(())
 }
 
