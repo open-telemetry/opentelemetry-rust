@@ -280,7 +280,17 @@ pub struct Builder {
 }
 
 impl Builder {
-    /// The `SpanExporter` that this provider should use.
+    /// Adds a [SimpleSpanProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleSpanProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleSpanProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleSpanProcessor::new(Box::new(exporter))));
@@ -288,13 +298,33 @@ impl Builder {
         Builder { processors, ..self }
     }
 
-    /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
+    /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchSpanProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchSpanProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }
 
-    /// The [`SpanProcessor`] that this provider should use.
+    /// Adds a custom [SpanProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `SpanProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `SpanProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));

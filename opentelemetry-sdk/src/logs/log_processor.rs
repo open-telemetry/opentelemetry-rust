@@ -32,8 +32,7 @@
 //! ```
 
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::{LogError, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -104,7 +103,18 @@ pub trait LogProcessor: Send + Sync + Debug {
 }
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
-/// exports log records as they are emitted.
+/// exports log records as they are emitted. Log records are exported synchronously
+/// in the same thread that emits the log record.
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires LoggerProvider to be created within a tokio
+///   runtime. Logs can be emitted from any thread, including tokio runtime
+///   threads.
+/// - `reqwest-blocking-client`: LoggerProvider may be created anywhere, but
+///   logs must be emitted from a non-tokio runtime thread.
+/// - `reqwest-client`: LoggerProvider may be created anywhere, but logs must be
+///   emitted from a tokio runtime thread.
+///
 /// ## Example
 ///
 /// ### Using a SimpleLogProcessor
@@ -112,7 +122,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ```rust
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::export::logs::LogExporter;
+/// use opentelemetry_sdk::logs::LogExporter;
 /// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
@@ -807,9 +817,8 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::{LogBatch, LogExporter};
-    use crate::logs::LogRecord;
     use crate::logs::LogResult;
+    use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{

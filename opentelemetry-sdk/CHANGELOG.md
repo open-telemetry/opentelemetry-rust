@@ -257,6 +257,19 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
   - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
   Cargo.toml and implement the required `Runtime` traits.
 
+- Removed Metrics Cardinality Limit feature. This was originally introduced in
+[#1066](https://github.com/open-telemetry/opentelemetry-rust/pull/1066) with a
+hardcoded limit of 2000 and no ability to change it. This feature will be
+re-introduced in a future date, along with the ability to change the cardinality
+limit.
+
+- Refactor modules. This is *Breaking* change, if you author custom
+  LogExporter,LogProcessor.
+  before:
+  `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`
+  now:
+  `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter}`
+
 ## 0.27.1
 
 Released 2024-Nov-27

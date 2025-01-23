@@ -44,10 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Alpha)
-//!
-//! Note: the metrics implementation is **still in progress** and **subject to major
-//! changes**.
+//! # Metrics
 //!
 //! ### Creating instruments and recording measurements
 //!
