@@ -17,6 +17,7 @@
 - *Feature*: Add `ResourceBuilder` for an easy way to create new `Resource`s
 - *Breaking*: Remove `Resource::{new,empty,from_detectors,new_with_defaults,from_schema_url,merge,default}` from public api. To create Resources you should only use `Resource::builder()` or `Resource::builder_empty()`. See [#2322](https://github.com/open-telemetry/opentelemetry-rust/pull/2322) for a migration guide.
   Example Usage:
+
   ```rust
   // old
   Resource::default().with_attributes([
@@ -30,6 +31,7 @@
       .with_attribute(KeyValue::new("key", "value"))
       .build();
   ```
+
 - *Breaking* The LogExporter::export() method no longer requires a mutable reference to self.:
   Before:
      async fn export(&mut self, _batch: LogBatch<'_>) -> LogResult<()>
@@ -61,14 +63,17 @@
    1. *Default Implementation, requires no async runtime* (**Recommended**) The
     new default implementation does not require a runtime argument. Replace the
     builder method accordingly:
-    - *Before:*
-      ```rust
-      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
+    *Before:*
+
+    ```rust
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter, runtime::Tokio).build();
       ```
-    - *After:*
-      ```rust
-      let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
-      ```
+
+    *After:*
+
+    ```rust
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
+    ```
 
     The new PeriodicReader can be used with OTLP Exporter, and supports
     following exporter features:
@@ -250,11 +255,11 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
   equal signs (`"="`). [#2120](https://github.com/open-telemetry/opentelemetry-rust/pull/2120)
 
 - **Breaking** Introduced `experimental_async_runtime` feature for runtime-specific traits.
-  - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`) 
+  - Runtime-specific features (`rt-tokio`, `rt-tokio-current-thread`, and `rt-async-std`)
   now depend on the `experimental_async_runtime` feature.
-  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`, 
+  - For most users, no action is required. Enabling runtime features such as `rt-tokio`, `rt-tokio-current-thread`,
   or `rt-async-std` will automatically enable the `experimental_async_runtime` feature.
-  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your 
+  - If you're implementing a custom runtime, you must explicitly enable the   experimental_async_runtime` feature in your
   Cargo.toml and implement the required `Runtime` traits.
 
 - Removed Metrics Cardinality Limit feature. This was originally introduced in
@@ -263,12 +268,11 @@ hardcoded limit of 2000 and no ability to change it. This feature will be
 re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
-- Refactor modules. This is *Breaking* change, if you author custom
-  LogExporter,LogProcessor.
+- *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces
   before:
   `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`
   now:
-  `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter}`
+  `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
 ## 0.27.1
 
@@ -278,6 +282,7 @@ Released 2024-Nov-27
   - `trace::Config` methods are moving onto `TracerProvider` Builder to be consistent with other signals. See https://github.com/open-telemetry/opentelemetry-rust/pull/2303 for migration guide.
     `trace::Config` is scheduled to be removed from public API in `v0.28.0`.
     example:
+
     ```rust
     // old
     let tracer_provider: TracerProvider = TracerProvider::builder()
@@ -289,6 +294,7 @@ Released 2024-Nov-27
         .with_resource(Resource::empty())
         .build();
     ```
+
   - `logs::LogData` struct is deprecated, and scheduled to be removed from public API in `v0.28.0`.
   - Bug fix: Empty Meter names are retained as-is instead of replacing with
     "rust.opentelemetry.io/sdk/meter"
