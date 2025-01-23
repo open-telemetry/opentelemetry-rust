@@ -10,6 +10,7 @@
   "reqwest-blocking-client" features as default, to align with the
   specification.
   [2516](https://github.com/open-telemetry/opentelemetry-rust/pull/2516)
+- TLS configuration via environment variables for GRPC exporters.
 
 ## 0.27.0
 

@@ -51,6 +51,8 @@ opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../op
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
+rcgen = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 # telemetry pillars and functions
