@@ -281,7 +281,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
-    use crate::export::logs::{LogBatch, LogExporter};
+    use crate::logs::{LogBatch, LogExporter};
     use crate::logs::log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
