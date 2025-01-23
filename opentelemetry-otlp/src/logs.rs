@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 use opentelemetry_sdk::logs::LogResult;
 
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::logs::LogBatch;
 
 use crate::{HasExportConfig, NoExporterBuilderSet};
 
@@ -140,7 +140,7 @@ impl LogExporter {
     }
 }
 
-impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
+impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     #[allow(clippy::manual_async_fn)]
     fn export(
         &self,

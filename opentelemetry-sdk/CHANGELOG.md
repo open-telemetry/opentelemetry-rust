@@ -263,6 +263,13 @@ hardcoded limit of 2000 and no ability to change it. This feature will be
 re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
+- Refactor modules. This is *Breaking* change, if you author custom
+  LogExporter,LogProcessor.
+  before:
+  `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`
+  now:
+  `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter}`
+
 ## 0.27.1
 
 Released 2024-Nov-27
