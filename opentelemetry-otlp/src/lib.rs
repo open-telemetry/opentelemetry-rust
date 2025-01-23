@@ -262,7 +262,7 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-use opentelemetry_sdk::export::ExportError;
+use opentelemetry_sdk::ExportError;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
