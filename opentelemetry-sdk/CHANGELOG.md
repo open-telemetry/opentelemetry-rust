@@ -268,6 +268,14 @@ hardcoded limit of 2000 and no ability to change it. This feature will be
 re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
+
+- *Breaking* (Affects custom Exporter authors only) Moved `ExportError` trait from `opentelemetry::export::ExportError` to `opentelemetry_sdk::ExportError`
+- *Breaking (Affects custom SpanExporter, SpanProcessor authors only)*: Rename namespaces for Span exporter structs/traits
+  before:
+  `opentelemetry_sdk::export::spans::{ExportResult, SpanData, SpanExporter};`
+  now:
+  `opentelemetry_sdk::spans::{ExportResult, SpanData, SpanExporter};`
+
 - *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces for Log exporter structs/traits.
   before:
   `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`

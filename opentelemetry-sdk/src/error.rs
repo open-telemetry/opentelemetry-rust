@@ -44,3 +44,9 @@ impl<T> From<PoisonError<T>> for Error {
         Error::Other(err.to_string())
     }
 }
+
+/// Trait for errors returned by exporters
+pub trait ExportError: std::error::Error + Send + Sync + 'static {
+    /// The name of exporter that returned this error
+    fn exporter_name(&self) -> &'static str;
+}

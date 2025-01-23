@@ -8,6 +8,7 @@
 //! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod events;
+mod export;
 mod id_generator;
 mod links;
 mod provider;
@@ -22,6 +23,7 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
+pub use export::{ExportResult, SpanData, SpanExporter};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;

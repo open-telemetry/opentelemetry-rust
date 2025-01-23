@@ -9,7 +9,7 @@ use opentelemetry::{
     Context, ContextGuard,
 };
 use opentelemetry_sdk::{
-    export::trace::{ExportResult, SpanData, SpanExporter},
+    trace::{ExportResult, SpanData, SpanExporter},
     trace::{Sampler, TracerProvider},
 };
 #[cfg(not(target_os = "windows"))]

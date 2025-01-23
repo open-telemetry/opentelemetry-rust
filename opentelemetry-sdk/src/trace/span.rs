@@ -74,7 +74,7 @@ impl Span {
     /// Convert information in this span into `exporter::trace::SpanData`.
     /// This function copies all data from the current span, which will create a
     /// overhead.
-    pub fn exported_data(&self) -> Option<crate::export::trace::SpanData> {
+    pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
 
         self.data
@@ -250,8 +250,8 @@ fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
     tracer: &crate::trace::Tracer,
-) -> crate::export::trace::SpanData {
-    crate::export::trace::SpanData {
+) -> crate::trace::SpanData {
+    crate::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
         span_kind: data.span_kind,
