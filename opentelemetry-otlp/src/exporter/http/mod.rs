@@ -27,6 +27,9 @@ use std::time::Duration;
 #[cfg(feature = "metrics")]
 mod metrics;
 
+#[cfg(feature = "metrics")]
+use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
 #[cfg(feature = "logs")]
 pub(crate) mod logs;
 
@@ -336,7 +339,7 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut opentelemetry_sdk::metrics::data::ResourceMetrics,
+        metrics: &mut ResourceMetrics,
     ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
