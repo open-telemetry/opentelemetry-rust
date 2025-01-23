@@ -98,7 +98,7 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for TestExportError {
 
 /// A no-op instance of an [`SpanExporter`].
 ///
-/// [`SpanExporter`]: crate::export::trace::SpanExporter
+/// [`SpanExporter`]: crate::trace::SpanExporter
 #[derive(Debug, Default)]
 pub struct NoopSpanExporter {
     _private: (),
