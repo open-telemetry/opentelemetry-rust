@@ -323,13 +323,10 @@ impl opentelemetry::logs::Logger for Logger {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = &self.provider;
-
-        let mut enabled = false;
-        for processor in provider.log_processors() {
-            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
-        }
-        enabled
+        self.provider
+            .log_processors()
+            .iter()
+            .any(|processor| processor.event_enabled(level, target, self.scope.name().as_ref()))
     }
 }
 
