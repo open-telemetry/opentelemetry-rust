@@ -222,8 +222,7 @@ mod logtests {
         logs_tokio_helper(true).await
     }
 
-    // Ignored, to be investigated
-    #[ignore]
+    #[ignore] // https://github.com/open-telemetry/opentelemetry-rust/issues/2539
     #[tokio::test(flavor = "current_thread")]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-client"))]
     pub async fn logs_simple_tokio_current() -> Result<()> {
@@ -242,8 +241,7 @@ mod logtests {
         logs_tokio_helper(true).await
     }
 
-    // Ignored, to be investigated
-    #[ignore]
+    #[ignore] // https://github.com/open-telemetry/opentelemetry-rust/issues/2539
     #[tokio::test(flavor = "current_thread")]
     #[cfg(feature = "hyper-client")]
     pub async fn logs_simple_tokio_current() -> Result<()> {
