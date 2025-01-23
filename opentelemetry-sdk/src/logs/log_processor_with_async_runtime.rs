@@ -286,20 +286,20 @@ mod tests {
         OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
+    use crate::logs::InMemoryLogExporterBuilder;
     use crate::logs::LogRecord;
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
-    use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, LogProcessor, LoggerProvider,
+            SimpleLogProcessor,
         },
-        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use opentelemetry::logs::AnyValue;
