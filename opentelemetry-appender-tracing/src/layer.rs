@@ -213,7 +213,7 @@ mod tests {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+    use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
     use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};

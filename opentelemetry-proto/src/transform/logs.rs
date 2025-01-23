@@ -12,7 +12,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
-    use opentelemetry_sdk::export::logs::LogBatch;
+    use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
@@ -222,7 +222,7 @@ mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::InstrumentationScope;
-    use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
+    use opentelemetry_sdk::{logs::LogBatch, logs::LogRecord, Resource};
     use std::time::SystemTime;
 
     fn create_test_log_data(

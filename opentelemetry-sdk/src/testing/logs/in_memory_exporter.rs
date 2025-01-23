@@ -1,6 +1,5 @@
-use crate::export::logs::{LogBatch, LogExporter};
 use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult};
+use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
