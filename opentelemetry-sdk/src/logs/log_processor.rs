@@ -817,9 +817,8 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::{LogBatch, LogExporter};
-    use crate::logs::LogRecord;
     use crate::logs::LogResult;
+    use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
