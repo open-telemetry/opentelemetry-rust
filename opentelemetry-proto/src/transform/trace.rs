@@ -198,8 +198,8 @@ mod tests {
     };
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
-    use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::resource::Resource;
+    use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};
