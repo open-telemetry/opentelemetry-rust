@@ -32,8 +32,7 @@
 //! ```
 
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::{LogError, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -123,7 +122,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ```rust
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::export::logs::LogExporter;
+/// use opentelemetry_sdk::logs::LogExporter;
 /// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
@@ -818,9 +817,8 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::{LogBatch, LogExporter};
-    use crate::logs::LogRecord;
     use crate::logs::LogResult;
+    use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
