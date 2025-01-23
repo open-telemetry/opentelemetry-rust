@@ -197,20 +197,32 @@ mod logtests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
+    #[cfg(any(
+        feature = "tonic-client",
+        feature = "reqwest-client",
+        feature = "hyper-client"
+    ))]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
         logs_tokio_helper(true).await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
+    #[cfg(any(
+        feature = "tonic-client",
+        feature = "reqwest-client",
+        feature = "hyper-client"
+    ))]
     pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
         logs_tokio_helper(true).await
     }
 
     #[ignore] // https://github.com/open-telemetry/opentelemetry-rust/issues/2539
     #[tokio::test(flavor = "current_thread")]
-    #[cfg(any(feature = "tonic-client", feature = "reqwest-client", feature = "hyper-client"))]
+    #[cfg(any(
+        feature = "tonic-client",
+        feature = "reqwest-client",
+        feature = "hyper-client"
+    ))]
     pub async fn logs_simple_tokio_current() -> Result<()> {
         logs_tokio_helper(true).await
     }
