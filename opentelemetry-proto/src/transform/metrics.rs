@@ -10,7 +10,7 @@ pub mod tonic {
 
     use opentelemetry::{otel_debug, Key, Value};
     use opentelemetry_sdk::metrics::data::{
-        self, Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
+        Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
         Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric, ResourceMetrics,
         ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
