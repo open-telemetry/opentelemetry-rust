@@ -58,7 +58,7 @@ async fn logs_tokio_helper(is_simple: bool, log_send_outside_rt: bool) -> Result
     {
         let clone_uuid = expected_uuid.clone();
         if log_send_outside_rt {
-            std::thread::spawn( move || {
+            std::thread::spawn(move || {
                 let subscriber = tracing_subscriber::registry().with(layer);
                 let _guard = tracing::subscriber::set_default(subscriber);
                 info!(
@@ -68,7 +68,9 @@ async fn logs_tokio_helper(is_simple: bool, log_send_outside_rt: bool) -> Result
                     "banana",
                     2.99
                 );
-            }).join().unwrap();
+            })
+            .join()
+            .unwrap();
         } else {
             let subscriber = tracing_subscriber::registry().with(layer);
             let _guard = tracing::subscriber::set_default(subscriber);
@@ -293,7 +295,11 @@ mod logtests {
     // Client - hyper, tonic, reqwest
     #[ignore] // request, tonic and hyper client does not work without tokio runtime
     #[test]
-    #[cfg(any(feature = "hyper-client", feature = "tonic-client", feature = "reqwest-client"))]
+    #[cfg(any(
+        feature = "hyper-client",
+        feature = "tonic-client",
+        feature = "reqwest-client"
+    ))]
     pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt() -> Result<()> {
         logs_non_tokio_helper(true, false)
     }
@@ -351,8 +357,6 @@ mod logtests {
     pub async fn logs_simple_tokio_current() -> Result<()> {
         logs_tokio_helper(true, false).await
     }
-
-
 }
 ///
 /// Make sure we stop the collector container, otherwise it will sit around hogging our
