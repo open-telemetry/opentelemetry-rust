@@ -570,7 +570,10 @@ mod tests {
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.config().resource.get(&TELEMETRY_SDK_VERSION.into()),
+                provider
+                    .config()
+                    .resource
+                    .get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
