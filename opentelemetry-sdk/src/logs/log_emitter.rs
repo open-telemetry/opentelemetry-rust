@@ -293,7 +293,7 @@ impl opentelemetry::logs::Logger for Logger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::default()
+        LogRecord::new()
     }
 
     /// Emit a `LogRecord`.

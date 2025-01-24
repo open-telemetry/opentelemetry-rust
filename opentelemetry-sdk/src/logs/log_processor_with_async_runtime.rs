@@ -555,7 +555,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::default();
+        let mut record = LogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -817,7 +817,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::default();
+        let mut record = LogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
