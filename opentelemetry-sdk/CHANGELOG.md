@@ -282,6 +282,10 @@ limit.
   now:
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
+- *Breaking* `opentelemetry_sdk::LogRecord::default()` method is removed.
+  The only way to create log record outside opentelemetry_sdk crate is using 
+  `Logger::create_log_record()` method.
+
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
   `opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
