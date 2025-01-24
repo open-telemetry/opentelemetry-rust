@@ -20,7 +20,6 @@
 //! [`Context`]: crate::Context
 
 use std::collections::HashMap;
-use thiserror::Error;
 
 pub mod composite;
 pub mod text_map_propagator;
