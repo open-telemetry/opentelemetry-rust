@@ -15,7 +15,7 @@ use opentelemetry::{
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
-    export::trace::SpanData,
+    trace::SpanData,
     trace::{self as sdktrace, SpanProcessor},
 };
 

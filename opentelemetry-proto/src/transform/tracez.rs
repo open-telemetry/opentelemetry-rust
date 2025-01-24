@@ -1,7 +1,7 @@
 #[cfg(all(feature = "gen-tonic-messages", feature = "zpages"))]
 mod tonic {
     use opentelemetry::trace::{Event, Status};
-    use opentelemetry_sdk::export::trace::SpanData;
+    use opentelemetry_sdk::trace::SpanData;
 
     use crate::proto::tonic::{
         trace::v1::{span::Event as SpanEvent, Status as SpanStatus},

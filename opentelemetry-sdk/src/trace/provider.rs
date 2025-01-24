@@ -66,7 +66,7 @@ use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
 use crate::Resource;
-use crate::{export::trace::SpanExporter, trace::SpanProcessor};
+use crate::{trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{otel_debug, trace::TraceResult};
 use opentelemetry::{otel_info, InstrumentationScope};
@@ -443,11 +443,11 @@ impl Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::export::trace::SpanData;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::trace::provider::TracerProviderInner;
+    use crate::trace::SpanData;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
     use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
