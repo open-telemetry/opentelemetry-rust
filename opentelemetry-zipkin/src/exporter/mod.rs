@@ -116,7 +116,7 @@ impl ZipkinPipelineBuilder {
         } else {
             let service_name = SdkProvidedResourceDetector
                 .detect()
-                .get(semcov::resource::SERVICE_NAME.into())
+                .get(&semcov::resource::SERVICE_NAME.into())
                 .unwrap()
                 .to_string();
             (

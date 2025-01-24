@@ -1224,7 +1224,7 @@ mod tests {
             exported_resource
                 .as_ref()
                 .unwrap()
-                .get(Key::new("service.name")),
+                .get(&Key::new("service.name")),
             Some(Value::from("test_service"))
         );
     }
