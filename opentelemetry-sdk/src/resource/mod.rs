@@ -58,7 +58,7 @@ impl Resource {
     /// - [SdkProvidedResourceDetector]
     /// - [TelemetryResourceDetector]
     /// - [EnvResourceDetector]
-    /// If you'd like to start from an empty resource, use [Resource::builder_empty].
+    ///   If you'd like to start from an empty resource, use [Resource::builder_empty].
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
             resource: Self::from_detectors(&[
