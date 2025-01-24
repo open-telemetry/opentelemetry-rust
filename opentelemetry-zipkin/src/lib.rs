@@ -87,7 +87,7 @@
 //! ```no_run
 //! use opentelemetry::{global, KeyValue, trace::Tracer};
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry_sdk::export::trace::ExportResult;
+//! use opentelemetry_sdk::trace::ExportResult;
 //! use opentelemetry_http::{HttpClient, HttpError};
 //! use async_trait::async_trait;
 //! use bytes::Bytes;

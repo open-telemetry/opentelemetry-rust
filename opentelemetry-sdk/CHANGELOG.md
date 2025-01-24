@@ -268,15 +268,33 @@ hardcoded limit of 2000 and no ability to change it. This feature will be
 re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
-- *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces
+- *Breaking* Removed unused `opentelemetry_sdk::Error` enum.
+- *Breaking* (Affects custom Exporter authors only) Moved `ExportError` trait from `opentelemetry::export::ExportError` to `opentelemetry_sdk::ExportError`
+- *Breaking (Affects custom SpanExporter, SpanProcessor authors only)*: Rename namespaces for Span exporter structs/traits
+  before:
+  `opentelemetry_sdk::export::spans::{ExportResult, SpanData, SpanExporter};`
+  now:
+  `opentelemetry_sdk::spans::{ExportResult, SpanData, SpanExporter};`
+
+- *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename namespaces for Log exporter structs/traits.
   before:
   `opentelemetry_sdk::export::logs::{ExportResult, LogBatch, LogExporter};`
   now:
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
-- **Breaking** `opentelemetry_sdk::LogRecord::default()` method is removed.
+- *Breaking* `opentelemetry_sdk::LogRecord::default()` method is removed.
   The only way to create log record outside opentelemetry_sdk crate is using 
   `Logger::create_log_record()` method.
+
+- *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
+  before:
+  `opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
+  `opentelemetry_sdk::testing::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
+  `opentelemetry_sdk::testing::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
+  now:
+  `opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
+  `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
+  `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
 ## 0.27.1
 

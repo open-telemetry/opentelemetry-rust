@@ -333,10 +333,10 @@ impl opentelemetry::logs::Logger for Logger {
 #[cfg(test)]
 mod tests {
     use crate::{
+        logs::InMemoryLogExporter,
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogExporter,
         trace::TracerProvider,
         Resource,
     };

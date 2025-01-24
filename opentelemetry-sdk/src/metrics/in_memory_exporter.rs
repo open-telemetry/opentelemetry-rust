@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry_sdk::metrics;
 ///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
-///# use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+///# use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 ///# use opentelemetry_sdk::metrics::PeriodicReader;
 ///
 ///# #[tokio::main]
@@ -86,7 +86,7 @@ impl Default for InMemoryMetricExporter {
 /// # Example
 ///
 /// ```
-/// # use opentelemetry_sdk::testing::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+/// # use opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 ///
 /// let exporter = InMemoryMetricExporterBuilder::new().build();
 /// ```
@@ -138,7 +138,7 @@ impl InMemoryMetricExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     ///
     /// let exporter = InMemoryMetricExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
@@ -155,7 +155,7 @@ impl InMemoryMetricExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     ///
     /// let exporter = InMemoryMetricExporter::default();
     /// exporter.reset();

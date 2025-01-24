@@ -122,7 +122,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ```rust
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let provider = LoggerProvider::builder()
@@ -246,7 +246,7 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, LoggerProvider};
 /// use opentelemetry::global;
 /// use std::time::Duration;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let processor = BatchLogProcessor::builder(exporter)
@@ -818,16 +818,15 @@ mod tests {
     };
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, LogRecord};
-    use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
+            LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
-        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use opentelemetry::logs::AnyValue;

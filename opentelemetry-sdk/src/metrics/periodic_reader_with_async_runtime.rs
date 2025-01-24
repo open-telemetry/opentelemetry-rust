@@ -416,8 +416,8 @@ mod tests {
     use crate::metrics::reader::MetricReader;
     use crate::metrics::MetricError;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::SdkMeterProvider, runtime,
-        testing::metrics::InMemoryMetricExporter, Resource,
+        metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
+        runtime, Resource,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
