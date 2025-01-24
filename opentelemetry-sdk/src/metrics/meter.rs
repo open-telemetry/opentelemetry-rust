@@ -712,9 +712,7 @@ mod tests {
     };
 
     #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
-    use super::{
-        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-    };
+    use super::{INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR};
 
     #[test]
     #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
@@ -733,6 +731,11 @@ mod tests {
             ("", INSTRUMENT_NAME_EMPTY),
             ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
             ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
+            (
+                "\\test\\UsagePercent(Total) > 80%",
+                INSTRUMENT_NAME_FIRST_ALPHABETIC,
+            ),
             ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
         ];
         for (name, expected_error) in instrument_name_test_cases {
@@ -768,6 +771,8 @@ mod tests {
             ("", INSTRUMENT_NAME_EMPTY),
             ("\\allow\\slash /sec", ""),
             ("\\allow\\$$slash /sec", ""),
+            ("Total $ Count", ""),
+            ("\\test\\UsagePercent(Total) > 80%", ""),
             ("/not / allowed", ""),
         ];
         for (name, expected_error) in instrument_name_test_cases {
