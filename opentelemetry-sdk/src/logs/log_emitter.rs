@@ -403,22 +403,22 @@ mod tests {
             assert_eq!(
                 provider
                     .resource()
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

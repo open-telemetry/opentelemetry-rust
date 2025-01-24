@@ -552,7 +552,7 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -562,15 +562,15 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                    .get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_NAME.into()),
+                provider.config().resource.get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_VERSION.into()),
+                provider.config().resource.get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

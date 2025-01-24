@@ -269,6 +269,8 @@ re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
 - *Breaking* Removed unused `opentelemetry_sdk::Error` enum.
+- *Breaking* Resource.get() modified to require reference to Key instead of owned.
+  Replace `get(Key::from_static_str("key"))` with `get(&Key::from_static_str("key"))`
 - *Breaking* (Affects custom Exporter authors only) Moved `ExportError` trait from `opentelemetry::export::ExportError` to `opentelemetry_sdk::ExportError`
 - *Breaking (Affects custom SpanExporter, SpanProcessor authors only)*: Rename namespaces for Span exporter structs/traits
   before:
