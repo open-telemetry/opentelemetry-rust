@@ -212,6 +212,9 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
         .build();
       ```
 
+      This implementation does not support multiple concurrent exports
+      (`with_max_concurrent_exports` is not supported).
+
     The new BatchLogProcessor can be used with OTLP Exporter, and supports
     following exporter features:
     - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
