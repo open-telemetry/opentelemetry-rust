@@ -57,6 +57,14 @@ pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
 
+/// In-Memory metric exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+
 pub use aggregation::*;
 pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
@@ -107,8 +115,8 @@ mod tests {
     use super::*;
     use crate::metrics::data::Aggregation;
     use crate::metrics::data::ResourceMetrics;
-    use crate::testing::metrics::InMemoryMetricExporter;
-    use crate::testing::metrics::InMemoryMetricExporterBuilder;
+    use crate::metrics::InMemoryMetricExporter;
+    use crate::metrics::InMemoryMetricExporterBuilder;
     use data::Gauge;
     use data::GaugeDataPoint;
     use data::Histogram;
