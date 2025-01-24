@@ -52,7 +52,6 @@ async fn logs_tokio_helper(is_simple: bool, log_send_outside_rt: bool) -> Result
 
     let logger_provider = init_logs(is_simple).unwrap();
     let layer = OpenTelemetryTracingBridge::new(&logger_provider);
-    //let subscriber = tracing_subscriber::registry().with(layer);
     // generate a random uuid and store it to expected guid
     let expected_uuid = std::sync::Arc::new(Uuid::new_v4().to_string());
     {
@@ -127,7 +126,6 @@ fn assert_logs_results_contains(result: &str, expected_content: &str) -> Result<
     let mut contents = String::new();
     let mut reader = std::io::BufReader::new(&file);
     reader.read_to_string(&mut contents)?;
-    println!("---->>>> Contents: {}", contents);
     assert!(contents.contains(expected_content));
     Ok(())
 }
