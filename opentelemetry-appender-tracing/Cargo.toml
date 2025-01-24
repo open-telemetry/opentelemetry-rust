@@ -28,7 +28,7 @@ criterion = { workspace = true }
 tokio = { workspace = true, features = ["full"]}
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 
 [features]
 experimental_metadata_attributes = ["dep:tracing-log"]
