@@ -286,9 +286,11 @@ limit.
   before:
   `opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
   `opentelemetry_sdk::testing::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
+  `opentelemetry_sdk::testing::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
   now:
   `opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
+  `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
 ## 0.27.1
 
