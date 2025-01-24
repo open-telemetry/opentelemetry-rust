@@ -2,8 +2,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
-use opentelemetry_sdk::export::trace::SpanData;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
+use opentelemetry_sdk::trace::SpanData;
 use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
 };

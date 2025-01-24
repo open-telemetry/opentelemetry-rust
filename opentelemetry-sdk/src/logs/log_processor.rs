@@ -122,7 +122,7 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ```rust
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let provider = LoggerProvider::builder()
@@ -246,7 +246,7 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, LoggerProvider};
 /// use opentelemetry::global;
 /// use std::time::Duration;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let processor = BatchLogProcessor::builder(exporter)
@@ -818,16 +818,15 @@ mod tests {
     };
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, LogRecord};
-    use crate::testing::logs::InMemoryLogExporterBuilder;
     use crate::{
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
+            LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
-        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use opentelemetry::logs::AnyValue;
@@ -1080,7 +1079,7 @@ mod tests {
             .build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
-        let mut record = LogRecord::default();
+        let mut record = LogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1098,7 +1097,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1256,7 +1255,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1269,7 +1268,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1286,7 +1285,7 @@ mod tests {
         for _ in 0..10 {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1305,7 +1304,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1357,7 +1356,7 @@ mod tests {
             let exporter = LogExporterThatRequiresTokio::new();
             let processor = SimpleLogProcessor::new(exporter.clone());
 
-            let mut record: LogRecord = Default::default();
+            let mut record: LogRecord = LogRecord::new();
             let instrumentation: InstrumentationScope = Default::default();
 
             // This will panic because an tokio async operation within exporter without a runtime.
@@ -1413,7 +1412,7 @@ mod tests {
         for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1437,7 +1436,7 @@ mod tests {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1456,7 +1455,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1476,7 +1475,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);

@@ -6,7 +6,7 @@ use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, Inst
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use std::{
     borrow::Cow,
     sync::{
@@ -293,7 +293,7 @@ impl opentelemetry::logs::Logger for Logger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::default()
+        LogRecord::new()
     }
 
     /// Emit a `LogRecord`.
@@ -313,7 +313,7 @@ impl opentelemetry::logs::Logger for Logger {
             }
         }
         if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(SystemTime::now());
+            record.observed_timestamp = Some(now());
         }
 
         for p in processors {
@@ -333,10 +333,10 @@ impl opentelemetry::logs::Logger for Logger {
 #[cfg(test)]
 mod tests {
     use crate::{
+        logs::InMemoryLogExporter,
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogExporter,
         trace::TracerProvider,
         Resource,
     };
@@ -403,22 +403,22 @@ mod tests {
             assert_eq!(
                 provider
                     .resource()
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

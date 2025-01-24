@@ -34,9 +34,9 @@
 //! [`is_recording`]: opentelemetry::trace::Span::is_recording()
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
-use crate::export::trace::{SpanData, SpanExporter};
 use crate::resource::Resource;
 use crate::trace::Span;
+use crate::trace::{SpanData, SpanExporter};
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{otel_error, otel_info};
 use opentelemetry::{
@@ -175,7 +175,7 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 }
 
-use crate::export::trace::ExportResult;
+use crate::trace::ExportResult;
 /// The `BatchSpanProcessor` collects finished spans in a buffer and exports them
 /// in batches to the configured `SpanExporter`. This processor is ideal for
 /// high-throughput environments, as it minimizes the overhead of exporting spans
@@ -717,11 +717,12 @@ impl BatchConfigBuilder {
         self
     }
 
+    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     /// Set max_concurrent_exports for [`BatchConfigBuilder`].
     /// It's the maximum number of concurrent exports.
     /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
     /// The default value is 1.
-    /// IF the max_concurrent_exports value is default value, it will cause exports to be performed
+    /// If the max_concurrent_exports value is default value, it will cause exports to be performed
     /// synchronously on the BatchSpanProcessor task.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
         self.max_concurrent_exports = max_concurrent_exports;
@@ -814,13 +815,14 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::export::trace::{ExportResult, SpanData, SpanExporter};
-    use crate::testing::trace::{new_test_export_span_data, InMemorySpanExporterBuilder};
+    use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
+    use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
+    use crate::trace::{ExportResult, SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::time::Duration;
@@ -959,9 +961,10 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_millis(10))
             .with_max_export_timeout(Duration::from_millis(10))
-            .with_max_concurrent_exports(10)
-            .with_max_queue_size(10)
-            .build();
+            .with_max_queue_size(10);
+        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+        let batch = batch.with_max_concurrent_exports(10);
+        let batch = batch.build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
         assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
@@ -1221,7 +1224,7 @@ mod tests {
             exported_resource
                 .as_ref()
                 .unwrap()
-                .get(Key::new("service.name")),
+                .get(&Key::new("service.name")),
             Some(Value::from("test_service"))
         );
     }
