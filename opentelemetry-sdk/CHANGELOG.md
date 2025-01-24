@@ -274,6 +274,10 @@ limit.
   now:
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
+- **Breaking** `opentelemetry_sdk::LogRecord::default()` method is removed.
+  The only way to create log record outside opentelemetry_sdk crate is using 
+  `Logger::create_log_record()` method.
+
 ## 0.27.1
 
 Released 2024-Nov-27
