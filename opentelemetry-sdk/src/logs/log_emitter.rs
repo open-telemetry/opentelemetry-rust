@@ -6,7 +6,7 @@ use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, Inst
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use std::{
     borrow::Cow,
     sync::{
@@ -313,7 +313,7 @@ impl opentelemetry::logs::Logger for Logger {
             }
         }
         if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(SystemTime::now());
+            record.observed_timestamp = Some(now());
         }
 
         for p in processors {
