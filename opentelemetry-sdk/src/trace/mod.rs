@@ -8,6 +8,7 @@
 //! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod events;
+mod export;
 mod id_generator;
 mod links;
 mod provider;
@@ -22,6 +23,15 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
+pub use export::{ExportResult, SpanData, SpanExporter};
+
+/// In-Memory span exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
@@ -48,8 +58,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        testing::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
+        trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,

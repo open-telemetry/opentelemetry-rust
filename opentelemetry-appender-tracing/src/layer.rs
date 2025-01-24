@@ -233,9 +233,9 @@ mod tests {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
-    use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -518,7 +518,7 @@ mod tests {
     #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
-        use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
+        use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
 
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();

@@ -9,10 +9,10 @@ use model::endpoint::Endpoint;
 use opentelemetry::{global, trace::TraceError, InstrumentationScope, KeyValue};
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::{
-    export::{trace, ExportError},
     resource::{ResourceDetector, SdkProvidedResourceDetector},
+    trace,
     trace::{Config, Tracer, TracerProvider},
-    Resource,
+    ExportError, Resource,
 };
 use opentelemetry_semantic_conventions as semcov;
 use std::borrow::Cow;
