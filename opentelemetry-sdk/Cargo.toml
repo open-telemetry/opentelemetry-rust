@@ -39,7 +39,7 @@ rstest = "0.23.0"
 temp-env = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
