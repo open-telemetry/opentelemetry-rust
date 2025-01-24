@@ -13,10 +13,10 @@ use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
-#[cfg(feature = "trace")]
-use opentelemetry_sdk::export::trace::SpanData;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
+#[cfg(feature = "trace")]
+use opentelemetry_sdk::trace::SpanData;
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
