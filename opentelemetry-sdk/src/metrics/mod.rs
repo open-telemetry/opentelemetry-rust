@@ -225,6 +225,8 @@ mod tests {
         let invalid_instrument_names = vec![
             "_startWithNoneAlphabet",
             "utf8char锈",
+            "",
+            "a".repeat(256).leak(),
             "\\allow\\slash /sec",
             "\\allow\\$$slash /sec",
             "Total $ Count",
