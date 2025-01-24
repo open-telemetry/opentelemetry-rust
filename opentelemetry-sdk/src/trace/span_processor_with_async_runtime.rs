@@ -421,14 +421,12 @@ mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{BatchSpanProcessor, SpanProcessor};
     use crate::runtime;
-    use crate::testing::trace::{
-        new_test_export_span_data, new_tokio_test_exporter, InMemorySpanExporterBuilder,
-    };
+    use crate::testing::trace::{new_test_export_span_data, new_tokio_test_exporter};
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::trace::{BatchConfig, BatchConfigBuilder};
+    use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
     use crate::trace::{ExportResult, SpanData, SpanExporter};
     use futures_util::Future;
     use std::fmt::Debug;

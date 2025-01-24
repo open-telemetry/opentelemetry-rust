@@ -285,8 +285,10 @@ limit.
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
   `opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
+  `opentelemetry_sdk::testing::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   now:
   `opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
+  `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
 
 ## 0.27.1
 
