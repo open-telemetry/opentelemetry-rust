@@ -78,8 +78,8 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> LoggerProviderBuilder {
+        LoggerProviderBuilder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
@@ -179,12 +179,12 @@ impl Drop for LoggerProviderInner {
 
 #[derive(Debug, Default)]
 /// Builder for provider attributes.
-pub struct Builder {
+pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
 }
 
-impl Builder {
+impl LoggerProviderBuilder {
     /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
     ///
     /// # Arguments
@@ -200,7 +200,7 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
@@ -234,12 +234,12 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// The `Resource` to be associated with this Provider.
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
+        LoggerProviderBuilder {
             resource: Some(resource),
             ..self
         }
