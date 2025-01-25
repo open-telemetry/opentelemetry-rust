@@ -26,7 +26,6 @@ reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 
 [dependencies]
-async-trait = { workspace = true }
 once_cell = { workspace = true }
 opentelemetry = { version = "0.27", path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.27", path = "../opentelemetry-sdk", features = ["trace"] }
@@ -41,9 +40,10 @@ thiserror = { workspace = true }
 futures-core = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
-opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { default-features = false, features = ["experimental_trace_batch_span_processor_with_async_runtime", "trace", "testing"], path = "../opentelemetry-sdk" }
 temp-env = { workspace = true }

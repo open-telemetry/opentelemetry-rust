@@ -3,6 +3,7 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
+- **Breaking** The `opentelemetry_zipkin::new_pipeline()` interface is now replaced with `opentelemetry_zipkin::ZipkinExporter::builder()`.
 
 ## 0.27.0
 
