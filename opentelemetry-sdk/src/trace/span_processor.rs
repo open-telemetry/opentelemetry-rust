@@ -717,11 +717,12 @@ impl BatchConfigBuilder {
         self
     }
 
+    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     /// Set max_concurrent_exports for [`BatchConfigBuilder`].
     /// It's the maximum number of concurrent exports.
     /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
     /// The default value is 1.
-    /// IF the max_concurrent_exports value is default value, it will cause exports to be performed
+    /// If the max_concurrent_exports value is default value, it will cause exports to be performed
     /// synchronously on the BatchSpanProcessor task.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
         self.max_concurrent_exports = max_concurrent_exports;
@@ -960,9 +961,10 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_millis(10))
             .with_max_export_timeout(Duration::from_millis(10))
-            .with_max_concurrent_exports(10)
-            .with_max_queue_size(10)
-            .build();
+            .with_max_queue_size(10);
+        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+        let batch = batch.with_max_concurrent_exports(10);
+        let batch = batch.build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
         assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
@@ -1222,7 +1224,7 @@ mod tests {
             exported_resource
                 .as_ref()
                 .unwrap()
-                .get(Key::new("service.name")),
+                .get(&Key::new("service.name")),
             Some(Value::from("test_service"))
         );
     }

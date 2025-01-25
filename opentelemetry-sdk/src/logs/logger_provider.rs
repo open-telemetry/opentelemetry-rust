@@ -6,7 +6,7 @@ use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, Inst
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use std::{
     borrow::Cow,
     sync::{
@@ -78,8 +78,8 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> LoggerProviderBuilder {
+        LoggerProviderBuilder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
@@ -179,12 +179,12 @@ impl Drop for LoggerProviderInner {
 
 #[derive(Debug, Default)]
 /// Builder for provider attributes.
-pub struct Builder {
+pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
 }
 
-impl Builder {
+impl LoggerProviderBuilder {
     /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
     ///
     /// # Arguments
@@ -200,7 +200,7 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
@@ -234,12 +234,12 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// The `Resource` to be associated with this Provider.
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
+        LoggerProviderBuilder {
             resource: Some(resource),
             ..self
         }
@@ -313,7 +313,7 @@ impl opentelemetry::logs::Logger for Logger {
             }
         }
         if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(SystemTime::now());
+            record.observed_timestamp = Some(now());
         }
 
         for p in processors {
@@ -403,22 +403,22 @@ mod tests {
             assert_eq!(
                 provider
                     .resource()
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

@@ -1,7 +1,7 @@
 #![allow(unused_macros)]
 ///
 /// **Note**: These macros (`otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!`) are intended to be used
-/// **internally within OpenTelemetry code** or for **custom exporters and processors**. They are not designed
+/// **internally within OpenTelemetry code** or for **custom exporters, processors and other plugins**. They are not designed
 /// for general application logging and should not be used for that purpose.
 ///
 /// Macro for logging informational messages in OpenTelemetry.

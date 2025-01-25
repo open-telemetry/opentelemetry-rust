@@ -84,7 +84,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                     .or_else(|| {
                         EnvResourceDetector::new()
                             .detect()
-                            .get(Key::new(super::SERVICE_NAME))
+                            .get(&Key::new(super::SERVICE_NAME))
                     })
                     .unwrap_or_else(|| "unknown_service".into()),
             )])
@@ -138,14 +138,14 @@ mod tests {
         // Ensure no env var set
         let no_env = SdkProvidedResourceDetector.detect();
         assert_eq!(
-            no_env.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+            no_env.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
             let with_service = SdkProvidedResourceDetector.detect();
             assert_eq!(
-                with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                 Some(Value::from("test service")),
             )
         });
@@ -156,7 +156,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service1")),
                 )
             },
@@ -171,7 +171,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service"))
                 );
             },

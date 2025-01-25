@@ -212,6 +212,9 @@ metadata, a feature introduced in version 0.1.40. [#2418](https://github.com/ope
         .build();
       ```
 
+      This implementation does not support multiple concurrent exports
+      (`with_max_concurrent_exports` is not supported).
+
     The new BatchLogProcessor can be used with OTLP Exporter, and supports
     following exporter features:
     - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
@@ -269,6 +272,8 @@ re-introduced in a future date, along with the ability to change the cardinality
 limit.
 
 - *Breaking* Removed unused `opentelemetry_sdk::Error` enum.
+- *Breaking* Resource.get() modified to require reference to Key instead of owned.
+  Replace `get(Key::from_static_str("key"))` with `get(&Key::from_static_str("key"))`
 - *Breaking* (Affects custom Exporter authors only) Moved `ExportError` trait from `opentelemetry::export::ExportError` to `opentelemetry_sdk::ExportError`
 - *Breaking (Affects custom SpanExporter, SpanProcessor authors only)*: Rename namespaces for Span exporter structs/traits
   before:
@@ -283,8 +288,11 @@ limit.
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
 - *Breaking* `opentelemetry_sdk::LogRecord::default()` method is removed.
-  The only way to create log record outside opentelemetry_sdk crate is using 
+  The only way to create log record outside opentelemetry_sdk crate is using
   `Logger::create_log_record()` method.
+
+- Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::TracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
