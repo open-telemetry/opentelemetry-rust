@@ -167,8 +167,8 @@ impl TracerProvider {
     }
 
     /// Create a new [`TracerProvider`] builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> TracerProviderBuilder {
+        TracerProviderBuilder::default()
     }
 
     /// Span processors associated with this provider
@@ -274,12 +274,12 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
 
 /// Builder for provider attributes.
 #[derive(Debug, Default)]
-pub struct Builder {
+pub struct TracerProviderBuilder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
 }
 
-impl Builder {
+impl TracerProviderBuilder {
     /// Adds a [SimpleSpanProcessor] with the configured exporter to the pipeline.
     ///
     /// # Arguments
@@ -295,7 +295,7 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleSpanProcessor::new(Box::new(exporter))));
 
-        Builder { processors, ..self }
+        TracerProviderBuilder { processors, ..self }
     }
 
     /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.
@@ -329,7 +329,7 @@ impl Builder {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        TracerProviderBuilder { processors, ..self }
     }
 
     /// The sdk [`crate::trace::Config`] that this provider will use.
@@ -338,7 +338,7 @@ impl Builder {
         note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
     )]
     pub fn with_config(self, config: crate::trace::Config) -> Self {
-        Builder { config, ..self }
+        TracerProviderBuilder { config, ..self }
     }
 
     /// Specify the sampler to be used.
@@ -398,7 +398,7 @@ impl Builder {
     ///
     /// [Tracer]: opentelemetry::trace::Tracer
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
+        TracerProviderBuilder {
             config: self.config.with_resource(resource),
             ..self
         }

@@ -34,10 +34,9 @@ js-sys = "0.3.63"
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["pin-project-lite", "futures-sink", "futures-core", "thiserror"]
 metrics = []
-testing = ["trace", "metrics"]
+testing = ["trace"]
 logs = []
 spec_unstable_logs_enabled = ["logs"]
-otel_unstable = []
 internal-logs = ["tracing"]
 
 [dev-dependencies]
