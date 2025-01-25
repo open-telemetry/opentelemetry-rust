@@ -1,6 +1,5 @@
-use crate::export::logs::{LogBatch, LogExporter};
 use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult};
+use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
@@ -16,7 +15,7 @@ use std::sync::{Arc, Mutex};
 /// ```no_run
 ///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
 ///# use opentelemetry_sdk::runtime;
-///# use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+///# use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 ///# #[tokio::main]
 ///# async fn main() {
@@ -73,7 +72,7 @@ pub struct LogDataWithResource {
 /// # Example
 ///
 /// ```no_run
-///# use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+///# use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 ///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
 ///# use opentelemetry_sdk::runtime;
 ///
@@ -140,7 +139,7 @@ impl InMemoryLogExporter {
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+    /// use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
     ///
     /// let exporter = InMemoryLogExporterBuilder::default().build();
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
@@ -165,7 +164,7 @@ impl InMemoryLogExporter {
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+    /// use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
     ///
     /// let exporter = InMemoryLogExporterBuilder::default().build();
     /// exporter.reset();

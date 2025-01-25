@@ -54,10 +54,11 @@ pub struct Resource {
 impl Resource {
     /// Creates a [ResourceBuilder] that allows you to configure multiple aspects of the Resource.
     ///
-    /// This [ResourceBuilder] will always include the following [ResourceDetector]s:
+    /// This [ResourceBuilder] will include the following [ResourceDetector]s:
     /// - [SdkProvidedResourceDetector]
     /// - [TelemetryResourceDetector]
     /// - [EnvResourceDetector]
+    ///   If you'd like to start from an empty resource, use [Resource::builder_empty].
     pub fn builder() -> ResourceBuilder {
         ResourceBuilder {
             resource: Self::from_detectors(&[
@@ -138,8 +139,6 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
-    ///
-    /// timeout will be applied to each detector.
     fn from_detectors(detectors: &[Box<dyn ResourceDetector>]) -> Self {
         let mut resource = Resource::empty();
         for detector in detectors {
@@ -227,8 +226,8 @@ impl Resource {
     }
 
     /// Retrieve the value from resource associate with given key.
-    pub fn get(&self, key: Key) -> Option<Value> {
-        self.inner.attrs.get(&key).cloned()
+    pub fn get(&self, key: &Key) -> Option<Value> {
+        self.inner.attrs.get(key).cloned()
     }
 }
 
@@ -259,8 +258,6 @@ impl<'a> IntoIterator for &'a Resource {
 /// the [`ResourceBuilder::with_detectors`] function to generate a Resource from the merged information.
 pub trait ResourceDetector {
     /// detect returns an initialized Resource based on gathered information.
-    ///
-    /// timeout is used in case the detection operation takes too much time.
     ///
     /// If source information to construct a Resource is inaccessible, an empty Resource should be returned
     ///

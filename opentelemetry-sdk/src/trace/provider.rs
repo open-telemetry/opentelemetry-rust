@@ -66,7 +66,7 @@ use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
 };
 use crate::Resource;
-use crate::{export::trace::SpanExporter, trace::SpanProcessor};
+use crate::{trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::trace::TraceError;
 use opentelemetry::{otel_debug, trace::TraceResult};
 use opentelemetry::{otel_info, InstrumentationScope};
@@ -167,8 +167,8 @@ impl TracerProvider {
     }
 
     /// Create a new [`TracerProvider`] builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> TracerProviderBuilder {
+        TracerProviderBuilder::default()
     }
 
     /// Span processors associated with this provider
@@ -274,32 +274,62 @@ impl opentelemetry::trace::TracerProvider for TracerProvider {
 
 /// Builder for provider attributes.
 #[derive(Debug, Default)]
-pub struct Builder {
+pub struct TracerProviderBuilder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
 }
 
-impl Builder {
-    /// The `SpanExporter` that this provider should use.
+impl TracerProviderBuilder {
+    /// Adds a [SimpleSpanProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleSpanProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleSpanProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleSpanProcessor::new(Box::new(exporter))));
 
-        Builder { processors, ..self }
+        TracerProviderBuilder { processors, ..self }
     }
 
-    /// The [`SpanExporter`] setup using a default [`BatchSpanProcessor`] that this provider should use.
+    /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchSpanProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchSpanProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }
 
-    /// The [`SpanProcessor`] that this provider should use.
+    /// Adds a custom [SpanProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `SpanProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `SpanProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        TracerProviderBuilder { processors, ..self }
     }
 
     /// The sdk [`crate::trace::Config`] that this provider will use.
@@ -308,7 +338,7 @@ impl Builder {
         note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
     )]
     pub fn with_config(self, config: crate::trace::Config) -> Self {
-        Builder { config, ..self }
+        TracerProviderBuilder { config, ..self }
     }
 
     /// Specify the sampler to be used.
@@ -368,7 +398,7 @@ impl Builder {
     ///
     /// [Tracer]: opentelemetry::trace::Tracer
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
+        TracerProviderBuilder {
             config: self.config.with_resource(resource),
             ..self
         }
@@ -413,11 +443,11 @@ impl Builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::export::trace::SpanData;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::trace::provider::TracerProviderInner;
+    use crate::trace::SpanData;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
     use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
@@ -522,7 +552,7 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -532,15 +562,18 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                    .get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_NAME.into()),
+                provider.config().resource.get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.config().resource.get(TELEMETRY_SDK_VERSION.into()),
+                provider
+                    .config()
+                    .resource
+                    .get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

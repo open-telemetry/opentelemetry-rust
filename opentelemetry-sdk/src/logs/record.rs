@@ -18,7 +18,7 @@ const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -118,6 +118,21 @@ impl opentelemetry::logs::LogRecord for LogRecord {
 }
 
 impl LogRecord {
+    /// Crate only default constructor
+    pub(crate) fn new() -> Self {
+        LogRecord {
+            event_name: None,
+            target: None,
+            timestamp: None,
+            observed_timestamp: None,
+            trace_context: None,
+            severity_text: None,
+            severity_number: None,
+            body: None,
+            attributes: LogRecordAttributes::default(),
+        }
+    }
+
     /// Returns the event name
     #[inline]
     pub fn event_name(&self) -> Option<&'static str> {
@@ -220,21 +235,21 @@ mod tests {
 
     #[test]
     fn test_set_eventname() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         log_record.set_event_name("test_event");
         assert_eq!(log_record.event_name, Some("test_event"));
     }
 
     #[test]
     fn test_set_target() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         log_record.set_target("foo::bar");
         assert_eq!(log_record.target, Some(Cow::Borrowed("foo::bar")));
     }
 
     #[test]
     fn test_set_timestamp() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         let now = SystemTime::now();
         log_record.set_timestamp(now);
         assert_eq!(log_record.timestamp, Some(now));
@@ -242,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_set_observed_timestamp() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         let now = SystemTime::now();
         log_record.set_observed_timestamp(now);
         assert_eq!(log_record.observed_timestamp, Some(now));
@@ -250,14 +265,14 @@ mod tests {
 
     #[test]
     fn test_set_severity_text() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         log_record.set_severity_text("ERROR");
         assert_eq!(log_record.severity_text, Some("ERROR"));
     }
 
     #[test]
     fn test_set_severity_number() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         let severity_number = Severity::Error;
         log_record.set_severity_number(severity_number);
         assert_eq!(log_record.severity_number, Some(Severity::Error));
@@ -265,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_set_body() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         let body = AnyValue::String("Test body".into());
         log_record.set_body(body.clone());
         assert_eq!(log_record.body, Some(body));
@@ -273,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_set_attributes() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
         for (key, value) in attributes {
@@ -283,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_set_attribute() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = LogRecord::new();
         log_record.add_attribute("key", "value");
         let key = Key::new("key");
         let value = AnyValue::String("value".into());
@@ -344,12 +359,12 @@ mod tests {
     fn compare_log_record_target_borrowed_eq_owned() {
         let log_record_borrowed = LogRecord {
             event_name: Some("test_event"),
-            ..Default::default()
+            ..LogRecord::new()
         };
 
         let log_record_owned = LogRecord {
             event_name: Some("test_event"),
-            ..Default::default()
+            ..LogRecord::new()
         };
 
         assert_eq!(log_record_borrowed, log_record_owned);
