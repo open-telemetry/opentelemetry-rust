@@ -19,7 +19,7 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use logger_provider::{Builder, Logger, LoggerProvider};
+pub use logger_provider::{Logger, LoggerProvider, LoggerProviderBuilder};
 pub use record::{LogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
