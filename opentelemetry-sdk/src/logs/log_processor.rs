@@ -263,6 +263,7 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// let provider = LoggerProvider::builder()
 ///     .with_log_processor(processor)
 ///     .build();
+/// ```
 ///
 /// **Memory Management in BatchLogProcessor**
 ///
@@ -272,7 +273,7 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 ///    - Each `LogRecord` is **cloned** upon entering the processor.
 ///    - `LogRecordAttributes` utilize a hybrid memory model:
 ///      - First 5 attributes are **stack-allocated**.
-///      - Adding additional attribtues trigger **heap allocation** in a dynamically growing vector.
+///      - Adding additional attributes trigger **heap allocation** in a dynamically growing vector.
 ///    - The `LogRecord` and its associated `InstrumentationScope` are **boxed together**
 ///      to allocate them on the heap before entering the queue. This means:
 ///      - The `LogRecord`'s inline attributes (if any) are moved to the heap as part of the boxed structure.
