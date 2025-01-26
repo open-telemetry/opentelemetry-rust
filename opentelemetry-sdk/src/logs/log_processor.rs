@@ -337,6 +337,9 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 //        ```
 //        (max_queue_size + max_export_batch_size) * size of boxed (LogRecord + InstrumentationScope)
 //        ```
+//      - The average size of a `LogRecord` is ~300 bytes ( assuming 4 attributes), and the `InstrumentationScope` is ~50 bytes assuming no attributes.
+//        - For `max_queue_size = 2048` and `max_export_batch_size = 512`, the total memory usage is ~900 KB as below:
+//          Calculation: `(2048 + 512) * (300 + 50) = 2560 * 350 = 896000 bytes = 896 KB`.
 //
 // 6. **Key Notes on Memory Behavior**:
 //    - Boxing a `LogRecord` and `InstrumentationScope` moves the record to the heap,
