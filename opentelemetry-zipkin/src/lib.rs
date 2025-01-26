@@ -52,22 +52,13 @@
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple exporter
-//! will export each span synchronously on drop. You can enable the [`rt-tokio`],
-//! [`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
-//! on the trace provider builder to have a batch exporter configured for you
-//! automatically.
-//!
-//! ```toml
-//! [dependencies]
-//! opentelemetry = { version = "*", features = ["rt-tokio"] }
-//! opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
-//! ```
+//! will export each span synchronously on drop. You can achieve this by creating a
+//! `BatchSpanProcessor` and passing it to the trace provider.
 //!
 //! ```no_run
 //! use opentelemetry_sdk::{
-//!     runtime::Tokio,
 //!     trace::{
-//!         span_processor_with_async_runtime::BatchSpanProcessor,
+//!         BatchSpanProcessor,
 //!         BatchConfigBuilder,
 //!         TracerProvider,
 //!     }
@@ -79,7 +70,7 @@
 //!         .with_service_name("runtime-demo")
 //!         .build()?;
 //!
-//!     let batch = BatchSpanProcessor::builder(exporter, Tokio)
+//!     let batch = BatchSpanProcessor::builder(exporter)
 //!         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
 //!         .build();
 //!
@@ -90,9 +81,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! [`rt-tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
 //!
 //! ## Choosing an HTTP client
 //!

@@ -4,6 +4,23 @@
 
 - Bump msrv to 1.75.0.
 - **Breaking** The `opentelemetry_zipkin::new_pipeline()` interface is now replaced with `opentelemetry_zipkin::ZipkinExporter::builder()`.
+  
+  Previous Signature:
+  ```rust
+  let tracer = opentelemetry_zipkin::new_pipeline()
+      .with_service_name("trace-demo")
+      .install_simple()?;
+  ```
+  Updated Signature:
+  ```rust
+  let exporter = ZipkinExporter::builder()
+      .with_service_name("trace-demo")
+      .build()?;
+  let provider = TracerProvider::builder()
+      .with_simple_exporter(exporter)
+      .build();
+  let tracer = global::tracer("zipkin-tracer");
+  ```
 
 ## 0.27.0
 
