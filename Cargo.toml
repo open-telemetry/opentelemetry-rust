@@ -8,6 +8,9 @@ members = [
     "stress",
 ]
 resolver = "2"
+# Avoid applying patch to force use of workspace members for this
+# not actively maintained crate
+exclude = ["opentelemetry-prometheus"]
 
 [profile.bench]
 # https://doc.rust-lang.org/cargo/reference/profiles.html#bench
@@ -29,7 +32,6 @@ hyper = { version = "1.3", default-features = false }
 hyper-util = "0.1"
 log = "0.4.21"
 once_cell = "1.13"
-ordered-float = "4.0"
 pin-project-lite = "0.2"
 prost = "0.13"
 prost-build = "0.13"
@@ -51,3 +53,9 @@ tracing = { version = ">=0.1.40", default-features = false }
 tracing-core = { version = ">=0.1.33", default-features = false } 
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
+
+# Aviod use of crates.io version of these crates through the tracing-opentelemetry dependencies
+[patch.crates-io]
+opentelemetry = { path = "opentelemetry" }
+opentelemetry_sdk = { path = "opentelemetry-sdk" }
+opentelemetry-stdout = { path = "opentelemetry-stdout" }

@@ -3,7 +3,13 @@
 ## vNext
 
 - Bump msrv to 1.75.0.
-
+- Feature flag "populate-logs-event-name" is removed as no longer relevant.
+  LogRecord's `event_name()` is now automatically populated on the newly added
+  "event_name" field in LogRecord proto definition.
+- Remove "grpc-tonic" feature from default, and instead add "http-proto" and
+  "reqwest-blocking-client" features as default, to align with the
+  specification.
+  [2516](https://github.com/open-telemetry/opentelemetry-rust/pull/2516)
 
 ## 0.27.0
 

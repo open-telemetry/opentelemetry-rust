@@ -4,7 +4,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::trace::TracerProvider;
-use opentelemetry_sdk::{runtime, Resource};
+use opentelemetry_sdk::Resource;
 
 use std::error::Error;
 

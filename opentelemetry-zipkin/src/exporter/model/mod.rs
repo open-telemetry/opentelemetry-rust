@@ -2,7 +2,7 @@ use opentelemetry::{
     trace::{SpanKind, Status},
     Key, KeyValue,
 };
-use opentelemetry_sdk::export::trace::SpanData;
+use opentelemetry_sdk::trace::SpanData;
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 

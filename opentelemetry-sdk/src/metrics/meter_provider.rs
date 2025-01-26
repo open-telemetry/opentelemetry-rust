@@ -319,7 +319,7 @@ mod tests {
             assert_eq!(
                 provider.inner.pipes.0[0]
                     .resource
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -328,19 +328,19 @@ mod tests {
             assert_eq!(
                 provider.inner.pipes.0[0]
                     .resource
-                    .get(TELEMETRY_SDK_LANGUAGE.into()),
+                    .get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
                 provider.inner.pipes.0[0]
                     .resource
-                    .get(TELEMETRY_SDK_NAME.into()),
+                    .get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
                 provider.inner.pipes.0[0]
                     .resource
-                    .get(TELEMETRY_SDK_VERSION.into()),
+                    .get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

@@ -8,6 +8,7 @@
 //! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
 mod config;
 mod events;
+mod export;
 mod id_generator;
 mod links;
 mod provider;
@@ -22,10 +23,19 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
+pub use export::{ExportResult, SpanData, SpanExporter};
+
+/// In-Memory span exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
-pub use provider::{Builder, TracerProvider};
+pub use provider::{TracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
@@ -48,8 +58,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        testing::trace::InMemorySpanExporterBuilder,
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
+        trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::trace::{
         SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
@@ -341,5 +351,47 @@ mod tests {
         assert!(instrumentation_scope
             .attributes()
             .eq(&[KeyValue::new("test_k", "test_v")]));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn empty_tracer_name_retained() {
+        async fn tracer_name_retained_helper(
+            tracer: super::Tracer,
+            provider: TracerProvider,
+            exporter: InMemorySpanExporter,
+        ) {
+            // Act
+            tracer.start("my_span").end();
+
+            // Force flush to ensure spans are exported
+            provider.force_flush().into_iter().for_each(|result| {
+                result.expect("failed to flush spans");
+            });
+
+            // Assert
+            let finished_spans = exporter
+                .get_finished_spans()
+                .expect("spans are expected to be exported.");
+            assert_eq!(finished_spans.len(), 1, "There should be a single span");
+
+            let tracer_name = finished_spans[0].instrumentation_scope.name();
+            assert_eq!(tracer_name, "", "The tracer name should be an empty string");
+
+            exporter.reset();
+        }
+
+        let exporter = InMemorySpanExporter::default();
+        let span_processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let tracer_provider = TracerProvider::builder()
+            .with_span_processor(span_processor)
+            .build();
+
+        // Test Tracer creation in 2 ways, both with empty string as tracer name
+        let tracer1 = tracer_provider.tracer("");
+        tracer_name_retained_helper(tracer1, tracer_provider.clone(), exporter.clone()).await;
+
+        let tracer_scope = InstrumentationScope::builder("").build();
+        let tracer2 = tracer_provider.tracer_with_scope(tracer_scope);
+        tracer_name_retained_helper(tracer2, tracer_provider, exporter).await;
     }
 }

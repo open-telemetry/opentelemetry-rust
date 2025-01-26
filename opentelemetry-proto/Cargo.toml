@@ -30,7 +30,7 @@ path = "tests/json_serde.rs"
 
 [features]
 default = ["full"]
-full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde"]
+full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/transport"]
@@ -44,9 +44,9 @@ zpages = ["trace"]
 testing = ["opentelemetry/testing"]
 
 # add ons
+internal-logs = ["tracing"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex"]
-populate-logs-event-name = []
 
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
@@ -56,6 +56,7 @@ opentelemetry_sdk = { version = "0.27", default-features = false, path = "../ope
 schemars = { version = "0.8", optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { version = "0.4.3", optional = true }
+tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 
 [dev-dependencies]
 opentelemetry = { features = ["testing"], path = "../opentelemetry" }

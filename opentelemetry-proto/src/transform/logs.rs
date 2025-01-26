@@ -12,7 +12,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
-    use opentelemetry_sdk::export::logs::LogBatch;
+    use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
@@ -91,7 +91,7 @@ pub mod tonic {
                 time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
                 attributes: {
-                    let attributes: Vec<KeyValue> = log_record
+                    log_record
                         .attributes_iter()
                         .map(|kv| KeyValue {
                             key: kv.0.to_string(),
@@ -99,24 +99,7 @@ pub mod tonic {
                                 value: Some(kv.1.clone().into()),
                             }),
                         })
-                        .collect();
-                    #[cfg(feature = "populate-logs-event-name")]
-                    {
-                        if let Some(event_name) = &log_record.event_name() {
-                            let mut attributes_with_name = attributes;
-                            attributes_with_name.push(KeyValue {
-                                key: "event.name".into(),
-                                value: Some(AnyValue {
-                                    value: Some(Value::StringValue(event_name.to_string())),
-                                }),
-                            });
-                            attributes_with_name
-                        } else {
-                            attributes
-                        }
-                    }
-                    #[cfg(not(feature = "populate-logs-event-name"))]
-                    attributes
+                        .collect()
                 },
                 event_name: log_record.event_name().unwrap_or_default().into(),
                 severity_number: severity_number.into(),
@@ -238,15 +221,39 @@ pub mod tonic {
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
+    use opentelemetry::logs::Logger as _;
+    use opentelemetry::logs::LoggerProvider as _;
     use opentelemetry::InstrumentationScope;
-    use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
+    use opentelemetry_sdk::logs::LogProcessor;
+    use opentelemetry_sdk::logs::{LogResult, LoggerProvider};
+    use opentelemetry_sdk::{logs::LogBatch, logs::LogRecord, Resource};
     use std::time::SystemTime;
+
+    #[derive(Debug)]
+    struct MockProcessor;
+
+    impl LogProcessor for MockProcessor {
+        fn emit(&self, _record: &mut LogRecord, _instrumentation: &InstrumentationScope) {}
+
+        fn force_flush(&self) -> LogResult<()> {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> LogResult<()> {
+            Ok(())
+        }
+    }
 
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
     ) -> (LogRecord, InstrumentationScope) {
-        let mut logrecord = LogRecord::default();
+        let processor = MockProcessor {};
+        let logger = LoggerProvider::builder()
+            .with_log_processor(processor)
+            .build()
+            .logger("test");
+        let mut logrecord = logger.create_log_record();
         logrecord.set_timestamp(SystemTime::now());
         logrecord.set_observed_timestamp(SystemTime::now());
         let instrumentation =

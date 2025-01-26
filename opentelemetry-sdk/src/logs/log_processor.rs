@@ -1,6 +1,38 @@
+//! # OpenTelemetry Log Processor Interface
+//!
+//! The `LogProcessor` interface provides hooks for log record processing and
+//! exporting. Log processors receive `LogRecord`s emitted by the SDK's
+//! `Logger` and determine how these records are handled.
+//!
+//! Built-in log processors are responsible for converting logs to exportable
+//! representations and passing them to configured exporters. They can be
+//! registered directly with a `LoggerProvider`.
+//!
+//! ## Types of Log Processors
+//!
+//! - **SimpleLogProcessor**: Forwards log records to the exporter immediately
+//!   after they are emitted. This processor is **synchronous** and is designed
+//!   for debugging or testing purposes. It is **not suitable for production**
+//!   environments due to its lack of batching, performance optimizations, or support
+//!   for high-throughput scenarios.
+//!
+//! - **BatchLogProcessor**: Buffers log records and sends them to the exporter
+//!   in batches. This processor is designed for **production use** in high-throughput
+//!   applications and reduces the overhead of frequent exports by using a background
+//!   thread for batch processing.
+//!
+//! ## Diagram
+//!
+//! ```ascii
+//!   +-----+---------------+   +-----------------------+   +-------------------+
+//!   |     |               |   |                       |   |                   |
+//!   | SDK | Logger.emit() +---> (Simple)LogProcessor  +--->  LogExporter      |
+//!   |     |               |   | (Batch)LogProcessor   +--->  (OTLPExporter)   |
+//!   +-----+---------------+   +-----------------------+   +-------------------+
+//! ```
+
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::{LogError, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -70,10 +102,34 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn set_resource(&self, _resource: &Resource) {}
 }
 
-/// A [LogProcessor] that passes logs to the configured `LogExporter`, as soon
-/// as they are emitted, without any batching. This is typically useful for
-/// debugging and testing. For scenarios requiring higher
-/// performance/throughput, consider using [BatchLogProcessor].
+/// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
+/// exports log records as they are emitted. Log records are exported synchronously
+/// in the same thread that emits the log record.
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires LoggerProvider to be created within a tokio
+///   runtime. Logs can be emitted from any thread, including tokio runtime
+///   threads.
+/// - `reqwest-blocking-client`: LoggerProvider may be created anywhere, but
+///   logs must be emitted from a non-tokio runtime thread.
+/// - `reqwest-client`: LoggerProvider may be created anywhere, but logs must be
+///   emitted from a tokio runtime thread.
+///
+/// ## Example
+///
+/// ### Using a SimpleLogProcessor
+///
+/// ```rust
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
+///
+/// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
+/// let provider = LoggerProvider::builder()
+///     .with_simple_exporter(exporter)
+///     .build();
+///
+/// ```
 #[derive(Debug)]
 pub struct SimpleLogProcessor<T: LogExporter> {
     exporter: Mutex<T>,
@@ -152,21 +208,63 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum BatchMessage {
-    /// Export logs, usually called when the log is emitted.
-    ExportLog(Box<(LogRecord, InstrumentationScope)>),
-    /// Flush the current buffer to the backend, it can be triggered by
-    /// pre configured interval or a call to `force_push` function.
-    // Flush(Option<oneshot::Sender<ExportResult>>),
-    /// ForceFlush flushes the current buffer to the backend.
+    /// This is ONLY sent when the number of logs records in the data channel has reached `max_export_batch_size`.
+    ExportLog(Arc<AtomicBool>),
+    /// ForceFlush flushes the current buffer to the exporter.
     ForceFlush(mpsc::SyncSender<ExportResult>),
-    /// Shut down the worker thread, push all logs in buffer to the backend.
+    /// Shut down the worker thread, push all logs in buffer to the exporter.
     Shutdown(mpsc::SyncSender<ExportResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
 
-/// A [`LogProcessor`] that buffers log records and reports
-/// them at a pre-configured interval from a dedicated background thread.
+type LogsData = Box<(LogRecord, InstrumentationScope)>;
+
+/// The `BatchLogProcessor` collects finished logs in a buffer and exports them
+/// in batches to the configured `LogExporter`. This processor is ideal for
+/// high-throughput environments, as it minimizes the overhead of exporting logs
+/// individually. It uses a **dedicated background thread** to manage and export logs
+/// asynchronously, ensuring that the application's main execution flow is not blocked.
+///
+/// - This processor supports the following configurations:
+///     - **Queue size**: Maximum number of log records that can be buffered.
+///     - **Batch size**: Maximum number of log records to include in a single export.
+///     - **Export timeout**: Maximum duration allowed for an export operation.
+///     - **Scheduled delay**: Frequency at which the batch is exported.
+///
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
+///   runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+///
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
+///
+/// ### Using a BatchLogProcessor:
+///
+/// ```rust
+/// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, LoggerProvider};
+/// use opentelemetry::global;
+/// use std::time::Duration;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
+///
+/// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
+/// let processor = BatchLogProcessor::builder(exporter)
+///     .with_batch_config(
+///         BatchConfigBuilder::default()
+///             .with_max_queue_size(2048)
+///             .with_max_export_batch_size(512)
+///             .with_scheduled_delay(Duration::from_secs(5))
+///             .with_max_export_timeout(Duration::from_secs(30))
+///             .build(),
+///     )
+///     .build();
+///
+/// let provider = LoggerProvider::builder()
+///     .with_log_processor(processor)
+///     .build();
+///
+/// 
 // **Memory Management in BatchLogProcessor**
 //
 // The `BatchLogProcessor` manages memory through the following stages of log processing:
@@ -177,33 +275,48 @@ enum BatchMessage {
 //      - Attributes up to `PREALLOCATED_ATTRIBUTE_CAPACITY` are **stack-allocated**.
 //      - Exceeding attributes trigger **heap allocation** in a dynamically growing vector.
 //    - The `LogRecord` and its associated `InstrumentationScope` are **boxed together**
-//      to allocate them on the heap before entering the queue. Which means:
+//      to allocate them on the heap before entering the queue. This means:
 //      - The entire `LogRecord` object, including its stack-allocated inline attributes, is moved to the heap.
 //      - Any overflow attributes already on the heap remain unaffected.
 //
 // 2. **Queue Management**:
-//    - Uses a **bounded synchronous channel** (`sync_channel`) with a maximum size defined by `max_queue_size`.
-//    - Each queued item is a **heap-allocated** `Box<(LogRecord, InstrumentationScope)>`.
-//    - When the queue is full:
-//      - Records are **dropped** (counted but not stored).
-//      - A warning is logged the first time this occurs.
+//    - Uses **two bounded synchronous channels** (`sync_channel`):
+//      - One for **log records** (`logs_sender` and `logs_receiver`).
+//      - Another for **control messages** (`message_sender` and `message_receiver`).
+//
+//    - **Log Record Queue**:
+//      - Stores log records as **heap-allocated** `Box<(LogRecord, InstrumentationScope)>`.
+//      - The queue size is configurable and defined by `max_queue_size`.
+//      - If the queue is full:
+//        - New log records are **dropped**, and a warning is logged the first time this happens.
+//        - Dropped records are counted for reporting during shutdown.
+//
+//    - **Control Message Queue**:
+//      - Stores control messages (`BatchMessage`) to manage operations like exporting, force flushing, setting resources, and shutting down.
+//      - The control message queue has a fixed size (e.g., 64 messages).
+//      - Control messages are processed with higher priority, ensuring operational commands are handled promptly.
+//      - The use of a separate control queue ensures that critical commands, such as `Shutdown`, are not lost even if the log record queue is full.
+//      - Messages supported include:
+//        - `ExportLog`: Triggers an immediate export of log records.
+//        - `ForceFlush`: Flushes all buffered log records to the exporter.
+//        - `SetResource`: Updates the exporter with a new resource.
+//        - `Shutdown`: Cleans up and flushes logs before terminating the processor.
 //
 // 3. **Worker Thread Storage**:
 //    - The worker thread maintains a pre-allocated `Vec` of boxed record pairs:
 //      - The vector’s capacity is fixed at `max_export_batch_size`.
-//    - Records are **moved** (not cloned) from the queue to the vector for processing.
+//    - Records are **moved** (not cloned) from the log record queue to the vector for processing.
 //
 // 4. **Export Process**:
-//    - A temporary `Vec` is created during the export process to hold ownership of the boxed records:
-//        - The contents of the worker thread's buffer (`Vec<Box<(LogRecord, InstrumentationScope)>>`)
-//          are moved into this temporary vector using `logs.split_off(0)`.
-//        - Ownership of the boxed records is transferred to the new vector, ensuring efficient
-//          memory usage without additional cloning.
-//    - The temporary vector is then used to construct references passed to the exporter via `LogBatch`.
-//        - The exporter's `export()` method receives references to the log records and `InstrumentationScope`
-//          contained in `LogBatch`.
-//        - If the exporter requires retaining the log records (e.g., for retries or asynchronous
-//          operations), it must **clone** the records inside the `export()` implementation.
+//    - During the export process:
+//        - The worker thread retrieves records from the log record queue until `max_export_batch_size` is reached or the queue is empty.
+//        - The retrieved records are processed in batches and passed to the exporter.
+//    - The `ExportLog` message in the control queue explicitly triggers an export operation:
+//        - It is generated when the current batch size reaches `max_export_batch_size`.
+//        - A flag ensures only one `ExportLog` message is sent at a time to prevent redundant processing.
+//        - This message prompts the worker thread to process and export the current batch immediately, regardless of the scheduled delay.
+//    - The exporter's `export()` method receives references to the log records and `InstrumentationScope`.
+//        - If the exporter requires retaining the log records (e.g., for retries or asynchronous operations), it must **clone** the records inside the `export()` implementation.
 //    - After successful export:
 //        - The original boxed records are dropped, releasing heap memory.
 //    - Export is triggered in the following scenarios:
@@ -212,33 +325,39 @@ enum BatchMessage {
 //        - When `force_flush` is called.
 //        - During processor shutdown.
 //
-/// 5. **Memory Limits**:
-///    - **Worst-Case Memory Usage**:
-///      - **Queue Memory** = `max_queue_size * size of boxed (LogRecord + InstrumentationScope)`.
-///      - **Batch Memory** = `max_export_batch_size * size of boxed (LogRecord + InstrumentationScope)`.
-///    - **Total Maximum Memory:**
-///      - When both the queue and batch vector are full:
-///        ```
-///        (max_queue_size + max_export_batch_size) * size of boxed (LogRecord + InstrumentationScope)
-///        ```
-///    - The temporary vector used during export only holds references to records,
-///      so it does not contribute additional significant memory allocation.
+// 5. **Memory Limits**:
+//    - **Worst-Case Memory Usage**:
+//      - **Log Record Queue Memory** = `max_queue_size * size of boxed (LogRecord + InstrumentationScope)`.
+//      - **Batch Memory** = `max_export_batch_size * size of boxed (LogRecord + InstrumentationScope)`.
+//    - **Control Message Queue Memory**:
+//      - Fixed at 64 messages, with negligible memory overhead.
+//    - **Total Maximum Memory:**
+//      - When both the log record queue and batch vector are full:
+//        ```
+//        (max_queue_size + max_export_batch_size) * size of boxed (LogRecord + InstrumentationScope)
+//        ```
 //
 // 6. **Key Notes on Memory Behavior**:
 //    - Boxing a `LogRecord` and `InstrumentationScope` moves the record to the heap,
 //      including stack-allocated attributes.
-//    - During the export process, ownership of the boxed records is transferred
-//      to a temporary vector created by `logs.split_off(0)`.
-//    - This temporary vector is then used to construct references passed to the exporter.
-//    - No additional cloning or copying occurs during the export process, minimizing
-//      memory overhead while ensuring efficient handling of log records.
+//    - During the export process, records are moved from the log record queue to the worker thread’s vector.
+//    - No additional cloning or copying occurs during the export process, minimizing memory overhead while ensuring efficient handling of log records.
 //
+// 7. **Control Queue Prioritization**:
+//    - Control messages take precedence over log record processing to ensure timely execution of critical operations.
+//    - For instance, a `Shutdown` message is processed before continuing with log exports, guaranteeing graceful cleanup.
+//    - The use of a separate control queue ensures responsiveness to operational commands without the risk of losing critical messages, even if the log record queue is full.
+
 pub struct BatchLogProcessor {
-    message_sender: SyncSender<BatchMessage>,
+    logs_sender: SyncSender<LogsData>, // Data channel to store log records and instrumentation scopes
+    message_sender: SyncSender<BatchMessage>, // Control channel to store control messages for the worker thread
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
+    export_log_message_sent: Arc<AtomicBool>,
+    current_batch_size: Arc<AtomicUsize>,
+    max_export_batch_size: usize,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -267,11 +386,8 @@ impl LogProcessor for BatchLogProcessor {
         }
 
         let result = self
-            .message_sender
-            .try_send(BatchMessage::ExportLog(Box::new((
-                record.clone(),
-                instrumentation.clone(),
-            ))));
+            .logs_sender
+            .try_send(Box::new((record.clone(), instrumentation.clone())));
 
         if result.is_err() {
             // Increment dropped logs count. The first time we have to drop a log,
@@ -279,6 +395,37 @@ impl LogProcessor for BatchLogProcessor {
             if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
                 otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
                     message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+            }
+            return;
+        }
+
+        // At this point, sending the log record to the data channel was successful.
+        // Increment the current batch size and check if it has reached the max export batch size.
+        if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1 >= self.max_export_batch_size
+        {
+            // Check if the a control message for exporting logs is already sent to the worker thread.
+            // If not, send a control message to export logs.
+            // `export_log_message_sent` is set to false ONLY when the worker thread has processed the control message.
+
+            if !self.export_log_message_sent.load(Ordering::Relaxed) {
+                // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
+                // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
+                // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
+                // We could have used compare_exchange as well here, but it's more verbose than swap.
+                if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
+                    match self.message_sender.try_send(BatchMessage::ExportLog(
+                        self.export_log_message_sent.clone(),
+                    )) {
+                        Ok(_) => {
+                            // Control message sent successfully.
+                        }
+                        Err(_err) => {
+                            // TODO: Log error
+                            // If the control message could not be sent, reset the `export_log_message_sent` flag.
+                            self.export_log_message_sent.store(false, Ordering::Relaxed);
+                        }
+                    }
+                }
             }
         }
     }
@@ -306,19 +453,9 @@ impl LogProcessor for BatchLogProcessor {
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        // test and set is_shutdown flag if it is not set
-        if self
-            .is_shutdown
-            .swap(true, std::sync::atomic::Ordering::Relaxed)
-        {
-            otel_warn!(
-                name: "BatchLogProcessor.Shutdown.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return LogResult::Err(LogError::AlreadyShutdown(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
+        // Set is_shutdown to true
+        self.is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
 
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
@@ -376,8 +513,12 @@ impl BatchLogProcessor {
     where
         E: LogExporter + Send + Sync + 'static,
     {
-        let (message_sender, message_receiver) = mpsc::sync_channel(config.max_queue_size);
+        let (logs_sender, logs_receiver) = mpsc::sync_channel::<LogsData>(config.max_queue_size);
+        let (message_sender, message_receiver) = mpsc::sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;
+        let max_export_batch_size = config.max_export_batch_size;
+        let current_batch_size = Arc::new(AtomicUsize::new(0));
+        let current_batch_size_for_thread = current_batch_size.clone();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
@@ -390,48 +531,96 @@ impl BatchLogProcessor {
                 );
                 let mut last_export_time = Instant::now();
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
+                let current_batch_size = current_batch_size_for_thread;
 
-                loop {
-                    let remaining_time_option = config
-                        .scheduled_delay
-                        .checked_sub(last_export_time.elapsed());
-                    let remaining_time = match remaining_time_option {
-                        Some(remaining_time) => remaining_time,
-                        None => config.scheduled_delay,
-                    };
+                // This method gets upto `max_export_batch_size` amount of logs from the channel and exports them.
+                // It returns the result of the export operation.
+                // It expects the logs vec to be empty when it's called.
+                #[inline]
+                fn get_logs_and_export<E>(
+                    logs_receiver: &mpsc::Receiver<LogsData>,
+                    exporter: &E,
+                    logs: &mut Vec<LogsData>,
+                    last_export_time: &mut Instant,
+                    current_batch_size: &AtomicUsize,
+                    config: &BatchConfig,
+                ) -> ExportResult
+                where
+                    E: LogExporter + Send + Sync + 'static,
+                {
+                    let target = current_batch_size.load(Ordering::Relaxed); // `target` is used to determine the stopping criteria for exporting logs.
+                    let mut result = LogResult::Ok(());
+                    let mut total_exported_logs: usize = 0;
 
-                    match message_receiver.recv_timeout(remaining_time) {
-                        Ok(BatchMessage::ExportLog(log)) => {
+                    while target > 0 && total_exported_logs < target {
+                        // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
+                        while let Ok(log) = logs_receiver.try_recv() {
                             logs.push(log);
                             if logs.len() == config.max_export_batch_size {
-                                otel_debug!(
-                                    name: "BatchLogProcessor.ExportingDueToBatchSize",
-                                );
-                                let _ = export_with_timeout_sync(
-                                    config.max_export_timeout,
-                                    &mut exporter,
-                                    logs.split_off(0),
-                                    &mut last_export_time,
-                                );
+                                break;
                             }
+                        }
+
+                        let count_of_logs = logs.len(); // Count of logs that will be exported
+                        total_exported_logs += count_of_logs;
+
+                        result = export_with_timeout_sync(
+                            config.max_export_timeout,
+                            exporter,
+                            logs,
+                            last_export_time,
+                        ); // This method clears the logs vec after exporting
+
+                        current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
+                    }
+                    result
+                }
+
+                loop {
+                    let remaining_time = config
+                        .scheduled_delay
+                        .checked_sub(last_export_time.elapsed())
+                        .unwrap_or(config.scheduled_delay);
+
+                    match message_receiver.recv_timeout(remaining_time) {
+                        Ok(BatchMessage::ExportLog(export_log_message_sent)) => {
+                            // Reset the export log message sent flag now it has has been processed.
+                            export_log_message_sent.store(false, Ordering::Relaxed);
+
+                            otel_debug!(
+                                name: "BatchLogProcessor.ExportingDueToBatchSize",
+                            );
+
+                            let _ = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
+                                &mut last_export_time,
+                                &current_batch_size,
+                                &config,
+                            );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
                             otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
-                            let result = export_with_timeout_sync(
-                                config.max_export_timeout,
-                                &mut exporter,
-                                logs.split_off(0),
+                            let result = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
                                 &mut last_export_time,
+                                &current_batch_size,
+                                &config,
                             );
                             let _ = sender.send(result);
                         }
                         Ok(BatchMessage::Shutdown(sender)) => {
                             otel_debug!(name: "BatchLogProcessor.ExportingDueToShutdown");
-                            let result = export_with_timeout_sync(
-                                config.max_export_timeout,
-                                &mut exporter,
-                                logs.split_off(0),
+                            let result = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
                                 &mut last_export_time,
+                                &current_batch_size,
+                                &config,
                             );
                             let _ = sender.send(result);
 
@@ -451,11 +640,14 @@ impl BatchLogProcessor {
                             otel_debug!(
                                 name: "BatchLogProcessor.ExportingDueToTimer",
                             );
-                            let _ = export_with_timeout_sync(
-                                config.max_export_timeout,
-                                &mut exporter,
-                                logs.split_off(0),
+
+                            let _ = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
                                 &mut last_export_time,
+                                &current_batch_size,
+                                &config,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -477,6 +669,7 @@ impl BatchLogProcessor {
 
         // Return batch processor with link to worker
         BatchLogProcessor {
+            logs_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
@@ -484,6 +677,9 @@ impl BatchLogProcessor {
             is_shutdown: AtomicBool::new(false),
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
+            export_log_message_sent: Arc::new(AtomicBool::new(false)),
+            current_batch_size,
+            max_export_batch_size,
         }
     }
 
@@ -502,8 +698,8 @@ impl BatchLogProcessor {
 #[allow(clippy::vec_box)]
 fn export_with_timeout_sync<E>(
     _: Duration, // TODO, enforcing timeout in exporter.
-    exporter: &mut E,
-    batch: Vec<Box<(LogRecord, InstrumentationScope)>>,
+    exporter: &E,
+    batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
 ) -> ExportResult
 where
@@ -515,12 +711,11 @@ where
         return LogResult::Ok(());
     }
 
-    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
-        .iter()
-        .map(|log_data| (&log_data.0, &log_data.1))
-        .collect();
-    let export = exporter.export(LogBatch::new(log_vec.as_slice()));
+    let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
     let export_result = futures_executor::block_on(export);
+
+    // Clear the batch vec after exporting
+    batch.clear();
 
     match export_result {
         Ok(_) => LogResult::Ok(()),
@@ -598,7 +793,7 @@ pub struct BatchConfigBuilder {
 
 impl Default for BatchConfigBuilder {
     /// Create a new [`BatchConfigBuilder`] initialized with default batch config values as per the specs.
-    /// The values are overriden by environment variables if set.
+    /// The values are overridden by environment variables if set.
     /// The supported environment variables are:
     /// * `OTEL_BLRP_MAX_QUEUE_SIZE`
     /// * `OTEL_BLRP_SCHEDULE_DELAY`
@@ -705,19 +900,17 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::{LogBatch, LogExporter};
-    use crate::logs::LogRecord;
     use crate::logs::LogResult;
-    use crate::testing::logs::InMemoryLogExporterBuilder;
+    use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::{
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
+            LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
-        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use opentelemetry::logs::AnyValue;
@@ -970,7 +1163,7 @@ mod tests {
             .build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
-        let mut record = LogRecord::default();
+        let mut record = LogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -988,7 +1181,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1146,7 +1339,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1159,7 +1352,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1176,7 +1369,7 @@ mod tests {
         for _ in 0..10 {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1195,7 +1388,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1247,7 +1440,7 @@ mod tests {
             let exporter = LogExporterThatRequiresTokio::new();
             let processor = SimpleLogProcessor::new(exporter.clone());
 
-            let mut record: LogRecord = Default::default();
+            let mut record: LogRecord = LogRecord::new();
             let instrumentation: InstrumentationScope = Default::default();
 
             // This will panic because an tokio async operation within exporter without a runtime.
@@ -1303,7 +1496,7 @@ mod tests {
         for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1327,7 +1520,7 @@ mod tests {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1346,7 +1539,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1366,7 +1559,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
