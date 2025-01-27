@@ -91,8 +91,7 @@ impl Resource {
 
     /// Create a new `Resource` from key value pairs.
     ///
-    /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
-    /// will be retained
+    /// Values are de-duplicated by key, and the last key-value pair will be retained
     pub(crate) fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         let mut attrs = HashMap::new();
         for kv in kvs {
@@ -331,18 +330,24 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn new_resource() {
-        let args_with_dupe_keys = [KeyValue::new("a", ""), KeyValue::new("a", "final")];
+    #[rstest]
+    #[case([KeyValue::new("a", ""), KeyValue::new("a", "final")], [(Key::new("a"), Value::from("final"))])]
+    #[case([KeyValue::new("a", "final"), KeyValue::new("a", "")], [(Key::new("a"), Value::from(""))])]
+    fn new_resource(
+        #[case] given_attributes: [KeyValue; 2],
+        #[case] expected_attrs: [(Key, Value); 1],
+    ) {
+        // Arrange
+        let expected = HashMap::from_iter(expected_attrs.into_iter());
 
-        let mut expected_attrs = HashMap::new();
-        expected_attrs.insert(Key::new("a"), Value::from("final"));
-
+        // Act
         let resource = Resource::builder_empty()
-            .with_attributes(args_with_dupe_keys)
+            .with_attributes(given_attributes)
             .build();
         let resource_inner = Arc::try_unwrap(resource.inner).expect("Failed to unwrap Arc");
-        assert_eq!(resource_inner.attrs, expected_attrs);
+
+        // Assert
+        assert_eq!(resource_inner.attrs, expected);
         assert_eq!(resource_inner.schema_url, None);
     }
 
