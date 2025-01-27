@@ -28,8 +28,7 @@ pub const OTEL_EXPORTER_OTLP_HEADERS: &str = "OTEL_EXPORTER_OTLP_HEADERS";
 pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
-
-/// Certificate file to validate the OTLP server connection
+/// Certificate file to validate the OTLP server connection.
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CERTIFICATE";
 /// Path to the certificate file to use for client authentication (mTLS).
@@ -38,7 +37,7 @@ pub const OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CLIE
 /// Path to the key file to use for client authentication (mTLS).
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_CLIENT_KEY";
-/// Use insecure connection. Disable TLS
+/// Use insecure connection. Disable TLS.
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_INSECURE: &str = "OTEL_EXPORTER_OTLP_INSECURE";
 

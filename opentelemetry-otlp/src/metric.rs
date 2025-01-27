@@ -36,8 +36,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
-///
-/// Certificate file to validate the OTLP server connection when sending metrics
+/// Certificate file to validate the OTLP server connection when sending metrics.
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE";
 /// Path to the certificate file to use for client authentication (mTLS) when sending metrics.
@@ -47,7 +46,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE: &str =
 /// Path to the key file to use for client authentication (mTLS) when sending metrics.
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY";
-/// Use insecure connection when sending metrics. Disable TLS
+/// Use insecure connection when sending metrics. Disable TLS.
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_METRICS_INSECURE: &str = "OTEL_EXPORTER_OTLP_METRICS_INSECURE";
 
