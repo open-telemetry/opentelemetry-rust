@@ -15,6 +15,7 @@ fn global_meter_provider() -> &'static RwLock<GlobalMeterProvider> {
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
 /// provider.
+/// Libraries should NOT call this function. It is intended for applications/executables.
 ///
 /// **NOTE:** This function should be called before getting [`Meter`] instances via [`meter()`] or [`meter_with_scope()`]. Otherwise, you could get no-op [`Meter`] instances.
 pub fn set_meter_provider<P>(new_provider: P)
