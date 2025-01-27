@@ -7,10 +7,8 @@
 //! order to support open-source telemetry data formats (e.g. Jaeger,
 //! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
 //!
-//! Currently, this crate only support sending telemetry in OTLP
-//! via grpc and http (in binary format). Supports for other format and protocol
-//! will be added in the future. The details of what's currently offering in this
-//! crate can be found in this doc.
+//! Currently, this crate supports sending telemetry in OTLP
+//! via gRPC and http (binary and json).
 //!
 //! # Quickstart
 //!
@@ -56,34 +54,36 @@
 //!
 //! ## Performance
 //!
-//! For optimal performance, a batch exporter is recommended as the simple
-//! exporter will export each span synchronously on dropping. You can enable the
-//! [`rt-tokio`], [`rt-tokio-current-thread`] or [`rt-async-std`] features and
-//! specify a runtime on the pipeline builder to have a batch exporter
-//! configured for you automatically.
+//! For optimal performance, a batch exporting processor is recommended as the simple
+//! processor will export each span synchronously on dropping, and is only good
+//! for test/debug purposes.
 //!
 //! ```toml
 //! [dependencies]
-//! opentelemetry_sdk = { version = "*", features = ["async-std"] }
 //! opentelemetry-otlp = { version = "*", features = ["grpc-tonic"] }
 //! ```
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
-//! let tracer = opentelemetry_sdk::trace::TracerProvider::builder()
-//!        .with_batch_exporter(
-//!            opentelemetry_otlp::SpanExporter::builder()
-//!                .with_tonic()
-//!                .build()?,
-//!            opentelemetry_sdk::runtime::Tokio,
-//!         )
-//!        .build();
+//! use opentelemetry::global;
+//! use opentelemetry::trace::Tracer;
 //!
-//! # Ok(())
-//! # }
-//! # }
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // First, create a OTLP exporter builder. Configure it as you need.
+//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
+//!     // Then pass it into provider builder
+//!     let _ = opentelemetry_sdk::trace::TracerProvider::builder()
+//!         .with_batch_exporter(otlp_exporter)
+//!         .build();
+//!     let tracer = global::tracer("my_tracer");
+//!     tracer.in_span("doing_work", |cx| {
+//!         // Traced app logic here...
+//!     });
+//!
+//!     Ok(())
+//!   # }
+//! }
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
@@ -92,7 +92,7 @@
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
 //!
-//! * `trace`: Includes the trace exporters (enabled by default).
+//! * `trace`: Includes the trace exporters.
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
@@ -101,8 +101,8 @@
 //!
 //! The following feature flags offer additional configurations on gRPC:
 //!
-//! For users uses `tonic` as grpc layer:
-//! * `grpc-tonic`: Use `tonic` as grpc layer. This is enabled by default.
+//! For users using `tonic` as grpc layer:
+//! * `grpc-tonic`: Use `tonic` as grpc layer.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
@@ -110,8 +110,8 @@
 //!
 //! The following feature flags offer additional configurations on http:
 //!
-//! * `http-proto`: Use http as transport layer, protobuf as body format.
-//! * `reqwest-blocking-client`: Use reqwest blocking http client.
+//! * `http-proto`: Use http as transport layer, protobuf as body format. This feature is enabled by default.
+//! * `reqwest-blocking-client`: Use reqwest blocking http client. This feature is enabled by default.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
 //! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
@@ -152,7 +152,7 @@
 //!         .build()?;
 //!
 //!     let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
-//!         .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+//!         .with_batch_exporter(exporter)
 //!         .with_config(
 //!             trace::Config::default()
 //!                 .with_sampler(Sampler::AlwaysOn)
@@ -162,7 +162,7 @@
 //!                 .with_max_events_per_span(16)
 //!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
 //!         ).build();
-//!     global::set_tracer_provider(tracer_provider);
+//!     global::set_tracer_provider(tracer_provider.clone());
 //!     let tracer = global::tracer("tracer-name");
 //!         # tracer
 //!     # };
@@ -179,7 +179,7 @@
 //!
 //!    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter)
 //!        .with_interval(std::time::Duration::from_secs(3))
-//!         .with_timeout(Duration::from_secs(10))
+//!        .with_timeout(Duration::from_secs(10))
 //!        .build();
 //!
 //!    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
