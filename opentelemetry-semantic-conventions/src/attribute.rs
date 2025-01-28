@@ -41,7 +41,7 @@ pub const ANDROID_STATE: &str = "android.state";
 #[cfg(feature = "semconv_experimental")]
 pub const ARTIFACT_ATTESTATION_FILENAME: &str = "artifact.attestation.filename";
 
-/// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), of the built attestation. Some envelopes in the software attestation space also refer to this as the [digest](https://github.com/in-toto/attestation/blob/main/spec/README.md#in-toto-attestation-framework-spec).
+/// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), of the built attestation. Some envelopes in the [software attestation space](https://github.com/in-toto/attestation/tree/main/spec) also refer to this as the **digest**.
 ///
 /// ## Notes
 ///
@@ -503,6 +503,16 @@ pub const AWS_ECS_TASK_REVISION: &str = "aws.ecs.task.revision";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_EKS_CLUSTER_ARN: &str = "aws.eks.cluster.arn";
 
+/// The AWS extended request ID as returned in the response header `x-amz-id-2`.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ="`
+#[cfg(feature = "semconv_experimental")]
+pub const AWS_EXTENDED_REQUEST_ID: &str = "aws.extended_request_id";
+
 /// The full invoked ARN as provided on the `Context` passed to the function (`Lambda-Runtime-Invoked-Function-Arn` header on the `/runtime/invocation/next` applicable).
 ///
 /// ## Notes
@@ -570,7 +580,7 @@ pub const AWS_LOG_STREAM_ARNS: &str = "aws.log.stream.arns";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
 
-/// The AWS request ID as returned in the response headers `x-amz-request-id` or `x-amz-requestid`.
+/// The AWS request ID as returned in the response headers `x-amzn-requestid`, `x-amzn-request-id` or `x-amz-request-id`.
 ///
 /// ## Notes
 ///
@@ -709,6 +719,82 @@ pub const AZ_NAMESPACE: &str = "az.namespace";
 #[cfg(feature = "semconv_experimental")]
 pub const AZ_SERVICE_REQUEST_ID: &str = "az.service_request_id";
 
+/// The unique identifier of the client instance.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"3ba4827d-4422-483f-b59f-85b74211c11d"`
+/// - `"storage-client-1"`
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_CLIENT_ID: &str = "azure.client.id";
+
+/// Cosmos client connection mode.
+///
+/// ## Notes
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_CONNECTION_MODE: &str = "azure.cosmosdb.connection.mode";
+
+/// Account or request [consistency level](https://learn.microsoft.com/azure/cosmos-db/consistency-levels).
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Eventual"`
+/// - `"ConsistentPrefix"`
+/// - `"BoundedStaleness"`
+/// - `"Strong"`
+/// - `"Session"`
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_CONSISTENCY_LEVEL: &str = "azure.cosmosdb.consistency.level";
+
+/// List of regions contacted during operation in the order that they were contacted. If there is more than one region listed, it indicates that the operation was performed on multiple regions i.e. cross-regional call.
+///
+/// ## Notes
+///
+/// Region name matches the format of `displayName` in [Azure Location API](https://learn.microsoft.com/rest/api/subscription/subscriptions/list-locations?view=rest-subscription-2021-10-01&tabs=HTTP#location)
+///
+/// # Examples
+///
+/// - `[
+///  "North Central US",
+///  "Australia East",
+///  "Australia Southeast",
+/// ]`
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_OPERATION_CONTACTED_REGIONS: &str =
+    "azure.cosmosdb.operation.contacted_regions";
+
+/// The number of request units consumed by the operation.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `46.18`
+/// - `1.0`
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_OPERATION_REQUEST_CHARGE: &str = "azure.cosmosdb.operation.request_charge";
+
+/// Request payload size in bytes.
+///
+/// ## Notes
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_REQUEST_BODY_SIZE: &str = "azure.cosmosdb.request.body.size";
+
+/// Cosmos DB sub status code.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `1000`
+/// - `1002`
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE: &str = "azure.cosmosdb.response.sub_status_code";
+
 /// Array of brand name and version separated by a space
 ///
 /// ## Notes
@@ -763,6 +849,59 @@ pub const BROWSER_MOBILE: &str = "browser.mobile";
 #[cfg(feature = "semconv_experimental")]
 pub const BROWSER_PLATFORM: &str = "browser.platform";
 
+/// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
+///
+/// ## Notes
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_CONSISTENCY_LEVEL: &str = "cassandra.consistency.level";
+
+/// The data center of the coordinating node for a query.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"us-west-2"`
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_COORDINATOR_DC: &str = "cassandra.coordinator.dc";
+
+/// The ID of the coordinating node for a query.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"be13faa2-8574-4d71-926d-27f16cf8a7af"`
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_COORDINATOR_ID: &str = "cassandra.coordinator.id";
+
+/// The fetch size used for paging, i.e. how many rows will be returned at once.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `5000`
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_PAGE_SIZE: &str = "cassandra.page.size";
+
+/// Whether or not the query is idempotent.
+///
+/// ## Notes
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_QUERY_IDEMPOTENT: &str = "cassandra.query.idempotent";
+
+/// The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `0`
+/// - `2`
+#[cfg(feature = "semconv_experimental")]
+pub const CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str = "cassandra.speculative_execution.count";
+
 /// The human readable name of the pipeline within a CI/CD system.
 ///
 /// ## Notes
@@ -776,6 +915,19 @@ pub const BROWSER_PLATFORM: &str = "browser.platform";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_NAME: &str = "cicd.pipeline.name";
 
+/// The result of a pipeline run.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"success"`
+/// - `"failure"`
+/// - `"timeout"`
+/// - `"skipped"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_RESULT: &str = "cicd.pipeline.result";
+
 /// The unique identifier of a pipeline run within a CI/CD system.
 ///
 /// ## Notes
@@ -785,6 +937,18 @@ pub const CICD_PIPELINE_NAME: &str = "cicd.pipeline.name";
 /// - `"120912"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_RUN_ID: &str = "cicd.pipeline.run.id";
+
+/// The pipeline run goes through these states during its lifecycle.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"pending"`
+/// - `"executing"`
+/// - `"finalizing"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_RUN_STATE: &str = "cicd.pipeline.run.state";
 
 /// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](https://wikipedia.org/wiki/Pipeline_(computing)) in a pipeline. Other terms for tasks include commands, steps, and procedures.
 ///
@@ -830,6 +994,30 @@ pub const CICD_PIPELINE_TASK_RUN_URL_FULL: &str = "cicd.pipeline.task.run.url.fu
 /// - `"deploy"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_TASK_TYPE: &str = "cicd.pipeline.task.type";
+
+/// The name of a component of the CICD system.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"controller"`
+/// - `"scheduler"`
+/// - `"agent"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_SYSTEM_COMPONENT: &str = "cicd.system.component";
+
+/// The state of a CICD worker / agent.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"idle"`
+/// - `"busy"`
+/// - `"down"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_WORKER_STATE: &str = "cicd.worker.state";
 
 /// Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
 ///
@@ -1159,7 +1347,7 @@ pub const CLOUDFOUNDRY_SYSTEM_ID: &str = "cloudfoundry.system.id";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.id";
 
-/// The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
+/// Deprecated, use `code.column.number`
 ///
 /// ## Notes
 ///
@@ -1167,7 +1355,18 @@ pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.
 ///
 /// - `16`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `code.column.number`")]
 pub const CODE_COLUMN: &str = "code.column";
+
+/// The column number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `16`
+#[cfg(feature = "semconv_experimental")]
+pub const CODE_COLUMN_NUMBER: &str = "code.column.number";
 
 /// The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
 ///
@@ -1177,7 +1376,28 @@ pub const CODE_COLUMN: &str = "code.column";
 ///
 /// - `"/usr/local/MyApplication/content_root/app/index.php"`
 #[cfg(feature = "semconv_experimental")]
+pub const CODE_FILE_PATH: &str = "code.file.path";
+
+/// Deprecated, use `code.file.path` instead
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"/usr/local/MyApplication/content_root/app/index.php"`
+#[cfg(feature = "semconv_experimental")]
 pub const CODE_FILEPATH: &str = "code.filepath";
+
+/// Deprecated, use `code.function.name` instead
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"serveRequest"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `code.function.name`")]
+pub const CODE_FUNCTION: &str = "code.function";
 
 /// The method or function name, or equivalent (usually rightmost part of the code unit's name).
 ///
@@ -1187,9 +1407,9 @@ pub const CODE_FILEPATH: &str = "code.filepath";
 ///
 /// - `"serveRequest"`
 #[cfg(feature = "semconv_experimental")]
-pub const CODE_FUNCTION: &str = "code.function";
+pub const CODE_FUNCTION_NAME: &str = "code.function.name";
 
-/// The line number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
+/// The line number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`.
 ///
 /// ## Notes
 ///
@@ -1197,9 +1417,20 @@ pub const CODE_FUNCTION: &str = "code.function";
 ///
 /// - `42`
 #[cfg(feature = "semconv_experimental")]
+pub const CODE_LINE_NUMBER: &str = "code.line.number";
+
+/// Deprecated, use `code.line.number` instead
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `42`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `code.line.number`")]
 pub const CODE_LINENO: &str = "code.lineno";
 
-/// The "namespace" within which `code.function` is defined. Usually the qualified class or module name, such that `code.namespace` + some separator + `code.function` form a unique identifier for the code unit.
+/// The "namespace" within which `code.function.name` is defined. Usually the qualified class or module name, such that `code.namespace` + some separator + `code.function.name` form a unique identifier for the code unit.
 ///
 /// ## Notes
 ///
@@ -1407,13 +1638,14 @@ pub const CONTAINER_RUNTIME: &str = "container.runtime";
 #[cfg(feature = "semconv_experimental")]
 pub const CPU_MODE: &str = "cpu.mode";
 
-/// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
+/// Deprecated, use `cassandra.consistency.level` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.consistency.level`.")]
 pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level";
 
-/// The data center of the coordinating node for a query.
+/// Deprecated, use `cassandra.coordinator.dc` instead.
 ///
 /// ## Notes
 ///
@@ -1421,9 +1653,10 @@ pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level
 ///
 /// - `"us-west-2"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.coordinator.dc`.")]
 pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 
-/// The ID of the coordinating node for a query.
+/// Deprecated, use `cassandra.coordinator.id` instead.
 ///
 /// ## Notes
 ///
@@ -1431,15 +1664,17 @@ pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 ///
 /// - `"be13faa2-8574-4d71-926d-27f16cf8a7af"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.coordinator.id`.")]
 pub const DB_CASSANDRA_COORDINATOR_ID: &str = "db.cassandra.coordinator.id";
 
-/// Whether or not the query is idempotent.
+/// Deprecated, use `cassandra.query.idempotent` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.query.idempotent`.")]
 pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 
-/// The fetch size used for paging, i.e. how many rows will be returned at once.
+/// Deprecated, use `cassandra.page.size` instead.
 ///
 /// ## Notes
 ///
@@ -1447,9 +1682,10 @@ pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 ///
 /// - `5000`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.page.size`.")]
 pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 
-/// The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
+/// Deprecated, use `cassandra.speculative_execution.count` instead.
 ///
 /// ## Notes
 ///
@@ -1458,6 +1694,7 @@ pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 /// - `0`
 /// - `2`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `cassandra.speculative_execution.count`.")]
 pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
     "db.cassandra.speculative_execution_count";
 
@@ -1526,8 +1763,6 @@ pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 /// For batch operations, if the individual operations are known to have the same collection name
 /// then that collection name SHOULD be used.
 ///
-/// This attribute has stability level RELEASE CANDIDATE.
-///
 /// # Examples
 ///
 /// - `"public.users"`
@@ -1546,7 +1781,7 @@ pub const DB_COLLECTION_NAME: &str = "db.collection.name";
 #[deprecated(note = "Replaced by `server.address` and `server.port`.")]
 pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 
-/// Unique Cosmos client instance id.
+/// Deprecated, use `azure.client.id` instead.
 ///
 /// ## Notes
 ///
@@ -1554,15 +1789,17 @@ pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 ///
 /// - `"3ba4827d-4422-483f-b59f-85b74211c11d"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.client.id`.")]
 pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 
-/// Cosmos client connection mode.
+/// Deprecated, use `azure.cosmosdb.connection.mode` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.connection.mode`.")]
 pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 
-/// Account or request [consistency level](https://learn.microsoft.com/azure/cosmos-db/consistency-levels).
+/// Deprecated, use `cosmosdb.consistency.level` instead.
 ///
 /// ## Notes
 ///
@@ -1574,6 +1811,7 @@ pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 /// - `"Strong"`
 /// - `"Session"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.consistency.level`.")]
 pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
 
 /// Deprecated, use `db.collection.name` instead.
@@ -1594,11 +1832,9 @@ pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 #[deprecated(note = "No replacement at this time.")]
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 
-/// List of regions contacted during operation in the order that they were contacted. If there is more than one region listed, it indicates that the operation was performed on multiple regions i.e. cross-regional call.
+/// Deprecated, use `azure.cosmosdb.operation.contacted_regions` instead.
 ///
 /// ## Notes
-///
-/// Region name matches the format of `displayName` in [Azure Location API](https://learn.microsoft.com/rest/api/subscription/subscriptions/list-locations?view=rest-subscription-2021-10-01&tabs=HTTP#location)
 ///
 /// # Examples
 ///
@@ -1608,9 +1844,10 @@ pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 ///  "Australia Southeast",
 /// ]`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.operation.contacted_regions`.")]
 pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 
-/// Request units consumed for the operation.
+/// Deprecated, use `azure.cosmosdb.operation.request_charge` instead.
 ///
 /// ## Notes
 ///
@@ -1619,12 +1856,14 @@ pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 /// - `46.18`
 /// - `1.0`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.operation.request_charge`.")]
 pub const DB_COSMOSDB_REQUEST_CHARGE: &str = "db.cosmosdb.request_charge";
 
-/// Request payload size in bytes.
+/// Deprecated, use `azure.cosmosdb.request.body.size` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.request.body.size`.")]
 pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_content_length";
 
 /// Deprecated, use `db.response.status_code` instead.
@@ -1639,7 +1878,7 @@ pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_conten
 #[deprecated(note = "Replaced by `db.response.status_code`.")]
 pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 
-/// Cosmos DB sub status code.
+/// Deprecated, use `azure.cosmosdb.response.sub_status_code` instead.
 ///
 /// ## Notes
 ///
@@ -1648,6 +1887,7 @@ pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 /// - `1000`
 /// - `1002`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.response.sub_status_code`.")]
 pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 
 /// Deprecated, use `db.namespace` instead.
@@ -1661,7 +1901,7 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 #[deprecated(note = "Replaced by `db.namespace`.")]
 pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 
-/// Represents the human-readable identifier of the node/instance to which a request was routed.
+/// Deprecated, use `elasticsearch.node.name` instead.
 ///
 /// ## Notes
 ///
@@ -1669,19 +1909,19 @@ pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 ///
 /// - `"instance-0000000001"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `elasticsearch.node.name`.")]
 pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 
-/// A dynamic value in the url path.
+/// Deprecated, use `db.operation.parameter` instead.
 ///
 /// ## Notes
-///
-/// Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.[key]`, where `[key]` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.
 ///
 /// # Examples
 ///
 /// - `"db.elasticsearch.path_parts.index=test-index"`
 /// - `"db.elasticsearch.path_parts.doc_id=123"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `db.operation.parameter`.")]
 pub const DB_ELASTICSEARCH_PATH_PARTS: &str = "db.elasticsearch.path_parts";
 
 /// Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.
@@ -1750,7 +1990,6 @@ pub const DB_NAME: &str = "db.name";
 /// If a database system has multiple namespace components, they SHOULD be concatenated (potentially using database system specific conventions) from most general to most specific namespace component, and more specific namespaces SHOULD NOT be captured without the more general namespaces, to ensure that "startswith" queries for the more general namespaces will be valid.
 /// Semantic conventions for individual database systems SHOULD document what `db.namespace` means in the context of that system.
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1777,7 +2016,6 @@ pub const DB_OPERATION: &str = "db.operation";
 /// ## Notes
 ///
 /// Operations are only considered batches when they contain two or more operations, and so `db.operation.batch.size` SHOULD never be `1`.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1802,8 +2040,6 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// otherwise `db.operation.name` SHOULD be `BATCH` or some other database
 /// system specific term if more applicable.
 ///
-/// This attribute has stability level RELEASE CANDIDATE.
-///
 /// # Examples
 ///
 /// - `"findAndModify"`
@@ -1818,7 +2054,6 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 ///
 /// If a parameter has no name and instead is referenced only by index, then `[key]` SHOULD be the 0-based index.
 /// If `db.query.text` is also captured, then `db.operation.parameter.[key]` SHOULD match up with the parameterized placeholders present in `db.query.text`.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1845,7 +2080,6 @@ pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
 ///
 /// `db.query.summary` provides static summary of the query text. It describes a class of database queries and is useful as a grouping key, especially when analyzing telemetry for database calls involving complex queries.
 /// Summary may be available to the instrumentation through instrumentation hooks or other means. If it is not available, instrumentations that support query parsing SHOULD generate a summary following [Generating query summary](../../docs/database/database-spans.md#generating-a-summary-of-the-query-text) section.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1862,7 +2096,6 @@ pub const DB_QUERY_SUMMARY: &str = "db.query.summary";
 /// For sanitization see [Sanitization of `db.query.text`](../../docs/database/database-spans.md#sanitization-of-dbquerytext).
 /// For batch operations, if the individual operations are known to have the same query text then that query text SHOULD be used, otherwise all of the individual query texts SHOULD be concatenated with separator `; ` or some other database system specific separator if more applicable.
 /// Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1902,7 +2135,6 @@ pub const DB_RESPONSE_RETURNED_ROWS: &str = "db.response.returned_rows";
 ///
 /// The status code returned by the database. Usually it represents an error code, but may also represent partial success, warning, or differentiate between various types of successful outcomes.
 /// Semantic conventions for individual database systems SHOULD document what `db.response.status_code` means in the context of that system.
-/// This attribute has stability level RELEASE CANDIDATE.
 ///
 /// # Examples
 ///
@@ -1936,14 +2168,20 @@ pub const DB_SQL_TABLE: &str = "db.sql.table";
 #[deprecated(note = "Replaced by `db.query.text`.")]
 pub const DB_STATEMENT: &str = "db.statement";
 
+/// Deprecated, use `db.system.name` instead.
+///
+/// ## Notes
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `db.system.name`.")]
+pub const DB_SYSTEM: &str = "db.system";
+
 /// The database management system (DBMS) product as identified by the client instrumentation.
 ///
 /// ## Notes
 ///
-/// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system` is set to `postgresql` based on the instrumentation's best knowledge.
-/// This attribute has stability level RELEASE CANDIDATE
+/// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system.name` is set to `postgresql` based on the instrumentation's best knowledge
 #[cfg(feature = "semconv_experimental")]
-pub const DB_SYSTEM: &str = "db.system";
+pub const DB_SYSTEM_NAME: &str = "db.system.name";
 
 /// Deprecated, no replacement at this time.
 ///
@@ -2123,8 +2361,17 @@ pub const DNS_QUESTION_NAME: &str = "dns.question.name";
 /// - `"gen0"`
 /// - `"gen1"`
 /// - `"gen2"`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_GC_HEAP_GENERATION: &str = "dotnet.gc.heap.generation";
+
+/// Represents the human-readable identifier of the node/instance to which a request was routed.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"instance-0000000001"`
+#[cfg(feature = "semconv_experimental")]
+pub const ELASTICSEARCH_NODE_NAME: &str = "elasticsearch.node.name";
 
 /// Deprecated, use `user.id` instead.
 ///
@@ -2195,35 +2442,20 @@ pub const ERROR_TYPE: &str = "error.type";
 ///
 /// ## Notes
 ///
-/// Event names are subject to the same rules as [attribute names](/docs/general/attribute-naming.md). Notably, event names are namespaced to avoid collisions and provide a clean separation of semantics for events in separate domains like browser, mobile, and kubernetes.
-///
 /// # Examples
 ///
 /// - `"browser.mouse.click"`
 /// - `"device.app.lifecycle"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by EventName top-level field on the LogRecord")]
 pub const EVENT_NAME: &str = "event.name";
 
-/// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
+/// Indicates that the exception is escaping the scope of the span.
 ///
 /// ## Notes
-///
-/// An exception is considered to have escaped (or left) the scope of a span,
-/// if that span is ended while the exception is still logically "in flight".
-/// This may be actually "in flight" in some languages (e.g. if the exception
-/// is passed to a Context manager's `__exit__` method in Python) but will
-/// usually be caught at the point of recording the exception in most languages.
-///
-/// It is usually not possible to determine at the point where an exception is thrown
-/// whether it will escape the scope of a span.
-/// However, it is trivial to know that an exception
-/// will escape, if one checks for an active exception just before ending the span,
-/// as done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).
-///
-/// It follows that an exception may still escape the scope of the span
-/// even if the `exception.escaped` attribute was not set or set to false,
-/// since the event might have been recorded at a time where it was not
-/// clear whether the exception will escape
+#[deprecated(
+    note = "It's no longer recommended to record exceptions that are handled and do not escape the scope of a span."
+)]
 pub const EXCEPTION_ESCAPED: &str = "exception.escaped";
 
 /// The exception message.
@@ -2382,7 +2614,7 @@ pub const FAAS_MAX_MEMORY: &str = "faas.max_memory";
 /// This is the name of the function as configured/deployed on the FaaS
 /// platform and is usually different from the name of the callback
 /// function (which may be stored in the
-/// [`code.namespace`/`code.function`](/docs/general/attributes.md#source-code-attributes)
+/// [`code.namespace`/`code.function.name`](/docs/general/attributes.md#source-code-attributes)
 /// span attributes).
 ///
 /// For some cloud providers, the above definition is ambiguous. The following
@@ -2811,7 +3043,7 @@ pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.response_format";
 
-/// Requests with same seed value more likely to return same result.
+/// Deprecated, use `gen_ai.request.seed`.
 ///
 /// ## Notes
 ///
@@ -2819,6 +3051,7 @@ pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.r
 ///
 /// - `100`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `gen_ai.request.seed` attribute.")]
 pub const GEN_AI_OPENAI_REQUEST_SEED: &str = "gen_ai.openai.request.seed";
 
 /// The service tier requested. May be a specific tier, default, or auto.
@@ -2931,6 +3164,16 @@ pub const GEN_AI_REQUEST_MODEL: &str = "gen_ai.request.model";
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_REQUEST_PRESENCE_PENALTY: &str = "gen_ai.request.presence_penalty";
 
+/// Requests with same seed value more likely to return same result.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `100`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_REQUEST_SEED: &str = "gen_ai.request.seed";
+
 /// List of sequences that the model will use to stop generating further tokens.
 ///
 /// ## Notes
@@ -3018,8 +3261,10 @@ pub const GEN_AI_RESPONSE_MODEL: &str = "gen_ai.response.model";
 /// by `gen_ai.request.model` and `gen_ai.response.model` attributes.
 ///
 /// The actual GenAI product may differ from the one identified by the client.
-/// For example, when using OpenAI client libraries to communicate with Mistral, the `gen_ai.system`
-/// is set to `openai` based on the instrumentation's best knowledge.
+/// Multiple systems, including Azure OpenAI and Gemini, are accessible by OpenAI client
+/// libraries. In such cases, the `gen_ai.system` is set to `openai` based on the
+/// instrumentation's best knowledge, instead of the actual system. The `server.address`
+/// attribute may help identify the actual system in use for `openai`.
 ///
 /// For custom model, a custom friendly name SHOULD be used.
 /// If none of these options apply, the `gen_ai.system` SHOULD be set to `_OTHER`.
@@ -3983,6 +4228,20 @@ pub const K8S_JOB_UID: &str = "k8s.job.uid";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NAMESPACE_NAME: &str = "k8s.namespace.name";
 
+/// The phase of the K8s namespace.
+///
+/// ## Notes
+///
+/// This attribute aligns with the `phase` field of the
+/// [K8s NamespaceStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#namespacestatus-v1-core)
+///
+/// # Examples
+///
+/// - `"active"`
+/// - `"terminating"`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
+
 /// The name of the Node.
 ///
 /// ## Notes
@@ -4912,6 +5171,18 @@ pub const NETWORK_CARRIER_MNC: &str = "network.carrier.mnc";
 #[cfg(feature = "semconv_experimental")]
 pub const NETWORK_CARRIER_NAME: &str = "network.carrier.name";
 
+/// The state of network connection
+///
+/// ## Notes
+///
+/// Connection states are defined as part of the [rfc9293](https://datatracker.ietf.org/doc/html/rfc9293#section-3.3.2)
+///
+/// # Examples
+///
+/// - `"close_wait"`
+#[cfg(feature = "semconv_experimental")]
+pub const NETWORK_CONNECTION_STATE: &str = "network.connection.state";
+
 /// This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.
 ///
 /// ## Notes
@@ -4940,6 +5211,7 @@ pub const NETWORK_CONNECTION_TYPE: &str = "network.connection.type";
 ///
 /// - `"lo"`
 /// - `"eth0"`
+#[cfg(feature = "semconv_experimental")]
 pub const NETWORK_INTERFACE_NAME: &str = "network.interface.name";
 
 /// The network IO operation direction.
@@ -5703,7 +5975,7 @@ pub const RPC_MESSAGE_UNCOMPRESSED_SIZE: &str = "rpc.message.uncompressed_size";
 ///
 /// ## Notes
 ///
-/// This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+/// This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function.name` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
 ///
 /// # Examples
 ///
@@ -5728,6 +6000,89 @@ pub const RPC_SERVICE: &str = "rpc.service";
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SYSTEM: &str = "rpc.system";
+
+/// A categorization value keyword used by the entity using the rule for detection of this event
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Attempted Information Leak"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_CATEGORY: &str = "security_rule.category";
+
+/// The description of the rule generating the event.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Block requests to public DNS over HTTPS / TLS protocols"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_DESCRIPTION: &str = "security_rule.description";
+
+/// Name of the license under which the rule used to generate this event is made available.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Apache 2.0"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_LICENSE: &str = "security_rule.license";
+
+/// The name of the rule or signature generating the event.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"BLOCK_DNS_over_TLS"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_NAME: &str = "security_rule.name";
+
+/// Reference URL to additional information about the rule used to generate this event.
+///
+/// ## Notes
+///
+/// The URL can point to the vendor’s documentation about the rule. If that’s not available, it can also be a link to a more general page describing this type of alert.
+///
+/// # Examples
+///
+/// - `"https://en.wikipedia.org/wiki/DNS_over_TLS"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_REFERENCE: &str = "security_rule.reference";
+
+/// Name of the ruleset, policy, group, or parent category in which the rule used to generate this event is a member.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Standard_Protocol_Filters"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_RULESET_NAME: &str = "security_rule.ruleset.name";
+
+/// A rule ID that is unique within the scope of a set or group of agents, observers, or other entities using the rule for detection of this event.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"550e8400-e29b-41d4-a716-446655440000"`
+/// - `"1100110011"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_UUID: &str = "security_rule.uuid";
+
+/// The version / revision of the rule being used for analysis.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"1.0.0"`
+#[cfg(feature = "semconv_experimental")]
+pub const SECURITY_RULE_VERSION: &str = "security_rule.version";
 
 /// Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
 ///
@@ -5973,7 +6328,7 @@ pub const SYSTEM_FILESYSTEM_TYPE: &str = "system.filesystem.type";
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
 
-/// A stateless protocol MUST NOT set this attribute
+/// Deprecated, use `network.connection.state` instead.
 ///
 /// ## Notes
 ///
@@ -5981,6 +6336,9 @@ pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
 ///
 /// - `"close_wait"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "Removed, report network connection state with `network.connection.state` attribute"
+)]
 pub const SYSTEM_NETWORK_STATE: &str = "system.network.state";
 
 /// The paging access direction
@@ -6820,6 +7178,10 @@ pub const VCS_LINE_CHANGE_TYPE: &str = "vcs.line_change.type";
 ///
 /// ## Notes
 ///
+/// `base` refers to the starting point of a change. For example, `main`
+/// would be the base reference of type branch if you've created a new
+/// reference of type branch from it and created new commits.
+///
 /// # Examples
 ///
 /// - `"my-feature-branch"`
@@ -6831,15 +7193,19 @@ pub const VCS_REF_BASE_NAME: &str = "vcs.ref.base.name";
 ///
 /// ## Notes
 ///
-/// The revision can be a full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
+/// `base` refers to the starting point of a change. For example, `main`
+/// would be the base reference of type branch if you've created a new
+/// reference of type branch from it and created new commits. The
+/// revision can be a full [hash value (see
+/// glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
 /// of the recorded change to a ref within a repository pointing to a
 /// commit [commit](https://git-scm.com/docs/git-commit) object. It does
-/// not necessarily have to be a hash; it can simply define a
-/// [revision number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
+/// not necessarily have to be a hash; it can simply define a [revision
+/// number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
 /// which is an integer that is monotonically increasing. In cases where
-/// it is identical to the `ref.base.name`, it SHOULD still be included. It is
-/// up to the implementer to decide which value to set as the revision
-/// based on the VCS system and situational context.
+/// it is identical to the `ref.base.name`, it SHOULD still be included.
+/// It is up to the implementer to decide which value to set as the
+/// revision based on the VCS system and situational context.
 ///
 /// # Examples
 ///
@@ -6854,6 +7220,10 @@ pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 ///
 /// ## Notes
 ///
+/// `base` refers to the starting point of a change. For example, `main`
+/// would be the base reference of type branch if you've created a new
+/// reference of type branch from it and created new commits.
+///
 /// # Examples
 ///
 /// - `"branch"`
@@ -6864,6 +7234,9 @@ pub const VCS_REF_BASE_TYPE: &str = "vcs.ref.base.type";
 /// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
 ///
 /// ## Notes
+///
+/// `head` refers to where you are right now; the current reference at a
+/// given time.
 ///
 /// # Examples
 ///
@@ -6876,15 +7249,17 @@ pub const VCS_REF_HEAD_NAME: &str = "vcs.ref.head.name";
 ///
 /// ## Notes
 ///
-/// The revision can be a full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
+/// `head` refers to where you are right now; the current reference at a
+/// given time.The revision can be a full [hash value (see
+/// glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
 /// of the recorded change to a ref within a repository pointing to a
 /// commit [commit](https://git-scm.com/docs/git-commit) object. It does
-/// not necessarily have to be a hash; it can simply define a
-/// [revision number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
+/// not necessarily have to be a hash; it can simply define a [revision
+/// number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
 /// which is an integer that is monotonically increasing. In cases where
-/// it is identical to the `ref.head.name`, it SHOULD still be included. It is
-/// up to the implementer to decide which value to set as the revision
-/// based on the VCS system and situational context.
+/// it is identical to the `ref.head.name`, it SHOULD still be included.
+/// It is up to the implementer to decide which value to set as the
+/// revision based on the VCS system and situational context.
 ///
 /// # Examples
 ///
@@ -6898,6 +7273,9 @@ pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
 /// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
 /// ## Notes
+///
+/// `head` refers to where you are right now; the current reference at a
+/// given time.
 ///
 /// # Examples
 ///
@@ -6941,6 +7319,21 @@ pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
 #[deprecated(note = "Deprecated, use `vcs.change.title` instead.")]
 pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
 
+/// The human readable name of the repository. It SHOULD NOT include any additional identifier like Group/SubGroup in GitLab or organization in GitHub.
+///
+/// ## Notes
+///
+/// Due to it only being the name, it can clash with forks of the same
+/// repository if collecting telemetry across multiple orgs or groups in
+/// the same backends.
+///
+/// # Examples
+///
+/// - `"semantic-conventions"`
+/// - `"my-cool-repo"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_REPOSITORY_NAME: &str = "vcs.repository.name";
+
 /// Deprecated, use `vcs.ref.head.name` instead.
 ///
 /// ## Notes
@@ -6979,9 +7372,12 @@ pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 #[deprecated(note = "Deprecated, use `vcs.ref.head.type` instead.")]
 pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 
-/// The [URL](https://wikipedia.org/wiki/URL) of the repository providing the complete address in order to locate and identify the repository.
+/// The [canonical URL](https://support.google.com/webmasters/answer/10347851?hl=en#:~:text=A%20canonical%20URL%20is%20the,Google%20chooses%20one%20as%20canonical.) of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.
 ///
 /// ## Notes
+///
+/// In Git Version Control Systems, the canonical URL SHOULD NOT include
+/// the `.git` extension.
 ///
 /// # Examples
 ///
