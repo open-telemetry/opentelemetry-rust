@@ -48,7 +48,15 @@ expression='
   s/\[([a-zA-Z0-9\.\s]+,[a-zA-Z0-9\.\s]+)\]/\\[\1\\]/g
   s/\\\[([^\]]+)\]\(([^)]+)\)/[\1](\2)/g
 '
+
+# TODO - remove this with semconv 1.31.0. Refer: https://github.com/open-telemetry/semantic-conventions/pull/1827
+# Fix broken and malformed K8s JobSpec link
+# Convert improperly escaped links and fix malformed URLs
+link_fix_expression='s/v1\.30\/#jobspec-v1-batch\./v1.30\/#jobspec-v1-batch)\./g'
+
 "${SED[@]}" -E "${expression}" src/metric.rs
 "${SED[@]}" -E "${expression}" src/attribute.rs
+"${SED[@]}" -E "${link_fix_expression}" src/metric.rs
+
 
 cargo fmt
