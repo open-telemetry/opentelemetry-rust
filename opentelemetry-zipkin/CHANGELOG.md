@@ -19,6 +19,8 @@
   let provider = TracerProvider::builder()
       .with_simple_exporter(exporter)
       .build();
+  global::set_tracer_provider(provider.clone());
+
   let tracer = global::tracer("zipkin-tracer");
   ```
 
