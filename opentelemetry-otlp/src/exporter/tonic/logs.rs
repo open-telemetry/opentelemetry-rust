@@ -3,7 +3,7 @@ use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 

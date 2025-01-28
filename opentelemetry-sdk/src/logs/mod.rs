@@ -1,15 +1,25 @@
 //! # OpenTelemetry Log SDK
 mod error;
-mod log_emitter;
+mod export;
 mod log_processor;
+mod logger_provider;
 pub(crate) mod record;
 
+/// In-Memory log exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+
 pub use error::{LogError, LogResult};
-pub use log_emitter::{Builder, Logger, LoggerProvider};
+pub use export::{ExportResult, LogBatch, LogExporter};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
+pub use logger_provider::{Logger, LoggerProvider, LoggerProviderBuilder};
 pub use record::{LogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
@@ -19,7 +29,6 @@ pub mod log_processor_with_async_runtime;
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use crate::testing::logs::InMemoryLogExporter;
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};

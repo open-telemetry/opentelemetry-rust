@@ -8,7 +8,7 @@ pub mod tonic {
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
-    use opentelemetry_sdk::export::trace::SpanData;
+    use opentelemetry_sdk::trace::SpanData;
     use std::collections::HashMap;
 
     impl From<SpanKind> for span::SpanKind {
@@ -45,8 +45,8 @@ pub mod tonic {
             }
         }
     }
-    impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
-        fn from(source_span: opentelemetry_sdk::export::trace::SpanData) -> Self {
+    impl From<opentelemetry_sdk::trace::SpanData> for Span {
+        fn from(source_span: opentelemetry_sdk::trace::SpanData) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             Span {
                 trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
@@ -198,8 +198,8 @@ mod tests {
     };
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
-    use opentelemetry_sdk::export::trace::SpanData;
     use opentelemetry_sdk::resource::Resource;
+    use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use std::borrow::Cow;
     use std::time::{Duration, SystemTime};

@@ -116,7 +116,9 @@ use opentelemetry::{
     InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
-use opentelemetry_semantic_conventions::attribute::{CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE};
+use opentelemetry_semantic_conventions::attribute::{
+    CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+};
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -158,7 +160,7 @@ where
                 }
 
                 if let Some(line_no) = record.line() {
-                    log_record.add_attribute(Key::new(CODE_LINENO), AnyValue::from(line_no));
+                    log_record.add_attribute(Key::new(CODE_LINE_NUMBER), AnyValue::from(line_no));
                 }
 
                 if let Some(module) = record.module_path() {
@@ -769,7 +771,7 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogExporter};
+    use opentelemetry_sdk::{logs::InMemoryLogExporter, logs::LoggerProvider};
 
     use log::Log;
 
@@ -1171,7 +1173,7 @@ mod tests {
     #[test]
     fn logbridge_code_attributes() {
         use opentelemetry_semantic_conventions::attribute::{
-            CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
+            CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
         };
 
         let exporter = InMemoryLogExporter::default();
@@ -1212,7 +1214,7 @@ mod tests {
             Some(AnyValue::String(StringValue::from("service"))),
             get(CODE_NAMESPACE)
         );
-        assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINENO));
+        assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINE_NUMBER));
     }
 
     #[test]

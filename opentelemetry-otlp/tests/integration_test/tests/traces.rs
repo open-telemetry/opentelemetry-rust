@@ -48,6 +48,7 @@ const LEMONS_KEY: Key = Key::from_static_str("lemons");
 const ANOTHER_KEY: Key = Key::from_static_str("ex.com/another");
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
 pub async fn traces() -> Result<()> {
     test_utils::start_collector_container().await?;
 
