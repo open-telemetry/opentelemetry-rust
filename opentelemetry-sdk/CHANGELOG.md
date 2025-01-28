@@ -2,6 +2,8 @@
 
 ## vNext
 
+- *Feature*: Introduced a new feature flag, `experimental_metrics_disable_name_validation`, under the `opentelemetry-sdk`, which allows disabling the Instrument Name Validation. This is useful in scenarios where you need to use *special characters*, *Windows Perf Counter Wildcard Path*, or similar cases. For more details, check [#2543](https://github.com/open-telemetry/opentelemetry-rust/pull/2543).
+
 - *Breaking(Affects custom metric exporter authors only)* `start_time` and `time` is moved from DataPoints to aggregations (Sum, Gauge, Histogram, ExpoHistogram) see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411), to reduce memory.
 
 - *Breaking* `start_time` is no longer optional for `Sum` aggregation, see [#2367](https://github.com/open-telemetry/opentelemetry-rust/pull/2367), but is still optional for `Gauge` aggregation see [#2389](https://github.com/open-telemetry/opentelemetry-rust/pull/2389).

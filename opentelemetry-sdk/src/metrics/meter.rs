@@ -583,14 +583,6 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
     Ok(())
 }
 
-// Regex pattern for Windows Performance Counter names
-// #[cfg(feature = "experimental_metrics_disable_name_validation")]
-// fn is_valid_windows_perf_counter_name(name: &str) -> bool {
-//     let pattern = r"^\\[A-Za-z0-9_ ]+\\[A-Za-z0-9_ /%-]+$";
-//     let re = Regex::new(pattern).unwrap();
-//     re.is_match(name)
-// }
-
 #[cfg(feature = "experimental_metrics_disable_name_validation")]
 fn validate_instrument_name(_name: &str) -> MetricResult<()> {
     // No name restrictions when name validation is disabled
