@@ -2546,7 +2546,7 @@ pub const K8S_JOB_FAILED_PODS: &str = "k8s.job.failed_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `parallelism` field of the
-/// \[K8s JobSpec\](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch).
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch).
 ///
 /// This metric SHOULD, at a minimum, be reported against a
 /// [`k8s.job`](../resource/k8s.md#job) resource
