@@ -35,7 +35,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
-pub use provider::{Builder, TracerProvider};
+pub use provider::{TracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
