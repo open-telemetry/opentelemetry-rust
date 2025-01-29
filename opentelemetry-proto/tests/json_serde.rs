@@ -1705,7 +1705,9 @@ mod json_serde {
 
                 // Verify that quantile values are NaN
                 assert!(data_point.quantile_values[0].value.is_nan());
+                assert!(data_point.quantile_values[0].quantile == 0.5);
                 assert!(data_point.quantile_values[1].value.is_nan());
+                assert!(data_point.quantile_values[1].quantile == 0.9);
             } else {
                 panic!("Expected metric data to be of type Summary");
             }
