@@ -189,9 +189,8 @@ pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
 /// TODO - fix this asynchronously.
 ///
 #[cfg(test)]
-#[cfg(not(feature = "hyper-client"))]
-#[cfg(not(feature = "reqwest-client"))]
-mod tests {
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+mod metrictests {
 
     use super::*;
     use opentelemetry::metrics::MeterProvider;
@@ -246,7 +245,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    // #[ignore] // skip when running unit test
     async fn test_histogram() -> Result<()> {
         _ = setup_metrics_test().await;
         const METER_NAME: &str = "test_histogram_meter";
@@ -263,7 +261,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    // #[ignore] // skip when running unit test
     async fn test_up_down_counter() -> Result<()> {
         _ = setup_metrics_test().await;
         const METER_NAME: &str = "test_up_down_meter";

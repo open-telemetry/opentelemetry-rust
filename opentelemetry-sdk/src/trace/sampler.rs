@@ -57,7 +57,7 @@ use opentelemetry_http::HttpClient;
 /// [OpenTelemetry SDK]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#sampling
 /// [`SpanContext`]: opentelemetry::trace::SpanContext
 /// [`SpanContext::trace_flags()`]: opentelemetry::trace::SpanContext#method.trace_flags
-/// [`SpanExporter`]: crate::export::trace::SpanExporter
+/// [`SpanExporter`]: crate::trace::SpanExporter
 /// [`SpanProcessor`]: crate::trace::SpanProcessor
 /// [`Span`]: opentelemetry::trace::Span
 /// [`Span::is_recording()`]: opentelemetry::trace::Span#tymethod.is_recording
