@@ -27,7 +27,7 @@ impl MetricsClient for OtlpHttpClient {
             .method(Method::POST)
             .uri(&self.collector_endpoint)
             .header(CONTENT_TYPE, content_type)
-            .body(body)
+            .body(body.into())
             .map_err(|e| crate::Error::RequestFailed(Box::new(e)))?;
 
         for (k, v) in &self.headers {
@@ -36,7 +36,7 @@ impl MetricsClient for OtlpHttpClient {
 
         otel_debug!(name: "HttpMetricsClient.CallingExport");
         client
-            .send(request)
+            .send_bytes(request)
             .await
             .map_err(|e| MetricError::ExportErr(Box::new(Error::RequestFailed(e))))?;
 

@@ -128,10 +128,10 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for HyperClient {
-//!     async fn send(&self, req: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+//!     async fn send_bytes(&self, req: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
 //!         let resp = self
 //!             .0
-//!             .request(req.map(|v| Full::new(Bytes::from(v))))
+//!             .request(req.map(|v| Full::new(v)))
 //!             .await?;
 //!
 //!         let response = Response::builder()
