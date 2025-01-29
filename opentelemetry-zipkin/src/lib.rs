@@ -21,12 +21,23 @@
 //! telemetry:
 //!
 //! ```no_run
-//! use opentelemetry::trace::{Tracer, TraceError};
 //! use opentelemetry::global;
+//! use opentelemetry::trace::{Tracer, TraceError};
+//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry_zipkin::ZipkinExporter;
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let (tracer, provider) = opentelemetry_zipkin::new_pipeline().install_simple()?;
+//!
+//!     let exporter = ZipkinExporter::builder()
+//!         .with_service_name("trace-demo")
+//!         .build()?;
+//!     let provider = TracerProvider::builder()
+//!         .with_simple_exporter(exporter)
+//!         .build();
+//!     global::set_tracer_provider(provider.clone());
+//!
+//!     let tracer = global::tracer("zipkin-tracer");
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -41,27 +52,35 @@
 //! ## Performance
 //!
 //! For optimal performance, a batch exporter is recommended as the simple exporter
-//! will export each span synchronously on drop. You can enable the [`rt-tokio`],
-//! [`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
-//! on the pipeline builder to have a batch exporter configured for you
-//! automatically.
-//!
-//! ```toml
-//! [dependencies]
-//! opentelemetry = { version = "*", features = ["rt-tokio"] }
-//! opentelemetry-zipkin = { version = "*", features = ["reqwest-client"], default-features = false }
-//! ```
+//! will export each span synchronously on drop. You can achieve this by creating a
+//! `BatchSpanProcessor` and passing it to the trace provider.
 //!
 //! ```no_run
-//! # fn main() -> Result<(), opentelemetry::trace::TraceError> {
-//! let tracer = opentelemetry_zipkin::new_pipeline()
-//!     .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-//! # Ok(())
-//! # }
-//! ```
+//! use opentelemetry_sdk::{
+//!     trace::{
+//!         BatchSpanProcessor,
+//!         BatchConfigBuilder,
+//!         TracerProvider,
+//!     }
+//! };
+//! use opentelemetry_zipkin::ZipkinExporter;
 //!
-//! [`rt-tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
+//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//!     let exporter = ZipkinExporter::builder()
+//!         .with_service_name("runtime-demo")
+//!         .build()?;
+//!
+//!     let batch = BatchSpanProcessor::builder(exporter)
+//!         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
+//!         .build();
+//!
+//!     let provider = TracerProvider::builder()
+//!         .with_span_processor(batch)
+//!         .build();
+//!
+//!     Ok(())
+//! }
+//! ```
 //!
 //! ## Choosing an HTTP client
 //!
@@ -81,14 +100,14 @@
 //! ## Kitchen Sink Full Configuration
 //!
 //! Example showing how to override all configuration options. See the
-//! [`ZipkinPipelineBuilder`] docs for details of each option.
+//! [`ZipkinExporterBuilder`] docs for details of each option.
 //!
 //!
 //! ```no_run
-//! use opentelemetry::{global, KeyValue, trace::Tracer};
-//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! use opentelemetry_sdk::trace::ExportResult;
+//! use opentelemetry::{global, InstrumentationScope, KeyValue, trace::{Tracer, TraceError}};
+//! use opentelemetry_sdk::{trace::{self, ExportResult, RandomIdGenerator, Sampler}, Resource};
 //! use opentelemetry_http::{HttpClient, HttpError};
+//! use opentelemetry_zipkin::{Error as ZipkinError, ZipkinExporter};
 //! use async_trait::async_trait;
 //! use bytes::Bytes;
 //! use futures_util::io::AsyncReadExt as _;
@@ -109,10 +128,10 @@
 //!
 //! #[async_trait]
 //! impl HttpClient for HyperClient {
-//!     async fn send(&self, req: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+//!     async fn send_bytes(&self, req: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
 //!         let resp = self
 //!             .0
-//!             .request(req.map(|v| Full::new(Bytes::from(v))))
+//!             .request(req.map(|v| Full::new(v)))
 //!             .await?;
 //!
 //!         let response = Response::builder()
@@ -129,9 +148,8 @@
 //!     }
 //! }
 //!
-//! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-//!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
-//!     let (tracer, provider) = opentelemetry_zipkin::new_pipeline()
+//! fn init_traces() -> Result<trace::TracerProvider, TraceError> {
+//!     let exporter = ZipkinExporter::builder()
 //!         .with_http_client(
 //!             HyperClient(
 //!                 Client::builder(TokioExecutor::new())
@@ -139,18 +157,40 @@
 //!             )
 //!         )
 //!         .with_service_name("my_app")
-//!         .with_service_address("127.0.0.1:8080".parse()?)
-//!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
-//!         .with_trace_config(
-//!             trace::config()
-//!                 .with_sampler(Sampler::AlwaysOn)
-//!                 .with_id_generator(RandomIdGenerator::default())
-//!                 .with_max_events_per_span(64)
-//!                 .with_max_attributes_per_span(16)
-//!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::builder_empty().with_attribute(KeyValue::new("key", "value")).build()),
+//!         .with_service_address(
+//!             "127.0.0.1:8080"
+//!                 .parse()
+//!                 .map_err::<ZipkinError, _>(Into::into)?
 //!         )
-//!         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+//!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
+//!         .build()?;
+//!
+//!     Ok(trace::TracerProvider::builder()
+//!         .with_sampler(Sampler::AlwaysOn)
+//!         .with_batch_exporter(exporter)
+//!         .with_id_generator(RandomIdGenerator::default())
+//!         .with_max_events_per_span(64)
+//!         .with_max_attributes_per_span(16)
+//!         .with_max_events_per_span(16)
+//!         .with_resource(
+//!             Resource::builder_empty()
+//!                 .with_attribute(KeyValue::new("key", "value"))
+//!                 .build()
+//!         )
+//!         .build())
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+//!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
+//!     let provider = init_traces()?;
+//!     global::set_tracer_provider(provider.clone());
+//!
+//!     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
+//!     let scope = InstrumentationScope::builder("opentelemetry-zipkin")
+//!         .with_version(env!("CARGO_PKG_VERSION"))
+//!         .with_attributes(common_scope_attributes)
+//!         .build();
+//!     let tracer = global::tracer_with_scope(scope.clone());
 //!
 //!     tracer.in_span("doing_work", |cx| {
 //!         // Traced app logic here...
@@ -208,5 +248,5 @@ extern crate typed_builder;
 mod exporter;
 mod propagator;
 
-pub use exporter::{new_pipeline, Error, Exporter, ZipkinPipelineBuilder};
+pub use exporter::{Error, ZipkinExporter, ZipkinExporterBuilder};
 pub use propagator::{B3Encoding, Propagator};

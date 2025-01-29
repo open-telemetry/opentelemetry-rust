@@ -30,7 +30,7 @@ impl SpanExporter for OtlpHttpClient {
             .method(Method::POST)
             .uri(&self.collector_endpoint)
             .header(CONTENT_TYPE, content_type)
-            .body(body)
+            .body(body.into())
         {
             Ok(req) => req,
             Err(e) => {
@@ -48,7 +48,7 @@ impl SpanExporter for OtlpHttpClient {
         Box::pin(async move {
             let request_uri = request.uri().to_string();
             otel_debug!(name: "HttpTracesClient.CallingExport");
-            let response = client.send(request).await?;
+            let response = client.send_bytes(request).await?;
 
             if !response.status().is_success() {
                 let error = format!(
