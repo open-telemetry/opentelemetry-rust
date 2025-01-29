@@ -23,7 +23,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+async fn main() {
     // Initialize the MeterProvider with the stdout Exporter.
     let meter_provider = init_meter_provider();
 
@@ -140,6 +140,32 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Metrics are exported by default every 30 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
-    meter_provider.shutdown()?;
-    Ok(())
+    let shutdown_result = meter_provider.shutdown();
+    
+    // Demonstrate handling the shutdown result.
+    match shutdown_result {
+        Ok(_) => println!("MeterProvider shutdown successfully"),
+        Err(e) => {
+            match e {
+                opentelemetry_sdk::error::ShutdownError::Failed(e) => {
+                    // This indicates some failure during shutdown.
+                    // Not much to do here, but log the error.
+                    // So users at least know something went wrong,
+                    // and possibly explain why some metrics were not exported.
+                    println!("MeterProvider shutdown failed: {}", e)
+                }
+                opentelemetry_sdk::error::ShutdownError::AlreadyShutdown => {
+                    // This indicates some user code tried to shutdown elsewhere.
+                    // user need to review their code to ensure shutdown is called only once.
+                    println!("MeterProvider already shutdown")
+                }
+                opentelemetry_sdk::error::ShutdownError::Timeout(e) => {
+                    // This indicates the shutdown timed out, and a good
+                    // hint to user to increase the timeout or even retry.
+                    // (Shutdown method does not allow custom timeout today, but that is temporary)
+                    println!("MeterProvider shutdown timed out after {:?}", e)
+                }
+            }
+        }
+    }
 }
