@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use crate::metrics::MetricResult;
+use crate::{error::ShutdownResult, metrics::MetricResult};
 
 use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
@@ -46,7 +46,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> MetricResult<()>;
+    fn shutdown(&self) -> ShutdownResult;
 
     /// The output temporality, a function of instrument kind.
     /// This SHOULD be obtained from the exporter.

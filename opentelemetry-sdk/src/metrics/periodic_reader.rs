@@ -11,6 +11,7 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
+    error::{ShutdownError, ShutdownResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -399,12 +400,12 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Shutdown(response_tx))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| ShutdownError::Failed(e.to_string()))?;
 
         // TODO: Make this timeout configurable.
         match response_rx.recv_timeout(Duration::from_secs(5)) {
@@ -412,14 +413,14 @@ impl PeriodicReaderInner {
                 if response {
                     Ok(())
                 } else {
-                    Err(MetricError::Other("Failed to shutdown".into()))
+                    Err(ShutdownError::Failed("Failed to shutdown".into()))
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::Other(
-                "Failed to shutdown due to Timeout".into(),
-            )),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                Err(ShutdownError::Timeout(Duration::from_secs(5)))
+            }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                Err(MetricError::Other("Failed to shutdown".into()))
+                Err(ShutdownError::Failed("Failed to shutdown".into()))
             }
         }
     }
@@ -448,7 +449,7 @@ impl MetricReader for PeriodicReader {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         self.inner.shutdown()
     }
 
@@ -468,10 +469,10 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        metrics::InMemoryMetricExporter,
+        error::ShutdownResult,
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
+            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
+            InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
         },
         Resource,
     };
@@ -521,7 +522,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> MetricResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
 
@@ -545,7 +546,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> MetricResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }

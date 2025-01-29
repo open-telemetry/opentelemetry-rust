@@ -8,13 +8,12 @@ use std::{
 use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
+    error::ShutdownResult,
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal,
-        internal::AggregateBuilder,
-        internal::Number,
+        internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
         MetricError, MetricResult,
@@ -96,7 +95,7 @@ impl Pipeline {
     }
 
     /// Shut down pipeline
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         self.reader.shutdown()
     }
 }
@@ -651,7 +650,7 @@ impl Pipelines {
     }
 
     /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> MetricResult<()> {
+    pub(crate) fn shutdown(&self) -> ShutdownResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
@@ -662,7 +661,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(crate::error::ShutdownError::Failed(format!("{errs:?}")))
         }
     }
 }

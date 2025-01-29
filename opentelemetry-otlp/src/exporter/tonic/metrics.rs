@@ -6,6 +6,7 @@ use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
+use opentelemetry_sdk::error::{ShutdownError, ShutdownResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
@@ -89,8 +90,13 @@ impl MetricsClient for TonicMetricsClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        let _ = self.inner.lock()?.take();
+    fn shutdown(&self) -> ShutdownResult {
+        self.inner
+            .lock()
+            .map_err(|e| {
+                ShutdownError::Failed(format!("Internal Error. Failed to acquire lock: {}", e))
+            })?
+            .take();
 
         Ok(())
     }

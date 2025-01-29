@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex, Weak};
 
+use crate::error::ShutdownResult;
 use crate::metrics::{
     data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
@@ -41,13 +42,13 @@ impl MetricReader for TestMetricReader {
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         let result = self.force_flush();
         {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();
             *is_shutdown = true;
         }
-        result
+        result.map_err(|e| crate::error::ShutdownError::Failed(e.to_string()))
     }
 
     fn temporality(&self, _kind: InstrumentKind) -> Temporality {
