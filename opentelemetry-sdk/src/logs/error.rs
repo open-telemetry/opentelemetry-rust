@@ -1,4 +1,4 @@
-use crate::export::ExportError;
+use crate::ExportError;
 
 use std::{sync::PoisonError, time::Duration};
 use thiserror::Error;

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
@@ -29,7 +29,7 @@ impl fmt::Debug for LogExporter {
     }
 }
 
-impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
+impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     /// Export spans to stdout
     #[allow(clippy::manual_async_fn)]
     fn export(
@@ -75,7 +75,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
-        let (record, _library) = log;
+        let (record, library) = log;
+
+        println!("\t Instrumentation Scope: {:?}", library);
+
         if let Some(event_name) = record.event_name() {
             println!("\t EventName: {:?}", event_name);
         }

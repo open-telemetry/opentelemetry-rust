@@ -1,12 +1,12 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, Resource};
-use crate::{logs::LogError, logs::LogResult};
+use crate::logs::{LogError, LogExporter, LogResult};
+use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use std::{
     borrow::Cow,
     sync::{
@@ -78,8 +78,8 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
 
 impl LoggerProvider {
     /// Create a new `LoggerProvider` builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> LoggerProviderBuilder {
+        LoggerProviderBuilder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
@@ -179,37 +179,67 @@ impl Drop for LoggerProviderInner {
 
 #[derive(Debug, Default)]
 /// Builder for provider attributes.
-pub struct Builder {
+pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
 }
 
-impl Builder {
-    /// The `LogExporter` that this provider should use.
+impl LoggerProviderBuilder {
+    /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
-    /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
-    /// The `LogProcessor` that this provider should use.
+    /// Adds a custom [LogProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `LogProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `LogProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_log_processor<T: LogProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// The `Resource` to be associated with this Provider.
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
+        LoggerProviderBuilder {
             resource: Some(resource),
             ..self
         }
@@ -263,7 +293,7 @@ impl opentelemetry::logs::Logger for Logger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::default()
+        LogRecord::new()
     }
 
     /// Emit a `LogRecord`.
@@ -283,7 +313,7 @@ impl opentelemetry::logs::Logger for Logger {
             }
         }
         if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(SystemTime::now());
+            record.observed_timestamp = Some(now());
         }
 
         for p in processors {
@@ -293,23 +323,20 @@ impl opentelemetry::logs::Logger for Logger {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = &self.provider;
-
-        let mut enabled = false;
-        for processor in provider.log_processors() {
-            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
-        }
-        enabled
+        self.provider
+            .log_processors()
+            .iter()
+            .any(|processor| processor.event_enabled(level, target, self.scope.name().as_ref()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
+        logs::InMemoryLogExporter,
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogExporter,
         trace::TracerProvider,
         Resource,
     };
@@ -376,22 +403,22 @@ mod tests {
             assert_eq!(
                 provider
                     .resource()
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
         let assert_telemetry_resource = |provider: &super::LoggerProvider| {
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };

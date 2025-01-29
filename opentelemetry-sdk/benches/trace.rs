@@ -5,8 +5,8 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::{
-    export::trace::{ExportResult, SpanData, SpanExporter},
     trace as sdktrace,
+    trace::{ExportResult, SpanData, SpanExporter},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};

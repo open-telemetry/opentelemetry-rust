@@ -16,7 +16,7 @@
 //!
 //! fn main() {
 //!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`
-//!     # fn example<T: opentelemetry_sdk::export::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
+//!     # fn example<T: opentelemetry_sdk::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
 //!     let exporter = new_exporter();
 //!
 //!     // Create a new trace pipeline that prints to stdout
@@ -44,10 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Alpha)
-//!
-//! Note: the metrics implementation is **still in progress** and **subject to major
-//! changes**.
+//! # Metrics
 //!
 //! ### Creating instruments and recording measurements
 //!
@@ -121,7 +118,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub mod export;
 pub(crate) mod growable_array;
 
 #[cfg(feature = "logs")]
@@ -152,3 +148,4 @@ pub mod util;
 pub use resource::Resource;
 
 pub mod error;
+pub use error::ExportError;

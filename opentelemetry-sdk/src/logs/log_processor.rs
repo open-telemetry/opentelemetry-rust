@@ -32,8 +32,7 @@
 //! ```
 
 use crate::{
-    export::logs::{ExportResult, LogBatch, LogExporter},
-    logs::{LogError, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -104,16 +103,26 @@ pub trait LogProcessor: Send + Sync + Debug {
 }
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
-/// exports log records as they are emitted.
+/// exports log records as they are emitted. Log records are exported synchronously
+/// in the same thread that emits the log record.
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: This requires LoggerProvider to be created within a tokio
+///   runtime. Logs can be emitted from any thread, including tokio runtime
+///   threads.
+/// - `reqwest-blocking-client`: LoggerProvider may be created anywhere, but
+///   logs must be emitted from a non-tokio runtime thread.
+/// - `reqwest-client`: LoggerProvider may be created anywhere, but logs must be
+///   emitted from a tokio runtime thread.
+///
 /// ## Example
 ///
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider};
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::export::logs::LogExporter;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let provider = LoggerProvider::builder()
@@ -237,7 +246,7 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, LoggerProvider};
 /// use opentelemetry::global;
 /// use std::time::Duration;
-/// use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+/// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let processor = BatchLogProcessor::builder(exporter)
@@ -807,19 +816,17 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::export::logs::{LogBatch, LogExporter};
-    use crate::logs::LogRecord;
     use crate::logs::LogResult;
-    use crate::testing::logs::InMemoryLogExporterBuilder;
+    use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::{
         logs::{
             log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, LoggerProvider, SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
+            LogProcessor, LoggerProvider, SimpleLogProcessor,
         },
-        testing::logs::InMemoryLogExporter,
         Resource,
     };
     use opentelemetry::logs::AnyValue;
@@ -1072,7 +1079,7 @@ mod tests {
             .build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
-        let mut record = LogRecord::default();
+        let mut record = LogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1090,7 +1097,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1248,7 +1255,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1261,7 +1268,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1278,7 +1285,7 @@ mod tests {
         for _ in 0..10 {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1297,7 +1304,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1349,7 +1356,7 @@ mod tests {
             let exporter = LogExporterThatRequiresTokio::new();
             let processor = SimpleLogProcessor::new(exporter.clone());
 
-            let mut record: LogRecord = Default::default();
+            let mut record: LogRecord = LogRecord::new();
             let instrumentation: InstrumentationScope = Default::default();
 
             // This will panic because an tokio async operation within exporter without a runtime.
@@ -1405,7 +1412,7 @@ mod tests {
         for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = Default::default();
+                let mut record: LogRecord = LogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1429,7 +1436,7 @@ mod tests {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1448,7 +1455,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1468,7 +1475,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = Default::default();
+        let mut record: LogRecord = LogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);

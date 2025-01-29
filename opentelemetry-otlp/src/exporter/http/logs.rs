@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
+use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;

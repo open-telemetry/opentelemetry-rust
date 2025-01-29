@@ -468,11 +468,11 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
+        metrics::InMemoryMetricExporter,
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
             MetricResult, SdkMeterProvider, Temporality,
         },
-        testing::metrics::InMemoryMetricExporter,
         Resource,
     };
     use async_trait::async_trait;
