@@ -11,6 +11,7 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
+    error::{ShutdownError, ShutdownResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -148,7 +149,7 @@ impl PeriodicReader {
         let exporter_arc = Arc::new(exporter);
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender: Arc::new(message_sender),
+                message_sender,
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
             }),
@@ -294,7 +295,7 @@ impl fmt::Debug for PeriodicReader {
 
 struct PeriodicReaderInner {
     exporter: Arc<dyn PushMetricExporter>,
-    message_sender: Arc<mpsc::Sender<Message>>,
+    message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
 }
 
@@ -320,7 +321,7 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn collect_and_export(&self, _timeout: Duration) -> MetricResult<()> {
+    fn collect_and_export(&self, timeout: Duration) -> MetricResult<()> {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
         let mut rm = ResourceMetrics {
@@ -328,7 +329,15 @@ impl PeriodicReaderInner {
             scope_metrics: Vec::new(),
         };
 
+        // Measure time taken for collect, and subtract it from the timeout.
+        let current_time = Instant::now();
         let collect_result = self.collect(&mut rm);
+        let time_taken_for_collect = current_time.elapsed();
+        let _timeout = if time_taken_for_collect > timeout {
+            Duration::from_secs(0)
+        } else {
+            timeout - time_taken_for_collect
+        };
         #[allow(clippy::question_mark)]
         if let Err(e) = collect_result {
             otel_warn!(
@@ -346,15 +355,10 @@ impl PeriodicReaderInner {
         let metrics_count = rm.scope_metrics.iter().fold(0, |count, scope_metrics| {
             count + scope_metrics.metrics.len()
         });
-        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
+        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count, time_taken_in_millis = time_taken_for_collect.as_millis());
 
-        // TODO: subtract the time taken for collect from the timeout. collect
-        // involves observable callbacks too, which are user defined and can
-        // take arbitrary time.
-        //
         // Relying on futures executor to execute async call.
-        // TODO: Add timeout and pass it to exporter or consider alternative
-        // design to enforce timeout here.
+        // TODO: Pass timeout to exporter
         let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm));
         #[allow(clippy::question_mark)]
         if let Err(e) = exporter_result {
@@ -399,12 +403,12 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Shutdown(response_tx))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
 
         // TODO: Make this timeout configurable.
         match response_rx.recv_timeout(Duration::from_secs(5)) {
@@ -412,14 +416,14 @@ impl PeriodicReaderInner {
                 if response {
                     Ok(())
                 } else {
-                    Err(MetricError::Other("Failed to shutdown".into()))
+                    Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => Err(MetricError::Other(
-                "Failed to shutdown due to Timeout".into(),
-            )),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                Err(ShutdownError::Timeout(Duration::from_secs(5)))
+            }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                Err(MetricError::Other("Failed to shutdown".into()))
+                Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
             }
         }
     }
@@ -448,7 +452,7 @@ impl MetricReader for PeriodicReader {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         self.inner.shutdown()
     }
 
@@ -468,10 +472,10 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        metrics::InMemoryMetricExporter,
+        error::ShutdownResult,
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
+            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
+            InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
         },
         Resource,
     };
@@ -521,7 +525,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> MetricResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
 
@@ -545,7 +549,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> MetricResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }

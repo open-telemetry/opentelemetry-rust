@@ -10,6 +10,9 @@
   "reqwest-blocking-client" features as default, to align with the
   specification.
   [2516](https://github.com/open-telemetry/opentelemetry-rust/pull/2516)
+- Remove unnecessarily public trait `opentelemetry_otlp::metrics::MetricsClient`
+  and `MetricExporter::new(..)` method. Use
+  `MetricExporter::builder()...build()` to obtain `MetricExporter`.
 
 ## 0.27.0
 
