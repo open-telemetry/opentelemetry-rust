@@ -297,7 +297,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
                 if let Err(send_error) =
-                    ch.send(res.map_err(|e| ShutdownError::Failed(e.to_string())))
+                    ch.send(res.map_err(|e| ShutdownError::InternalFailure(e.to_string())))
                 {
                     otel_debug!(
                         name: "PeriodicReader.Shutdown.SendResultError",
@@ -379,9 +379,10 @@ impl MetricReader for PeriodicReader {
     }
 
     fn shutdown(&self) -> ShutdownResult {
-        let mut inner = self.inner.lock().map_err(|e| {
-            ShutdownError::Failed(format!("Internal Error. Failed to acquire lock: {}", e))
-        })?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
             return Err(ShutdownError::AlreadyShutdown);
         }
@@ -390,16 +391,17 @@ impl MetricReader for PeriodicReader {
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
-            .map_err(|e| ShutdownError::Failed(e.to_string()))?;
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
         let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| ShutdownError::Failed(err.to_string()))?;
+            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock().map_err(|e| {
-            ShutdownError::Failed(format!("Internal Error. Failed to acquire lock: {}", e))
-        })?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         inner.is_shutdown = true;
 
         shutdown_result
