@@ -147,7 +147,7 @@ async fn main() {
         Ok(_) => println!("MeterProvider shutdown successfully"),
         Err(e) => {
             match e {
-                opentelemetry_sdk::error::ShutdownError::Failed(e) => {
+                opentelemetry_sdk::error::ShutdownError::InternalFailure(e) => {
                     // This indicates some failure during shutdown.
                     // Not much to do here, but log the error.
                     // So users at least know something went wrong,

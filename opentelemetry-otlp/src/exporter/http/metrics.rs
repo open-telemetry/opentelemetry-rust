@@ -48,7 +48,7 @@ impl MetricsClient for OtlpHttpClient {
         self.client
             .lock()
             .map_err(|e| {
-                ShutdownError::Failed(format!("Internal Error. Failed to acquire lock: {}", e))
+                ShutdownError::InternalFailure(format!("Internal Error. Failed to acquire lock: {}", e))
             })?
             .take();
 

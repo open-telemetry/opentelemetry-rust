@@ -48,7 +48,7 @@ impl MetricReader for TestMetricReader {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();
             *is_shutdown = true;
         }
-        result.map_err(|e| crate::error::ShutdownError::Failed(e.to_string()))
+        result.map_err(|e| crate::error::ShutdownError::InternalFailure(e.to_string()))
     }
 
     fn temporality(&self, _kind: InstrumentKind) -> Temporality {

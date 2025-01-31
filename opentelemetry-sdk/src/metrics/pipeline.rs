@@ -661,7 +661,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(crate::error::ShutdownError::Failed(format!("{errs:?}")))
+            Err(crate::error::ShutdownError::InternalFailure(format!("{errs:?}")))
         }
     }
 }

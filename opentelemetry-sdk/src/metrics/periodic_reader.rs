@@ -405,7 +405,7 @@ impl PeriodicReaderInner {
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Shutdown(response_tx))
-            .map_err(|e| ShutdownError::Failed(e.to_string()))?;
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
 
         // TODO: Make this timeout configurable.
         match response_rx.recv_timeout(Duration::from_secs(5)) {
@@ -413,14 +413,14 @@ impl PeriodicReaderInner {
                 if response {
                     Ok(())
                 } else {
-                    Err(ShutdownError::Failed("Failed to shutdown".into()))
+                    Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 Err(ShutdownError::Timeout(Duration::from_secs(5)))
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                Err(ShutdownError::Failed("Failed to shutdown".into()))
+                Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
             }
         }
     }

@@ -112,7 +112,7 @@ impl MetricReader for ManualReader {
     /// Closes any connections and frees any resources used by the reader.
     fn shutdown(&self) -> ShutdownResult {
         let mut inner = self.inner.lock().map_err(|e| {
-            ShutdownError::Failed(format!("Internal Error. Failed to acquire lock: {}", e))
+            ShutdownError::InternalFailure(format!("Internal Error. Failed to acquire lock: {}", e))
         })?;
 
         // Any future call to collect will now return an error.

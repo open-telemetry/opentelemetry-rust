@@ -24,7 +24,7 @@ pub enum ShutdownError {
     /// Shutdown failed with an error.
     /// This error is returned when the shutdown process failed with an error.
     #[error("Shutdown failed: {0}")]
-    Failed(String),
+    InternalFailure(String),
 }
 
 /// A specialized `Result` type for Shutdown operations.
