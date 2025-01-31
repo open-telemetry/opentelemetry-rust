@@ -141,7 +141,7 @@ async fn main() {
     // however shutting down the MeterProvider here instantly flushes
     // the metrics, instead of waiting for the 30 sec interval.
     let shutdown_result = meter_provider.shutdown();
-    
+
     // Demonstrate handling the shutdown result.
     match shutdown_result {
         Ok(_) => println!("MeterProvider shutdown successfully"),
