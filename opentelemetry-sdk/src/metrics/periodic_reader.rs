@@ -148,7 +148,7 @@ impl PeriodicReader {
         let exporter_arc = Arc::new(exporter);
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender: message_sender,
+                message_sender,
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
             }),
