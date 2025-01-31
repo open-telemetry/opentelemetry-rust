@@ -345,7 +345,6 @@ impl LogProcessor for BatchLogProcessor {
                     otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
                         message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
                 }
-                return;
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -354,7 +353,6 @@ impl LogProcessor for BatchLogProcessor {
                     name: "BatchLogProcessor.Emit.AfterShutdown",
                     message = "Logs are being emitted even after Shutdown. This indicates incorrect lifecycle management of OTelLoggerProvider in application. Logs will not be exported."
                 );
-                return;
             }
         }
     }
