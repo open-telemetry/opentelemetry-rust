@@ -93,12 +93,7 @@ impl MetricsClient for TonicMetricsClient {
     fn shutdown(&self) -> ShutdownResult {
         self.inner
             .lock()
-            .map_err(|e| {
-                ShutdownError::InternalFailure(format!(
-                    "Internal Error. Failed to acquire lock: {}",
-                    e
-                ))
-            })?
+            .map_err(|e| ShutdownError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
             .take();
 
         Ok(())
