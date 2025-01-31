@@ -122,7 +122,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 
 /// An interface for OTLP metrics clients
 #[async_trait]
-pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
+pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
     async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
     fn shutdown(&self) -> ShutdownResult;
 }
@@ -166,7 +166,7 @@ impl MetricExporter {
     }
 
     /// Create a new metrics exporter
-    pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricExporter {
+    pub(crate) fn new(client: impl MetricsClient, temporality: Temporality) -> MetricExporter {
         MetricExporter {
             client: Box::new(client),
             temporality,
