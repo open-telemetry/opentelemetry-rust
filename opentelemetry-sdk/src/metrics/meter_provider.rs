@@ -12,8 +12,11 @@ use opentelemetry::{
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
-use crate::metrics::{MetricError, MetricResult};
 use crate::Resource;
+use crate::{
+    error::ShutdownResult,
+    metrics::{MetricError, MetricResult},
+};
 
 use super::{
     meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
@@ -108,7 +111,7 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> MetricResult<()> {
+    pub fn shutdown(&self) -> ShutdownResult {
         otel_info!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -131,15 +134,13 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(MetricError::Other(
-                "MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::ShutdownError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }
