@@ -21,7 +21,7 @@ use std::fs;
 use std::fs::File;
 use std::time::Duration;
 
-const SLEEP_DURATION: Duration = Duration::from_secs(2);
+const SLEEP_DURATION: Duration = Duration::from_secs(5);
 
 static RESULT_PATH: &str = "actual/metrics.json";
 
