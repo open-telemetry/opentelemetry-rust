@@ -16,23 +16,20 @@ use opentelemetry_proto::tonic::metrics::v1::MetricsData;
 use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
 use serde_json::Value;
+use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::sync::Mutex;
 use std::time::Duration;
 
-static SETUP_DONE: Mutex<bool> = Mutex::new(false);
+const SLEEP_DURATION: Duration = Duration::from_secs(2);
 
 static RESULT_PATH: &str = "actual/metrics.json";
 
 /// Initializes the OpenTelemetry metrics pipeline
-async fn init_metrics() -> SdkMeterProvider {
+fn init_metrics() -> SdkMeterProvider {
     let exporter = create_exporter();
 
-    let reader = PeriodicReader::builder(exporter)
-        .with_interval(Duration::from_millis(500))
-        .with_timeout(Duration::from_secs(1))
-        .build();
+    let reader = PeriodicReader::builder(exporter).build();
 
     let resource = Resource::builder_empty()
         .with_service_name("metrics-integration-test")
@@ -137,23 +134,15 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
 ///
 /// Performs setup for metrics tests
 ///
-async fn setup_metrics_test() -> Result<()> {
+async fn setup_metrics_test() -> Result<SdkMeterProvider, Box<dyn Error>> {
     // Make sure the collector container is running
     start_collector_container().await?;
-
-    let mut done = SETUP_DONE.lock().unwrap();
-    if !*done {
-        println!("Running setup before any tests...");
-        *done = true; // Mark setup as done
-
-        // Initialize the metrics subsystem
-        _ = init_metrics().await;
-    }
 
     // Truncate results
     _ = File::create(RESULT_PATH).expect("it's good");
 
-    Ok(())
+    let meter_provider = init_metrics();
+    Ok(meter_provider)
 }
 
 ///
@@ -220,8 +209,54 @@ mod metrictests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn counter_tokio_multi_thread() -> Result<()> {
+        metric_helper().await
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_tokio_multi_thread_one_worker() -> Result<()> {
+        metric_helper().await
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[ignore] // TODO: Investigate why this test is failing
+    async fn counter_tokio_current() -> Result<()> {
+        metric_helper().await
+    }
+
+    async fn metric_helper() -> Result<()> {
+        let meter_provider = setup_metrics_test()
+            .await
+            .expect("MeterProvider must be available for test to run");
+        const METER_NAME: &str = "test_meter";
+
+        // Add data to u64_counter
+        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+
+        let counter = meter.u64_counter("test_counter").build();
+        counter.add(
+            10,
+            &[
+                KeyValue::new("mykey1", "myvalue1"),
+                KeyValue::new("mykey2", "myvalue2"),
+            ],
+        );
+
+        meter_provider.shutdown()?;
+        // We still need to sleep, to give otel-collector a chance to flush to disk
+        tokio::time::sleep(SLEEP_DURATION).await;
+
+        // Validate metrics against results file
+        validate_metrics_against_results(METER_NAME)?;
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_u64_counter() -> Result<()> {
-        let _result_path = setup_metrics_test().await;
+        let meter_provider = setup_metrics_test()
+            .await
+            .expect("MeterProvider must be available for test to run");
         const METER_NAME: &str = "test_u64_counter_meter";
 
         // Add data to u64_counter
@@ -236,7 +271,9 @@ mod metrictests {
             ],
         );
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        meter_provider.shutdown()?;
+        // We still need to sleep, to give otel-collector a chance to flush to disk
+        tokio::time::sleep(SLEEP_DURATION).await;
 
         // Validate metrics against results file
         validate_metrics_against_results(METER_NAME)?;
@@ -246,14 +283,19 @@ mod metrictests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_histogram() -> Result<()> {
-        _ = setup_metrics_test().await;
+        let meter_provider = setup_metrics_test()
+            .await
+            .expect("MeterProvider must be available for test to run");
         const METER_NAME: &str = "test_histogram_meter";
 
         // Add data to histogram
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let histogram = meter.u64_histogram("example_histogram").build();
         histogram.record(42, &[KeyValue::new("mykey3", "myvalue4")]);
-        tokio::time::sleep(Duration::from_secs(5)).await;
+
+        meter_provider.shutdown()?;
+        // We still need to sleep, to give otel-collector a chance to flush to disk
+        tokio::time::sleep(SLEEP_DURATION).await;
 
         validate_metrics_against_results(METER_NAME)?;
 
@@ -262,14 +304,19 @@ mod metrictests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_up_down_counter() -> Result<()> {
-        _ = setup_metrics_test().await;
+        let meter_provider = setup_metrics_test()
+            .await
+            .expect("MeterProvider must be available for test to run");
         const METER_NAME: &str = "test_up_down_meter";
 
         // Add data to up_down_counter
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let up_down_counter = meter.i64_up_down_counter("example_up_down_counter").build();
         up_down_counter.add(-1, &[KeyValue::new("mykey5", "myvalue5")]);
-        tokio::time::sleep(Duration::from_secs(5)).await;
+
+        meter_provider.shutdown()?;
+        // We still need to sleep, to give otel-collector a chance to flush to disk
+        tokio::time::sleep(SLEEP_DURATION).await;
 
         validate_metrics_against_results(METER_NAME)?;
 
@@ -310,7 +357,7 @@ mod metrictests {
         meter_provider.shutdown()?;
 
         // We still need to sleep, to give otel-collector a chance to flush to disk
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(SLEEP_DURATION).await;
 
         validate_metrics_against_results(METER_NAME)?;
 
