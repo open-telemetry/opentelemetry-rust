@@ -1,3 +1,4 @@
+#![cfg(unix)]
 use crate::test_utils;
 use anyhow::Result;
 use anyhow::{Context, Ok};
