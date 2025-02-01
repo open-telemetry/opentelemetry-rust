@@ -1,243 +1,23 @@
-//! OTLP integration tests for metrics
-//! Note: these are all expressed using Serde types for the deserialized metrics records.
-//! We might consider changing this once we have fixed the issue identified in the #[ignore]d test
-//! `test_roundtrip_example_data` - as the roundtripping is currently broken for metrics.
-//!
 #![cfg(unix)]
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Ok, Result};
 use ctor::dtor;
-use integration_test_runner::metrics_asserter::{read_metrics_from_json, MetricsAsserter};
 use integration_test_runner::test_utils;
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::MetricExporter;
-use opentelemetry_proto::tonic::metrics::v1::MetricsData;
-use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::Resource;
-use serde_json::Value;
-use std::fs;
-use std::fs::File;
-use std::io::Read;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::time::Duration;
 
 const SLEEP_DURATION: Duration = Duration::from_secs(5);
 
-static RESULT_PATH: &str = "actual/metrics.json";
-
-///
-/// Creates an exporter using the appropriate HTTP or gRPC client based on
-/// the configured features.
-///
-fn create_exporter() -> MetricExporter {
-    let exporter_builder = MetricExporter::builder();
-
-    #[cfg(feature = "tonic-client")]
-    let exporter_builder = exporter_builder.with_tonic();
-    #[cfg(not(feature = "tonic-client"))]
-    #[cfg(any(
-        feature = "hyper-client",
-        feature = "reqwest-client",
-        feature = "reqwest-blocking-client"
-    ))]
-    let exporter_builder = exporter_builder.with_http();
-
-    exporter_builder
-        .build()
-        .expect("Failed to build MetricExporter")
-}
-
-/// Initializes the OpenTelemetry metrics pipeline
-fn init_meter_provider() -> SdkMeterProvider {
-    let exporter = create_exporter();
-    let reader = PeriodicReader::builder(exporter)
-        .with_interval(Duration::from_secs(2))
-        .build();
-    let resource = Resource::builder_empty()
-        .with_service_name("metrics-integration-test")
-        .build();
-    let meter_provider = MeterProviderBuilder::default()
-        .with_resource(resource)
-        .with_reader(reader)
-        .build();
-    opentelemetry::global::set_meter_provider(meter_provider.clone());
-    meter_provider
-}
-
-///
-/// Retrieves the latest metrics for the given scope. Each test should use
-/// its own scope, so that we can easily pull the data for it out from the rest
-/// of the data.
-///
-/// This will also retrieve the resource attached to the scope.
-///
-pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
-    // Open the file and fetch the contents
-    let contents = fs::read_to_string(test_utils::METRICS_FILE)?;
-
-    // Find the last parseable metrics line that contains the desired scope
-    let json_line = contents
-        .lines()
-        .rev()
-        .find_map(|line| {
-            // Attempt to parse the line as JSON
-            serde_json::from_str::<Value>(line)
-                .ok()
-                .and_then(|mut json_line| {
-                    // Check if it contains the specified scope
-                    if let Some(resource_metrics) = json_line
-                        .get_mut("resourceMetrics")
-                        .and_then(|v| v.as_array_mut())
-                    {
-                        resource_metrics.retain_mut(|resource| {
-                            if let Some(scope_metrics) = resource
-                                .get_mut("scopeMetrics")
-                                .and_then(|v| v.as_array_mut())
-                            {
-                                scope_metrics.retain(|scope| {
-                                    scope
-                                        .get("scope")
-                                        .and_then(|s| s.get("name"))
-                                        .and_then(|name| name.as_str())
-                                        .map_or(false, |n| n == scope_name)
-                                });
-
-                                // Keep the resource only if it has any matching `ScopeMetrics`
-                                !scope_metrics.is_empty()
-                            } else {
-                                false
-                            }
-                        });
-
-                        // If any resource metrics remain, return this line
-                        if !resource_metrics.is_empty() {
-                            return Some(json_line);
-                        }
-                    }
-
-                    None
-                })
-        })
-        .with_context(|| {
-            format!(
-                "No valid JSON line containing scope `{}` found.",
-                scope_name
-            )
-        })?;
-
-    Ok(json_line)
-}
-
-///
-/// Performs setup for metrics tests using the Tokio runtime.
-///
-async fn setup_metrics_tokio() -> SdkMeterProvider {
-    let _ = test_utils::start_collector_container().await;
-    // Truncate results
-    _ = File::create(RESULT_PATH).expect("it's good");
-
-    init_meter_provider()
-}
-
-///
-/// Performs setup for metrics tests.
-///
-fn setup_metrics_non_tokio(
-    initialize_metric_in_tokio: bool,
-) -> (SdkMeterProvider, tokio::runtime::Runtime) {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-    let meter_provider: SdkMeterProvider = if initialize_metric_in_tokio {
-        // Initialize the logger provider inside the Tokio runtime
-        rt.block_on(async {
-            // Setup the collector container inside Tokio runtime
-            let _ = test_utils::start_collector_container().await;
-            init_meter_provider()
-        })
-    } else {
-        rt.block_on(async {
-            let _ = test_utils::start_collector_container().await;
-        });
-
-        // Initialize the logger provider outside the Tokio runtime
-        init_meter_provider()
-    };
-
-    (meter_provider, rt)
-}
-
-///
-/// Check that the metrics for the given scope match what we expect. This
-/// includes zeroing out timestamps, which we reasonably expect not to match.
-///
-pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
-    // Define the results file path
-    let results_file_path = format!("./expected/metrics/{}.json", scope_name);
-
-    // Fetch the actual metrics for the given scope
-    let actual_metrics = fetch_latest_metrics_for_scope(scope_name)
-        .context(format!("Failed to fetch metrics for scope: {}", scope_name))?;
-
-    // Read the expected metrics from the results file
-    let expected_metrics = {
-        let file = File::open(&results_file_path).context(format!(
-            "Failed to open results file: {}",
-            results_file_path
-        ))?;
-        read_metrics_from_json(file)
-    }?;
-
-    // Compare the actual metrics with the expected metrics
-    MetricsAsserter::new(actual_metrics, expected_metrics).assert();
-
-    Ok(())
-}
-
-///
-/// Check that the results contain the given string.
-///
-pub fn assert_metrics_results_contains(expected_content: &str) -> Result<()> {
-    // let contents = fs::read_to_string(test_utils::METRICS_FILE)?;
-    let file = File::open(test_utils::METRICS_FILE)?;
-    let mut contents = String::new();
-    let mut reader = std::io::BufReader::new(&file);
-    reader.read_to_string(&mut contents)?;
-    assert!(contents.contains(expected_content));
-    Ok(())
-}
-
-///
-/// TODO - the HTTP metrics exporters except reqwest-blocking-client do not seem
-/// to work at the moment.
-/// TODO - fix this asynchronously.
-///
 #[cfg(test)]
 #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
 mod metrictests {
     use super::*;
+    use integration_test_runner::metric_helpers::{
+        assert_metrics_results_contains, setup_metrics_non_tokio, setup_metrics_tokio,
+    };
+    use tokio::runtime::Handle;
     use uuid::Uuid;
-
-    ///
-    /// Validate JSON/Protobuf models roundtrip correctly.
-    ///
-    /// TODO - this test fails currently. Fields disappear, such as the actual value of a given metric.
-    /// This appears to be on the _deserialization_ side.
-    /// Issue: https://github.com/open-telemetry/opentelemetry-rust/issues/2434
-    ///
-    #[tokio::test]
-    #[ignore]
-    async fn test_roundtrip_example_data() -> Result<()> {
-        let metrics_in = include_str!("../expected/metrics/test_u64_counter_meter.json");
-        let metrics: MetricsData = serde_json::from_str(metrics_in)?;
-        let metrics_out = serde_json::to_string(&metrics)?;
-
-        println!("{:}", metrics_out);
-
-        let metrics_in_json: Value = serde_json::from_str(metrics_in)?;
-        let metrics_out_json: Value = serde_json::from_str(&metrics_out)?;
-
-        assert_eq!(metrics_in_json, metrics_out_json);
-
-        Ok(())
-    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn counter_tokio_multi_thread() -> Result<()> {
@@ -250,9 +30,8 @@ mod metrictests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    #[ignore] // TODO: Investigate why this test is failing
     async fn counter_tokio_current() -> Result<()> {
-        metric_helper_tokio().await
+        metric_helper_tokio_current().await
     }
 
     #[test]
@@ -263,6 +42,39 @@ mod metrictests {
     async fn metric_helper_tokio() -> Result<()> {
         let meter_provider = setup_metrics_tokio().await;
         emit_and_validate_metrics(meter_provider)
+    }
+
+    async fn metric_helper_tokio_current() -> Result<()> {
+        let meter_provider = setup_metrics_tokio().await;
+
+        const METER_NAME: &str = "test_meter";
+        const INSTRUMENT_NAME: &str = "test_counter";
+
+        // Add data to u64_counter
+        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+        let expected_uuid = Uuid::new_v4().to_string();
+        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        counter.add(
+            10,
+            &[
+                KeyValue::new("mykey1", expected_uuid.clone()),
+                KeyValue::new("mykey2", "myvalue2"),
+            ],
+        );
+
+        let _res = Handle::current()
+            .spawn_blocking(move || meter_provider.shutdown())
+            .await
+            .unwrap();
+        // We still need to sleep, to give otel-collector a chance to flush to disk
+        std::thread::sleep(SLEEP_DURATION);
+
+        // Validate metrics against results file This is not the extensive
+        // validation of output, but good enough to confirm that metrics have
+        // been accepted by OTel Collector.
+        assert_metrics_results_contains(&expected_uuid)?;
+
+        Ok(())
     }
 
     fn metric_helper_non_tokio() -> Result<()> {
