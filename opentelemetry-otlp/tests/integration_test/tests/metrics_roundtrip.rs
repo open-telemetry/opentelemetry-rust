@@ -47,7 +47,7 @@ mod metrictests_roundtrip {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_u64_counter() -> Result<()> {
-        let _result_path = metric_helpers::setup_metrics_tokio().await;
+        let meter_provider = metric_helpers::setup_metrics_tokio().await;
         const METER_NAME: &str = "test_u64_counter_meter";
 
         // Add data to u64_counter
@@ -62,6 +62,7 @@ mod metrictests_roundtrip {
             ],
         );
 
+        meter_provider.shutdown()?;
         tokio::time::sleep(SLEEP_DURATION).await;
 
         // Validate metrics against results file
@@ -72,13 +73,15 @@ mod metrictests_roundtrip {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_histogram() -> Result<()> {
-        let _result_path = metric_helpers::setup_metrics_tokio().await;
+        let meter_provider = metric_helpers::setup_metrics_tokio().await;
         const METER_NAME: &str = "test_histogram_meter";
 
         // Add data to histogram
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let histogram = meter.u64_histogram("example_histogram").build();
         histogram.record(42, &[KeyValue::new("mykey3", "myvalue4")]);
+
+        meter_provider.shutdown()?;
         tokio::time::sleep(SLEEP_DURATION).await;
 
         validate_metrics_against_results(METER_NAME)?;
@@ -88,13 +91,15 @@ mod metrictests_roundtrip {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_up_down_counter() -> Result<()> {
-        let _result_path = metric_helpers::setup_metrics_tokio().await;
+        let meter_provider = metric_helpers::setup_metrics_tokio().await;
         const METER_NAME: &str = "test_up_down_meter";
 
         // Add data to up_down_counter
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let up_down_counter = meter.i64_up_down_counter("example_up_down_counter").build();
         up_down_counter.add(-1, &[KeyValue::new("mykey5", "myvalue5")]);
+
+        meter_provider.shutdown()?;
         tokio::time::sleep(SLEEP_DURATION).await;
 
         validate_metrics_against_results(METER_NAME)?;

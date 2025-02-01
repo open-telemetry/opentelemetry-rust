@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 use std::time::Duration;
+use tracing::info;
 
 static RESULT_PATH: &str = "actual/metrics.json";
 pub const SLEEP_DURATION: Duration = Duration::from_secs(5);
@@ -40,9 +41,7 @@ fn create_exporter() -> MetricExporter {
 /// Initializes the OpenTelemetry metrics pipeline
 fn init_meter_provider() -> SdkMeterProvider {
     let exporter = create_exporter();
-    let reader = PeriodicReader::builder(exporter)
-        .with_interval(Duration::from_secs(2))
-        .build();
+    let reader = PeriodicReader::builder(exporter).build();
     let resource = Resource::builder_empty()
         .with_service_name("metrics-integration-test")
         .build();
@@ -61,6 +60,7 @@ pub async fn setup_metrics_tokio() -> SdkMeterProvider {
     let _ = test_utils::start_collector_container().await;
     // Truncate results
     _ = File::create(RESULT_PATH).expect("it's good");
+    info!("Truncated metrics file");
 
     init_meter_provider()
 }
