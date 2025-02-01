@@ -57,7 +57,6 @@ mod metrictests {
         const METER_NAME: &str = "test_meter";
         const INSTRUMENT_NAME: &str = "test_counter";
 
-        // Add data to u64_counter
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
         let counter = meter.u64_counter(INSTRUMENT_NAME).build();
@@ -69,6 +68,7 @@ mod metrictests {
             ],
         );
 
+        // In tokio::current_thread flavor, shutdown must be done in a separate thread
         let _res = Handle::current()
             .spawn_blocking(move || meter_provider.shutdown())
             .await
