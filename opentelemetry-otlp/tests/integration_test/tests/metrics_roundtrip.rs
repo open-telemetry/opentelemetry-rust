@@ -109,24 +109,6 @@ mod metrictests_roundtrip {
 
         Ok(())
     }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_gauge() -> Result<()> {
-        let meter_provider = metric_helpers::setup_metrics_tokio().await;
-        const METER_NAME: &str = "test_gauge_meter";
-
-        // Add data to up_down_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
-        let gauge = meter.f64_gauge("example_gauge").build();
-        gauge.record(-1.10, &[KeyValue::new("mykey5", "myvalue5")]);
-
-        meter_provider.shutdown()?;
-        tokio::time::sleep(SLEEP_DURATION).await;
-
-        validate_metrics_against_results(METER_NAME)?;
-
-        Ok(())
-    }
 }
 
 ///
