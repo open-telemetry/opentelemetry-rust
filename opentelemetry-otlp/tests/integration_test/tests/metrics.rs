@@ -1,3 +1,10 @@
+//! OTLP integration tests for metrics. These tests cover various OTel Metric
+//! SDK/OTLP Exporter scenarios in particular focusing on ensuring that various
+//! async runtimes works well. This also includes validating that shutdown,
+//! force_flush are working as expected. Validation is simple in the sense it
+//! merely checks the presence of a UUID in the exported metrics, which is good
+//! enough to confirm that metrics have been accepted by OTel Collector.
+//!
 #![cfg(unix)]
 
 use anyhow::{Ok, Result};

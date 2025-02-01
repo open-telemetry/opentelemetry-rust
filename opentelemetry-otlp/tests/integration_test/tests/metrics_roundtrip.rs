@@ -1,4 +1,7 @@
-//! OTLP integration tests for metrics
+//! OTLP integration tests for metrics. These tests cover the breadth of Metric
+//! API by testing all instrument types and ensuring that the data is correctly
+//! exported to the collector by validating the exported data against the
+//! expected results.
 //! Note: these are all expressed using Serde types for the deserialized metrics records.
 //! We might consider changing this once we have fixed the issue identified in the #[ignore]d test
 //! `test_roundtrip_example_data` - as the roundtripping is currently broken for metrics.
@@ -98,6 +101,24 @@ mod metrictests_roundtrip {
         let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let up_down_counter = meter.i64_up_down_counter("example_up_down_counter").build();
         up_down_counter.add(-1, &[KeyValue::new("mykey5", "myvalue5")]);
+
+        meter_provider.shutdown()?;
+        tokio::time::sleep(SLEEP_DURATION).await;
+
+        validate_metrics_against_results(METER_NAME)?;
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_gauge() -> Result<()> {
+        let meter_provider = metric_helpers::setup_metrics_tokio().await;
+        const METER_NAME: &str = "test_gauge_meter";
+
+        // Add data to up_down_counter
+        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+        let gauge = meter.f64_gauge("example_gauge").build();
+        gauge.record(-1.10, &[KeyValue::new("mykey5", "myvalue5")]);
 
         meter_provider.shutdown()?;
         tokio::time::sleep(SLEEP_DURATION).await;
