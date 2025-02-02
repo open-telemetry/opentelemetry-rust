@@ -100,7 +100,12 @@ pub fn assert_metrics_results_contains(expected_content: &str) -> Result<()> {
     let mut contents = String::new();
     let mut reader = std::io::BufReader::new(&file);
     reader.read_to_string(&mut contents)?;
-    assert!(contents.contains(expected_content));
+    assert!(
+        contents.contains(expected_content),
+        "Expected content {} not found in actual content {}",
+        expected_content,
+        contents
+    );
     Ok(())
 }
 
