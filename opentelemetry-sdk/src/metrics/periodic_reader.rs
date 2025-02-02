@@ -199,14 +199,12 @@ impl PeriodicReader {
                                         This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
                                     );
                                 }
-                            } else {
-                                if response_sender.send(true).is_err() {
-                                    otel_info!(
-                                        name: "PeriodReader.Flush.ResponseSendError",
-                                        message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller. 
-                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
-                                    );
-                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_info!(
+                                    name: "PeriodReader.Flush.ResponseSendError",
+                                    message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller. 
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                );
                             }
 
                             // Adjust the remaining interval after the flush
@@ -262,14 +260,12 @@ impl PeriodicReader {
                                         This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
                                     );
                                 }
-                            } else {
-                                if response_sender.send(true).is_err() {
-                                    otel_info!(
-                                        name: "PeriodReaderThreadShutdown.ResponseSendError",
-                                        message = "PeriodicReader completed its shutdown, but unable to send this info back to caller. 
-                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
-                                    );
-                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_info!(
+                                    name: "PeriodReaderThreadShutdown.ResponseSendError",
+                                    message = "PeriodicReader completed its shutdown, but unable to send this info back to caller. 
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
+                                );
                             }
 
                             otel_debug!(
