@@ -43,7 +43,7 @@ fn init_tracing() {
     INIT_TRACING.call_once(|| {
         // Info and above for all, debug for opentelemetry
         let filter_fmt =
-            EnvFilter::new("info").add_directive("opentelemetry=warn".parse().unwrap());
+            EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_thread_names(true)
             .with_filter(filter_fmt);
