@@ -182,10 +182,31 @@ impl PeriodicReader {
                                 export_result = format!("{:?}", export_result)
                             );
 
+                            // If response_sender is disconnected, we can't send
+                            // the result back. This occurs when the thread that
+                            // initiated flush gave up due to timeout.
+                            // Gracefully handle that with internal logs. The
+                            // internal errors are of Info level, as this is
+                            // useful for user to know whether the flush was
+                            // successful or not, when flush() itself merely
+                            // tells that it timed out.
+
                             if export_result.is_err() {
-                                response_sender.send(false).unwrap();
+                                if response_sender.send(false).is_err() {
+                                    otel_info!(
+                                        name: "PeriodReader.Flush.ResponseSendError",
+                                        message = "PeriodicReader's flush has failed, but unable to send this info back to caller. 
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                    );
+                                }
                             } else {
-                                response_sender.send(true).unwrap();
+                                if response_sender.send(true).is_err() {
+                                    otel_info!(
+                                        name: "PeriodReader.Flush.ResponseSendError",
+                                        message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller. 
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                    );
+                                }
                             }
 
                             // Adjust the remaining interval after the flush
