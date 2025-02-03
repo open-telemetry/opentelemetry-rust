@@ -310,6 +310,7 @@ responsibility of the exporter.
 For example, in the OTLP Logs exporter, the export timeout can be configured using:
 - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
 - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
 Before:
 ```rust
 let processor = BatchLogProcessor::builder(exporter)
@@ -343,6 +344,7 @@ let processor = BatchLogProcessor::builder(exporter)
    For example, in the OTLP Span exporter, the export timeout can be configured using:
    - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.
    - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
   Before:
 ```rust
 let processor = BatchSpanProcessor::builder(exporter)
@@ -369,20 +371,29 @@ let processor = BatchSpanProcessor::builder(exporter)
     )
     .build();
 ```
-- **Breaking**: The `PeriodicReader` no supports configuration of `max_export_timeout`. 
-Timeout handling is now the responsibility of the exporter.
 
-For example, in the OTLP Metrics exporter, the export timeout can be configured using:
-- The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
-- The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+- **Breaking**: The `PeriodicReader` no supports configuration of export timeout using
+  `with_timeout` API method. 
+  Timeout handling is now the responsibility of the exporter.
 
-### Before:
+  For example, in the OTLP Metrics exporter, the export timeout can be configured using:
+  - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
+  - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+ 
+  Before:
 ```rust
 let reader = PeriodicReader::builder(exporter)
     .with_interval(Duration::from_secs(30))
     .with_timeout(Duration::from_secs(10)) // Previously configurable timeout
     .build();
+```
 
+ After:
+```rust
+let reader = PeriodicReader::builder(exporter)
+    .with_interval(Duration::from_secs(30))
+    .build();
+```
 
 ## 0.27.1
 
