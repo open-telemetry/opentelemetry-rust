@@ -44,59 +44,13 @@ mod trace;
 use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
-#[derive(Debug)]
-#[cfg_attr(
-    all(
-        not(feature = "reqwest-client"),
-        not(feature = "reqwest-blocking-client"),
-        not(feature = "hyper-client")
-    ),
-    derive(Default)
-)]
+#[derive(Debug, Default)]
 pub struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
     /// Additional headers to send to the collector.
     headers: Option<HashMap<String, String>>,
-}
-
-#[cfg(any(
-    feature = "reqwest-blocking-client",
-    feature = "reqwest-client",
-    feature = "hyper-client"
-))]
-impl Default for HttpConfig {
-    fn default() -> Self {
-        #[cfg(feature = "reqwest-blocking-client")]
-        let default_client = std::thread::spawn(|| {
-            Some(Arc::new(reqwest::blocking::Client::new()) as Arc<dyn HttpClient>)
-        })
-        .join()
-        .expect("creating reqwest::blocking::Client on a new thread not to fail");
-        #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
-        let default_client = Some(Arc::new(reqwest::Client::new()) as Arc<dyn HttpClient>);
-        #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            feature = "hyper-client"
-        ))]
-        // TODO - support configuring custom connector and executor
-        let default_client = Some(Arc::new(HyperClient::with_default_connector(
-            Duration::from_secs(10),
-            None,
-        )) as Arc<dyn HttpClient>);
-        #[cfg(all(
-            not(feature = "reqwest-client"),
-            not(feature = "reqwest-blocking-client"),
-            not(feature = "hyper-client")
-        ))]
-        let default_client = None;
-        HttpConfig {
-            client: default_client,
-            headers: None,
-        }
-    }
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -171,11 +125,56 @@ impl HttpExporterBuilder {
             },
             None => self.exporter_config.timeout,
         };
-        let http_client = self
-            .http_config
-            .client
-            .take()
-            .ok_or(crate::Error::NoHttpClient)?;
+
+        #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
+        let mut http_client = self.http_config.client.take();
+
+        if http_client.is_none() {
+            #[cfg(all(
+                not(feature = "reqwest-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "hyper-client"
+            ))]
+            {
+                // TODO - support configuring custom connector and executor
+                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
+                    as Arc<dyn HttpClient>);
+            }
+            #[cfg(all(
+                not(feature = "hyper-client"),
+                not(feature = "reqwest-blocking-client"),
+                feature = "reqwest-client"
+            ))]
+            {
+                http_client = Some(Arc::new(
+                    reqwest::Client::builder()
+                        .timeout(timeout)
+                        .build()
+                        .unwrap_or_default(),
+                ) as Arc<dyn HttpClient>);
+            }
+            #[cfg(all(
+                not(feature = "hyper-client"),
+                not(feature = "reqwest-client"),
+                feature = "reqwest-blocking-client"
+            ))]
+            {
+                let timeout_clone = timeout;
+                http_client = Some(Arc::new(
+                    std::thread::spawn(move || {
+                        reqwest::blocking::Client::builder()
+                            .timeout(timeout_clone)
+                            .build()
+                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
+                    })
+                    .join()
+                    .unwrap(), // Unwrap thread result
+                ) as Arc<dyn HttpClient>);
+            }
+        }
+
+        let http_client = http_client.ok_or(crate::Error::NoHttpClient)?;
+
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
             .http_config
