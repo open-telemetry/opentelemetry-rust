@@ -61,10 +61,8 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .with_endpoint("http://localhost:4318/v1/metrics")
         .build()?;
 
-    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
-
     Ok(SdkMeterProvider::builder()
-        .with_reader(reader)
+        .with_periodic_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
