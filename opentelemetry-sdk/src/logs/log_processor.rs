@@ -192,7 +192,9 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
+            exporter
+                .shutdown()
+                .map_err(|e| LogError::Other(Box::new(e)))?;
             Ok(())
         } else {
             Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
@@ -874,6 +876,7 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
+    use crate::error::ShutdownResult;
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::{
@@ -910,7 +913,9 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> ShutdownResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource

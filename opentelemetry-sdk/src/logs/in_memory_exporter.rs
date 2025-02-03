@@ -1,3 +1,4 @@
+use crate::error::ShutdownResult;
 use crate::logs::LogRecord;
 use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
@@ -198,10 +199,11 @@ impl LogExporter for InMemoryLogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> ShutdownResult {
         if self.should_reset_on_shutdown {
             self.reset();
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {
