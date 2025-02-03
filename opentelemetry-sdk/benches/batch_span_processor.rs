@@ -8,7 +8,7 @@ use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
 };
 use std::sync::Arc;
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use tokio::runtime::Runtime;
 
 fn get_span_data() -> Vec<SpanData> {
@@ -24,8 +24,8 @@ fn get_span_data() -> Vec<SpanData> {
             parent_span_id: SpanId::from_u64(12),
             span_kind: SpanKind::Client,
             name: Default::default(),
-            start_time: SystemTime::now(),
-            end_time: SystemTime::now(),
+            start_time: now(),
+            end_time: now(),
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: SpanEvents::default(),

@@ -11,7 +11,7 @@
 */
 
 use std::sync::Mutex;
-use std::time::SystemTime;
+use opentelemetry::time::now;
 
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -126,7 +126,7 @@ fn exporter_with_future(c: &mut Criterion) {
     c.bench_function("LogExporterWithFuture", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");
@@ -152,7 +152,7 @@ fn exporter_without_future(c: &mut Criterion) {
     c.bench_function("LogExporterWithoutFuture", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");

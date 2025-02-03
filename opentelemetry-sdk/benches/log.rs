@@ -16,7 +16,7 @@ RAM: 64.0 GB
 */
 
 use std::collections::HashMap;
-use std::time::SystemTime;
+use opentelemetry::time::now;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -111,7 +111,7 @@ fn logging_comparable_to_appender(c: &mut Criterion) {
     c.bench_function("Logging_Comparable_To_Appender", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");
@@ -253,7 +253,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let now = SystemTime::now();
+    let now = now();
     log_benchmark_group(c, "full-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("full log".into());

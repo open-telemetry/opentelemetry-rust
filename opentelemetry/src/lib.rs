@@ -279,7 +279,7 @@ pub mod logs;
 #[doc(hidden)]
 #[cfg(any(feature = "metrics", feature = "trace", feature = "logs"))]
 pub mod time {
-    use std::time::SystemTime;
+    use opentelemetry::time::now;
 
     #[doc(hidden)]
     #[cfg(any(
@@ -287,7 +287,7 @@ pub mod time {
         all(target_arch = "wasm32", target_os = "wasi")
     ))]
     pub fn now() -> SystemTime {
-        SystemTime::now()
+        now()
     }
 
     #[doc(hidden)]
