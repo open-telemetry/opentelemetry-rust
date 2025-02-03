@@ -20,7 +20,7 @@ timeout internal configured in below order
   - `OTEL_EXPORTER_OTLP_TIMEOUT` env variable.
   - `with_http().with_timeout()` API method of
 `LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
-  - The default interval of 30sec is used if none is configured.
+  - The default interval of 10sec is used if none is configured.
 
 
 ## 0.27.0
