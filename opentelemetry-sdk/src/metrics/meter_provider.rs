@@ -245,7 +245,7 @@ impl MeterProviderBuilder {
     }
 
     /// Associates a [MetricReader] with a [MeterProvider].
-    /// [`with_periodic_exporter`] can be used to add a PeriodicReader which is
+    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
     /// the most common use case.
     ///
     /// A [MeterProvider] will export no metrics without [MetricReader]
@@ -265,8 +265,8 @@ impl MeterProviderBuilder {
     ///
     /// Most users should use this method to attach an exporter. Advanced users
     /// who need finer control over the export process can use
-    /// [`PeriodicReaderBuilder`] to configure a custom reader and attach it
-    /// using [`with_reader`].
+    /// [`crate::metrics::PeriodicReaderBuilder`] to configure a custom reader and attach it
+    /// using [`MeterProviderBuilder::with_reader()`].
     pub fn with_periodic_exporter<T>(mut self, exporter: T) -> Self
     where
         T: PushMetricExporter,

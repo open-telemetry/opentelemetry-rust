@@ -337,25 +337,6 @@ let processor = BatchLogProcessor::builder(exporter)
     .build();
 ```
 
-- Added `with_periodic_exporter` method to `MeterProviderBuilder`, allowing
- users to easily attach an exporter with a PeriodicReader for automatic metric
- export. Retained with_reader() for advanced use cases where a custom
- MetricReader configuration is needed.
-Example Usage:
-
-```rust
-SdkMeterProvider::builder()
-    .with_periodic_exporter(exporter)
-    .build();
-```
-
-Using a custom PeriodicReader (advanced use case):
-
-let reader = PeriodicReader::builder(exporter).build();
-SdkMeterProvider::builder()
-    .with_reader(reader)
-    .build();
-
 ## 0.27.1
 
 Released 2024-Nov-27
