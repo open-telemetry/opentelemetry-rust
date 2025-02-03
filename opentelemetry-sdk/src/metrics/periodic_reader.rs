@@ -200,10 +200,36 @@ impl PeriodicReader {
                             otel_debug!(
                                 name: "PeriodReaderThreadExportingDueToFlush"
                             );
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                                response_sender.send(false).unwrap();
-                            } else {
-                                response_sender.send(true).unwrap();
+
+                            let export_result = cloned_reader.collect_and_export(timeout);
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
+
+                            // If response_sender is disconnected, we can't send
+                            // the result back. This occurs when the thread that
+                            // initiated flush gave up due to timeout.
+                            // Gracefully handle that with internal logs. The
+                            // internal errors are of Info level, as this is
+                            // useful for user to know whether the flush was
+                            // successful or not, when flush() itself merely
+                            // tells that it timed out.
+
+                            if export_result.is_err() {
+                                if response_sender.send(false).is_err() {
+                                    otel_info!(
+                                        name: "PeriodReader.Flush.ResponseSendError",
+                                        message = "PeriodicReader's flush has failed, but unable to send this info back to caller. 
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                    );
+                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_info!(
+                                    name: "PeriodReader.Flush.ResponseSendError",
+                                    message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller. 
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                );
                             }
 
                             // Adjust the remaining interval after the flush
@@ -232,15 +258,39 @@ impl PeriodicReader {
                             // Perform final export and break out of loop and exit the thread
                             otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
                             let export_result = cloned_reader.collect_and_export(timeout);
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
                             let shutdown_result = exporter_arc.shutdown();
                             otel_debug!(
                                 name: "PeriodReaderInvokedExporterShutdown",
                                 shutdown_result = format!("{:?}", shutdown_result)
                             );
+
+                            // If response_sender is disconnected, we can't send
+                            // the result back. This occurs when the thread that
+                            // initiated shutdown gave up due to timeout.
+                            // Gracefully handle that with internal logs and
+                            // continue with shutdown (i.e exit thread) The
+                            // internal errors are of Info level, as this is
+                            // useful for user to know whether the shutdown was
+                            // successful or not, when shutdown() itself merely
+                            // tells that it timed out.
                             if export_result.is_err() || shutdown_result.is_err() {
-                                response_sender.send(false).unwrap();
-                            } else {
-                                response_sender.send(true).unwrap();
+                                if response_sender.send(false).is_err() {
+                                    otel_info!(
+                                        name: "PeriodReaderThreadShutdown.ResponseSendError",
+                                        message = "PeriodicReader's shutdown has failed, but unable to send this info back to caller. 
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
+                                    );
+                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_info!(
+                                    name: "PeriodReaderThreadShutdown.ResponseSendError",
+                                    message = "PeriodicReader completed its shutdown, but unable to send this info back to caller. 
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
+                                );
                             }
 
                             otel_debug!(
@@ -255,11 +305,11 @@ impl PeriodicReader {
                                 name: "PeriodReaderThreadExportingDueToTimer"
                             );
 
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                                otel_debug!(
-                                    name: "PeriodReaderThreadExportingDueToTimerFailed"
-                                );
-                            }
+                            let export_result = cloned_reader.collect_and_export(timeout);
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
 
                             let time_taken_for_export = export_start.elapsed();
                             if time_taken_for_export > interval {
@@ -390,17 +440,7 @@ impl PeriodicReaderInner {
 
         // Relying on futures executor to execute async call.
         // TODO: Pass timeout to exporter
-        let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm));
-        #[allow(clippy::question_mark)]
-        if let Err(e) = exporter_result {
-            otel_warn!(
-                name: "PeriodReaderExportError",
-                error = format!("{:?}", e)
-            );
-            return Err(e);
-        }
-
-        Ok(())
+        futures_executor::block_on(self.exporter.export(&mut rm))
     }
 
     fn force_flush(&self) -> MetricResult<()> {
