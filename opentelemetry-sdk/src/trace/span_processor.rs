@@ -217,7 +217,6 @@ use crate::trace::ExportResult;
 ///                 .with_max_queue_size(1024) // Buffer up to 1024 spans.
 ///                 .with_max_export_batch_size(256) // Export in batches of up to 256 spans.
 ///                 .with_scheduled_delay(Duration::from_secs(5)) // Export every 5 seconds.
-///                 .with_max_export_timeout(Duration::from_secs(10)) // Timeout after 10 seconds.
 ///                 .build(),
 ///         )
 ///         .build();
@@ -474,20 +473,14 @@ impl BatchSpanProcessor {
         }
 
         let count_of_spans = spans.len(); // Count of spans that will be exported
-        let result = Self::export_with_timeout_sync(
-            config.max_export_timeout,
-            exporter,
-            spans,
-            last_export_time,
-        ); // This method clears the spans vec after exporting
+        let result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
 
         current_batch_size.fetch_sub(count_of_spans, Ordering::Relaxed);
         result
     }
 
     #[allow(clippy::vec_box)]
-    fn export_with_timeout_sync<E>(
-        _: Duration, // TODO, enforcing timeout in exporter.
+    fn export_batch_sync<E>(
         exporter: &mut E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
@@ -771,6 +764,7 @@ impl BatchConfigBuilder {
     /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The The default value is 30000 milliseconds.
+    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
         self
@@ -991,10 +985,11 @@ mod tests {
         let batch = BatchConfigBuilder::default()
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_millis(10))
-            .with_max_export_timeout(Duration::from_millis(10))
             .with_max_queue_size(10);
         #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
         let batch = batch.with_max_concurrent_exports(10);
+        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+        let batch = batch.with_max_export_timeout(Duration::from_millis(10));
         let batch = batch.build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
@@ -1068,7 +1063,6 @@ mod tests {
             .with_max_queue_size(10)
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
-            .with_max_export_timeout(Duration::from_secs(2))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
 
@@ -1091,7 +1085,6 @@ mod tests {
             .with_max_queue_size(10)
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
-            .with_max_export_timeout(Duration::from_secs(2))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
 
@@ -1121,7 +1114,6 @@ mod tests {
             .with_max_queue_size(10)
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
-            .with_max_export_timeout(Duration::from_secs(2))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
 
@@ -1157,7 +1149,6 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(2) // Small queue size to test span dropping
             .with_scheduled_delay(Duration::from_secs(5))
-            .with_max_export_timeout(Duration::from_secs(2))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
 
