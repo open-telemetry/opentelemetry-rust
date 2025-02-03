@@ -367,7 +367,13 @@ impl PeriodicReaderInner {
                 .produce(rm)?;
             Ok(())
         } else {
-            Err(MetricError::Other("pipeline is not registered".into()))
+            otel_warn!(
+            name: "PeriodReader.MeterProviderNotRegistered",
+            message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
+                   This occurs when a periodic reader is created but not associated with a MeterProvider \
+                   by calling `.with_reader(reader)` on MeterProviderBuilder."
+            );
+            Err(MetricError::Other("MeterProvider is not registered".into()))
         }
     }
 
@@ -512,7 +518,7 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        error::ShutdownResult,
+        error::{ShutdownError, ShutdownResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
             InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
@@ -634,11 +640,8 @@ mod tests {
     #[test]
     fn shutdown_repeat() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.shutdown();
@@ -647,20 +650,19 @@ mod tests {
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert!(matches!(result, Err(ShutdownError::AlreadyShutdown)));
 
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert!(matches!(result, Err(ShutdownError::AlreadyShutdown)));
     }
 
     #[test]
     fn flush_after_shutdown() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -677,11 +679,8 @@ mod tests {
     #[test]
     fn flush_repeat() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -695,11 +694,8 @@ mod tests {
     #[test]
     fn periodic_reader_without_pipeline() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let rm = &mut ResourceMetrics {
             resource: Resource::empty(),
@@ -841,11 +837,8 @@ mod tests {
 
     fn collection_helper(trigger: fn(SdkMeterProvider)) {
         // Arrange
-        let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let (sender, receiver) = mpsc::channel();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
@@ -959,11 +952,8 @@ mod tests {
     }
 
     fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
-        let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
