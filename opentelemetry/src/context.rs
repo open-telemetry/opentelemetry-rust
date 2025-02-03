@@ -78,8 +78,10 @@ thread_local! {
 pub struct Context {
     #[cfg(feature = "trace")]
     pub(super) span: Option<Arc<SynchronizedSpan>>,
-    entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
+    entries: Option<Arc<EntryMap>>,
 }
+
+type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
 
 impl Context {
     /// Creates an empty `Context`.
@@ -152,12 +154,7 @@ impl Context {
     /// assert_eq!(all_current_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn current_with_value<T: 'static + Send + Sync>(value: T) -> Self {
-        let mut new_context = Context::current();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        Context::map_current(|cx| cx.with_value(value))
     }
 
     /// Returns a reference to the entry for the corresponding value type.
@@ -182,9 +179,13 @@ impl Context {
     /// assert_eq!(cx.get::<MyUser>(), None);
     /// ```
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        self.entries
-            .get(&TypeId::of::<T>())
-            .and_then(|rc| rc.downcast_ref())
+        if let Some(entries) = &self.entries {
+            entries
+                .get(&TypeId::of::<T>())
+                .and_then(|rc| rc.downcast_ref())
+        } else {
+            None
+        }
     }
 
     /// Returns a copy of the context with the new value included.
@@ -215,12 +216,20 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let mut new_context = self.clone();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        let entries = if let Some(current_entries) = &self.entries {
+            let mut inner_entries = (**current_entries).clone();
+            inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(inner_entries))
+        } else {
+            let mut entries = EntryMap::default();
+            entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(entries))
+        };
+        Context {
+            entries,
+            #[cfg(feature = "trace")]
+            span: self.span.clone(),
+        }
     }
 
     /// Replaces the current context on this thread with this context.
@@ -326,7 +335,7 @@ impl Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut dbg = f.debug_struct("Context");
-        let mut entries = self.entries.len();
+        let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
         #[cfg(feature = "trace")]
         {
             if let Some(span) = &self.span {
