@@ -304,6 +304,39 @@ limit.
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
+- *Breaking*: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+responsibility of the exporter.
+For example, in the OTLP Logs exporter, the export timeout can be configured using:
+- The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
+- The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+Before:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(30)) // Previously configurable
+            .build(),
+    )
+    .build();
+```
+
+After:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5)) // No `max_export_timeout`
+            .build(),
+    )
+    .build();
+```
+
 ## 0.27.1
 
 Released 2024-Nov-27
