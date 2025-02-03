@@ -525,7 +525,7 @@ impl BatchLogProcessor {
                         let count_of_logs = logs.len(); // Count of logs that will be exported
                         total_exported_logs += count_of_logs;
 
-                        result = export_with_timeout_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
@@ -651,7 +651,7 @@ impl BatchLogProcessor {
 }
 
 #[allow(clippy::vec_box)]
-fn export_with_timeout_sync<E>(
+fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
