@@ -57,8 +57,10 @@ pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
 pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: u64 = 1_000;
 /// Maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 /// Maximum queue size.
 pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
@@ -229,7 +231,6 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// - This processor supports the following configurations:
 ///     - **Queue size**: Maximum number of log records that can be buffered.
 ///     - **Batch size**: Maximum number of log records to include in a single export.
-///     - **Export timeout**: Maximum duration allowed for an export operation.
 ///     - **Scheduled delay**: Frequency at which the batch is exported.
 ///
 /// When using this processor with the OTLP Exporter, the following exporter
@@ -255,7 +256,6 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 ///             .with_max_queue_size(2048)
 ///             .with_max_export_batch_size(512)
 ///             .with_scheduled_delay(Duration::from_secs(5))
-///             .with_max_export_timeout(Duration::from_secs(30))
 ///             .build(),
 ///     )
 ///     .build();
@@ -343,7 +343,7 @@ impl LogProcessor for BatchLogProcessor {
                 // a log, emit a warning.
                 if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
                     otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                        message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+                        message = "BatchLogProcessor dropped a LogRecord due to queue full. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
@@ -376,9 +376,9 @@ impl LogProcessor for BatchLogProcessor {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
                     name: "BatchLogProcessor.ForceFlush.ControlChannelFull",
-                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call."
+                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call.".into()))
+                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -404,7 +404,7 @@ impl LogProcessor for BatchLogProcessor {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
@@ -442,9 +442,9 @@ impl LogProcessor for BatchLogProcessor {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
                     name: "BatchLogProcessor.Shutdown.ControlChannelFull",
-                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call."
+                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call.".into()))
+                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -525,12 +525,7 @@ impl BatchLogProcessor {
                         let count_of_logs = logs.len(); // Count of logs that will be exported
                         total_exported_logs += count_of_logs;
 
-                        result = export_with_timeout_sync(
-                            config.max_export_timeout,
-                            exporter,
-                            logs,
-                            last_export_time,
-                        ); // This method clears the logs vec after exporting
+                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
@@ -656,8 +651,7 @@ impl BatchLogProcessor {
 }
 
 #[allow(clippy::vec_box)]
-fn export_with_timeout_sync<E>(
-    _: Duration, // TODO, enforcing timeout in exporter.
+fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
@@ -733,6 +727,7 @@ pub struct BatchConfig {
     pub(crate) max_export_batch_size: usize,
 
     /// The maximum duration to export a batch of data.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub(crate) max_export_timeout: Duration,
 }
 
@@ -748,6 +743,7 @@ pub struct BatchConfigBuilder {
     max_queue_size: usize,
     scheduled_delay: Duration,
     max_export_batch_size: usize,
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     max_export_timeout: Duration,
 }
 
@@ -764,6 +760,7 @@ impl Default for BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
         }
         .init_from_env_vars()
@@ -791,6 +788,7 @@ impl BatchConfigBuilder {
     /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The default value is 30000 milliseconds.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
         self
@@ -816,6 +814,7 @@ impl BatchConfigBuilder {
         BatchConfig {
             max_queue_size: self.max_queue_size,
             scheduled_delay: self.scheduled_delay,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: self.max_export_timeout,
             max_export_batch_size,
         }
@@ -843,6 +842,7 @@ impl BatchConfigBuilder {
             self.scheduled_delay = Duration::from_millis(scheduled_delay);
         }
 
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         if let Some(max_export_timeout) = env::var(OTEL_BLRP_EXPORT_TIMEOUT)
             .ok()
             .and_then(|s| u64::from_str(&s).ok())
@@ -946,6 +946,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -969,6 +970,7 @@ mod tests {
         let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, 4096);
         assert_eq!(config.max_export_batch_size, 1024);
@@ -989,6 +991,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -997,15 +1000,18 @@ mod tests {
 
     #[test]
     fn test_batch_config_with_fields() {
-        let batch = BatchConfigBuilder::default()
+        let batch_builder = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
-            .with_max_queue_size(4)
-            .build();
+            .with_max_queue_size(4);
+
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+        let batch_builder = batch_builder.with_max_export_timeout(Duration::from_millis(3));
+        let batch = batch_builder.build();
 
         assert_eq!(batch.max_export_batch_size, 1);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(2));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(batch.max_export_timeout, Duration::from_millis(3));
         assert_eq!(batch.max_queue_size, 4);
     }
@@ -1029,6 +1035,8 @@ mod tests {
                 builder.config.max_queue_size,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT
             );
+
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             assert_eq!(
                 builder.config.max_export_timeout,
                 Duration::from_millis(2046)
@@ -1049,7 +1057,6 @@ mod tests {
         let expected = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
             .with_max_queue_size(4)
             .build();
 
@@ -1059,7 +1066,6 @@ mod tests {
         let actual = &builder.config;
         assert_eq!(actual.max_export_batch_size, 1);
         assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
-        assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
     }
 
