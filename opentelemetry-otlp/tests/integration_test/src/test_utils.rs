@@ -99,7 +99,7 @@ pub async fn start_collector_container() -> Result<()> {
             .await?;
 
         let container = Arc::new(container_instance);
-        otel_debug!(
+        otel_info!(
             name: "Container started",
             ports = format!("{:?}", container.ports().await));
 
@@ -108,6 +108,8 @@ pub async fn start_collector_container() -> Result<()> {
 
         // Store the container in COLLECTOR_ARC
         *arc_guard = Some(Arc::clone(&container));
+    } else {
+        otel_info!(name: "OTel Collector already running");
     }
 
     Ok(())
