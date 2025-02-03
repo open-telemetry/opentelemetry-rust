@@ -248,7 +248,7 @@ impl MeterProviderBuilder {
     /// [`with_periodic_exporter`] can be used to add a PeriodicReader which is
     /// the most common use case.
     ///
-    /// A [MeterProvider] will perform no operations without [MetricReader]
+    /// A [MeterProvider] will export no metrics without [MetricReader]
     /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
         self.readers.push(Box::new(reader));
