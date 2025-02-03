@@ -304,7 +304,7 @@ limit.
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
-- *Breaking*: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
 or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
 responsibility of the exporter.
 For example, in the OTLP Logs exporter, the export timeout can be configured using:
@@ -337,7 +337,7 @@ let processor = BatchLogProcessor::builder(exporter)
     .build();
 ```
 
-- *Breaking*: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
    or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
    responsibility of the exporter.
    For example, in the OTLP Span exporter, the export timeout can be configured using:
@@ -369,6 +369,20 @@ let processor = BatchSpanProcessor::builder(exporter)
     )
     .build();
 ```
+- **Breaking**: The `PeriodicReader` no supports configuration of `max_export_timeout`. 
+Timeout handling is now the responsibility of the exporter.
+
+For example, in the OTLP Metrics exporter, the export timeout can be configured using:
+- The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
+- The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
+### Before:
+```rust
+let reader = PeriodicReader::builder(exporter)
+    .with_interval(Duration::from_secs(30))
+    .with_timeout(Duration::from_secs(10)) // Previously configurable timeout
+    .build();
+
 
 ## 0.27.1
 
