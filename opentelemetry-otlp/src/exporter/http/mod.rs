@@ -150,7 +150,7 @@ impl HttpExporterBuilder {
                     reqwest::Client::builder()
                         .timeout(timeout)
                         .build()
-                        .unwrap_or(reqwest::Client::new()),
+                        .unwrap_or_default(),
                 ) as Arc<dyn HttpClient>);
             }
             #[cfg(all(
