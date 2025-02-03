@@ -166,7 +166,6 @@ impl HttpExporterBuilder {
                             .timeout(timeout_clone)
                             .build()
                             .unwrap_or_else(|_| reqwest::blocking::Client::new())
-                        // Handle error safely
                     })
                     .join()
                     .unwrap(), // Unwrap thread result
