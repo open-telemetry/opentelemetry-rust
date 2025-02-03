@@ -65,9 +65,10 @@ Project versioning information and stability guarantees can be found
 ## Getting Started
 
 ```rust
-use opentelemetry::{
-    global,
-    trace::{Tracer, TracerProvider as _},
+use opentelemetry::trace::{
+    TraceContextExt,
+    Tracer,
+    TracerProvider as _,
 };
 use opentelemetry_sdk::trace::TracerProvider;
 
@@ -92,9 +93,9 @@ The example above requires the following packages:
 ```toml
 # Cargo.toml
 [dependencies]
-opentelemetry = "0.22"
-opentelemetry_sdk = "0.22"
-opentelemetry-stdout = { version = "0.3", features = ["trace"] }
+opentelemetry = "0.27"
+opentelemetry_sdk = "0.27"
+opentelemetry-stdout = { version = "0.27", features = ["trace"] }
 ```
 
 See the [examples](./examples) directory for different integration patterns.
