@@ -11,10 +11,10 @@
     | log_clone_and_send_to_channel_processor     | 403 ns      |
 */
 
+use opentelemetry::time::now;
 use std::{
     sync::{Arc, Mutex},
     thread::sleep,
-    time::SystemTime,
 };
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -29,7 +29,7 @@ use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, Logger
 
 fn create_log_record(logger: &Logger) -> LogRecord {
     let mut log_record = logger.create_log_record();
-    let now = SystemTime::now();
+    let now = now();
     log_record.set_observed_timestamp(now);
     log_record.set_target("my-target".to_string());
     log_record.set_event_name("CheckoutFailed");

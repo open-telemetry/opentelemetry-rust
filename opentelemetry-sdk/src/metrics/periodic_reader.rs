@@ -91,25 +91,50 @@ where
     }
 }
 
-/// A [MetricReader] that continuously collects and exports metrics at a set
-/// interval.
+/// A `MetricReader` that periodically collects and exports metrics at a configurable interval.
 ///
-/// By default, `PeriodicReader` will collect and export metrics every 60
-/// seconds. The export time is not counted towards the interval between
-/// attempts. `PeriodicReader` itself does not enforce a timeout. Instead, the
-/// timeout is passed on to the configured exporter for each export attempt.
+/// By default, [`PeriodicReader`] collects and exports metrics every **60 seconds**.
+/// The time taken for export is **not** included in the interval. Use [`PeriodicReaderBuilder`]
+/// to customize the interval.
 ///
-/// `PeriodicReader` spawns a background thread to handle the periodic
-/// collection and export of metrics. The background thread will continue to run
-/// until `shutdown()` is called.
+/// [`PeriodicReader`] spawns a background thread to handle metric collection and export.
+/// This thread remains active until [`shutdown()`] is called.
 ///
-/// When using this reader with the OTLP Exporter, the following exporter
-/// features are supported:
-/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
-///   runtime.
-/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+/// ## Collection Process
+/// "Collection" refers to gathering aggregated metrics from the SDK's internal storage.
+/// During this phase, callbacks from observable instruments are also triggered.
 ///
-/// In other words, other clients like `reqwest` and `hyper` are not supported.
+/// [`PeriodicReader`] does **not** enforce a timeout for collection. If an
+/// observable callback takes too long, it may delay the next collection cycle.
+/// If a callback never returns, it **will stall** all metric collection (and exports)
+/// indefinitely.
+///
+/// ## Exporter Compatibility
+/// When used with the [`OTLP Exporter`](https://docs.rs/opentelemetry-otlp), the following
+/// transport options are supported:
+///
+/// - **`grpc-tonic`**: Requires [`MeterProvider`] to be initialized within a `tokio` runtime.
+/// - **`reqwest-blocking-client`**: Works with both a standard (`main`) function and `tokio::main`.
+///
+/// [`PeriodicReader`] does **not** enforce a timeout for exports either. Instead,
+/// the configured exporter is responsible for enforcing timeouts. If an export operation
+/// never returns, [`PeriodicReader`] will **stop exporting new metrics**, stalling
+/// metric collection.
+///
+/// ## Manual Export & Shutdown
+/// Users can manually trigger an export via [`force_flush()`]. Calling [`shutdown()`]
+/// exports any remaining metrics and should be done before application exit to ensure
+/// all data is sent.
+///
+/// **Warning**: If using **tokio’s current-thread runtime**, calling [`shutdown()`]
+/// from the main thread may cause a deadlock. To prevent this, call [`shutdown()`]
+/// from a separate thread or use tokio's `spawn_blocking`.
+///
+/// [`PeriodicReader`]: crate::metrics::PeriodicReader
+/// [`PeriodicReaderBuilder`]: crate::metrics::PeriodicReaderBuilder
+/// [`MeterProvider`]: crate::metrics::SdkMeterProvider
+/// [`shutdown()`]: crate::metrics::SdkMeterProvider::shutdown
+/// [`force_flush()`]: crate::metrics::SdkMeterProvider::force_flush
 ///
 /// # Example
 ///
