@@ -8,7 +8,7 @@ use opentelemetry::{
 };
 
 // Run this benchmark with:
-// cargo bench --bench current_context
+// cargo bench --bench context_attach
 
 fn criterion_benchmark(c: &mut Criterion) {
     let span_context = Context::new().with_remote_span_context(SpanContext::empty_context());
