@@ -343,7 +343,7 @@ impl LogProcessor for BatchLogProcessor {
                 // a log, emit a warning.
                 if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
                     otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                        message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+                        message = "BatchLogProcessor dropped a LogRecord due to queue full. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
@@ -376,9 +376,9 @@ impl LogProcessor for BatchLogProcessor {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
                     name: "BatchLogProcessor.ForceFlush.ControlChannelFull",
-                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call."
+                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call.".into()))
+                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -404,7 +404,7 @@ impl LogProcessor for BatchLogProcessor {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
@@ -442,9 +442,9 @@ impl LogProcessor for BatchLogProcessor {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
                     name: "BatchLogProcessor.Shutdown.ControlChannelFull",
-                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call."
+                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush without finishing the previous call.".into()))
+                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
