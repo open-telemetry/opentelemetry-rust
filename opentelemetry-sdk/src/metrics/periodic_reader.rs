@@ -66,7 +66,6 @@ where
 
 /// A `MetricReader` that periodically collects and exports metrics at a configurable interval.
 ///
-
 /// By default, [`PeriodicReader`] collects and exports metrics every **60 seconds**.
 /// The time taken for export is **not** included in the interval. Use [`PeriodicReaderBuilder`]
 /// to customize the interval.
