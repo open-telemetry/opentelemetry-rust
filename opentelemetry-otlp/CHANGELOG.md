@@ -13,6 +13,15 @@
 - Remove unnecessarily public trait `opentelemetry_otlp::metrics::MetricsClient`
   and `MetricExporter::new(..)` method. Use
   `MetricExporter::builder()...build()` to obtain `MetricExporter`.
+- The HTTP clients (reqwest, reqwest-blocking, hyper) now support the
+timeout internal configured in below order
+  - Signal specific env variable `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, 
+  `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` or `OTEL_EXPORTER_OTLP_TIMEOUT`.
+  - `OTEL_EXPORTER_OTLP_TIMEOUT` env variable.
+  - `with_http().with_timeout()` API method of
+`LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
+  - The default interval of 30sec is used if none is configured
+
 
 ## 0.27.0
 
