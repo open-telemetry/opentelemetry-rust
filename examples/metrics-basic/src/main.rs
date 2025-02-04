@@ -1,5 +1,5 @@
 use opentelemetry::{global, KeyValue};
-use opentelemetry_sdk::error::ShutdownError;
+use opentelemetry_sdk::error::OTelSdkError;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
 use std::error::Error;

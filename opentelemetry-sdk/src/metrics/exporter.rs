@@ -1,7 +1,7 @@
 //! Interfaces for exporting metrics
 use async_trait::async_trait;
 
-use crate::error::ShutdownResult;
+use crate::error::OTelSdkResult;
 use crate::metrics::MetricResult;
 
 use crate::metrics::data::ResourceMetrics;
@@ -28,7 +28,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     ///
     /// After Shutdown is called, calls to Export will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> ShutdownResult;
+    fn shutdown(&self) -> OTelSdkResult;
 
     /// Access the [Temporality] of the MetricExporter.
     fn temporality(&self) -> Temporality;

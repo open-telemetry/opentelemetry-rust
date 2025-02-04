@@ -11,8 +11,8 @@ pub trait ExportError: std::error::Error + Send + Sync + 'static {
 }
 
 #[derive(Error, Debug)]
-/// Errors that can occur during shutdown.
-pub enum ShutdownError {
+/// Errors that can occur during SDK operations export(), force_flush() and shutdown().
+pub enum OTelSdkError {
     /// Shutdown has already been invoked.
     ///
     /// While shutdown is idempotent and calling it multiple times has no
@@ -42,4 +42,4 @@ pub enum ShutdownError {
 }
 
 /// A specialized `Result` type for Shutdown operations.
-pub type ShutdownResult = Result<(), ShutdownError>;
+pub type OTelSdkResult = Result<(), OTelSdkError>;

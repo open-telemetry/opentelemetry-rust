@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
 use opentelemetry_sdk::{
-    error::ShutdownResult,
+    error::OTelSdkResult,
     metrics::{
         data::{
             ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
@@ -65,7 +65,7 @@ impl PushMetricExporter for MetricExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
-use opentelemetry_sdk::error::{ShutdownError, ShutdownResult};
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 
@@ -44,10 +44,10 @@ impl MetricsClient for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.client
             .lock()
-            .map_err(|e| ShutdownError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
             .take();
 
         Ok(())
