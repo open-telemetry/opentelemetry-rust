@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
+use opentelemetry_sdk::error::ExportResult;
+use opentelemetry_sdk::metrics::{MetricResult, Temporality};
 use opentelemetry_sdk::{
     error::ShutdownResult,
     metrics::{
@@ -13,11 +14,9 @@ use opentelemetry_sdk::{
     },
 };
 use std::fmt::Debug;
-use std::sync::atomic;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricExporter {
-    is_shutdown: atomic::AtomicBool,
     temporality: Temporality,
 }
 
@@ -42,22 +41,18 @@ impl fmt::Debug for MetricExporter {
 #[async_trait]
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
-        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Err(MetricError::Other("exporter is shut down".into()))
-        } else {
-            println!("Metrics");
-            println!("Resource");
-            if let Some(schema_url) = metrics.resource.schema_url() {
-                println!("\tResource SchemaUrl: {:?}", schema_url);
-            }
-
-            metrics.resource.iter().for_each(|(k, v)| {
-                println!("\t ->  {}={:?}", k, v);
-            });
-            print_metrics(&metrics.scope_metrics);
-            Ok(())
+    async fn export(&self, metrics: &mut ResourceMetrics) -> ExportResult {
+        println!("Metrics");
+        println!("Resource");
+        if let Some(schema_url) = metrics.resource.schema_url() {
+            println!("\tResource SchemaUrl: {:?}", schema_url);
         }
+
+        metrics.resource.iter().for_each(|(k, v)| {
+            println!("\t ->  {}={:?}", k, v);
+        });
+        print_metrics(&metrics.scope_metrics);
+        Ok(())
     }
 
     async fn force_flush(&self) -> MetricResult<()> {
@@ -66,7 +61,6 @@ impl PushMetricExporter for MetricExporter {
     }
 
     fn shutdown(&self) -> ShutdownResult {
-        self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
 
@@ -270,8 +264,7 @@ impl MetricExporterBuilder {
     /// Create a metrics exporter with the current configuration
     pub fn build(self) -> MetricExporter {
         MetricExporter {
-            temporality: self.temporality.unwrap_or_default(),
-            is_shutdown: atomic::AtomicBool::new(false),
+            temporality: self.temporality.unwrap_or_default()
         }
     }
 }

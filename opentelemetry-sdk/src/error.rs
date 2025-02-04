@@ -41,5 +41,30 @@ pub enum ShutdownError {
     InternalFailure(String),
 }
 
+#[derive(Error, Debug)]
+/// Errors that can occur during export.
+/// TODO: This should be ExportError, but that can be done after rest of repo changes are done.
+pub enum ExportErrorMetric {
+    /// Export timed out before completing.
+    ///
+    /// This does not necessarily indicate a failure—export may still be
+    /// complete. If this occurs frequently, consider increasing the timeout
+    /// duration to allow more time for completion.
+    #[error("Export timed out after {0:?}")]
+    Timeout(Duration),
+
+    /// Export failed due to an internal error.
+    ///
+    /// The error message is intended for logging purposes only and should not
+    /// be used to make programmatic decisions. It is implementation-specific
+    /// and subject to change without notice. Consumers of this error should not
+    /// rely on its content beyond logging.
+    #[error("Export failed: {0}")]
+    InternalFailure(String),
+}
+
 /// A specialized `Result` type for Shutdown operations.
 pub type ShutdownResult = Result<(), ShutdownError>;
+
+/// A specialized `Result` type for Export operations.
+pub type ExportResult = Result<(), ExportErrorMetric>;

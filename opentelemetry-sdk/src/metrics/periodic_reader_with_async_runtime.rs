@@ -13,9 +13,9 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::Runtime;
+use crate::{error::ExportErrorMetric, runtime::Runtime};
 use crate::{
-    error::{ShutdownError, ShutdownResult},
+    error::{ExportResult, ShutdownError, ShutdownResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -233,8 +233,10 @@ struct PeriodicReaderWorker<RT: Runtime> {
 }
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> MetricResult<()> {
-        self.reader.collect(&mut self.rm)?;
+    async fn collect_and_export(&mut self) -> ExportResult {
+        self.reader
+            .collect(&mut self.rm)
+            .map_err(|e| ExportErrorMetric::InternalFailure(e.to_string()))?;
         if self.rm.scope_metrics.is_empty() {
             otel_debug!(
                 name: "PeriodicReaderWorker.NoMetricsToExport",
@@ -257,7 +259,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => Err(MetricError::Other("export timed out".into())),
+            Either::Right(_) => Err(ExportErrorMetric::Timeout(self.timeout)),
         }
     }
 
@@ -280,7 +282,10 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                     name: "PeriodicReader.ForceFlushCalled",
                     message = "Flush message received.",
                 );
-                let res = self.collect_and_export().await;
+                let res = self
+                    .collect_and_export()
+                    .await
+                    .map_err(|e| MetricError::Other(e.to_string()));
                 if let Err(send_error) = ch.send(res) {
                     otel_debug!(
                         name: "PeriodicReader.Flush.SendResultError",

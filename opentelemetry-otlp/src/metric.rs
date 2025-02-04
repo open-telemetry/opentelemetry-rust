@@ -16,7 +16,7 @@ use crate::NoExporterBuilderSet;
 
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry_sdk::error::ShutdownResult;
+use opentelemetry_sdk::error::{ExportResult, ShutdownResult};
 use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
@@ -123,7 +123,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 /// An interface for OTLP metrics clients
 #[async_trait]
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
+    async fn export(&self, metrics: &mut ResourceMetrics) -> ExportResult;
     fn shutdown(&self) -> ShutdownResult;
 }
 
@@ -141,7 +141,7 @@ impl Debug for MetricExporter {
 
 #[async_trait]
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> ExportResult {
         self.client.export(metrics).await
     }
 
