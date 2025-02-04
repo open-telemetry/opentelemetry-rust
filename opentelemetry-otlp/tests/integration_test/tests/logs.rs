@@ -126,6 +126,7 @@ fn logs_non_tokio_helper(is_simple: bool, init_logs_inside_rt: bool) -> Result<(
         );
     }
 
+    let _ = logger_provider.shutdown();
     std::thread::sleep(Duration::from_secs(2));
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
     Ok(())
