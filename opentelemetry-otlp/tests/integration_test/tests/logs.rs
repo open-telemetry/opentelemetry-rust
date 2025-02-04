@@ -88,7 +88,7 @@ async fn logs_tokio_helper(
     } else {
         let _ = logger_provider.shutdown();
     }
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
     Ok(())
 }
