@@ -252,7 +252,38 @@ enum BatchMessage {
     SetResource(Arc<Resource>),
 }
 
-/// A batch span processor with a dedicated background thread.
+/// The `BatchSpanProcessor` collects finished spans in a buffer and exports them
+/// in batches to the configured `SpanExporter`. This processor is ideal for
+/// high-throughput environments, as it minimizes the overhead of exporting spans
+/// individually. It uses a **dedicated background thread** to manage and export spans
+/// asynchronously, ensuring that the application's main execution flow is not blocked.
+///
+/// This processor supports the following configurations:
+/// - **Queue size**: Maximum number of spans that can be buffered.
+/// - **Batch size**: Maximum number of spans to include in a single export.
+/// - **Scheduled delay**: Frequency at which the batch is exported.
+///
+/// When using this processor with the OTLP Exporter, the following exporter
+/// features are supported:
+/// - `grpc-tonic`: Requires `TracerProvider` to be created within a tokio runtime.
+/// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
+///
+/// In other words, other clients like `reqwest` and `hyper` are not supported.
+///
+/// `BatchSpanProcessor` buffers spans in memory and exports them in batches. An
+/// export is triggered when `max_export_batch_size` is reached or every
+/// `scheduled_delay` milliseconds. Users can explicitly trigger an export using
+/// the `force_flush` method. Shutdown also triggers an export of all buffered
+/// spans and is recommended to be called before the application exits to ensure
+/// all buffered spans are exported.
+///
+/// **Warning**: When using tokio's current-thread runtime, `shutdown()`, which
+/// is a blocking call ,should not be called from your main thread. This can
+/// cause deadlock. Instead, call `shutdown()` from a separate thread or use
+/// tokio's `spawn_blocking`.
+///
+/// [`shutdown()`]: crate::trace::TracerProvider::shutdown
+/// [`force_flush()`]: crate::trace::TracerProvider::force_flush
 #[derive(Debug)]
 pub struct BatchSpanProcessor {
     span_sender: SyncSender<SpanData>, // Data channel to store spans

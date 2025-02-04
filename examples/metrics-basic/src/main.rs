@@ -10,9 +10,8 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         // Build exporter using Delta Temporality (Defaults to Temporality::Cumulative)
         // .with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
         .build();
-    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
-        .with_reader(reader)
+        .with_periodic_exporter(exporter)
         .with_resource(
             Resource::builder()
                 .with_service_name("metrics-basic-example")
