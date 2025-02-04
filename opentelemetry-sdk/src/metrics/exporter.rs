@@ -2,7 +2,6 @@
 use async_trait::async_trait;
 
 use crate::error::OTelSdkResult;
-use crate::metrics::MetricResult;
 
 use crate::metrics::data::ResourceMetrics;
 
@@ -21,7 +20,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult;
 
     /// Flushes any metric data held by an exporter.
-    async fn force_flush(&self) -> MetricResult<()>;
+    async fn force_flush(&self) -> OTelSdkResult;
 
     /// Releases any held computational resources.
     ///
