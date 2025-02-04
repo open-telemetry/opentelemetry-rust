@@ -111,9 +111,10 @@ impl MetricReader for ManualReader {
 
     /// Closes any connections and frees any resources used by the reader.
     fn shutdown(&self) -> OTelSdkResult {
-        let mut inner = self.inner.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e))
-        })?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?;
 
         // Any future call to collect will now return an error.
         inner.sdk_producer = None;
