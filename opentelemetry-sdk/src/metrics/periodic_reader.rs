@@ -373,7 +373,6 @@ impl PeriodicReaderInner {
         }
     }
 
-
     fn collect_and_export(&self) -> OTelSdkResult {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
