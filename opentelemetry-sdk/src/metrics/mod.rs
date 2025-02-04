@@ -218,10 +218,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[cfg(feature = "experimental_metrics_disable_name_validation")]
-    async fn valid_instrument_config_noops_with_feature_experimental_metrics_disable_name_validation(
+    async fn valid_instrument_config_with_feature_experimental_metrics_disable_name_validation(
     ) {
         // Run this test with stdout enabled to see output.
-        // cargo test valid_instrument_config_noops_with_feature_experimental_metrics_disable_name_validation --features "testing,spec_unstable_metrics_views,experimental_metrics_disable_name_validation" -- --nocapture
+        // cargo test valid_instrument_config_with_feature_experimental_metrics_disable_name_validation --all-features -- --nocapture
         let invalid_instrument_names = vec![
             "_startWithNoneAlphabet",
             "utf8char锈",
