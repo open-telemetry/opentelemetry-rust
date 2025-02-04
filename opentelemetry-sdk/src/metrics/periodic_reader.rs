@@ -357,7 +357,7 @@ impl PeriodicReader {
         reader
     }
 
-    fn collect_and_export(&self, timeout: Duration) -> MetricResult<()> {
+    fn collect_and_export(&self, timeout: Duration) -> OTelSdkResult {
         self.inner.collect_and_export(timeout)
     }
 }
@@ -402,7 +402,7 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn collect_and_export(&self, timeout: Duration) -> MetricResult<()> {
+    fn collect_and_export(&self, timeout: Duration) -> OTelSdkResult {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
         let mut rm = ResourceMetrics {
@@ -425,7 +425,7 @@ impl PeriodicReaderInner {
                 name: "PeriodReaderCollectError",
                 error = format!("{:?}", e)
             );
-            return Err(e);
+            return Err(OTelSdkError::InternalFailure(e.to_string()));
         }
 
         if rm.scope_metrics.is_empty() {
@@ -546,7 +546,7 @@ mod tests {
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
-            InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
+            InMemoryMetricExporter, MetricResult, SdkMeterProvider, Temporality,
         },
         Resource,
     };
@@ -584,9 +584,9 @@ mod tests {
 
     #[async_trait]
     impl PushMetricExporter for MetricExporterThatFailsOnlyOnFirst {
-        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
             if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
-                Err(MetricError::Other("export failed".into()))
+                Err(OTelSdkError::InternalFailure("export failed".into()))
             } else {
                 Ok(())
             }
@@ -612,7 +612,7 @@ mod tests {
 
     #[async_trait]
     impl PushMetricExporter for MockMetricExporter {
-        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
             Ok(())
         }
 
