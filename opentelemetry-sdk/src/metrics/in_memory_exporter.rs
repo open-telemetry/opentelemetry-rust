@@ -1,4 +1,4 @@
-use crate::error::OTelSdkResult;
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
@@ -265,13 +265,13 @@ impl InMemoryMetricExporter {
 
 #[async_trait]
 impl PushMetricExporter for InMemoryMetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
                 metrics_guard.push_back(InMemoryMetricExporter::clone_metrics(metrics))
             })
-            .map_err(MetricError::from)
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
 
     async fn force_flush(&self) -> MetricResult<()> {
