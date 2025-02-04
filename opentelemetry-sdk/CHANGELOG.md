@@ -379,21 +379,6 @@ let processor = BatchSpanProcessor::builder(exporter)
   For example, in the OTLP Metrics exporter, the export timeout can be configured using:
   - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
   - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
- 
-  Before:
-```rust
-let reader = PeriodicReader::builder(exporter)
-    .with_interval(Duration::from_secs(30))
-    .with_timeout(Duration::from_secs(10)) // Previously configurable timeout
-    .build();
-```
-
- After:
-```rust
-let reader = PeriodicReader::builder(exporter)
-    .with_interval(Duration::from_secs(30))
-    .build();
-```
 
 ## 0.27.1
 
