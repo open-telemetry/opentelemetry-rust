@@ -264,7 +264,7 @@ impl MetricExporterBuilder {
     /// Create a metrics exporter with the current configuration
     pub fn build(self) -> MetricExporter {
         MetricExporter {
-            temporality: self.temporality.unwrap_or_default()
+            temporality: self.temporality.unwrap_or_default(),
         }
     }
 }
