@@ -46,7 +46,11 @@ fn init_logs(is_simple: bool) -> Result<sdklogs::LoggerProvider> {
     Ok(logger_provider)
 }
 
-async fn logs_tokio_helper(is_simple: bool, log_send_outside_rt: bool) -> Result<()> {
+async fn logs_tokio_helper(
+    is_simple: bool,
+    log_send_outside_rt: bool,
+    current_thread: bool,
+) -> Result<()> {
     use crate::{assert_logs_results_contains, init_logs};
     test_utils::start_collector_container().await?;
 
@@ -76,8 +80,15 @@ async fn logs_tokio_helper(is_simple: bool, log_send_outside_rt: bool) -> Result
             info!(target: "my-target",  uuid = expected_uuid.as_str(), "hello from {}. My price is {}.", "banana", 2.99);
         }
     }
-    let _ = logger_provider.shutdown();
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    if current_thread {
+        let _res = tokio::runtime::Handle::current()
+            .spawn_blocking(move || logger_provider.shutdown())
+            .await
+            .unwrap();
+    } else {
+        let _ = logger_provider.shutdown();
+    }
+    tokio::time::sleep(Duration::from_secs(2)).await;
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
     Ok(())
 }
@@ -115,8 +126,7 @@ fn logs_non_tokio_helper(is_simple: bool, init_logs_inside_rt: bool) -> Result<(
         );
     }
 
-    let _ = logger_provider.shutdown();
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(2));
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
     Ok(())
 }
@@ -175,7 +185,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_multi_thread() -> Result<()> {
-        logs_tokio_helper(false, false).await
+        logs_tokio_helper(false, false, false).await
     }
 
     // logger initialization - Inside RT
@@ -185,7 +195,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_multi_with_one_worker() -> Result<()> {
-        logs_tokio_helper(false, false).await
+        logs_tokio_helper(false, false, false).await
     }
 
     // logger initialization - Inside RT
@@ -195,7 +205,7 @@ mod logtests {
     #[tokio::test(flavor = "current_thread")]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_current() -> Result<()> {
-        logs_tokio_helper(false, false).await
+        logs_tokio_helper(false, false, true).await
     }
 
     // logger initialization - Inside RT
@@ -205,7 +215,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_log_outside_rt_multi_thread() -> Result<()> {
-        logs_tokio_helper(false, true).await
+        logs_tokio_helper(false, true, false).await
     }
 
     // logger initialization - Inside RT
@@ -215,7 +225,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_log_outside_rt_multi_with_one_worker() -> Result<()> {
-        logs_tokio_helper(false, true).await
+        logs_tokio_helper(false, true, false).await
     }
 
     // logger initialization - Inside RT
@@ -225,7 +235,7 @@ mod logtests {
     #[tokio::test(flavor = "current_thread")]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn logs_batch_tokio_log_outside_rt_current_thread() -> Result<()> {
-        logs_tokio_helper(false, true).await
+        logs_tokio_helper(false, true, true).await
     }
 
     // logger initialization  - Inside RT
@@ -310,7 +320,7 @@ mod logtests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(feature = "reqwest-blocking-client")]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
-        logs_tokio_helper(true, false).await
+        logs_tokio_helper(true, false, false).await
     }
 
     // logger initialization - Inside RT
@@ -324,7 +334,7 @@ mod logtests {
         feature = "hyper-client"
     ))]
     pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
-        logs_tokio_helper(true, false).await
+        logs_tokio_helper(true, false, false).await
     }
 
     // logger initialization - Inside RT
@@ -338,7 +348,7 @@ mod logtests {
         feature = "hyper-client"
     ))]
     pub async fn logs_simple_tokio_multi_with_one_worker() -> Result<()> {
-        logs_tokio_helper(true, false).await
+        logs_tokio_helper(true, false, false).await
     }
 
     // logger initialization - Inside RT
@@ -353,7 +363,7 @@ mod logtests {
         feature = "hyper-client"
     ))]
     pub async fn logs_simple_tokio_current() -> Result<()> {
-        logs_tokio_helper(true, false).await
+        logs_tokio_helper(true, false, false).await
     }
 }
 ///
