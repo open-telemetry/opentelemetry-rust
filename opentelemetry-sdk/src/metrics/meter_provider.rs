@@ -141,7 +141,7 @@ impl SdkMeterProviderInner {
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(crate::error::ShutdownError::AlreadyShutdown)
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }

@@ -11,7 +11,7 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
-    error::{ShutdownError, ShutdownResult},
+    error::{OTelSdkError, ShutdownResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -479,7 +479,7 @@ impl PeriodicReaderInner {
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Shutdown(response_tx))
-            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         // TODO: Make this timeout configurable.
         match response_rx.recv_timeout(Duration::from_secs(5)) {
@@ -487,14 +487,14 @@ impl PeriodicReaderInner {
                 if response {
                     Ok(())
                 } else {
-                    Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
+                    Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                Err(ShutdownError::Timeout(Duration::from_secs(5)))
+                Err(OTelSdkError::Timeout(Duration::from_secs(5)))
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                Err(ShutdownError::InternalFailure("Failed to shutdown".into()))
+                Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
             }
         }
     }
@@ -543,7 +543,7 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        error::{ShutdownError, ShutdownResult},
+        error::{OTelSdkError, ShutdownResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
             InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
@@ -675,12 +675,12 @@ mod tests {
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
-        assert!(matches!(result, Err(ShutdownError::AlreadyShutdown)));
+        assert!(matches!(result, Err(OTelSdkError::AlreadyShutdown)));
 
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
-        assert!(matches!(result, Err(ShutdownError::AlreadyShutdown)));
+        assert!(matches!(result, Err(OTelSdkError::AlreadyShutdown)));
     }
 
     #[test]
