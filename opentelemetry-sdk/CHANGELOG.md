@@ -307,6 +307,72 @@ limit.
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
+- *Breaking*: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+responsibility of the exporter.
+For example, in the OTLP Logs exporter, the export timeout can be configured using:
+- The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
+- The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+Before:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(30)) // Previously configurable
+            .build(),
+    )
+    .build();
+```
+
+After:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5)) // No `max_export_timeout`
+            .build(),
+    )
+    .build();
+```
+
+- *Breaking*: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
+   or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+   responsibility of the exporter.
+   For example, in the OTLP Span exporter, the export timeout can be configured using:
+   - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.
+   - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+  Before:
+```rust
+let processor = BatchSpanProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(30)) // Previously configurable
+            .build(),
+    )
+    .build();
+```
+
+After:
+```rust
+let processor = BatchSpanProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5)) // No `max_export_timeout`
+            .build(),
+    )
+    .build();
+```
+
 ## 0.27.1
 
 Released 2024-Nov-27
@@ -342,13 +408,32 @@ Released 2024-Nov-27
      Migration Guidance:
         - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
-
   - **Bug Fix:** Validates the `with_boundaries` bucket boundaries used in
     Histograms. The boundaries provided by the user must not contain `f64::NAN`,
     `f64::INFINITY` or `f64::NEG_INFINITY` and must be sorted in strictly
     increasing order, and contain no duplicates. Instruments will not record
     measurements if the boundaries are invalid.
     [#2351](https://github.com/open-telemetry/opentelemetry-rust/pull/2351)
+
+- Added `with_periodic_exporter` method to `MeterProviderBuilder`, allowing
+  users to easily attach an exporter with a PeriodicReader for automatic metric
+  export. Retained with_reader() for advanced use cases where a custom
+  MetricReader configuration is needed.
+  [2597](https://github.com/open-telemetry/opentelemetry-rust/pull/2597)
+  Example Usage:
+
+  ```rust
+  SdkMeterProvider::builder()
+      .with_periodic_exporter(exporter)
+      .build();
+  ```
+
+  Using a custom PeriodicReader (advanced use case):
+
+  let reader = PeriodicReader::builder(exporter).build();
+  SdkMeterProvider::builder()
+      .with_reader(reader)
+      .build();
 
 ## 0.27.0
 
