@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
+use opentelemetry_sdk::metrics::{MetricResult, Temporality};
 use opentelemetry_sdk::{
-    error::ShutdownResult,
+    error::OTelSdkResult,
     metrics::{
         data::{
             ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
@@ -42,9 +42,9 @@ impl fmt::Debug for MetricExporter {
 #[async_trait]
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Err(MetricError::Other("exporter is shut down".into()))
+            Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
             println!("Metrics");
             println!("Resource");
@@ -65,7 +65,7 @@ impl PushMetricExporter for MetricExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
