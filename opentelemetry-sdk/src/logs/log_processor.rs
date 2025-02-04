@@ -32,8 +32,7 @@
 //! ```
 
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
-    Resource,
+    error::ShutdownResult, logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult}, Resource
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
@@ -92,7 +91,8 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> LogResult<()>;
+    fn shutdown(&self) -> ShutdownResult;
+    
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -188,13 +188,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter
                 .shutdown()
-                .map_err(|e| LogError::Other(Box::new(e)))?;
+                .map_err(|e| LogError:(Box::new(e)))?;
             Ok(())
         } else {
             Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
