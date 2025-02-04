@@ -1,4 +1,4 @@
-use crate::error::ShutdownResult;
+use crate::error::OTelSdkResult;
 use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
@@ -278,7 +278,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 

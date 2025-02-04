@@ -6,7 +6,7 @@ use std::{
 use opentelemetry::otel_debug;
 
 use crate::{
-    error::{OTelSdkError, ShutdownResult},
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{MetricError, MetricResult, Temporality},
 };
 
@@ -110,7 +110,7 @@ impl MetricReader for ManualReader {
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let mut inner = self.inner.lock().map_err(|e| {
             OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e))
         })?;

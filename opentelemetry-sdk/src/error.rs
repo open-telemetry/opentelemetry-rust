@@ -42,4 +42,4 @@ pub enum OTelSdkError {
 }
 
 /// A specialized `Result` type for Shutdown operations.
-pub type ShutdownResult = Result<(), OTelSdkError>;
+pub type OTelSdkResult = Result<(), OTelSdkError>;

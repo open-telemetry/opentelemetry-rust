@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::error::{OTelSdkError, ShutdownResult};
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::metrics::{
     data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
@@ -42,7 +42,7 @@ impl MetricReader for TestMetricReader {
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let result = self.force_flush();
         {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();

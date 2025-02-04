@@ -14,7 +14,7 @@ use opentelemetry::{
 
 use crate::Resource;
 use crate::{
-    error::ShutdownResult,
+    error::OTelSdkResult,
     metrics::{MetricError, MetricResult},
 };
 
@@ -112,7 +112,7 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> ShutdownResult {
+    pub fn shutdown(&self) -> OTelSdkResult {
         otel_info!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -135,7 +135,7 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)

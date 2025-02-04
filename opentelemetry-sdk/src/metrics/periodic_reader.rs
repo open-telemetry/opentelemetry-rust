@@ -11,7 +11,7 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
-    error::{OTelSdkError, ShutdownResult},
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -474,7 +474,7 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
@@ -523,7 +523,7 @@ impl MetricReader for PeriodicReader {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.inner.shutdown()
     }
 
@@ -543,7 +543,7 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
-        error::{OTelSdkError, ShutdownResult},
+        error::{OTelSdkError, OTelSdkResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
             InMemoryMetricExporter, MetricError, MetricResult, SdkMeterProvider, Temporality,
@@ -596,7 +596,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -620,7 +620,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }
