@@ -12,11 +12,8 @@ use opentelemetry::{
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
+use crate::error::OTelSdkResult;
 use crate::Resource;
-use crate::{
-    error::OTelSdkResult,
-    metrics::{MetricError, MetricResult},
-};
 
 use super::{
     exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
@@ -96,7 +93,7 @@ impl SdkMeterProvider {
     ///     Ok(())
     /// }
     /// ```
-    pub fn force_flush(&self) -> MetricResult<()> {
+    pub fn force_flush(&self) -> OTelSdkResult {
         self.inner.force_flush()
     }
 
@@ -122,14 +119,12 @@ impl SdkMeterProvider {
 }
 
 impl SdkMeterProviderInner {
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            Err(MetricError::Other(
-                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.force_flush()
         }

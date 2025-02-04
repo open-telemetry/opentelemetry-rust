@@ -216,7 +216,7 @@ struct PeriodicReaderInner {
 #[derive(Debug)]
 enum Message {
     Export,
-    Flush(oneshot::Sender<MetricResult<()>>),
+    Flush(oneshot::Sender<OTelSdkResult>),
     Shutdown(oneshot::Sender<OTelSdkResult>),
 }
 
@@ -282,10 +282,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                     name: "PeriodicReader.ForceFlushCalled",
                     message = "Flush message received.",
                 );
-                let res = self
-                    .collect_and_export()
-                    .await
-                    .map_err(|e| MetricError::Other(e.to_string()));
+                let res = self.collect_and_export().await;
                 if let Err(send_error) = ch.send(res) {
                     otel_debug!(
                         name: "PeriodicReader.Flush.SendResultError",
@@ -365,21 +362,24 @@ impl MetricReader for PeriodicReader {
         Ok(())
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn force_flush(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Flush(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         drop(inner); // don't hold lock when blocking on future
 
         futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(|res| res)
     }
 
