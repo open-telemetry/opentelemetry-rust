@@ -1,3 +1,4 @@
+use crate::error::ShutdownResult;
 use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
@@ -277,7 +278,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         Ok(())
     }
 

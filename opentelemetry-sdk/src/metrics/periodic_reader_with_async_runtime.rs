@@ -15,6 +15,7 @@ use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
+    error::{ShutdownError, ShutdownResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -216,7 +217,7 @@ struct PeriodicReaderInner {
 enum Message {
     Export,
     Flush(oneshot::Sender<MetricResult<()>>),
-    Shutdown(oneshot::Sender<MetricResult<()>>),
+    Shutdown(oneshot::Sender<ShutdownResult>),
 }
 
 enum ProducerOrWorker {
@@ -295,7 +296,9 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 );
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if let Err(send_error) = ch.send(res) {
+                if let Err(send_error) =
+                    ch.send(res.map_err(|e| ShutdownError::InternalFailure(e.to_string())))
+                {
                     otel_debug!(
                         name: "PeriodicReader.Shutdown.SendResultError",
                         message = "Failed to send shutdown result",
@@ -375,24 +378,30 @@ impl MetricReader for PeriodicReader {
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn shutdown(&self) -> ShutdownResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is already shut down".into()));
+            return Err(ShutdownError::AlreadyShutdown);
         }
 
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
         let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))?;
+            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| ShutdownError::InternalFailure(e.to_string()))?;
         inner.is_shutdown = true;
 
         shutdown_result

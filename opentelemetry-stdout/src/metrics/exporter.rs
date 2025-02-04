@@ -1,14 +1,17 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{
-    data::{
-        ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
-        ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
-    },
-    exporter::PushMetricExporter,
-};
 use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
+use opentelemetry_sdk::{
+    error::ShutdownResult,
+    metrics::{
+        data::{
+            ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
+            ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
+        },
+        exporter::PushMetricExporter,
+    },
+};
 use std::fmt::Debug;
 use std::sync::atomic;
 
@@ -62,7 +65,7 @@ impl PushMetricExporter for MetricExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

@@ -57,8 +57,10 @@ pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
 pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: u64 = 1_000;
 /// Maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 /// Maximum queue size.
 pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
@@ -226,19 +228,32 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// individually. It uses a **dedicated background thread** to manage and export logs
 /// asynchronously, ensuring that the application's main execution flow is not blocked.
 ///
-/// - This processor supports the following configurations:
-///     - **Queue size**: Maximum number of log records that can be buffered.
-///     - **Batch size**: Maximum number of log records to include in a single export.
-///     - **Export timeout**: Maximum duration allowed for an export operation.
-///     - **Scheduled delay**: Frequency at which the batch is exported.
+/// This processor supports the following configurations:
+/// - **Queue size**: Maximum number of log records that can be buffered.
+/// - **Batch size**: Maximum number of log records to include in a single export.
+/// - **Scheduled delay**: Frequency at which the batch is exported.
 ///
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
-/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
-///   runtime.
+/// - `grpc-tonic`: Requires `LoggerProvider` to be created within a tokio runtime.
 /// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
 /// In other words, other clients like `reqwest` and `hyper` are not supported.
+///
+/// `BatchLogProcessor` buffers logs in memory and exports them in batches. An
+/// export is triggered when `max_export_batch_size` is reached or every
+/// `scheduled_delay` milliseconds. Users can explicitly trigger an export using
+/// the `force_flush` method. Shutdown also triggers an export of all buffered
+/// logs and is recommended to be called before the application exits to ensure
+/// all buffered logs are exported.
+///
+/// **Warning**: When using tokio's current-thread runtime, `shutdown()`, which
+/// is a blocking call ,should not be called from your main thread. This can
+/// cause deadlock. Instead, call `shutdown()` from a separate thread or use
+/// tokio's `spawn_blocking`.
+///
+/// [`shutdown()`]: crate::logs::LoggerProvider::shutdown
+/// [`force_flush()`]: crate::logs::LoggerProvider::force_flush
 ///
 /// ### Using a BatchLogProcessor:
 ///
@@ -255,7 +270,6 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 ///             .with_max_queue_size(2048)
 ///             .with_max_export_batch_size(512)
 ///             .with_scheduled_delay(Duration::from_secs(5))
-///             .with_max_export_timeout(Duration::from_secs(30))
 ///             .build(),
 ///     )
 ///     .build();
@@ -270,7 +284,6 @@ pub struct BatchLogProcessor {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
-    is_shutdown: AtomicBool,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
@@ -292,87 +305,112 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
-        // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            otel_warn!(
-                name: "BatchLogProcessor.Emit.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return;
-        }
-
         let result = self
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
 
-        if result.is_err() {
-            // Increment dropped logs count. The first time we have to drop a log,
-            // emit a warning.
-            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
-                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
-            }
-            return;
-        }
+        // match for result and handle each separately
+        match result {
+            Ok(_) => {
+                // Successfully sent the log record to the data channel.
+                // Increment the current batch size and check if it has reached
+                // the max export batch size.
+                if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1
+                    >= self.max_export_batch_size
+                {
+                    // Check if the a control message for exporting logs is
+                    // already sent to the worker thread. If not, send a control
+                    // message to export logs. `export_log_message_sent` is set
+                    // to false ONLY when the worker thread has processed the
+                    // control message.
 
-        // At this point, sending the log record to the data channel was successful.
-        // Increment the current batch size and check if it has reached the max export batch size.
-        if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1 >= self.max_export_batch_size
-        {
-            // Check if the a control message for exporting logs is already sent to the worker thread.
-            // If not, send a control message to export logs.
-            // `export_log_message_sent` is set to false ONLY when the worker thread has processed the control message.
-
-            if !self.export_log_message_sent.load(Ordering::Relaxed) {
-                // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
-                // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
-                // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
-                // We could have used compare_exchange as well here, but it's more verbose than swap.
-                if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
-                    match self.message_sender.try_send(BatchMessage::ExportLog(
-                        self.export_log_message_sent.clone(),
-                    )) {
-                        Ok(_) => {
-                            // Control message sent successfully.
-                        }
-                        Err(_err) => {
-                            // TODO: Log error
-                            // If the control message could not be sent, reset the `export_log_message_sent` flag.
-                            self.export_log_message_sent.store(false, Ordering::Relaxed);
+                    if !self.export_log_message_sent.load(Ordering::Relaxed) {
+                        // This is a cost-efficient check as atomic load
+                        // operations do not require exclusive access to cache
+                        // line. Perform atomic swap to
+                        // `export_log_message_sent` ONLY when the atomic load
+                        // operation above returns false. Atomic
+                        // swap/compare_exchange operations require exclusive
+                        // access to cache line on most processor architectures.
+                        // We could have used compare_exchange as well here, but
+                        // it's more verbose than swap.
+                        if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
+                            match self.message_sender.try_send(BatchMessage::ExportLog(
+                                self.export_log_message_sent.clone(),
+                            )) {
+                                Ok(_) => {
+                                    // Control message sent successfully.
+                                }
+                                Err(_err) => {
+                                    // TODO: Log error If the control message
+                                    // could not be sent, reset the
+                                    // `export_log_message_sent` flag.
+                                    self.export_log_message_sent.store(false, Ordering::Relaxed);
+                                }
+                            }
                         }
                     }
                 }
+            }
+            Err(mpsc::TrySendError::Full(_)) => {
+                // Increment dropped logs count. The first time we have to drop
+                // a log, emit a warning.
+                if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                    otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                        message = "BatchLogProcessor dropped a LogRecord due to queue full. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
+                }
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_warn!(
+                    name: "BatchLogProcessor.Emit.AfterShutdown",
+                    message = "Logs are being emitted even after Shutdown. This indicates incorrect lifecycle management of OTelLoggerProvider in application. Logs will not be exported."
+                );
             }
         }
     }
 
     fn force_flush(&self) -> LogResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return LogResult::Err(LogError::Other(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
         let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender
+        match self
+            .message_sender
             .try_send(BatchMessage::ForceFlush(sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+        {
+            Ok(_) => receiver
+                .recv_timeout(self.forceflush_timeout)
+                .map_err(|err| {
+                    if err == RecvTimeoutError::Timeout {
+                        LogError::ExportTimedOut(self.forceflush_timeout)
+                    } else {
+                        LogError::Other(err.into())
+                    }
+                })?,
+            Err(mpsc::TrySendError::Full(_)) => {
+                // If the control message could not be sent, emit a warning.
+                otel_debug!(
+                    name: "BatchLogProcessor.ForceFlush.ControlChannelFull",
+                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
+                );
+                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_debug!(
+                    name: "BatchLogProcessor.ForceFlush.AlreadyShutdown",
+                    message = "ForceFlush invoked after Shutdown. This will not perform Flush and indicates a incorrect lifecycle management in Application."
+                );
 
-        receiver
-            .recv_timeout(self.forceflush_timeout)
-            .map_err(|err| {
-                if err == RecvTimeoutError::Timeout {
-                    LogError::ExportTimedOut(self.forceflush_timeout)
-                } else {
-                    LogError::Other(err.into())
-                }
-            })?
+                LogResult::Err(LogError::Other(
+                    "ForceFlush cannot be performed as BatchLogProcessor is already shutdown"
+                        .into(),
+                ))
+            }
+        }
     }
 
     fn shutdown(&self) -> LogResult<()> {
-        // Set is_shutdown to true
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -380,40 +418,61 @@ impl LogProcessor for BatchLogProcessor {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
         let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender
-            .try_send(BatchMessage::Shutdown(sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+        match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
+            Ok(_) => {
+                receiver
+                    .recv_timeout(self.shutdown_timeout)
+                    .map(|_| {
+                        // join the background thread after receiving back the
+                        // shutdown signal
+                        if let Some(handle) = self.handle.lock().unwrap().take() {
+                            handle.join().unwrap();
+                        }
+                        LogResult::Ok(())
+                    })
+                    .map_err(|err| match err {
+                        RecvTimeoutError::Timeout => {
+                            otel_error!(
+                                name: "BatchLogProcessor.Shutdown.Timeout",
+                                message = "BatchLogProcessor shutdown timing out."
+                            );
+                            LogError::ExportTimedOut(self.shutdown_timeout)
+                        }
+                        _ => {
+                            otel_error!(
+                                name: "BatchLogProcessor.Shutdown.Error",
+                                error = format!("{}", err)
+                            );
+                            LogError::Other(err.into())
+                        }
+                    })?
+            }
+            Err(mpsc::TrySendError::Full(_)) => {
+                // If the control message could not be sent, emit a warning.
+                otel_debug!(
+                    name: "BatchLogProcessor.Shutdown.ControlChannelFull",
+                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
+                );
+                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_debug!(
+                    name: "BatchLogProcessor.Shutdown.AlreadyShutdown",
+                    message = "Shutdown is being invoked more than once. This is noop, but indicates a potential issue in the application's lifecycle management."
+                );
 
-        receiver
-            .recv_timeout(self.shutdown_timeout)
-            .map(|_| {
-                // join the background thread after receiving back the shutdown signal
-                if let Some(handle) = self.handle.lock().unwrap().take() {
-                    handle.join().unwrap();
-                }
-                LogResult::Ok(())
-            })
-            .map_err(|err| match err {
-                RecvTimeoutError::Timeout => {
-                    otel_error!(
-                        name: "BatchLogProcessor.Shutdown.Timeout",
-                        message = "BatchLogProcessor shutdown timing out."
-                    );
-                    LogError::ExportTimedOut(self.shutdown_timeout)
-                }
-                _ => {
-                    otel_error!(
-                        name: "BatchLogProcessor.Shutdown.Error",
-                        error = format!("{}", err)
-                    );
-                    LogError::Other(err.into())
-                }
-            })?
+                LogResult::Err(LogError::Other(
+                    "BatchLogProcessor is already shutdown".into(),
+                ))
+            }
+        }
     }
 
     fn set_resource(&self, resource: &Resource) {
@@ -480,12 +539,7 @@ impl BatchLogProcessor {
                         let count_of_logs = logs.len(); // Count of logs that will be exported
                         total_exported_logs += count_of_logs;
 
-                        result = export_with_timeout_sync(
-                            config.max_export_timeout,
-                            exporter,
-                            logs,
-                            last_export_time,
-                        ); // This method clears the logs vec after exporting
+                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
@@ -590,7 +644,6 @@ impl BatchLogProcessor {
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
-            is_shutdown: AtomicBool::new(false),
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
@@ -612,8 +665,7 @@ impl BatchLogProcessor {
 }
 
 #[allow(clippy::vec_box)]
-fn export_with_timeout_sync<E>(
-    _: Duration, // TODO, enforcing timeout in exporter.
+fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
@@ -689,6 +741,7 @@ pub struct BatchConfig {
     pub(crate) max_export_batch_size: usize,
 
     /// The maximum duration to export a batch of data.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub(crate) max_export_timeout: Duration,
 }
 
@@ -704,6 +757,7 @@ pub struct BatchConfigBuilder {
     max_queue_size: usize,
     scheduled_delay: Duration,
     max_export_batch_size: usize,
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     max_export_timeout: Duration,
 }
 
@@ -720,6 +774,7 @@ impl Default for BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
         }
         .init_from_env_vars()
@@ -747,6 +802,7 @@ impl BatchConfigBuilder {
     /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The default value is 30000 milliseconds.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
         self
@@ -772,6 +828,7 @@ impl BatchConfigBuilder {
         BatchConfig {
             max_queue_size: self.max_queue_size,
             scheduled_delay: self.scheduled_delay,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: self.max_export_timeout,
             max_export_batch_size,
         }
@@ -799,6 +856,7 @@ impl BatchConfigBuilder {
             self.scheduled_delay = Duration::from_millis(scheduled_delay);
         }
 
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         if let Some(max_export_timeout) = env::var(OTEL_BLRP_EXPORT_TIMEOUT)
             .ok()
             .and_then(|s| u64::from_str(&s).ok())
@@ -902,6 +960,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -925,6 +984,7 @@ mod tests {
         let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, 4096);
         assert_eq!(config.max_export_batch_size, 1024);
@@ -945,6 +1005,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -953,15 +1014,18 @@ mod tests {
 
     #[test]
     fn test_batch_config_with_fields() {
-        let batch = BatchConfigBuilder::default()
+        let batch_builder = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
-            .with_max_queue_size(4)
-            .build();
+            .with_max_queue_size(4);
+
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+        let batch_builder = batch_builder.with_max_export_timeout(Duration::from_millis(3));
+        let batch = batch_builder.build();
 
         assert_eq!(batch.max_export_batch_size, 1);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(2));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(batch.max_export_timeout, Duration::from_millis(3));
         assert_eq!(batch.max_queue_size, 4);
     }
@@ -985,6 +1049,8 @@ mod tests {
                 builder.config.max_queue_size,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT
             );
+
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             assert_eq!(
                 builder.config.max_export_timeout,
                 Duration::from_millis(2046)
@@ -1005,7 +1071,6 @@ mod tests {
         let expected = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
             .with_max_queue_size(4)
             .build();
 
@@ -1015,7 +1080,6 @@ mod tests {
         let actual = &builder.config;
         assert_eq!(actual.max_export_batch_size, 1);
         assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
-        assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
     }
 

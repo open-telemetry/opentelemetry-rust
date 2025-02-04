@@ -15,7 +15,7 @@ use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::SystemTime;
+use opentelemetry::time::now;
 use tokio::net::TcpListener;
 
 static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
@@ -25,7 +25,7 @@ async fn serve_req(
     state: Arc<AppState>,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
     println!("Receiving request at path {}", req.uri());
-    let request_start = SystemTime::now();
+    let request_start = now();
 
     state.http_counter.add(1, HANDLER_ALL.as_ref());
 

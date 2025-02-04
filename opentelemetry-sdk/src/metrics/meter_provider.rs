@@ -12,11 +12,15 @@ use opentelemetry::{
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
-use crate::metrics::{MetricError, MetricResult};
 use crate::Resource;
+use crate::{
+    error::ShutdownResult,
+    metrics::{MetricError, MetricResult},
+};
 
 use super::{
-    meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
+    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
+    reader::MetricReader, view::View, PeriodicReader,
 };
 
 /// Handles the creation and coordination of [Meter]s.
@@ -108,7 +112,7 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> MetricResult<()> {
+    pub fn shutdown(&self) -> ShutdownResult {
         otel_info!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -131,15 +135,13 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(MetricError::Other(
-                "MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::ShutdownError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }
@@ -243,10 +245,33 @@ impl MeterProviderBuilder {
     }
 
     /// Associates a [MetricReader] with a [MeterProvider].
+    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
+    /// the most common use case.
     ///
-    /// By default, if this option is not used, the [MeterProvider] will perform no
-    /// operations; no data will be exported without a [MetricReader].
+    /// A [MeterProvider] will export no metrics without [MetricReader]
+    /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
+        self.readers.push(Box::new(reader));
+        self
+    }
+
+    /// Adds a [`PushMetricExporter`] to the [`MeterProvider`] and configures it
+    /// to export metrics at **fixed** intervals (60 seconds) using a
+    /// [`PeriodicReader`].
+    ///
+    /// To customize the export interval, set the
+    /// **"OTEL_METRIC_EXPORT_INTERVAL"** environment variable (in
+    /// milliseconds).
+    ///
+    /// Most users should use this method to attach an exporter. Advanced users
+    /// who need finer control over the export process can use
+    /// [`crate::metrics::PeriodicReaderBuilder`] to configure a custom reader and attach it
+    /// using [`MeterProviderBuilder::with_reader()`].
+    pub fn with_periodic_exporter<T>(mut self, exporter: T) -> Self
+    where
+        T: PushMetricExporter,
+    {
+        let reader = PeriodicReader::builder(exporter).build();
         self.readers.push(Box::new(reader));
         self
     }
