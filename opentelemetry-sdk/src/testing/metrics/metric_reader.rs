@@ -38,7 +38,7 @@ impl MetricReader for TestMetricReader {
         Ok(())
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
