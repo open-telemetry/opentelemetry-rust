@@ -193,6 +193,7 @@ pub mod tonic {
 mod tests {
     use crate::tonic::common::v1::any_value::Value;
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
+    use opentelemetry::time::now;
     use opentelemetry::trace::{
         SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
@@ -202,7 +203,7 @@ mod tests {
     use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use std::borrow::Cow;
-    use std::time::{Duration, SystemTime};
+    use std::time::Duration;
 
     fn create_test_span_data(instrumentation_name: &'static str) -> SpanData {
         let span_context = SpanContext::new(
@@ -218,8 +219,8 @@ mod tests {
             parent_span_id: SpanId::from_u64(0),
             span_kind: SpanKind::Internal,
             name: Cow::Borrowed("test_span"),
-            start_time: SystemTime::now(),
-            end_time: SystemTime::now() + Duration::from_secs(1),
+            start_time: now(),
+            end_time: now() + Duration::from_secs(1),
             attributes: vec![KeyValue::new("key", "value")],
             dropped_attributes_count: 0,
             events: SpanEvents::default(),

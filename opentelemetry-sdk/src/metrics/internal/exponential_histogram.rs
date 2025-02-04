@@ -526,9 +526,9 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use std::{ops::Neg, time::SystemTime};
-
     use data::{ExponentialHistogram, Gauge, Histogram, Sum};
+    use opentelemetry::time::now;
+    use std::ops::Neg;
     use tests::internal::AggregateFns;
 
     use crate::metrics::internal::{self, AggregateBuilder};
@@ -1299,8 +1299,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
@@ -1340,8 +1340,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
@@ -1384,8 +1384,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
@@ -1428,8 +1428,8 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
@@ -1440,8 +1440,8 @@ mod tests {
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: Temporality::Delta,
             });
             let mut count = 0;
