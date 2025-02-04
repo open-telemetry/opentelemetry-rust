@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
+use opentelemetry_sdk::metrics::{MetricResult, Temporality};
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
