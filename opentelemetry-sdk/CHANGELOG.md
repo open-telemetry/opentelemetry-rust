@@ -401,8 +401,9 @@ let processor = BatchSpanProcessor::builder(exporter)
         fn TraerProvider::shutdown(&self) -> OTelSdkResult;
         fn TracerProvider::force_flush(&self) -> OTelSdkResult;
       ```
-- **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
-  `SdkLogger` respectively to avoid name collision with public API types.
+- **Breaking** Renamed `LoggerProvider`, `Logger` and `LogRecord' to
+  `SdkLoggerProvider`, `SdkLogger` and `SdkLogRecord` respectively to avoid name
+  collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
 
 - **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and

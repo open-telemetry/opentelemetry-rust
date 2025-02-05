@@ -18,7 +18,7 @@ use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
@@ -57,7 +57,7 @@ impl<E: LogExporter> NoopProcessor<E> {
 }
 
 impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
+    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {
         // no-op
     }
 

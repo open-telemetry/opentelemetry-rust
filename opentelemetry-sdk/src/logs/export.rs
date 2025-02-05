@@ -1,5 +1,5 @@
 //! Log exporters
-use crate::logs::LogRecord;
+use crate::logs::SdkLogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
 #[cfg(feature = "spec_unstable_logs_enabled")]
@@ -27,8 +27,8 @@ pub struct LogBatch<'a> {
 /// - Or it can be a shared reference to a slice of tuples, where each tuple consists of a reference to a `LogRecord` and a reference to an `InstrumentationScope`.
 #[derive(Debug)]
 enum LogBatchData<'a> {
-    SliceOfOwnedData(&'a [Box<(LogRecord, InstrumentationScope)>]), // Used by BatchProcessor which clones the LogRecords for its own use.
-    SliceOfBorrowedData(&'a [(&'a LogRecord, &'a InstrumentationScope)]),
+    SliceOfOwnedData(&'a [Box<(SdkLogRecord, InstrumentationScope)>]), // Used by BatchProcessor which clones the LogRecords for its own use.
+    SliceOfBorrowedData(&'a [(&'a SdkLogRecord, &'a InstrumentationScope)]),
 }
 
 impl<'a> LogBatch<'a> {
@@ -46,14 +46,14 @@ impl<'a> LogBatch<'a> {
     ///
     /// Note - this is not a public function, and should not be used directly. This would be
     /// made private in the future.
-    pub fn new(data: &'a [(&'a LogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
+    pub fn new(data: &'a [(&'a SdkLogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
         LogBatch {
             data: LogBatchData::SliceOfBorrowedData(data),
         }
     }
 
     pub(crate) fn new_with_owned_data(
-        data: &'a [Box<(LogRecord, InstrumentationScope)>],
+        data: &'a [Box<(SdkLogRecord, InstrumentationScope)>],
     ) -> LogBatch<'a> {
         LogBatch {
             data: LogBatchData::SliceOfOwnedData(data),
@@ -71,7 +71,7 @@ impl LogBatch<'_> {
     ///
     /// An iterator that yields references to the `LogRecord` and `InstrumentationScope` in the batch.
     ///
-    pub fn iter(&self) -> impl Iterator<Item = (&LogRecord, &InstrumentationScope)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&SdkLogRecord, &InstrumentationScope)> {
         LogBatchDataIter {
             data: &self.data,
             index: 0,
@@ -85,7 +85,7 @@ struct LogBatchDataIter<'a> {
 }
 
 impl<'a> Iterator for LogBatchDataIter<'a> {
-    type Item = (&'a LogRecord, &'a InstrumentationScope);
+    type Item = (&'a SdkLogRecord, &'a InstrumentationScope);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.data {
