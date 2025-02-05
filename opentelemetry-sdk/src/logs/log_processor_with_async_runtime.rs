@@ -303,7 +303,7 @@ mod tests {
         Resource,
     };
     use opentelemetry::logs::AnyValue;
-    use opentelemetry::logs::SdkLogRecord;
+    use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
