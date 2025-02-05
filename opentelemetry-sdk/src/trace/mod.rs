@@ -68,7 +68,7 @@ mod tests {
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
-            TracerProvider as _,
+            TracerProvider,
         },
         Context, KeyValue,
     };

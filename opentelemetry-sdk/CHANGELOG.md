@@ -295,7 +295,7 @@ limit.
   `Logger::create_log_record()` method.
 
 - Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
-- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::TracerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::SdkTracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:

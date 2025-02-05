@@ -343,7 +343,7 @@ mod tests {
 
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
-    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
+    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;

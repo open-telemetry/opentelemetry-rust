@@ -11,8 +11,8 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{global, trace::{Tracer, TracerProvider as _}};
-//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry::{global, trace::{Tracer, TracerProvider}};
+//! use opentelemetry_sdk::trace::SdkTracerProvider;
 //!
 //! fn main() {
 //!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`

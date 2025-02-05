@@ -39,7 +39,7 @@
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
 //!     // Then pass it into provider builder
-//!     let _ = opentelemetry_sdk::trace::TracerProvider::builder()
+//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
 //!     let tracer = global::tracer("my_tracer");
@@ -73,7 +73,7 @@
 //!     // First, create a OTLP exporter builder. Configure it as you need.
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
 //!     // Then pass it into provider builder
-//!     let _ = opentelemetry_sdk::trace::TracerProvider::builder()
+//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(otlp_exporter)
 //!         .build();
 //!     let tracer = global::tracer("my_tracer");
@@ -123,7 +123,7 @@
 //! Generally there are two parts of configuration. One is the exporter, the other is the provider.
 //! Users can configure the exporter using [SpanExporter::builder()] for traces,
 //! and [MetricExporter::builder()] + [opentelemetry_sdk::metrics::PeriodicReader::builder()] for metrics.
-//! Once you have an exporter, you can add it to either a [opentelemetry_sdk::trace::TracerProvider::builder()] for traces,
+//! Once you have an exporter, you can add it to either a [opentelemetry_sdk::trace::SdkTracerProvider::builder()] for traces,
 //! or [opentelemetry_sdk::metrics::SdkMeterProvider::builder()] for metrics.
 //!
 //! ```no_run
@@ -151,7 +151,7 @@
 //!         .with_metadata(map)
 //!         .build()?;
 //!
-//!     let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(exporter)
 //!         .with_config(
 //!             trace::Config::default()

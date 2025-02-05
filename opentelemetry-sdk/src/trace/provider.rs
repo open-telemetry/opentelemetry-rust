@@ -35,7 +35,7 @@
 ///
 /// ```
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::trace::TracerProvider;
+/// use opentelemetry_sdk::trace::SdkTracerProvider;
 /// use opentelemetry::trace::Tracer;
 ///
 /// fn init_tracing() -> TracerProvider {
@@ -195,7 +195,7 @@ impl SdkTracerProvider {
     ///
     /// ```
     /// use opentelemetry::global;
-    /// use opentelemetry_sdk::trace::TracerProvider;
+    /// use opentelemetry_sdk::trace::SdkTracerProvider;
     ///
     /// fn init_tracing() -> TracerProvider {
     ///     let provider = TracerProvider::default();

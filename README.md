@@ -68,9 +68,9 @@ Project versioning information and stability guarantees can be found
 use opentelemetry::trace::{
     TraceContextExt,
     Tracer,
-    TracerProvider as _,
+    TracerProvider,
 };
-use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 
 fn main() {
     // Create a new trace pipeline that prints to stdout

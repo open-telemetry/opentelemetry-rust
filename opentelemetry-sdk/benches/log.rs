@@ -22,7 +22,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry::{InstrumentationScope, Key};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
 use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};

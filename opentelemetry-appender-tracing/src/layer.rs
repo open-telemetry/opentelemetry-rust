@@ -230,7 +230,7 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use opentelemetry::logs::Severity;
-    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::InMemoryLogExporter;

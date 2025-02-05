@@ -4,7 +4,7 @@ use opentelemetry::{
     global::BoxedTracer,
     trace::{
         noop::NoopTracer, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
-        TracerProvider as _,
+        TracerProvider,
     },
     Context, ContextGuard,
 };
