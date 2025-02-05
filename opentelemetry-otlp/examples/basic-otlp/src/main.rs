@@ -5,9 +5,9 @@ use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
 use opentelemetry_sdk::logs::LogError;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::MetricError;
-use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 use std::error::Error;
 use tracing::info;
@@ -20,12 +20,12 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
         .build()
 });
 
-fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> Result<sdktrace::SdkTracerProvider, TraceError> {
     let exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
         .build()?;
-    Ok(sdktrace::TracerProvider::builder()
+    Ok(sdktrace::SdkTracerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
         .build())
@@ -40,13 +40,13 @@ fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, Metric
         .build())
 }
 
-fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
+fn init_logs() -> Result<opentelemetry_sdk::logs::SdkLoggerProvider, LogError> {
     let exporter = LogExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
         .build()?;
 
-    Ok(LoggerProvider::builder()
+    Ok(SdkLoggerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
         .build())

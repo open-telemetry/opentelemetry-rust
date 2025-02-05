@@ -1,14 +1,17 @@
 use core::fmt;
 
 use futures_core::future::BoxFuture;
-use opentelemetry::{otel_debug, trace::TraceError};
+use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
-use opentelemetry_sdk::trace::{ExportResult, SpanData, SpanExporter};
-use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
-
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use opentelemetry_sdk::error::OTelSdkError;
+use opentelemetry_sdk::{
+    error::OTelSdkResult,
+    trace::{SpanData, SpanExporter},
+};
+use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use super::BoxInterceptor;
 
@@ -56,21 +59,21 @@ impl TonicTracesClient {
 }
 
 impl SpanExporter for TonicTracesClient {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         let (mut client, metadata, extensions) = match &mut self.inner {
             Some(inner) => {
                 let (m, e, _) = match inner.interceptor.call(Request::new(())) {
                     Ok(res) => res.into_parts(),
                     Err(e) => {
-                        return Box::pin(std::future::ready(Err(TraceError::Other(Box::new(e)))))
+                        return Box::pin(std::future::ready(Err(OTelSdkError::InternalFailure(
+                            e.to_string(),
+                        ))))
                     }
                 };
                 (inner.client.clone(), m, e)
             }
             None => {
-                return Box::pin(std::future::ready(Err(TraceError::Other(
-                    "exporter is already shut down".into(),
-                ))))
+                return Box::pin(std::future::ready(Err(OTelSdkError::AlreadyShutdown)));
             }
         };
 
@@ -86,14 +89,16 @@ impl SpanExporter for TonicTracesClient {
                     ExportTraceServiceRequest { resource_spans },
                 ))
                 .await
-                .map_err(crate::Error::from)?;
-
+                .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
             Ok(())
         })
     }
 
-    fn shutdown(&mut self) {
-        let _ = self.inner.take();
+    fn shutdown(&mut self) -> OTelSdkResult {
+        match self.inner.take() {
+            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
+            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

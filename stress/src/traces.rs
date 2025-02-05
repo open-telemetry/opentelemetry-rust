@@ -11,22 +11,22 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider as _},
+    trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider},
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
-    trace::SpanData,
-    trace::{self as sdktrace, SpanProcessor},
+    error::OTelSdkResult,
+    trace::{self as sdktrace, SpanData, SpanProcessor},
 };
 
 mod throughput;
 
 lazy_static! {
-    static ref PROVIDER: sdktrace::TracerProvider = sdktrace::TracerProvider::builder()
+    static ref PROVIDER: sdktrace::SdkTracerProvider = sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOn)
         .with_span_processor(NoOpSpanProcessor {})
         .build();
-    static ref TRACER: sdktrace::Tracer = PROVIDER.tracer("stress");
+    static ref TRACER: sdktrace::SdkTracer = PROVIDER.tracer("stress");
 }
 
 #[derive(Debug)]
@@ -41,11 +41,11 @@ impl SpanProcessor for NoOpSpanProcessor {
         // No-op
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }

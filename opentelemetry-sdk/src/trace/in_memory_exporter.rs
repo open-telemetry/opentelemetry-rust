@@ -1,5 +1,6 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::trace::{ExportResult, SpanData, SpanExporter};
+use crate::trace::{SpanData, SpanExporter};
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{TraceError, TraceResult};
 use std::sync::{Arc, Mutex};
@@ -130,20 +131,20 @@ impl InMemorySpanExporter {
 }
 
 impl SpanExporter for InMemorySpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
-        if let Err(err) = self
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
+        let result = self
             .spans
             .lock()
             .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
-            .map_err(TraceError::from)
-        {
-            return Box::pin(std::future::ready(Err(Into::into(err))));
-        }
-        Box::pin(std::future::ready(Ok(())))
+            .map_err(|err| {
+                OTelSdkError::InternalFailure(format!("Failed to lock spans: {:?}", err))
+            });
+        Box::pin(std::future::ready(result))
     }
 
-    fn shutdown(&mut self) {
-        self.reset()
+    fn shutdown(&mut self) -> OTelSdkResult {
+        self.reset();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

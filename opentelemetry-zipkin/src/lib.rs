@@ -23,7 +23,7 @@
 //! ```no_run
 //! use opentelemetry::global;
 //! use opentelemetry::trace::{Tracer, TraceError};
-//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry_sdk::trace::SdkTracerProvider;
 //! use opentelemetry_zipkin::ZipkinExporter;
 //!
 //! fn main() -> Result<(), TraceError> {

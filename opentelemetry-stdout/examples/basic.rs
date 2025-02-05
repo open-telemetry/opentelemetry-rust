@@ -10,7 +10,7 @@ use opentelemetry::trace::Tracer;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 
 #[cfg(feature = "trace")]
-use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
@@ -20,9 +20,9 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
 });
 
 #[cfg(feature = "trace")]
-fn init_trace() -> TracerProvider {
+fn init_trace() -> SdkTracerProvider {
     let exporter = opentelemetry_stdout::SpanExporter::default();
-    let provider = TracerProvider::builder()
+    let provider = SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();
@@ -43,13 +43,13 @@ fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 }
 
 #[cfg(feature = "logs")]
-fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
+fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
     use opentelemetry_appender_tracing::layer;
-    use opentelemetry_sdk::logs::LoggerProvider;
+    use opentelemetry_sdk::logs::SdkLoggerProvider;
     use tracing_subscriber::prelude::*;
 
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let provider: LoggerProvider = LoggerProvider::builder()
+    let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();

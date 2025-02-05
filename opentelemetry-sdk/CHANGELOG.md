@@ -2,6 +2,9 @@
 
 ## vNext
 
+- *Feature*: Introduced a new feature flag, `experimental_metrics_disable_name_validation`, under the `opentelemetry-sdk`, which allows disabling the Instrument Name Validation. This is useful in scenarios where you need to use *special characters*, *Windows Perf Counter Wildcard Path*, or similar cases. For more details, check [#2543](https://github.com/open-telemetry/opentelemetry-rust/pull/2543).
+  > **WARNING**: While this feature provides flexibility, **be cautious** when using it, as platforms like **Prometheus** impose restrictions on metric names and labels (e.g., no spaces, capital letters, or certain special characters). Using invalid characters may result in compatibility issues or incorrect behavior. Ensure that instrument names comply with the requirements of your target platform to avoid potential problems.
+
 - *Breaking(Affects custom metric exporter authors only)* `start_time` and `time` is moved from DataPoints to aggregations (Sum, Gauge, Histogram, ExpoHistogram) see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411), to reduce memory.
 
 - *Breaking* `start_time` is no longer optional for `Sum` aggregation, see [#2367](https://github.com/open-telemetry/opentelemetry-rust/pull/2367), but is still optional for `Gauge` aggregation see [#2389](https://github.com/open-telemetry/opentelemetry-rust/pull/2389).
@@ -292,7 +295,7 @@ limit.
   `Logger::create_log_record()` method.
 
 - Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
-- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::TracerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::SdkTracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
@@ -369,6 +372,33 @@ let processor = BatchSpanProcessor::builder(exporter)
     )
     .build();
 ```
+
+- **Breaking**
+ - The public API changes in the Tracing:
+   - Before:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+        fn SpanExporter::shutdown(&mut self);
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, ExportResult>
+        fn TraerProvider::shutdown(&self) -> TraceResult<()>
+        fn TracerProvider::force_flush(&self) -> Vec<TraceResult<()>>
+      ```
+    - After:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+        fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
+        fn TraerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
+- **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
+  `SdkLogger` respectively to avoid name collision with public API types.
+  [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
+
+- **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and
+  `SdkTracer` to avoid name collision with public API types. `Tracer` is still
+  type-aliased to `SdkTracer` to keep back-compat with tracing-opentelemetry.
+  [#2614](https://github.com/open-telemetry/opentelemetry-rust/pull/2614)
 
 ## 0.27.1
 

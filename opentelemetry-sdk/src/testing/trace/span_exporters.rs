@@ -1,5 +1,6 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    trace::{ExportResult, SpanData, SpanExporter},
+    trace::{SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
 };
 use futures_util::future::BoxFuture;
@@ -40,21 +41,20 @@ pub struct TokioSpanExporter {
 }
 
 impl SpanExporter for TokioSpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
-        for span_data in batch {
-            if let Err(err) = self
-                .tx_export
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
+        let result = batch.into_iter().try_for_each(|span_data| {
+            self.tx_export
                 .send(span_data)
-                .map_err::<TestExportError, _>(Into::into)
-            {
-                return Box::pin(std::future::ready(Err(Into::into(err))));
-            }
-        }
-        Box::pin(std::future::ready(Ok(())))
+                .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {:?}", err)))
+        });
+
+        Box::pin(std::future::ready(result))
     }
 
-    fn shutdown(&mut self) {
-        self.tx_shutdown.send(()).unwrap();
+    fn shutdown(&mut self) -> OTelSdkResult {
+        self.tx_shutdown.send(()).map_err(|_| {
+            OTelSdkError::InternalFailure("Failed to send shutdown signal".to_string())
+        })
     }
 }
 
@@ -113,7 +113,7 @@ impl NoopSpanExporter {
 
 #[async_trait::async_trait]
 impl SpanExporter for NoopSpanExporter {
-    fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(std::future::ready(Ok(())))
     }
 }
