@@ -250,6 +250,9 @@ mod context;
 
 pub use context::{Context, ContextGuard};
 
+mod trace_context;
+pub use trace_context::{SpanId, TraceFlags, TraceId};
+
 mod common;
 
 #[cfg(any(feature = "testing", test))]
