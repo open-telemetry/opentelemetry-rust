@@ -736,7 +736,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_metrics_disable_name_validation")]
-    fn instrument_name_validation() {
+    fn instrument_name_validation_disabled() {
         // (name, expected error)
         let instrument_name_test_cases = vec![
             ("validateName", ""),
