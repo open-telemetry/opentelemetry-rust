@@ -508,7 +508,7 @@ impl BatchLogProcessor {
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
                 let current_batch_size = current_batch_size_for_thread;
 
-                // This method gets upto `max_export_batch_size` amount of logs from the channel and exports them.
+                // This method gets up to `max_export_batch_size` amount of logs from the channel and exports them.
                 // It returns the result of the export operation.
                 // It expects the logs vec to be empty when it's called.
                 #[inline]
@@ -871,16 +871,18 @@ impl BatchConfigBuilder {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use super::{
-        BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
-        OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
+        BatchLogProcessor, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
+        OTEL_BLRP_SCHEDULE_DELAY,
     };
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+    use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
     use crate::{
         logs::{
             log_processor::{
-                OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-                OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
+                OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
             BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
             LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
@@ -933,7 +935,9 @@ mod tests {
     fn test_default_const_values() {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, 1_000);
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
@@ -949,6 +953,7 @@ mod tests {
         // The following environment variables are expected to be unset so that their default values are used.
         let env_vars = vec![
             OTEL_BLRP_SCHEDULE_DELAY,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             OTEL_BLRP_EXPORT_TIMEOUT,
             OTEL_BLRP_MAX_QUEUE_SIZE,
             OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
@@ -976,6 +981,7 @@ mod tests {
     fn test_batch_config_configurable_by_env_vars() {
         let env_vars = vec![
             (OTEL_BLRP_SCHEDULE_DELAY, Some("2000")),
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("60000")),
             (OTEL_BLRP_MAX_QUEUE_SIZE, Some("4096")),
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
@@ -1035,6 +1041,7 @@ mod tests {
         let mut env_vars = vec![
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("500")),
             (OTEL_BLRP_SCHEDULE_DELAY, Some("I am not number")),
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {

@@ -11,7 +11,7 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    trace::{Span, SpanBuilder, TraceResult, Tracer, TracerProvider},
+    trace::{Span, SpanBuilder, Tracer, TracerProvider},
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
