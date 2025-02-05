@@ -28,7 +28,7 @@ impl MetricReader for SharedReader {
         self.0.collect(rm)
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.0.force_flush()
     }
 

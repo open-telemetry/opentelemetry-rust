@@ -19,15 +19,15 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity},
+    logs::{LogRecord as _, Logger, LoggerProvider, Severity},
     InstrumentationScope,
 };
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
 
-fn create_log_record(logger: &Logger) -> LogRecord {
+fn create_log_record(logger: &SdkLogger) -> LogRecord {
     let mut log_record = logger.create_log_record();
     let now = now();
     log_record.set_observed_timestamp(now);
@@ -126,7 +126,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn log_noop_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
     let logger = provider.logger("benchmark");
@@ -140,7 +140,7 @@ fn log_noop_processor(c: &mut Criterion) {
 }
 
 fn log_cloning_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(CloningProcessor {})
         .build();
     let logger = provider.logger("benchmark");
@@ -154,7 +154,7 @@ fn log_cloning_processor(c: &mut Criterion) {
 }
 
 fn log_cloning_and_send_to_channel_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(SendToChannelProcessor::new())
         .build();
     let logger = provider.logger("benchmark");

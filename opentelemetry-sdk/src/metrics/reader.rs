@@ -36,7 +36,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self) -> MetricResult<()>;
+    fn force_flush(&self) -> OTelSdkResult;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.

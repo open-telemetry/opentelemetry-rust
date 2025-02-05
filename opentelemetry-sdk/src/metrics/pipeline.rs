@@ -8,7 +8,7 @@ use std::{
 use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
-    error::OTelSdkResult,
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
@@ -90,7 +90,7 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.reader.force_flush()
     }
 
@@ -634,7 +634,7 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self) -> MetricResult<()> {
+    pub(crate) fn force_flush(&self) -> OTelSdkResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.force_flush() {
@@ -645,7 +645,7 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(OTelSdkError::InternalFailure(format!("{errs:?}")))
         }
     }
 
