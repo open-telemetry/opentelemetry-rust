@@ -1,3 +1,4 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
@@ -11,11 +12,8 @@ use futures_util::{
     stream::{self, FusedStream, FuturesUnordered},
     StreamExt as _,
 };
+use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
-use opentelemetry::{
-    trace::{TraceError, TraceResult},
-    Context,
-};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -122,18 +120,20 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| TraceError::Other(err.into()))?;
+            .map_err(|err| {
+                OTelSdkError::InternalFailure(format!("Failed to send flush message: {}", err))
+            })?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
+        futures_executor::block_on(res_receiver).map_err(|err| {
+            OTelSdkError::InternalFailure(format!("Flush response channel error: {}", err))
+        })?
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
@@ -312,7 +312,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         Box::pin(async move {
             match future::select(export, timeout).await {
                 Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => ExportResult::Err(TraceError::ExportTimedOut(time_out)),
+                Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
             }
         })
     }

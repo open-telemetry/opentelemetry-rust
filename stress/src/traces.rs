@@ -15,8 +15,8 @@ use opentelemetry::{
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
-    trace::SpanData,
-    trace::{self as sdktrace, SpanProcessor},
+    error::OTelSdkResult,
+    trace::{self as sdktrace, SpanData, SpanProcessor},
 };
 
 mod throughput;
@@ -41,11 +41,11 @@ impl SpanProcessor for NoOpSpanProcessor {
         // No-op
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
