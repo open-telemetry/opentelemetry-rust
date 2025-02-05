@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use core::fmt;
 use std::{borrow::Cow, sync::Arc};
 
@@ -20,25 +21,17 @@ use crate::metrics::{
 use super::noop::NoopSyncInstrument;
 
 // maximum length of instrument name
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
-
 // maximum length of instrument unit name
 const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
-
 // Characters allowed in instrument name
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
 // instrument name validation error strings
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_LENGTH: &str = "instrument name must be less than 256 characters";
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_INVALID_CHAR: &str =
     "characters in instrument name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
     "instrument name must start with an alphabetic character";
 
@@ -688,6 +681,7 @@ where
     }
 }
 
+#[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
@@ -695,14 +689,9 @@ mod tests {
     use crate::metrics::MetricError;
 
     use super::{
-        validate_instrument_name, validate_instrument_unit, INSTRUMENT_UNIT_INVALID_CHAR,
-        INSTRUMENT_UNIT_LENGTH,
-    };
-
-    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
-    use super::{
-        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-        INSTRUMENT_NAME_LENGTH,
+        validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,
+        INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
+        INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
     };
 
     #[test]

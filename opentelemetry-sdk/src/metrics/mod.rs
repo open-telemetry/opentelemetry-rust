@@ -210,8 +210,8 @@ mod tests {
             histogram.record(1.9, &[]);
             test_context.flush_metrics();
 
-            // As bucket boundaires provided via advisory params are invalid, no
-            // metrics should be exported
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
             test_context.check_no_metrics();
         }
     }
@@ -272,7 +272,37 @@ mod tests {
 
             test_context.flush_metrics();
 
-            // As instrument name is invalid, no metrics should be exported
+            // As instrument name are valid because of the feature flag, metrics should be exported
+            let resource_metrics = test_context
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported");
+
+            assert!(!resource_metrics.is_empty(), "metrics should be exported");
+        }
+
+        // Ensuring that the Histograms with invalid bucket boundaries are not exported
+        // when using the feature flag
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
             test_context.check_no_metrics();
         }
     }
@@ -2557,10 +2587,6 @@ mod tests {
                 .get_finished_metrics()
                 .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricExporter to return None.
 
-            #[cfg(feature = "experimental_metrics_disable_name_validation")]
-            assert!(!resource_metrics.is_empty(), "metrics should be exported"); // TODO: Update this when enhanced feature flag is added.
-
-            #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
 
