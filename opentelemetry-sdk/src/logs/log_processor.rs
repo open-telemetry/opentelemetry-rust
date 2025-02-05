@@ -32,7 +32,7 @@
 //! ```
 
 use crate::{
-    error::{ShutdownError, ShutdownResult},
+    error::{OTelSdkError, OTelSdkResult},
     logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
@@ -89,11 +89,11 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// - `instrumentation`: The instrumentation scope associated with the log record.
     fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
-    fn force_flush(&self) -> LogResult<()>;
+    fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> ShutdownResult;
+    fn shutdown(&self) -> OTelSdkResult;
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
@@ -186,16 +186,16 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         self.exporter
             .lock()
-            .map_err(|e| ShutdownError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
             .shutdown()?;
         Ok(())
     }
@@ -372,7 +372,7 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         let (sender, receiver) = mpsc::sync_channel(1);
         match self
             .message_sender
@@ -382,9 +382,9 @@ impl LogProcessor for BatchLogProcessor {
                 .recv_timeout(self.forceflush_timeout)
                 .map_err(|err| {
                     if err == RecvTimeoutError::Timeout {
-                        LogError::ExportTimedOut(self.forceflush_timeout)
+                        OTelSdkError::Timeout(self.forceflush_timeout)
                     } else {
-                        LogError::Other(err.into())
+                        OTelSdkError::InternalFailure(err.to_string())
                     }
                 })?,
             Err(mpsc::TrySendError::Full(_)) => {
@@ -393,7 +393,7 @@ impl LogProcessor for BatchLogProcessor {
                     name: "BatchLogProcessor.ForceFlush.ControlChannelFull",
                     message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+                Err(OTelSdkError::InternalFailure("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -403,7 +403,7 @@ impl LogProcessor for BatchLogProcessor {
                     message = "ForceFlush invoked after Shutdown. This will not perform Flush and indicates a incorrect lifecycle management in Application."
                 );
 
-                LogResult::Err(LogError::Other(
+                Err(OTelSdkError::InternalFailure(
                     "ForceFlush cannot be performed as BatchLogProcessor is already shutdown"
                         .into(),
                 ))
@@ -411,7 +411,7 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -442,14 +442,14 @@ impl LogProcessor for BatchLogProcessor {
                                 name: "BatchLogProcessor.Shutdown.Timeout",
                                 message = "BatchLogProcessor shutdown timing out."
                             );
-                            ShutdownError::Timeout(self.shutdown_timeout)
+                            OTelSdkError::Timeout(self.shutdown_timeout)
                         }
                         _ => {
                             otel_error!(
                                 name: "BatchLogProcessor.Shutdown.Error",
                                 error = format!("{}", err)
                             );
-                            ShutdownError::InternalFailure(err.to_string())
+                            OTelSdkError::InternalFailure(err.to_string())
                         }
                     })?
             }
@@ -459,7 +459,7 @@ impl LogProcessor for BatchLogProcessor {
                     name: "BatchLogProcessor.Shutdown.ControlChannelFull",
                     message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                Err(ShutdownError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+                Err(OTelSdkError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -469,7 +469,7 @@ impl LogProcessor for BatchLogProcessor {
                     message = "Shutdown is being invoked more than once. This is noop, but indicates a potential issue in the application's lifecycle management."
                 );
 
-                Err(ShutdownError::InternalFailure(
+                Err(OTelSdkError::InternalFailure(
                     "BatchLogProcessor is already shutdown".into(),
                 ))
             }
@@ -875,7 +875,7 @@ mod tests {
         BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::error::ShutdownResult;
+    use crate::error::OTelSdkResult;
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::{
@@ -912,7 +912,7 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) -> ShutdownResult {
+        fn shutdown(&mut self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -1232,11 +1232,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -1262,11 +1262,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }

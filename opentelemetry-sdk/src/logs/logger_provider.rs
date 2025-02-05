@@ -1,5 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::error::ShutdownError;
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::{LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
@@ -92,7 +92,7 @@ impl LoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> Vec<LogResult<()>> {
+    pub fn force_flush(&self) -> Vec<OTelSdkResult> {
         self.log_processors()
             .iter()
             .map(|processor| processor.force_flush())
@@ -132,7 +132,7 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<ShutdownError> {
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkError> {
         let mut errs = vec![];
         for processor in &self.processors {
             if let Err(err) = processor.shutdown() {
@@ -142,12 +142,12 @@ impl LoggerProviderInner {
                 //    which is non-actionable by the user
                 match err {
                     // specific handling for mutex poisoning
-                    ShutdownError::AlreadyShutdown => {
+                    OTelSdkError::AlreadyShutdown => {
                         otel_debug!(
                             name: "LoggerProvider.Drop.AlreadyShutdown",
                         );
                     }
-                    ShutdownError::Timeout(t) => {
+                    OTelSdkError::Timeout(t) => {
                         otel_debug!(
                             name: "LoggerProvider.Drop.ExportTimedOut",
                             error = format!("timed out shutting down; t={:?}", t)
@@ -340,7 +340,7 @@ impl opentelemetry::logs::Logger for Logger {
 #[cfg(test)]
 mod tests {
     use crate::{
-        error::ShutdownResult,
+        error::OTelSdkResult,
         logs::InMemoryLogExporter,
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
@@ -391,11 +391,11 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -803,12 +803,12 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -834,12 +834,12 @@ mod tests {
             // nothing to do
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

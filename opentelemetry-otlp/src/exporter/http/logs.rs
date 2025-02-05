@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
-use opentelemetry_sdk::error::{ShutdownError, ShutdownResult};
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 
@@ -54,10 +54,10 @@ impl LogExporter for OtlpHttpClient {
         }
     }
 
-    fn shutdown(&mut self) -> ShutdownResult {
+    fn shutdown(&mut self) -> OTelSdkResult {
         self.client
             .lock()
-            .map_err(|e| ShutdownError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
             .take();
         Ok(())
     }

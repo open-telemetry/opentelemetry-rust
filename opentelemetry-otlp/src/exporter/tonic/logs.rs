@@ -3,7 +3,7 @@ use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
-use opentelemetry_sdk::error::ShutdownError;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogError, LogResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
@@ -93,7 +93,7 @@ impl LogExporter for TonicLogsClient {
         }
     }
 
-    fn shutdown(&mut self) -> Result<(), ShutdownError> {
+    fn shutdown(&mut self) -> OTelSdkResult {
         let _ = self.inner.take();
         Ok(())
     }

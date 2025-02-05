@@ -152,19 +152,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     Ok(_) => println!("MeterProvider shutdown successfully"),
     //     Err(e) => {
     //         match e {
-    //             opentelemetry_sdk::error::ShutdownError::InternalFailure(message) => {
+    //             opentelemetry_sdk::error::OTelSdkError::InternalFailure(message) => {
     //                 // This indicates some internal failure during shutdown. The
     //                 // error message is intended for logging purposes only and
     //                 // should not be used to make programmatic decisions.
     //                 println!("MeterProvider shutdown failed: {}", message)
     //             }
-    //             opentelemetry_sdk::error::ShutdownError::AlreadyShutdown => {
+    //             opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown => {
     //                 // This indicates some user code tried to shutdown
     //                 // elsewhere. user need to review their code to ensure
     //                 // shutdown is called only once.
     //                 println!("MeterProvider already shutdown")
     //             }
-    //             opentelemetry_sdk::error::ShutdownError::Timeout(e) => {
+    //             opentelemetry_sdk::error::OTelSdkError::Timeout(e) => {
     //                 // This indicates the shutdown timed out, and a good hint to
     //                 // user to increase the timeout. (Shutdown method does not
     //                 // allow custom timeout today, but that is temporary)

@@ -16,6 +16,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
@@ -65,7 +66,7 @@ impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 

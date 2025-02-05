@@ -1,5 +1,5 @@
 //! Log exporters
-use crate::error::ShutdownResult;
+use crate::error::OTelSdkResult;
 use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
@@ -137,7 +137,7 @@ pub trait LogExporter: Send + Sync + Debug {
     ) -> impl std::future::Future<Output = LogResult<()>> + Send;
 
     /// Shuts down the exporter.
-    fn shutdown(&mut self) -> ShutdownResult {
+    fn shutdown(&mut self) -> OTelSdkResult {
         Ok(())
     }
     #[cfg(feature = "spec_unstable_logs_enabled")]

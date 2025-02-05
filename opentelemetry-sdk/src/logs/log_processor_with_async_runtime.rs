@@ -1,6 +1,6 @@
 use crate::{
-    error::{ShutdownError, ShutdownResult},
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    error::{OTelSdkError, OTelSdkResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord},
     Resource,
 };
 
@@ -76,18 +76,18 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(err.into()))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -101,10 +101,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(std::convert::identity)
     }
 
@@ -287,7 +287,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
-    use crate::error::ShutdownResult;
+    use crate::error::OTelSdkResult;
     use crate::logs::log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
@@ -331,7 +331,7 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) -> ShutdownResult {
+        fn shutdown(&mut self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -652,11 +652,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -682,11 +682,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> ShutdownResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }

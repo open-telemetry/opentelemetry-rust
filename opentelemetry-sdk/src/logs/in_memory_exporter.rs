@@ -1,4 +1,4 @@
-use crate::error::ShutdownResult;
+use crate::error::OTelSdkResult;
 use crate::logs::LogRecord;
 use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
@@ -199,7 +199,7 @@ impl LogExporter for InMemoryLogExporter {
         }
     }
 
-    fn shutdown(&mut self) -> ShutdownResult {
+    fn shutdown(&mut self) -> OTelSdkResult {
         if self.should_reset_on_shutdown {
             self.reset();
         }
