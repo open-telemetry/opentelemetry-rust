@@ -1,5 +1,5 @@
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, SdkLogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogResult, SdkLogRecord},
     Resource,
 };
 
@@ -287,8 +287,8 @@ mod tests {
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
     use crate::logs::InMemoryLogExporterBuilder;
-    use crate::logs::SdkLogRecord;
     use crate::logs::LogResult;
+    use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
     use crate::{
