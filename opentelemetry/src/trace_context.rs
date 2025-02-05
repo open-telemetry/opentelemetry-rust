@@ -3,7 +3,7 @@ use std::hash::Hash;
 use std::num::ParseIntError;
 use std::ops::{BitAnd, BitOr, Not};
 
-/// Flags that can be set on a [`SpanContext`].
+/// Flags that can be set on a `SpanContext`.
 ///
 /// The current version of the specification only supports a single flag
 /// [`TraceFlags::SAMPLED`].
