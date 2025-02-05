@@ -45,6 +45,7 @@ pub use span_processor::{
 };
 
 pub use tracer::SdkTracer;
+pub use tracer::SdkTracer as Tracer; // for back-compat else tracing-opentelemetry won't build
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
