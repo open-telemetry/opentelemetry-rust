@@ -1,6 +1,6 @@
 use crate::{
-    trace::{Event, Link, Span, SpanId, SpanKind, Status, TraceContextExt, TraceId, TraceState},
-    Context, KeyValue,
+    trace::{Event, Link, Span, SpanKind, Status, TraceContextExt, TraceState},
+    Context, KeyValue, SpanId, TraceId,
 };
 use std::borrow::Cow;
 use std::time::SystemTime;

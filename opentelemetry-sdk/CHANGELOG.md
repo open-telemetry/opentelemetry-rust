@@ -295,7 +295,7 @@ limit.
   `Logger::create_log_record()` method.
 
 - Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
-- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::TracerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::SdkTracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
@@ -307,12 +307,13 @@ limit.
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
-- *Breaking*: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
 or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
 responsibility of the exporter.
 For example, in the OTLP Logs exporter, the export timeout can be configured using:
 - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
 - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
 Before:
 ```rust
 let processor = BatchLogProcessor::builder(exporter)
@@ -340,12 +341,13 @@ let processor = BatchLogProcessor::builder(exporter)
     .build();
 ```
 
-- *Breaking*: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
    or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
    responsibility of the exporter.
    For example, in the OTLP Span exporter, the export timeout can be configured using:
    - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.
    - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
   Before:
 ```rust
 let processor = BatchSpanProcessor::builder(exporter)
@@ -373,9 +375,40 @@ let processor = BatchSpanProcessor::builder(exporter)
     .build();
 ```
 
+- **Breaking**: The `PeriodicReader` no longer supports configuration of export timeout using
+  `with_timeout` API method. 
+  Timeout handling is now the responsibility of the exporter.
+
+  For example, in the OTLP Metrics exporter, the export timeout can be configured using:
+  - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
+  - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
+- **Breaking**
+ - The public API changes in the Tracing:
+   - Before:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+        fn SpanExporter::shutdown(&mut self);
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, ExportResult>
+        fn TraerProvider::shutdown(&self) -> TraceResult<()>
+        fn TracerProvider::force_flush(&self) -> Vec<TraceResult<()>>
+      ```
+    - After:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+        fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
+        fn TraerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
 - **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
   `SdkLogger` respectively to avoid name collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
+
+- **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and
+  `SdkTracer` to avoid name collision with public API types. `Tracer` is still
+  type-aliased to `SdkTracer` to keep back-compat with tracing-opentelemetry.
+  [#2614](https://github.com/open-telemetry/opentelemetry-rust/pull/2614)
 
 ## 0.27.1
 

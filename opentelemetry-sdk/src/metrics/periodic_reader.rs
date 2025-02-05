@@ -20,17 +20,14 @@ use super::{
     data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
 };
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
 
 const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
-const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 
 /// Configuration options for [PeriodicReader].
 #[derive(Debug)]
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
-    timeout: Duration,
     exporter: E,
 }
 
@@ -43,16 +40,8 @@ where
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
             .unwrap_or(DEFAULT_INTERVAL);
-        let timeout = env::var(METRIC_EXPORT_TIMEOUT_NAME)
-            .ok()
-            .and_then(|v| v.parse().map(Duration::from_millis).ok())
-            .unwrap_or(DEFAULT_TIMEOUT);
 
-        PeriodicReaderBuilder {
-            interval,
-            timeout,
-            exporter,
-        }
+        PeriodicReaderBuilder { interval, exporter }
     }
 
     /// Configures the intervening time between exports for a [PeriodicReader].
@@ -69,25 +58,9 @@ where
         self
     }
 
-    /// Configures the timeout for an export to complete. PeriodicReader itself
-    /// does not enforce timeout. Instead timeout is passed on to the exporter
-    /// for each export attempt.
-    ///
-    /// This option overrides any value set for the `OTEL_METRIC_EXPORT_TIMEOUT`
-    /// environment variable.
-    ///
-    /// If this option is not used or `timeout` is equal to zero, 30 seconds is used
-    /// as the default.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        if !timeout.is_zero() {
-            self.timeout = timeout;
-        }
-        self
-    }
-
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader {
-        PeriodicReader::new(self.exporter, self.interval, self.timeout)
+        PeriodicReader::new(self.exporter, self.interval)
     }
 }
 
@@ -165,7 +138,7 @@ impl PeriodicReader {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new<E>(exporter: E, interval: Duration, timeout: Duration) -> Self
+    fn new<E>(exporter: E, interval: Duration) -> Self
     where
         E: PushMetricExporter,
     {
@@ -189,7 +162,6 @@ impl PeriodicReader {
                 otel_info!(
                     name: "PeriodReaderThreadStarted",
                     interval_in_millisecs = interval.as_millis(),
-                    timeout_in_millisecs = timeout.as_millis()
                 );
                 loop {
                     otel_debug!(
@@ -200,8 +172,7 @@ impl PeriodicReader {
                             otel_debug!(
                                 name: "PeriodReaderThreadExportingDueToFlush"
                             );
-
-                            let export_result = cloned_reader.collect_and_export(timeout);
+                            let export_result = cloned_reader.collect_and_export();
                             otel_debug!(
                                 name: "PeriodReaderInvokedExport",
                                 export_result = format!("{:?}", export_result)
@@ -257,7 +228,7 @@ impl PeriodicReader {
                         Ok(Message::Shutdown(response_sender)) => {
                             // Perform final export and break out of loop and exit the thread
                             otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
-                            let export_result = cloned_reader.collect_and_export(timeout);
+                            let export_result = cloned_reader.collect_and_export();
                             otel_debug!(
                                 name: "PeriodReaderInvokedExport",
                                 export_result = format!("{:?}", export_result)
@@ -305,7 +276,7 @@ impl PeriodicReader {
                                 name: "PeriodReaderThreadExportingDueToTimer"
                             );
 
-                            let export_result = cloned_reader.collect_and_export(timeout);
+                            let export_result = cloned_reader.collect_and_export();
                             otel_debug!(
                                 name: "PeriodReaderInvokedExport",
                                 export_result = format!("{:?}", export_result)
@@ -357,8 +328,8 @@ impl PeriodicReader {
         reader
     }
 
-    fn collect_and_export(&self, timeout: Duration) -> OTelSdkResult {
-        self.inner.collect_and_export(timeout)
+    fn collect_and_export(&self) -> OTelSdkResult {
+        self.inner.collect_and_export()
     }
 }
 
@@ -402,7 +373,7 @@ impl PeriodicReaderInner {
         }
     }
 
-    fn collect_and_export(&self, timeout: Duration) -> OTelSdkResult {
+    fn collect_and_export(&self) -> OTelSdkResult {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
         let mut rm = ResourceMetrics {
@@ -410,15 +381,10 @@ impl PeriodicReaderInner {
             scope_metrics: Vec::new(),
         };
 
-        // Measure time taken for collect, and subtract it from the timeout.
         let current_time = Instant::now();
         let collect_result = self.collect(&mut rm);
         let time_taken_for_collect = current_time.elapsed();
-        let _timeout = if time_taken_for_collect > timeout {
-            Duration::from_secs(0)
-        } else {
-            timeout - time_taken_for_collect
-        };
+
         #[allow(clippy::question_mark)]
         if let Err(e) = collect_result {
             otel_warn!(

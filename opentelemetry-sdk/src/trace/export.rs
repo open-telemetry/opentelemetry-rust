@@ -1,4 +1,5 @@
 //! Trace exporters
+use crate::error::OTelSdkResult;
 use crate::Resource;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
@@ -30,7 +31,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     ///
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
 
     /// Shuts down the exporter. Called when SDK is shut down. This is an
     /// opportunity for exporter to do any cleanup required.
@@ -43,7 +44,9 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) -> OTelSdkResult {
+        Ok(())
+    }
 
     /// This is a hint to ensure that the export of any Spans the exporter
     /// has received prior to the call to this function SHOULD be completed
@@ -60,8 +63,8 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
     /// a callback or an event. OpenTelemetry client authors can decide if they want to
     /// make the flush timeout configurable.
-    fn force_flush(&mut self) -> BoxFuture<'static, ExportResult> {
-        Box::pin(async { Ok(()) })
+    fn force_flush(&mut self) -> OTelSdkResult {
+        Ok(())
     }
 
     /// Set the resource for the exporter.

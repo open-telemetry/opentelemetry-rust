@@ -42,7 +42,7 @@ temp-env = { workspace = true }
 pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 
 [features]
-default = ["trace", "metrics", "logs", "internal-logs"]
+default = ["trace", "metrics", "logs", "internal-logs", "experimental_trace_batch_span_processor_with_async_runtime", "experimental_async_runtime"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
 logs = ["opentelemetry/logs", "serde_json"]

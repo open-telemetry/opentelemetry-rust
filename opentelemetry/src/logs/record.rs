@@ -1,7 +1,6 @@
 use crate::{Key, StringValue};
 
-#[cfg(feature = "trace")]
-use crate::trace::{SpanId, TraceFlags, TraceId};
+use crate::{SpanId, TraceFlags, TraceId};
 
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
@@ -47,7 +46,6 @@ pub trait LogRecord {
         V: Into<AnyValue>;
 
     /// Sets the trace context of the log.
-    #[cfg(feature = "trace")]
     fn set_trace_context(
         &mut self,
         trace_id: TraceId,

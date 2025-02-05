@@ -17,11 +17,11 @@
 //! # #[cfg(all(feature = "metrics", feature = "trace", feature = "logs"))]
 //! {
 //! use opentelemetry::metrics::MeterProvider;
-//! use opentelemetry::trace::{Span, Tracer, TracerProvider as _};
+//! use opentelemetry::trace::{Span, Tracer, TracerProvider};
 //! use opentelemetry::{Context, KeyValue};
 //!
 //! use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
-//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry_sdk::trace::SdkTracerProvider;
 //!
 //! use opentelemetry_sdk::logs::LoggerProvider;
 //!
