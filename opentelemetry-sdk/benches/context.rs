@@ -10,7 +10,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
-    trace::{Sampler, SpanData, SpanExporter, SdkTracerProvider},
+    trace::{Sampler, SdkTracerProvider, SpanData, SpanExporter},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
