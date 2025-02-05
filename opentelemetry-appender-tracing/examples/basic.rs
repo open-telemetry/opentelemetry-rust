@@ -1,13 +1,13 @@
 //! run with `$ cargo run --example basic
 
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::{logs::LoggerProvider, Resource};
+use opentelemetry_sdk::{logs::SdkLoggerProvider, Resource};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let provider: LoggerProvider = LoggerProvider::builder()
+    let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder()
                 .with_service_name("log-appender-tracing-example")

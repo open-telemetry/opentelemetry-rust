@@ -370,6 +370,10 @@ let processor = BatchSpanProcessor::builder(exporter)
     .build();
 ```
 
+- **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
+  `SdkLogger` respectively to avoid name collision with public API types.
+  [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
+
 ## 0.27.1
 
 Released 2024-Nov-27
