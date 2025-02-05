@@ -555,7 +555,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::new();
+        let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -624,11 +624,11 @@ mod tests {
 
     #[derive(Debug)]
     struct FirstProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             // add attribute
             record.add_attribute(
                 Key::from_static_str("processed_by"),
@@ -654,11 +654,11 @@ mod tests {
 
     #[derive(Debug)]
     struct SecondProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
@@ -817,7 +817,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::new();
+        let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
