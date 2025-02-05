@@ -12,11 +12,8 @@ use opentelemetry::{
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
+use crate::error::OTelSdkResult;
 use crate::Resource;
-use crate::{
-    error::ShutdownResult,
-    metrics::{MetricError, MetricResult},
-};
 
 use super::{
     exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
@@ -96,7 +93,7 @@ impl SdkMeterProvider {
     ///     Ok(())
     /// }
     /// ```
-    pub fn force_flush(&self) -> MetricResult<()> {
+    pub fn force_flush(&self) -> OTelSdkResult {
         self.inner.force_flush()
     }
 
@@ -112,7 +109,7 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> ShutdownResult {
+    pub fn shutdown(&self) -> OTelSdkResult {
         otel_info!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -122,26 +119,24 @@ impl SdkMeterProvider {
 }
 
 impl SdkMeterProviderInner {
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            Err(MetricError::Other(
-                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.force_flush()
         }
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(crate::error::ShutdownError::AlreadyShutdown)
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }

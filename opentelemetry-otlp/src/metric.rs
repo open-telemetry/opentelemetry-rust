@@ -16,7 +16,7 @@ use crate::NoExporterBuilderSet;
 
 use async_trait::async_trait;
 use core::fmt;
-use opentelemetry_sdk::error::ShutdownResult;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
@@ -123,8 +123,8 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 /// An interface for OTLP metrics clients
 #[async_trait]
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
-    fn shutdown(&self) -> ShutdownResult;
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult;
+    fn shutdown(&self) -> OTelSdkResult;
 }
 
 /// Export metrics in OTEL format.
@@ -141,16 +141,16 @@ impl Debug for MetricExporter {
 
 #[async_trait]
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.client.export(metrics).await
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    async fn force_flush(&self) -> OTelSdkResult {
         // this component is stateless
         Ok(())
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.client.shutdown()
     }
 

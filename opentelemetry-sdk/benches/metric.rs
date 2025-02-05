@@ -7,7 +7,7 @@ use opentelemetry::{
     Key, KeyValue,
 };
 use opentelemetry_sdk::{
-    error::ShutdownResult,
+    error::OTelSdkResult,
     metrics::{
         data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
         InstrumentKind, ManualReader, MetricResult, Pipeline, SdkMeterProvider, Stream,
@@ -28,11 +28,11 @@ impl MetricReader for SharedReader {
         self.0.collect(rm)
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.0.force_flush()
     }
 
-    fn shutdown(&self) -> ShutdownResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.0.shutdown()
     }
 

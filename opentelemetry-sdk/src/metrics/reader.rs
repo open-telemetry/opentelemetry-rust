@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use crate::{error::ShutdownResult, metrics::MetricResult};
+use crate::{error::OTelSdkResult, metrics::MetricResult};
 
 use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
@@ -36,7 +36,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self) -> MetricResult<()>;
+    fn force_flush(&self) -> OTelSdkResult;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.
@@ -46,7 +46,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> ShutdownResult;
+    fn shutdown(&self) -> OTelSdkResult;
 
     /// The output temporality, a function of instrument kind.
     /// This SHOULD be obtained from the exporter.
