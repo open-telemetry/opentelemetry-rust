@@ -43,13 +43,13 @@ fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 }
 
 #[cfg(feature = "logs")]
-fn init_logs() -> opentelemetry_sdk::logs::LoggerProvider {
+fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
     use opentelemetry_appender_tracing::layer;
-    use opentelemetry_sdk::logs::LoggerProvider;
+    use opentelemetry_sdk::logs::SdkLoggerProvider;
     use tracing_subscriber::prelude::*;
 
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let provider: LoggerProvider = LoggerProvider::builder()
+    let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();

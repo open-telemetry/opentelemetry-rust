@@ -19,7 +19,7 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use logger_provider::{Logger, LoggerProvider, LoggerProviderBuilder};
+pub use logger_provider::{Logger, LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{LogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
@@ -49,7 +49,7 @@ mod tests {
             ])
             .build();
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_resource(resource.clone())
             .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
             .build();
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn logger_attributes() {
-        let provider = LoggerProvider::builder().build();
+        let provider = SdkLoggerProvider::builder().build();
         let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
