@@ -65,7 +65,7 @@ impl SpanExporter for OtlpHttpClient {
                     request_uri,
                     response.body()
                 );
-                return Err(OTelSdkError::InternalFailure(error.into()));
+                return Err(OTelSdkError::InternalFailure(error));
             }
 
             Ok(())

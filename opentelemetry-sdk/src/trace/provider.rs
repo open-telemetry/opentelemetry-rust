@@ -249,10 +249,14 @@ impl TracerProvider {
         {
             // propagate the shutdown signal to processors
             let errs = self.inner.shutdown();
-            if errs.is_empty() {
+
+            if errs.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
-                Err(OTelSdkError::InternalFailure(format!("{:?}", errs)))
+                Err(OTelSdkError::InternalFailure(format!(
+                    "Shutdown errors: {:?}",
+                    errs.into_iter().filter_map(Result::err).collect::<Vec<_>>() // Collect only the errors
+                )))
             }
         } else {
             Err(OTelSdkError::AlreadyShutdown)
@@ -549,7 +553,7 @@ mod tests {
         });
 
         let results = tracer_provider.force_flush();
-        assert_eq!(results.is_err(), true);
+        assert!(results.is_err());
     }
 
     #[test]
@@ -817,6 +821,7 @@ mod tests {
 
             // Explicitly shut down the tracer provider
             let shutdown_result = tracer_provider1.shutdown();
+            println!("----->>> Shutdown result: {:?}", shutdown_result);
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once

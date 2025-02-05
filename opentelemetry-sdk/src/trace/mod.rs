@@ -364,7 +364,7 @@ mod tests {
             tracer.start("my_span").end();
 
             // Force flush to ensure spans are exported
-            assert_eq!(provider.force_flush().is_err(), false);
+            assert!(provider.force_flush().is_ok());
 
             // Assert
             let finished_spans = exporter

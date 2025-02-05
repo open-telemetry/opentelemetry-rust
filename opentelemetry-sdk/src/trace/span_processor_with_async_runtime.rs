@@ -4,7 +4,7 @@ use crate::runtime::{RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{ExportResult, SpanData, SpanExporter};
+use crate::trace::{SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, BoxFuture, Either},
@@ -148,11 +148,13 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| TraceError::Other(err.into()))?;
+            .map_err(|err| {
+                OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {}", err))
+            })?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| TraceError::Other(err.into()))
-            .and_then(|identity| identity)
+        futures_executor::block_on(res_receiver).map_err(|err| {
+            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {}", err))
+        })?
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -174,23 +176,23 @@ enum BatchMessage {
     ExportSpan(SpanData),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all spans in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
 
 struct BatchSpanProcessorInternal<R> {
     spans: Vec<SpanData>,
-    export_tasks: FuturesUnordered<BoxFuture<'static, ExportResult>>,
+    export_tasks: FuturesUnordered<BoxFuture<'static, OTelSdkResult>>,
     runtime: R,
     exporter: Box<dyn SpanExporter>,
     config: BatchConfig,
 }
 
 impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
-    async fn flush(&mut self, res_channel: Option<oneshot::Sender<ExportResult>>) {
+    async fn flush(&mut self, res_channel: Option<oneshot::Sender<OTelSdkResult>>) {
         let export_task = self.export();
         let task = Box::pin(async move {
             let result = export_task.await;
@@ -287,7 +289,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
             // Stream has terminated or processor is shutdown, return to finish execution.
             BatchMessage::Shutdown(ch) => {
                 self.flush(Some(ch)).await;
-                self.exporter.shutdown();
+                let _ = self.exporter.shutdown();
                 return false;
             }
             // propagate the resource
@@ -298,7 +300,7 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         true
     }
 
-    fn export(&mut self) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self) -> BoxFuture<'static, OTelSdkResult> {
         // Batch size check for flush / shutdown. Those methods may be called
         // when there's no work to do.
         if self.spans.is_empty() {
@@ -420,6 +422,7 @@ where
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{BatchSpanProcessor, SpanProcessor};
+    use crate::error::OTelSdkResult;
     use crate::runtime;
     use crate::testing::trace::{new_test_export_span_data, new_tokio_test_exporter};
     use crate::trace::span_processor::{
@@ -427,7 +430,7 @@ mod tests {
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
-    use crate::trace::{ExportResult, SpanData, SpanExporter};
+    use crate::trace::{SpanData, SpanExporter};
     use futures_util::Future;
     use std::fmt::Debug;
     use std::time::Duration;
@@ -455,7 +458,7 @@ mod tests {
         fn export(
             &mut self,
             _batch: Vec<SpanData>,
-        ) -> futures_util::future::BoxFuture<'static, ExportResult> {
+        ) -> futures_util::future::BoxFuture<'static, OTelSdkResult> {
             use futures_util::FutureExt;
             Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
         }

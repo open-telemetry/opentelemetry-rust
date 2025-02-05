@@ -608,7 +608,7 @@ impl SpanProcessor for BatchSpanProcessor {
                 return Err(OTelSdkError::InternalFailure(format!(
                     "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {:?}",
                     err
-                ).into()));
+                )));
             }
         }
         result
