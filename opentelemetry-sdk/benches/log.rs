@@ -20,12 +20,12 @@ use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry::{InstrumentationScope, Key};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
-use opentelemetry_sdk::trace::{Sampler, TracerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
+use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
 
 #[derive(Debug)]
 struct NoopProcessor;
@@ -42,11 +42,11 @@ impl LogProcessor for NoopProcessor {
     }
 }
 
-fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
+fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("no-context", |b| {
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
             .build();
 
@@ -56,14 +56,14 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
     });
 
     group.bench_function("with-context", |b| {
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("with-context");
 
         // setup tracing as well.
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("bench-tracer");
@@ -80,7 +80,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 fn log_provider_creation(c: &mut Criterion) {
     c.bench_function("LoggerProvider_Creation", |b| {
         b.iter(|| {
-            let _provider = LoggerProvider::builder()
+            let _provider = SdkLoggerProvider::builder()
                 .with_log_processor(NoopProcessor {})
                 .build();
         });
@@ -89,7 +89,7 @@ fn log_provider_creation(c: &mut Criterion) {
 
 fn logger_creation(c: &mut Criterion) {
     // Provider is created once, outside of the benchmark
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
 
@@ -101,7 +101,7 @@ fn logger_creation(c: &mut Criterion) {
 }
 
 fn logging_comparable_to_appender(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
     let logger = provider.logger("benchmark");

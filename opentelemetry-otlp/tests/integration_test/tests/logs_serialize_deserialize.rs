@@ -6,7 +6,7 @@ use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
 use integration_test_runner::test_utils;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::LogExporter;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
@@ -20,7 +20,7 @@ pub async fn test_logs() -> Result<()> {
     test_utils::cleanup_file("./actual/logs.json"); // Ensure logs.json is empty before the test
     let exporter_builder = LogExporter::builder().with_tonic();
     let exporter = exporter_builder.build()?;
-    let mut logger_provider_builder = LoggerProvider::builder();
+    let mut logger_provider_builder = SdkLoggerProvider::builder();
     logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter);
     let logger_provider = logger_provider_builder
         .with_resource(

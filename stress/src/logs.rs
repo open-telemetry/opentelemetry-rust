@@ -12,7 +12,7 @@
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLoggerProvider};
 
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -53,7 +53,7 @@ impl LogProcessor for MockLogProcessor {
 
 fn main() {
     // LoggerProvider with a no-op processor.
-    let provider: LoggerProvider = LoggerProvider::builder()
+    let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_log_processor(MockLogProcessor {
             exporter: MockLogExporter {},
         })

@@ -5,7 +5,7 @@ use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::LogExporter;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::{logs as sdklogs, Resource};
 use std::fs::File;
 use std::io::Read;
@@ -14,7 +14,7 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use uuid::Uuid;
 
-fn init_logs(is_simple: bool) -> Result<sdklogs::LoggerProvider> {
+fn init_logs(is_simple: bool) -> Result<sdklogs::SdkLoggerProvider> {
     let exporter_builder = LogExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
@@ -28,7 +28,7 @@ fn init_logs(is_simple: bool) -> Result<sdklogs::LoggerProvider> {
 
     let exporter = exporter_builder.build()?;
 
-    let mut logger_provider_builder = LoggerProvider::builder();
+    let mut logger_provider_builder = SdkLoggerProvider::builder();
     if is_simple {
         logger_provider_builder = logger_provider_builder.with_simple_exporter(exporter)
     } else {

@@ -16,14 +16,14 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::LogRecord;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
@@ -118,7 +118,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn exporter_with_future(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(ExportingProcessorWithFuture::new(NoOpExporterWithFuture {}))
         .build();
     let logger = provider.logger("benchmark");
@@ -142,7 +142,7 @@ fn exporter_with_future(c: &mut Criterion) {
 }
 
 fn exporter_without_future(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(ExportingProcessorWithoutFuture::new(
             NoOpExporterWithoutFuture {},
         ))

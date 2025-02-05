@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{MetricResult, Temporality};
+use opentelemetry_sdk::metrics::Temporality;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
@@ -60,7 +60,7 @@ impl PushMetricExporter for MetricExporter {
         }
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    async fn force_flush(&self) -> OTelSdkResult {
         // exporter holds no state, nothing to flush
         Ok(())
     }

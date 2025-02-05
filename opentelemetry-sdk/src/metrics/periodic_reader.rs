@@ -409,7 +409,7 @@ impl PeriodicReaderInner {
         futures_executor::block_on(self.exporter.export(&mut rm))
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         // TODO: Better message for this scenario.
         // Flush and Shutdown called from 2 threads Flush check shutdown
         // flag before shutdown thread sets it. Both threads attempt to send
@@ -426,17 +426,17 @@ impl PeriodicReaderInner {
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Flush(response_tx))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         if let Ok(response) = response_rx.recv() {
             // TODO: call exporter's force_flush method.
             if response {
                 Ok(())
             } else {
-                Err(MetricError::Other("Failed to flush".into()))
+                Err(OTelSdkError::InternalFailure("Failed to flush".into()))
             }
         } else {
-            Err(MetricError::Other("Failed to flush".into()))
+            Err(OTelSdkError::InternalFailure("Failed to flush".into()))
         }
     }
 
@@ -481,7 +481,7 @@ impl MetricReader for PeriodicReader {
         self.inner.collect(rm)
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.inner.force_flush()
     }
 
@@ -512,7 +512,7 @@ mod tests {
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
-            InMemoryMetricExporter, MetricResult, SdkMeterProvider, Temporality,
+            InMemoryMetricExporter, SdkMeterProvider, Temporality,
         },
         Resource,
     };
@@ -558,7 +558,7 @@ mod tests {
             }
         }
 
-        async fn force_flush(&self) -> MetricResult<()> {
+        async fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -582,7 +582,7 @@ mod tests {
             Ok(())
         }
 
-        async fn force_flush(&self) -> MetricResult<()> {
+        async fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 

@@ -9,9 +9,9 @@ use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::{
-    logs::LoggerProvider,
+    logs::SdkLoggerProvider,
     metrics::{MetricError, SdkMeterProvider},
-    trace::{self as sdktrace, TracerProvider},
+    trace::{self as sdktrace, SdkTracerProvider},
 };
 use opentelemetry_sdk::{
     logs::{self as sdklogs},
@@ -28,27 +28,27 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
         .build()
 });
 
-fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogError> {
+fn init_logs() -> Result<sdklogs::SdkLoggerProvider, opentelemetry_sdk::logs::LogError> {
     let exporter = LogExporter::builder()
         .with_http()
         .with_endpoint("http://localhost:4318/v1/logs")
         .with_protocol(Protocol::HttpBinary)
         .build()?;
 
-    Ok(LoggerProvider::builder()
+    Ok(SdkLoggerProvider::builder()
         .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
 }
 
-fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> Result<sdktrace::SdkTracerProvider, TraceError> {
     let exporter = SpanExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
         .with_endpoint("http://localhost:4318/v1/traces")
         .build()?;
 
-    Ok(TracerProvider::builder()
+    Ok(SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build())
