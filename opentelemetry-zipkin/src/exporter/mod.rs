@@ -7,6 +7,7 @@ use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::trace::TraceError;
 use opentelemetry_http::HttpClient;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::{
     resource::{ResourceDetector, SdkProvidedResourceDetector},
     trace, ExportError,
@@ -23,7 +24,7 @@ pub struct ZipkinExporter {
 }
 
 impl ZipkinExporter {
-    /// Get a builder to configure a [ZipkinExporter].
+    /// Get a builder to configure a [ZipkinExporter]
     pub fn builder() -> ZipkinExporterBuilder {
         ZipkinExporterBuilder::default()
     }
@@ -137,7 +138,7 @@ async fn zipkin_export(
     batch: Vec<trace::SpanData>,
     uploader: uploader::Uploader,
     local_endpoint: Endpoint,
-) -> trace::ExportResult {
+) -> OTelSdkResult {
     let zipkin_spans = batch
         .into_iter()
         .map(|span| model::into_zipkin_span(local_endpoint.clone(), span))
@@ -148,7 +149,7 @@ async fn zipkin_export(
 
 impl trace::SpanExporter for ZipkinExporter {
     /// Export spans to Zipkin collector.
-    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(zipkin_export(
             batch,
             self.uploader.clone(),
