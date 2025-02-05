@@ -1,4 +1,4 @@
-use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
+use super::{BatchLogProcessor, LogProcessor, SdkLogRecord, SimpleLogProcessor, TraceContext};
 use crate::logs::{LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
@@ -290,10 +290,10 @@ impl SdkLogger {
 }
 
 impl opentelemetry::logs::Logger for SdkLogger {
-    type LogRecord = LogRecord;
+    type LogRecord = SdkLogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::new()
+        SdkLogRecord::new()
     }
 
     /// Emit a `LogRecord`.
@@ -371,7 +371,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -791,7 +791,7 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             // nothing to do.
         }
 
@@ -822,7 +822,7 @@ mod tests {
     }
 
     impl LogProcessor for CountingShutdownProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             // nothing to do
         }
 

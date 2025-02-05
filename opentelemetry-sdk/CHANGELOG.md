@@ -307,12 +307,13 @@ limit.
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
 
-- *Breaking*: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
 or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
 responsibility of the exporter.
 For example, in the OTLP Logs exporter, the export timeout can be configured using:
 - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
 - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
 Before:
 ```rust
 let processor = BatchLogProcessor::builder(exporter)
@@ -340,12 +341,13 @@ let processor = BatchLogProcessor::builder(exporter)
     .build();
 ```
 
-- *Breaking*: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
+- **Breaking**: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
    or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
    responsibility of the exporter.
    For example, in the OTLP Span exporter, the export timeout can be configured using:
    - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.
    - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
   Before:
 ```rust
 let processor = BatchSpanProcessor::builder(exporter)
@@ -373,6 +375,14 @@ let processor = BatchSpanProcessor::builder(exporter)
     .build();
 ```
 
+- **Breaking**: The `PeriodicReader` no longer supports configuration of export timeout using
+  `with_timeout` API method. 
+  Timeout handling is now the responsibility of the exporter.
+
+  For example, in the OTLP Metrics exporter, the export timeout can be configured using:
+  - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
+  - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
 - **Breaking**
  - The public API changes in the Tracing:
    - Before:
@@ -391,8 +401,9 @@ let processor = BatchSpanProcessor::builder(exporter)
         fn TraerProvider::shutdown(&self) -> OTelSdkResult;
         fn TracerProvider::force_flush(&self) -> OTelSdkResult;
       ```
-- **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
-  `SdkLogger` respectively to avoid name collision with public API types.
+- **Breaking** Renamed `LoggerProvider`, `Logger` and `LogRecord' to
+  `SdkLoggerProvider`, `SdkLogger` and `SdkLogRecord` respectively to avoid name
+  collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
 
 - **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and

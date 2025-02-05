@@ -20,7 +20,7 @@ pub use log_processor::{
     SimpleLogProcessor,
 };
 pub use logger_provider::{LoggerProviderBuilder, SdkLogger, SdkLoggerProvider};
-pub use record::{LogRecord, TraceContext};
+pub use record::{SdkLogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 /// Module for BatchLogProcessor with async runtime.

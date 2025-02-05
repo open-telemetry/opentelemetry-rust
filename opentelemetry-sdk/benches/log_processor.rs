@@ -22,12 +22,14 @@ use opentelemetry::{
     logs::{LogRecord as _, Logger, LoggerProvider, Severity},
     InstrumentationScope,
 };
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{
+    LogProcessor, LogResult, SdkLogRecord, SdkLogger, SdkLoggerProvider,
+};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
 
-fn create_log_record(logger: &SdkLogger) -> LogRecord {
+fn create_log_record(logger: &SdkLogger) -> SdkLogRecord {
     let mut log_record = logger.create_log_record();
     let now = now();
     log_record.set_observed_timestamp(now);
@@ -45,7 +47,7 @@ fn create_log_record(logger: &SdkLogger) -> LogRecord {
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
+    fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {}
 
     fn force_flush(&self) -> LogResult<()> {
         Ok(())
@@ -60,7 +62,7 @@ impl LogProcessor for NoopProcessor {
 struct CloningProcessor;
 
 impl LogProcessor for CloningProcessor {
-    fn emit(&self, data: &mut LogRecord, _scope: &InstrumentationScope) {
+    fn emit(&self, data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
         let _data_cloned = data.clone();
     }
 
@@ -75,8 +77,8 @@ impl LogProcessor for CloningProcessor {
 
 #[derive(Debug)]
 struct SendToChannelProcessor {
-    sender: std::sync::mpsc::Sender<(LogRecord, InstrumentationScope)>,
-    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(LogRecord, InstrumentationScope)>>>,
+    sender: std::sync::mpsc::Sender<(SdkLogRecord, InstrumentationScope)>,
+    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(SdkLogRecord, InstrumentationScope)>>>,
 }
 
 impl SendToChannelProcessor {
@@ -103,7 +105,7 @@ impl SendToChannelProcessor {
 }
 
 impl LogProcessor for SendToChannelProcessor {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
         let res = self.sender.send((record.clone(), scope.clone()));
         if res.is_err() {
             println!("Error sending log data to channel {0}", res.err().unwrap());
