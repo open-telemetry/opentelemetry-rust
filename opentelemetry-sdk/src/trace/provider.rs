@@ -142,7 +142,7 @@ impl Drop for TracerProviderInner {
     }
 }
 
-/// Creator and registry of named [`Tracer`] instances.
+/// Creator and registry of named [`SdkTracer`] instances.
 ///
 /// `TracerProvider` is a container holding pointers to `SpanProcessor` and other components.
 /// Cloning a `TracerProvider` instance and dropping it will not stop span processing. To stop span processing, users
@@ -168,7 +168,7 @@ impl SdkTracerProvider {
         }
     }
 
-    /// Create a new [`TracerProvider`] builder.
+    /// Create a new [`SdkTracerProvider`] builder.
     pub fn builder() -> TracerProviderBuilder {
         TracerProviderBuilder::default()
     }
@@ -391,10 +391,10 @@ impl TracerProviderBuilder {
         self
     }
 
-    /// Associates a [Resource] with a [TracerProvider].
+    /// Associates a [Resource] with a [SdkTracerProvider].
     ///
     /// This [Resource] represents the entity producing telemetry and is associated
-    /// with all [Tracer]s the [TracerProvider] will create.
+    /// with all [Tracer]s the [SdkTracerProvider] will create.
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
