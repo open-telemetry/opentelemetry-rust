@@ -235,14 +235,14 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LogResult, SdkLoggerProvider};
+    use opentelemetry_sdk::logs::{LogResult, SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::{EnvFilter, Layer};
 
-    pub fn attributes_contains(log_record: &LogRecord, key: &Key, value: &AnyValue) -> bool {
+    pub fn attributes_contains(log_record: &SdkLogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
             .attributes_iter()
             .any(|(k, v)| k == key && v == value)

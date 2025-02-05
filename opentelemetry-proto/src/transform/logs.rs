@@ -56,8 +56,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry_sdk::logs::LogRecord> for LogRecord {
-        fn from(log_record: &opentelemetry_sdk::logs::LogRecord) -> Self {
+    impl From<&opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
+        fn from(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> Self {
             let trace_context = log_record.trace_context();
             let severity_number = match log_record.severity_number() {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -129,7 +129,7 @@ pub mod tonic {
     impl
         From<(
             (
-                &opentelemetry_sdk::logs::LogRecord,
+                &opentelemetry_sdk::logs::SdkLogRecord,
                 &opentelemetry::InstrumentationScope,
             ),
             &ResourceAttributesWithSchema,
@@ -138,7 +138,7 @@ pub mod tonic {
         fn from(
             data: (
                 (
-                    &opentelemetry_sdk::logs::LogRecord,
+                    &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 ),
                 &ResourceAttributesWithSchema,
@@ -174,7 +174,7 @@ pub mod tonic {
             |mut scope_map: HashMap<
                 Cow<'static, str>,
                 Vec<(
-                    &opentelemetry_sdk::logs::LogRecord,
+                    &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 )>,
             >,
@@ -220,20 +220,20 @@ pub mod tonic {
 #[cfg(test)]
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
-    use opentelemetry::logs::LogRecord as _;
+    use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::Logger;
     use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::{LogResult, SdkLoggerProvider};
-    use opentelemetry_sdk::{logs::LogBatch, logs::LogRecord, Resource};
+    use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
 
     #[derive(Debug)]
     struct MockProcessor;
 
     impl LogProcessor for MockProcessor {
-        fn emit(&self, _record: &mut LogRecord, _instrumentation: &InstrumentationScope) {}
+        fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
 
         fn force_flush(&self) -> LogResult<()> {
             Ok(())
@@ -247,7 +247,7 @@ mod tests {
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
-    ) -> (LogRecord, InstrumentationScope) {
+    ) -> (SdkLogRecord, InstrumentationScope) {
         let processor = MockProcessor {};
         let logger = SdkLoggerProvider::builder()
             .with_log_processor(processor)
