@@ -132,15 +132,16 @@ mod tests {
     use std::time::Duration;
 
     // Run all tests in this mod
-    // cargo test metrics::tests --features=testing
+    // cargo test metrics::tests --features=testing,spec_unstable_metrics_views
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
     async fn invalid_instrument_config_noops() {
         // Run this test with stdout enabled to see output.
-        // cargo test invalid_instrument_config_noops --features=testing -- --nocapture
+        // cargo test invalid_instrument_config_noops --features=testing,spec_unstable_metrics_views -- --nocapture
         let invalid_instrument_names = vec![
             "_startWithNoneAlphabet",
             "utf8char锈",
@@ -209,8 +210,99 @@ mod tests {
             histogram.record(1.9, &[]);
             test_context.flush_metrics();
 
-            // As bucket boundaires provided via advisory params are invalid, no
-            // metrics should be exported
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
+            test_context.check_no_metrics();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "experimental_metrics_disable_name_validation")]
+    async fn valid_instrument_config_with_feature_experimental_metrics_disable_name_validation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test valid_instrument_config_with_feature_experimental_metrics_disable_name_validation --all-features -- --nocapture
+        let invalid_instrument_names = vec![
+            "_startWithNoneAlphabet",
+            "utf8char锈",
+            "",
+            "a".repeat(256).leak(),
+            "\\allow\\slash /sec",
+            "\\allow\\$$slash /sec",
+            "Total $ Count",
+            "\\test\\UsagePercent(Total) > 80%",
+            "invalid name",
+        ];
+        for name in invalid_instrument_names {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let counter = test_context.meter().u64_counter(name).build();
+            counter.add(1, &[]);
+
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).build();
+            up_down_counter.add(1, &[]);
+
+            let gauge = test_context.meter().f64_gauge(name).build();
+            gauge.record(1.9, &[]);
+
+            let histogram = test_context.meter().f64_histogram(name).build();
+            histogram.record(1.0, &[]);
+
+            let _observable_counter = test_context
+                .meter()
+                .u64_observable_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .build();
+
+            let _observable_gauge = test_context
+                .meter()
+                .f64_observable_gauge(name)
+                .with_callback(move |observer| {
+                    observer.observe(1.0, &[]);
+                })
+                .build();
+
+            let _observable_up_down_counter = test_context
+                .meter()
+                .i64_observable_up_down_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .build();
+
+            test_context.flush_metrics();
+
+            // As instrument name are valid because of the feature flag, metrics should be exported
+            let resource_metrics = test_context
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported");
+
+            assert!(!resource_metrics.is_empty(), "metrics should be exported");
+        }
+
+        // Ensuring that the Histograms with invalid bucket boundaries are not exported
+        // when using the feature flag
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
             test_context.check_no_metrics();
         }
     }

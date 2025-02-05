@@ -71,9 +71,9 @@ pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_B
 /// Default maximum batch size.
 pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// The interface for plugging into a [`Logger`].
+/// The interface for plugging into a [`SdkLogger`].
 ///
-/// [`Logger`]: crate::logs::Logger
+/// [`SdkLogger`]: crate::logs::SdkLogger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     ///
@@ -883,13 +883,13 @@ mod tests {
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
             BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
-            LogProcessor, LoggerProvider, SimpleLogProcessor,
+            LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
         },
         Resource,
     };
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -1089,7 +1089,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(exporter.clone());
-        let _ = LoggerProvider::builder()
+        let _ = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -1112,7 +1112,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -1278,7 +1278,7 @@ mod tests {
             logs: Arc::clone(&second_processor_logs),
         };
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
             .build();
