@@ -2,6 +2,8 @@
 
 ## vNext
 
+- *Bug fix*: ObservableGauge returns data points recorded since previous collection, despite temporality. Other asynchronous (observable) instruments with Cumulative temporality behave as synchronous ones and return data points on every collection. [#2213](https://github.com/open-telemetry/opentelemetry-rust/issues/2213)
+
 - *Feature*: Introduced a new feature flag, `experimental_metrics_disable_name_validation`, under the `opentelemetry-sdk`, which allows disabling the Instrument Name Validation. This is useful in scenarios where you need to use *special characters*, *Windows Perf Counter Wildcard Path*, or similar cases. For more details, check [#2543](https://github.com/open-telemetry/opentelemetry-rust/pull/2543).
   > **WARNING**: While this feature provides flexibility, **be cautious** when using it, as platforms like **Prometheus** impose restrictions on metric names and labels (e.g., no spaces, capital letters, or certain special characters). Using invalid characters may result in compatibility issues or incorrect behavior. Ensure that instrument names comply with the requirements of your target platform to avoid potential problems.
 

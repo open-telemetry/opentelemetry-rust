@@ -1394,22 +1394,32 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn asynchronous_instruments_cumulative_with_gap_in_measurements() {
+    async fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement() {
         // Run this test with stdout enabled to see output.
-        // cargo test asynchronous_instruments_cumulative_with_gap_in_measurements --features=testing -- --nocapture
+        // cargo test asynchronous_instruments_cumulative_data_points_only_from_last_measurement --features=testing -- --nocapture
 
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("counter");
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("updown_counter");
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("gauge");
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "gauge", true,
+        );
+        // TODO fix: all asynchronous instruments should not emit data points if not measured
+        // but these implementations are still buggy
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "counter", false,
+        );
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "updown_counter",
+            false,
+        );
     }
 
-    fn asynchronous_instruments_cumulative_with_gap_in_measurements_helper(
+    fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
         instrument_name: &'static str,
+        should_not_emit: bool,
     ) {
         let mut test_context = TestContext::new(Temporality::Cumulative);
         let attributes = Arc::new([KeyValue::new("key1", "value1")]);
 
-        // Create instrument and emit measurements
+        // Create instrument and emit measurements once
         match instrument_name {
             "counter" => {
                 let has_run = AtomicBool::new(false);
@@ -1466,8 +1476,12 @@ mod tests {
 
         test_context.flush_metrics();
 
-        // Test that latest export has the same data as the previous one
-        assert_correct_export(&mut test_context, instrument_name);
+        if should_not_emit {
+            test_context.check_no_metrics();
+        } else {
+            // Test that latest export has the same data as the previous one
+            assert_correct_export(&mut test_context, instrument_name);
+        }
 
         fn assert_correct_export(test_context: &mut TestContext, instrument_name: &'static str) {
             match instrument_name {

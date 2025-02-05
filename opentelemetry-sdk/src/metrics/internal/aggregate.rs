@@ -146,8 +146,12 @@ impl<T: Number> AggregateBuilder<T> {
     }
 
     /// Builds a last-value aggregate function input and output.
-    pub(crate) fn last_value(&self) -> AggregateFns<T> {
-        LastValue::new(self.temporality, self.filter.clone()).into()
+    pub(crate) fn last_value(&self, overwrite_temporality: Option<Temporality>) -> AggregateFns<T> {
+        LastValue::new(
+            overwrite_temporality.unwrap_or(self.temporality),
+            self.filter.clone(),
+        )
+        .into()
     }
 
     /// Builds a precomputed sum aggregate function input and output.
@@ -210,7 +214,7 @@ mod tests {
     #[test]
     fn last_value_aggregation() {
         let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value();
+            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value(None);
         let mut a = Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
