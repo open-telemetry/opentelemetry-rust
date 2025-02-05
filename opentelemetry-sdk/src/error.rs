@@ -23,21 +23,21 @@ pub enum OTelSdkError {
     #[error("Shutdown already invoked")]
     AlreadyShutdown,
 
-    /// Shutdown timed out before completing.
+    /// Operation timed out before completing.
     ///
-    /// This does not necessarily indicate a failure—shutdown may still be
+    /// This does not necessarily indicate a failure—operation may still be
     /// complete. If this occurs frequently, consider increasing the timeout
     /// duration to allow more time for completion.
-    #[error("Shutdown timed out after {0:?}")]
+    #[error("Operation timed out after {0:?}")]
     Timeout(Duration),
 
-    /// Shutdown failed due to an internal error.
+    /// Operation failed due to an internal error.
     ///
     /// The error message is intended for logging purposes only and should not
     /// be used to make programmatic decisions. It is implementation-specific
     /// and subject to change without notice. Consumers of this error should not
     /// rely on its content beyond logging.
-    #[error("Shutdown failed: {0}")]
+    #[error("Operation failed: {0}")]
     InternalFailure(String),
 }
 
