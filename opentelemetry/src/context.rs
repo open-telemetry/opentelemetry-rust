@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 thread_local! {
-    static CURRENT_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
+    static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
 }
 
 /// An execution-scoped collection of values.
@@ -78,8 +78,10 @@ thread_local! {
 pub struct Context {
     #[cfg(feature = "trace")]
     pub(super) span: Option<Arc<SynchronizedSpan>>,
-    entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
+    entries: Option<Arc<EntryMap>>,
 }
+
+type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
 
 impl Context {
     /// Creates an empty `Context`.
@@ -122,7 +124,7 @@ impl Context {
     /// Note: This function will panic if you attempt to attach another context
     /// while the current one is still borrowed.
     pub fn map_current<T>(f: impl FnOnce(&Context) -> T) -> T {
-        CURRENT_CONTEXT.with(|cx| f(&cx.borrow()))
+        CURRENT_CONTEXT.with(|cx| cx.borrow().map_current_cx(f))
     }
 
     /// Returns a clone of the current thread's context with the given value.
@@ -152,12 +154,7 @@ impl Context {
     /// assert_eq!(all_current_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn current_with_value<T: 'static + Send + Sync>(value: T) -> Self {
-        let mut new_context = Context::current();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        Context::map_current(|cx| cx.with_value(value))
     }
 
     /// Returns a reference to the entry for the corresponding value type.
@@ -182,9 +179,13 @@ impl Context {
     /// assert_eq!(cx.get::<MyUser>(), None);
     /// ```
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        self.entries
-            .get(&TypeId::of::<T>())
-            .and_then(|rc| rc.downcast_ref())
+        if let Some(entries) = &self.entries {
+            entries
+                .get(&TypeId::of::<T>())
+                .and_then(|rc| rc.downcast_ref())
+        } else {
+            None
+        }
     }
 
     /// Returns a copy of the context with the new value included.
@@ -215,12 +216,20 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let mut new_context = self.clone();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        let entries = if let Some(current_entries) = &self.entries {
+            let mut inner_entries = (**current_entries).clone();
+            inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(inner_entries))
+        } else {
+            let mut entries = EntryMap::default();
+            entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(entries))
+        };
+        Context {
+            entries,
+            #[cfg(feature = "trace")]
+            span: self.span.clone(),
+        }
     }
 
     /// Replaces the current context on this thread with this context.
@@ -298,12 +307,10 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let previous_cx = CURRENT_CONTEXT
-            .try_with(|current| current.replace(self))
-            .ok();
+        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self));
 
         ContextGuard {
-            previous_cx,
+            cx_id,
             _marker: PhantomData,
         }
     }
@@ -328,7 +335,7 @@ impl Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut dbg = f.debug_struct("Context");
-        let mut entries = self.entries.len();
+        let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
         #[cfg(feature = "trace")]
         {
             if let Some(span) = &self.span {
@@ -346,15 +353,16 @@ impl fmt::Debug for Context {
 /// A guard that resets the current context to the prior context when dropped.
 #[allow(missing_debug_implementations)]
 pub struct ContextGuard {
-    previous_cx: Option<Context>,
+    cx_id: usize,
     // ensure this type is !Send as it relies on thread locals
     _marker: PhantomData<*const ()>,
 }
 
 impl Drop for ContextGuard {
     fn drop(&mut self) {
-        if let Some(previous_cx) = self.previous_cx.take() {
-            let _ = CURRENT_CONTEXT.try_with(|current| current.replace(previous_cx));
+        let id = self.cx_id;
+        if id > 0 {
+            CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
         }
     }
 }
@@ -378,6 +386,75 @@ impl Hasher for IdHasher {
     #[inline]
     fn finish(&self) -> u64 {
         self.0
+    }
+}
+
+struct ContextStack {
+    current_cx: Context,
+    current_id: usize,
+    // TODO:ban wrap the whole id thing in its own type
+    id_count: usize,
+    // TODO:ban wrap the the tuple in its own type
+    stack: Vec<Option<(usize, Context)>>,
+}
+
+impl ContextStack {
+    #[inline(always)]
+    fn push(&mut self, cx: Context) -> usize {
+        self.id_count += 512; // TODO:ban clean up this
+        let next_id = self.stack.len() + 1 + self.id_count;
+        let current_cx = std::mem::replace(&mut self.current_cx, cx);
+        self.stack.push(Some((self.current_id, current_cx)));
+        self.current_id = next_id;
+        next_id
+    }
+
+    #[inline(always)]
+    fn pop_id(&mut self, id: usize) {
+        if id == 0 {
+            return;
+        }
+        // Are we at the top of the stack?
+        if id == self.current_id {
+            // Shrink the stack if possible
+            while let Some(None) = self.stack.last() {
+                self.stack.pop();
+            }
+            // There is always the initial context at the bottom of the stack
+            if let Some(Some((next_id, next_cx))) = self.stack.pop() {
+                self.current_cx = next_cx;
+                self.current_id = next_id;
+            }
+        } else {
+            let pos = id & 511; // TODO:ban clean up this
+            if pos >= self.stack.len() {
+                // This is an invalid id, ignore it
+                return;
+            }
+            if let Some((pos_id, _)) = self.stack[pos] {
+                // Is the correct id at this position?
+                if pos_id == id {
+                    // Clear out this entry
+                    self.stack[pos] = None;
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn map_current_cx<T>(&self, f: impl FnOnce(&Context) -> T) -> T {
+        f(&self.current_cx)
+    }
+}
+
+impl Default for ContextStack {
+    fn default() -> Self {
+        ContextStack {
+            current_id: 0,
+            current_cx: Context::default(),
+            id_count: 0,
+            stack: Vec::with_capacity(64),
+        }
     }
 }
 
@@ -422,5 +499,46 @@ mod tests {
             assert_eq!(cx.get::<ValueB>(), None);
             true
         }));
+    }
+
+    #[test]
+    fn overlapping_contexts() {
+        #[derive(Debug, PartialEq)]
+        struct ValueA(&'static str);
+        #[derive(Debug, PartialEq)]
+        struct ValueB(u64);
+
+        let outer_guard = Context::new().with_value(ValueA("a")).attach();
+
+        // Only value `a` is set
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get::<ValueB>(), None);
+
+        let inner_guard = Context::current_with_value(ValueB(42)).attach();
+        // Both values are set in inner context
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        assert!(Context::map_current(|cx| {
+            assert_eq!(cx.get(), Some(&ValueA("a")));
+            assert_eq!(cx.get(), Some(&ValueB(42)));
+            true
+        }));
+
+        drop(outer_guard);
+
+        // `inner_guard` is still alive so both `ValueA` and `ValueB` should still be accessible
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        drop(inner_guard);
+
+        // Both guards are dropped and neither value should be accessible.
+        let current = Context::current();
+        assert_eq!(current.get::<ValueA>(), None);
+        assert_eq!(current.get::<ValueB>(), None);
     }
 }
