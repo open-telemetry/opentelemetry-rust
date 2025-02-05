@@ -52,7 +52,7 @@ fn span_builder_benchmark_group(c: &mut Criterion) {
     group.finish();
 }
 
-fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::Tracer) {
+fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::SdkTracer) {
     let provider = sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOff)
         .with_simple_exporter(NoopExporter)

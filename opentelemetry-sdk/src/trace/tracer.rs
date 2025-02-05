@@ -20,12 +20,12 @@ use std::fmt;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
-pub struct Tracer {
+pub struct SdkTracer {
     scope: InstrumentationScope,
     provider: SdkTracerProvider,
 }
 
-impl fmt::Debug for Tracer {
+impl fmt::Debug for SdkTracer {
     /// Formats the `Tracer` using the given formatter.
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,10 +36,10 @@ impl fmt::Debug for Tracer {
     }
 }
 
-impl Tracer {
+impl SdkTracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
-        Tracer { scope, provider }
+        SdkTracer { scope, provider }
     }
 
     /// TracerProvider associated with this tracer.
@@ -166,7 +166,7 @@ impl Tracer {
     }
 }
 
-impl opentelemetry::trace::Tracer for Tracer {
+impl opentelemetry::trace::Tracer for SdkTracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 

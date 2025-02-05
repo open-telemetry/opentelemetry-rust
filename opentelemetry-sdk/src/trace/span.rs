@@ -19,7 +19,7 @@ use std::time::SystemTime;
 pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
-    tracer: crate::trace::Tracer,
+    tracer: crate::trace::SdkTracer,
     span_limits: SpanLimits,
 }
 
@@ -52,7 +52,7 @@ impl Span {
     pub(crate) fn new(
         span_context: SpanContext,
         data: Option<SpanData>,
-        tracer: crate::trace::Tracer,
+        tracer: crate::trace::SdkTracer,
         span_limit: SpanLimits,
     ) -> Self {
         Span {
@@ -249,7 +249,7 @@ impl Drop for Span {
 fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
-    tracer: &crate::trace::Tracer,
+    tracer: &crate::trace::SdkTracer,
 ) -> crate::trace::SpanData {
     crate::trace::SpanData {
         span_context,
@@ -281,7 +281,7 @@ mod tests {
     use std::time::Duration;
     use std::vec;
 
-    fn init() -> (crate::trace::Tracer, SpanData) {
+    fn init() -> (crate::trace::SdkTracer, SpanData) {
         let provider = crate::trace::SdkTracerProvider::default();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {

@@ -63,7 +63,8 @@
 /// }
 /// ```
 use crate::trace::{
-    BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SimpleSpanProcessor, SpanLimits, Tracer,
+    BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SdkTracer, SimpleSpanProcessor,
+    SpanLimits,
 };
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
@@ -255,7 +256,7 @@ impl SdkTracerProvider {
 
 impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
-    type Tracer = Tracer;
+    type Tracer = SdkTracer;
 
     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
         let scope = InstrumentationScope::builder(name).build();
@@ -264,12 +265,12 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return Tracer::new(scope, noop_tracer_provider().clone());
+            return SdkTracer::new(scope, noop_tracer_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");
         };
-        Tracer::new(scope, self.clone())
+        SdkTracer::new(scope, self.clone())
     }
 }
 

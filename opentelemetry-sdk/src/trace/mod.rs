@@ -44,7 +44,7 @@ pub use span_processor::{
     SimpleSpanProcessor, SpanProcessor,
 };
 
-pub use tracer::Tracer;
+pub use tracer::SdkTracer;
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
@@ -356,7 +356,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn empty_tracer_name_retained() {
         async fn tracer_name_retained_helper(
-            tracer: super::Tracer,
+            tracer: super::SdkTracer,
             provider: SdkTracerProvider,
             exporter: InMemorySpanExporter,
         ) {
