@@ -18,7 +18,7 @@ use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
@@ -127,7 +127,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(exporter);
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("benchmark")

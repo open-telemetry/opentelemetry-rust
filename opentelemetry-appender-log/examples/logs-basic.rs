@@ -6,7 +6,7 @@
 ///
 use log::{error, info, warn, Level};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 use opentelemetry_stdout::LogExporter;
 
 #[tokio::main]
@@ -14,7 +14,7 @@ async fn main() {
     //Create an exporter that writes to stdout
     let exporter = LogExporter::default();
     //Create a LoggerProvider and register the exporter
-    let logger_provider = LoggerProvider::builder()
+    let logger_provider = SdkLoggerProvider::builder()
         .with_log_processor(BatchLogProcessor::builder(exporter).build())
         .build();
 

@@ -235,7 +235,7 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
+    use opentelemetry_sdk::logs::{LogRecord, LogResult, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -250,7 +250,7 @@ mod tests {
 
     fn create_tracing_subscriber(
         _exporter: InMemoryLogExporter,
-        logger_provider: &LoggerProvider,
+        logger_provider: &SdkLoggerProvider,
     ) -> impl tracing::Subscriber {
         let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
         let layer =
@@ -283,7 +283,7 @@ mod tests {
     #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
     fn simple_processor_deadlock() {
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -298,7 +298,7 @@ mod tests {
     #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
     fn simple_processor_no_deadlock() {
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -319,7 +319,7 @@ mod tests {
     #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
     async fn batch_processor_no_deadlock() {
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_batch_exporter(exporter.clone())
             .build();
 
@@ -333,7 +333,7 @@ mod tests {
     fn tracing_appender_standalone() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -413,7 +413,7 @@ mod tests {
     fn tracing_appender_inside_tracing_context() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -522,7 +522,7 @@ mod tests {
 
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -580,7 +580,7 @@ mod tests {
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -645,7 +645,7 @@ mod tests {
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 

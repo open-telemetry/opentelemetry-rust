@@ -771,7 +771,7 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::InMemoryLogExporter, logs::LoggerProvider};
+    use opentelemetry_sdk::{logs::InMemoryLogExporter, logs::SdkLoggerProvider};
 
     use log::Log;
 
@@ -779,7 +779,7 @@ mod tests {
     fn logbridge_with_default_metadata_is_enabled() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
             .build();
 
@@ -798,7 +798,7 @@ mod tests {
     fn logbridge_with_record_can_log() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -912,7 +912,7 @@ mod tests {
 
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -1178,7 +1178,7 @@ mod tests {
 
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -1221,7 +1221,7 @@ mod tests {
     fn test_flush() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
             .build();
 

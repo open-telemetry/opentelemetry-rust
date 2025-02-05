@@ -221,12 +221,12 @@ pub mod tonic {
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::Logger as _;
-    use opentelemetry::logs::LoggerProvider as _;
+    use opentelemetry::logs::Logger;
+    use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::logs::LogProcessor;
-    use opentelemetry_sdk::logs::{LogResult, LoggerProvider};
+    use opentelemetry_sdk::logs::{LogResult, SdkLoggerProvider};
     use opentelemetry_sdk::{logs::LogBatch, logs::LogRecord, Resource};
 
     #[derive(Debug)]
@@ -249,7 +249,7 @@ mod tests {
         _message: &str,
     ) -> (LogRecord, InstrumentationScope) {
         let processor = MockProcessor {};
-        let logger = LoggerProvider::builder()
+        let logger = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .build()
             .logger("test");
