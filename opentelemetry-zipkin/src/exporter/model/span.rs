@@ -59,12 +59,12 @@ mod tests {
     use crate::exporter::model::endpoint::Endpoint;
     use crate::exporter::model::span::{Kind, Span};
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
+    use opentelemetry::time::now;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
     use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
-    use std::time::SystemTime;
 
     #[test]
     fn test_empty() {
@@ -158,8 +158,8 @@ mod tests {
                 parent_span_id: SpanId::from_u64(1),
                 span_kind: SpanKind::Client,
                 name: "".into(),
-                start_time: SystemTime::now(),
-                end_time: SystemTime::now(),
+                start_time: now(),
+                end_time: now(),
                 attributes: Vec::new(),
                 dropped_attributes_count: 0,
                 events: SpanEvents::default(),

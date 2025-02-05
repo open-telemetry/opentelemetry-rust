@@ -350,6 +350,7 @@ mod tests {
 
     use super::{Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint, SumDataPoint};
 
+    use opentelemetry::time::now;
     use opentelemetry::KeyValue;
 
     #[test]
@@ -359,7 +360,7 @@ mod tests {
             value: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
-                time: std::time::SystemTime::now(),
+                time: now(),
                 value: 0u32,
                 span_id: [0; 8],
                 trace_id: [0; 16],
@@ -377,7 +378,7 @@ mod tests {
             sum: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
-                time: std::time::SystemTime::now(),
+                time: now(),
                 value: 0u32,
                 span_id: [0; 8],
                 trace_id: [0; 16],
@@ -404,7 +405,7 @@ mod tests {
             zero_threshold: 0.0,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
-                time: std::time::SystemTime::now(),
+                time: now(),
                 value: 0u32,
                 span_id: [0; 8],
                 trace_id: [0; 16],

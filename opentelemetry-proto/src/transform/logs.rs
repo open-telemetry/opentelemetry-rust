@@ -223,11 +223,11 @@ mod tests {
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::Logger as _;
     use opentelemetry::logs::LoggerProvider as _;
+    use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::{LogResult, LoggerProvider};
     use opentelemetry_sdk::{logs::LogBatch, logs::LogRecord, Resource};
-    use std::time::SystemTime;
 
     #[derive(Debug)]
     struct MockProcessor;
@@ -254,8 +254,8 @@ mod tests {
             .build()
             .logger("test");
         let mut logrecord = logger.create_log_record();
-        logrecord.set_timestamp(SystemTime::now());
-        logrecord.set_observed_timestamp(SystemTime::now());
+        logrecord.set_timestamp(now());
+        logrecord.set_observed_timestamp(now());
         let instrumentation =
             InstrumentationScope::builder(instrumentation_name.to_string()).build();
         (logrecord, instrumentation)

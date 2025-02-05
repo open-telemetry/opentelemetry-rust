@@ -6,9 +6,9 @@ use std::{
     time::SystemTime,
 };
 
-use opentelemetry::KeyValue;
-
 use crate::metrics::{data::Aggregation, Temporality};
+use opentelemetry::time::now;
+use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
@@ -71,7 +71,7 @@ pub(crate) struct AggregateTimeInitiator(Mutex<SystemTime>);
 
 impl AggregateTimeInitiator {
     pub(crate) fn delta(&self) -> AggregateTime {
-        let current_time = SystemTime::now();
+        let current_time = now();
         let start_time = self
             .0
             .lock()
@@ -84,7 +84,7 @@ impl AggregateTimeInitiator {
     }
 
     pub(crate) fn cumulative(&self) -> AggregateTime {
-        let current_time = SystemTime::now();
+        let current_time = now();
         let start_time = self.0.lock().map(|start| *start).unwrap_or(current_time);
         AggregateTime {
             start: start_time,
@@ -95,7 +95,7 @@ impl AggregateTimeInitiator {
 
 impl Default for AggregateTimeInitiator {
     fn default() -> Self {
-        Self(Mutex::new(SystemTime::now()))
+        Self(Mutex::new(now()))
     }
 }
 
@@ -203,7 +203,7 @@ mod tests {
         ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
         GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };
-    use std::{time::SystemTime, vec};
+    use std::vec;
 
     use super::*;
 
@@ -217,8 +217,8 @@ mod tests {
                 value: 1u64,
                 exemplars: vec![],
             }],
-            start_time: Some(SystemTime::now()),
-            time: SystemTime::now(),
+            start_time: Some(now()),
+            time: now(),
         };
         let new_attributes = [KeyValue::new("b", 2)];
         measure.call(2, &new_attributes[..]);
@@ -250,8 +250,8 @@ mod tests {
                         exemplars: vec![],
                     },
                 ],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -292,8 +292,8 @@ mod tests {
                         exemplars: vec![],
                     },
                 ],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -332,8 +332,8 @@ mod tests {
                     sum: 3u64,
                     exemplars: vec![],
                 }],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -384,8 +384,8 @@ mod tests {
                     zero_threshold: 1.0,
                     exemplars: vec![],
                 }],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
