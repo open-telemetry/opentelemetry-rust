@@ -19,7 +19,7 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    logs::{LogRecord as _, Logger as _, LoggerProvider, Severity},
+    logs::{LogRecord as _, Logger, LoggerProvider, Severity},
     InstrumentationScope,
 };
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};

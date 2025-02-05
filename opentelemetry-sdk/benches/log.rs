@@ -20,7 +20,7 @@ use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::{InstrumentationScope, Key};

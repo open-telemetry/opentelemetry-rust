@@ -342,7 +342,7 @@ mod tests {
     };
 
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
     use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};

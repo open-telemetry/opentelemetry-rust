@@ -16,7 +16,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider, Severity};
+use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry::InstrumentationScope;
