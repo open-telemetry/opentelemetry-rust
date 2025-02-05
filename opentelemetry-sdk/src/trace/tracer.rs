@@ -8,7 +8,7 @@
 //!
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
 use crate::trace::{
-    provider::TracerProvider,
+    provider::SdkTracerProvider,
     span::{Span, SpanData},
     IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
 };
@@ -20,12 +20,12 @@ use std::fmt;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
-pub struct Tracer {
+pub struct SdkTracer {
     scope: InstrumentationScope,
-    provider: TracerProvider,
+    provider: SdkTracerProvider,
 }
 
-impl fmt::Debug for Tracer {
+impl fmt::Debug for SdkTracer {
     /// Formats the `Tracer` using the given formatter.
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,14 +36,14 @@ impl fmt::Debug for Tracer {
     }
 }
 
-impl Tracer {
+impl SdkTracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
-    pub(crate) fn new(scope: InstrumentationScope, provider: TracerProvider) -> Self {
-        Tracer { scope, provider }
+    pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
+        SdkTracer { scope, provider }
     }
 
     /// TracerProvider associated with this tracer.
-    pub(crate) fn provider(&self) -> &TracerProvider {
+    pub(crate) fn provider(&self) -> &SdkTracerProvider {
         &self.provider
     }
 
@@ -166,7 +166,7 @@ impl Tracer {
     }
 }
 
-impl opentelemetry::trace::Tracer for Tracer {
+impl opentelemetry::trace::Tracer for SdkTracer {
     /// This implementation of `Tracer` produces `sdk::Span` instances.
     type Span = Span;
 
@@ -326,7 +326,7 @@ mod tests {
     fn allow_sampler_to_change_trace_state() {
         // Setup
         let sampler = TestSampler {};
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn drop_parent_based_children() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
 
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn uses_current_context_for_builders_if_unset() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");

@@ -20,7 +20,7 @@ use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 use tokio::time::sleep;
 
-fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, TraceError> {
     let exporter_builder = SpanExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
@@ -34,7 +34,7 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 
     let exporter = exporter_builder.build()?;
 
-    Ok(opentelemetry_sdk::trace::TracerProvider::builder()
+    Ok(opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
         .with_resource(
             Resource::builder_empty()

@@ -337,13 +337,13 @@ mod tests {
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        trace::TracerProvider,
+        trace::SdkTracerProvider,
         Resource,
     };
 
     use super::*;
     use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
-    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
+    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
@@ -520,7 +520,7 @@ mod tests {
 
         let logger = logger_provider.logger("test-logger");
 
-        let tracer_provider = TracerProvider::builder().build();
+        let tracer_provider = SdkTracerProvider::builder().build();
 
         let tracer = tracer_provider.tracer("test-tracer");
 

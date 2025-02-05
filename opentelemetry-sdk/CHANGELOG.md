@@ -295,7 +295,7 @@ limit.
   `Logger::create_log_record()` method.
 
 - Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
-- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::TracerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::SdkTracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
@@ -394,6 +394,11 @@ let processor = BatchSpanProcessor::builder(exporter)
 - **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
   `SdkLogger` respectively to avoid name collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
+
+- **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and
+  `SdkTracer` to avoid name collision with public API types. `Tracer` is still
+  type-aliased to `SdkTracer` to keep back-compat with tracing-opentelemetry.
+  [#2614](https://github.com/open-telemetry/opentelemetry-rust/pull/2614)
 
 ## 0.27.1
 

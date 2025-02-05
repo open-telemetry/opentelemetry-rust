@@ -20,12 +20,12 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
         .build()
 });
 
-fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> Result<sdktrace::SdkTracerProvider, TraceError> {
     let exporter = SpanExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
         .build()?;
-    Ok(sdktrace::TracerProvider::builder()
+    Ok(sdktrace::SdkTracerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
         .build())

@@ -2,10 +2,10 @@
 //!
 //! The tracing SDK consist of a few main structs:
 //!
-//! * The [`Tracer`] struct which performs all tracing operations.
+//! * The [`SdkTracer`] struct which performs all tracing operations.
 //! * The [`Span`] struct with is a mutable object storing information about the
 //!   current operation execution.
-//! * The [`TracerProvider`] struct which configures and produces [`Tracer`]s.
+//! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
 mod events;
 mod export;
@@ -35,7 +35,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
-pub use provider::{TracerProvider, TracerProviderBuilder};
+pub use provider::{SdkTracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
@@ -44,7 +44,8 @@ pub use span_processor::{
     SimpleSpanProcessor, SpanProcessor,
 };
 
-pub use tracer::Tracer;
+pub use tracer::SdkTracer;
+pub use tracer::SdkTracer as Tracer; // for back-compat else tracing-opentelemetry won't build
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use sampler::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
@@ -68,7 +69,7 @@ mod tests {
     use opentelemetry::{
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
-            TracerProvider as _,
+            TracerProvider,
         },
         Context, KeyValue,
     };
@@ -77,7 +78,7 @@ mod tests {
     fn tracer_in_span() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -111,7 +112,7 @@ mod tests {
     fn tracer_start() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -147,7 +148,7 @@ mod tests {
     fn tracer_span_builder() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -183,7 +184,7 @@ mod tests {
     fn exceed_span_links_limit() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -219,7 +220,7 @@ mod tests {
     fn exceed_span_events_limit() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -254,7 +255,7 @@ mod tests {
     #[test]
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOff)
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
@@ -307,7 +308,7 @@ mod tests {
     #[test]
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_sampler(TestRecordOnlySampler::default())
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
@@ -341,7 +342,7 @@ mod tests {
 
     #[test]
     fn tracer_attributes() {
-        let provider = TracerProvider::builder().build();
+        let provider = SdkTracerProvider::builder().build();
         let scope = InstrumentationScope::builder("basic")
             .with_attributes(vec![KeyValue::new("test_k", "test_v")])
             .build();
@@ -356,8 +357,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn empty_tracer_name_retained() {
         async fn tracer_name_retained_helper(
-            tracer: super::Tracer,
-            provider: TracerProvider,
+            tracer: super::SdkTracer,
+            provider: SdkTracerProvider,
             exporter: InMemorySpanExporter,
         ) {
             // Act
@@ -380,7 +381,7 @@ mod tests {
 
         let exporter = InMemorySpanExporter::default();
         let span_processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
             .build();
 

@@ -65,11 +65,11 @@ impl SpanExporter for VoidExporter {
     }
 }
 
-fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
+fn trace_benchmark_group<F: Fn(&sdktrace::SdkTracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let provider = sdktrace::TracerProvider::builder()
+        let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOn)
             .with_simple_exporter(VoidExporter)
             .build();
@@ -79,7 +79,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
     });
 
     group.bench_function("never-sample", |b| {
-        let provider = sdktrace::TracerProvider::builder()
+        let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOff)
             .with_simple_exporter(VoidExporter)
             .build();

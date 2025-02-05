@@ -230,13 +230,13 @@ const fn severity_of_level(level: &Level) -> Severity {
 mod tests {
     use crate::layer;
     use opentelemetry::logs::Severity;
-    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{LogRecord, LogResult, SdkLoggerProvider};
-    use opentelemetry_sdk::trace::{Sampler, TracerProvider};
+    use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
@@ -424,7 +424,7 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // setup tracing as well.
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
@@ -528,7 +528,7 @@ mod tests {
 
         // setup tracing layer to compare trace/span IDs against
         let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_simple_exporter(span_exporter.clone())
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
@@ -657,7 +657,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // setup tracing as well.
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
