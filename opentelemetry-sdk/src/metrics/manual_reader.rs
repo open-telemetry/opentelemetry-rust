@@ -105,7 +105,7 @@ impl MetricReader for ManualReader {
     }
 
     /// ForceFlush is a no-op, it always returns nil.
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
