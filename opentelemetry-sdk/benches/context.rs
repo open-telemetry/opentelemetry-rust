@@ -9,8 +9,8 @@ use opentelemetry::{
     Context, ContextGuard,
 };
 use opentelemetry_sdk::{
-    trace::{ExportResult, SpanData, SpanExporter},
-    trace::{Sampler, TracerProvider},
+    error::OTelSdkResult,
+    trace::{Sampler, SpanData, SpanExporter, TracerProvider},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -137,7 +137,7 @@ fn parent_sampled_tracer(inner_sampler: Sampler) -> (TracerProvider, BoxedTracer
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(futures_util::future::ready(Ok(())))
     }
 }

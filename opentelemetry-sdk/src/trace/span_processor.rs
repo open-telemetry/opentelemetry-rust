@@ -34,15 +34,13 @@
 //! [`is_recording`]: opentelemetry::trace::Span::is_recording()
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
+use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{otel_error, otel_info};
-use opentelemetry::{
-    trace::{TraceError, TraceResult},
-    Context,
-};
 use std::cmp::min;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -88,12 +86,12 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// TODO - This method should take reference to `SpanData`
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self) -> TraceResult<()>;
+    fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
     ///
     /// Implementation should make sure shutdown can be called multiple times.
-    fn shutdown(&self) -> TraceResult<()>;
+    fn shutdown(&self) -> OTelSdkResult;
     /// Set the resource for the span processor.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
@@ -140,7 +138,7 @@ impl SpanProcessor for SimpleSpanProcessor {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| TraceError::Other("SimpleSpanProcessor mutex poison".into()))
+            .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
             .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
@@ -152,17 +150,16 @@ impl SpanProcessor for SimpleSpanProcessor {
         }
     }
 
-    fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         // Nothing to flush for simple span processor.
         Ok(())
     }
 
-    fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
-            Ok(())
+            exporter.shutdown()
         } else {
-            Err(TraceError::Other(
+            Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
             ))
         }
@@ -175,7 +172,6 @@ impl SpanProcessor for SimpleSpanProcessor {
     }
 }
 
-use crate::trace::ExportResult;
 /// The `BatchSpanProcessor` collects finished spans in a buffer and exports them
 /// in batches to the configured `SpanExporter`. This processor is ideal for
 /// high-throughput environments, as it minimizes the overhead of exporting spans
@@ -247,8 +243,8 @@ use std::sync::mpsc::SyncSender;
 enum BatchMessage {
     //ExportSpan(SpanData),
     ExportSpan(Arc<AtomicBool>),
-    ForceFlush(SyncSender<TraceResult<()>>),
-    Shutdown(SyncSender<TraceResult<()>>),
+    ForceFlush(SyncSender<OTelSdkResult>),
+    Shutdown(SyncSender<OTelSdkResult>),
     SetResource(Arc<Resource>),
 }
 
@@ -460,7 +456,7 @@ impl BatchSpanProcessor {
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
         config: &BatchConfig,
-    ) -> ExportResult
+    ) -> OTelSdkResult
     where
         E: SpanExporter + Send + Sync + 'static,
     {
@@ -484,27 +480,27 @@ impl BatchSpanProcessor {
         exporter: &mut E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
-    ) -> ExportResult
+    ) -> OTelSdkResult
     where
         E: SpanExporter + Send + Sync + 'static,
     {
         *last_export_time = Instant::now();
 
         if batch.is_empty() {
-            return TraceResult::Ok(());
+            return OTelSdkResult::Ok(());
         }
 
         let export = exporter.export(batch.split_off(0));
         let export_result = futures_executor::block_on(export);
 
         match export_result {
-            Ok(_) => TraceResult::Ok(()),
+            Ok(_) => OTelSdkResult::Ok(()),
             Err(err) => {
                 otel_error!(
                     name: "BatchSpanProcessor.ExportError",
                     error = format!("{}", err)
                 );
-                TraceResult::Err(err)
+                Err(OTelSdkError::InternalFailure(err.to_string()))
             }
         }
     }
@@ -569,24 +565,24 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Flushes all pending spans.
-    fn force_flush(&self) -> TraceResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         if self.is_shutdown.load(Ordering::Relaxed) {
-            return Err(TraceError::Other("Processor already shutdown".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
         let (sender, receiver) = sync_channel(1);
         self.message_sender
             .try_send(BatchMessage::ForceFlush(sender))
-            .map_err(|_| TraceError::Other("Failed to send ForceFlush message".into()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         receiver
             .recv_timeout(self.forceflush_timeout)
-            .map_err(|_| TraceError::ExportTimedOut(self.forceflush_timeout))?
+            .map_err(|_| OTelSdkError::Timeout(self.forceflush_timeout))?
     }
 
     /// Shuts down the processor.
-    fn shutdown(&self) -> TraceResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         if self.is_shutdown.swap(true, Ordering::Relaxed) {
-            return Err(TraceError::Other("Processor already shutdown".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
         let dropped_spans = self.dropped_span_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
@@ -602,17 +598,17 @@ impl SpanProcessor for BatchSpanProcessor {
         let (sender, receiver) = sync_channel(1);
         self.message_sender
             .try_send(BatchMessage::Shutdown(sender))
-            .map_err(|_| TraceError::Other("Failed to send Shutdown message".into()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         let result = receiver
             .recv_timeout(self.shutdown_timeout)
-            .map_err(|_| TraceError::ExportTimedOut(self.shutdown_timeout))?;
+            .map_err(|_| OTelSdkError::Timeout(self.shutdown_timeout))?;
         if let Some(handle) = self.handle.lock().unwrap().take() {
             if let Err(err) = handle.join() {
-                return Err(TraceError::Other(format!(
+                return Err(OTelSdkError::InternalFailure(format!(
                     "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {:?}",
                     err
-                ).into()));
+                )));
             }
         }
         result
@@ -840,6 +836,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
+    use crate::error::OTelSdkResult;
     use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -847,7 +844,7 @@ mod tests {
     };
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
-    use crate::trace::{ExportResult, SpanData, SpanExporter};
+    use crate::trace::{SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::time::Duration;
@@ -1039,7 +1036,7 @@ mod tests {
     }
 
     impl SpanExporter for MockSpanExporter {
-        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
             let exported_spans = self.exported_spans.clone();
             async move {
                 exported_spans.lock().unwrap().extend(batch);
@@ -1048,7 +1045,9 @@ mod tests {
             .boxed()
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
         fn set_resource(&mut self, resource: &Resource) {
             let mut exported_resource = self.exported_resource.lock().unwrap();
             *exported_resource = Some(resource.clone());

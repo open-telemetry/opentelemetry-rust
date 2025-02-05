@@ -718,8 +718,9 @@ mod tests {
 
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());
-
-        provider.shutdown().expect("shutdown panicked");
+        let res = provider.shutdown();
+        println!("{:?}", res);
+        assert!(res.is_ok());
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());

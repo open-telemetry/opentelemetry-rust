@@ -1,3 +1,4 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 /// # Trace Provider SDK
 ///
 /// The `TracerProvider` handles the creation and management of [`Tracer`] instances and coordinates
@@ -67,8 +68,7 @@ use crate::trace::{
 };
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
-use opentelemetry::trace::TraceError;
-use opentelemetry::{otel_debug, trace::TraceResult};
+use opentelemetry::otel_debug;
 use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -111,20 +111,21 @@ pub(crate) struct TracerProviderInner {
 impl TracerProviderInner {
     /// Crate-private shutdown method to be called both from explicit shutdown
     /// and from Drop when the last reference is released.
-    pub(crate) fn shutdown(&self) -> Vec<TraceError> {
-        let mut errs = vec![];
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        let mut results = vec![];
         for processor in &self.processors {
-            if let Err(err) = processor.shutdown() {
+            let result = processor.shutdown();
+            if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
                 //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
                 otel_debug!(name: "TracerProvider.Drop.ShutdownError",
                         error = format!("{err}"));
-                errs.push(err);
             }
+            results.push(result);
         }
-        errs
+        results
     }
 }
 
@@ -223,17 +224,23 @@ impl TracerProvider {
     ///     drop(provider);
     /// }
     /// ```
-    pub fn force_flush(&self) -> Vec<TraceResult<()>> {
-        self.span_processors()
+    pub fn force_flush(&self) -> OTelSdkResult {
+        let result: Vec<_> = self
+            .span_processors()
             .iter()
             .map(|processor| processor.force_flush())
-            .collect()
+            .collect();
+        if result.iter().all(|r| r.is_ok()) {
+            Ok(())
+        } else {
+            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+        }
     }
 
     /// Shuts down the current `TracerProvider`.
     ///
     /// Note that shut down doesn't means the TracerProvider has dropped
-    pub fn shutdown(&self) -> TraceResult<()> {
+    pub fn shutdown(&self) -> OTelSdkResult {
         if self
             .inner
             .is_shutdown
@@ -242,13 +249,17 @@ impl TracerProvider {
         {
             // propagate the shutdown signal to processors
             let errs = self.inner.shutdown();
-            if errs.is_empty() {
+
+            if errs.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
-                Err(TraceError::Other(format!("{errs:?}").into()))
+                Err(OTelSdkError::InternalFailure(format!(
+                    "Shutdown errors: {:?}",
+                    errs.into_iter().filter_map(Result::err).collect::<Vec<_>>() // Collect only the errors
+                )))
             }
         } else {
-            Err(TraceError::TracerProviderAlreadyShutdown)
+            Err(OTelSdkError::AlreadyShutdown)
         }
     }
 }
@@ -444,6 +455,7 @@ impl TracerProviderBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
@@ -451,7 +463,7 @@ mod tests {
     use crate::trace::SpanData;
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::Resource;
-    use opentelemetry::trace::{TraceError, TraceResult, Tracer, TracerProvider};
+    use opentelemetry::trace::{Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
 
     use std::env;
@@ -506,15 +518,15 @@ mod tests {
             // ignore
         }
 
-        fn force_flush(&self) -> TraceResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             if self.success {
                 Ok(())
             } else {
-                Err(TraceError::from("cannot export"))
+                Err(OTelSdkError::InternalFailure("cannot export".into()))
             }
         }
 
-        fn shutdown(&self) -> TraceResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             if self.assert_info.0.is_shutdown.load(Ordering::SeqCst) {
                 Ok(())
             } else {
@@ -541,7 +553,7 @@ mod tests {
         });
 
         let results = tracer_provider.force_flush();
-        assert_eq!(results.len(), 2);
+        assert!(results.is_err());
     }
 
     #[test]
@@ -736,11 +748,11 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn force_flush(&self) -> TraceResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> TraceResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             self.shutdown_count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }

@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
 use futures_util::future::BoxFuture;
-use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::trace::{ExportResult, SpanData};
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
+use opentelemetry_sdk::trace::SpanData;
 use std::sync::atomic;
 
 use opentelemetry_sdk::resource::Resource;
@@ -32,11 +32,9 @@ impl Default for SpanExporter {
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Box::pin(std::future::ready(Err(TraceError::from(
-                "exporter is shut down",
-            ))))
+            Box::pin(std::future::ready(Err(OTelSdkError::AlreadyShutdown)))
         } else {
             println!("Spans");
             if self.resource_emitted {
@@ -59,8 +57,9 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
