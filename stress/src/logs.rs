@@ -9,8 +9,11 @@
     ~40 M /sec
 */
 
+use std::ascii::AsciiExt;
+
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
+use opentelemetry_sdk::error::ShutdownResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
 
@@ -46,7 +49,7 @@ impl LogProcessor for MockLogProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         Ok(())
     }
 }

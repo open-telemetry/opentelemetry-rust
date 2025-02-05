@@ -1,4 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
+use crate::error::ShutdownError;
 use crate::logs::{LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
@@ -131,7 +132,7 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<LogError> {
+    pub(crate) fn shutdown(&self) -> Vec<ShutdownError> {
         let mut errs = vec![];
         for processor in &self.processors {
             if let Err(err) = processor.shutdown() {
@@ -141,9 +142,15 @@ impl LoggerProviderInner {
                 //    which is non-actionable by the user
                 match err {
                     // specific handling for mutex poisoning
-                    LogError::MutexPoisoned(_) => {
+                    ShutdownError::AlreadyShutdown => {
                         otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
+                            name: "LoggerProvider.Drop.AlreadyShutdown",
+                        );
+                    }
+                    ShutdownError::Timeout(t) => {
+                        otel_debug!(
+                            name: "LoggerProvider.Drop.ExportTimedOut",
+                            error = format!("timed out shutting down; t={:?}", t)
                         );
                     }
                     _ => {
@@ -333,6 +340,7 @@ impl opentelemetry::logs::Logger for Logger {
 #[cfg(test)]
 mod tests {
     use crate::{
+        error::ShutdownResult,
         logs::InMemoryLogExporter,
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
@@ -387,7 +395,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -800,7 +808,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -831,7 +839,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

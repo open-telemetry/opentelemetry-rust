@@ -32,7 +32,9 @@
 //! ```
 
 use crate::{
-    error::ShutdownResult, logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult}, Resource
+    error::{ShutdownError, ShutdownResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
@@ -92,7 +94,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
     fn shutdown(&self) -> ShutdownResult;
-    
+
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -191,14 +193,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown(&self) -> ShutdownResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter
-                .shutdown()
-                .map_err(|e| LogError:(Box::new(e)))?;
-            Ok(())
-        } else {
-            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
-        }
+        self.exporter
+            .lock()
+            .map_err(|e| ShutdownError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .shutdown()?;
+        Ok(())
     }
 
     fn set_resource(&self, resource: &Resource) {
@@ -412,7 +411,7 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -435,7 +434,7 @@ impl LogProcessor for BatchLogProcessor {
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        LogResult::Ok(())
+                        Ok(())
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
@@ -443,14 +442,14 @@ impl LogProcessor for BatchLogProcessor {
                                 name: "BatchLogProcessor.Shutdown.Timeout",
                                 message = "BatchLogProcessor shutdown timing out."
                             );
-                            LogError::ExportTimedOut(self.shutdown_timeout)
+                            ShutdownError::Timeout(self.shutdown_timeout)
                         }
                         _ => {
                             otel_error!(
                                 name: "BatchLogProcessor.Shutdown.Error",
                                 error = format!("{}", err)
                             );
-                            LogError::Other(err.into())
+                            ShutdownError::InternalFailure(err.to_string())
                         }
                     })?
             }
@@ -460,7 +459,7 @@ impl LogProcessor for BatchLogProcessor {
                     name: "BatchLogProcessor.Shutdown.ControlChannelFull",
                     message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
                 );
-                LogResult::Err(LogError::Other("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+                Err(ShutdownError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
@@ -470,7 +469,7 @@ impl LogProcessor for BatchLogProcessor {
                     message = "Shutdown is being invoked more than once. This is noop, but indicates a potential issue in the application's lifecycle management."
                 );
 
-                LogResult::Err(LogError::Other(
+                Err(ShutdownError::InternalFailure(
                     "BatchLogProcessor is already shutdown".into(),
                 ))
             }
@@ -1237,7 +1236,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
     }
@@ -1267,7 +1266,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
     }

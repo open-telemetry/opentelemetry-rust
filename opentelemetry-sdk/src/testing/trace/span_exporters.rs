@@ -1,7 +1,4 @@
-use crate::{
-    trace::{ExportResult, SpanData, SpanExporter},
-    trace::{SpanEvents, SpanLinks},
-};
+use crate::trace::{ExportResult, SpanData, SpanEvents, SpanExporter, SpanLinks};
 use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{

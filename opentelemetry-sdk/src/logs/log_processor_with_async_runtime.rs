@@ -1,4 +1,5 @@
 use crate::{
+    error::{ShutdownError, ShutdownResult},
     logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
     Resource,
 };
@@ -86,7 +87,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> ShutdownResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -100,10 +101,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| ShutdownError::InternalFailure(err.to_string()))
             .and_then(std::convert::identity)
     }
 
@@ -655,7 +656,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
     }
@@ -685,7 +686,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> ShutdownResult {
             Ok(())
         }
     }

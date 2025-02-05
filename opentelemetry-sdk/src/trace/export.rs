@@ -1,5 +1,4 @@
 //! Trace exporters
-use crate::error::ShutdownResult;
 use crate::Resource;
 use futures_util::future::BoxFuture;
 use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceError};
@@ -44,9 +43,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) -> ShutdownResult {
-        Ok(())
-    }
+    fn shutdown(&mut self) {}
 
     /// This is a hint to ensure that the export of any Spans the exporter
     /// has received prior to the call to this function SHOULD be completed
