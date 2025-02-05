@@ -35,7 +35,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
-pub use provider::{TracerProvider, TracerProviderBuilder};
+pub use provider::{SdkTracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
@@ -77,7 +77,7 @@ mod tests {
     fn tracer_in_span() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -111,7 +111,7 @@ mod tests {
     fn tracer_start() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -147,7 +147,7 @@ mod tests {
     fn tracer_span_builder() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -183,7 +183,7 @@ mod tests {
     fn exceed_span_links_limit() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -219,7 +219,7 @@ mod tests {
     fn exceed_span_events_limit() {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
 
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn trace_state_for_dropped_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOff)
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn trace_state_for_record_only_sampler() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let provider = TracerProvider::builder()
+        let provider = SdkTracerProvider::builder()
             .with_sampler(TestRecordOnlySampler::default())
             .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
             .build();
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn tracer_attributes() {
-        let provider = TracerProvider::builder().build();
+        let provider = SdkTracerProvider::builder().build();
         let scope = InstrumentationScope::builder("basic")
             .with_attributes(vec![KeyValue::new("test_k", "test_v")])
             .build();
@@ -357,7 +357,7 @@ mod tests {
     async fn empty_tracer_name_retained() {
         async fn tracer_name_retained_helper(
             tracer: super::Tracer,
-            provider: TracerProvider,
+            provider: SdkTracerProvider,
             exporter: InMemorySpanExporter,
         ) {
             // Act
@@ -382,7 +382,7 @@ mod tests {
 
         let exporter = InMemorySpanExporter::default();
         let span_processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
             .build();
 

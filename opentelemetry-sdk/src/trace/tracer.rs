@@ -8,7 +8,7 @@
 //!
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
 use crate::trace::{
-    provider::TracerProvider,
+    provider::SdkTracerProvider,
     span::{Span, SpanData},
     IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
 };
@@ -22,7 +22,7 @@ use std::fmt;
 #[derive(Clone)]
 pub struct Tracer {
     scope: InstrumentationScope,
-    provider: TracerProvider,
+    provider: SdkTracerProvider,
 }
 
 impl fmt::Debug for Tracer {
@@ -38,12 +38,12 @@ impl fmt::Debug for Tracer {
 
 impl Tracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
-    pub(crate) fn new(scope: InstrumentationScope, provider: TracerProvider) -> Self {
+    pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
         Tracer { scope, provider }
     }
 
     /// TracerProvider associated with this tracer.
-    pub(crate) fn provider(&self) -> &TracerProvider {
+    pub(crate) fn provider(&self) -> &SdkTracerProvider {
         &self.provider
     }
 
@@ -326,7 +326,7 @@ mod tests {
     fn allow_sampler_to_change_trace_state() {
         // Setup
         let sampler = TestSampler {};
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn drop_parent_based_children() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
 
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn uses_current_context_for_builders_if_unset() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
-        let tracer_provider = crate::trace::TracerProvider::builder()
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
             .build();
         let tracer = tracer_provider.tracer("test");

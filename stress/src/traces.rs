@@ -22,7 +22,7 @@ use opentelemetry_sdk::{
 mod throughput;
 
 lazy_static! {
-    static ref PROVIDER: sdktrace::TracerProvider = sdktrace::TracerProvider::builder()
+    static ref PROVIDER: sdktrace::SdkTracerProvider = sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOn)
         .with_span_processor(NoOpSpanProcessor {})
         .build();

@@ -337,7 +337,7 @@ mod tests {
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        trace::TracerProvider,
+        trace::SdkTracerProvider,
         Resource,
     };
 
@@ -520,7 +520,7 @@ mod tests {
 
         let logger = logger_provider.logger("test-logger");
 
-        let tracer_provider = TracerProvider::builder().build();
+        let tracer_provider = SdkTracerProvider::builder().build();
 
         let tracer = tracer_provider.tracer("test-tracer");
 

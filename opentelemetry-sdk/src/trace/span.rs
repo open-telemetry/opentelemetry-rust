@@ -282,7 +282,7 @@ mod tests {
     use std::vec;
 
     fn init() -> (crate::trace::Tracer, SpanData) {
-        let provider = crate::trace::TracerProvider::default();
+        let provider = crate::trace::SdkTracerProvider::default();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
@@ -531,7 +531,7 @@ mod tests {
     fn exceed_span_attributes_limit() {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
-            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+            crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
@@ -570,7 +570,7 @@ mod tests {
     fn exceed_event_attributes_limit() {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
-            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+            crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
@@ -606,7 +606,7 @@ mod tests {
     fn exceed_link_attributes_limit() {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
-            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+            crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
@@ -638,7 +638,7 @@ mod tests {
     fn exceed_span_links_limit() {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
-            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+            crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
@@ -680,7 +680,7 @@ mod tests {
     fn exceed_span_events_limit() {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
-            crate::trace::TracerProvider::builder().with_simple_exporter(exporter);
+            crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
         let tracer = provider.tracer("opentelemetry-test");
 
@@ -707,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_span_exported_data() {
-        let provider = crate::trace::TracerProvider::builder()
+        let provider = crate::trace::SdkTracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
             .build();
         let tracer = provider.tracer("test");

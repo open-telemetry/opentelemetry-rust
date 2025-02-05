@@ -7,7 +7,7 @@ use opentelemetry::{
     Context, KeyValue,
 };
 use opentelemetry_http::{Bytes, HeaderExtractor};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::SdkTracerProvider};
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::SpanExporter;
 use std::{convert::Infallible, net::SocketAddr};
@@ -93,7 +93,7 @@ fn init_tracer() {
 
     // Setup tracerprovider with stdout exporter
     // that prints the spans to stdout.
-    let provider = TracerProvider::builder()
+    let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
         .build();
 

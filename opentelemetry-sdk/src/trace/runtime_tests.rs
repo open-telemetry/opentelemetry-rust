@@ -47,21 +47,21 @@ impl SpanCountExporter {
 fn build_batch_tracer_provider<R: RuntimeChannel>(
     exporter: SpanCountExporter,
     runtime: R,
-) -> crate::trace::TracerProvider {
-    use crate::trace::TracerProvider;
+) -> crate::trace::SdkTracerProvider {
+    use crate::trace::SdkTracerProvider;
     let processor = crate::trace::span_processor_with_async_runtime::BatchSpanProcessor::builder(
         exporter, runtime,
     )
     .build();
-    TracerProvider::builder()
+    SdkTracerProvider::builder()
         .with_span_processor(processor)
         .build()
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::TracerProvider {
-    use crate::trace::TracerProvider;
-    TracerProvider::builder()
+fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::SdkTracerProvider {
+    use crate::trace::SdkTracerProvider;
+    SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
         .build()
 }
@@ -69,7 +69,7 @@ fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::Tr
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 async fn test_set_provider_in_tokio<R: RuntimeChannel>(
     runtime: R,
-) -> (Arc<AtomicUsize>, crate::trace::TracerProvider) {
+) -> (Arc<AtomicUsize>, crate::trace::SdkTracerProvider) {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
     let tracer_provider = build_batch_tracer_provider(exporter, runtime);

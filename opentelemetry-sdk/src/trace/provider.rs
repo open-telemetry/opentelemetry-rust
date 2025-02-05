@@ -80,11 +80,11 @@ static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
 // a no nop tracer provider used as placeholder when the provider is shutdown
 // TODO Replace with LazyLock once it is stable
-static NOOP_TRACER_PROVIDER: OnceLock<TracerProvider> = OnceLock::new();
+static NOOP_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 #[inline]
-fn noop_tracer_provider() -> &'static TracerProvider {
+fn noop_tracer_provider() -> &'static SdkTracerProvider {
     NOOP_TRACER_PROVIDER.get_or_init(|| {
-        TracerProvider {
+        SdkTracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: Vec::new(),
                 config: Config {
@@ -149,20 +149,20 @@ impl Drop for TracerProviderInner {
 /// to be dropped. When the last reference is dropped, the shutdown process will be automatically triggered
 /// to ensure proper cleanup.
 #[derive(Clone, Debug)]
-pub struct TracerProvider {
+pub struct SdkTracerProvider {
     inner: Arc<TracerProviderInner>,
 }
 
-impl Default for TracerProvider {
+impl Default for SdkTracerProvider {
     fn default() -> Self {
-        TracerProvider::builder().build()
+        SdkTracerProvider::builder().build()
     }
 }
 
-impl TracerProvider {
+impl SdkTracerProvider {
     /// Build a new tracer provider
     pub(crate) fn new(inner: TracerProviderInner) -> Self {
-        TracerProvider {
+        SdkTracerProvider {
             inner: Arc::new(inner),
         }
     }
@@ -253,7 +253,7 @@ impl TracerProvider {
     }
 }
 
-impl opentelemetry::trace::TracerProvider for TracerProvider {
+impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
     /// This implementation of `TracerProvider` produces `Tracer` instances.
     type Tracer = Tracer;
 
@@ -406,7 +406,7 @@ impl TracerProviderBuilder {
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> TracerProvider {
+    pub fn build(self) -> SdkTracerProvider {
         let mut config = self.config;
 
         // Standard config will contain an owned [`Resource`] (either sdk default or use supplied)
@@ -434,7 +434,7 @@ impl TracerProviderBuilder {
         }
 
         let is_shutdown = AtomicBool::new(false);
-        TracerProvider::new(TracerProviderInner {
+        SdkTracerProvider::new(TracerProviderInner {
             processors,
             config,
             is_shutdown,
@@ -531,7 +531,7 @@ mod tests {
 
     #[test]
     fn test_force_flush() {
-        let tracer_provider = super::TracerProvider::new(TracerProviderInner {
+        let tracer_provider = super::SdkTracerProvider::new(TracerProviderInner {
             processors: vec![
                 Box::from(TestSpanProcessor::new(true)),
                 Box::from(TestSpanProcessor::new(false)),
@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_tracer_provider_default_resource() {
-        let assert_resource = |provider: &super::TracerProvider,
+        let assert_resource = |provider: &super::SdkTracerProvider,
                                resource_key: &'static str,
                                expect: Option<&'static str>| {
             assert_eq!(
@@ -558,7 +558,7 @@ mod tests {
                 expect.map(|s| s.to_string())
             );
         };
-        let assert_telemetry_resource = |provider: &super::TracerProvider| {
+        let assert_telemetry_resource = |provider: &super::SdkTracerProvider| {
             assert_eq!(
                 provider
                     .config()
@@ -581,7 +581,7 @@ mod tests {
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
-            let default_config_provider = super::TracerProvider::builder().build();
+            let default_config_provider = super::SdkTracerProvider::builder().build();
             assert_resource(
                 &default_config_provider,
                 SERVICE_NAME,
@@ -591,7 +591,7 @@ mod tests {
         });
 
         // If user provided config, use that.
-        let custom_config_provider = super::TracerProvider::builder()
+        let custom_config_provider = super::SdkTracerProvider::builder()
             .with_resource(
                 Resource::builder_empty()
                     .with_service_name("test_service")
@@ -606,7 +606,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("key1=value1, k2, k3=value2"),
             || {
-                let env_resource_provider = super::TracerProvider::builder().build();
+                let env_resource_provider = super::SdkTracerProvider::builder().build();
                 assert_resource(
                     &env_resource_provider,
                     SERVICE_NAME,
@@ -624,7 +624,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("my-custom-key=env-val,k2=value2"),
             || {
-                let user_provided_resource_config_provider = super::TracerProvider::builder()
+                let user_provided_resource_config_provider = super::SdkTracerProvider::builder()
                     .with_resource(
                         Resource::builder()
                             .with_attributes([
@@ -666,7 +666,7 @@ mod tests {
         );
 
         // If user provided a resource, it takes priority during collision.
-        let no_service_name = super::TracerProvider::builder()
+        let no_service_name = super::SdkTracerProvider::builder()
             .with_resource(Resource::empty())
             .build();
 
@@ -677,7 +677,7 @@ mod tests {
     fn test_shutdown_noops() {
         let processor = TestSpanProcessor::new(false);
         let assert_handle = processor.assert_info();
-        let tracer_provider = super::TracerProvider::new(TracerProviderInner {
+        let tracer_provider = super::SdkTracerProvider::new(TracerProviderInner {
             processors: vec![Box::from(processor)],
             config: Default::default(),
             is_shutdown: AtomicBool::new(false),
@@ -692,7 +692,7 @@ mod tests {
 
         assert!(assert_handle.started_span_count(2));
 
-        let shutdown = |tracer_provider: super::TracerProvider| {
+        let shutdown = |tracer_provider: super::SdkTracerProvider| {
             let _ = tracer_provider.shutdown(); // shutdown once
         };
 
@@ -761,10 +761,10 @@ mod tests {
             });
 
             {
-                let tracer_provider1 = super::TracerProvider {
+                let tracer_provider1 = super::SdkTracerProvider {
                     inner: shared_inner.clone(),
                 };
-                let tracer_provider2 = super::TracerProvider {
+                let tracer_provider2 = super::SdkTracerProvider {
                     inner: shared_inner.clone(),
                 };
 
@@ -800,10 +800,10 @@ mod tests {
 
         // Create a scope to test behavior when providers are dropped
         {
-            let tracer_provider1 = super::TracerProvider {
+            let tracer_provider1 = super::SdkTracerProvider {
                 inner: shared_inner.clone(),
             };
-            let tracer_provider2 = super::TracerProvider {
+            let tracer_provider2 = super::SdkTracerProvider {
                 inner: shared_inner.clone(),
             };
 
