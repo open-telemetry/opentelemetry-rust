@@ -63,8 +63,8 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
     /// a callback or an event. OpenTelemetry client authors can decide if they want to
     /// make the flush timeout configurable.
-    fn force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult> {
-        Box::pin(async { Ok(()) })
+    fn force_flush(&mut self) -> OTelSdkResult {
+        Ok(())
     }
 
     /// Set the resource for the exporter.

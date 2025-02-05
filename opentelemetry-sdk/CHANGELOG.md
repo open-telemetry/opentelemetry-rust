@@ -370,6 +370,25 @@ let processor = BatchSpanProcessor::builder(exporter)
     .build();
 ```
 
+- **Breaking**
+ - The public API changes in the Tracing:
+   - Before:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+        fn SpanExporter::shutdown(&mut self);
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, ExportResult>
+        fn TraerProvider::shutdown(&self) -> TraceResult<()>
+        fn TracerProvider::force_flush(&self) -> Vec<TraceResult<()>>
+      ```
+    - After:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+        fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
+        fn TraerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
+
 ## 0.27.1
 
 Released 2024-Nov-27

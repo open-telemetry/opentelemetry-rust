@@ -821,7 +821,6 @@ mod tests {
 
             // Explicitly shut down the tracer provider
             let shutdown_result = tracer_provider1.shutdown();
-            println!("----->>> Shutdown result: {:?}", shutdown_result);
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
