@@ -377,6 +377,9 @@ let processor = BatchSpanProcessor::builder(exporter)
   `SdkLogger` respectively to avoid name collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
 
+- **Breaking** Renamed `TracerProvider` to `SdkTracerProvider` to avoid name
+  collision with public API types.
+
 ## 0.27.1
 
 Released 2024-Nov-27
