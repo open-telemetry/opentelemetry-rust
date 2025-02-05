@@ -1,4 +1,4 @@
-use crate::logs::LogRecord;
+use crate::logs::SdkLogRecord;
 use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
@@ -51,17 +51,17 @@ impl Default for InMemoryLogExporter {
 #[derive(Debug, Clone)]
 pub struct OwnedLogData {
     /// Log record, which can be borrowed or owned.
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationScope,
 }
 
-/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`SdkLogRecord`] with a [`Resource`] and
 /// [`InstrumentationScope`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogRecord`.
     pub instrumentation: InstrumentationScope,
     /// Resource for the emitter who produced this `LogRecord`.

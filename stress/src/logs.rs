@@ -12,7 +12,7 @@
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogResult, SdkLogRecord, SdkLoggerProvider};
 
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -37,8 +37,12 @@ pub struct MockLogProcessor {
 }
 
 impl LogProcessor for MockLogProcessor {
-    fn emit(&self, record: &mut opentelemetry_sdk::logs::LogRecord, scope: &InstrumentationScope) {
-        let log_tuple = &[(record as &LogRecord, scope)];
+    fn emit(
+        &self,
+        record: &mut opentelemetry_sdk::logs::SdkLogRecord,
+        scope: &InstrumentationScope,
+    ) {
+        let log_tuple = &[(record as &SdkLogRecord, scope)];
         let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
