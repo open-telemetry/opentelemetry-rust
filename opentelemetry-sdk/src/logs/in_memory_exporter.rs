@@ -56,7 +56,7 @@ pub struct OwnedLogData {
     pub instrumentation: InstrumentationScope,
 }
 
-/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`SdkLogRecord`] with a [`Resource`] and
 /// [`InstrumentationScope`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
