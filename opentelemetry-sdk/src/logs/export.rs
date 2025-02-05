@@ -1,4 +1,5 @@
 //! Log exporters
+use crate::error::ShutdownResult;
 use crate::logs::LogRecord;
 use crate::logs::{LogError, LogResult};
 use crate::Resource;
@@ -136,7 +137,9 @@ pub trait LogExporter: Send + Sync + Debug {
     ) -> impl std::future::Future<Output = LogResult<()>> + Send;
 
     /// Shuts down the exporter.
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) -> ShutdownResult {
+        Ok(())
+    }
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Chek if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {

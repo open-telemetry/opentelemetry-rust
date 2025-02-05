@@ -187,7 +187,12 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         )
                         .await;
 
-                        exporter.shutdown();
+                        if let Err(e) = exporter.shutdown() {
+                            otel_debug!(
+                                name: "BatchLogProcessor.Shutdown.ExporterShutdownError",
+                                error = format!("{:?}", e),
+                            );
+                        }
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -281,6 +286,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
+    use crate::error::ShutdownResult;
     use crate::logs::log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
@@ -324,7 +330,9 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> ShutdownResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
