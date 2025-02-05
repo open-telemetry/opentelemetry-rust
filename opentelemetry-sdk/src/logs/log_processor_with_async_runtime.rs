@@ -1,5 +1,5 @@
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    logs::{ExportResult, LogBatch, LogError, LogExporter, SdkLogRecord, LogResult},
     Resource,
 };
 
@@ -27,7 +27,7 @@ use futures_util::{
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog((LogRecord, InstrumentationScope)),
+    ExportLog((SdkLogRecord, InstrumentationScope)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<ExportResult>>),
@@ -58,7 +58,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -229,7 +229,7 @@ async fn export_with_timeout<E, R>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<(LogRecord, InstrumentationScope)>,
+    batch: Vec<(SdkLogRecord, InstrumentationScope)>,
 ) -> ExportResult
 where
     R: RuntimeChannel,
@@ -240,7 +240,7 @@ where
     }
 
     // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
+    let log_vec: Vec<(&SdkLogRecord, &InstrumentationScope)> = batch
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
@@ -287,7 +287,7 @@ mod tests {
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
     use crate::logs::InMemoryLogExporterBuilder;
-    use crate::logs::LogRecord;
+    use crate::logs::SdkLogRecord;
     use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
@@ -303,7 +303,7 @@ mod tests {
         Resource,
     };
     use opentelemetry::logs::AnyValue;
-    use opentelemetry::logs::LogRecord as _;
+    use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};

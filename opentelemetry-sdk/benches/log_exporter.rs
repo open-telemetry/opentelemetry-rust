@@ -22,7 +22,7 @@ use opentelemetry_sdk::logs::LogResult;
 use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
-use opentelemetry_sdk::logs::LogRecord;
+use opentelemetry_sdk::logs::SdkLogRecord;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
@@ -66,9 +66,9 @@ impl ExportingProcessorWithFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        let logs = [(record as &LogRecord, scope)];
+        let logs = [(record as &SdkLogRecord, scope)];
         futures_executor::block_on(exporter.export(LogBatch::new(&logs)));
     }
 
@@ -95,8 +95,8 @@ impl ExportingProcessorWithoutFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
-        let logs = [(record as &LogRecord, scope)];
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
+        let logs = [(record as &SdkLogRecord, scope)];
         self.exporter
             .lock()
             .expect("lock error")
