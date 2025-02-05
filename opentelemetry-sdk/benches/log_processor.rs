@@ -19,15 +19,15 @@ use std::{
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity},
+    logs::{LogRecord as _, Logger as _, LoggerProvider, Severity},
     InstrumentationScope,
 };
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
 
-fn create_log_record(logger: &Logger) -> LogRecord {
+fn create_log_record(logger: &SdkLogger) -> LogRecord {
     let mut log_record = logger.create_log_record();
     let now = now();
     log_record.set_observed_timestamp(now);

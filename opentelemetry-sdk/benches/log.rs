@@ -20,11 +20,11 @@ use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry::{InstrumentationScope, Key};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, SdkLogger, SdkLoggerProvider};
 use opentelemetry_sdk::trace::{Sampler, TracerProvider};
 
 #[derive(Debug)]
@@ -42,7 +42,7 @@ impl LogProcessor for NoopProcessor {
     }
 }
 
-fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
+fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("no-context", |b| {

@@ -19,7 +19,7 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use logger_provider::{Logger, LoggerProviderBuilder, SdkLoggerProvider};
+pub use logger_provider::{LoggerProviderBuilder, SdkLogger, SdkLoggerProvider};
 pub use record::{LogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
@@ -31,7 +31,7 @@ mod tests {
     use super::*;
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
-    use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::logs::{Logger, LoggerProvider, Severity};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;

@@ -49,7 +49,7 @@ pub struct SdkLoggerProvider {
 }
 
 impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
-    type Logger = Logger;
+    type Logger = SdkLogger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
         let scope = InstrumentationScope::builder(name).build();
@@ -63,7 +63,7 @@ impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
                 name: "LoggerProvider.NoOpLoggerReturned",
                 logger_name = scope.name(),
             );
-            return Logger::new(scope, noop_logger_provider().clone());
+            return SdkLogger::new(scope, noop_logger_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
@@ -72,7 +72,7 @@ impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
             name: "LoggerProvider.NewLoggerReturned",
             logger_name = scope.name(),
         );
-        Logger::new(scope, self.clone())
+        SdkLogger::new(scope, self.clone())
     }
 }
 
@@ -273,14 +273,14 @@ impl LoggerProviderBuilder {
 /// The object for emitting [`LogRecord`]s.
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
-pub struct Logger {
+pub struct SdkLogger {
     scope: InstrumentationScope,
     provider: SdkLoggerProvider,
 }
 
-impl Logger {
+impl SdkLogger {
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
-        Logger { scope, provider }
+        SdkLogger { scope, provider }
     }
 
     #[cfg(test)]
@@ -289,7 +289,7 @@ impl Logger {
     }
 }
 
-impl opentelemetry::logs::Logger for Logger {
+impl opentelemetry::logs::Logger for SdkLogger {
     type LogRecord = LogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
@@ -342,7 +342,7 @@ mod tests {
     };
 
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider};
     use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};

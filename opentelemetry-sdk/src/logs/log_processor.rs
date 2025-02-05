@@ -71,9 +71,9 @@ pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_B
 /// Default maximum batch size.
 pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// The interface for plugging into a [`Logger`].
+/// The interface for plugging into a [`SdkLogger`].
 ///
-/// [`Logger`]: crate::logs::Logger
+/// [`SdkLogger`]: crate::logs::SdkLogger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     ///
@@ -889,7 +889,7 @@ mod tests {
     };
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::atomic::{AtomicUsize, Ordering};

@@ -222,7 +222,7 @@ mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::Logger as _;
-    use opentelemetry::logs::LoggerProvider as _;
+    use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
     use opentelemetry_sdk::logs::LogProcessor;

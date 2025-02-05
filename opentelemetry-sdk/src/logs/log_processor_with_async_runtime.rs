@@ -304,7 +304,7 @@ mod tests {
     };
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
@@ -499,7 +499,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(exporter.clone());
-        let _ = LoggerProvider::builder()
+        let _ = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -523,7 +523,7 @@ mod tests {
         };
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -693,7 +693,7 @@ mod tests {
             logs: Arc::clone(&second_processor_logs),
         };
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
             .build();
@@ -791,7 +791,7 @@ mod tests {
         };
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(Resource::new(vec![
                 KeyValue::new("k1", "v1"),
