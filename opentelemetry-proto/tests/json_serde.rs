@@ -275,18 +275,20 @@ mod json_serde {
                                 start_time_unix_nano: 1544712660000000000,
                                 end_time_unix_nano: 1544712661000000000,
                                 attributes: vec![
-                                  KeyValue {
-                                    key: String::from("my.span.attr"),
-                                    value: Some(AnyValue {
-                                        value: Some(Value::StringValue(String::from("some value"))),
-                                    }),
-                                  },
-                                  KeyValue {
-                                    key: String::from("my.span.bytes.attr"),
-                                    value: Some(AnyValue {
-                                        value: Some(Value::BytesValue(vec![0x80, 0x80, 0x80])),
-                                    }),
-                                  },
+                                    KeyValue {
+                                        key: String::from("my.span.attr"),
+                                        value: Some(AnyValue {
+                                            value: Some(Value::StringValue(String::from(
+                                                "some value",
+                                            ))),
+                                        }),
+                                    },
+                                    KeyValue {
+                                        key: String::from("my.span.bytes.attr"),
+                                        value: Some(AnyValue {
+                                            value: Some(Value::BytesValue(vec![0x80, 0x80, 0x80])),
+                                        }),
+                                    },
                                 ],
                                 dropped_attributes_count: 1,
                                 events: vec![Event {
