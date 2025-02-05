@@ -1,12 +1,12 @@
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let provider: LoggerProvider = LoggerProvider::builder()
+    let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder()
                 .with_service_name("log-appender-tracing-example")
