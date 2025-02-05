@@ -23,7 +23,7 @@ mod tracer;
 
 pub use config::{config, Config};
 pub use events::SpanEvents;
-pub use export::{ExportResult, SpanData, SpanExporter};
+pub use export::{SpanData, SpanExporter};
 
 /// In-Memory span exporter for testing purpose.
 #[cfg(any(feature = "testing", test))]
