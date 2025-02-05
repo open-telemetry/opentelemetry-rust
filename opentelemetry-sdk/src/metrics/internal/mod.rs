@@ -1,4 +1,5 @@
 mod aggregate;
+mod aggregate_impl;
 mod exponential_histogram;
 mod histogram;
 mod last_value;
@@ -12,7 +13,10 @@ use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 
-use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
+use aggregate::{is_under_cardinality_limit, AggregateTimeInitiator, STREAM_CARDINALITY_LIMIT};
+
+pub(crate) use aggregate_impl::AggregationImpl;
+
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
@@ -25,7 +29,7 @@ fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
     STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", "true")])
 }
 
-pub(crate) trait Aggregator {
+pub(crate) trait Aggregator: Send + Sync + 'static {
     /// A static configuration that is needed in order to initialize aggregator.
     /// E.g. bucket_size at creation time .
     type InitConfig;
