@@ -373,6 +373,24 @@ let processor = BatchSpanProcessor::builder(exporter)
     .build();
 ```
 
+- **Breaking**
+ - The public API changes in the Tracing:
+   - Before:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+        fn SpanExporter::shutdown(&mut self);
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, ExportResult>
+        fn TraerProvider::shutdown(&self) -> TraceResult<()>
+        fn TracerProvider::force_flush(&self) -> Vec<TraceResult<()>>
+      ```
+    - After:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+        fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
+        fn TraerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
 - **Breaking** Renamed `LoggerProvider` and `Logger` to `SdkLoggerProvider` and
   `SdkLogger` respectively to avoid name collision with public API types.
   [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)

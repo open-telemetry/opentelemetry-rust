@@ -365,9 +365,7 @@ mod tests {
             tracer.start("my_span").end();
 
             // Force flush to ensure spans are exported
-            provider.force_flush().into_iter().for_each(|result| {
-                result.expect("failed to flush spans");
-            });
+            assert!(provider.force_flush().is_ok());
 
             // Assert
             let finished_spans = exporter
