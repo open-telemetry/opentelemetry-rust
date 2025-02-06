@@ -52,8 +52,16 @@ impl LogExporter for OtlpHttpClient {
         }
     }
 
-    fn shutdown(&mut self) {
-        let _ = self.client.lock().map(|mut c| c.take());
+    fn shutdown(&mut self) -> OTelSdkResult {
+        let mut client_guard = self.client.lock().map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
+        })?;
+
+        if client_guard.take().is_none() {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
+
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

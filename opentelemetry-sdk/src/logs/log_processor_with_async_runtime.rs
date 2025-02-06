@@ -188,7 +188,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         )
                         .await;
 
-                        exporter.shutdown();
+                        let _ = exporter.shutdown(); //TODO - handle error
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -325,7 +325,9 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource

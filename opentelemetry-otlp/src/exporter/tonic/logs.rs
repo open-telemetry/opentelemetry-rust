@@ -92,8 +92,11 @@ impl LogExporter for TonicLogsClient {
         }
     }
 
-    fn shutdown(&mut self) {
-        let _ = self.inner.take();
+    fn shutdown(&mut self) -> OTelSdkResult {
+        match self.inner.take() {
+            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
+            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {

@@ -208,10 +208,11 @@ impl LogExporter for InMemoryLogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> OTelSdkResult {
         if self.should_reset_on_shutdown {
             self.reset();
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {
