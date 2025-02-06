@@ -32,7 +32,6 @@ of telemetry is intentionally left to other tools.
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ### What does this crate contain?
 
@@ -129,6 +128,10 @@ additional exporters and other related components as well.
 ## Getting started
 
 See [docs](https://docs.rs/opentelemetry).
+
+## Release Notes
+
+You can find the release notes (changelog) [here](./CHANGELOG.md).
 
 ## Supported Rust Versions
 
