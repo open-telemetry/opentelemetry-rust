@@ -1,14 +1,13 @@
 use once_cell::sync::Lazy;
-use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
+use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
-use opentelemetry_sdk::logs::LogError;
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
 use opentelemetry_sdk::logs::SdkLoggerProvider;
-use opentelemetry_sdk::metrics::MetricError;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
-use opentelemetry_sdk::{trace as sdktrace, Resource};
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
@@ -20,41 +19,44 @@ static RESOURCE: Lazy<Resource> = Lazy::new(|| {
         .build()
 });
 
-fn init_traces() -> Result<sdktrace::SdkTracerProvider, TraceError> {
+fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
-        .build()?;
-    Ok(sdktrace::SdkTracerProvider::builder()
+        .build()
+        .expect("Failed to create span exporter");
+    SdkTracerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
-        .build())
+        .build()
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
-    let exporter = MetricExporter::builder().with_tonic().build()?;
+fn init_metrics() -> SdkMeterProvider {
+    let exporter = MetricExporter::builder()
+        .with_tonic()
+        .build()
+        .expect("Failed to create metric exporter");
 
-    Ok(SdkMeterProvider::builder()
+    SdkMeterProvider::builder()
         .with_periodic_exporter(exporter)
         .with_resource(RESOURCE.clone())
-        .build())
+        .build()
 }
 
-fn init_logs() -> Result<opentelemetry_sdk::logs::SdkLoggerProvider, LogError> {
+fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
-        .build()?;
+        .build()
+        .expect("Failed to create log exporter");
 
-    Ok(SdkLoggerProvider::builder()
+    SdkLoggerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
-        .build())
+        .build()
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let logger_provider = init_logs()?;
+    let logger_provider = init_logs();
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
@@ -92,10 +94,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with(fmt_layer)
         .init();
 
-    let tracer_provider = init_traces()?;
+    let tracer_provider = init_traces();
     global::set_tracer_provider(tracer_provider.clone());
 
-    let meter_provider = init_metrics()?;
+    let meter_provider = init_metrics();
     global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
