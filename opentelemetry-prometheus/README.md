@@ -32,3 +32,7 @@ of telemetry is intentionally left to other tools.
 
 [`Prometheus`]: https://prometheus.io
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+
+## Release Notes
+
+You can find the release notes (changelog) [here](./CHANGELOG.md).
