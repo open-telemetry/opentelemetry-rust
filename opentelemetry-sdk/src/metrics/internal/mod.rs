@@ -9,7 +9,14 @@ use core::fmt;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
+
+#[cfg(not(any(target_arch = "mips", target_arch = "powerpc")))]
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
+
+#[cfg(any(target_arch = "mips", target_arch = "powerpc"))]
+use portable_atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
+
 use std::sync::{Arc, OnceLock, RwLock};
 
 use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
@@ -17,15 +24,8 @@ pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, M
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
-#[cfg(any(target_arch = "mips", target_arch = "powerpc"))]
-use portable_atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
-
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
-#[cfg(not(any(target_arch = "mips", target_arch = "powerpc")))]
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
-
-use crate::metrics::AttributeSet;
 
 #[inline]
 fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
