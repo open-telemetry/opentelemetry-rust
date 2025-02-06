@@ -13,6 +13,7 @@ use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use opentelemetry_sdk::error::OTelSdkError;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -320,7 +321,7 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> opentelemetry_sdk::logs::LogResult<(Vec<u8>, &'static str)> {
+    ) -> Result<(Vec<u8>, &'static str), OTelSdkError> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
@@ -329,7 +330,10 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry_sdk::logs::LogError::from(e.to_string())),
+                Err(e) => Err(OTelSdkError::InternalFailure(format!(
+                    "Failed parsing JSON: {}",
+                    e
+                ))),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }

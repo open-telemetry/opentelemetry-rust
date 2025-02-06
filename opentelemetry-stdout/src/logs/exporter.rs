@@ -36,10 +36,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-                Err("exporter is shut down".into())
+                Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
             } else {
                 println!("Logs");
                 if self

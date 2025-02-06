@@ -14,7 +14,7 @@ pub mod in_memory_exporter;
 pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 
 pub use error::{LogError, LogResult};
-pub use export::{ExportResult, LogBatch, LogExporter};
+pub use export::{LogBatch, LogExporter};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,

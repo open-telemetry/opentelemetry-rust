@@ -144,7 +144,7 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
                                         .get("scope")
                                         .and_then(|s| s.get("name"))
                                         .and_then(|name| name.as_str())
-                                        .map_or(false, |n| n == scope_name)
+                                        == Some(scope_name)
                                 });
 
                                 // Keep the resource only if it has any matching `ScopeMetrics`

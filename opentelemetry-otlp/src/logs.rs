@@ -4,9 +4,8 @@
 
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry::otel_debug;
+use opentelemetry_sdk::error::OTelSdkResult;
 use std::fmt::Debug;
-
-use opentelemetry_sdk::logs::LogResult;
 
 use opentelemetry_sdk::logs::LogBatch;
 
@@ -145,7 +144,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             match &self.client {
                 #[cfg(feature = "grpc-tonic")]

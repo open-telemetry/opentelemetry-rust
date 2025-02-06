@@ -9,13 +9,11 @@
     ~40 M /sec
 */
 
-use std::ascii::AsciiExt;
-
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
 
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -29,7 +27,7 @@ impl LogExporter for MockLogExporter {
     fn export(
         &self,
         _batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async { Ok(()) }
     }
 }
@@ -45,7 +43,7 @@ impl LogProcessor for MockLogProcessor {
         let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 

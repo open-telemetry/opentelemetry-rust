@@ -17,7 +17,6 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
 use opentelemetry_sdk::Resource;
@@ -37,8 +36,8 @@ impl LogExporter for NoopExporter {
     fn export(
         &self,
         _batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
-        async { LogResult::Ok(()) }
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
+        async { Ok(()) }
     }
 
     fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
@@ -62,7 +61,7 @@ impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
         // no-op
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 

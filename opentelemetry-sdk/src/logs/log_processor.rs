@@ -33,7 +33,7 @@
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    logs::{LogBatch, LogExporter, LogRecord},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -163,17 +163,20 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
+            .map_err(|_| {
+                OTelSdkError::InternalFailure("SimpleLogProcessor resource lock poisoned".into())
+            })
             .and_then(|exporter| {
                 let log_tuple = &[(record as &LogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         // Handle errors with specific static names
         match result {
-            Err(LogError::MutexPoisoned(_)) => {
+            Err(OTelSdkError::InternalFailure(s)) => {
                 // logging as debug as this is not a user error
                 otel_debug!(
-                    name: "SimpleLogProcessor.Emit.MutexPoisoning",
+                    name: "SimpleLogProcessor.Emit.InternalFailure",
+                    error = s
                 );
             }
             Err(err) => {
@@ -214,9 +217,9 @@ enum BatchMessage {
     /// This is ONLY sent when the number of logs records in the data channel has reached `max_export_batch_size`.
     ExportLog(Arc<AtomicBool>),
     /// ForceFlush flushes the current buffer to the exporter.
-    ForceFlush(mpsc::SyncSender<ExportResult>),
+    ForceFlush(mpsc::SyncSender<OTelSdkResult>),
     /// Shut down the worker thread, push all logs in buffer to the exporter.
-    Shutdown(mpsc::SyncSender<ExportResult>),
+    Shutdown(mpsc::SyncSender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -520,12 +523,12 @@ impl BatchLogProcessor {
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
                     config: &BatchConfig,
-                ) -> ExportResult
+                ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
                 {
                     let target = current_batch_size.load(Ordering::Relaxed); // `target` is used to determine the stopping criteria for exporting logs.
-                    let mut result = LogResult::Ok(());
+                    let mut result = Ok(());
                     let mut total_exported_logs: usize = 0;
 
                     while target > 0 && total_exported_logs < target {
@@ -670,14 +673,14 @@ fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
-) -> ExportResult
+) -> OTelSdkResult
 where
     E: LogExporter + ?Sized,
 {
     *last_export_time = Instant::now();
 
     if batch.is_empty() {
-        return LogResult::Ok(());
+        return Ok(());
     }
 
     let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
@@ -685,17 +688,7 @@ where
 
     // Clear the batch vec after exporting
     batch.clear();
-
-    match export_result {
-        Ok(_) => LogResult::Ok(()),
-        Err(err) => {
-            otel_error!(
-                name: "BatchLogProcessor.ExportError",
-                error = format!("{}", err)
-            );
-            LogResult::Err(err)
-        }
-    }
+    export_result
 }
 
 ///
@@ -876,7 +869,6 @@ mod tests {
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::error::OTelSdkResult;
-    use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter, LogRecord};
     use crate::{
         logs::{
@@ -908,7 +900,7 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async { Ok(()) }
         }
 
@@ -1404,7 +1396,7 @@ mod tests {
         fn export(
             &self,
             batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
             async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;

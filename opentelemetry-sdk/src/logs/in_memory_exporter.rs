@@ -1,4 +1,4 @@
-use crate::error::OTelSdkResult;
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogRecord;
 use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
 use crate::Resource;
@@ -185,9 +185,11 @@ impl LogExporter for InMemoryLogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
-            let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+            let mut logs_guard = self.logs.lock().map_err(|_| {
+                OTelSdkError::InternalFailure("LogExporter resource lock poisoned".to_string())
+            })?;
             for (log_record, instrumentation) in batch.iter() {
                 let owned_log = OwnedLogData {
                     record: (*log_record).clone(),

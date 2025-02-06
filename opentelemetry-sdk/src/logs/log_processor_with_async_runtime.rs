@@ -1,6 +1,6 @@
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord},
+    logs::{LogBatch, LogExporter, LogRecord},
     Resource,
 };
 
@@ -31,9 +31,9 @@ enum BatchMessage {
     ExportLog((LogRecord, InstrumentationScope)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -80,7 +80,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| OTelSdkError::InternalFailure(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
 
         futures_executor::block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
@@ -236,7 +236,7 @@ async fn export_with_timeout<E, R>(
     exporter: &mut E,
     runtime: &R,
     batch: Vec<(LogRecord, InstrumentationScope)>,
-) -> ExportResult
+) -> OTelSdkResult
 where
     R: RuntimeChannel,
     E: LogExporter + ?Sized,
@@ -256,7 +256,7 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+        Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
     }
 }
 
@@ -295,7 +295,6 @@ mod tests {
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
     use crate::logs::InMemoryLogExporterBuilder;
     use crate::logs::LogRecord;
-    use crate::logs::LogResult;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
     use crate::{
@@ -327,7 +326,7 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async { Ok(()) }
         }
 

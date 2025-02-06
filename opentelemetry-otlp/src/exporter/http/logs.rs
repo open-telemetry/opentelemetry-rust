@@ -4,7 +4,6 @@ use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogError, LogResult};
 
 use super::OtlpHttpClient;
 
@@ -13,15 +12,15 @@ impl LogExporter for OtlpHttpClient {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             let client = self
                 .client
                 .lock()
-                .map_err(|e| LogError::Other(e.to_string().into()))
+                .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))
                 .and_then(|g| match &*g {
                     Some(client) => Ok(Arc::clone(client)),
-                    _ => Err(LogError::Other("exporter is already shut down".into())),
+                    _ => Err(OTelSdkError::AlreadyShutdown),
                 })?;
 
             let (body, content_type) = { self.build_logs_export_body(batch)? };
@@ -30,7 +29,7 @@ impl LogExporter for OtlpHttpClient {
                 .uri(&self.collector_endpoint)
                 .header(CONTENT_TYPE, content_type)
                 .body(body.into())
-                .map_err(|e| crate::Error::RequestFailed(Box::new(e)))?;
+                .map_err(|e| OTelSdkError::InternalFailure(format!("Request failure: {}", e)))?;
 
             for (k, v) in &self.headers {
                 request.headers_mut().insert(k.clone(), v.clone());
@@ -38,7 +37,10 @@ impl LogExporter for OtlpHttpClient {
 
             let request_uri = request.uri().to_string();
             otel_debug!(name: "HttpLogsClient.CallingExport");
-            let response = client.send_bytes(request).await?;
+            let response = client
+                .send_bytes(request)
+                .await
+                .map_err(|e| OTelSdkError::InternalFailure(format!("Failed exporting: {}", e)))?;
 
             if !response.status().is_success() {
                 let error = format!(
@@ -47,7 +49,7 @@ impl LogExporter for OtlpHttpClient {
                     request_uri,
                     response.body()
                 );
-                return Err(LogError::Other(error.into()));
+                return Err(OTelSdkError::InternalFailure(error.to_string()));
             }
 
             Ok(())

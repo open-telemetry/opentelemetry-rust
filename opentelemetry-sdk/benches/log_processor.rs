@@ -22,7 +22,10 @@ use opentelemetry::{
     logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity},
     InstrumentationScope,
 };
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
+use opentelemetry_sdk::{
+    error::OTelSdkResult,
+    logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider},
+};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
@@ -47,11 +50,11 @@ struct NoopProcessor;
 impl LogProcessor for NoopProcessor {
     fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -64,11 +67,11 @@ impl LogProcessor for CloningProcessor {
         let _data_cloned = data.clone();
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -110,11 +113,11 @@ impl LogProcessor for SendToChannelProcessor {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }

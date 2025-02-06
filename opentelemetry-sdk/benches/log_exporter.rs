@@ -11,6 +11,7 @@
 */
 
 use opentelemetry::time::now;
+use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
@@ -72,11 +73,11 @@ impl LogProcessor for ExportingProcessorWithFuture {
         futures_executor::block_on(exporter.export(LogBatch::new(&logs)));
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -103,11 +104,11 @@ impl LogProcessor for ExportingProcessorWithoutFuture {
             .export(LogBatch::new(&logs));
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }

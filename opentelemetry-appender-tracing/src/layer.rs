@@ -233,9 +233,10 @@ mod tests {
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogRecord, LogResult, LoggerProvider};
+    use opentelemetry_sdk::logs::{LogRecord, LoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, TracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -269,7 +270,7 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async {
                 // This will cause a deadlock as the export itself creates a log
                 // while still within the lock of the SimpleLogProcessor.

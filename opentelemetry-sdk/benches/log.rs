@@ -16,6 +16,7 @@ RAM: 64.0 GB
 */
 
 use opentelemetry::time::now;
+use opentelemetry_sdk::error::OTelSdkResult;
 use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -33,11 +34,11 @@ struct NoopProcessor;
 impl LogProcessor for NoopProcessor {
     fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
