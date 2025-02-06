@@ -6,9 +6,6 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 pub(crate) struct Endpoint {
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    service_name: Option<String>,
-    #[builder(setter(strip_option), default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     ipv4: Option<Ipv4Addr>,
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,19 +16,11 @@ pub(crate) struct Endpoint {
 }
 
 impl Endpoint {
-    pub(crate) fn new(service_name: String, socket_addr: Option<SocketAddr>) -> Self {
+    pub(crate) fn new(socket_addr: Option<SocketAddr>) -> Self {
         match socket_addr {
-            Some(SocketAddr::V4(v4)) => Endpoint::builder()
-                .service_name(service_name)
-                .ipv4(*v4.ip())
-                .port(v4.port())
-                .build(),
-            Some(SocketAddr::V6(v6)) => Endpoint::builder()
-                .service_name(service_name)
-                .ipv6(*v6.ip())
-                .port(v6.port())
-                .build(),
-            None => Endpoint::builder().service_name(service_name).build(),
+            Some(SocketAddr::V4(v4)) => Endpoint::builder().ipv4(*v4.ip()).port(v4.port()).build(),
+            Some(SocketAddr::V6(v6)) => Endpoint::builder().ipv6(*v6.ip()).port(v6.port()).build(),
+            None => Endpoint::builder().build(),
         }
     }
 }
@@ -50,11 +39,10 @@ mod tests {
     fn test_ipv4_empty() {
         test_json_serialization(
             Endpoint::builder()
-                .service_name("open-telemetry".to_owned())
                 .ipv4(Ipv4Addr::new(127, 0, 0, 1))
                 .port(8080)
                 .build(),
-            "{\"serviceName\":\"open-telemetry\",\"ipv4\":\"127.0.0.1\",\"port\":8080}",
+            "{\"ipv4\":\"127.0.0.1\",\"port\":8080}",
         );
     }
 

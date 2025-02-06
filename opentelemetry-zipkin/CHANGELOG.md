@@ -4,6 +4,7 @@
 
 - Bump msrv to 1.75.0.
 - **Breaking** The `opentelemetry_zipkin::new_pipeline()` interface is now replaced with `opentelemetry_zipkin::ZipkinExporter::builder()`.
+  Additionally, the service name needs to be set on the tracer provider.
   
   Previous Signature:
   ```rust
@@ -14,10 +15,10 @@
   Updated Signature:
   ```rust
   let exporter = ZipkinExporter::builder()
-      .with_service_name("trace-demo")
       .build()?;
   let provider = TracerProvider::builder()
       .with_simple_exporter(exporter)
+      .with_service_name("trace-demo")
       .build();
   global::set_tracer_provider(provider.clone());
 

@@ -89,14 +89,12 @@ mod tests {
                 .duration(150_000)
                 .local_endpoint(
                     Endpoint::builder()
-                        .service_name("remote-service".to_owned())
                         .ipv4(Ipv4Addr::new(192, 168, 0, 1))
                         .port(8080)
                         .build()
                 )
                 .remote_endpoint(
                     Endpoint::builder()
-                        .service_name("open-telemetry".to_owned())
                         .ipv4(Ipv4Addr::new(127, 0, 0, 1))
                         .port(8080)
                         .build()
@@ -109,7 +107,7 @@ mod tests {
                 ])
                 .tags(tags)
                 .build(),
-            "{\"traceId\":\"4e441824ec2b6a44ffdc9bb9a6453df3\",\"parentId\":\"ffdc9bb9a6453df3\",\"id\":\"efdc9cd9a1849df3\",\"kind\":\"SERVER\",\"name\":\"main\",\"timestamp\":1502787600000000,\"duration\":150000,\"localEndpoint\":{\"serviceName\":\"remote-service\",\"ipv4\":\"192.168.0.1\",\"port\":8080},\"remoteEndpoint\":{\"serviceName\":\"open-telemetry\",\"ipv4\":\"127.0.0.1\",\"port\":8080},\"annotations\":[{\"timestamp\":1502780000000000,\"value\":\"interesting event\"}],\"tags\":{\"a\":\"b\"},\"debug\":false,\"shared\":false}",
+            "{\"traceId\":\"4e441824ec2b6a44ffdc9bb9a6453df3\",\"parentId\":\"ffdc9bb9a6453df3\",\"id\":\"efdc9cd9a1849df3\",\"kind\":\"SERVER\",\"name\":\"main\",\"timestamp\":1502787600000000,\"duration\":150000,\"localEndpoint\":{\"ipv4\":\"192.168.0.1\",\"port\":8080},\"remoteEndpoint\":{\"ipv4\":\"127.0.0.1\",\"port\":8080},\"annotations\":[{\"timestamp\":1502780000000000,\"value\":\"interesting event\"}],\"tags\":{\"a\":\"b\"},\"debug\":false,\"shared\":false}",
         );
     }
 
@@ -167,7 +165,7 @@ mod tests {
                 status,
                 instrumentation_scope: Default::default(),
             };
-            let local_endpoint = Endpoint::new("test".into(), None);
+            let local_endpoint = Endpoint::new(None);
             let span = into_zipkin_span(local_endpoint, span_data);
             if let Some(tags) = span.tags.as_ref() {
                 assert_tag_contains(tags, OTEL_STATUS_CODE, status_tag_val);

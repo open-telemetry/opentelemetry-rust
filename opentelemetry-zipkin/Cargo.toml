@@ -30,7 +30,6 @@ once_cell = { workspace = true }
 opentelemetry = { version = "0.27", path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.27", path = "../opentelemetry-sdk", features = ["trace"] }
 opentelemetry-http = { version = "0.27", path = "../opentelemetry-http" }
-opentelemetry-semantic-conventions = { version = "0.27", path = "../opentelemetry-semantic-conventions" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = "0.18"
