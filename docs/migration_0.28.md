@@ -65,6 +65,9 @@ Please note the following:
    `opentelemetry-otlp`. grpc-tonic, reqwest-blocking-client In other words,
    `reqwest` and `hyper` are not supported. If using `grpc-tonic`, the OTLP
    Exporter must be created from within a Tokio runtime.
+   If using exporters other than `opentelemetry-otlp`, consult the docs
+   for the same to know if there are any restrictions/requirements on async
+   runtime.
 2. Timeout enforcement is now moved to Exporters. i.e
 BatchProcessor,PeriodicReader does not enforce timeouts. For logs and traces,
 `max_export_timeout` (on Processors) or `OTEL_BLRP_EXPORT_TIMEOUT` or
@@ -134,7 +137,6 @@ fed back to OTel, creating an infinite loop. This can be achieved via proper
 filtering. The OTLP Examples in the repo shows how to achieve this. It also
 shows how to send OTel's internal logs to stdtout using `tracing::Fmt`.
 
-
 ## Full example
 
 A fully runnable example application using OTLP Exporter is provided in this
@@ -144,7 +146,8 @@ the changes required to be made.
 [Basic OTLP Example
 (0.27)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.27.0/opentelemetry-otlp/examples)
 [Basic OTLP Example
-(0.28)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.28.0/opentelemetry-otlp/examples)
+(0.28)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.27.0/opentelemetry-otlp/examples)
+// TODO: Update this link after github tag is created.
 
 This guide covers only the most common breaking changes. If you’re using custom
 exporters or processors (or authoring one), please consult the changelog for
