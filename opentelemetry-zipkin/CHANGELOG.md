@@ -16,7 +16,7 @@
   ```rust
   let exporter = ZipkinExporter::builder()
       .build()?;
-  let provider = TracerProvider::builder()
+  let provider = SdkTracerProvider::builder()
       .with_simple_exporter(exporter)
       .with_service_name("trace-demo")
       .build();
