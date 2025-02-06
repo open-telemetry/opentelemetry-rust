@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // uses global::meter() or global::meter_with_version() to get a meter.
     // Cloning simply creates a new reference to the same meter provider. It is
     // important to hold on to the meter_provider here, so as to invoke
-    // shutdown on it when application ends.    
+    // shutdown on it when application ends.
     global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];

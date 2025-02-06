@@ -152,4 +152,3 @@ the changes required to be made.
 This guide covers only the most common breaking changes. If you’re using custom
 exporters or processors (or authoring one), please consult the changelog for
 additional migration details.
-
