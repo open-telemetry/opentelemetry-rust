@@ -30,13 +30,13 @@ documentation.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
-| Logs-API              | RC*                |
-| Logs-SDK              | Beta               |
-| Logs-OTLP Exporter    | Beta               |
-| Logs-Appender-Tracing | Beta               |
-| Metrics-API           | RC                 |
-| Metrics-SDK           | Beta               |
-| Metrics-OTLP Exporter | Beta               |
+| Logs-API              | Stable*            |
+| Logs-SDK              | RC                 |
+| Logs-OTLP Exporter    | RC                 |
+| Logs-Appender-Tracing | RC                 |
+| Metrics-API           | Stable             |
+| Metrics-SDK           | RC                 |
+| Metrics-OTLP Exporter | RC                 |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
 | Traces-OTLP Exporter  | Beta               |
@@ -55,50 +55,28 @@ If you already use the logging APIs from above, continue to use them, and use
 the appenders above to bridge the logs to OpenTelemetry. If you are using a
 library not listed here, feel free to contribute a new appender for the same.
 
-If you are starting fresh, then consider using
+If you are starting fresh, we recommend using
 [tracing](https://github.com/tokio-rs/tracing) as your logging API. It supports
-structured logging and is actively maintained.
+structured logging and is actively maintained. `OpenTelemetry` itself uses
+`tracing` for its internal logging.
 
 Project versioning information and stability guarantees can be found
 [here](VERSIONING.md).
 
 ## Getting Started
 
-```rust
-use opentelemetry::trace::{
-    TraceContextExt,
-    Tracer,
-    TracerProvider,
-};
-use opentelemetry_sdk::trace::SdkTracerProvider;
+If you are new to OpenTelemetry, start with the [Stdout
+Example](./opentelemetry-stdout/examples/basic.rs). This example demonstrates
+how to use OpenTelemetry for logs, metrics, and traces, and display
+telemetry data on your console.
 
-fn main() {
-    // Create a new trace pipeline that prints to stdout
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
-    let tracer = provider.tracer("readme_example");
+For those using OTLP, the recommended OpenTelemetry Exporter for production
+scenarios, refer to the [OTLP Example -
+HTTP](./opentelemetry-otlp/examples/basic-otlp-http/README.md) and the [OTLP
+Example - gRPC](./opentelemetry-otlp/examples/basic-otlp/README.md).
 
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
-
-    // Shutdown trace pipeline
-    provider.shutdown().expect("TracerProvider should shutdown successfully")
-}
-```
-
-The example above requires the following packages:
-
-```toml
-# Cargo.toml
-[dependencies]
-opentelemetry = "0.27"
-opentelemetry_sdk = "0.27"
-opentelemetry-stdout = { version = "0.27", features = ["trace"] }
-```
-
-See the [examples](./examples) directory for different integration patterns.
+Additional examples for various integration patterns can be found in the
+[examples](./examples) directory.
 
 ## Overview of crates
 
