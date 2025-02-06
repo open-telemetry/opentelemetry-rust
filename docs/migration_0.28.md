@@ -18,7 +18,7 @@ Before (0.27):
 opentelemetry::global::shutdown_tracer_provider();
 ```
 
- • After (0.28):
+ After (0.28):
 
 ```rust
 let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
@@ -54,33 +54,43 @@ PeriodicReader, BatchSpanProcessor, BatchLogProcessor are the components
 affected.
 
 For Logs,Traces replace `.with_batch_exporter(exporter, runtime::Tokio)` with
-`.with_batch_exporter(exporter)`. For Metrics, replace `let reader =
+`.with_batch_exporter(exporter)`.
+
+For Metrics, replace `let reader =
 PeriodicReader::builder(exporter, runtime::Tokio).build();` with `let reader =
 PeriodicReader::builder(exporter).build();` or more conveniently,
 `.with_periodic_exporter(exporter)`.
 
 Please note the following:
 
-1. With the new approach, only the following grpc/http clients are supported in
-   `opentelemetry-otlp`. grpc-tonic, reqwest-blocking-client In other words,
-   `reqwest` and `hyper` are not supported. If using `grpc-tonic`, the OTLP
-   Exporter must be created from within a Tokio runtime.
+* With the new approach, only the following grpc/http clients are supported in
+   `opentelemetry-otlp`.
+
+   `grpc-tonic` (OTLP
+   Exporter must be created from within a Tokio runtime)
+
+   `reqwest-blocking-client`
+  
+  In other words,
+   `reqwest` and `hyper` are not supported.
    If using exporters other than `opentelemetry-otlp`, consult the docs
    for the same to know if there are any restrictions/requirements on async
    runtime.
-2. Timeout enforcement is now moved to Exporters. i.e
+
+* Timeout enforcement is now moved to Exporters. i.e
 BatchProcessor,PeriodicReader does not enforce timeouts. For logs and traces,
 `max_export_timeout` (on Processors) or `OTEL_BLRP_EXPORT_TIMEOUT` or
 `OTEL_BSP_EXPORT_TIMEOUT` is no longer supported. For metrics, `with_timeout` on
 PeriodicReader is no longer supported.
 
-`OTEL_EXPORTER_OTLP_TIMEOUT` can be used to setup timeout for OTLP Exporters via
-environment variables, or `.with_tonic().with_timeout()` or
-`.with_http().with_timeout()` programmatically.
+  `OTEL_EXPORTER_OTLP_TIMEOUT` can be used to setup timeout for OTLP Exporters
+  via environment variables, or `.with_tonic().with_timeout()` or
+  `.with_http().with_timeout()` programmatically.
 
-If you need the old behavior (your application cannot spawn a new thread, or
-need to use another networking client etc.) use appropriate feature flags from
-  below “experimental_metrics_periodicreader_with_async_runtime”
+* If you need the old behavior (your application cannot spawn a new thread, or
+need to use another networking client etc.) use appropriate feature flag(s) from
+  below.
+   “experimental_metrics_periodicreader_with_async_runtime”
   "experimental_logs_batch_log_processor_with_async_runtime"
   "experimental_trace_batch_span_processor_with_async_runtime"
 
@@ -100,9 +110,9 @@ let logger_provider = SdkLoggerProvider::builder()
 
 ## OTLP Default change
 
-"grpc-tonic" feature flag is no longer enabled by default. "http-proto" and
-  "reqwest-blocking-client" features are added as default, to align with the
-  OTel specification.
+"grpc-tonic" feature flag is no longer enabled by default in
+`opentelemetry-otlp`. "http-proto" and "reqwest-blocking-client" features are
+added as default, to align with the OTel specification.
 
 ## Resource Changes
 
@@ -133,9 +143,9 @@ Resource::builder()
 OpenTelemetry internally used `tracing` to emit its internal logs. This is under
 feature-flag "internal-logs" that is enabled by default in all crates. When
 using OTel Logging, care must be taken to avoid OTel's own internal log being
-fed back to OTel, creating an infinite loop. This can be achieved via proper
+fed back to OTel, creating an circular dependency. This can be achieved via proper
 filtering. The OTLP Examples in the repo shows how to achieve this. It also
-shows how to send OTel's internal logs to stdtout using `tracing::Fmt`.
+shows how to send OTel's internal logs to stdout using `tracing::Fmt`.
 
 ## Full example
 
@@ -152,3 +162,27 @@ the changes required to be made.
 This guide covers only the most common breaking changes. If you’re using custom
 exporters or processors (or authoring one), please consult the changelog for
 additional migration details.
+
+## Notes on Breaking Changes and the Path to 1.0
+
+We understand that breaking changes can be challenging, but they are essential
+for the growth and stability of the project. With the release of 0.28, the
+Metric API (`opentelemetry` crate, "metrics" feature flag) and LogBridge API
+(`opentelemetry` crate, "logs" feature flag) are now stable, and we do not
+anticipate further breaking changes for these components.
+
+Moreover, the `opentelemetry_sdk` crate for "logs" and "metrics" will have a
+very high bar for any future breaking changes. Any changes are expected to
+primarily impact those developing custom components, such as custom exporters.
+In the upcoming releases, we aim to bring the "traces" feature to the same level
+of stability as "logs" and "metrics". Additionally, "opentelemetry-otlp", the
+official exporter, will also receive stability guarantees.
+
+We are excited to announce that a 1.0 release, encompassing logs, metrics, and
+traces, is planned for June 2025. We appreciate your patience and support as we
+work towards this milestone. The 1.0 release will cover the API
+(`opentelemetry`), SDK (`opentelemetry_sdk`), OTLP Exporter
+(`opentelemetry-otlp`), and Tracing-Bridge (`opentelemetry-appender-tracing`).
+
+We encourage you to share your feedback via GitHub issues or the OTel-Rust Slack
+channel [here](https://cloud-native.slack.com/archives/C03GDP0H023).
