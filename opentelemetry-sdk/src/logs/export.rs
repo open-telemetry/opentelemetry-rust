@@ -1,6 +1,6 @@
 //! Log exporters
+use crate::error::OTelSdkResult;
 use crate::logs::SdkLogRecord;
-use crate::logs::{LogError, LogResult};
 use crate::Resource;
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -133,7 +133,7 @@ pub trait LogExporter: Send + Sync + Debug {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send;
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
     /// Shuts down the exporter.
     fn shutdown(&mut self) {}
@@ -146,6 +146,3 @@ pub trait LogExporter: Send + Sync + Debug {
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
-
-/// Describes the result of an export.
-pub type ExportResult = Result<(), LogError>;

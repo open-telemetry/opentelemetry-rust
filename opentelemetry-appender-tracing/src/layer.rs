@@ -233,9 +233,10 @@ mod tests {
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::InMemoryLogExporter;
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-    use opentelemetry_sdk::logs::{LogResult, SdkLogRecord, SdkLoggerProvider};
+    use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -269,7 +270,7 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async {
                 // This will cause a deadlock as the export itself creates a log
                 // while still within the lock of the SimpleLogProcessor.
@@ -345,7 +346,7 @@ mod tests {
 
         // Act
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-        logger_provider.force_flush();
+        assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -439,7 +440,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -553,7 +554,7 @@ mod tests {
             });
         });
 
-        logger_provider.force_flush();
+        assert!(logger_provider.force_flush().is_ok());
 
         let logs = exporter.get_emitted_logs().expect("No emitted logs");
         assert_eq!(logs.len(), 2);
@@ -593,7 +594,7 @@ mod tests {
 
         // Act
         log::error!(target: "my-system", "log from log crate");
-        logger_provider.force_flush();
+        assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter
@@ -672,7 +673,7 @@ mod tests {
             (trace_id, span_id)
         });
 
-        logger_provider.force_flush();
+        assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
         let exported_logs = exporter

@@ -3,8 +3,8 @@ use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogError, LogResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -60,7 +60,7 @@ impl LogExporter for TonicLogsClient {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             let (mut client, metadata, extensions) = match &self.inner {
                 Some(inner) => {
@@ -69,11 +69,11 @@ impl LogExporter for TonicLogsClient {
                         .lock()
                         .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
                         .call(Request::new(()))
-                        .map_err(|e| LogError::Other(Box::new(e)))?
+                        .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
                         .into_parts();
                     (inner.client.clone(), m, e)
                 }
-                None => return Err(LogError::Other("exporter is already shut down".into())),
+                None => return Err(OTelSdkError::AlreadyShutdown),
             };
 
             let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
@@ -87,7 +87,7 @@ impl LogExporter for TonicLogsClient {
                     ExportLogsServiceRequest { resource_logs },
                 ))
                 .await
-                .map_err(crate::Error::from)?;
+                .map_err(|e| OTelSdkError::InternalFailure(format!("export error: {:?}", e)))?;
             Ok(())
         }
     }

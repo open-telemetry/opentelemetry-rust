@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
-use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
@@ -35,10 +35,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-                Err("exporter is shut down".into())
+                Err(OTelSdkError::AlreadyShutdown)
             } else {
                 println!("Logs");
                 if self
