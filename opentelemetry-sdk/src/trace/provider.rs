@@ -249,14 +249,17 @@ impl SdkTracerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let errs = self.inner.shutdown();
+            let results = self.inner.shutdown();
 
-            if errs.iter().all(|res| res.is_ok()) {
+            if results.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
                 Err(OTelSdkError::InternalFailure(format!(
                     "Shutdown errors: {:?}",
-                    errs.into_iter().filter_map(Result::err).collect::<Vec<_>>() // Collect only the errors
+                    results
+                        .into_iter()
+                        .filter_map(Result::err)
+                        .collect::<Vec<_>>() // Collect only the errors
                 )))
             }
         } else {

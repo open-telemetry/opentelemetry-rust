@@ -1,5 +1,6 @@
 use super::{BatchLogProcessor, LogProcessor, SdkLogRecord, SimpleLogProcessor, TraceContext};
-use crate::logs::{LogError, LogExporter, LogResult};
+use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
 
@@ -91,15 +92,21 @@ impl SdkLoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> Vec<LogResult<()>> {
-        self.log_processors()
+    pub fn force_flush(&self) -> OTelSdkResult {
+        let result: Vec<_> = self
+            .log_processors()
             .iter()
             .map(|processor| processor.force_flush())
-            .collect()
+            .collect();
+        if result.iter().all(|r| r.is_ok()) {
+            Ok(())
+        } else {
+            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+        }
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> LogResult<()> {
+    pub fn shutdown(&self) -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );
@@ -110,14 +117,20 @@ impl SdkLoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let errs = self.inner.shutdown();
-            if errs.is_empty() {
+            let result = self.inner.shutdown();
+            if result.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
-                Err(LogError::Other(format!("{errs:?}").into()))
+                Err(OTelSdkError::InternalFailure(format!(
+                    "Shutdown errors: {:?}",
+                    result
+                        .into_iter()
+                        .filter_map(Result::err)
+                        .collect::<Vec<_>>()
+                )))
             }
         } else {
-            Err(LogError::AlreadyShutdown("LoggerProvider".to_string()))
+            Err(OTelSdkError::AlreadyShutdown)
         }
     }
 }
@@ -131,32 +144,21 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<LogError> {
-        let mut errs = vec![];
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        let mut results = vec![];
         for processor in &self.processors {
-            if let Err(err) = processor.shutdown() {
+            let result = processor.shutdown();
+            if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
-                //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
+                //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
-                match err {
-                    // specific handling for mutex poisoning
-                    LogError::MutexPoisoned(_) => {
-                        otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
-                        );
-                    }
-                    _ => {
-                        otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownError",
-                            error = format!("{err}")
-                        );
-                    }
-                }
-                errs.push(err);
+                otel_debug!(name: "LoggerProvider.ShutdownError",
+                        error = format!("{err}"));
             }
+            results.push(result);
         }
-        errs
+        results
     }
 }
 
@@ -383,11 +385,11 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -720,6 +722,7 @@ mod tests {
 
             // Explicitly shut down the logger provider
             let shutdown_result = logger_provider1.shutdown();
+            println!("---->Result: {:?}", shutdown_result);
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
@@ -795,12 +798,12 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -826,12 +829,12 @@ mod tests {
             // nothing to do
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

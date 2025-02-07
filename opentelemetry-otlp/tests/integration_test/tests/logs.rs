@@ -86,7 +86,7 @@ async fn logs_tokio_helper(
             .await
             .unwrap();
     } else {
-        let _ = logger_provider.shutdown();
+        assert!(logger_provider.shutdown().is_ok());
     }
     tokio::time::sleep(Duration::from_secs(5)).await;
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
@@ -126,7 +126,7 @@ fn logs_non_tokio_helper(is_simple: bool, init_logs_inside_rt: bool) -> Result<(
         );
     }
 
-    let _ = logger_provider.shutdown();
+    assert!(logger_provider.shutdown().is_ok());
     std::thread::sleep(Duration::from_secs(5));
     assert_logs_results_contains(test_utils::LOGS_FILE, expected_uuid.as_str())?;
     Ok(())
