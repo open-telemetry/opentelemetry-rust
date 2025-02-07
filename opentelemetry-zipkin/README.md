@@ -107,6 +107,10 @@ available so be sure to match them appropriately.
 
 [`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinPipelineBuilder.html
 
+## Release Notes
+
+You can find the release notes (changelog) [here](./CHANGELOG.md).
+
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
