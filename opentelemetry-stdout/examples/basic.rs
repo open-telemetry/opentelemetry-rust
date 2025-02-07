@@ -7,7 +7,7 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry::trace::Tracer;
 
 #[cfg(feature = "metrics")]
-use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::SdkTracerProvider;
