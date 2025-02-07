@@ -344,7 +344,7 @@ let processor = BatchLogProcessor::builder(exporter)
 ```
 
 - **Breaking**: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
-   or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+   or the `OTEL_BSP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
    responsibility of the exporter.
    For example, in the OTLP Span exporter, the export timeout can be configured using:
    - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.

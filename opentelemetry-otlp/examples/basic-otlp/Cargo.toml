@@ -11,6 +11,6 @@ opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["grpc-tonic"] }
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
+opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing"}
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
