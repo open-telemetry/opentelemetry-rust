@@ -1,5 +1,6 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
 };
 
@@ -27,12 +28,12 @@ use futures_util::{
 #[derive(Debug)]
 enum BatchMessage {
     /// Export logs, usually called when the log is emitted.
-    ExportLog((LogRecord, InstrumentationScope)),
+    ExportLog((SdkLogRecord, InstrumentationScope)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -58,7 +59,7 @@ impl<R: RuntimeChannel> Debug for BatchLogProcessor<R> {
 }
 
 impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let result = self.message_sender.try_send(BatchMessage::ExportLog((
             record.clone(),
             instrumentation.clone(),
@@ -75,18 +76,18 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -100,10 +101,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
             .and_then(std::convert::identity)
     }
 
@@ -158,7 +159,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             }
                         }
                     }
-                    // Log batch interval time reached or a force flush has been invoked, export current spans.
+                    // Log batch interval time reached or a force flush has been invoked, export current logs.
                     BatchMessage::Flush(res_channel) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
@@ -187,7 +188,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         )
                         .await;
 
-                        exporter.shutdown();
+                        let _ = exporter.shutdown(); //TODO - handle error
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -229,8 +230,8 @@ async fn export_with_timeout<E, R>(
     time_out: Duration,
     exporter: &mut E,
     runtime: &R,
-    batch: Vec<(LogRecord, InstrumentationScope)>,
-) -> ExportResult
+    batch: Vec<(SdkLogRecord, InstrumentationScope)>,
+) -> OTelSdkResult
 where
     R: RuntimeChannel,
     E: LogExporter + ?Sized,
@@ -240,7 +241,7 @@ where
     }
 
     // TBD - Can we avoid this conversion as it involves heap allocation with new vector?
-    let log_vec: Vec<(&LogRecord, &InstrumentationScope)> = batch
+    let log_vec: Vec<(&SdkLogRecord, &InstrumentationScope)> = batch
         .iter()
         .map(|log_data| (&log_data.0, &log_data.1))
         .collect();
@@ -250,7 +251,7 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+        Either::Right((_, _)) => OTelSdkResult::Err(OTelSdkError::Timeout(time_out)),
     }
 }
 
@@ -281,14 +282,14 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
+    use crate::error::OTelSdkResult;
     use crate::logs::log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
     use crate::logs::InMemoryLogExporterBuilder;
-    use crate::logs::LogRecord;
-    use crate::logs::LogResult;
+    use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
     use crate::{
@@ -297,14 +298,14 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, LogProcessor, LoggerProvider,
+            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, LogProcessor, SdkLoggerProvider,
             SimpleLogProcessor,
         },
         Resource,
     };
     use opentelemetry::logs::AnyValue;
-    use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::LogRecord;
+    use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
@@ -320,11 +321,13 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
@@ -499,7 +502,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(exporter.clone());
-        let _ = LoggerProvider::builder()
+        let _ = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -523,7 +526,7 @@ mod tests {
         };
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -555,7 +558,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::new();
+        let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -624,11 +627,11 @@ mod tests {
 
     #[derive(Debug)]
     struct FirstProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             // add attribute
             record.add_attribute(
                 Key::from_static_str("processed_by"),
@@ -643,22 +646,22 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
 
     #[derive(Debug)]
     struct SecondProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
@@ -673,11 +676,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -693,7 +696,7 @@ mod tests {
             logs: Arc::clone(&second_processor_logs),
         };
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
             .build();
@@ -791,7 +794,7 @@ mod tests {
         };
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(Resource::new(vec![
                 KeyValue::new("k1", "v1"),
@@ -801,7 +804,7 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
-        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
+        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch log processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
@@ -817,7 +820,7 @@ mod tests {
         let processor =
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        let mut record = LogRecord::new();
+        let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);

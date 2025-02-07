@@ -31,8 +31,9 @@
 //!   +-----+---------------+   +-----------------------+   +-------------------+
 //! ```
 
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogRecord, LogResult},
+    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -57,8 +58,10 @@ pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
 pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: u64 = 1_000;
 /// Maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
 /// Maximum queue size.
 pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
@@ -69,9 +72,9 @@ pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_B
 /// Default maximum batch size.
 pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
-/// The interface for plugging into a [`Logger`].
+/// The interface for plugging into a [`SdkLogger`].
 ///
-/// [`Logger`]: crate::logs::Logger
+/// [`SdkLogger`]: crate::logs::SdkLogger
 pub trait LogProcessor: Send + Sync + Debug {
     /// Called when a log record is ready to processed and exported.
     ///
@@ -84,13 +87,13 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// # Parameters
     /// - `record`: A mutable reference to `LogRecord` representing the log record.
     /// - `instrumentation`: The instrumentation scope associated with the log record.
-    fn emit(&self, data: &mut LogRecord, instrumentation: &InstrumentationScope);
+    fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
-    fn force_flush(&self) -> LogResult<()>;
+    fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> LogResult<()>;
+    fn shutdown(&self) -> OTelSdkResult;
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -146,7 +149,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
 }
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -159,14 +162,14 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         let result = self
             .exporter
             .lock()
-            .map_err(|_| LogError::MutexPoisoned("SimpleLogProcessor".into()))
+            .map_err(|_| OTelSdkError::InternalFailure("SimpleLogProcessor mutex poison".into()))
             .and_then(|exporter| {
-                let log_tuple = &[(record as &LogRecord, instrumentation)];
+                let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             });
         // Handle errors with specific static names
         match result {
-            Err(LogError::MutexPoisoned(_)) => {
+            Err(OTelSdkError::InternalFailure(_)) => {
                 // logging as debug as this is not a user error
                 otel_debug!(
                     name: "SimpleLogProcessor.Emit.MutexPoisoning",
@@ -182,18 +185,19 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown();
-            Ok(())
+            exporter.shutdown()
         } else {
-            Err(LogError::MutexPoisoned("SimpleLogProcessor".into()))
+            Err(OTelSdkError::InternalFailure(
+                "SimpleLogProcessor mutex poison at shutdown".into(),
+            ))
         }
     }
 
@@ -211,14 +215,14 @@ enum BatchMessage {
     /// This is ONLY sent when the number of logs records in the data channel has reached `max_export_batch_size`.
     ExportLog(Arc<AtomicBool>),
     /// ForceFlush flushes the current buffer to the exporter.
-    ForceFlush(mpsc::SyncSender<ExportResult>),
+    ForceFlush(mpsc::SyncSender<OTelSdkResult>),
     /// Shut down the worker thread, push all logs in buffer to the exporter.
-    Shutdown(mpsc::SyncSender<ExportResult>),
+    Shutdown(mpsc::SyncSender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
 
-type LogsData = Box<(LogRecord, InstrumentationScope)>;
+type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 
 /// The `BatchLogProcessor` collects finished logs in a buffer and exports them
 /// in batches to the configured `LogExporter`. This processor is ideal for
@@ -226,19 +230,32 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 /// individually. It uses a **dedicated background thread** to manage and export logs
 /// asynchronously, ensuring that the application's main execution flow is not blocked.
 ///
-/// - This processor supports the following configurations:
-///     - **Queue size**: Maximum number of log records that can be buffered.
-///     - **Batch size**: Maximum number of log records to include in a single export.
-///     - **Export timeout**: Maximum duration allowed for an export operation.
-///     - **Scheduled delay**: Frequency at which the batch is exported.
+/// This processor supports the following configurations:
+/// - **Queue size**: Maximum number of log records that can be buffered.
+/// - **Batch size**: Maximum number of log records to include in a single export.
+/// - **Scheduled delay**: Frequency at which the batch is exported.
 ///
 /// When using this processor with the OTLP Exporter, the following exporter
 /// features are supported:
-/// - `grpc-tonic`: This requires `MeterProvider` to be created within a tokio
-///   runtime.
+/// - `grpc-tonic`: Requires `LoggerProvider` to be created within a tokio runtime.
 /// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
 /// In other words, other clients like `reqwest` and `hyper` are not supported.
+///
+/// `BatchLogProcessor` buffers logs in memory and exports them in batches. An
+/// export is triggered when `max_export_batch_size` is reached or every
+/// `scheduled_delay` milliseconds. Users can explicitly trigger an export using
+/// the `force_flush` method. Shutdown also triggers an export of all buffered
+/// logs and is recommended to be called before the application exits to ensure
+/// all buffered logs are exported.
+///
+/// **Warning**: When using tokio's current-thread runtime, `shutdown()`, which
+/// is a blocking call ,should not be called from your main thread. This can
+/// cause deadlock. Instead, call `shutdown()` from a separate thread or use
+/// tokio's `spawn_blocking`.
+///
+/// [`shutdown()`]: crate::logs::LoggerProvider::shutdown
+/// [`force_flush()`]: crate::logs::LoggerProvider::force_flush
 ///
 /// ### Using a BatchLogProcessor:
 ///
@@ -255,7 +272,6 @@ type LogsData = Box<(LogRecord, InstrumentationScope)>;
 ///             .with_max_queue_size(2048)
 ///             .with_max_export_batch_size(512)
 ///             .with_scheduled_delay(Duration::from_secs(5))
-///             .with_max_export_timeout(Duration::from_secs(30))
 ///             .build(),
 ///     )
 ///     .build();
@@ -270,7 +286,6 @@ pub struct BatchLogProcessor {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
     shutdown_timeout: Duration,
-    is_shutdown: AtomicBool,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
@@ -291,88 +306,110 @@ impl Debug for BatchLogProcessor {
 }
 
 impl LogProcessor for BatchLogProcessor {
-    fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
-        // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            otel_warn!(
-                name: "BatchLogProcessor.Emit.ProcessorShutdown",
-                message = "BatchLogProcessor has been shutdown. No further logs will be emitted."
-            );
-            return;
-        }
-
+    fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let result = self
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
 
-        if result.is_err() {
-            // Increment dropped logs count. The first time we have to drop a log,
-            // emit a warning.
-            if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
-                otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
-                    message = "BatchLogProcessor dropped a LogRecord due to queue full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
-            }
-            return;
-        }
+        // match for result and handle each separately
+        match result {
+            Ok(_) => {
+                // Successfully sent the log record to the data channel.
+                // Increment the current batch size and check if it has reached
+                // the max export batch size.
+                if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1
+                    >= self.max_export_batch_size
+                {
+                    // Check if the a control message for exporting logs is
+                    // already sent to the worker thread. If not, send a control
+                    // message to export logs. `export_log_message_sent` is set
+                    // to false ONLY when the worker thread has processed the
+                    // control message.
 
-        // At this point, sending the log record to the data channel was successful.
-        // Increment the current batch size and check if it has reached the max export batch size.
-        if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1 >= self.max_export_batch_size
-        {
-            // Check if the a control message for exporting logs is already sent to the worker thread.
-            // If not, send a control message to export logs.
-            // `export_log_message_sent` is set to false ONLY when the worker thread has processed the control message.
-
-            if !self.export_log_message_sent.load(Ordering::Relaxed) {
-                // This is a cost-efficient check as atomic load operations do not require exclusive access to cache line.
-                // Perform atomic swap to `export_log_message_sent` ONLY when the atomic load operation above returns false.
-                // Atomic swap/compare_exchange operations require exclusive access to cache line on most processor architectures.
-                // We could have used compare_exchange as well here, but it's more verbose than swap.
-                if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
-                    match self.message_sender.try_send(BatchMessage::ExportLog(
-                        self.export_log_message_sent.clone(),
-                    )) {
-                        Ok(_) => {
-                            // Control message sent successfully.
-                        }
-                        Err(_err) => {
-                            // TODO: Log error
-                            // If the control message could not be sent, reset the `export_log_message_sent` flag.
-                            self.export_log_message_sent.store(false, Ordering::Relaxed);
+                    if !self.export_log_message_sent.load(Ordering::Relaxed) {
+                        // This is a cost-efficient check as atomic load
+                        // operations do not require exclusive access to cache
+                        // line. Perform atomic swap to
+                        // `export_log_message_sent` ONLY when the atomic load
+                        // operation above returns false. Atomic
+                        // swap/compare_exchange operations require exclusive
+                        // access to cache line on most processor architectures.
+                        // We could have used compare_exchange as well here, but
+                        // it's more verbose than swap.
+                        if !self.export_log_message_sent.swap(true, Ordering::Relaxed) {
+                            match self.message_sender.try_send(BatchMessage::ExportLog(
+                                self.export_log_message_sent.clone(),
+                            )) {
+                                Ok(_) => {
+                                    // Control message sent successfully.
+                                }
+                                Err(_err) => {
+                                    // TODO: Log error If the control message
+                                    // could not be sent, reset the
+                                    // `export_log_message_sent` flag.
+                                    self.export_log_message_sent.store(false, Ordering::Relaxed);
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    }
-
-    fn force_flush(&self) -> LogResult<()> {
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            return LogResult::Err(LogError::Other(
-                "BatchLogProcessor is already shutdown".into(),
-            ));
-        }
-        let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender
-            .try_send(BatchMessage::ForceFlush(sender))
-            .map_err(|err| LogError::Other(err.into()))?;
-
-        receiver
-            .recv_timeout(self.forceflush_timeout)
-            .map_err(|err| {
-                if err == RecvTimeoutError::Timeout {
-                    LogError::ExportTimedOut(self.forceflush_timeout)
-                } else {
-                    LogError::Other(err.into())
+            Err(mpsc::TrySendError::Full(_)) => {
+                // Increment dropped logs count. The first time we have to drop
+                // a log, emit a warning.
+                if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                    otel_warn!(name: "BatchLogProcessor.LogDroppingStarted",
+                        message = "BatchLogProcessor dropped a LogRecord due to queue full. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total logs dropped.");
                 }
-            })?
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_warn!(
+                    name: "BatchLogProcessor.Emit.AfterShutdown",
+                    message = "Logs are being emitted even after Shutdown. This indicates incorrect lifecycle management of OTelLoggerProvider in application. Logs will not be exported."
+                );
+            }
+        }
     }
 
-    fn shutdown(&self) -> LogResult<()> {
-        // Set is_shutdown to true
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+    fn force_flush(&self) -> OTelSdkResult {
+        let (sender, receiver) = mpsc::sync_channel(1);
+        match self
+            .message_sender
+            .try_send(BatchMessage::ForceFlush(sender))
+        {
+            Ok(_) => receiver
+                .recv_timeout(self.forceflush_timeout)
+                .map_err(|err| {
+                    if err == RecvTimeoutError::Timeout {
+                        OTelSdkError::Timeout(self.forceflush_timeout)
+                    } else {
+                        OTelSdkError::InternalFailure(format!("{}", err))
+                    }
+                })?,
+            Err(mpsc::TrySendError::Full(_)) => {
+                // If the control message could not be sent, emit a warning.
+                otel_debug!(
+                    name: "BatchLogProcessor.ForceFlush.ControlChannelFull",
+                    message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
+                );
+                Err(OTelSdkError::InternalFailure("ForceFlush cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_debug!(
+                    name: "BatchLogProcessor.ForceFlush.AlreadyShutdown",
+                    message = "ForceFlush invoked after Shutdown. This will not perform Flush and indicates a incorrect lifecycle management in Application."
+                );
 
+                Err(OTelSdkError::AlreadyShutdown)
+            }
+        }
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -380,40 +417,59 @@ impl LogProcessor for BatchLogProcessor {
                 name: "BatchLogProcessor.LogsDropped",
                 dropped_logs_count = dropped_logs,
                 max_queue_size = max_queue_size,
-                message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                message = "Logs were dropped due to a queue being full. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
 
         let (sender, receiver) = mpsc::sync_channel(1);
-        self.message_sender
-            .try_send(BatchMessage::Shutdown(sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+        match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
+            Ok(_) => {
+                receiver
+                    .recv_timeout(self.shutdown_timeout)
+                    .map(|_| {
+                        // join the background thread after receiving back the
+                        // shutdown signal
+                        if let Some(handle) = self.handle.lock().unwrap().take() {
+                            handle.join().unwrap();
+                        }
+                        OTelSdkResult::Ok(())
+                    })
+                    .map_err(|err| match err {
+                        RecvTimeoutError::Timeout => {
+                            otel_error!(
+                                name: "BatchLogProcessor.Shutdown.Timeout",
+                                message = "BatchLogProcessor shutdown timing out."
+                            );
+                            OTelSdkError::Timeout(self.shutdown_timeout)
+                        }
+                        _ => {
+                            otel_error!(
+                                name: "BatchLogProcessor.Shutdown.Error",
+                                error = format!("{}", err)
+                            );
+                            OTelSdkError::InternalFailure(format!("{}", err))
+                        }
+                    })?
+            }
+            Err(mpsc::TrySendError::Full(_)) => {
+                // If the control message could not be sent, emit a warning.
+                otel_debug!(
+                    name: "BatchLogProcessor.Shutdown.ControlChannelFull",
+                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
+                );
+                Err(OTelSdkError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+            }
+            Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Given background thread is the only receiver, and it's
+                // disconnected, it indicates the thread is shutdown
+                otel_debug!(
+                    name: "BatchLogProcessor.Shutdown.AlreadyShutdown",
+                    message = "Shutdown is being invoked more than once. This is noop, but indicates a potential issue in the application's lifecycle management."
+                );
 
-        receiver
-            .recv_timeout(self.shutdown_timeout)
-            .map(|_| {
-                // join the background thread after receiving back the shutdown signal
-                if let Some(handle) = self.handle.lock().unwrap().take() {
-                    handle.join().unwrap();
-                }
-                LogResult::Ok(())
-            })
-            .map_err(|err| match err {
-                RecvTimeoutError::Timeout => {
-                    otel_error!(
-                        name: "BatchLogProcessor.Shutdown.Timeout",
-                        message = "BatchLogProcessor shutdown timing out."
-                    );
-                    LogError::ExportTimedOut(self.shutdown_timeout)
-                }
-                _ => {
-                    otel_error!(
-                        name: "BatchLogProcessor.Shutdown.Error",
-                        error = format!("{}", err)
-                    );
-                    LogError::Other(err.into())
-                }
-            })?
+                Err(OTelSdkError::AlreadyShutdown)
+            }
+        }
     }
 
     fn set_resource(&self, resource: &Resource) {
@@ -449,7 +505,7 @@ impl BatchLogProcessor {
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
                 let current_batch_size = current_batch_size_for_thread;
 
-                // This method gets upto `max_export_batch_size` amount of logs from the channel and exports them.
+                // This method gets up to `max_export_batch_size` amount of logs from the channel and exports them.
                 // It returns the result of the export operation.
                 // It expects the logs vec to be empty when it's called.
                 #[inline]
@@ -460,12 +516,12 @@ impl BatchLogProcessor {
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
                     config: &BatchConfig,
-                ) -> ExportResult
+                ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
                 {
                     let target = current_batch_size.load(Ordering::Relaxed); // `target` is used to determine the stopping criteria for exporting logs.
-                    let mut result = LogResult::Ok(());
+                    let mut result = OTelSdkResult::Ok(());
                     let mut total_exported_logs: usize = 0;
 
                     while target > 0 && total_exported_logs < target {
@@ -480,12 +536,7 @@ impl BatchLogProcessor {
                         let count_of_logs = logs.len(); // Count of logs that will be exported
                         total_exported_logs += count_of_logs;
 
-                        result = export_with_timeout_sync(
-                            config.max_export_timeout,
-                            exporter,
-                            logs,
-                            last_export_time,
-                        ); // This method clears the logs vec after exporting
+                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
@@ -590,7 +641,6 @@ impl BatchLogProcessor {
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
-            is_shutdown: AtomicBool::new(false),
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
@@ -612,19 +662,18 @@ impl BatchLogProcessor {
 }
 
 #[allow(clippy::vec_box)]
-fn export_with_timeout_sync<E>(
-    _: Duration, // TODO, enforcing timeout in exporter.
+fn export_batch_sync<E>(
     exporter: &E,
-    batch: &mut Vec<Box<(LogRecord, InstrumentationScope)>>,
+    batch: &mut Vec<Box<(SdkLogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
-) -> ExportResult
+) -> OTelSdkResult
 where
     E: LogExporter + ?Sized,
 {
     *last_export_time = Instant::now();
 
     if batch.is_empty() {
-        return LogResult::Ok(());
+        return OTelSdkResult::Ok(());
     }
 
     let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
@@ -634,13 +683,13 @@ where
     batch.clear();
 
     match export_result {
-        Ok(_) => LogResult::Ok(()),
+        Ok(_) => OTelSdkResult::Ok(()),
         Err(err) => {
             otel_error!(
                 name: "BatchLogProcessor.ExportError",
                 error = format!("{}", err)
             );
-            LogResult::Err(err)
+            OTelSdkResult::Err(err)
         }
     }
 }
@@ -689,6 +738,7 @@ pub struct BatchConfig {
     pub(crate) max_export_batch_size: usize,
 
     /// The maximum duration to export a batch of data.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub(crate) max_export_timeout: Duration,
 }
 
@@ -704,6 +754,7 @@ pub struct BatchConfigBuilder {
     max_queue_size: usize,
     scheduled_delay: Duration,
     max_export_batch_size: usize,
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     max_export_timeout: Duration,
 }
 
@@ -720,6 +771,7 @@ impl Default for BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
         }
         .init_from_env_vars()
@@ -747,6 +799,7 @@ impl BatchConfigBuilder {
     /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The default value is 30000 milliseconds.
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
         self
@@ -772,6 +825,7 @@ impl BatchConfigBuilder {
         BatchConfig {
             max_queue_size: self.max_queue_size,
             scheduled_delay: self.scheduled_delay,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: self.max_export_timeout,
             max_export_batch_size,
         }
@@ -799,6 +853,7 @@ impl BatchConfigBuilder {
             self.scheduled_delay = Duration::from_millis(scheduled_delay);
         }
 
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         if let Some(max_export_timeout) = env::var(OTEL_BLRP_EXPORT_TIMEOUT)
             .ok()
             .and_then(|s| u64::from_str(&s).ok())
@@ -813,25 +868,27 @@ impl BatchConfigBuilder {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use super::{
-        BatchLogProcessor, OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
-        OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_SCHEDULE_DELAY,
+        BatchLogProcessor, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
+        OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::logs::LogResult;
-    use crate::logs::{LogBatch, LogExporter, LogRecord};
+    #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+    use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
     use crate::{
+        error::OTelSdkResult,
         logs::{
             log_processor::{
-                OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-                OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
+                OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
             BatchConfig, BatchConfigBuilder, InMemoryLogExporter, InMemoryLogExporterBuilder,
-            LogProcessor, LoggerProvider, SimpleLogProcessor,
+            LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
         },
         Resource,
     };
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::{Logger, LoggerProvider as _};
+    use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -848,11 +905,13 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
@@ -875,7 +934,9 @@ mod tests {
     fn test_default_const_values() {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, 1_000);
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
@@ -891,6 +952,7 @@ mod tests {
         // The following environment variables are expected to be unset so that their default values are used.
         let env_vars = vec![
             OTEL_BLRP_SCHEDULE_DELAY,
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             OTEL_BLRP_EXPORT_TIMEOUT,
             OTEL_BLRP_MAX_QUEUE_SIZE,
             OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
@@ -902,6 +964,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -917,6 +980,7 @@ mod tests {
     fn test_batch_config_configurable_by_env_vars() {
         let env_vars = vec![
             (OTEL_BLRP_SCHEDULE_DELAY, Some("2000")),
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("60000")),
             (OTEL_BLRP_MAX_QUEUE_SIZE, Some("4096")),
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
@@ -925,6 +989,7 @@ mod tests {
         let config = temp_env::with_vars(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, Duration::from_millis(2000));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, 4096);
         assert_eq!(config.max_export_batch_size, 1024);
@@ -945,6 +1010,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
         );
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(
             config.max_export_timeout,
             Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
@@ -953,15 +1019,18 @@ mod tests {
 
     #[test]
     fn test_batch_config_with_fields() {
-        let batch = BatchConfigBuilder::default()
+        let batch_builder = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
-            .with_max_queue_size(4)
-            .build();
+            .with_max_queue_size(4);
+
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+        let batch_builder = batch_builder.with_max_export_timeout(Duration::from_millis(3));
+        let batch = batch_builder.build();
 
         assert_eq!(batch.max_export_batch_size, 1);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(2));
+        #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(batch.max_export_timeout, Duration::from_millis(3));
         assert_eq!(batch.max_queue_size, 4);
     }
@@ -971,6 +1040,7 @@ mod tests {
         let mut env_vars = vec![
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("500")),
             (OTEL_BLRP_SCHEDULE_DELAY, Some("I am not number")),
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             (OTEL_BLRP_EXPORT_TIMEOUT, Some("2046")),
         ];
         temp_env::with_vars(env_vars.clone(), || {
@@ -985,6 +1055,8 @@ mod tests {
                 builder.config.max_queue_size,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT
             );
+
+            #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             assert_eq!(
                 builder.config.max_export_timeout,
                 Duration::from_millis(2046)
@@ -1005,7 +1077,6 @@ mod tests {
         let expected = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
             .with_scheduled_delay(Duration::from_millis(2))
-            .with_max_export_timeout(Duration::from_millis(3))
             .with_max_queue_size(4)
             .build();
 
@@ -1015,7 +1086,6 @@ mod tests {
         let actual = &builder.config;
         assert_eq!(actual.max_export_batch_size, 1);
         assert_eq!(actual.scheduled_delay, Duration::from_millis(2));
-        assert_eq!(actual.max_export_timeout, Duration::from_millis(3));
         assert_eq!(actual.max_queue_size, 4);
     }
 
@@ -1025,7 +1095,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = SimpleLogProcessor::new(exporter.clone());
-        let _ = LoggerProvider::builder()
+        let _ = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -1048,7 +1118,7 @@ mod tests {
             resource: Arc::new(Mutex::new(None)),
         };
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
                 Resource::builder_empty()
@@ -1079,7 +1149,7 @@ mod tests {
             .build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
 
-        let mut record = LogRecord::new();
+        let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1097,7 +1167,7 @@ mod tests {
             .build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1145,11 +1215,11 @@ mod tests {
 
     #[derive(Debug)]
     struct FirstProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for FirstProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             // add attribute
             record.add_attribute(
                 Key::from_static_str("processed_by"),
@@ -1164,22 +1234,22 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
 
     #[derive(Debug)]
     struct SecondProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for SecondProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
@@ -1194,11 +1264,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -1214,7 +1284,7 @@ mod tests {
             logs: Arc::clone(&second_processor_logs),
         };
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
             .build();
@@ -1255,7 +1325,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1268,7 +1338,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1285,7 +1355,7 @@ mod tests {
         for _ in 0..10 {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = LogRecord::new();
+                let mut record: SdkLogRecord = SdkLogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1304,7 +1374,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1336,7 +1406,7 @@ mod tests {
         fn export(
             &self,
             batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
             async move {
                 tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1356,7 +1426,7 @@ mod tests {
             let exporter = LogExporterThatRequiresTokio::new();
             let processor = SimpleLogProcessor::new(exporter.clone());
 
-            let mut record: LogRecord = LogRecord::new();
+            let mut record: SdkLogRecord = SdkLogRecord::new();
             let instrumentation: InstrumentationScope = Default::default();
 
             // This will panic because an tokio async operation within exporter without a runtime.
@@ -1412,7 +1482,7 @@ mod tests {
         for _ in 0..concurrent_emit {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
-                let mut record: LogRecord = LogRecord::new();
+                let mut record: SdkLogRecord = SdkLogRecord::new();
                 let instrumentation: InstrumentationScope = Default::default();
                 processor_clone.emit(&mut record, &instrumentation);
             });
@@ -1436,7 +1506,7 @@ mod tests {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1455,7 +1525,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
@@ -1475,7 +1545,7 @@ mod tests {
 
         let processor = SimpleLogProcessor::new(exporter.clone());
 
-        let mut record: LogRecord = LogRecord::new();
+        let mut record: SdkLogRecord = SdkLogRecord::new();
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);

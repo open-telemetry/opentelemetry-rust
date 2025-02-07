@@ -9,10 +9,10 @@ use opentelemetry::{
     Context, KeyValue,
 };
 
-fn init_tracer() -> sdktrace::TracerProvider {
+fn init_tracer() -> sdktrace::SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
-    let provider = sdktrace::TracerProvider::builder()
+    let provider = sdktrace::SdkTracerProvider::builder()
         .with_batch_exporter(SpanExporter::default())
         .build();
 

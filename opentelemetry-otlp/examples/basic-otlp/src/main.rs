@@ -1,14 +1,13 @@
 use once_cell::sync::Lazy;
-use opentelemetry::trace::{TraceContextExt, TraceError, Tracer};
+use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
-use opentelemetry_sdk::logs::LogError;
-use opentelemetry_sdk::logs::LoggerProvider;
-use opentelemetry_sdk::metrics::MetricError;
-use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::{trace as sdktrace, Resource};
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
+use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
 use std::error::Error;
 use tracing::info;
 use tracing_subscriber::prelude::*;
@@ -16,46 +15,48 @@ use tracing_subscriber::EnvFilter;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::builder()
-        .with_service_name("basic-otlp-example")
+        .with_service_name("basic-otlp-example-grpc")
         .build()
 });
 
-fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
-        .build()?;
-    Ok(sdktrace::TracerProvider::builder()
+        .build()
+        .expect("Failed to create span exporter");
+    SdkTracerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
-        .build())
+        .build()
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
-    let exporter = MetricExporter::builder().with_tonic().build()?;
-    let reader = PeriodicReader::builder(exporter).build();
+fn init_metrics() -> SdkMeterProvider {
+    let exporter = MetricExporter::builder()
+        .with_tonic()
+        .build()
+        .expect("Failed to create metric exporter");
 
-    Ok(SdkMeterProvider::builder()
-        .with_reader(reader)
+    SdkMeterProvider::builder()
+        .with_periodic_exporter(exporter)
         .with_resource(RESOURCE.clone())
-        .build())
+        .build()
 }
 
-fn init_logs() -> Result<opentelemetry_sdk::logs::LoggerProvider, LogError> {
+fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
-        .build()?;
+        .build()
+        .expect("Failed to create log exporter");
 
-    Ok(LoggerProvider::builder()
+    SdkLoggerProvider::builder()
         .with_resource(RESOURCE.clone())
         .with_batch_exporter(exporter)
-        .build())
+        .build()
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let logger_provider = init_logs()?;
+    let logger_provider = init_logs();
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
@@ -93,10 +94,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with(fmt_layer)
         .init();
 
-    let tracer_provider = init_traces()?;
+    // At this point Logs (OTel Logs and Fmt Logs) are initialized, which will
+    // allow internal-logs from Tracing/Metrics initializer to be captured.
+
+    let tracer_provider = init_traces();
+    // Set the global tracer provider using a clone of the tracer_provider.
+    // Setting global tracer provider is required if other parts of the application
+    // uses global::tracer() or global::tracer_with_version() to get a tracer.
+    // Cloning simply creates a new reference to the same tracer provider. It is
+    // important to hold on to the tracer_provider here, so as to invoke
+    // shutdown on it when application ends.
     global::set_tracer_provider(tracer_provider.clone());
 
-    let meter_provider = init_metrics()?;
+    let meter_provider = init_metrics();
+    // Set the global meter provider using a clone of the meter_provider.
+    // Setting global meter provider is required if other parts of the application
+    // uses global::meter() or global::meter_with_version() to get a meter.
+    // Cloning simply creates a new reference to the same meter provider. It is
+    // important to hold on to the meter_provider here, so as to invoke
+    // shutdown on it when application ends.
     global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];

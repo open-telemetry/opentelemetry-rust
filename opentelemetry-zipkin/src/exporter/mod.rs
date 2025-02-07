@@ -2,59 +2,50 @@ mod env;
 mod model;
 mod uploader;
 
-use async_trait::async_trait;
 use futures_core::future::BoxFuture;
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::{global, trace::TraceError, InstrumentationScope, KeyValue};
+use opentelemetry::trace::TraceError;
 use opentelemetry_http::HttpClient;
-use opentelemetry_sdk::{
-    resource::{ResourceDetector, SdkProvidedResourceDetector},
-    trace,
-    trace::{Config, Tracer, TracerProvider},
-    ExportError, Resource,
-};
-use opentelemetry_semantic_conventions as semcov;
-use std::borrow::Cow;
-use std::net::SocketAddr;
+use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::{trace, ExportError};
+use std::net::{AddrParseError, SocketAddr};
 use std::sync::Arc;
 
 /// Zipkin span exporter
 #[derive(Debug)]
-pub struct Exporter {
+pub struct ZipkinExporter {
     local_endpoint: Endpoint,
     uploader: uploader::Uploader,
 }
 
-impl Exporter {
+impl ZipkinExporter {
+    /// Get a builder to configure a [ZipkinExporter]
+    pub fn builder() -> ZipkinExporterBuilder {
+        ZipkinExporterBuilder::default()
+    }
+
     fn new(local_endpoint: Endpoint, client: Arc<dyn HttpClient>, collector_endpoint: Uri) -> Self {
-        Exporter {
+        ZipkinExporter {
             local_endpoint,
             uploader: uploader::Uploader::new(client, collector_endpoint),
         }
     }
 }
 
-/// Create a new Zipkin exporter pipeline builder.
-pub fn new_pipeline() -> ZipkinPipelineBuilder {
-    ZipkinPipelineBuilder::default()
-}
-
-/// Builder for `ExporterConfig` struct.
+/// Builder for `ZipkinExporter` struct.
 #[derive(Debug)]
-pub struct ZipkinPipelineBuilder {
-    service_name: Option<String>,
+pub struct ZipkinExporterBuilder {
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
-    trace_config: Option<Config>,
     client: Option<Arc<dyn HttpClient>>,
 }
 
-impl Default for ZipkinPipelineBuilder {
+impl Default for ZipkinExporterBuilder {
     fn default() -> Self {
         let timeout = env::get_timeout();
 
-        ZipkinPipelineBuilder {
+        ZipkinExporterBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
             client: Some(Arc::new(
                 reqwest::blocking::Client::builder()
@@ -75,61 +66,21 @@ impl Default for ZipkinPipelineBuilder {
             ))]
             client: None,
 
-            service_name: None,
             service_addr: None,
             collector_endpoint: env::get_endpoint(),
-            trace_config: None,
         }
     }
 }
 
-impl ZipkinPipelineBuilder {
-    /// Initial a Zipkin span exporter.
+impl ZipkinExporterBuilder {
+    /// Creates a new [ZipkinExporter] from this configuration.
     ///
     /// Returns error if the endpoint is not valid or if no http client is provided.
-    pub fn init_exporter(mut self) -> Result<Exporter, TraceError> {
-        let (_, endpoint) = self.init_config_and_endpoint();
-        self.init_exporter_with_endpoint(endpoint)
-    }
+    pub fn build(self) -> Result<ZipkinExporter, TraceError> {
+        let endpoint = Endpoint::new(self.service_addr);
 
-    fn init_config_and_endpoint(&mut self) -> (Config, Endpoint) {
-        let service_name = self.service_name.take();
-        if let Some(service_name) = service_name {
-            let config = if let Some(mut cfg) = self.trace_config.take() {
-                cfg.resource = Cow::Owned(
-                    Resource::builder_empty()
-                        .with_attributes(
-                            cfg.resource
-                                .iter()
-                                .filter(|(k, _v)| k.as_str() != semcov::resource::SERVICE_NAME)
-                                .map(|(k, v)| KeyValue::new(k.clone(), v.clone()))
-                                .collect::<Vec<KeyValue>>(),
-                        )
-                        .build(),
-                );
-                cfg
-            } else {
-                #[allow(deprecated)]
-                Config::default().with_resource(Resource::builder_empty().build())
-            };
-            (config, Endpoint::new(service_name, self.service_addr))
-        } else {
-            let service_name = SdkProvidedResourceDetector
-                .detect()
-                .get(&semcov::resource::SERVICE_NAME.into())
-                .unwrap()
-                .to_string();
-            (
-                #[allow(deprecated)]
-                Config::default().with_resource(Resource::builder_empty().build()),
-                Endpoint::new(service_name, self.service_addr),
-            )
-        }
-    }
-
-    fn init_exporter_with_endpoint(self, endpoint: Endpoint) -> Result<Exporter, TraceError> {
         if let Some(client) = self.client {
-            let exporter = Exporter::new(
+            let exporter = ZipkinExporter::new(
                 endpoint,
                 client,
                 self.collector_endpoint
@@ -142,58 +93,13 @@ impl ZipkinPipelineBuilder {
         }
     }
 
-    /// Install the Zipkin trace exporter pipeline with a simple span processor.
-    #[allow(deprecated)]
-    pub fn install_simple(
-        mut self,
-    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
-        let (config, endpoint) = self.init_config_and_endpoint();
-        let exporter = self.init_exporter_with_endpoint(endpoint)?;
-        let mut provider_builder = TracerProvider::builder().with_simple_exporter(exporter);
-        provider_builder = provider_builder.with_config(config);
-        let provider = provider_builder.build();
-        let scope = InstrumentationScope::builder("opentelemetry-zipkin")
-            .with_version(env!("CARGO_PKG_VERSION"))
-            .with_schema_url(semcov::SCHEMA_URL)
-            .build();
-        let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider.clone());
-        Ok((tracer, provider))
-    }
-
-    /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
-    /// runtime.
-    #[allow(deprecated)]
-    pub fn install_batch(
-        mut self,
-    ) -> Result<(Tracer, opentelemetry_sdk::trace::TracerProvider), TraceError> {
-        let (config, endpoint) = self.init_config_and_endpoint();
-        let exporter = self.init_exporter_with_endpoint(endpoint)?;
-        let mut provider_builder = TracerProvider::builder().with_batch_exporter(exporter);
-        provider_builder = provider_builder.with_config(config);
-        let provider = provider_builder.build();
-        let scope = InstrumentationScope::builder("opentelemetry-zipkin")
-            .with_version(env!("CARGO_PKG_VERSION"))
-            .with_schema_url(semcov::SCHEMA_URL)
-            .build();
-        let tracer = opentelemetry::trace::TracerProvider::tracer_with_scope(&provider, scope);
-        let _ = global::set_tracer_provider(provider.clone());
-        Ok((tracer, provider))
-    }
-
-    /// Assign the service name under which to group traces.
-    pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
-        self.service_name = Some(name.into());
-        self
-    }
-
     /// Assign client implementation
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.client = Some(Arc::new(client));
         self
     }
 
-    /// Assign the service name under which to group traces.
+    /// Assign the service address.
     pub fn with_service_address(mut self, addr: SocketAddr) -> Self {
         self.service_addr = Some(addr);
         self
@@ -204,19 +110,13 @@ impl ZipkinPipelineBuilder {
         self.collector_endpoint = endpoint.into();
         self
     }
-
-    /// Assign the SDK trace configuration.
-    pub fn with_trace_config(mut self, config: Config) -> Self {
-        self.trace_config = Some(config);
-        self
-    }
 }
 
 async fn zipkin_export(
     batch: Vec<trace::SpanData>,
     uploader: uploader::Uploader,
     local_endpoint: Endpoint,
-) -> trace::ExportResult {
+) -> OTelSdkResult {
     let zipkin_spans = batch
         .into_iter()
         .map(|span| model::into_zipkin_span(local_endpoint.clone(), span))
@@ -225,10 +125,9 @@ async fn zipkin_export(
     uploader.upload(zipkin_spans).await
 }
 
-#[async_trait]
-impl trace::SpanExporter for Exporter {
+impl trace::SpanExporter for ZipkinExporter {
     /// Export spans to Zipkin collector.
-    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, trace::ExportResult> {
+    fn export(&mut self, batch: Vec<trace::SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(zipkin_export(
             batch,
             self.uploader.clone(),
@@ -252,6 +151,10 @@ pub enum Error {
     /// The uri provided is invalid
     #[error("invalid uri")]
     InvalidUri(#[from] http::uri::InvalidUri),
+
+    /// The IP/socket address provided is invalid
+    #[error("invalid address")]
+    InvalidAddress(#[from] AddrParseError),
 
     /// Other errors
     #[error("export error: {0}")]

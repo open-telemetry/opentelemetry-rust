@@ -8,13 +8,12 @@ use std::{
 use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal,
-        internal::AggregateBuilder,
-        internal::Number,
+        internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
         MetricError, MetricResult,
@@ -24,7 +23,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::Aggregation;
+use super::{Aggregation, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -91,12 +90,12 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.reader.force_flush()
     }
 
     /// Shut down pipeline
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.reader.shutdown()
     }
 }
@@ -489,9 +488,20 @@ fn aggregate_fn<T: Number>(
     match agg {
         Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
         Aggregation::Drop => Ok(None),
-        Aggregation::LastValue => Ok(Some(b.last_value())),
+        Aggregation::LastValue => {
+            match kind {
+                InstrumentKind::Gauge => Ok(Some(b.last_value(None))),
+                // temporality for LastValue only affects how data points are reported, so we can always use
+                // delta temporality, because observable instruments should report data points only since previous collection
+                InstrumentKind::ObservableGauge => Ok(Some(b.last_value(Some(Temporality::Delta)))),
+                _ => Err(MetricError::Other(format!("LastValue aggregation is only available for Gauge or ObservableGauge, but not for {kind:?}")))
+            }
+        }
         Aggregation::Sum => {
             let fns = match kind {
+                // TODO implement: observable instruments should not report data points on every collect
+                // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
+                // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
                 InstrumentKind::ObservableCounter => b.precomputed_sum(true),
                 InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
                 InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),
@@ -509,6 +519,9 @@ fn aggregate_fn<T: Number>(
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
             );
+            // TODO implement: observable instruments should not report data points on every collect
+            // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
+            // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
             Ok(Some(b.explicit_bucket_histogram(
                 boundaries.to_vec(),
                 *record_min_max,
@@ -635,7 +648,7 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self) -> MetricResult<()> {
+    pub(crate) fn force_flush(&self) -> OTelSdkResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.force_flush() {
@@ -646,12 +659,12 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(OTelSdkError::InternalFailure(format!("{errs:?}")))
         }
     }
 
     /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> MetricResult<()> {
+    pub(crate) fn shutdown(&self) -> OTelSdkResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
@@ -662,7 +675,9 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(crate::error::OTelSdkError::InternalFailure(format!(
+                "{errs:?}"
+            )))
         }
     }
 }

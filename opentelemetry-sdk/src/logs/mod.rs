@@ -1,8 +1,8 @@
 //! # OpenTelemetry Log SDK
 mod error;
 mod export;
-mod log_emitter;
 mod log_processor;
+mod logger_provider;
 pub(crate) mod record;
 
 /// In-Memory log exporter for testing purpose.
@@ -14,13 +14,13 @@ pub mod in_memory_exporter;
 pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 
 pub use error::{LogError, LogResult};
-pub use export::{ExportResult, LogBatch, LogExporter};
-pub use log_emitter::{Builder, Logger, LoggerProvider};
+pub use export::{LogBatch, LogExporter};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use record::{LogRecord, TraceContext};
+pub use logger_provider::{LoggerProviderBuilder, SdkLogger, SdkLoggerProvider};
+pub use record::{SdkLogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 /// Module for BatchLogProcessor with async runtime.
@@ -31,7 +31,7 @@ mod tests {
     use super::*;
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
-    use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::logs::{Logger, LoggerProvider, Severity};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;
@@ -49,7 +49,7 @@ mod tests {
             ])
             .build();
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_resource(resource.clone())
             .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
             .build();
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn logger_attributes() {
-        let provider = LoggerProvider::builder().build();
+        let provider = SdkLoggerProvider::builder().build();
         let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])

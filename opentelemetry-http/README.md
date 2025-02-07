@@ -31,6 +31,10 @@ of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+## Release Notes
+
+You can find the release notes (changelog) [here](./CHANGELOG.md).
+
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported

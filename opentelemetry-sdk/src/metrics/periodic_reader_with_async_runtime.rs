@@ -15,6 +15,7 @@ use opentelemetry::{otel_debug, otel_error};
 
 use crate::runtime::Runtime;
 use crate::{
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -215,8 +216,8 @@ struct PeriodicReaderInner {
 #[derive(Debug)]
 enum Message {
     Export,
-    Flush(oneshot::Sender<MetricResult<()>>),
-    Shutdown(oneshot::Sender<MetricResult<()>>),
+    Flush(oneshot::Sender<OTelSdkResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
 }
 
 enum ProducerOrWorker {
@@ -232,8 +233,10 @@ struct PeriodicReaderWorker<RT: Runtime> {
 }
 
 impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> MetricResult<()> {
-        self.reader.collect(&mut self.rm)?;
+    async fn collect_and_export(&mut self) -> OTelSdkResult {
+        self.reader
+            .collect(&mut self.rm)
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if self.rm.scope_metrics.is_empty() {
             otel_debug!(
                 name: "PeriodicReaderWorker.NoMetricsToExport",
@@ -256,7 +259,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => Err(MetricError::Other("export timed out".into())),
+            Either::Right(_) => Err(OTelSdkError::Timeout(self.timeout)),
         }
     }
 
@@ -295,7 +298,9 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 );
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if let Err(send_error) = ch.send(res) {
+                if let Err(send_error) =
+                    ch.send(res.map_err(|e| OTelSdkError::InternalFailure(e.to_string())))
+                {
                     otel_debug!(
                         name: "PeriodicReader.Shutdown.SendResultError",
                         message = "Failed to send shutdown result",
@@ -357,42 +362,51 @@ impl MetricReader for PeriodicReader {
         Ok(())
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn force_flush(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Flush(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         drop(inner); // don't hold lock when blocking on future
 
         futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn shutdown(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is already shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
 
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
         let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         inner.is_shutdown = true;
 
         shutdown_result

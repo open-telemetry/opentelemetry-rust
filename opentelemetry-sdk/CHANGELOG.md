@@ -2,6 +2,11 @@
 
 ## vNext
 
+- *Bug fix*: ObservableGauge returns data points recorded since previous collection, despite temporality. Other asynchronous (observable) instruments with Cumulative temporality behave as synchronous ones and return data points on every collection. [#2213](https://github.com/open-telemetry/opentelemetry-rust/issues/2213)
+
+- *Feature*: Introduced a new feature flag, `experimental_metrics_disable_name_validation`, under the `opentelemetry-sdk`, which allows disabling the Instrument Name Validation. This is useful in scenarios where you need to use *special characters*, *Windows Perf Counter Wildcard Path*, or similar cases. For more details, check [#2543](https://github.com/open-telemetry/opentelemetry-rust/pull/2543).
+  > **WARNING**: While this feature provides flexibility, **be cautious** when using it, as platforms like **Prometheus** impose restrictions on metric names and labels (e.g., no spaces, capital letters, or certain special characters). Using invalid characters may result in compatibility issues or incorrect behavior. Ensure that instrument names comply with the requirements of your target platform to avoid potential problems.
+
 - *Breaking(Affects custom metric exporter authors only)* `start_time` and `time` is moved from DataPoints to aggregations (Sum, Gauge, Histogram, ExpoHistogram) see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411), to reduce memory.
 
 - *Breaking* `start_time` is no longer optional for `Sum` aggregation, see [#2367](https://github.com/open-telemetry/opentelemetry-rust/pull/2367), but is still optional for `Gauge` aggregation see [#2389](https://github.com/open-telemetry/opentelemetry-rust/pull/2389).
@@ -288,8 +293,11 @@ limit.
   `opentelemetry_sdk::logs::{ExportResult, LogBatch, LogExporter};`
 
 - *Breaking* `opentelemetry_sdk::LogRecord::default()` method is removed.
-  The only way to create log record outside opentelemetry_sdk crate is using 
+  The only way to create log record outside opentelemetry_sdk crate is using
   `Logger::create_log_record()` method.
+
+- Rename `opentelemetry_sdk::logs::Builder` to `opentelemetry_sdk::logs::LoggerProviderBuilder`.
+- Rename `opentelemetry_sdk::trace::Builder` to  `opentelemetry_sdk::trace::SdkTracerProviderBuilder`.
 
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still under "testing" feature flag)
   before:
@@ -300,6 +308,127 @@ limit.
   `opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};`
   `opentelemetry_sdk::trace::{InMemorySpanExporter, InMemorySpanExporterBuilder};`
   `opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};`
+
+- **Breaking**: The `BatchLogProcessor` no longer supports configuration of `max_export_timeout` 
+or the `OTEL_BLRP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+responsibility of the exporter.
+For example, in the OTLP Logs exporter, the export timeout can be configured using:
+- The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT`.
+- The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
+Before:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(30)) // Previously configurable
+            .build(),
+    )
+    .build();
+```
+
+After:
+```rust
+let processor = BatchLogProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5)) // No `max_export_timeout`
+            .build(),
+    )
+    .build();
+```
+
+- **Breaking**: The `BatchSpanProcessor` no longer supports configuration of `max_export_timeout` 
+   or the `OTEL_BSP_EXPORT_TIMEOUT` environment variable. Timeout handling is now the 
+   responsibility of the exporter.
+   For example, in the OTLP Span exporter, the export timeout can be configured using:
+   - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`.
+   - The opentelemetry_otlp API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
+  Before:
+```rust
+let processor = BatchSpanProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_export_timeout(Duration::from_secs(30)) // Previously configurable
+            .build(),
+    )
+    .build();
+```
+
+After:
+```rust
+let processor = BatchSpanProcessor::builder(exporter)
+    .with_batch_config(
+        BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(5)) // No `max_export_timeout`
+            .build(),
+    )
+    .build();
+```
+
+- **Breaking**: The `PeriodicReader` no longer supports configuration of export timeout using
+  `with_timeout` API method. 
+  Timeout handling is now the responsibility of the exporter.
+
+  For example, in the OTLP Metrics exporter, the export timeout can be configured using:
+  - The environment variables `OTEL_EXPORTER_OTLP_TIMEOUT` or `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT`.
+  - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
+
+- **Breaking**
+ - The public API changes in the Trace SDK:
+   - Before:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
+        fn SpanExporter::shutdown(&mut self);
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, ExportResult>
+        fn TraerProvider::shutdown(&self) -> TraceResult<()>
+        fn TracerProvider::force_flush(&self) -> Vec<TraceResult<()>>
+      ```
+    - After:
+      ```rust
+        fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+        fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
+        fn TracerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
+- **Breaking** Renamed `LoggerProvider`, `Logger` and `LogRecord' to
+  `SdkLoggerProvider`, `SdkLogger` and `SdkLogRecord` respectively to avoid name
+  collision with public API types.
+  [#2612](https://github.com/open-telemetry/opentelemetry-rust/pull/2612)
+
+- **Breaking** Renamed `TracerProvider` and `Tracer` to `SdkTracerProvider` and
+  `SdkTracer` to avoid name collision with public API types. `Tracer` is still
+  type-aliased to `SdkTracer` to keep back-compat with tracing-opentelemetry.
+  [#2614](https://github.com/open-telemetry/opentelemetry-rust/pull/2614)
+
+- **Breaking**
+ - The public API changes in the Logs SDK:
+   - Before:
+      ```rust
+        fn LogExporter::export(&self, _batch: LogBatch<'_>,) -> impl std::future::Future<Output = LogResult<()>> + Send
+        fn LogExporter::shutdown(&mut self);
+        fn LoggerProvider::shutdown(&self) -> LogResult<()>
+        fn LoggerProvider::force_flush(&self) -> Vec<LogResult<()>>
+      ```
+    - After:
+      ```rust
+        fn LogExporter::export(&self, _batch: LogBatch<'_>,) -> impl std::future::Future<Output = OTelSdkResult<()>> + Send
+        fn LogExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn LoggerProvider::shutdown(&self) -> OTelSdkResult;
+        fn LoggerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
 
 ## 0.27.1
 
@@ -336,13 +465,32 @@ Released 2024-Nov-27
      Migration Guidance:
         - These methods are intended for log appenders. Keep the clone of the provider handle, instead of depending on above methods.
 
-
   - **Bug Fix:** Validates the `with_boundaries` bucket boundaries used in
     Histograms. The boundaries provided by the user must not contain `f64::NAN`,
     `f64::INFINITY` or `f64::NEG_INFINITY` and must be sorted in strictly
     increasing order, and contain no duplicates. Instruments will not record
     measurements if the boundaries are invalid.
     [#2351](https://github.com/open-telemetry/opentelemetry-rust/pull/2351)
+
+- Added `with_periodic_exporter` method to `MeterProviderBuilder`, allowing
+  users to easily attach an exporter with a PeriodicReader for automatic metric
+  export. Retained with_reader() for advanced use cases where a custom
+  MetricReader configuration is needed.
+  [2597](https://github.com/open-telemetry/opentelemetry-rust/pull/2597)
+  Example Usage:
+
+  ```rust
+  SdkMeterProvider::builder()
+      .with_periodic_exporter(exporter)
+      .build();
+  ```
+
+  Using a custom PeriodicReader (advanced use case):
+
+  let reader = PeriodicReader::builder(exporter).build();
+  SdkMeterProvider::builder()
+      .with_reader(reader)
+      .build();
 
 ## 0.27.0
 

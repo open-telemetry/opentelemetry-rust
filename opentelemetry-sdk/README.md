@@ -100,6 +100,10 @@ additional exporters and other related components as well.
 
 See [docs](https://docs.rs/opentelemetry-sdk).
 
+## Release Notes
+
+You can find the release notes (changelog) [here](./CHANGELOG.md).
+
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported

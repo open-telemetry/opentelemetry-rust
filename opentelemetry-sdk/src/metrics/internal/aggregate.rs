@@ -6,9 +6,9 @@ use std::{
     time::SystemTime,
 };
 
-use opentelemetry::KeyValue;
-
 use crate::metrics::{data::Aggregation, Temporality};
+use opentelemetry::time::now;
+use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
@@ -71,7 +71,7 @@ pub(crate) struct AggregateTimeInitiator(Mutex<SystemTime>);
 
 impl AggregateTimeInitiator {
     pub(crate) fn delta(&self) -> AggregateTime {
-        let current_time = SystemTime::now();
+        let current_time = now();
         let start_time = self
             .0
             .lock()
@@ -84,7 +84,7 @@ impl AggregateTimeInitiator {
     }
 
     pub(crate) fn cumulative(&self) -> AggregateTime {
-        let current_time = SystemTime::now();
+        let current_time = now();
         let start_time = self.0.lock().map(|start| *start).unwrap_or(current_time);
         AggregateTime {
             start: start_time,
@@ -95,7 +95,7 @@ impl AggregateTimeInitiator {
 
 impl Default for AggregateTimeInitiator {
     fn default() -> Self {
-        Self(Mutex::new(SystemTime::now()))
+        Self(Mutex::new(now()))
     }
 }
 
@@ -146,8 +146,12 @@ impl<T: Number> AggregateBuilder<T> {
     }
 
     /// Builds a last-value aggregate function input and output.
-    pub(crate) fn last_value(&self) -> AggregateFns<T> {
-        LastValue::new(self.temporality, self.filter.clone()).into()
+    pub(crate) fn last_value(&self, overwrite_temporality: Option<Temporality>) -> AggregateFns<T> {
+        LastValue::new(
+            overwrite_temporality.unwrap_or(self.temporality),
+            self.filter.clone(),
+        )
+        .into()
     }
 
     /// Builds a precomputed sum aggregate function input and output.
@@ -203,22 +207,22 @@ mod tests {
         ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
         GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
     };
-    use std::{time::SystemTime, vec};
+    use std::vec;
 
     use super::*;
 
     #[test]
     fn last_value_aggregation() {
         let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value();
+            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value(None);
         let mut a = Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
                 value: 1u64,
                 exemplars: vec![],
             }],
-            start_time: Some(SystemTime::now()),
-            time: SystemTime::now(),
+            start_time: Some(now()),
+            time: now(),
         };
         let new_attributes = [KeyValue::new("b", 2)];
         measure.call(2, &new_attributes[..]);
@@ -250,8 +254,8 @@ mod tests {
                         exemplars: vec![],
                     },
                 ],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -292,8 +296,8 @@ mod tests {
                         exemplars: vec![],
                     },
                 ],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -332,8 +336,8 @@ mod tests {
                     sum: 3u64,
                     exemplars: vec![],
                 }],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {
@@ -384,8 +388,8 @@ mod tests {
                     zero_threshold: 1.0,
                     exemplars: vec![],
                 }],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: if temporality == Temporality::Delta {
                     Temporality::Cumulative
                 } else {

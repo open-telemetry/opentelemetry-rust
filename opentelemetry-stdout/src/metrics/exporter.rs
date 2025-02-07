@@ -1,14 +1,17 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{
-    data::{
-        ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
-        ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
+use opentelemetry_sdk::metrics::Temporality;
+use opentelemetry_sdk::{
+    error::OTelSdkResult,
+    metrics::{
+        data::{
+            ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
+            ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
+        },
+        exporter::PushMetricExporter,
     },
-    exporter::PushMetricExporter,
 };
-use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
 use std::fmt::Debug;
 use std::sync::atomic;
 
@@ -39,9 +42,9 @@ impl fmt::Debug for MetricExporter {
 #[async_trait]
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Err(MetricError::Other("exporter is shut down".into()))
+            Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
             println!("Metrics");
             println!("Resource");
@@ -57,12 +60,12 @@ impl PushMetricExporter for MetricExporter {
         }
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    async fn force_flush(&self) -> OTelSdkResult {
         // exporter holds no state, nothing to flush
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
@@ -234,6 +237,20 @@ fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
         for kv in data_point.attributes.iter() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
+
+        println!("\t\t\tBuckets");
+        let mut lower_bound = f64::NEG_INFINITY;
+        for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
+            let count = data_point.bucket_counts.get(i).unwrap_or(&0);
+            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+            lower_bound = upper_bound;
+        }
+
+        let last_count = data_point
+            .bucket_counts
+            .get(data_point.bounds.len())
+            .unwrap_or(&0);
+        println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
     }
 }
 

@@ -1,9 +1,12 @@
-use crate::logs::LogRecord;
-use crate::logs::{LogBatch, LogError, LogExporter, LogResult};
+use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::SdkLogRecord;
+use crate::logs::{LogBatch, LogExporter};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
+
+type LogResult<T> = Result<T, OTelSdkError>;
 
 /// An in-memory logs exporter that stores logs data in memory..
 ///
@@ -51,17 +54,17 @@ impl Default for InMemoryLogExporter {
 #[derive(Debug, Clone)]
 pub struct OwnedLogData {
     /// Log record, which can be borrowed or owned.
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationScope,
 }
 
-/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`SdkLogRecord`] with a [`Resource`] and
 /// [`InstrumentationScope`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogRecord`.
     pub instrumentation: InstrumentationScope,
     /// Resource for the emitter who produced this `LogRecord`.
@@ -146,8 +149,13 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
-        let logs_guard = self.logs.lock().map_err(LogError::from)?;
-        let resource_guard = self.resource.lock().map_err(LogError::from)?;
+        let logs_guard = self
+            .logs
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to lock logs: {}", e)))?;
+        let resource_guard = self.resource.lock().map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to lock resource: {}", e))
+        })?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
@@ -175,7 +183,7 @@ impl InMemoryLogExporter {
             .logs
             .lock()
             .map(|mut logs_guard| logs_guard.clear())
-            .map_err(LogError::from);
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {}", e)));
     }
 }
 
@@ -184,9 +192,11 @@ impl LogExporter for InMemoryLogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
-            let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+            let mut logs_guard = self.logs.lock().map_err(|e| {
+                OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
+            })?;
             for (log_record, instrumentation) in batch.iter() {
                 let owned_log = OwnedLogData {
                     record: (*log_record).clone(),
@@ -198,10 +208,11 @@ impl LogExporter for InMemoryLogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> OTelSdkResult {
         if self.should_reset_on_shutdown {
             self.reset();
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

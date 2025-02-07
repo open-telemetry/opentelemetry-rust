@@ -185,6 +185,152 @@ pub const ASPNETCORE_ROUTING_MATCH_ATTEMPTS: &str = "aspnetcore.routing.match_at
 
 /// ## Description
 ///
+/// Number of active client instances
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{instance}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_CLIENT_ACTIVE_INSTANCE_COUNT: &str =
+    "azure.cosmosdb.client.active_instance.count";
+
+/// ## Description
+///
+/// [Request units](https://learn.microsoft.com/azure/cosmos-db/request-units) consumed by the operation
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `{request_unit}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::AZURE_COSMOSDB_CONSISTENCY_LEVEL`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::AZURE_COSMOSDB_OPERATION_CONTACTED_REGIONS`] | `{"recommended": "if available"}`
+/// | [`crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE`] | `Conditionally_required`: when response was received and contained sub-code.
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const AZURE_COSMOSDB_CLIENT_OPERATION_REQUEST_CHARGE: &str =
+    "azure.cosmosdb.client.operation.request_charge";
+
+/// ## Description
+///
+/// The number of pipeline runs currently active in the system by state
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{run}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CICD_PIPELINE_NAME`] | `Required`
+/// | [`crate::attribute::CICD_PIPELINE_RUN_STATE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_RUN_ACTIVE: &str = "cicd.pipeline.run.active";
+
+/// ## Description
+///
+/// Duration of a pipeline run grouped by pipeline, state and result
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CICD_PIPELINE_NAME`] | `Required`
+/// | [`crate::attribute::CICD_PIPELINE_RESULT`] | `Conditionally_required`: If and only if the pipeline run result has been set during that state.
+/// | [`crate::attribute::CICD_PIPELINE_RUN_STATE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the pipeline run failed.
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_RUN_DURATION: &str = "cicd.pipeline.run.duration";
+
+/// ## Description
+///
+/// The number of errors encountered in pipeline runs (eg. compile, test failures).
+///
+/// ## Notes
+///
+/// There might be errors in a pipeline run that are non fatal (eg. they are suppressed) or in a parallel stage multiple stages could have a fatal error.
+/// This means that this error count might not be the same as the count of metric `cicd.pipeline.run.duration` with run result `failure`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{error}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CICD_PIPELINE_NAME`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_RUN_ERRORS: &str = "cicd.pipeline.run.errors";
+
+/// ## Description
+///
+/// The number of errors in a component of the CICD system (eg. controller, scheduler, agent).
+///
+/// ## Notes
+///
+/// Errors in pipeline run execution are explicitly excluded. Ie a test failure is not counted in this metric
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{error}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CICD_SYSTEM_COMPONENT`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_SYSTEM_ERRORS: &str = "cicd.system.errors";
+
+/// ## Description
+///
+/// The number of workers on the CICD system by state
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{count}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CICD_WORKER_STATE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_WORKER_COUNT: &str = "cicd.worker.count";
+
+/// ## Description
+///
 /// Total CPU time consumed
 ///
 /// ## Notes
@@ -195,7 +341,7 @@ pub const ASPNETCORE_ROUTING_MATCH_ATTEMPTS: &str = "aspnetcore.routing.match_at
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -216,7 +362,7 @@ pub const CONTAINER_CPU_TIME: &str = "container.cpu.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -237,7 +383,7 @@ pub const CONTAINER_CPU_USAGE: &str = "container.cpu.usage";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -259,7 +405,7 @@ pub const CONTAINER_DISK_IO: &str = "container.disk.io";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
 
@@ -275,7 +421,7 @@ pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -298,7 +444,7 @@ pub const CONTAINER_NETWORK_IO: &str = "container.network.io";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_UPTIME: &str = "container.uptime";
 
@@ -310,7 +456,7 @@ pub const CONTAINER_UPTIME: &str = "container.uptime";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -328,7 +474,7 @@ pub const DB_CLIENT_CONNECTION_COUNT: &str = "db.client.connection.count";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -345,7 +491,7 @@ pub const DB_CLIENT_CONNECTION_CREATE_TIME: &str = "db.client.connection.create_
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -362,7 +508,7 @@ pub const DB_CLIENT_CONNECTION_IDLE_MAX: &str = "db.client.connection.idle.max";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -379,7 +525,7 @@ pub const DB_CLIENT_CONNECTION_IDLE_MIN: &str = "db.client.connection.idle.min";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -396,7 +542,7 @@ pub const DB_CLIENT_CONNECTION_MAX: &str = "db.client.connection.max";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{request}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -413,7 +559,7 @@ pub const DB_CLIENT_CONNECTION_PENDING_REQUESTS: &str = "db.client.connection.pe
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{timeout}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -430,7 +576,7 @@ pub const DB_CLIENT_CONNECTION_TIMEOUTS: &str = "db.client.connection.timeouts";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -447,7 +593,7 @@ pub const DB_CLIENT_CONNECTION_USE_TIME: &str = "db.client.connection.use_time";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -464,7 +610,7 @@ pub const DB_CLIENT_CONNECTION_WAIT_TIME: &str = "db.client.connection.wait_time
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -484,7 +630,7 @@ pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.creat
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -502,7 +648,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -520,7 +666,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -538,7 +684,7 @@ pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{request}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -556,7 +702,7 @@ pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{timeout}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -574,7 +720,7 @@ pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -593,7 +739,7 @@ pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -613,7 +759,7 @@ pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -627,13 +773,13 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 
 /// ## Description
 ///
-/// Number of active client instances
+/// Deprecated, use `azure.cosmosdb.client.active_instance.count` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{instance}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -641,18 +787,19 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.client.active_instance.count`.")]
 pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
     "db.client.cosmosdb.active_instance.count";
 
 /// ## Description
 ///
-/// [Request charge](https://learn.microsoft.com/azure/cosmos-db/request-units) consumed by the operation
+/// Deprecated, use `azure.cosmosdb.client.operation.request_charge` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{request_unit}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -663,11 +810,8 @@ pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
 /// | [`crate::attribute::DB_COSMOSDB_SUB_STATUS_CODE`] | `Conditionally_required`: when response was received and contained sub-code.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
-/// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
-/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
-/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
-/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "Replaced by `azure.cosmosdb.client.operation.request_charge`.")]
 pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
     "db.client.cosmosdb.operation.request_charge";
 
@@ -683,7 +827,7 @@ pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Release_candidate`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -694,7 +838,7 @@ pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
 /// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
-/// | [`crate::attribute::DB_SYSTEM`] | `Required`
+/// | [`crate::attribute::DB_SYSTEM_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
 /// | [`crate::attribute::NETWORK_PEER_PORT`] | `{"recommended": "if and only if `network.peer.address` is set."}`
@@ -711,7 +855,7 @@ pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{row}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -722,7 +866,7 @@ pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 /// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
-/// | [`crate::attribute::DB_SYSTEM`] | `Required`
+/// | [`crate::attribute::DB_SYSTEM_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
 /// | [`crate::attribute::NETWORK_PEER_PORT`] | `{"recommended": "if and only if `network.peer.address` is set."}`
@@ -739,7 +883,7 @@ pub const DB_CLIENT_RESPONSE_RETURNED_ROWS: &str = "db.client.response.returned_
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -762,8 +906,7 @@ pub const DNS_LOOKUP_DURATION: &str = "dns.lookup.duration";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{assembly}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_ASSEMBLY_COUNT: &str = "dotnet.assembly.count";
 
 /// ## Description
@@ -779,13 +922,12 @@ pub const DOTNET_ASSEMBLY_COUNT: &str = "dotnet.assembly.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{exception}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::ERROR_TYPE`] | `Required`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_EXCEPTIONS: &str = "dotnet.exceptions";
 
 /// ## Description
@@ -801,13 +943,12 @@ pub const DOTNET_EXCEPTIONS: &str = "dotnet.exceptions";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{collection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_GC_COLLECTIONS: &str = "dotnet.gc.collections";
 
 /// ## Description
@@ -823,8 +964,7 @@ pub const DOTNET_GC_COLLECTIONS: &str = "dotnet.gc.collections";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_GC_HEAP_TOTAL_ALLOCATED: &str = "dotnet.gc.heap.total_allocated";
 
 /// ## Description
@@ -840,13 +980,12 @@ pub const DOTNET_GC_HEAP_TOTAL_ALLOCATED: &str = "dotnet.gc.heap.total_allocated
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_GC_LAST_COLLECTION_HEAP_FRAGMENTATION_SIZE: &str =
     "dotnet.gc.last_collection.heap.fragmentation.size";
 
@@ -863,13 +1002,12 @@ pub const DOTNET_GC_LAST_COLLECTION_HEAP_FRAGMENTATION_SIZE: &str =
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::DOTNET_GC_HEAP_GENERATION`] | `Required`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_GC_LAST_COLLECTION_HEAP_SIZE: &str = "dotnet.gc.last_collection.heap.size";
 
 /// ## Description
@@ -885,8 +1023,7 @@ pub const DOTNET_GC_LAST_COLLECTION_HEAP_SIZE: &str = "dotnet.gc.last_collection
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_GC_LAST_COLLECTION_MEMORY_COMMITTED_SIZE: &str =
     "dotnet.gc.last_collection.memory.committed_size";
 
@@ -903,8 +1040,7 @@ pub const DOTNET_GC_LAST_COLLECTION_MEMORY_COMMITTED_SIZE: &str =
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_GC_PAUSE_TIME: &str = "dotnet.gc.pause.time";
 
 /// ## Description
@@ -920,8 +1056,7 @@ pub const DOTNET_GC_PAUSE_TIME: &str = "dotnet.gc.pause.time";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_JIT_COMPILATION_TIME: &str = "dotnet.jit.compilation.time";
 
 /// ## Description
@@ -937,8 +1072,7 @@ pub const DOTNET_JIT_COMPILATION_TIME: &str = "dotnet.jit.compilation.time";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_JIT_COMPILED_IL_SIZE: &str = "dotnet.jit.compiled_il.size";
 
 /// ## Description
@@ -954,8 +1088,7 @@ pub const DOTNET_JIT_COMPILED_IL_SIZE: &str = "dotnet.jit.compiled_il.size";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{method}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_JIT_COMPILED_METHODS: &str = "dotnet.jit.compiled_methods";
 
 /// ## Description
@@ -971,8 +1104,7 @@ pub const DOTNET_JIT_COMPILED_METHODS: &str = "dotnet.jit.compiled_methods";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{contention}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_MONITOR_LOCK_CONTENTIONS: &str = "dotnet.monitor.lock_contentions";
 
 /// ## Description
@@ -988,8 +1120,7 @@ pub const DOTNET_MONITOR_LOCK_CONTENTIONS: &str = "dotnet.monitor.lock_contentio
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_PROCESS_CPU_COUNT: &str = "dotnet.process.cpu.count";
 
 /// ## Description
@@ -1005,13 +1136,12 @@ pub const DOTNET_PROCESS_CPU_COUNT: &str = "dotnet.process.cpu.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::CPU_MODE`] | `Required`
-#[cfg(feature = "semconv_experimental")]
 pub const DOTNET_PROCESS_CPU_TIME: &str = "dotnet.process.cpu.time";
 
 /// ## Description
@@ -1027,8 +1157,7 @@ pub const DOTNET_PROCESS_CPU_TIME: &str = "dotnet.process.cpu.time";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_PROCESS_MEMORY_WORKING_SET: &str = "dotnet.process.memory.working_set";
 
 /// ## Description
@@ -1044,8 +1173,7 @@ pub const DOTNET_PROCESS_MEMORY_WORKING_SET: &str = "dotnet.process.memory.worki
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{work_item}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_THREAD_POOL_QUEUE_LENGTH: &str = "dotnet.thread_pool.queue.length";
 
 /// ## Description
@@ -1061,8 +1189,7 @@ pub const DOTNET_THREAD_POOL_QUEUE_LENGTH: &str = "dotnet.thread_pool.queue.leng
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{thread}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_THREAD_POOL_THREAD_COUNT: &str = "dotnet.thread_pool.thread.count";
 
 /// ## Description
@@ -1078,8 +1205,7 @@ pub const DOTNET_THREAD_POOL_THREAD_COUNT: &str = "dotnet.thread_pool.thread.cou
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{work_item}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_THREAD_POOL_WORK_ITEM_COUNT: &str = "dotnet.thread_pool.work_item.count";
 
 /// ## Description
@@ -1095,8 +1221,7 @@ pub const DOTNET_THREAD_POOL_WORK_ITEM_COUNT: &str = "dotnet.thread_pool.work_it
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{timer}` |
-/// | Status: | `Experimental`  |
-#[cfg(feature = "semconv_experimental")]
+/// | Status: | `Stable`  |
 pub const DOTNET_TIMER_COUNT: &str = "dotnet.timer.count";
 
 /// ## Description
@@ -1107,7 +1232,7 @@ pub const DOTNET_TIMER_COUNT: &str = "dotnet.timer.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{coldstart}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1124,7 +1249,7 @@ pub const FAAS_COLDSTARTS: &str = "faas.coldstarts";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1141,7 +1266,7 @@ pub const FAAS_CPU_USAGE: &str = "faas.cpu_usage";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{error}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1158,7 +1283,7 @@ pub const FAAS_ERRORS: &str = "faas.errors";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1175,7 +1300,7 @@ pub const FAAS_INIT_DURATION: &str = "faas.init_duration";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{invocation}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1192,7 +1317,7 @@ pub const FAAS_INVOCATIONS: &str = "faas.invocations";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1209,7 +1334,7 @@ pub const FAAS_INVOKE_DURATION: &str = "faas.invoke_duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1226,7 +1351,7 @@ pub const FAAS_MEM_USAGE: &str = "faas.mem_usage";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1243,7 +1368,7 @@ pub const FAAS_NET_IO: &str = "faas.net_io";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{timeout}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1260,7 +1385,7 @@ pub const FAAS_TIMEOUTS: &str = "faas.timeouts";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1283,7 +1408,7 @@ pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.dura
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{token}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1306,7 +1431,7 @@ pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1329,7 +1454,7 @@ pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1351,7 +1476,7 @@ pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_ou
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1377,7 +1502,7 @@ pub const GEN_AI_SERVER_TIME_TO_FIRST_TOKEN: &str = "gen_ai.server.time_to_first
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `%` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_CONFIG_GOGC: &str = "go.config.gogc";
 
@@ -1393,7 +1518,7 @@ pub const GO_CONFIG_GOGC: &str = "go.config.gogc";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{goroutine}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_GOROUTINE_COUNT: &str = "go.goroutine.count";
 
@@ -1409,7 +1534,7 @@ pub const GO_GOROUTINE_COUNT: &str = "go.goroutine.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_ALLOCATED: &str = "go.memory.allocated";
 
@@ -1425,7 +1550,7 @@ pub const GO_MEMORY_ALLOCATED: &str = "go.memory.allocated";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{allocation}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_ALLOCATIONS: &str = "go.memory.allocations";
 
@@ -1441,7 +1566,7 @@ pub const GO_MEMORY_ALLOCATIONS: &str = "go.memory.allocations";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_GC_GOAL: &str = "go.memory.gc.goal";
 
@@ -1457,7 +1582,7 @@ pub const GO_MEMORY_GC_GOAL: &str = "go.memory.gc.goal";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_LIMIT: &str = "go.memory.limit";
 
@@ -1473,7 +1598,7 @@ pub const GO_MEMORY_LIMIT: &str = "go.memory.limit";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1494,7 +1619,7 @@ pub const GO_MEMORY_USED: &str = "go.memory.used";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{thread}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_PROCESSOR_LIMIT: &str = "go.processor.limit";
 
@@ -1510,7 +1635,7 @@ pub const GO_PROCESSOR_LIMIT: &str = "go.processor.limit";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_SCHEDULE_DURATION: &str = "go.schedule.duration";
 
@@ -1522,7 +1647,7 @@ pub const GO_SCHEDULE_DURATION: &str = "go.schedule.duration";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{request}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1543,7 +1668,7 @@ pub const HTTP_CLIENT_ACTIVE_REQUESTS: &str = "http.client.active_requests";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1564,7 +1689,7 @@ pub const HTTP_CLIENT_CONNECTION_DURATION: &str = "http.client.connection.durati
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1590,7 +1715,7 @@ pub const HTTP_CLIENT_OPEN_CONNECTIONS: &str = "http.client.open_connections";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1643,7 +1768,7 @@ pub const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1668,7 +1793,7 @@ pub const HTTP_CLIENT_RESPONSE_BODY_SIZE: &str = "http.client.response.body.size
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{request}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1692,7 +1817,7 @@ pub const HTTP_SERVER_ACTIVE_REQUESTS: &str = "http.server.active_requests";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1747,7 +1872,7 @@ pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1773,7 +1898,7 @@ pub const HTTP_SERVER_RESPONSE_BODY_SIZE: &str = "http.server.response.body.size
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `J` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1793,7 +1918,7 @@ pub const HW_ENERGY: &str = "hw.energy";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{error}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1818,7 +1943,7 @@ pub const HW_ERRORS: &str = "hw.errors";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `W` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1836,13 +1961,13 @@ pub const HW_POWER: &str = "hw.power";
 ///
 /// ## Notes
 ///
-/// `hw.status` is currently specified as an *UpDownCounter* but would ideally be represented using a [*StateSet* as defined in OpenMetrics](https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset). This semantic convention will be updated once *StateSet* is specified in OpenTelemetry. This planned change is not expected to have any consequence on the way users query their timeseries backend to retrieve the values of `hw.status` over time
+/// `hw.status` is currently specified as an *UpDownCounter* but would ideally be represented using a [*StateSet* as defined in OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#stateset). This semantic convention will be updated once *StateSet* is specified in OpenTelemetry. This planned change is not expected to have any consequence on the way users query their timeseries backend to retrieve the values of `hw.status` over time
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1863,7 +1988,7 @@ pub const HW_STATUS: &str = "hw.status";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{buffer}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1880,7 +2005,7 @@ pub const JVM_BUFFER_COUNT: &str = "jvm.buffer.count";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1897,7 +2022,7 @@ pub const JVM_BUFFER_MEMORY_LIMIT: &str = "jvm.buffer.memory.limit";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -1915,7 +2040,7 @@ pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2036,7 +2161,7 @@ pub const JVM_MEMORY_COMMITTED: &str = "jvm.memory.committed";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2109,7 +2234,7 @@ pub const JVM_MEMORY_USED_AFTER_LAST_GC: &str = "jvm.memory.used_after_last_gc";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{run_queue_item}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 
@@ -2125,7 +2250,7 @@ pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const JVM_SYSTEM_CPU_UTILIZATION: &str = "jvm.system.cpu.utilization";
 
@@ -2148,6 +2273,336 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 
 /// ## Description
 ///
+/// The number of actively running jobs for a cronjob
+///
+/// ## Notes
+///
+/// This metric aligns with the `active` field of the
+/// [K8s CronJobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#cronjobstatus-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.cronjob`](../resource/k8s.md#cronjob) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{job}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CRONJOB_ACTIVE_JOBS: &str = "k8s.cronjob.active_jobs";
+
+/// ## Description
+///
+/// Number of nodes that are running at least 1 daemon pod and are supposed to run the daemon pod
+///
+/// ## Notes
+///
+/// This metric aligns with the `currentNumberScheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.daemonset`](../resource/k8s.md#daemonset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_CURRENT_SCHEDULED_NODES: &str = "k8s.daemonset.current_scheduled_nodes";
+
+/// ## Description
+///
+/// Number of nodes that should be running the daemon pod (including nodes currently running the daemon pod)
+///
+/// ## Notes
+///
+/// This metric aligns with the `desiredNumberScheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.daemonset`](../resource/k8s.md#daemonset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_DESIRED_SCHEDULED_NODES: &str = "k8s.daemonset.desired_scheduled_nodes";
+
+/// ## Description
+///
+/// Number of nodes that are running the daemon pod, but are not supposed to run the daemon pod
+///
+/// ## Notes
+///
+/// This metric aligns with the `numberMisscheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.daemonset`](../resource/k8s.md#daemonset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_MISSCHEDULED_NODES: &str = "k8s.daemonset.misscheduled_nodes";
+
+/// ## Description
+///
+/// Number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready
+///
+/// ## Notes
+///
+/// This metric aligns with the `numberReady` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.daemonset`](../resource/k8s.md#daemonset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_READY_NODES: &str = "k8s.daemonset.ready_nodes";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this deployment
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s DeploymentStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.deployment`](../resource/k8s.md#deployment) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_AVAILABLE_PODS: &str = "k8s.deployment.available_pods";
+
+/// ## Description
+///
+/// Number of desired replica pods in this deployment
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s DeploymentSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentspec-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.deployment`](../resource/k8s.md#deployment) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_DESIRED_PODS: &str = "k8s.deployment.desired_pods";
+
+/// ## Description
+///
+/// Current number of replica pods managed by this horizontal pod autoscaler, as last seen by the autoscaler
+///
+/// ## Notes
+///
+/// This metric aligns with the `currentReplicas` field of the
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_CURRENT_PODS: &str = "k8s.hpa.current_pods";
+
+/// ## Description
+///
+/// Desired number of replica pods managed by this horizontal pod autoscaler, as last calculated by the autoscaler
+///
+/// ## Notes
+///
+/// This metric aligns with the `desiredReplicas` field of the
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_DESIRED_PODS: &str = "k8s.hpa.desired_pods";
+
+/// ## Description
+///
+/// The upper limit for the number of replica pods to which the autoscaler can scale up
+///
+/// ## Notes
+///
+/// This metric aligns with the `maxReplicas` field of the
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_MAX_PODS: &str = "k8s.hpa.max_pods";
+
+/// ## Description
+///
+/// The lower limit for the number of replica pods to which the autoscaler can scale down
+///
+/// ## Notes
+///
+/// This metric aligns with the `minReplicas` field of the
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_MIN_PODS: &str = "k8s.hpa.min_pods";
+
+/// ## Description
+///
+/// The number of pending and actively running pods for a job
+///
+/// ## Notes
+///
+/// This metric aligns with the `active` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.job`](../resource/k8s.md#job) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_ACTIVE_PODS: &str = "k8s.job.active_pods";
+
+/// ## Description
+///
+/// The desired number of successfully finished pods the job should be run with
+///
+/// ## Notes
+///
+/// This metric aligns with the `completions` field of the
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.job`](../resource/k8s.md#job) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_DESIRED_SUCCESSFUL_PODS: &str = "k8s.job.desired_successful_pods";
+
+/// ## Description
+///
+/// The number of pods which reached phase Failed for a job
+///
+/// ## Notes
+///
+/// This metric aligns with the `failed` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.job`](../resource/k8s.md#job) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_FAILED_PODS: &str = "k8s.job.failed_pods";
+
+/// ## Description
+///
+/// The max desired number of pods the job should run at any given time
+///
+/// ## Notes
+///
+/// This metric aligns with the `parallelism` field of the
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.job`](../resource/k8s.md#job) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_MAX_PARALLEL_PODS: &str = "k8s.job.max_parallel_pods";
+
+/// ## Description
+///
+/// The number of pods which reached phase Succeeded for a job
+///
+/// ## Notes
+///
+/// This metric aligns with the `succeeded` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.job`](../resource/k8s.md#job) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_SUCCESSFUL_PODS: &str = "k8s.job.successful_pods";
+
+/// ## Description
+///
+/// Describes number of K8s namespaces that are currently in a given phase.
+///
+/// ## Notes
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.namespace`](../resource/k8s.md#namespace) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{namespace}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_NAMESPACE_PHASE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
+
+/// ## Description
+///
 /// Total CPU time consumed
 ///
 /// ## Notes
@@ -2158,7 +2613,7 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_CPU_TIME: &str = "k8s.node.cpu.time";
 
@@ -2174,7 +2629,7 @@ pub const K8S_NODE_CPU_TIME: &str = "k8s.node.cpu.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_CPU_USAGE: &str = "k8s.node.cpu.usage";
 
@@ -2190,7 +2645,7 @@ pub const K8S_NODE_CPU_USAGE: &str = "k8s.node.cpu.usage";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_MEMORY_USAGE: &str = "k8s.node.memory.usage";
 
@@ -2202,7 +2657,7 @@ pub const K8S_NODE_MEMORY_USAGE: &str = "k8s.node.memory.usage";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{error}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2220,7 +2675,7 @@ pub const K8S_NODE_NETWORK_ERRORS: &str = "k8s.node.network.errors";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2243,7 +2698,7 @@ pub const K8S_NODE_NETWORK_IO: &str = "k8s.node.network.io";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_UPTIME: &str = "k8s.node.uptime";
 
@@ -2259,7 +2714,7 @@ pub const K8S_NODE_UPTIME: &str = "k8s.node.uptime";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_CPU_TIME: &str = "k8s.pod.cpu.time";
 
@@ -2275,7 +2730,7 @@ pub const K8S_POD_CPU_TIME: &str = "k8s.pod.cpu.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
 
@@ -2291,7 +2746,7 @@ pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_MEMORY_USAGE: &str = "k8s.pod.memory.usage";
 
@@ -2303,7 +2758,7 @@ pub const K8S_POD_MEMORY_USAGE: &str = "k8s.pod.memory.usage";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{error}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2321,7 +2776,7 @@ pub const K8S_POD_NETWORK_ERRORS: &str = "k8s.pod.network.errors";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2344,9 +2799,164 @@ pub const K8S_POD_NETWORK_IO: &str = "k8s.pod.network.io";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_UPTIME: &str = "k8s.pod.uptime";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replicaset
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s ReplicaSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicaset`](../resource/k8s.md#replicaset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_AVAILABLE_PODS: &str = "k8s.replicaset.available_pods";
+
+/// ## Description
+///
+/// Number of desired replica pods in this replicaset
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicaSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetspec-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicaset`](../resource/k8s.md#replicaset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replication controller
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
+    "k8s.replication_controller.available_pods";
+
+/// ## Description
+///
+/// Number of desired replica pods in this replication controller
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_controller.desired_pods";
+
+/// ## Description
+///
+/// The number of replica pods created by the statefulset controller from the statefulset version indicated by currentRevision
+///
+/// ## Notes
+///
+/// This metric aligns with the `currentReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.statefulset`](../resource/k8s.md#statefulset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_CURRENT_PODS: &str = "k8s.statefulset.current_pods";
+
+/// ## Description
+///
+/// Number of desired replica pods in this statefulset
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s StatefulSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetspec-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.statefulset`](../resource/k8s.md#statefulset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_DESIRED_PODS: &str = "k8s.statefulset.desired_pods";
+
+/// ## Description
+///
+/// The number of replica pods created for this statefulset with a Ready Condition
+///
+/// ## Notes
+///
+/// This metric aligns with the `readyReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.statefulset`](../resource/k8s.md#statefulset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_READY_PODS: &str = "k8s.statefulset.ready_pods";
+
+/// ## Description
+///
+/// Number of replica pods created by the statefulset controller from the statefulset version indicated by updateRevision
+///
+/// ## Notes
+///
+/// This metric aligns with the `updatedReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps).
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.statefulset`](../resource/k8s.md#statefulset) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_UPDATED_PODS: &str = "k8s.statefulset.updated_pods";
 
 /// ## Description
 ///
@@ -2556,7 +3166,7 @@ pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2586,7 +3196,7 @@ pub const MESSAGING_CLIENT_CONSUMED_MESSAGES: &str = "messaging.client.consumed.
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2613,7 +3223,7 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2642,7 +3252,7 @@ pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.publishe
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2670,7 +3280,7 @@ pub const MESSAGING_CLIENT_SENT_MESSAGES: &str = "messaging.client.sent.messages
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2696,7 +3306,7 @@ pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2717,7 +3327,7 @@ pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2738,7 +3348,7 @@ pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2759,7 +3369,7 @@ pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2780,7 +3390,7 @@ pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{message}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2805,7 +3415,7 @@ pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_MAX: &str = "nodejs.eventloop.delay.max";
 
@@ -2821,7 +3431,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MAX: &str = "nodejs.eventloop.delay.max";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_MEAN: &str = "nodejs.eventloop.delay.mean";
 
@@ -2837,7 +3447,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MEAN: &str = "nodejs.eventloop.delay.mean";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_MIN: &str = "nodejs.eventloop.delay.min";
 
@@ -2853,7 +3463,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MIN: &str = "nodejs.eventloop.delay.min";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_P50: &str = "nodejs.eventloop.delay.p50";
 
@@ -2869,7 +3479,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P50: &str = "nodejs.eventloop.delay.p50";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_P90: &str = "nodejs.eventloop.delay.p90";
 
@@ -2885,7 +3495,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P90: &str = "nodejs.eventloop.delay.p90";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_P99: &str = "nodejs.eventloop.delay.p99";
 
@@ -2901,7 +3511,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P99: &str = "nodejs.eventloop.delay.p99";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_DELAY_STDDEV: &str = "nodejs.eventloop.delay.stddev";
 
@@ -2917,7 +3527,7 @@ pub const NODEJS_EVENTLOOP_DELAY_STDDEV: &str = "nodejs.eventloop.delay.stddev";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2938,7 +3548,7 @@ pub const NODEJS_EVENTLOOP_TIME: &str = "nodejs.eventloop.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 
@@ -2950,7 +3560,7 @@ pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2967,7 +3577,7 @@ pub const PROCESS_CONTEXT_SWITCHES: &str = "process.context_switches";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -2984,7 +3594,7 @@ pub const PROCESS_CPU_TIME: &str = "process.cpu.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3001,7 +3611,7 @@ pub const PROCESS_CPU_UTILIZATION: &str = "process.cpu.utilization";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3018,7 +3628,7 @@ pub const PROCESS_DISK_IO: &str = "process.disk.io";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_MEMORY_USAGE: &str = "process.memory.usage";
 
@@ -3030,7 +3640,7 @@ pub const PROCESS_MEMORY_USAGE: &str = "process.memory.usage";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_MEMORY_VIRTUAL: &str = "process.memory.virtual";
 
@@ -3042,7 +3652,7 @@ pub const PROCESS_MEMORY_VIRTUAL: &str = "process.memory.virtual";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3059,7 +3669,7 @@ pub const PROCESS_NETWORK_IO: &str = "process.network.io";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descriptor.count";
 
@@ -3071,7 +3681,7 @@ pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descript
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{fault}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3088,7 +3698,7 @@ pub const PROCESS_PAGING_FAULTS: &str = "process.paging.faults";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{thread}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
 
@@ -3105,7 +3715,7 @@ pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_UPTIME: &str = "process.uptime";
 
@@ -3124,7 +3734,7 @@ pub const PROCESS_UPTIME: &str = "process.uptime";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 
@@ -3140,7 +3750,7 @@ pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 
@@ -3158,7 +3768,7 @@ pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 
@@ -3174,7 +3784,7 @@ pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 
@@ -3192,7 +3802,7 @@ pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 
@@ -3211,7 +3821,7 @@ pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 
@@ -3227,7 +3837,7 @@ pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 
@@ -3245,7 +3855,7 @@ pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 
@@ -3261,7 +3871,7 @@ pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 
@@ -3279,7 +3889,7 @@ pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_SERVER_RESPONSES_PER_RPC: &str = "rpc.server.responses_per_rpc";
 
@@ -3333,7 +3943,7 @@ pub const SIGNALR_SERVER_CONNECTION_DURATION: &str = "signalr.server.connection.
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{Hz}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3345,24 +3955,32 @@ pub const SYSTEM_CPU_FREQUENCY: &str = "system.cpu.frequency";
 /// ## Description
 ///
 /// Reports the number of logical (virtual) processor cores created by the operating system to manage multitasking
+///
+/// ## Notes
+///
+/// Calculated by multiplying the number of sockets by the number of cores per socket, and then by the number of threads per core
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_CPU_LOGICAL_COUNT: &str = "system.cpu.logical.count";
 
 /// ## Description
 ///
 /// Reports the number of actual physical processor cores on the hardware
+///
+/// ## Notes
+///
+/// Calculated by multiplying the number of sockets by the number of cores per socket
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{cpu}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 
@@ -3374,7 +3992,7 @@ pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3392,7 +4010,7 @@ pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3408,7 +4026,7 @@ pub const SYSTEM_CPU_UTILIZATION: &str = "system.cpu.utilization";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3435,7 +4053,7 @@ pub const SYSTEM_DISK_IO: &str = "system.disk.io";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3452,7 +4070,7 @@ pub const SYSTEM_DISK_IO_TIME: &str = "system.disk.io_time";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3467,7 +4085,7 @@ pub const SYSTEM_DISK_LIMIT: &str = "system.disk.limit";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{operation}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3492,7 +4110,7 @@ pub const SYSTEM_DISK_MERGED: &str = "system.disk.merged";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3508,7 +4126,7 @@ pub const SYSTEM_DISK_OPERATION_TIME: &str = "system.disk.operation_time";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{operation}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3526,7 +4144,7 @@ pub const SYSTEM_DISK_OPERATIONS: &str = "system.disk.operations";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3551,7 +4169,7 @@ pub const SYSTEM_FILESYSTEM_LIMIT: &str = "system.filesystem.limit";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3570,7 +4188,7 @@ pub const SYSTEM_FILESYSTEM_USAGE: &str = "system.filesystem.usage";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3599,7 +4217,7 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
 
@@ -3617,7 +4235,7 @@ pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3638,7 +4256,7 @@ pub const SYSTEM_LINUX_MEMORY_SLAB_USAGE: &str = "system.linux.memory.slab.usage
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 
@@ -3655,7 +4273,7 @@ pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_MEMORY_SHARED: &str = "system.memory.shared";
 
@@ -3672,7 +4290,7 @@ pub const SYSTEM_MEMORY_SHARED: &str = "system.memory.shared";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3687,7 +4305,7 @@ pub const SYSTEM_MEMORY_USAGE: &str = "system.memory.usage";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3702,14 +4320,14 @@ pub const SYSTEM_MEMORY_UTILIZATION: &str = "system.memory.utilization";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{connection}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::NETWORK_CONNECTION_STATE`] | `Recommended`
 /// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_NETWORK_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 
@@ -3729,7 +4347,7 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{packet}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3755,7 +4373,7 @@ pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{error}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3771,7 +4389,7 @@ pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3787,7 +4405,7 @@ pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{packet}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3803,7 +4421,7 @@ pub const SYSTEM_NETWORK_PACKETS: &str = "system.network.packets";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{fault}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3818,7 +4436,7 @@ pub const SYSTEM_PAGING_FAULTS: &str = "system.paging.faults";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{operation}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3836,7 +4454,7 @@ pub const SYSTEM_PAGING_OPERATIONS: &str = "system.paging.operations";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3852,7 +4470,7 @@ pub const SYSTEM_PAGING_USAGE: &str = "system.paging.usage";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3870,7 +4488,7 @@ pub const SYSTEM_PAGING_UTILIZATION: &str = "system.paging.utilization";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{process}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3887,7 +4505,7 @@ pub const SYSTEM_PROCESS_COUNT: &str = "system.process.count";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `{process}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
 
@@ -3904,7 +4522,7 @@ pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_UPTIME: &str = "system.uptime";
 
@@ -3920,7 +4538,7 @@ pub const SYSTEM_UPTIME: &str = "system.uptime";
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3941,7 +4559,7 @@ pub const V8JS_GC_DURATION: &str = "v8js.gc.duration";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3962,7 +4580,7 @@ pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -3983,7 +4601,7 @@ pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -4004,7 +4622,7 @@ pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -4021,12 +4639,13 @@ pub const V8JS_MEMORY_HEAP_USED: &str = "v8js.memory.heap.used";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{change}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_CHANGE_COUNT: &str = "vcs.change.count";
@@ -4039,13 +4658,14 @@ pub const VCS_CHANGE_COUNT: &str = "vcs.change.count";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_CHANGE_DURATION: &str = "vcs.change.duration";
@@ -4058,15 +4678,41 @@ pub const VCS_CHANGE_DURATION: &str = "vcs.change.duration";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_REF_BASE_REVISION`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_REVISION`] | `Opt_in`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_CHANGE_TIME_TO_APPROVAL: &str = "vcs.change.time_to_approval";
+
+/// ## Description
+///
+/// The amount of time since its creation it took a change (pull request/merge request/changelist) to get merged into the target(base) ref
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_REF_BASE_REVISION`] | `Opt_in`
+/// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
+/// | [`crate::attribute::VCS_REF_HEAD_REVISION`] | `Opt_in`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_CHANGE_TIME_TO_MERGE: &str = "vcs.change.time_to_merge";
 
 /// ## Description
 ///
@@ -4076,11 +4722,12 @@ pub const VCS_CHANGE_TIME_TO_APPROVAL: &str = "vcs.change.time_to_approval";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{contributor}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_CONTRIBUTOR_COUNT: &str = "vcs.contributor.count";
@@ -4093,19 +4740,20 @@ pub const VCS_CONTRIBUTOR_COUNT: &str = "vcs.contributor.count";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{ref}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_REF_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_COUNT: &str = "vcs.ref.count";
 
 /// ## Description
 ///
-/// The number of lines added/removed in a ref (branch) relative to the ref from the `vcs.ref.base.name` attribute
+/// The number of lines added/removed in a ref (branch) relative to the ref from the `vcs.ref.base.name` attribute.
 ///
 /// ## Notes
 ///
@@ -4117,7 +4765,7 @@ pub const VCS_REF_COUNT: &str = "vcs.ref.count";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{line}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -4128,6 +4776,7 @@ pub const VCS_REF_COUNT: &str = "vcs.ref.count";
 /// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
@@ -4145,7 +4794,7 @@ pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{revision}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -4155,6 +4804,7 @@ pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
 /// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 /// | [`crate::attribute::VCS_REVISION_DELTA_DIRECTION`] | `Required`
 #[cfg(feature = "semconv_experimental")]
@@ -4168,13 +4818,14 @@ pub const VCS_REF_REVISIONS_DELTA: &str = "vcs.ref.revisions_delta";
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `s` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_TIME: &str = "vcs.ref.time";
@@ -4187,6 +4838,6 @@ pub const VCS_REF_TIME: &str = "vcs.ref.time";
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{repository}` |
-/// | Status: | `Experimental`  |
+/// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REPOSITORY_COUNT: &str = "vcs.repository.count";

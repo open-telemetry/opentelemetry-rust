@@ -5,7 +5,8 @@
 use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
-use opentelemetry_sdk::trace::{ExportResult, SpanData};
+use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::trace::SpanData;
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{
@@ -122,7 +123,7 @@ impl SpanExporter {
 }
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         self.0.export(batch)
     }
 

@@ -12,11 +12,12 @@ use opentelemetry::{
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
-use crate::metrics::{MetricError, MetricResult};
+use crate::error::OTelSdkResult;
 use crate::Resource;
 
 use super::{
-    meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View,
+    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
+    reader::MetricReader, view::View, PeriodicReader,
 };
 
 /// Handles the creation and coordination of [Meter]s.
@@ -92,7 +93,7 @@ impl SdkMeterProvider {
     ///     Ok(())
     /// }
     /// ```
-    pub fn force_flush(&self) -> MetricResult<()> {
+    pub fn force_flush(&self) -> OTelSdkResult {
         self.inner.force_flush()
     }
 
@@ -108,7 +109,7 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> MetricResult<()> {
+    pub fn shutdown(&self) -> OTelSdkResult {
         otel_info!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -118,28 +119,24 @@ impl SdkMeterProvider {
 }
 
 impl SdkMeterProviderInner {
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .load(std::sync::atomic::Ordering::Relaxed)
         {
-            Err(MetricError::Other(
-                "Cannot perform flush as MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.force_flush()
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             // If the previous value was true, shutdown was already invoked.
-            Err(MetricError::Other(
-                "MeterProvider shutdown already invoked.".into(),
-            ))
+            Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
             self.pipes.shutdown()
         }
@@ -243,10 +240,33 @@ impl MeterProviderBuilder {
     }
 
     /// Associates a [MetricReader] with a [MeterProvider].
+    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
+    /// the most common use case.
     ///
-    /// By default, if this option is not used, the [MeterProvider] will perform no
-    /// operations; no data will be exported without a [MetricReader].
+    /// A [MeterProvider] will export no metrics without [MetricReader]
+    /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
+        self.readers.push(Box::new(reader));
+        self
+    }
+
+    /// Adds a [`PushMetricExporter`] to the [`MeterProvider`] and configures it
+    /// to export metrics at **fixed** intervals (60 seconds) using a
+    /// [`PeriodicReader`].
+    ///
+    /// To customize the export interval, set the
+    /// **"OTEL_METRIC_EXPORT_INTERVAL"** environment variable (in
+    /// milliseconds).
+    ///
+    /// Most users should use this method to attach an exporter. Advanced users
+    /// who need finer control over the export process can use
+    /// [`crate::metrics::PeriodicReaderBuilder`] to configure a custom reader and attach it
+    /// using [`MeterProviderBuilder::with_reader()`].
+    pub fn with_periodic_exporter<T>(mut self, exporter: T) -> Self
+    where
+        T: PushMetricExporter,
+    {
+        let reader = PeriodicReader::builder(exporter).build();
         self.readers.push(Box::new(reader));
         self
     }
@@ -301,6 +321,7 @@ impl fmt::Debug for MeterProviderBuilder {
 }
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use crate::error::OTelSdkError;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
@@ -467,6 +488,8 @@ mod tests {
 
         // shutdown once more should return an error
         let shutdown_res = provider.shutdown();
+        assert!(matches!(shutdown_res, Err(OTelSdkError::AlreadyShutdown)));
+
         assert!(shutdown_res.is_err());
         assert!(reader.is_shutdown());
         // TODO Fix: the instrument is still available, and can be used.

@@ -16,9 +16,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
-use opentelemetry_sdk::logs::LogResult;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
@@ -36,8 +36,8 @@ impl LogExporter for NoopExporter {
     fn export(
         &self,
         _batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
-        async { LogResult::Ok(()) }
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
+        async { OTelSdkResult::Ok(()) }
     }
 
     fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
@@ -57,15 +57,15 @@ impl<E: LogExporter> NoopProcessor<E> {
 }
 
 impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
+    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {
         // no-op
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 
@@ -127,7 +127,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let exporter = NoopExporter { enabled };
     let processor = NoopProcessor::new(exporter);
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("benchmark")

@@ -6,8 +6,8 @@ use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
-use opentelemetry_sdk::metrics::{MetricError, MetricResult};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use super::BoxInterceptor;
@@ -54,26 +54,28 @@ impl TonicMetricsClient {
 
 #[async_trait]
 impl MetricsClient for TonicMetricsClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
-        let (mut client, metadata, extensions) =
-            self.inner
-                .lock()
-                .map_err(Into::into)
-                .and_then(|mut inner| match &mut *inner {
-                    Some(inner) => {
-                        let (m, e, _) = inner
-                            .interceptor
-                            .call(Request::new(()))
-                            .map_err(|e| {
-                                MetricError::Other(format!(
-                                    "unexpected status while exporting {e:?}"
-                                ))
-                            })?
-                            .into_parts();
-                        Ok((inner.client.clone(), m, e))
-                    }
-                    None => Err(MetricError::Other("exporter is already shut down".into())),
-                })?;
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+        let (mut client, metadata, extensions) = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e:?}")))
+            .and_then(|mut inner| match &mut *inner {
+                Some(inner) => {
+                    let (m, e, _) = inner
+                        .interceptor
+                        .call(Request::new(()))
+                        .map_err(|e| {
+                            OTelSdkError::InternalFailure(format!(
+                                "unexpected status while exporting {e:?}"
+                            ))
+                        })?
+                        .into_parts();
+                    Ok((inner.client.clone(), m, e))
+                }
+                None => Err(OTelSdkError::InternalFailure(
+                    "exporter is already shut down".into(),
+                )),
+            })?;
 
         otel_debug!(name: "TonicsMetricsClient.CallingExport");
 
@@ -84,13 +86,16 @@ impl MetricsClient for TonicMetricsClient {
                 ExportMetricsServiceRequest::from(&*metrics),
             ))
             .await
-            .map_err(crate::Error::from)?;
+            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
 
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        let _ = self.inner.lock()?.take();
+    fn shutdown(&self) -> OTelSdkResult {
+        self.inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .take();
 
         Ok(())
     }

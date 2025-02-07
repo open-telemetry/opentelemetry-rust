@@ -422,6 +422,7 @@ pub fn tracer_with_scope(scope: InstrumentationScope) -> BoxedTracer {
 /// It returns the [`TracerProvider`] instance that was previously mounted as global provider
 /// (e.g. [`NoopTracerProvider`] if a provider had not been set before).
 ///
+/// Libraries should NOT call this function. It is intended for applications/executables.
 /// [`TracerProvider`]: crate::trace::TracerProvider
 pub fn set_tracer_provider<P, T, S>(new_provider: P) -> GlobalTracerProvider
 where

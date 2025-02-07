@@ -4,13 +4,13 @@ use opentelemetry::{
     global::BoxedTracer,
     trace::{
         noop::NoopTracer, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
-        TracerProvider as _,
+        TracerProvider,
     },
     Context, ContextGuard,
 };
 use opentelemetry_sdk::{
-    trace::{ExportResult, SpanData, SpanExporter},
-    trace::{Sampler, TracerProvider},
+    error::OTelSdkResult,
+    trace::{Sampler, SdkTracerProvider, SpanData, SpanExporter},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -94,7 +94,7 @@ impl Environment {
         }
     }
 
-    fn setup(&self) -> (Option<TracerProvider>, BoxedTracer, Option<ContextGuard>) {
+    fn setup(&self) -> (Option<SdkTracerProvider>, BoxedTracer, Option<ContextGuard>) {
         match self {
             Environment::InContext => {
                 let guard = Context::current()
@@ -124,8 +124,8 @@ impl Display for Environment {
     }
 }
 
-fn parent_sampled_tracer(inner_sampler: Sampler) -> (TracerProvider, BoxedTracer) {
-    let provider = TracerProvider::builder()
+fn parent_sampled_tracer(inner_sampler: Sampler) -> (SdkTracerProvider, BoxedTracer) {
+    let provider = SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(inner_sampler)))
         .with_simple_exporter(NoopExporter)
         .build();
@@ -137,7 +137,7 @@ fn parent_sampled_tracer(inner_sampler: Sampler) -> (TracerProvider, BoxedTracer
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
+    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(futures_util::future::ready(Ok(())))
     }
 }

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
-use opentelemetry_sdk::logs::LogResult;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
@@ -35,10 +35,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
     fn export(
         &self,
         batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
         async move {
             if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-                Err("exporter is shut down".into())
+                Err(OTelSdkError::AlreadyShutdown)
             } else {
                 println!("Logs");
                 if self
@@ -63,8 +63,9 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -75,7 +76,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
-        let (record, _library) = log;
+        let (record, library) = log;
+
+        println!("\t Instrumentation Scope: {:?}", library);
+
         if let Some(event_name) = record.event_name() {
             println!("\t EventName: {:?}", event_name);
         }

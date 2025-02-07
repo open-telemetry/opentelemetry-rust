@@ -15,38 +15,39 @@ RAM: 64.0 GB
 | Logging_Comparable_To_Appender | 87 ns       |
 */
 
+use opentelemetry::time::now;
 use std::collections::HashMap;
-use std::time::SystemTime;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry::{InstrumentationScope, Key};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LogResult, Logger, LoggerProvider};
-use opentelemetry_sdk::trace::{Sampler, TracerProvider};
+use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLogger, SdkLoggerProvider};
+use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
 
 #[derive(Debug)]
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {}
+    fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
 
-fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
+fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("no-context", |b| {
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
             .build();
 
@@ -56,14 +57,14 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
     });
 
     group.bench_function("with-context", |b| {
-        let provider = LoggerProvider::builder()
+        let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
             .build();
 
         let logger = provider.logger("with-context");
 
         // setup tracing as well.
-        let tracer_provider = TracerProvider::builder()
+        let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .build();
         let tracer = tracer_provider.tracer("bench-tracer");
@@ -80,7 +81,7 @@ fn log_benchmark_group<F: Fn(&Logger)>(c: &mut Criterion, name: &str, f: F) {
 fn log_provider_creation(c: &mut Criterion) {
     c.bench_function("LoggerProvider_Creation", |b| {
         b.iter(|| {
-            let _provider = LoggerProvider::builder()
+            let _provider = SdkLoggerProvider::builder()
                 .with_log_processor(NoopProcessor {})
                 .build();
         });
@@ -89,7 +90,7 @@ fn log_provider_creation(c: &mut Criterion) {
 
 fn logger_creation(c: &mut Criterion) {
     // Provider is created once, outside of the benchmark
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
 
@@ -101,7 +102,7 @@ fn logger_creation(c: &mut Criterion) {
 }
 
 fn logging_comparable_to_appender(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
     let logger = provider.logger("benchmark");
@@ -111,7 +112,7 @@ fn logging_comparable_to_appender(c: &mut Criterion) {
     c.bench_function("Logging_Comparable_To_Appender", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");
@@ -253,7 +254,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         logger.emit(log_record);
     });
 
-    let now = SystemTime::now();
+    let now = now();
     log_benchmark_group(c, "full-log", |logger| {
         let mut log_record = logger.create_log_record();
         log_record.set_body("full log".into());
