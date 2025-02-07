@@ -41,13 +41,12 @@ fn create_exporter() -> MetricExporter {
 /// Initializes the OpenTelemetry metrics pipeline
 fn init_meter_provider() -> SdkMeterProvider {
     let exporter = create_exporter();
-    let reader = PeriodicReader::builder(exporter).build();
     let resource = Resource::builder_empty()
         .with_service_name("metrics-integration-test")
         .build();
     let meter_provider = MeterProviderBuilder::default()
         .with_resource(resource)
-        .with_reader(reader)
+        .with_periodic_exporter(exporter)
         .build();
     opentelemetry::global::set_meter_provider(meter_provider.clone());
     meter_provider

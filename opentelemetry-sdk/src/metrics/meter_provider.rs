@@ -321,6 +321,7 @@ impl fmt::Debug for MeterProviderBuilder {
 }
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use crate::error::OTelSdkError;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
@@ -487,6 +488,8 @@ mod tests {
 
         // shutdown once more should return an error
         let shutdown_res = provider.shutdown();
+        assert!(matches!(shutdown_res, Err(OTelSdkError::AlreadyShutdown)));
+
         assert!(shutdown_res.is_err());
         assert!(reader.is_shutdown());
         // TODO Fix: the instrument is still available, and can be used.
