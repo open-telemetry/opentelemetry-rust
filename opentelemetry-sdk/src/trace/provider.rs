@@ -308,10 +308,8 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let mut processors = self.processors;
-        processors.push(Box::new(SimpleSpanProcessor::new(Box::new(exporter))));
-
-        TracerProviderBuilder { processors, ..self }
+        let simple = SimpleSpanProcessor::new(Box::new(exporter));
+        self.with_span_processor(simple)
     }
 
     /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.

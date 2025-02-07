@@ -111,7 +111,6 @@ impl NoopSpanExporter {
     }
 }
 
-#[async_trait::async_trait]
 impl SpanExporter for NoopSpanExporter {
     fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
         Box::pin(std::future::ready(Ok(())))
