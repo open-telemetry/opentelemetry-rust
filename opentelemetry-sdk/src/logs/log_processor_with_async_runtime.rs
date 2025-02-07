@@ -325,11 +325,11 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn set_resource(&mut self, resource: &Resource) {
+        fn set_resource(&self, resource: &Resource) {
             self.resource
                 .lock()
                 .map(|mut res_opt| {
