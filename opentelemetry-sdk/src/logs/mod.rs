@@ -2,6 +2,7 @@
 mod error;
 mod export;
 mod log_processor;
+mod logger;
 mod logger_provider;
 pub(crate) mod record;
 
@@ -19,7 +20,8 @@ pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
     SimpleLogProcessor,
 };
-pub use logger_provider::{LoggerProviderBuilder, SdkLogger, SdkLoggerProvider};
+pub use logger::SdkLogger;
+pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{SdkLogRecord, TraceContext};
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
