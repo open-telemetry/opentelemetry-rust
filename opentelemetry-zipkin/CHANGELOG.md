@@ -7,12 +7,15 @@
   Additionally, the service name needs to be set on the tracer provider.
   
   Previous Signature:
+
   ```rust
   let tracer = opentelemetry_zipkin::new_pipeline()
       .with_service_name("trace-demo")
       .install_simple()?;
   ```
+  
   Updated Signature:
+  
   ```rust
   let exporter = ZipkinExporter::builder()
       .build()?;

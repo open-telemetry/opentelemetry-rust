@@ -2,7 +2,6 @@
 
 ## vNext
 
-- Update proto definitions to v1.4.0 [#2315](https://github.com/open-telemetry/opentelemetry-rust/pull/2315)
 - Bump msrv to 1.75.0.
 - Update proto definitions to v1.5.0 [#2439](https://github.com/open-telemetry/opentelemetry-rust/pull/2439)
 - Feature flag "populate-logs-event-name" is removed as no longer relevant.
