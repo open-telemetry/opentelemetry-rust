@@ -8,11 +8,7 @@ use model::endpoint::Endpoint;
 use opentelemetry::trace::TraceError;
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::{
-    resource::{ResourceDetector, SdkProvidedResourceDetector},
-    trace, ExportError,
-};
-use opentelemetry_semantic_conventions as semcov;
+use opentelemetry_sdk::{trace, ExportError};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::Arc;
 
@@ -40,7 +36,6 @@ impl ZipkinExporter {
 /// Builder for `ZipkinExporter` struct.
 #[derive(Debug)]
 pub struct ZipkinExporterBuilder {
-    service_name: Option<String>,
     service_addr: Option<SocketAddr>,
     collector_endpoint: String,
     client: Option<Arc<dyn HttpClient>>,
@@ -71,7 +66,6 @@ impl Default for ZipkinExporterBuilder {
             ))]
             client: None,
 
-            service_name: None,
             service_addr: None,
             collector_endpoint: env::get_endpoint(),
         }
@@ -83,17 +77,7 @@ impl ZipkinExporterBuilder {
     ///
     /// Returns error if the endpoint is not valid or if no http client is provided.
     pub fn build(self) -> Result<ZipkinExporter, TraceError> {
-        let service_name = if let Some(service_name) = self.service_name {
-            service_name
-        } else {
-            SdkProvidedResourceDetector
-                .detect()
-                .get(&semcov::resource::SERVICE_NAME.into())
-                .unwrap()
-                .to_string()
-        };
-
-        let endpoint = Endpoint::new(service_name, self.service_addr);
+        let endpoint = Endpoint::new(self.service_addr);
 
         if let Some(client) = self.client {
             let exporter = ZipkinExporter::new(
@@ -107,12 +91,6 @@ impl ZipkinExporterBuilder {
         } else {
             Err(Error::NoHttpClient.into())
         }
-    }
-
-    /// Assign the service name under which to group traces.
-    pub fn with_service_name<T: Into<String>>(mut self, name: T) -> Self {
-        self.service_name = Some(name.into());
-        self
     }
 
     /// Assign client implementation

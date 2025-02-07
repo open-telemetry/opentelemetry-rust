@@ -1,5 +1,6 @@
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    logs::{ExportResult, LogBatch, LogError, LogExporter, LogResult, SdkLogRecord},
+    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
 };
 
@@ -30,9 +31,9 @@ enum BatchMessage {
     ExportLog((SdkLogRecord, InstrumentationScope)),
     /// Flush the current buffer to the backend, it can be triggered by
     /// pre configured interval or a call to `force_push` function.
-    Flush(Option<oneshot::Sender<ExportResult>>),
+    Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<ExportResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -75,18 +76,18 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -100,10 +101,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| LogError::Other(err.into()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| LogError::Other(err.into()))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
             .and_then(std::convert::identity)
     }
 
@@ -158,7 +159,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                             }
                         }
                     }
-                    // Log batch interval time reached or a force flush has been invoked, export current spans.
+                    // Log batch interval time reached or a force flush has been invoked, export current logs.
                     BatchMessage::Flush(res_channel) => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
@@ -187,7 +188,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         )
                         .await;
 
-                        exporter.shutdown();
+                        let _ = exporter.shutdown(); //TODO - handle error
 
                         if let Err(send_error) = ch.send(result) {
                             otel_debug!(
@@ -230,7 +231,7 @@ async fn export_with_timeout<E, R>(
     exporter: &mut E,
     runtime: &R,
     batch: Vec<(SdkLogRecord, InstrumentationScope)>,
-) -> ExportResult
+) -> OTelSdkResult
 where
     R: RuntimeChannel,
     E: LogExporter + ?Sized,
@@ -250,7 +251,7 @@ where
     pin_mut!(timeout);
     match future::select(export, timeout).await {
         Either::Left((export_res, _)) => export_res,
-        Either::Right((_, _)) => ExportResult::Err(LogError::ExportTimedOut(time_out)),
+        Either::Right((_, _)) => OTelSdkResult::Err(OTelSdkError::Timeout(time_out)),
     }
 }
 
@@ -281,13 +282,13 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
+    use crate::error::OTelSdkResult;
     use crate::logs::log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
     use crate::logs::InMemoryLogExporterBuilder;
-    use crate::logs::LogResult;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
     use crate::runtime;
@@ -320,11 +321,13 @@ mod tests {
         fn export(
             &self,
             _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = LogResult<()>> + Send {
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) {}
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
 
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
@@ -643,11 +646,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -673,11 +676,11 @@ mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -801,7 +804,7 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
-        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch span processor is not blocking. Should we make it blocking?
+        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch log processor is not blocking. Should we make it blocking?
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }

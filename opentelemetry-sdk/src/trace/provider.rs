@@ -249,14 +249,17 @@ impl SdkTracerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let errs = self.inner.shutdown();
+            let results = self.inner.shutdown();
 
-            if errs.iter().all(|res| res.is_ok()) {
+            if results.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
                 Err(OTelSdkError::InternalFailure(format!(
                     "Shutdown errors: {:?}",
-                    errs.into_iter().filter_map(Result::err).collect::<Vec<_>>() // Collect only the errors
+                    results
+                        .into_iter()
+                        .filter_map(Result::err)
+                        .collect::<Vec<_>>() // Collect only the errors
                 )))
             }
         } else {
@@ -305,10 +308,8 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let mut processors = self.processors;
-        processors.push(Box::new(SimpleSpanProcessor::new(Box::new(exporter))));
-
-        TracerProviderBuilder { processors, ..self }
+        let simple = SimpleSpanProcessor::new(Box::new(exporter));
+        self.with_span_processor(simple)
     }
 
     /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.

@@ -386,7 +386,7 @@ let processor = BatchSpanProcessor::builder(exporter)
   - The `opentelemetry_otlp` API, via `.with_tonic().with_timeout()` or `.with_http().with_timeout()`.
 
 - **Breaking**
- - The public API changes in the Tracing:
+ - The public API changes in the Trace SDK:
    - Before:
       ```rust
         fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult>;
@@ -400,7 +400,7 @@ let processor = BatchSpanProcessor::builder(exporter)
         fn SpanExporter::export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
         fn SpanExporter::shutdown(&mut self) -> OTelSdkResult;
         fn SpanExporter::force_flush(&mut self) -> BoxFuture<'static, OTelSdkResult>
-        fn TraerProvider::shutdown(&self) -> OTelSdkResult;
+        fn TracerProvider::shutdown(&self) -> OTelSdkResult;
         fn TracerProvider::force_flush(&self) -> OTelSdkResult;
       ```
 - **Breaking** Renamed `LoggerProvider`, `Logger` and `LogRecord' to
@@ -412,6 +412,23 @@ let processor = BatchSpanProcessor::builder(exporter)
   `SdkTracer` to avoid name collision with public API types. `Tracer` is still
   type-aliased to `SdkTracer` to keep back-compat with tracing-opentelemetry.
   [#2614](https://github.com/open-telemetry/opentelemetry-rust/pull/2614)
+
+- **Breaking**
+ - The public API changes in the Logs SDK:
+   - Before:
+      ```rust
+        fn LogExporter::export(&self, _batch: LogBatch<'_>,) -> impl std::future::Future<Output = LogResult<()>> + Send
+        fn LogExporter::shutdown(&mut self);
+        fn LoggerProvider::shutdown(&self) -> LogResult<()>
+        fn LoggerProvider::force_flush(&self) -> Vec<LogResult<()>>
+      ```
+    - After:
+      ```rust
+        fn LogExporter::export(&self, _batch: LogBatch<'_>,) -> impl std::future::Future<Output = OTelSdkResult<()>> + Send
+        fn LogExporter::shutdown(&mut self) -> OTelSdkResult;
+        fn LoggerProvider::shutdown(&self) -> OTelSdkResult;
+        fn LoggerProvider::force_flush(&self) -> OTelSdkResult;
+      ```
 
 ## 0.27.1
 

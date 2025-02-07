@@ -23,17 +23,21 @@
 //! ```no_run
 //! use opentelemetry::global;
 //! use opentelemetry::trace::{Tracer, TraceError};
-//! use opentelemetry_sdk::trace::SdkTracerProvider;
+//! use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
 //! use opentelemetry_zipkin::ZipkinExporter;
 //!
 //! fn main() -> Result<(), TraceError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
 //!
 //!     let exporter = ZipkinExporter::builder()
-//!         .with_service_name("trace-demo")
 //!         .build()?;
-//!     let provider = TracerProvider::builder()
+//!     let provider = SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
+//!         .with_resource(
+//!             Resource::builder_empty()
+//!                 .with_service_name("trace-demo")
+//!                 .build(),
+//!         )
 //!         .build();
 //!     global::set_tracer_provider(provider.clone());
 //!
@@ -60,22 +64,27 @@
 //!     trace::{
 //!         BatchSpanProcessor,
 //!         BatchConfigBuilder,
-//!         TracerProvider,
-//!     }
+//!         SdkTracerProvider,
+//!     },
+//!     Resource,
 //! };
 //! use opentelemetry_zipkin::ZipkinExporter;
 //!
 //! fn main() -> Result<(), opentelemetry::trace::TraceError> {
 //!     let exporter = ZipkinExporter::builder()
-//!         .with_service_name("runtime-demo")
 //!         .build()?;
 //!
 //!     let batch = BatchSpanProcessor::builder(exporter)
 //!         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
 //!         .build();
 //!
-//!     let provider = TracerProvider::builder()
+//!     let provider = SdkTracerProvider::builder()
 //!         .with_span_processor(batch)
+//!         .with_resource(
+//!             Resource::builder_empty()
+//!                 .with_service_name("runtime-demo")
+//!                 .build(),
+//!         )
 //!         .build();
 //!
 //!     Ok(())
@@ -105,7 +114,7 @@
 //!
 //! ```no_run
 //! use opentelemetry::{global, InstrumentationScope, KeyValue, trace::{Tracer, TraceError}};
-//! use opentelemetry_sdk::{trace::{self, ExportResult, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! use opentelemetry_http::{HttpClient, HttpError};
 //! use opentelemetry_zipkin::{Error as ZipkinError, ZipkinExporter};
 //! use async_trait::async_trait;
@@ -148,7 +157,7 @@
 //!     }
 //! }
 //!
-//! fn init_traces() -> Result<trace::TracerProvider, TraceError> {
+//! fn init_traces() -> Result<trace::SdkTracerProvider, TraceError> {
 //!     let exporter = ZipkinExporter::builder()
 //!         .with_http_client(
 //!             HyperClient(
@@ -156,7 +165,6 @@
 //!                     .build_http()
 //!             )
 //!         )
-//!         .with_service_name("my_app")
 //!         .with_service_address(
 //!             "127.0.0.1:8080"
 //!                 .parse()
@@ -165,7 +173,7 @@
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
 //!         .build()?;
 //!
-//!     Ok(trace::TracerProvider::builder()
+//!     Ok(trace::SdkTracerProvider::builder()
 //!         .with_sampler(Sampler::AlwaysOn)
 //!         .with_batch_exporter(exporter)
 //!         .with_id_generator(RandomIdGenerator::default())
@@ -174,6 +182,7 @@
 //!         .with_max_events_per_span(16)
 //!         .with_resource(
 //!             Resource::builder_empty()
+//!                 .with_service_name("my_app")
 //!                 .with_attribute(KeyValue::new("key", "value"))
 //!                 .build()
 //!         )

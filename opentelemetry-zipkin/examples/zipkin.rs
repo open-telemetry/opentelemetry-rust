@@ -3,7 +3,7 @@ use opentelemetry::{
     trace::{Span, TraceError, Tracer},
     InstrumentationScope, KeyValue,
 };
-use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
 use opentelemetry_zipkin::ZipkinExporter;
 use std::thread;
 use std::time::Duration;
@@ -16,12 +16,15 @@ fn bar() {
 }
 
 fn init_traces() -> Result<SdkTracerProvider, TraceError> {
-    let exporter = ZipkinExporter::builder()
-        .with_service_name("trace-demo")
-        .build()?;
+    let exporter = ZipkinExporter::builder().build()?;
 
     Ok(SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name("trace-demo")
+                .build(),
+        )
         .build())
 }
 
