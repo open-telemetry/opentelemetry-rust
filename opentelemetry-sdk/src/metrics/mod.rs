@@ -618,8 +618,9 @@ mod tests {
         }
 
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Test Meter creation in 2 ways, both with empty string as meter name
         let meter1 = meter_provider.meter("");
@@ -634,8 +635,9 @@ mod tests {
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
         let meter = meter_provider.meter("test");
@@ -685,8 +687,9 @@ mod tests {
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
         let meter1 = meter_provider.meter("test.meter1");
@@ -774,8 +777,9 @@ mod tests {
     async fn instrumentation_scope_identity_test() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
         // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
@@ -858,7 +862,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
             .aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
@@ -871,7 +874,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -908,7 +911,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -916,7 +918,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -983,7 +985,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -991,7 +992,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -2543,10 +2544,10 @@ mod tests {
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
             let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
-
             let exporter = exporter.build();
-            let reader = PeriodicReader::builder(exporter.clone()).build();
-            let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(exporter.clone())
+                .build();
 
             TestContext {
                 exporter,

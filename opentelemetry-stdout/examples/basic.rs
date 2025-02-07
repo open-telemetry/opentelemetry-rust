@@ -33,9 +33,8 @@ fn init_trace() -> SdkTracerProvider {
 #[cfg(feature = "metrics")]
 fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let exporter = opentelemetry_stdout::MetricExporter::default();
-    let reader = PeriodicReader::builder(exporter).build();
     let provider = SdkMeterProvider::builder()
-        .with_reader(reader)
+        .with_periodic_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();
     global::set_meter_provider(provider.clone());
