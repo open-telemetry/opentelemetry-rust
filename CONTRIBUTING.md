@@ -79,8 +79,7 @@ Open a pull request against the main
 repo.
 
 > **Note**
-> It is recommended to run [pre-commit script](scripts/precommit.sh) from the root of
-the repo to catch any issues locally.
+> It is recommended to run [pre-commit script](scripts/precommit.sh) to catch any issues locally.
 
 ### How to Receive Comments
 
