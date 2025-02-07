@@ -225,8 +225,9 @@ mod tests {
     use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
+    use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
-    use opentelemetry_sdk::logs::{LogResult, SdkLoggerProvider};
+    use opentelemetry_sdk::logs::SdkLoggerProvider;
     use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
 
     #[derive(Debug)]
@@ -235,11 +236,11 @@ mod tests {
     impl LogProcessor for MockProcessor {
         fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
