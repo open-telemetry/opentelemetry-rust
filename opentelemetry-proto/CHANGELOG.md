@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 - Update proto definitions to v1.5.0 [#2439](https://github.com/open-telemetry/opentelemetry-rust/pull/2439)
 - Feature flag "populate-logs-event-name" is removed as no longer relevant.

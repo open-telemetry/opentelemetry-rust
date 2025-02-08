@@ -2,10 +2,16 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
 Note: Due to the large amount of making changes, check [migration guide to
 0.28](../docs/migration_0.28.md) for a summary that can help majority users to
 quickly migrate. The changelog below is the full list of changes.
 
+- Update `opentelemetry` dependency to 0.28.
+- Update `opentelemetry-http` dependency to 0.28.
 - Bump msrv to 1.75.0.
 - *Bug fix*: For cumulative temporality, ObservableGauge no longer export
   MetricPoints unless measurements were newly reported (in Observable callbacks)

@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
 - Bump msrv to 1.75.0.
 - **Breaking** `opentelemetry::global::shutdown_tracer_provider()` Removed from this crate, should now use `tracer_provider.shutdown()` see [#2369](https://github.com/open-telemetry/opentelemetry-rust/pull/2369) for a migration example.
 - *Breaking* Removed unused `opentelemetry::PropagationError` struct.
