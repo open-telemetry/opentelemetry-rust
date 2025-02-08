@@ -2,7 +2,8 @@
 
 ## vNext
 
-- **Breaking** [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
+- New experimental feature to use trace\_id & span\_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
+
 
 ## 0.28.0
 
@@ -18,6 +19,7 @@ Released 2024-Nov-11
 - Update `opentelemetry` dependency version to 0.27
 
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+- **Breaking** [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
 
 ## v0.26.0
 Released 2024-Sep-30
