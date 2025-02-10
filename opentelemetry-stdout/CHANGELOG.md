@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 - *Breaking* time fields, `StartTime` and `EndTime` is printed on aggregation (Sum, Gauge, Histogram, ExpoHistogram) with 2 tabs, previously it was on aggregation data point, with 3 tabs, see [#2377](https://github.com/open-telemetry/opentelemetry-rust/pull/2377) and [#2411](https://github.com/open-telemetry/opentelemetry-rust/pull/2411).
 - Removed unused dependency on `ordered-float`.

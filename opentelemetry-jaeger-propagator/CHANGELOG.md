@@ -2,6 +2,11 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 
 ## 0.27.0

@@ -2,6 +2,14 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
+- Update `opentelemetry-http` dependency version to 0.28.
+- Update `opentelemetry-proto` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 - Feature flag "populate-logs-event-name" is removed as no longer relevant.
   LogRecord's `event_name()` is now automatically populated on the newly added

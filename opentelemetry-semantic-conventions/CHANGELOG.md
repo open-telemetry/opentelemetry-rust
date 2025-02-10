@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
 - Update to [v1.29.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.29.0) of the semantic conventions.
 - Bump msrv to 1.75.0.
 
