@@ -156,8 +156,7 @@ the changes required to be made.
 [Basic OTLP Example
 (0.27)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.27.0/opentelemetry-otlp/examples)
 [Basic OTLP Example
-(0.28)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.27.0/opentelemetry-otlp/examples)
-// TODO: Update this link after github tag is created.
+(0.28)](https://github.com/open-telemetry/opentelemetry-rust/tree/opentelemetry-otlp-0.28.0/opentelemetry-otlp/examples)
 
 This guide covers only the most common breaking changes. If you’re using custom
 exporters or processors (or authoring one), please consult the changelog for
