@@ -2,9 +2,15 @@
 
 ## vNext
 
-- Bump msrv to 1.75.0.
 - New experimental feature to use trace\_id & span\_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
 
+
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Bump msrv to 1.75.0.
 
 ## 0.27.0
 

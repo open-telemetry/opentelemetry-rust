@@ -2,17 +2,27 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
+- Update `opentelemetry-http` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 - **Breaking** The `opentelemetry_zipkin::new_pipeline()` interface is now replaced with `opentelemetry_zipkin::ZipkinExporter::builder()`.
   Additionally, the service name needs to be set on the tracer provider.
   
   Previous Signature:
+
   ```rust
   let tracer = opentelemetry_zipkin::new_pipeline()
       .with_service_name("trace-demo")
       .install_simple()?;
   ```
+  
   Updated Signature:
+  
   ```rust
   let exporter = ZipkinExporter::builder()
       .build()?;

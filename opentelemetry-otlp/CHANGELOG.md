@@ -2,6 +2,14 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
+- Update `opentelemetry-http` dependency version to 0.28.
+- Update `opentelemetry-proto` dependency version to 0.28.
 - Bump msrv to 1.75.0.
 - Feature flag "populate-logs-event-name" is removed as no longer relevant.
   LogRecord's `event_name()` is now automatically populated on the newly added
@@ -14,14 +22,13 @@
   and `MetricExporter::new(..)` method. Use
   `MetricExporter::builder()...build()` to obtain `MetricExporter`.
 - The HTTP clients (reqwest, reqwest-blocking, hyper) now support the
-timeout internal configured in below order
-  - Signal specific env variable `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, 
+  export timeout interval configured in below order
+  - Signal specific env variable `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`,
   `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` or `OTEL_EXPORTER_OTLP_TIMEOUT`.
   - `OTEL_EXPORTER_OTLP_TIMEOUT` env variable.
   - `with_http().with_timeout()` API method of
 `LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
-  - The default interval of 10sec is used if none is configured.
-
+  - The default interval of 10 seconds is used if none is configured.
 
 ## 0.27.0
 
