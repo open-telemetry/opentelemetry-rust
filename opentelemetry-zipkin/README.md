@@ -105,7 +105,7 @@ available so be sure to match them appropriately.
 [Example](https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/#kitchen-sink-full-configuration) showing how to override all configuration options. See the
 [`ZipkinPipelineBuilder`] docs for details of each option.
 
-[`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinPipelineBuilder.html
+[`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinExporterBuilder.html
 
 ## Release Notes
 
