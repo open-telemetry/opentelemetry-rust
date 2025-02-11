@@ -308,13 +308,13 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         }
 
         let export = self.exporter.export(self.spans.split_off(0));
-        let timeout = Box::pin(self.runtime.delay(self.config.max_export_timeout));
-        let time_out = self.config.max_export_timeout;
+        let timeout_future = Box::pin(self.runtime.delay(self.config.max_export_timeout));
+        let timeout = self.config.max_export_timeout;
 
         Box::pin(async move {
-            match future::select(export, timeout).await {
+            match future::select(export, timeout_future).await {
                 Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+                Either::Right((_, _)) => Err(OTelSdkError::Timeout(timeout)),
             }
         })
     }
