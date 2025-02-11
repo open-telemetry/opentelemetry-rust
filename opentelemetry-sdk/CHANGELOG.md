@@ -185,7 +185,7 @@ limit.
 - *Breaking (Affects custom SpanExporter, SpanProcessor authors only)*: Rename
   namespaces for Span exporter structs/traits before:
   `opentelemetry_sdk::export::spans::{ExportResult, SpanData, SpanExporter};`
-  now: `opentelemetry_sdk::spans::{ExportResult, SpanData, SpanExporter};`
+  now: `opentelemetry_sdk::trace::{ExportResult, SpanData, SpanExporter};`
 
 - *Breaking (Affects custom LogExporter, LogProcessor authors only)*: Rename
   namespaces for Log exporter structs/traits. before:
