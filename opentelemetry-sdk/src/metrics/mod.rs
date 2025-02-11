@@ -597,7 +597,7 @@ mod tests {
         async fn meter_name_retained_helper(
             meter: Meter,
             provider: SdkMeterProvider,
-            exporter: InMemoryMetricExporter,
+            exported_metrics: Arc<Mutex<Vec<ResourceMetrics>>>,
         ) {
             // Act
             let counter = meter.u64_counter("my_counter").build();
@@ -606,9 +606,7 @@ mod tests {
             provider.force_flush().unwrap();
 
             // Assert
-            let resource_metrics = exporter
-                .get_finished_metrics()
-                .expect("metrics are expected to be exported.");
+            let resource_metrics = exported_metrics.lock().expect("lock cannot be acquired");
             assert!(
                 resource_metrics[0].scope_metrics[0].metrics.len() == 1,
                 "There should be a single metric"
@@ -617,26 +615,28 @@ mod tests {
             assert_eq!(meter_name, "");
         }
 
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .build();
 
         // Test Meter creation in 2 ways, both with empty string as meter name
         let meter1 = meter_provider.meter("");
-        meter_name_retained_helper(meter1, meter_provider.clone(), exporter.clone()).await;
+        meter_name_retained_helper(meter1, meter_provider.clone(), exported_metrics.clone()).await;
 
         let meter_scope = InstrumentationScope::builder("").build();
         let meter2 = meter_provider.meter_with_scope(meter_scope);
-        meter_name_retained_helper(meter2, meter_provider, exporter).await;
+        meter_name_retained_helper(meter2, meter_provider, exported_metrics).await;
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_merge() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .build();
 
         // Act
@@ -660,8 +660,7 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics.lock()
             .expect("metrics are expected to be exported.");
         assert!(
             resource_metrics[0].scope_metrics[0].metrics.len() == 1,
@@ -686,9 +685,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .build();
 
         // Act
@@ -713,8 +713,7 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics.lock()
             .expect("metrics are expected to be exported.");
         assert!(
             resource_metrics[0].scope_metrics.len() == 2,
@@ -776,9 +775,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn instrumentation_scope_identity_test() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .build();
 
         // Act
@@ -816,8 +816,8 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics
+            .lock()
             .expect("metrics are expected to be exported.");
         println!("resource_metrics: {:?}", resource_metrics);
         assert!(
@@ -861,7 +861,8 @@ mod tests {
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
             .aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
@@ -874,7 +875,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -889,8 +890,8 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics
+            .lock()
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
@@ -910,7 +911,8 @@ mod tests {
         // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -918,7 +920,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -956,8 +958,8 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics
+            .lock()
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
@@ -984,7 +986,8 @@ mod tests {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let exported_metrics =  Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(exported_metrics.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -992,7 +995,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -1032,8 +1035,8 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
+        let resource_metrics = exported_metrics
+            .lock()
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
@@ -1218,8 +1221,8 @@ mod tests {
         test_context.flush_metrics();
 
         let resource_metrics = test_context
-            .exporter
-            .get_finished_metrics()
+            .exported_metrics
+            .lock()
             .expect("metrics are expected to be exported.");
         println!("resource_metrics: {:?}", resource_metrics);
         assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
@@ -2534,25 +2537,21 @@ mod tests {
     }
 
     struct TestContext {
-        exporter: InMemoryMetricExporter,
+        exported_metrics: Arc<Mutex<Vec<ResourceMetrics>>>,
         meter_provider: SdkMeterProvider,
-
-        // Saving this on the test context for lifetime simplicity
-        resource_metrics: Vec<ResourceMetrics>,
     }
 
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
-            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
-            let exporter = exporter.build();
+            let exported_metrics = Arc::new(Mutex::new(vec![]));
+            let exporter = InMemoryMetricExporterBuilder::new().with_metrics(exported_metrics.clone()).with_temporality(temporality).build();
             let meter_provider = SdkMeterProvider::builder()
-                .with_periodic_exporter(exporter.clone())
+                .with_periodic_exporter(exporter)
                 .build();
 
             TestContext {
-                exporter,
+                exported_metrics,
                 meter_provider,
-                resource_metrics: vec![],
             }
         }
 
@@ -2593,14 +2592,14 @@ mod tests {
         }
 
         fn reset_metrics(&self) {
-            self.exporter.reset();
+            self.exported_metrics.lock().unwrap().clear();
         }
 
         fn check_no_metrics(&self) {
             let resource_metrics = self
-                .exporter
-                .get_finished_metrics()
-                .expect("metrics expected to be exported"); // TODO: Need to fix InMemoryMetricExporter to return None.
+                .exported_metrics
+                .lock()
+                .unwrap();
 
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
@@ -2609,43 +2608,76 @@ mod tests {
             &mut self,
             counter_name: &str,
             unit_name: Option<&str>,
-        ) -> &T {
-            self.resource_metrics = self
-                .exporter
-                .get_finished_metrics()
+        ) -> T {
+            let resource_metrics = self
+                .exported_metrics
+                .lock()
                 .expect("metrics expected to be exported");
 
             assert!(
-                !self.resource_metrics.is_empty(),
+                !resource_metrics.is_empty(),
                 "no metrics were exported"
             );
 
             assert!(
-                self.resource_metrics.len() == 1,
+                resource_metrics.len() == 1,
                 "Expected single resource metrics."
             );
-            let resource_metric = self
-                .resource_metrics
-                .first()
-                .expect("This should contain exactly one resource metric, as validated above.");
 
-            assert!(
-                !resource_metric.scope_metrics.is_empty(),
-                "No scope metrics in latest export"
-            );
-            assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
-
-            let metric = &resource_metric.scope_metrics[0].metrics[0];
+            let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
             assert_eq!(metric.name, counter_name);
             if let Some(expected_unit) = unit_name {
                 assert_eq!(metric.unit, expected_unit);
             }
-
-            metric
+            let sum = metric
                 .data
                 .as_any()
                 .downcast_ref::<T>()
                 .expect("Failed to cast aggregation to expected type")
+                .clone();
+            sum
+
+            // let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+            // assert_eq!(metric.name, "my_counter");
+            // assert_eq!(metric.unit, "my_unit");
+            // let sum = metric
+            //     .data
+            //     .as_any()
+            //     .downcast_ref::<Sum<u64>>()
+            //     .expect("Sum aggregation expected for Counter instruments by default");
+    
+            // Expecting 1 time-series.
+            // assert_eq!(sum.data_points.len(), 1);
+
+            // Get owned value from index 0
+            // let mut resource_metric = resource_metrics.remove(0); 
+            
+
+            // assert!(
+            //     !resource_metric.scope_metrics.is_empty(),
+            //     "No scope metrics in latest export"
+            // );
+
+            // assert!(
+            //     resource_metric.scope_metrics.len() == 1,
+            //     "Expected single scope metric metrics."
+            // );
+
+            // let mut scope_metric = resource_metric.scope_metrics.remove(0);
+
+            // let metric = scope_metric.metrics.remove(0);
+            // assert_eq!(metric.name, counter_name);
+            // if let Some(expected_unit) = unit_name {
+            //     assert_eq!(metric.unit, expected_unit);
+            // }
+
+            // let m = metric
+            //     .data
+            //     .as_any()
+            //     .downcast_ref::<T>()
+            //     .expect("Failed to cast aggregation to expected type");
+            // m.clone()
+
         }
 
         fn get_from_multiple_aggregations<T: Aggregation>(
