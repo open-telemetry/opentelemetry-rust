@@ -6,9 +6,8 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use futures_util::{future::BoxFuture, stream::Stream};
 use std::{fmt::Debug, future::Future, time::Duration};
-use futures_util::stream::unfold;
+use futures_util::stream::{unfold, Stream};
 use thiserror::Error;
 
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
@@ -19,7 +18,7 @@ use thiserror::Error;
 ///
 /// # Note
 ///
-/// OpenTelemetry expects a *multi-threaded* runtime because its types can move across threads.
+/// OpenTelemetry expects a *multithreaded* runtime because its types can move across threads.
 /// For this reason, this trait requires the `Send` and `Sync` bounds. Single-threaded runtimes
 /// can implement this trait in a way that spawns the tasks on the same thread as the calling code.
 #[cfg(feature = "experimental_async_runtime")]
@@ -30,13 +29,15 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     ///
     /// This is mainly used to run batch span processing in the background. Note, that the function
     /// does not return a handle. OpenTelemetry will use a different way to wait for the future to
-    /// finish when `TracerProvider` gets shutdown. At the moment this happens by blocking the
+    /// finish when the caller shuts down.
+    ///
+    /// At the moment, the shutdown happens by blocking the
     /// current thread. This means runtime implementations need to make sure they can still execute
     /// the given future even if the main thread is blocked.
-    fn spawn(&self, future: BoxFuture<'static, ()>);
+    fn spawn<F>(&self, future: F) where F: Future<Output = ()> + Send + 'static;
 
-    /// Return a new future, which resolves after the specified [std::time::Duration].
-    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + Sync + 'static;
+    /// Return a future that resolves after the specified [Duration].
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static;
 }
 
 /// Uses the given runtime to produce an interval stream.
@@ -67,13 +68,16 @@ pub struct Tokio;
     doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl Runtime for Tokio {
-    fn spawn(&self, future: BoxFuture<'static, ()>) {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static
+    {
         #[allow(clippy::let_underscore_future)]
         // we don't have to await on the returned future to execute
         let _ = tokio::spawn(future);
     }
 
-    fn delay(&self, duration: Duration) -> impl Future<Output=()> + Send + Sync + 'static {
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
         tokio::time::sleep(duration)
     }
 }
@@ -105,7 +109,10 @@ pub struct TokioCurrentThread;
     )))
 )]
 impl Runtime for TokioCurrentThread {
-    fn spawn(&self, future: BoxFuture<'static, ()>) {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static
+    {
         // We cannot force push tracing in current thread tokio scheduler because we rely on
         // BatchSpanProcessor to export spans in a background task, meanwhile we need to block the
         // shutdown function so that the runtime will not finish the blocked task and kill any
@@ -121,7 +128,7 @@ impl Runtime for TokioCurrentThread {
         });
     }
 
-    fn delay(&self, duration: Duration) -> impl Future<Output=()> + Send + Sync + 'static {
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
         tokio::time::sleep(duration)
     }
 }
@@ -141,12 +148,15 @@ pub struct AsyncStd;
     doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
 )]
 impl Runtime for AsyncStd {
-    fn spawn(&self, future: BoxFuture<'static, ()>) {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static
+    {
         #[allow(clippy::let_underscore_future)]
         let _ = async_std::task::spawn(future);
     }
 
-    fn delay(&self, duration: Duration) -> impl Future<Output=()> + Send + Sync + 'static {
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
         async_std::task::sleep(duration)
     }
 }

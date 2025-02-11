@@ -109,7 +109,7 @@ where
         let worker = move |reader: &PeriodicReader<E>| {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
-            self.runtime.spawn(Box::pin(async move {
+            self.runtime.spawn(async move {
                 let ticker = to_interval_stream(runtime.clone(), self.interval)
                     .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                     .map(|_| Message::Export);
@@ -125,7 +125,7 @@ where
                 }
                 .run(messages)
                 .await
-            }));
+            });
         };
 
         otel_debug!(

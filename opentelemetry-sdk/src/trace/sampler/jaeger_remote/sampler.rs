@@ -191,7 +191,7 @@ impl JaegerRemoteSampler {
         // todo: review if we need 'static here
         let interval = to_interval_stream(runtime.clone(), update_timeout);
 
-        runtime.spawn(Box::pin(async move {
+        runtime.spawn(async move {
             // either update or shutdown
             let mut update = Box::pin(stream::select(
                 shutdown.map(|_| false),
@@ -217,7 +217,7 @@ impl JaegerRemoteSampler {
                     break;
                 }
             }
-        }));
+        });
     }
 
     async fn request_new_strategy<C>(

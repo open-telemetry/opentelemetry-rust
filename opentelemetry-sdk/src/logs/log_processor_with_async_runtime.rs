@@ -126,7 +126,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let inner_runtime = runtime.clone();
 
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(async move {
+        runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
@@ -204,7 +204,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                 }
             }
-        }));
+        });
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
