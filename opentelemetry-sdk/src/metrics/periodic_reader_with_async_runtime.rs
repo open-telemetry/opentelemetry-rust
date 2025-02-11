@@ -13,7 +13,7 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::Runtime;
+use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
@@ -110,8 +110,7 @@ where
             let runtime = self.runtime.clone();
             let reader = reader.clone();
             self.runtime.spawn(Box::pin(async move {
-                let ticker = runtime
-                    .interval(self.interval)
+                let ticker = to_interval_stream(runtime.clone(), self.interval)
                     .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                     .map(|_| Message::Export);
                 let messages = Box::pin(stream::select(message_receiver, ticker));
