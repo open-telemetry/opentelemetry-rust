@@ -120,7 +120,7 @@ impl HttpExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
+                Ok(seconds) => Duration::from_millis(seconds),
                 Err(_) => self.exporter_config.timeout,
             },
             None => self.exporter_config.timeout,

@@ -1,16 +1,12 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use std::time::Duration;
 
 use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::KeyValue;
 use opentelemetry::{InstrumentationScope, Key};
 use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
-use opentelemetry_sdk::resource::{
-    EnvResourceDetector, SdkProvidedResourceDetector, TelemetryResourceDetector,
-};
 use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
@@ -360,26 +356,20 @@ fn prometheus_exporter_integration() {
         let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
 
         let res = if tc.empty_resource {
-            Resource::empty()
+            Resource::builder_empty().build()
         } else {
-            Resource::from_detectors(
-                Duration::from_secs(0),
-                vec![
-                    Box::new(SdkProvidedResourceDetector),
-                    Box::new(EnvResourceDetector::new()),
-                    Box::new(TelemetryResourceDetector),
-                ],
-            )
-            .merge(&mut Resource::new(
-                vec![
-                    // always specify service.name because the default depends on the running OS
-                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
-                    // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-                ]
-                .into_iter()
-                .chain(tc.custom_resource_attrs.into_iter()),
-            ))
+            Resource::builder()
+                .with_attributes(
+                    vec![
+                        // always specify service.name because the default depends on the running OS
+                        KeyValue::new(SERVICE_NAME, "prometheus_test"),
+                        // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+                        KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
+                    ]
+                    .into_iter()
+                    .chain(tc.custom_resource_attrs.into_iter()),
+                )
+                .build()
         };
 
         let provider = SdkMeterProvider::builder()
@@ -431,20 +421,14 @@ fn multiple_scopes() {
         .build()
         .unwrap();
 
-    let resource = Resource::from_detectors(
-        Duration::from_secs(0),
-        vec![
-            Box::new(SdkProvidedResourceDetector),
-            Box::new(EnvResourceDetector::new()),
-            Box::new(TelemetryResourceDetector),
-        ],
-    )
-    .merge(&mut Resource::new(vec![
-        // always specify service.name because the default depends on the running OS
-        KeyValue::new(SERVICE_NAME, "prometheus_test"),
-        // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-        KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-    ]));
+    let resource = Resource::builder()
+        .with_attributes([
+            // always specify service.name because the default depends on the running OS
+            KeyValue::new(SERVICE_NAME, "prometheus_test"),
+            // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+            KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
+        ])
+        .build();
 
     let provider = SdkMeterProvider::builder()
         .with_reader(exporter)
@@ -781,24 +765,18 @@ fn duplicate_metrics() {
         let registry = prometheus::Registry::new();
         let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
 
-        let resource = Resource::from_detectors(
-            Duration::from_secs(0),
-            vec![
-                Box::new(SdkProvidedResourceDetector),
-                Box::new(EnvResourceDetector::new()),
-                Box::new(TelemetryResourceDetector),
-            ],
-        )
-        .merge(&mut Resource::new(
-            vec![
-                // always specify service.name because the default depends on the running OS
-                KeyValue::new(SERVICE_NAME, "prometheus_test"),
-                // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-            ]
-            .into_iter()
-            .chain(tc.custom_resource_attrs.into_iter()),
-        ));
+        let resource = Resource::builder()
+            .with_attributes(
+                vec![
+                    // always specify service.name because the default depends on the running OS
+                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
+                    // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
+                ]
+                .into_iter()
+                .chain(tc.custom_resource_attrs.into_iter()),
+            )
+            .build();
 
         let provider = SdkMeterProvider::builder()
             .with_resource(resource)
