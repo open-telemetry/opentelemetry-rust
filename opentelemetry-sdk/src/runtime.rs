@@ -44,6 +44,7 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 
 /// Uses the given runtime to produce an interval stream.
 #[cfg(feature = "experimental_async_runtime")]
+#[allow(dead_code)]
 pub(crate) fn to_interval_stream<T: Runtime>(
     runtime: T,
     interval: Duration,
