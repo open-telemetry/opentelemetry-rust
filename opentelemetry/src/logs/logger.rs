@@ -36,7 +36,7 @@ pub trait LoggerProvider {
     /// ```
     /// use opentelemetry::InstrumentationScope;
     /// use opentelemetry::logs::LoggerProvider;
-    /// use opentelemetry_sdk::logs::LoggerProvider as SdkLoggerProvider;
+    /// use opentelemetry_sdk::logs::SdkLoggerProvider;
     ///
     /// let provider = SdkLoggerProvider::builder().build();
     ///
