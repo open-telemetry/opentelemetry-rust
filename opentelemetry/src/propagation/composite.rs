@@ -49,7 +49,7 @@ use std::collections::HashSet;
 /// let mut injector = HashMap::new();
 ///
 /// // And a given span
-/// let example_span = sdktrace::SdkTracerProvider::default()
+/// let example_span = sdktrace::TracerProvider::default()
 ///     .tracer("example-component")
 ///     .start("span-name");
 ///
