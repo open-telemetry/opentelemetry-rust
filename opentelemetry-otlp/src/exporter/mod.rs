@@ -6,12 +6,13 @@
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::{Error, Protocol};
+use crate::Protocol;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
+use thiserror::Error;
 
 /// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
 /// Learn about the relationship between this constant and metrics/spans/logs at
@@ -92,6 +93,42 @@ impl Default for ExportConfig {
     }
 }
 
+#[derive(Error, Debug)]
+/// Errors that can occur while building an exporter.
+// TODO: Refine and polish this.
+pub enum ExporterBuildError {
+    /// Spawning a new thread failed.
+    #[error("Spawning a new thread failed. Unable to create Reqwest-Blocking client.")]
+    ThreadSpawnFailed,
+
+    /// Feature required to use the specified compression algorithm.
+    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
+
+    /// Unsupported compression algorithm.
+    #[error("no http client specified")]
+    NoHttpClient,
+
+    /// Unsupported compression algorithm.
+    #[error("unsupported compression algorithm '{0}'")]
+    UnsupportedCompressionAlgorithm(String),
+
+    /// Invalid URI.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    #[error("invalid URI {0}. Reason {1}")]
+    InvalidUri(String, String),
+
+    /// Failed due to an internal error.
+    ///
+    /// The error message is intended for logging purposes only and should not
+    /// be used to make programmatic decisions. It is implementation-specific
+    /// and subject to change without notice. Consumers of this error should not
+    /// rely on its content beyond logging.
+    #[error("Reason: {0}")]
+    InternalFailure(String),
+}
+
 /// The compression algorithm to use when sending data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,13 +149,15 @@ impl Display for Compression {
 }
 
 impl FromStr for Compression {
-    type Err = Error;
+    type Err = ExporterBuildError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gzip" => Ok(Compression::Gzip),
             "zstd" => Ok(Compression::Zstd),
-            _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
+            _ => Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                s.to_string(),
+            )),
         }
     }
 }

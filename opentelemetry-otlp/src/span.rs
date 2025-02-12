@@ -20,7 +20,10 @@ use crate::{
     HttpExporterBuilderSet,
 };
 
-use crate::{exporter::HasExportConfig, NoExporterBuilderSet};
+use crate::{
+    exporter::{ExporterBuildError, HasExportConfig},
+    NoExporterBuilderSet,
+};
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 /// Learn about the relationship between this constant and default/metrics/logs at
@@ -63,7 +66,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl SpanExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+    pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         opentelemetry::otel_debug!(name: "SpanExporterBuilt");
         Ok(SpanExporter::new(span_exporter))
@@ -72,7 +75,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl SpanExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+    pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         Ok(SpanExporter::new(span_exporter))
     }

@@ -1,5 +1,5 @@
 use super::{
-    default_headers, default_protocol, parse_header_string,
+    default_headers, default_protocol, parse_header_string, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{
@@ -61,7 +61,7 @@ pub struct HttpConfig {
 /// # #[cfg(feature="metrics")]
 /// use opentelemetry_sdk::metrics::Temporality;
 ///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn main() -> Result<(), opentelemetry_otlp::ExporterBuildError> {
 /// // Create a span exporter you can use to when configuring tracer providers
 /// # #[cfg(feature="trace")]
 /// let span_exporter = opentelemetry_otlp::SpanExporter::builder().with_http().build()?;
@@ -108,7 +108,7 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
-    ) -> Result<OtlpHttpClient, crate::Error> {
+    ) -> Result<OtlpHttpClient, ExporterBuildError> {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
@@ -173,7 +173,7 @@ impl HttpExporterBuilder {
             }
         }
 
-        let http_client = http_client.ok_or(crate::Error::NoHttpClient)?;
+        let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
 
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
@@ -208,9 +208,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "trace")]
-    pub fn build_span_exporter(
-        mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
@@ -228,7 +226,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> opentelemetry_sdk::logs::LogResult<crate::LogExporter> {
+    pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
@@ -249,7 +247,7 @@ impl HttpExporterBuilder {
     pub fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
-    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
+    ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -320,7 +318,7 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> opentelemetry_sdk::logs::LogResult<(Vec<u8>, &'static str)> {
+    ) -> Result<(Vec<u8>, &'static str), Box<dyn std::error::Error>> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
@@ -329,7 +327,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry_sdk::logs::LogError::from(e.to_string())),
+                Err(e) => Err(Box::new(e)),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
@@ -339,7 +337,7 @@ impl OtlpHttpClient {
     fn build_metrics_export_body(
         &self,
         metrics: &mut ResourceMetrics,
-    ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
+    ) -> Result<(Vec<u8>, &'static str), Box<dyn std::error::Error>> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = (&*metrics).into();
@@ -348,9 +346,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry_sdk::metrics::MetricError::Other(
-                    e.to_string(),
-                )),
+                Err(e) => Err(Box::new(e)),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
@@ -371,7 +367,7 @@ fn resolve_http_endpoint(
     signal_endpoint_var: &str,
     signal_endpoint_path: &str,
     provided_endpoint: Option<String>,
-) -> Result<Uri, crate::Error> {
+) -> Result<Uri, ExporterBuildError> {
     // per signal env var is not modified
     if let Some(endpoint) = env::var(signal_endpoint_var)
         .ok()
@@ -388,13 +384,22 @@ fn resolve_http_endpoint(
         return Ok(endpoint);
     }
 
+    let provided_endpoint_clone = provided_endpoint.clone();
     provided_endpoint
-        .map(|e| e.parse().map_err(From::from))
+        .map(|endpoint| {
+            endpoint.parse().map_err(|err: http::uri::InvalidUri| {
+                ExporterBuildError::InvalidUri(
+                    provided_endpoint_clone.unwrap().to_string(),
+                    err.to_string(),
+                )
+            })
+        })
         .unwrap_or_else(|| {
             build_endpoint_uri(
                 OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
                 signal_endpoint_path,
             )
+            .map_err(|e| ExporterBuildError::InvalidUri("".to_string(), e.to_string()))
         })
 }
 

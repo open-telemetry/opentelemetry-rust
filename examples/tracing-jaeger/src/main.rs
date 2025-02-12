@@ -1,14 +1,16 @@
 use opentelemetry::{
     global,
-    trace::{TraceContextExt, TraceError, Tracer},
+    trace::{TraceContextExt, Tracer},
     KeyValue,
 };
+use opentelemetry_otlp::ExporterBuildError;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 
 use std::error::Error;
 
-fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::SdkTracerProvider, TraceError> {
+fn init_tracer_provider() -> Result<opentelemetry_sdk::trace::SdkTracerProvider, ExporterBuildError>
+{
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .build()?;

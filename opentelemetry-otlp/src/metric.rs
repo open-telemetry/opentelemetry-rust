@@ -3,6 +3,7 @@
 //! Defines a [MetricExporter] to send metric data to backend via OTLP protocol.
 //!
 
+use crate::exporter::ExporterBuildError;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 use crate::HasExportConfig;
 
@@ -17,8 +18,6 @@ use crate::NoExporterBuilderSet;
 use async_trait::async_trait;
 use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::metrics::MetricResult;
-
 use opentelemetry_sdk::metrics::{
     data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
 };
@@ -77,7 +76,7 @@ impl<C> MetricExporterBuilder<C> {
 
 #[cfg(feature = "grpc-tonic")]
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricExporter> {
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         opentelemetry::otel_debug!(name: "MetricExporterBuilt");
         Ok(exporter)
@@ -86,7 +85,7 @@ impl MetricExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl MetricExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricExporter> {
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }

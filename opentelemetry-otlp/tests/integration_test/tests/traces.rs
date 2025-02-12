@@ -3,7 +3,7 @@
 use std::{fs::File, os::unix::fs::MetadataExt};
 
 use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
-use opentelemetry::trace::TraceError;
+use opentelemetry_otlp::ExporterBuildError;
 use opentelemetry_otlp::SpanExporter;
 
 use anyhow::Result;
@@ -11,7 +11,7 @@ use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 
-fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, TraceError> {
+fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, ExporterBuildError> {
     let exporter_builder = SpanExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
