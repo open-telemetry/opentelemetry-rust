@@ -6,8 +6,8 @@
 //! [Tokio]: https://crates.io/crates/tokio
 //! [async-std]: https://crates.io/crates/async-std
 
-use std::{fmt::Debug, future::Future, time::Duration};
 use futures_util::stream::{unfold, Stream};
+use std::{fmt::Debug, future::Future, time::Duration};
 use thiserror::Error;
 
 /// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
@@ -34,7 +34,9 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     /// At the moment, the shutdown happens by blocking the
     /// current thread. This means runtime implementations need to make sure they can still execute
     /// the given future even if the main thread is blocked.
-    fn spawn<F>(&self, future: F) where F: Future<Output = ()> + Send + 'static;
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static;
 
     /// Return a future that resolves after the specified [Duration].
     fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static;
@@ -42,7 +44,10 @@ pub trait Runtime: Clone + Send + Sync + 'static {
 
 /// Uses the given runtime to produce an interval stream.
 #[cfg(feature = "experimental_async_runtime")]
-pub(crate) fn to_interval_stream<T: Runtime>(runtime: T, interval: Duration) -> impl Stream<Item = ()> {
+pub(crate) fn to_interval_stream<T: Runtime>(
+    runtime: T,
+    interval: Duration,
+) -> impl Stream<Item = ()> {
     unfold((), move |_| {
         let runtime_cloned = runtime.clone();
 
@@ -70,7 +75,7 @@ pub struct Tokio;
 impl Runtime for Tokio {
     fn spawn<F>(&self, future: F)
     where
-        F: Future<Output = ()> + Send + 'static
+        F: Future<Output = ()> + Send + 'static,
     {
         #[allow(clippy::let_underscore_future)]
         // we don't have to await on the returned future to execute
@@ -111,7 +116,7 @@ pub struct TokioCurrentThread;
 impl Runtime for TokioCurrentThread {
     fn spawn<F>(&self, future: F)
     where
-        F: Future<Output = ()> + Send + 'static
+        F: Future<Output = ()> + Send + 'static,
     {
         // We cannot force push tracing in current thread tokio scheduler because we rely on
         // BatchSpanProcessor to export spans in a background task, meanwhile we need to block the
@@ -150,7 +155,7 @@ pub struct AsyncStd;
 impl Runtime for AsyncStd {
     fn spawn<F>(&self, future: F)
     where
-        F: Future<Output = ()> + Send + 'static
+        F: Future<Output = ()> + Send + 'static,
     {
         #[allow(clippy::let_underscore_future)]
         let _ = async_std::task::spawn(future);
