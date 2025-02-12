@@ -2,6 +2,11 @@
 
 ## vNext
 
+## 0.28.1
+
+Released 2025-Feb-12
+
+- Bump `tracing-opentelemetry` to 0.29
 - New experimental feature to use trace\_id & span\_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
 
 
