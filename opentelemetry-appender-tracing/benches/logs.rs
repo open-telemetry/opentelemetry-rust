@@ -21,7 +21,7 @@ use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler}; 
+use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
