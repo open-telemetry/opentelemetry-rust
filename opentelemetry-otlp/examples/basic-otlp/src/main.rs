@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
@@ -13,11 +12,11 @@ use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-static RESOURCE: Lazy<Resource> = Lazy::new(|| {
+fn get_resource() -> Resource {
     Resource::builder()
         .with_service_name("basic-otlp-example-grpc")
         .build()
-});
+}
 
 fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
@@ -25,7 +24,7 @@ fn init_traces() -> SdkTracerProvider {
         .build()
         .expect("Failed to create span exporter");
     SdkTracerProvider::builder()
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .with_batch_exporter(exporter)
         .build()
 }
@@ -38,7 +37,7 @@ fn init_metrics() -> SdkMeterProvider {
 
     SdkMeterProvider::builder()
         .with_periodic_exporter(exporter)
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .build()
 }
 
@@ -49,7 +48,7 @@ fn init_logs() -> SdkLoggerProvider {
         .expect("Failed to create log exporter");
 
     SdkLoggerProvider::builder()
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .with_batch_exporter(exporter)
         .build()
 }

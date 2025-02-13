@@ -6,7 +6,6 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", features = ["grpc-tonic"] }

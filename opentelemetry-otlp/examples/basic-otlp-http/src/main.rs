@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
     trace::{TraceContextExt, Tracer},
@@ -16,11 +15,11 @@ use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-static RESOURCE: Lazy<Resource> = Lazy::new(|| {
+fn get_resource() -> Resource {
     Resource::builder()
         .with_service_name("basic-otlp-example-http")
         .build()
-});
+}
 
 fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
@@ -31,7 +30,7 @@ fn init_logs() -> SdkLoggerProvider {
 
     SdkLoggerProvider::builder()
         .with_batch_exporter(exporter)
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .build()
 }
 
@@ -44,7 +43,7 @@ fn init_traces() -> SdkTracerProvider {
 
     SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .build()
 }
 
@@ -57,7 +56,7 @@ fn init_metrics() -> SdkMeterProvider {
 
     SdkMeterProvider::builder()
         .with_periodic_exporter(exporter)
-        .with_resource(RESOURCE.clone())
+        .with_resource(get_resource())
         .build()
 }
 
