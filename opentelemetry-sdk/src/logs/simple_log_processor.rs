@@ -27,7 +27,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
-use std::{env, sync::Mutex};
+use std::sync::Mutex;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
