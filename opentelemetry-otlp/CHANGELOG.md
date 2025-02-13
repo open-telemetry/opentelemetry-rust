@@ -2,6 +2,17 @@
 
 ## vNext
 
+- *Breaking*
+
+ExporterBuilder's build() method now Result with `ExporterBuildError` being the
+Error variant. Previously it returned signal specific errors like `LogError`
+from the `opentelemetry_sdk`, which are no longer part of the sdk. No changes
+required if you were using unwrap/expect. If you were matching on the returning
+Error enum, replace with the enum `ExporterBuildError`. Unlike the previous
+`Error` which contained many variants unrelated to building an exporter, the
+new one returns specific variants applicable to building an exporter. Some
+variants might be applicable only on select features.
+
 ## 0.28.0
 
 Released 2025-Feb-10

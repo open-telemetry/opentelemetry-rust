@@ -2,6 +2,14 @@
 
 ## vNext
 
+- *Breaking (Affects custom Exporter/Processor/MetricReader authors only)* Removed
+`opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
+intended to be public. If you are authoring custom processor/exporters, use
+`opentelemetry_sdk::error::OTelSdkError` and
+`opentelemetry_sdk::error::OTelSdkResult`.
+// PLACEHOLDER to fill in when the similar change is done for traces, metrics.
+// PLACEHOLDER to put all the PR links together.
+
 ## 0.28.0
 
 Released 2025-Feb-10

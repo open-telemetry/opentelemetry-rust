@@ -1,5 +1,4 @@
 //! # OpenTelemetry Log SDK
-mod error;
 mod export;
 mod log_processor;
 mod logger;
@@ -14,7 +13,6 @@ pub mod in_memory_exporter;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 
-pub use error::{LogError, LogResult};
 pub use export::{LogBatch, LogExporter};
 pub use log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
