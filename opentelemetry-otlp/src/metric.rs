@@ -139,7 +139,6 @@ impl Debug for MetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for MetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.client.export(metrics).await
