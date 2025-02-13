@@ -10,7 +10,6 @@ default = ["reqwest-blocking"]
 reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
 
 [dependencies]
-once_cell = { workspace = true }
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
 opentelemetry-otlp = { path = "../.."}
