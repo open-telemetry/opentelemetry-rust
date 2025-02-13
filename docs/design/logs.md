@@ -5,16 +5,20 @@ Status:
 
 ## Overview
 
-OpenTelemetry (OTel) Logs support differs from Metrics and Traces as it does not
-introduce a new logging API for end users. Instead, OTel recommends leveraging
-existing logging libraries such as `log` and `tracing`, while providing bridges
-(appenders) to route logs through OpenTelemetry.
+[OpenTelemetry (OTel)
+Logs](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/README.md)
+support differs from Metrics and Traces as it does not introduce a new logging
+API for end users. Instead, OTel recommends leveraging existing logging
+libraries such as [log](https://crates.io/crates/log) and
+[tracing](https://crates.io/crates/tracing), while providing bridges (appenders)
+to route logs through OpenTelemetry.
 
-Unlike Traces and Metrics, which introduced new APIs, Logs took a different
-approach due to the long history of existing logging solutions. In Rust, the
-most widely used logging libraries are `log` and `tracing`. OTel Rust maintains
-appenders for these libraries, allowing users to seamlessly integrate with
-OpenTelemetry without changing their existing logging instrumentation.
+OTel took this different approach due to the long history of existing logging
+solutions. In Rust, these are [log](https://crates.io/crates/log) and
+[tracing](https://crates.io/crates/tracing), and have been embraced in the
+community for some time. OTel Rust maintains appenders for these libraries,
+allowing users to seamlessly integrate with OpenTelemetry without changing their
+existing logging instrumentation.
 
 The `tracing` appender is particularly optimized for performance due to its
 widespread adoption and the fact that `tracing` itself has a bridge from the
@@ -29,20 +33,54 @@ prioritize `tracing`.
 - **Automatic correlation** with Traces.
 - **Consistent Resource attributes** across signals.
 - **Multiple destinations support**: Logs can continue flowing to existing
-  destinations like stdout while also being sent to an OpenTelemetry-capable
-  backend, typically via an OTLP Exporter or exporters that export to operating
-  system native systems like `Windows ETW` or `Linux user_events`.
+  destinations like stdout etc. while also being sent to an
+  OpenTelemetry-capable backend, typically via an OTLP Exporter or exporters
+  that export to operating system native systems like `Windows ETW` or `Linux
+  user_events`.
 - **Standalone logging support** for applications that use OpenTelemetry as
   their primary logging mechanism.
 
 ## Key Design Principles
 
-- High performance - no locks/contention in the hot path, minimal/no heap
-  allocation.
-- Capped resource usage - well-defined behavior when overloaded.
-- Self-observable.
-- Well defined Error handling, returning Result as appropriate instead of panic.
+- High performance - no locks/contention in the hot path with minimal/no heap
+  allocation where possible.
+- Capped resource (memory) usage - well-defined behavior when overloaded.
+- Self-observable - exposes telemetry about itself to aid in troubleshooting
+  etc.
+- Robust error handling, returning Result where possible instead of panicking.
 - Minimal public API, exposing based on need only.
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    subgraph Application
+        A1[Application Code]
+    end
+    subgraph Logging Libraries
+        B1[log crate]
+        B2[tracing crate]
+    end
+    subgraph OpenTelemetry
+        C1[OpenTelemetry Appender for log]
+        C2[OpenTelemetry Appender for tracing]
+        C3[OpenTelemetry Logs API]
+        C4[OpenTelemetry Logs SDK]
+        C5[OTLP Exporter]
+    end
+    subgraph Observability Backend
+        D1[OTLP-Compatible Backend]
+    end
+    A1 --> |Emits Logs| B1
+    A1 --> |Emits Logs| B2
+    B1 --> |Bridged by| C1
+    B2 --> |Bridged by| C2
+    C1 --> |Sends to| C3
+    C2 --> |Sends to| C3
+    C3 --> |Processes with| C4
+    C4 --> |Exports via| C5
+    C5 --> |Sends to| D1
+```
 
 ## Logs API
 
@@ -53,9 +91,10 @@ end-users.
 
 ### API Components
 
-1. **Key-Value Structs**: Used in `LogRecord`, where keys are shared across
-   signals but values differ from Metrics and Traces. This is because values in
-   Logs can contain more complex structures than those in Traces and Metrics.
+1. **Key-Value Structs**: Used in `LogRecord`, where `Key` struct is shared
+   across signals but `Value` struct differ from Metrics and Traces. This is
+   because values in Logs can contain more complex structures than those in
+   Traces and Metrics.
 2. **Traits**:
     - `LoggerProvider` - provides methods to obtain Logger.
     - `Logger` - provides methods to create LogRecord and emit the created
@@ -88,6 +127,9 @@ implementation of the Logs API, handling log processing and export.
 
 #### `SdkLoggerProvider`
 
+This is the implementation of the `LoggerProvider` and deals with concerns such
+as processing and exporting Logs.
+
 - Implements the `LoggerProvider` trait.
 - Creates and manages `SdkLogger` instances.
 - Holds logging configuration, including `Resource` and processors.
@@ -97,21 +139,24 @@ implementation of the Logs API, handling log processing and export.
 - Uses an `Arc<LoggerProviderInner>` and delegates all configuration to
   `LoggerProviderInner`. This allows cheap cloning of itself and ensures all
   clones point to the same underlying configuration.
-- As `SdkLoggerProvider` only holds an `Arc` of its inner, it can only accept
+- As `SdkLoggerProvider` only holds an `Arc` of its inner, it can only take
   `&self` in its methods like flush and shutdown. Else it needs to rely on
   interior mutability that comes with runtime performance costs. Since methods
-  like shutdown usually need to mutate interior state, components like exporter
-  use interior mutability to handle shutdown. (More on this in the exporter
-  section)
+  like shutdown usually need to mutate interior state, but this component can
+  only take `&self`, it defers to components like exporter to use interior
+  mutability to handle shutdown. (More on this in the exporter section)
 - An alternative design was to let `SdkLogger` hold a `Weak` reference to the
-  `SdkLoggerProvider`. This would be a `weak->arc` upgrade in every log emission,
-  significantly affecting throughput.
+  `SdkLoggerProvider`. This would be a `weak->arc` upgrade in every log
+  emission, significantly affecting throughput.
 - `LoggerProviderInner` implements `Drop`, triggering `shutdown()` when no
   references remain. However, in practice, loggers are often stored statically
   inside appenders (like tracing-appender), so explicit shutdown by the user is
   required.
 
 #### `SdkLogger`
+
+This is an implementation of the `Logger`, and contains functionality to create
+and emit logs.
 
 - Implements the `Logger` trait.
 - Creates `SdkLogRecord` instances and emits them.
@@ -204,9 +249,9 @@ include:
 
 ## `tracing` Log Appender
 
-The `tracing` appender bridges `tracing` logs to OpenTelemetry. Logs emitted via
-`tracing` macros (`info!`, `warn!`, etc.) are forwarded to OpenTelemetry through
-this integration.
+The `tracing` appender bridges `tracing` logs (events) to OpenTelemetry. Logs
+emitted via `tracing` macros (`info!`, `warn!`, etc.) are forwarded to
+OpenTelemetry through this integration.
 
 - `tracing` is designed for high performance, using *layers* or *subscribers* to
   handle emitted logs (events).
@@ -214,6 +259,13 @@ this integration.
 - Uses the OTel Logs API to create `LogRecord`, populate it, and emit it via
   `Logger.emit(LogRecord)`.
 - If no Logs SDK is present, the process is a no-op.
+
+Note on terminology: Within OpenTelemetry, "tracing" refers to distributed
+tracing (i.e creation of Spans) and not in-process structured logging and
+execution traces. The crate "tracing" has notion of creating Spans as well as
+Events. The events from "tracing" crate is what gets converted to OTel Logs,
+when using this appender. Spans created using "tracing" crate is not handled by
+this crate.
 
 ## Performance
 
