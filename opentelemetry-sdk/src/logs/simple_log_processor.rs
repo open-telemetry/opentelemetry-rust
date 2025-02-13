@@ -1,11 +1,11 @@
 //! # OpenTelemetry Simple Log Processor
 //! The `SimpleLogProcessor` is one implementation of the `LogProcessor` interface.
 //!
-//! It forwards log records to the exporter immediately
-//! after they are emitted. This processor is **synchronous** and is designed
-//! for debugging or testing purposes. It is **not suitable for production**
-//! environments due to its lack of batching, performance optimizations, or support
-//! for high-throughput scenarios.
+//! It forwards log records to the exporter immediately after they are emitted
+//! (or one exporter after another if applicable). This processor is
+//! **synchronous** and is designed for debugging or testing purposes. It is
+//! **not suitable for production** environments due to its lack of batching,
+//! performance optimizations, or support for high-throughput scenarios.
 //!
 //! ## Diagram
 //!
