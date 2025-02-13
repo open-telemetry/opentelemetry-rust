@@ -103,6 +103,9 @@ implementation of the Logs API, handling log processing and export.
   like shutdown usually need to mutate interior state, components like exporter
   use interior mutability to handle shutdown. (More on this in the exporter
   section)
+- An alternative design was to let `SdkLogger` hold a `Weak` reference to the
+  `SdkLoggerProvider`. This would be a `weak->arc` upgrade in every log emission,
+  significantly affecting throughput.
 - `LoggerProviderInner` implements `Drop`, triggering `shutdown()` when no
   references remain. However, in practice, loggers are often stored statically
   inside appenders (like tracing-appender), so explicit shutdown by the user is
@@ -211,6 +214,18 @@ this integration.
 - Uses the OTel Logs API to create `LogRecord`, populate it, and emit it via
   `Logger.emit(LogRecord)`.
 - If no Logs SDK is present, the process is a no-op.
+
+## Performance
+
+// Call out things done specifically for performance
+
+### Perf test - benchmarks
+
+// Share ~~ numbers
+
+### Perf test - stress test
+
+// Share ~~ numbers
 
 ## Summary
 
