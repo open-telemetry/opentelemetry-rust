@@ -23,7 +23,6 @@ use crate::{
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
