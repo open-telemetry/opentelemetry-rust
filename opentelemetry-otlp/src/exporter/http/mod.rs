@@ -384,14 +384,11 @@ fn resolve_http_endpoint(
         return Ok(endpoint);
     }
 
-    let provided_endpoint_clone = provided_endpoint.clone();
     provided_endpoint
+        .as_ref()
         .map(|endpoint| {
             endpoint.parse().map_err(|err: http::uri::InvalidUri| {
-                ExporterBuildError::InvalidUri(
-                    provided_endpoint_clone.unwrap().to_string(),
-                    err.to_string(),
-                )
+                ExporterBuildError::InvalidUri(endpoint.to_string(), err.to_string())
             })
         })
         .unwrap_or_else(|| {
@@ -399,7 +396,12 @@ fn resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
                 signal_endpoint_path,
             )
-            .map_err(|e| ExporterBuildError::InvalidUri("".to_string(), e.to_string()))
+            .map_err(|e| {
+                ExporterBuildError::InvalidUri(
+                    format!("{OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT}{signal_endpoint_path}"),
+                    e.to_string(),
+                )
+            })
         })
 }
 
