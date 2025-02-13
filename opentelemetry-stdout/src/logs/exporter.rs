@@ -3,12 +3,12 @@ use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
-use std::sync::atomic;
+use std::sync::{atomic, Mutex};
 use std::sync::atomic::Ordering;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
-    resource: Resource,
+    resource: Mutex<Resource>,
     is_shutdown: atomic::AtomicBool,
     resource_emitted: atomic::AtomicBool,
 }
@@ -16,7 +16,7 @@ pub struct LogExporter {
 impl Default for LogExporter {
     fn default() -> Self {
         LogExporter {
-            resource: Resource::builder().build(),
+            resource: Mutex::new(Resource::builder().build()),
             is_shutdown: atomic::AtomicBool::new(false),
             resource_emitted: atomic::AtomicBool::new(false),
         }
@@ -49,10 +49,11 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
                     print_logs(batch);
                 } else {
                     println!("Resource");
-                    if let Some(schema_url) = self.resource.schema_url() {
+                    let resource = self.resource.lock().unwrap();
+                    if let Some(schema_url) = resource.schema_url() {
                         println!("\t Resource SchemaUrl: {:?}", schema_url);
                     }
-                    self.resource.iter().for_each(|(k, v)| {
+                    resource.iter().for_each(|(k, v)| {
                         println!("\t ->  {}={:?}", k, v);
                     });
                     print_logs(batch);
@@ -63,13 +64,14 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
 
-    fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
-        self.resource = res.clone();
+    fn set_resource(&self, res: &opentelemetry_sdk::Resource) {
+        let mut res_guard = self.resource.lock().unwrap();
+        *res_guard = res.clone();
     }
 }
 

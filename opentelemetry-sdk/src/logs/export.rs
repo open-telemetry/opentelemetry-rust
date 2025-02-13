@@ -136,15 +136,15 @@ pub trait LogExporter: Send + Sync + Debug {
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
     /// Shuts down the exporter.
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
     #[cfg(feature = "spec_unstable_logs_enabled")]
-    /// Chek if logs are enabled.
+    /// Check if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
         // By default, all logs are enabled
         true
     }
     /// Set the resource for the exporter.
-    fn set_resource(&mut self, _resource: &Resource) {}
+    fn set_resource(&self, _resource: &Resource) {}
 }

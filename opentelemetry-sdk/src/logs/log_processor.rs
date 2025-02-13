@@ -135,53 +135,31 @@ pub trait LogProcessor: Send + Sync + Debug {
 /// ```
 #[derive(Debug)]
 pub struct SimpleLogProcessor<T: LogExporter> {
-    exporter: Mutex<T>,
-    is_shutdown: AtomicBool,
+    exporter: T,
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
     pub(crate) fn new(exporter: T) -> Self {
         SimpleLogProcessor {
-            exporter: Mutex::new(exporter),
-            is_shutdown: AtomicBool::new(false),
+            exporter: exporter
         }
     }
 }
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
-        // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
-            // this is a warning, as the user is trying to log after the processor has been shutdown
-            otel_warn!(
-                name: "SimpleLogProcessor.Emit.ProcessorShutdown",
+        let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
+        let result = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
+        if result.is_err() {
+            otel_error!(
+                name: "SimpleLogProcessor.Emit.ExportError",
+                error = format!("{}", result.err().unwrap())
             );
-            return;
         }
-
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| OTelSdkError::InternalFailure("SimpleLogProcessor mutex poison".into()))
-            .and_then(|exporter| {
-                let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
-                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
-            });
-        // Handle errors with specific static names
-        match result {
-            Err(OTelSdkError::InternalFailure(_)) => {
-                // logging as debug as this is not a user error
-                otel_debug!(
-                    name: "SimpleLogProcessor.Emit.MutexPoisoning",
-                );
-            }
-            Err(err) => {
-                otel_error!(
-                    name: "SimpleLogProcessor.Emit.ExportError",
-                    error = format!("{}",err)
-                );
-            }
-            _ => {}
+        else {
+            otel_debug!(
+                name: "SimpleLogProcessor.Emit.Success",
+            );
         }
     }
 
@@ -190,21 +168,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown()
-        } else {
-            Err(OTelSdkError::InternalFailure(
-                "SimpleLogProcessor mutex poison at shutdown".into(),
-            ))
-        }
+        self.exporter.shutdown()
     }
 
     fn set_resource(&self, resource: &Resource) {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.set_resource(resource);
-        }
+        self.exporter.set_resource(resource);
     }
 }
 
@@ -481,7 +449,7 @@ impl LogProcessor for BatchLogProcessor {
 }
 
 impl BatchLogProcessor {
-    pub(crate) fn new<E>(mut exporter: E, config: BatchConfig) -> Self
+    pub(crate) fn new<E>(exporter: E, config: BatchConfig) -> Self
     where
         E: LogExporter + Send + Sync + 'static,
     {
@@ -909,11 +877,11 @@ mod tests {
             async { Ok(()) }
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn set_resource(&mut self, resource: &Resource) {
+        fn set_resource(&self, resource: &Resource) {
             self.resource
                 .lock()
                 .map(|mut res_opt| {
@@ -1171,17 +1139,14 @@ mod tests {
         let instrumentation: InstrumentationScope = Default::default();
 
         processor.emit(&mut record, &instrumentation);
-
         processor.shutdown().unwrap();
 
-        let is_shutdown = processor
-            .is_shutdown
-            .load(std::sync::atomic::Ordering::Relaxed);
-        assert!(is_shutdown);
-
+        // Emit after shutdown.
         processor.emit(&mut record, &instrumentation);
 
-        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+        // SimpleProcessor does not do anything to check if logs
+        // are flowing after shutdown.
+        assert_eq!(2, exporter.get_emitted_logs().unwrap().len())
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -45,15 +45,22 @@ fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
     use opentelemetry_appender_tracing::layer;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
-    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{prelude::*, EnvFilter};
 
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();
+    let filter_otel = EnvFilter::new("info")
+    .add_directive("hyper=off".parse().unwrap())
+    .add_directive("opentelemetry=off".parse().unwrap())
+    .add_directive("tonic=off".parse().unwrap())
+    .add_directive("h2=off".parse().unwrap())
+    .add_directive("reqwest=off".parse().unwrap());
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
-    tracing_subscriber::registry().with(layer).init();
+    let otel_layer = layer.with_filter(filter_otel);
+    tracing_subscriber::registry().with(otel_layer).init();
     provider
 }
 

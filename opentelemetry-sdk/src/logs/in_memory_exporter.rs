@@ -208,14 +208,14 @@ impl LogExporter for InMemoryLogExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         if self.should_reset_on_shutdown {
             self.reset();
         }
         Ok(())
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
+    fn set_resource(&self, resource: &Resource) {
         let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
         *res_guard = resource.clone();
     }
