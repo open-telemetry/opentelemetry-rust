@@ -715,6 +715,7 @@ impl BatchConfigBuilder {
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
+    use crate::logs::log_processor::tests::MockLogExporter;
     use super::{
         BatchConfig, BatchConfigBuilder, BatchLogProcessor, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_MAX_QUEUE_SIZE,
@@ -723,9 +724,8 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
+    use crate::logs::SdkLogRecord;
     use crate::{
-        error::OTelSdkResult,
         logs::{InMemoryLogExporter, InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider},
         Resource,
     };
@@ -733,41 +733,6 @@ mod tests {
     use opentelemetry::KeyValue;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
-
-    #[derive(Debug, Clone)]
-    struct MockLogExporter {
-        resource: Arc<Mutex<Option<Resource>>>,
-    }
-
-    impl LogExporter for MockLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async { Ok(()) }
-        }
-
-        fn shutdown(&mut self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn set_resource(&mut self, resource: &Resource) {
-            self.resource
-                .lock()
-                .map(|mut res_opt| {
-                    res_opt.replace(resource.clone());
-                })
-                .expect("mock log exporter shouldn't error when setting resource");
-        }
-    }
-
-    // Implementation specific to the MockLogExporter, not part of the LogExporter trait
-    impl MockLogExporter {
-        fn get_resource(&self) -> Option<Resource> {
-            (*self.resource).lock().unwrap().clone()
-        }
-    }
 
     #[test]
     fn test_default_const_values() {

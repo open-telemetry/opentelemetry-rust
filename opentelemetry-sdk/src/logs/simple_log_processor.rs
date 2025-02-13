@@ -135,6 +135,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
+    use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
     use crate::{
         error::OTelSdkResult,
@@ -146,41 +147,6 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
-
-    #[derive(Debug, Clone)]
-    struct MockLogExporter {
-        resource: Arc<Mutex<Option<Resource>>>,
-    }
-
-    impl LogExporter for MockLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async { Ok(()) }
-        }
-
-        fn shutdown(&mut self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn set_resource(&mut self, resource: &Resource) {
-            self.resource
-                .lock()
-                .map(|mut res_opt| {
-                    res_opt.replace(resource.clone());
-                })
-                .expect("mock log exporter shouldn't error when setting resource");
-        }
-    }
-
-    // Implementation specific to the MockLogExporter, not part of the LogExporter trait
-    impl MockLogExporter {
-        fn get_resource(&self) -> Option<Resource> {
-            (*self.resource).lock().unwrap().clone()
-        }
-    }
 
     #[derive(Debug, Clone)]
     struct LogExporterThatRequiresTokio {

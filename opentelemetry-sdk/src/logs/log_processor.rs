@@ -69,8 +69,9 @@ pub trait LogProcessor: Send + Sync + Debug {
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
-mod tests {
-    use crate::logs::SdkLogRecord;
+pub(crate) mod tests {
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
+    use crate::Resource;
     use crate::{
         error::OTelSdkResult,
         logs::{LogProcessor, SdkLoggerProvider},
@@ -80,6 +81,41 @@ mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
+
+    #[derive(Debug, Clone)]
+    pub(crate) struct MockLogExporter {
+        pub resource: Arc<Mutex<Option<Resource>>>,
+    }
+
+    impl LogExporter for MockLogExporter {
+        #[allow(clippy::manual_async_fn)]
+        fn export(
+            &self,
+            _batch: LogBatch<'_>,
+        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
+            async { Ok(()) }
+        }
+
+        fn shutdown(&mut self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn set_resource(&mut self, resource: &Resource) {
+            self.resource
+                .lock()
+                .map(|mut res_opt| {
+                    res_opt.replace(resource.clone());
+                })
+                .expect("mock log exporter shouldn't error when setting resource");
+        }
+    }
+
+    // Implementation specific to the MockLogExporter, not part of the LogExporter trait
+    impl MockLogExporter {
+        pub(crate) fn get_resource(&self) -> Option<Resource> {
+            (*self.resource).lock().unwrap().clone()
+        }
+    }
 
     #[derive(Debug)]
     struct FirstProcessor {
