@@ -10,15 +10,20 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
-use std::error::Error;
+use std::{error::Error, sync::OnceLock};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 fn get_resource() -> Resource {
-    Resource::builder()
-        .with_service_name("basic-otlp-example-http")
-        .build()
+    static RESOURCE: OnceLock<Resource> = OnceLock::new();
+    RESOURCE
+        .get_or_init(|| {
+            Resource::builder()
+                .with_service_name("basic-otlp-example-grpc")
+                .build()
+        })
+        .clone()
 }
 
 fn init_logs() -> SdkLoggerProvider {
