@@ -1,5 +1,5 @@
 //! # OpenTelemetry Batch Log Processor
-//! The `SimpleLogProcessor` is one implementation of the `LogProcessor` interface.
+//! The `BatchLogProcessor` is one implementation of the `LogProcessor` interface.
 //!
 //! It buffers log records and sends them to the exporter
 //! in batches. This processor is designed for **production use** in high-throughput
