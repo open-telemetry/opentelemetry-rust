@@ -715,7 +715,6 @@ impl BatchConfigBuilder {
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
-    use crate::logs::log_processor::tests::MockLogExporter;
     use super::{
         BatchConfig, BatchConfigBuilder, BatchLogProcessor, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_MAX_QUEUE_SIZE,
@@ -724,6 +723,7 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
+    use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
     use crate::{
         logs::{InMemoryLogExporter, InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider},
