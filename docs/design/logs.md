@@ -84,6 +84,9 @@ graph TD
 
 ## Logs API
 
+Logs API is part of the [opentelemetry](https://crates.io/crates/opentelemetry)
+crate.
+
 The OTel Logs API is not intended for direct end-user usage. Instead, it is
 designed for appender/bridge authors to integrate existing logging libraries
 with OpenTelemetry. However, there is nothing preventing it from being used by
@@ -119,6 +122,9 @@ official Logs SDK provides real implementations to process and export logs.
 Users or vendors can also provide alternative SDK implementations.
 
 ## Logs SDK
+
+Logs SDK is part of the
+[opentelemetry_sdk](https://crates.io/crates/opentelemetry_sdk) crate.
 
 The OpenTelemetry Logs SDK provides an OTel specification-compliant
 implementation of the Logs API, handling log processing and export.
@@ -249,9 +255,9 @@ include:
 
 ## `tracing` Log Appender
 
-The `tracing` appender bridges `tracing` logs (events) to OpenTelemetry. Logs
-emitted via `tracing` macros (`info!`, `warn!`, etc.) are forwarded to
-OpenTelemetry through this integration.
+The `tracing` appender bridges `tracing` logs to OpenTelemetry. Logs emitted via
+`tracing` macros (`info!`, `warn!`, etc.) are forwarded to OpenTelemetry through
+this integration.
 
 - `tracing` is designed for high performance, using *layers* or *subscribers* to
   handle emitted logs (events).
