@@ -48,7 +48,7 @@ thread_local! {
 fn main() {
     match std::env::args().find(|arg| arg == "--per-thread") {
         None => throughput::test_throughput(test_histogram_shared),
-        Some(_) => throughput::test_throughput(test_histogram_per_thread)
+        Some(_) => throughput::test_throughput(test_histogram_per_thread),
     }
 }
 
@@ -57,7 +57,7 @@ fn test_histogram_shared() {
 }
 
 fn test_histogram_per_thread() {
-    HISTOGRAM_PER_THREAD.with(|h|test_histogram(h));
+    HISTOGRAM_PER_THREAD.with(|h| test_histogram(h));
 }
 
 fn test_histogram(histogram: &Histogram<u64>) {
