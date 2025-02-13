@@ -106,7 +106,7 @@ pub enum ExporterBuildError {
     #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
     FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
 
-    /// Unsupported compression algorithm.
+    /// No Http client specified.
     #[error("no http client specified")]
     NoHttpClient,
 
