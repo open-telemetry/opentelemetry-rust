@@ -255,6 +255,10 @@ include:
 
 ## `tracing` Log Appender
 
+Tracing appender is part of the
+[opentelemetry-appender-tracing](https://crates.io/crates/opentelemetry-appender-tracing)
+crate.
+
 The `tracing` appender bridges `tracing` logs to OpenTelemetry. Logs emitted via
 `tracing` macros (`info!`, `warn!`, etc.) are forwarded to OpenTelemetry through
 this integration.
