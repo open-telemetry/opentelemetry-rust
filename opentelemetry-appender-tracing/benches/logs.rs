@@ -27,40 +27,19 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
 use tracing_subscriber::Registry;
 
-#[derive(Debug, Clone)]
-struct NoopExporter {
+#[derive(Debug)]
+struct NoopProcessor {
     enabled: bool,
 }
 
-impl LogExporter for NoopExporter {
-    #[allow(clippy::manual_async_fn)]
-    fn export(
-        &self,
-        _batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-        async { OTelSdkResult::Ok(()) }
-    }
-
-    fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
-        self.enabled
+impl NoopProcessor {
+    fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
 }
 
-#[derive(Debug)]
-struct NoopProcessor<E: LogExporter> {
-    exporter: E,
-}
-
-impl<E: LogExporter> NoopProcessor<E> {
-    fn new(exporter: E) -> Self {
-        Self { exporter }
-    }
-}
-
-impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
-    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {
-        // no-op
-    }
+impl LogProcessor for NoopProcessor {
+    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {}
 
     fn force_flush(&self) -> OTelSdkResult {
         Ok(())
@@ -72,11 +51,11 @@ impl<E: LogExporter> LogProcessor for NoopProcessor<E> {
 
     fn event_enabled(
         &self,
-        level: opentelemetry::logs::Severity,
-        target: &str,
-        name: &str,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: &str,
     ) -> bool {
-        self.exporter.event_enabled(level, target, name)
+        self.enabled
     }
 }
 
@@ -126,8 +105,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 }
 
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
-    let exporter = NoopExporter { enabled };
-    let processor = NoopProcessor::new(exporter);
+    let processor = NoopProcessor::new(enabled);
     let provider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder_empty()
