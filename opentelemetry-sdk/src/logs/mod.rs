@@ -1,9 +1,11 @@
 //! # OpenTelemetry Log SDK
+mod batch_log_processor;
 mod export;
 mod log_processor;
 mod logger;
 mod logger_provider;
 pub(crate) mod record;
+mod simple_log_processor;
 
 /// In-Memory log exporter for testing purpose.
 #[cfg(any(feature = "testing", test))]
@@ -13,14 +15,16 @@ pub mod in_memory_exporter;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 
-pub use export::{LogBatch, LogExporter};
-pub use log_processor::{
-    BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
-    SimpleLogProcessor,
+pub use batch_log_processor::{
+    BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder,
 };
+pub use error::{LogError, LogResult};
+pub use export::{LogBatch, LogExporter};
+pub use log_processor::LogProcessor;
 pub use logger::SdkLogger;
 pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{SdkLogRecord, TraceContext};
+pub use simple_log_processor::SimpleLogProcessor;
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 /// Module for BatchLogProcessor with async runtime.
