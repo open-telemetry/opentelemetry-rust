@@ -158,6 +158,14 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        let severity = severity_of_level(event.metadata().level());
+        let target = event.metadata().target();
+        #[cfg(feature = "spec_unstable_logs_enabled")]
+        if !self.logger.event_enabled(severity, target) {
+            // TODO: See if we need internal logs or track the count.
+            return;
+        }
+
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
 
@@ -170,9 +178,9 @@ where
         let mut log_record = self.logger.create_log_record();
 
         // TODO: Fix heap allocation
-        log_record.set_target(meta.target().to_string());
+        log_record.set_target(target.to_string());
         log_record.set_event_name(meta.name());
-        log_record.set_severity_number(severity_of_level(meta.level()));
+        log_record.set_severity_number(severity);
         log_record.set_severity_text(meta.level().as_str());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
@@ -202,17 +210,6 @@ where
 
         //emit record
         self.logger.emit(log_record);
-    }
-
-    #[cfg(feature = "spec_unstable_logs_enabled")]
-    fn event_enabled(
-        &self,
-        _event: &tracing_core::Event<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
-    ) -> bool {
-        let severity = severity_of_level(_event.metadata().level());
-        self.logger
-            .event_enabled(severity, _event.metadata().target())
     }
 }
 
