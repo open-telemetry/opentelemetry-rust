@@ -26,11 +26,11 @@ fn main() {
     // they are used outside the OTLP Exporter. For more details, see:
     // https://github.com/open-telemetry/opentelemetry-rust/issues/761
     let filter_otel = EnvFilter::new("info")
-    .add_directive("hyper=off".parse().unwrap())
-    .add_directive("opentelemetry=off".parse().unwrap())
-    .add_directive("tonic=off".parse().unwrap())
-    .add_directive("h2=off".parse().unwrap())
-    .add_directive("reqwest=off".parse().unwrap());
+        .add_directive("hyper=off".parse().unwrap())
+        .add_directive("opentelemetry=off".parse().unwrap())
+        .add_directive("tonic=off".parse().unwrap())
+        .add_directive("h2=off".parse().unwrap())
+        .add_directive("reqwest=off".parse().unwrap());
     let otel_layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(filter_otel);
 
     // Create a new tracing::Fmt layer to print the logs to stdout. It has a
