@@ -2,6 +2,8 @@
 
 ## vNext
 
+- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
+
 - *Breaking*
 
 ExporterBuilder's build() method now Result with `ExporterBuildError` being the
