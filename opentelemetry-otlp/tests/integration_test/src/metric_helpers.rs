@@ -3,7 +3,7 @@ use crate::test_utils;
 use anyhow::Result;
 use anyhow::{Context, Ok};
 use opentelemetry_otlp::MetricExporter;
-use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::metrics::{MeterProviderBuilder, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
 use serde_json::Value;
 use std::fs;
