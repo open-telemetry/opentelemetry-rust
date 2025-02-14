@@ -103,10 +103,10 @@ where
     }
 
     /// Create a [PeriodicReader] with the given config.
-    pub fn build(self) -> PeriodicReader {
+    pub fn build(self) -> PeriodicReader<E> {
         let (message_sender, message_receiver) = mpsc::channel(256);
 
-        let worker = move |reader: &PeriodicReader| {
+        let worker = move |reader: &PeriodicReader<E>| {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
             self.runtime.spawn(Box::pin(async move {
@@ -184,33 +184,40 @@ where
 /// # drop(reader);
 /// # }
 /// ```
-#[derive(Clone)]
-pub struct PeriodicReader {
-    exporter: Arc<dyn PushMetricExporter>,
-    inner: Arc<Mutex<PeriodicReaderInner>>,
+pub struct PeriodicReader<E: PushMetricExporter> {
+    exporter: Arc<E>,
+    inner: Arc<Mutex<PeriodicReaderInner<E>>>,
 }
 
-impl PeriodicReader {
+impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
+    fn clone(&self) -> Self {
+        Self {
+            exporter: Arc::clone(&self.exporter),
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<E: PushMetricExporter> PeriodicReader<E> {
     /// Configuration options for a periodic reader
-    pub fn builder<E, RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
+    pub fn builder<RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
     where
-        E: PushMetricExporter,
         RT: Runtime,
     {
         PeriodicReaderBuilder::new(exporter, runtime)
     }
 }
 
-impl fmt::Debug for PeriodicReader {
+impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PeriodicReader").finish()
     }
 }
 
-struct PeriodicReaderInner {
+struct PeriodicReaderInner<E: PushMetricExporter> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker,
+    sdk_producer_or_worker: ProducerOrWorker<E>,
 }
 
 #[derive(Debug)]
@@ -220,19 +227,20 @@ enum Message {
     Shutdown(oneshot::Sender<OTelSdkResult>),
 }
 
-enum ProducerOrWorker {
+enum ProducerOrWorker<E: PushMetricExporter> {
     Producer(Weak<dyn SdkProducer>),
-    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
+    #[allow(clippy::type_complexity)]
+    Worker(Box<dyn FnOnce(&PeriodicReader<E>) + Send + Sync>),
 }
 
-struct PeriodicReaderWorker<RT: Runtime> {
-    reader: PeriodicReader,
+struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
+    reader: PeriodicReader<E>,
     timeout: Duration,
     runtime: RT,
     rm: ResourceMetrics,
 }
 
-impl<RT: Runtime> PeriodicReaderWorker<RT> {
+impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
     async fn collect_and_export(&mut self) -> OTelSdkResult {
         self.reader
             .collect(&mut self.rm)
@@ -323,7 +331,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     }
 }
 
-impl MetricReader for PeriodicReader {
+impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
