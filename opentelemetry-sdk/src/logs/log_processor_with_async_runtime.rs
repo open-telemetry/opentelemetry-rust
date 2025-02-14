@@ -283,7 +283,7 @@ where
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use crate::error::OTelSdkResult;
-    use crate::logs::log_processor::{
+    use crate::logs::batch_log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
     };
@@ -294,7 +294,7 @@ mod tests {
     use crate::runtime;
     use crate::{
         logs::{
-            log_processor::{
+            batch_log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },

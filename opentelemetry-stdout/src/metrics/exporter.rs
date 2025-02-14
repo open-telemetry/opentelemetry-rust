@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::Temporality;
@@ -39,7 +38,6 @@ impl fmt::Debug for MetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
