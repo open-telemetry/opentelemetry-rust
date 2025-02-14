@@ -36,7 +36,6 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
-# TODO - Enable this in 0.28.1 (once tracing-opentelemetry v0.29 is released)
 experimental_use_tracing_span_context = ["tracing-opentelemetry"]
 
 
