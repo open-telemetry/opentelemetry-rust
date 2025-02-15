@@ -58,7 +58,7 @@ impl PushMetricExporter for MetricExporter {
         }
     }
 
-    async fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush(&self) -> OTelSdkResult {
         // exporter holds no state, nothing to flush
         Ok(())
     }

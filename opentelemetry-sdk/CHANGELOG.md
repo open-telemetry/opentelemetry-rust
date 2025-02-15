@@ -2,6 +2,8 @@
 
 ## vNext
 
+- *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
+
 - *Breaking (Affects custom Exporter/Processor/MetricReader authors only)* Removed
 `opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
 intended to be public. If you are authoring custom processor/exporters, use
