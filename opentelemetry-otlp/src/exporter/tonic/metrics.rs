@@ -1,7 +1,6 @@
 use core::fmt;
 use std::sync::Mutex;
 
-use async_trait::async_trait;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
@@ -52,7 +51,6 @@ impl TonicMetricsClient {
     }
 }
 
-#[async_trait]
 impl MetricsClient for TonicMetricsClient {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         let (mut client, metadata, extensions) = self

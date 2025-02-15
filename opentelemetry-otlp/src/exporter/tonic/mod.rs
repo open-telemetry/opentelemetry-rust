@@ -23,7 +23,7 @@ use crate::{
 pub(crate) mod logs;
 
 #[cfg(feature = "metrics")]
-mod metrics;
+pub(crate) mod metrics;
 
 #[cfg(feature = "trace")]
 pub(crate) mod trace;
@@ -296,7 +296,7 @@ impl TonicExporterBuilder {
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
 
-        Ok(MetricExporter::new(client, temporality))
+        Ok(MetricExporter::from_tonic(client, temporality))
     }
 
     /// Build a new tonic span exporter
