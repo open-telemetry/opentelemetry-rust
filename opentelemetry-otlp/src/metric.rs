@@ -144,7 +144,7 @@ impl PushMetricExporter for MetricExporter {
         self.client.export(metrics).await
     }
 
-    async fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush(&self) -> OTelSdkResult {
         // this component is stateless
         Ok(())
     }
