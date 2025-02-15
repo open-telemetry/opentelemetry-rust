@@ -260,7 +260,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
         )?;
 
-        Ok(crate::MetricExporter::new(client, temporality))
+        Ok(crate::MetricExporter::from_http(client, temporality))
     }
 }
 
