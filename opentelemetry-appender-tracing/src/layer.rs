@@ -263,17 +263,11 @@ mod tests {
     struct ReentrantLogExporter;
 
     impl LogExporter for ReentrantLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async {
-                // This will cause a deadlock as the export itself creates a log
-                // while still within the lock of the SimpleLogProcessor.
-                warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-                Ok(())
-            }
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            // This will cause a deadlock as the export itself creates a log
+            // while still within the lock of the SimpleLogProcessor.
+            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+            Ok(())
         }
     }
 
