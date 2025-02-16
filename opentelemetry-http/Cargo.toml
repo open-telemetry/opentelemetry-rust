@@ -27,3 +27,6 @@ opentelemetry = { version = "0.28", path = "../opentelemetry", features = ["trac
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 tracing = {workspace = true, optional = true}
+
+[lints]
+workspace = true

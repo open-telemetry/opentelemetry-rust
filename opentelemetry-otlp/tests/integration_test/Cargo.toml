@@ -33,3 +33,5 @@ internal-logs = ["opentelemetry-otlp/internal-logs"]
 # Keep tonic as the default client
 default = ["tonic-client", "internal-logs"]
 
+[lints]
+workspace = true

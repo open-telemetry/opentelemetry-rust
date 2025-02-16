@@ -31,3 +31,6 @@ opentelemetry = { features = ["testing"], path = "../opentelemetry" }
 [features]
 default = ["internal-logs"]
 internal-logs = ["tracing"]
+
+[lints]
+workspace = true
