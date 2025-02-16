@@ -57,7 +57,7 @@ fn test_histogram_shared() {
 }
 
 fn test_histogram_per_thread() {
-    HISTOGRAM_PER_THREAD.with(|h| test_histogram(h));
+    HISTOGRAM_PER_THREAD.with(test_histogram);
 }
 
 fn test_histogram(histogram: &Histogram<u64>) {

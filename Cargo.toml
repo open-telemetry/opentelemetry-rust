@@ -59,3 +59,6 @@ url = { version = "2.5", default-features = false }
 opentelemetry = { path = "opentelemetry" }
 opentelemetry_sdk = { path = "opentelemetry-sdk" }
 opentelemetry-stdout = { path = "opentelemetry-stdout" }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = 1 }

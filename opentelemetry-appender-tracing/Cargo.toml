@@ -43,3 +43,6 @@ experimental_use_tracing_span_context = ["tracing-opentelemetry"]
 name = "logs"
 harness = false
 required-features = ["spec_unstable_logs_enabled"]
+
+[lints]
+workspace = true

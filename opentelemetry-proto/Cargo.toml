@@ -65,3 +65,6 @@ tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

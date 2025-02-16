@@ -56,3 +56,6 @@ harness = false
 [[bench]]
 name = "anyvalue"
 harness = false
+
+[lints]
+workspace = true

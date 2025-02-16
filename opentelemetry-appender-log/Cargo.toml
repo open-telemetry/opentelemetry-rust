@@ -34,3 +34,6 @@ opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["std", "derive"] }
+
+[lints]
+workspace = true
