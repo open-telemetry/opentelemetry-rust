@@ -59,7 +59,7 @@ where
     }
 
     /// Create a [PeriodicReader] with the given config.
-    pub fn build(self) -> PeriodicReader {
+    pub fn build(self) -> PeriodicReader<E> {
         PeriodicReader::new(self.exporter, self.interval)
     }
 }
@@ -124,24 +124,25 @@ where
 /// # drop(reader);
 /// # }
 /// ```
-#[derive(Clone)]
-pub struct PeriodicReader {
-    inner: Arc<PeriodicReaderInner>,
+pub struct PeriodicReader<E: PushMetricExporter> {
+    inner: Arc<PeriodicReaderInner<E>>,
 }
 
-impl PeriodicReader {
+impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<E: PushMetricExporter> PeriodicReader<E> {
     /// Configuration options for a periodic reader with own thread
-    pub fn builder<E>(exporter: E) -> PeriodicReaderBuilder<E>
-    where
-        E: PushMetricExporter,
-    {
+    pub fn builder(exporter: E) -> PeriodicReaderBuilder<E> {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new<E>(exporter: E, interval: Duration) -> Self
-    where
-        E: PushMetricExporter,
-    {
+    fn new(exporter: E, interval: Duration) -> Self {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
         let exporter_arc = Arc::new(exporter);
@@ -333,19 +334,19 @@ impl PeriodicReader {
     }
 }
 
-impl fmt::Debug for PeriodicReader {
+impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PeriodicReader").finish()
     }
 }
 
-struct PeriodicReaderInner {
-    exporter: Arc<dyn PushMetricExporter>,
+struct PeriodicReaderInner<E: PushMetricExporter> {
+    exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
 }
 
-impl PeriodicReaderInner {
+impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
         let mut inner = self.producer.lock().expect("lock poisoned");
         *inner = Some(producer);
@@ -472,7 +473,7 @@ enum Message {
     Shutdown(Sender<bool>),
 }
 
-impl MetricReader for PeriodicReader {
+impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         self.inner.register_pipeline(pipeline);
     }
@@ -516,7 +517,6 @@ mod tests {
         },
         Resource,
     };
-    use async_trait::async_trait;
     use opentelemetry::metrics::MeterProvider;
     use std::{
         sync::{
@@ -548,7 +548,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl PushMetricExporter for MetricExporterThatFailsOnlyOnFirst {
         async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
             if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
@@ -558,7 +557,7 @@ mod tests {
             }
         }
 
-        async fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -576,13 +575,12 @@ mod tests {
         is_shutdown: Arc<AtomicBool>,
     }
 
-    #[async_trait]
     impl PushMetricExporter for MockMetricExporter {
         async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
             Ok(())
         }
 
-        async fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 

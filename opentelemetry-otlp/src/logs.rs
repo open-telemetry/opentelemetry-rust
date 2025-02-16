@@ -139,18 +139,12 @@ impl LogExporter {
 }
 
 impl opentelemetry_sdk::logs::LogExporter for LogExporter {
-    #[allow(clippy::manual_async_fn)]
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-        async move {
-            match &self.client {
-                #[cfg(feature = "grpc-tonic")]
-                SupportedTransportClient::Tonic(client) => client.export(batch).await,
-                #[cfg(any(feature = "http-proto", feature = "http-json"))]
-                SupportedTransportClient::Http(client) => client.export(batch).await,
-            }
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        match &self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.export(batch).await,
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.export(batch).await,
         }
     }
 
