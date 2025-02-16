@@ -541,8 +541,7 @@ mod tests {
             )
             .build();
 
-        // wait for the batch processor to process the resource.
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        provider.force_flush().unwrap();
 
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
@@ -804,7 +803,7 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
-        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch log processor is not blocking. Should we make it blocking?
+        provider.force_flush().unwrap();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }
