@@ -2,8 +2,8 @@
 
 ## vNext
 
-- *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
-- Breaking: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
+- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
+- *Breaking*: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
   for the changes.
 
 ## 0.28.0
