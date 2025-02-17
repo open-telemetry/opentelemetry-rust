@@ -3,6 +3,10 @@
 ## Date
 17 Feb 2025 
 
+## Accepted Option
+
+**Option 3** 
+
 ## Context and Problem Statement
 There is uncertainty around how to model errors in the `opentelemetry-rust` public API interfaces - that is, APIs that are exposed to users of the project's published crates. This is for example the case with the exporter traits - [SpanExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/trace/export.rs#L18), [LogExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/logs/export.rs#L115), and [PushMetricExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/metrics/exporter.rs#L11) which form part of the API surface of `opentelemetry-sdk`.
 
@@ -11,6 +15,7 @@ We will focus on the exporter traits in this example, but the outcome should be 
 There are various ways to handle errors on trait methods, including swallowing them and logging, panicing, returning a shared global error, or returning a method-specific error. We strive for consistency, and we want to be sure that we've put enough thought into what this looks like that we don't have to make breaking interface changes unecessarily in the future.
 
 This was discussed extensively in #2571.
+
 
 ## Related Work
 
@@ -94,6 +99,8 @@ pub trait SpanExporter {
 }
 
 ```
+
+### When to box custom errors
 
 Note above that we do not box anything into `InternalFailure`. Our rule here is that if the caller cannot reasonably be expected to handle a particular error variant, we will use a simplified interface that returns only a descriptive string. In the concrete example we are using with the exporters, we have a [strong signal in the opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/sdk.md#export) that indicates concretely that the error types are not actionable by the caller.
 
