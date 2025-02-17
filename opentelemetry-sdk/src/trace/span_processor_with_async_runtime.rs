@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::runtime::{RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
@@ -308,13 +308,13 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         }
 
         let export = self.exporter.export(self.spans.split_off(0));
-        let timeout = self.runtime.delay(self.config.max_export_timeout);
-        let time_out = self.config.max_export_timeout;
+        let timeout_future = Box::pin(self.runtime.delay(self.config.max_export_timeout));
+        let timeout = self.config.max_export_timeout;
 
         Box::pin(async move {
-            match future::select(export, timeout).await {
+            match future::select(export, timeout_future).await {
                 Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+                Either::Right((_, _)) => Err(OTelSdkError::Timeout(timeout)),
             }
         })
     }
@@ -351,11 +351,10 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
 
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(async move {
+        runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
-            let ticker = inner_runtime
-                .interval(config.scheduled_delay)
+            let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
                 .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
@@ -370,7 +369,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             };
 
             processor.run(messages).await
-        }));
+        });
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
