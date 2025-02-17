@@ -20,7 +20,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
     /// Flushes any metric data held by an exporter.
-    fn force_flush(&self) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+    fn force_flush(&self) -> OTelSdkResult;
 
     /// Releases any held computational resources.
     ///

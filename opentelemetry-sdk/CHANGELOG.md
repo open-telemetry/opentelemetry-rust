@@ -2,6 +2,8 @@
 
 ## vNext
 
+- *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
+
 ## 0.28.0
 
 Released 2025-Feb-10

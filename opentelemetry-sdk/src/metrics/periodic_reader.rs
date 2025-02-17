@@ -557,7 +557,7 @@ mod tests {
             }
         }
 
-        async fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -580,7 +580,7 @@ mod tests {
             Ok(())
         }
 
-        async fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 

@@ -188,24 +188,18 @@ impl InMemoryLogExporter {
 }
 
 impl LogExporter for InMemoryLogExporter {
-    #[allow(clippy::manual_async_fn)]
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-        async move {
-            let mut logs_guard = self.logs.lock().map_err(|e| {
-                OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
-            })?;
-            for (log_record, instrumentation) in batch.iter() {
-                let owned_log = OwnedLogData {
-                    record: (*log_record).clone(),
-                    instrumentation: (*instrumentation).clone(),
-                };
-                logs_guard.push(owned_log);
-            }
-            Ok(())
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        let mut logs_guard = self.logs.lock().map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
+        })?;
+        for (log_record, instrumentation) in batch.iter() {
+            let owned_log = OwnedLogData {
+                record: (*log_record).clone(),
+                instrumentation: (*instrumentation).clone(),
+            };
+            logs_guard.push(owned_log);
         }
+        Ok(())
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {

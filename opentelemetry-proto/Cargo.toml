@@ -33,7 +33,7 @@ default = ["full"]
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
 
 # crates used to generate rs files
-gen-tonic = ["gen-tonic-messages", "tonic/transport"]
+gen-tonic = ["gen-tonic-messages", "tonic/channel"]
 gen-tonic-messages = ["tonic", "prost"]
 
 # telemetry pillars and functions

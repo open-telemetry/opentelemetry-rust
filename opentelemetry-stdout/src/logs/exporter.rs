@@ -30,36 +30,30 @@ impl fmt::Debug for LogExporter {
 }
 
 impl opentelemetry_sdk::logs::LogExporter for LogExporter {
-    /// Export spans to stdout
-    #[allow(clippy::manual_async_fn)]
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-        async move {
-            if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-                Err(OTelSdkError::AlreadyShutdown)
+    /// Export logs to stdout
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+            Err(OTelSdkError::AlreadyShutdown)
+        } else {
+            println!("Logs");
+            if self
+                .resource_emitted
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
+                print_logs(batch);
             } else {
-                println!("Logs");
-                if self
-                    .resource_emitted
-                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                    .is_err()
-                {
-                    print_logs(batch);
-                } else {
-                    println!("Resource");
-                    if let Some(schema_url) = self.resource.schema_url() {
-                        println!("\t Resource SchemaUrl: {:?}", schema_url);
-                    }
-                    self.resource.iter().for_each(|(k, v)| {
-                        println!("\t ->  {}={:?}", k, v);
-                    });
-                    print_logs(batch);
+                println!("Resource");
+                if let Some(schema_url) = self.resource.schema_url() {
+                    println!("\t Resource SchemaUrl: {:?}", schema_url);
                 }
-
-                Ok(())
+                self.resource.iter().for_each(|(k, v)| {
+                    println!("\t ->  {}={:?}", k, v);
+                });
+                print_logs(batch);
             }
+
+            Ok(())
         }
     }
 

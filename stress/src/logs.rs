@@ -24,11 +24,8 @@ mod throughput;
 struct MockLogExporter;
 
 impl LogExporter for MockLogExporter {
-    fn export(
-        &self,
-        _batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-        async { Ok(()) }
+    async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+        Ok(())
     }
 }
 

@@ -26,7 +26,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-trait = { workspace = true }
 futures-core = { workspace = true }
 opentelemetry = { version = "0.28", default-features = false, path = "../opentelemetry" }
 opentelemetry_sdk = { version = "0.28", default-features = false, path = "../opentelemetry-sdk" }
@@ -51,6 +50,7 @@ opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../op
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
+tonic = { workspace = true, features = ["server"] }
 
 [features]
 # telemetry pillars and functions

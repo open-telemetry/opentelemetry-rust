@@ -272,7 +272,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
             .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
 
-    async fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(()) // In this implementation, flush does nothing
     }
 
