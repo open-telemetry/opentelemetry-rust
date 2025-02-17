@@ -1,19 +1,16 @@
 # Error handling patterns in public API interfaces
 
+## Date
+17 Feb 2025 
 
 ## Context and Problem Statement
-There is uncertainty around how to model errors in  in the `opentelemetry-rust` public API interfaces - that is, APIs facing the consumers. At the time of writing this is an important issue to resolve as moving beginning to move the signals towards RC and eventually a stable release is an urgent priority. 
+There is uncertainty around how to model errors in the `opentelemetry-rust` public API interfaces - that is, APIs that are exposed to users of the project's published crates. This is for example the case with the exporter traits - [SpanExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/trace/export.rs#L18), [LogExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/logs/export.rs#L115), and [PushMetricExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/metrics/exporter.rs#L11) which form part of the API surface of `opentelemetry-sdk`.
 
-The situation is as follows; a concrete example is given, but the issue holds across various public traits, in particular the exporters:
+We will focus on the exporter traits in this example, but the outcome should be applied to _all_ public traits and their fallible operations. 
 
-* A given public interface in `opentelemetry-sdk`,such as [trait LogExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/3ec4c186ad22944b208ae7c3d38435e735a85c8e/opentelemetry-sdk/src/logs/export.rs#L115) 
-* ... exposes multiple discrete actions with logically disjoint error types (e.g. [export](https://github.com/open-telemetry/opentelemetry-rust/blob/3ec4c186ad22944b208ae7c3d38435e735a85c8e/opentelemetry-sdk/src/logs/export.rs#L133-L136) and [shutdown](https://github.com/open-telemetry/opentelemetry-rust/blob/3ec4c186ad22944b208ae7c3d38435e735a85c8e/opentelemetry-sdk/src/logs/export.rs#L139)  - that is, the class of errors returned for each of these actions are foreseeably very different, as is the callers reaction to them
-* ... is implemented by multiple concrete types such as `InMemoryLogExporter`, `OtlpLogExporter`, `StdOutLogExporter` that have different error requirements - for instance, an `OtlpLogExporter` will experience network failures, an `InMemoryLogExporter` will not 
-* Potentially has operations on the API that, either in the direct implementation, or in a derived utility that utilises the direct implementation, call _multiple_ API actions and therefore need to return an aggregated log type
+There are various ways to handle errors on trait methods, including swallowing them and logging, panicing, returning a shared global error, or returning a method-specific error. We strive for consistency, and we want to be sure that we've put enough thought into what this looks like that we don't have to make breaking interface changes unecessarily in the future.
 
-Today, we have a situation where a single error type is used per API-trait, and some methods simply swallow their errors. In the example above of `LogExporter`, `shutdown` swallows errors, and `export` returns the `LogError` type, a type that could conceptually be thought of as belonging to the entire trait, not a particular method. For the exporters, the [opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/sdk.md#export) tells us that they need to indicate success or failure, with a distinction made between 'failed' and 'timed out'. 
-
-There are also similar examples in the builders for providers and exports. 
+This was discussed extensively in #2571.
 
 ## Related Work
 
@@ -27,71 +24,77 @@ There are also similar examples in the builders for providers and exports.
 Continue the status quo, returning a mix of either nothing or the trait-wide error type. This is inconsistent and limits the caller's ability to handle errors. 
 
 **Option 2: Extend trait-wide error type to all methods on trait**
-In this option we keep the existing error type, add it to the remaining methods on the trait, and extend the error type to include errors covering the new error conditions. This will mean that callers will have to know how and when to discard errors from a particular API call based on an understanding of which subset of errors that particular call can make. 
+In this option we have an error type per trait regardless of the potential error paths for the individual methods. Concretely if `fn (a)` can return `Failure1` and `Failure2`,  and `fn (b)` can return `FailureC`, we have a unified error type that contains `Failure`, `Failure2`, and `Failure3`.
+
+ This will mean that callers will have to know how and when to discard errors from a particular API call based on an understanding of which subset of errors that particular call can make. 
 
 Conversely, it will reduce the number of error types in the code base. 
 
-**Option 3: Introduce an error-type per fallible operation, aggregate these into a single trait-wide error type**
+**Option 3: Use shared errors where practical across signals, devolve into individual errors per operation if they need to diverge**
 
-For example, in the above we'd have something like:
+Here we aim to consolidate error types where possible _without indicating a function may return more errors than it can actually return_. Conversely in **Option 2**, a caller of either of the example functions is forced to handle or discard all errors. In this case, we choose to sacrifice the single error and diverge into a separate error for each operation.
+
+Our preference for error types is thus:
+
+1. Consolidated error that covers all methods of a particular "trait type" (e.g., signal export) and method
+1. Devolves into error type per method of a particular trait type (e.g., `SdkShutdownResult`, `SdkExportResult`) _if the error types need to diverge_
+1. May alternatively devolve into error type per signal (e.g., `SpanExporter`) if the _signals diverge_
+
+This approach generalises across both **signals** and **trait methods**. For example, returning to our exporter traits, we have a trait that looks the same for each signal, with the same three methods. Upon closer inspection (#2600), the potential error set is the same both between the methods *and* between the signals; this means we can use a single shared error type across both axes:
+
 ```rust
-pub trait LogExporter {
-        
-	fn export(...) -> Result<..., ExportError>;
-	fn shutdown(...) -> Result<..., ShutdownError>
+
+#[derive(Error, Debug)]
+
+// Errors that can occur during SDK operations export(), force_flush() and shutdown().
+pub enum OTelSdkError {
+
+    /// All error types in here may be returned by any of the operations
+    /// of the exporters, on any of their APIs.
+    /// If this were not the case, we would not be able to use a shared error.
+    #[error("Shutdown already invoked")]
+    AlreadyShutdown,
+
+    // ... Other errors ...
+
+    /// The error message is intended for logging purposes only and should not
+    /// be used to make programmatic decisions. It is implementation-specific
+    /// and subject to change without notice. Consumers of this error should not
+    /// rely on its content beyond logging.
+    #[error("Operation failed: {0}")]
+    InternalFailure(String),
 }
 
-// Concrete errors for an export operation
-pub enum ExportError {
-    // The distinction between failure and timed out is part of the OTEL spec
-    // we need to meet. 
-
-    ExportFailed,  
-    
-    ExportTimedOut(Duration),
-	
-	// Allow impls to box up errors that can't be logically mapped
-	// back to one of the APIs errors 
-	#[error("Unknown error (should not occur): {source:?}")] 
-	Unknown { 
-		source: Box<dyn std::error::Error + Send + Sync>, 
-	},
-}
-
-// Aggregate error type for convenience 
-// **Note**: This will be added in response to need, not pre-emptively
-#[derive(Debug, thiserror::Error)]
-pub enum LogError {
-	#[error("Export error: {0}")] 
-	InitError(#[from] ExportError),
-	
-	#[error("Shutdown error: {0}")] 
-	ShutdownError(#[from] ShutdownError),
-}
-
-// A downcast helper for callers that need to work with impl-specific
-// unknown errors concretely
-impl ExportError {
-    /// Attempt to downcast the inner `source` error to a specific type `T`
-    pub fn downcast_ref<T: std::error::Error + 'static>(&self) -> Option<&T> {
-        if let ExportError::Unknown { source } = self {
-            source.downcast_ref::<T>()
-        } else {
-            None
-        }
-    }
-}
+pub type OTelSdkResult = Result<(), OTelSdkError>;
 ```
 
-## Decision Outcome
+... which the traits themselves use:
 
-Chosen option: **"Option 3: Introduce an error-type per fallible operation, aggregate these into a single trait-wide error type"**
+```rust
 
-### Consequences
+//
+// The actionable errors returned by the exporter traits are effectively
+// the same for all operations; we can use a single shared error.
+// 
 
-* Good, because callers can handle focussed errors with focussed remediation 
-* Good, because implementors of the `pub trait`s can box up custom errors in a fashion that follow's [canonical's error and panic discipline](https://canonical.github.io/rust-best-practices/error-and-panic-discipline.html) guide, by avoiding type erasure of impl-specific errors 
-* Good, because the per-trait error type (`LogError` for `LogExporter` above) provides consumers of the trait that hit multiple methods in a single method an error type they can use 
-* Bad, because there's more code than a single error type
-* Bad, because a caller may need to use `downcast_ref` if they have a known trait impl and want to handle a `Unknown` error
+use opentelemetry_sdk::error::OTelSdkResult;
 
+pub trait LogExporter {
+	fn export(...) -> OtelSdkResult;
+	fn shutdown(...) -> OtelSdkResult; 
+  fn force_flush(...) -> OTelSdkResult;
+}
+
+// ...
+
+pub trait SpanExporter {
+	fn export(...) -> OtelSdkResult;
+	fn shutdown(...) -> OtelSdkResult;
+  fn force_flush(...) -> OTelSdkResult;
+}
+
+```
+
+Note above that we do not box anything into `InternalFailure`. Our rule here is that if the caller cannot reasonably be expected to handle a particular error variant, we will use a simplified interface that returns only a descriptive string. In the concrete example we are using with the exporters, we have a [strong signal in the opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/sdk.md#export) that indicates concretely that the error types are not actionable by the caller.
+
+If the caller may potentially recover from an error, we will follow [canonical's rust best practices](https://canonical.github.io/rust-best-practices/error-and-panic-discipline.html) and instead preserve the nested error.
