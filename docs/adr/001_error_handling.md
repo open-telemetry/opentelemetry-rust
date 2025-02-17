@@ -14,14 +14,14 @@ We will focus on the exporter traits in this example, but the outcome should be 
 
 There are various ways to handle errors on trait methods, including swallowing them and logging, panicing, returning a shared global error, or returning a method-specific error. We strive for consistency, and we want to be sure that we've put enough thought into what this looks like that we don't have to make breaking interface changes unecessarily in the future.
 
-This was discussed extensively in #2571.
+This was discussed extensively in [#2571](https://github.com/open-telemetry/opentelemetry-rust/issues/2571).
 
 
 ## Related Work
 
-* #2564 
-* #2561 
-* #2381
+* [#2564](https://github.com/open-telemetry/opentelemetry-rust/issues/2564)
+* [#2561](https://github.com/open-telemetry/opentelemetry-rust/issues/2561)
+* [#2381](https://github.com/open-telemetry/opentelemetry-rust/issues/2381)
 
 ## Considered Options
 
@@ -45,7 +45,7 @@ Our preference for error types is thus:
 1. Devolves into error type per method of a particular trait type (e.g., `SdkShutdownResult`, `SdkExportResult`) _if the error types need to diverge_
 1. May alternatively devolve into error type per signal (e.g., `SpanExporter`) if the _signals diverge_
 
-This approach generalises across both **signals** and **trait methods**. For example, returning to our exporter traits, we have a trait that looks the same for each signal, with the same three methods. Upon closer inspection (#2600), the potential error set is the same both between the methods *and* between the signals; this means we can use a single shared error type across both axes:
+This approach generalises across both **signals** and **trait methods**. For example, returning to our exporter traits, we have a trait that looks the same for each signal, with the same three methods. Upon closer inspection ([#2600](https://github.com/open-telemetry/opentelemetry-rust/issues/2600)), the potential error set is the same both between the methods *and* between the signals; this means we can use a single shared error type across both axes:
 
 ```rust
 
