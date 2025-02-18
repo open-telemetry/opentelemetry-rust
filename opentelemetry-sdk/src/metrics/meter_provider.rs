@@ -328,6 +328,7 @@ impl fmt::Debug for MeterProviderBuilder {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use crate::error::OTelSdkError;
+    use crate::metrics::SdkMeterProvider;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
@@ -337,7 +338,6 @@ mod tests {
     use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
-    use crate::metrics::SdkMeterProvider;
 
     #[test]
     fn test_meter_provider_resource() {
@@ -566,14 +566,27 @@ mod tests {
         let builder = SdkMeterProvider::builder()
             .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
             .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
-            .with_resource(Resource::builder_empty().with_schema_url(vec![], "http://example.com").build())
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(vec![], "http://example.com")
+                    .build(),
+            )
             .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
 
         let resource = builder.resource.unwrap();
 
-        assert_eq!(resource.get(&Key::from_static_str("key1")), Some(Value::from("value1")));
-        assert_eq!(resource.get(&Key::from_static_str("key2")), Some(Value::from("value2")));
-        assert_eq!(resource.get(&Key::from_static_str("key3")), Some(Value::from("value3")));
+        assert_eq!(
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
+        );
         assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 }

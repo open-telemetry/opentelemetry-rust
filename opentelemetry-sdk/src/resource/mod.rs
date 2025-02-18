@@ -419,18 +419,29 @@ mod tests {
     }
 
     #[rstest]
-    #[case(vec![], vec![KeyValue::new("key", "b")], "http://schema/a", None)]
-    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], "http://schema/a", Some("http://schema/a"))]
-    fn merge_resource_with_missing_attribtes(
+    #[case(vec![], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], None, Some("http://schema/b"), Some("http://schema/b"))]
+    fn merge_resource_with_missing_attributes(
         #[case] key_values_a: Vec<KeyValue>,
         #[case] key_values_b: Vec<KeyValue>,
-        #[case] schema_url: &'static str,
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
         #[case] expected_schema_url: Option<&'static str>,
     ) {
-        let resource = Resource::from_schema_url(key_values_a, schema_url);
-        let other_resource = Resource::builder_empty()
-            .with_attributes(key_values_b)
-            .build();
+        let resource = match schema_url_a {
+            Some(schema) => Resource::from_schema_url(key_values_a, schema),
+            None => Resource::new(key_values_a),
+        };
+
+        let other_resource = match schema_url_b {
+            Some(schema) => Resource::builder_empty()
+                .with_schema_url(key_values_b, schema)
+                .build(),
+            None => Resource::new(key_values_b),
+        };
 
         assert_eq!(
             resource.merge(&other_resource).schema_url(),
@@ -543,16 +554,5 @@ mod tests {
                 )
             },
         )
-    }
-
-    #[test]
-    fn with_schema_url_for_empty_attributes() {
-        let resource = Resource::builder_empty()
-            .with_schema_url(vec![], "http://schema/a")
-            .build();
-        assert_eq!(resource.schema_url(), Some("http://schema/a"));
-
-        let resource = Resource::builder_empty().build().merge(&resource);
-        assert_eq!(resource.schema_url(), Some("http://schema/a"));
     }
 }
