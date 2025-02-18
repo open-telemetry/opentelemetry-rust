@@ -53,6 +53,7 @@ tracing = { version = ">=0.1.40", default-features = false }
 tracing-core = { version = ">=0.1.33", default-features = false } 
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
+portable-atomic = "1.9.0"
 
 # Aviod use of crates.io version of these crates through the tracing-opentelemetry dependencies
 [patch.crates-io]
