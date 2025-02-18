@@ -7,6 +7,7 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
+mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -22,6 +23,7 @@ pub mod span_processor_with_async_runtime;
 mod tracer;
 
 pub use config::{config, Config};
+pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 

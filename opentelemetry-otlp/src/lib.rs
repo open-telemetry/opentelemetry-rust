@@ -384,12 +384,6 @@ impl ExportError for Error {
     }
 }
 
-impl opentelemetry::trace::ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "otlp"
-    }
-}
-
 /// The communication protocol to use when exporting data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

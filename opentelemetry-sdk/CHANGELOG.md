@@ -3,6 +3,9 @@
 ## vNext
 
 - *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
+- Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
+- Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
+- Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
 
 ## 0.28.0
 

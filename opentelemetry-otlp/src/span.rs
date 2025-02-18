@@ -6,7 +6,7 @@ use std::fmt::Debug;
 
 use futures_core::future::BoxFuture;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::trace::SpanData;
+use opentelemetry_sdk::trace::{SpanData, TraceError};
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{
@@ -63,7 +63,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl SpanExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+    pub fn build(self) -> Result<SpanExporter, TraceError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         opentelemetry::otel_debug!(name: "SpanExporterBuilt");
         Ok(SpanExporter::new(span_exporter))
@@ -72,7 +72,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl SpanExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
+    pub fn build(self) -> Result<SpanExporter, TraceError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         Ok(SpanExporter::new(span_exporter))
     }

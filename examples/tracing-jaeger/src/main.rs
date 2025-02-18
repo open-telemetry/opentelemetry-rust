@@ -1,9 +1,9 @@
 use opentelemetry::{
     global,
-    trace::{TraceContextExt, TraceError, Tracer},
+    trace::{TraceContextExt, Tracer},
     KeyValue,
 };
-use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::{SdkTracerProvider, TraceError};
 use opentelemetry_sdk::Resource;
 
 use std::error::Error;

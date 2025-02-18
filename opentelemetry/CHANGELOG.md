@@ -2,6 +2,10 @@
 
 ## vNext
 
+- *Breaking* Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
+- *Breaking* Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
+- *Breaking* Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
+
 ## 0.28.0
 
 Released 2025-Feb-10
