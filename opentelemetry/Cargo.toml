@@ -42,7 +42,7 @@ internal-logs = ["tracing"]
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
 criterion = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 
 [[bench]]
 name = "metrics"
