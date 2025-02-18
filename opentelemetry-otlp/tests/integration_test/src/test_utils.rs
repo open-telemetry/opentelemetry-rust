@@ -55,6 +55,7 @@ fn init_tracing() {
     });
 }
 
+#[allow(clippy::await_holding_lock)]
 pub async fn start_collector_container() -> Result<()> {
     init_tracing();
 

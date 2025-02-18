@@ -83,3 +83,6 @@ hyper-client = ["opentelemetry-http/hyper"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
+
+[lints]
+workspace = true
