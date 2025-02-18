@@ -2,7 +2,8 @@
 
 ## vNext
 
-- *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
+- *Breaking*: Calls to `MeterProviderBuilder::with_resource` are now additive ([#2324](https://github.com/open-telemetry/opentelemetry-rust/issues/2324)).
+- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
 
 ## 0.28.0
 

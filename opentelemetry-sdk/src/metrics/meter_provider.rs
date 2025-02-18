@@ -232,10 +232,16 @@ impl MeterProviderBuilder {
     /// with all [Meter]s the [MeterProvider] will create.
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
+    /// Note that the calls to this method are additive, each call merges the provided
+    /// resource with the previous one.
     ///
     /// [Meter]: opentelemetry::metrics::Meter
     pub fn with_resource(mut self, resource: Resource) -> Self {
-        self.resource = Some(resource);
+        self.resource = match self.resource {
+            Some(existing) => Some(existing.merge(&resource)),
+            None => Some(resource),
+        };
+
         self
     }
 
@@ -331,6 +337,7 @@ mod tests {
     use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
+    use crate::metrics::SdkMeterProvider;
 
     #[test]
     fn test_meter_provider_resource() {
@@ -552,5 +559,21 @@ mod tests {
         let _meter8 = provider.meter_with_scope(make_scope("abc"));
 
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn with_resource_multiple_calls_ensure_additive() {
+        let builder = SdkMeterProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
+            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(Resource::builder_empty().with_schema_url(vec![], "http://example.com").build())
+            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+
+        let resource = builder.resource.unwrap();
+
+        assert_eq!(resource.get(&Key::from_static_str("key1")), Some(Value::from("value1")));
+        assert_eq!(resource.get(&Key::from_static_str("key2")), Some(Value::from("value2")));
+        assert_eq!(resource.get(&Key::from_static_str("key3")), Some(Value::from("value3")));
+        assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 }

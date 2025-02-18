@@ -169,11 +169,11 @@ impl Resource {
     /// 5. If both resources do not have a schema url, the schema url will be empty.
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
-        if self.is_empty() {
+    pub(crate) fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
+        if self.is_empty() && self.schema_url().is_none() {
             return other.clone();
         }
-        if other.is_empty() {
+        if other.is_empty() && other.schema_url().is_none() {
             return self.clone();
         }
         let mut combined_attrs = self.inner.attrs.clone();
@@ -543,5 +543,16 @@ mod tests {
                 )
             },
         )
+    }
+
+    #[test]
+    fn with_schema_url_for_empty_attributes() {
+        let resource = Resource::builder_empty()
+            .with_schema_url(vec![], "http://schema/a")
+            .build();
+        assert_eq!(resource.schema_url(), Some("http://schema/a"));
+
+        let resource = Resource::builder_empty().build().merge(&resource);
+        assert_eq!(resource.schema_url(), Some("http://schema/a"));
     }
 }
