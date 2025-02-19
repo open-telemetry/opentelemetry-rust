@@ -9,7 +9,7 @@ prints telemetry (logs, metrics and traces) to the standard output.
 
 [![Crates.io: opentelemetry-stdout](https://img.shields.io/crates/v/opentelemetry-stdout.svg)](https://crates.io/crates/opentelemetry-stdout)
 [![Documentation](https://docs.rs/opentelemetry-stdout/badge.svg)](https://docs.rs/opentelemetry-stdout)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-stdout)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-stdout)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-stdout/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
@@ -48,7 +48,7 @@ See [docs](https://docs.rs/opentelemetry-stdout).
 
 ## Release Notes
 
-You can find the release notes (changelog) [here](./CHANGELOG.md).
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-stdout/CHANGELOG.md).
 
 ## Supported Rust Versions
 
