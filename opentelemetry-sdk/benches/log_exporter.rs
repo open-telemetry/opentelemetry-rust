@@ -14,7 +14,6 @@ use opentelemetry::time::now;
 use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
@@ -29,9 +28,8 @@ use std::fmt::Debug;
 
 // Run this benchmark with:
 // cargo bench --bench log_exporter
-#[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export(&mut self, batch: LogBatch<'_>);
+    fn export(&mut self, batch: LogBatch<'_>) -> impl std::future::Future<Output = ()> + Send;
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
@@ -41,7 +39,6 @@ pub trait LogExporterWithoutFuture: Send + Sync + Debug {
 #[derive(Debug)]
 struct NoOpExporterWithFuture {}
 
-#[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
     async fn export(&mut self, _batch: LogBatch<'_>) {}
 }

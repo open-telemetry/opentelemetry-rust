@@ -33,7 +33,7 @@ default = ["full"]
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
 
 # crates used to generate rs files
-gen-tonic = ["gen-tonic-messages", "tonic/transport"]
+gen-tonic = ["gen-tonic-messages", "tonic/channel"]
 gen-tonic-messages = ["tonic", "prost"]
 
 # telemetry pillars and functions
@@ -65,3 +65,6 @@ tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = "3.3.0"
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

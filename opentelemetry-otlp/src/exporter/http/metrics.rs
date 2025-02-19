@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::metric::MetricsClient;
-use async_trait::async_trait;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
@@ -9,7 +8,6 @@ use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
 use super::OtlpHttpClient;
 
-#[async_trait]
 impl MetricsClient for OtlpHttpClient {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         let client = self

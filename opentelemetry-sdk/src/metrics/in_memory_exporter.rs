@@ -5,7 +5,6 @@ use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::MetricError;
 use crate::metrics::MetricResult;
 use crate::metrics::Temporality;
-use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -263,7 +262,6 @@ impl InMemoryMetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for InMemoryMetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.metrics
@@ -274,7 +272,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
             .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
 
-    async fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(()) // In this implementation, flush does nothing
     }
 

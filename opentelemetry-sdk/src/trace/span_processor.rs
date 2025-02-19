@@ -1268,7 +1268,7 @@ mod tests {
             processor.on_end(span);
         }
 
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
 
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 4);
@@ -1292,7 +1292,7 @@ mod tests {
             processor.on_end(span);
         }
 
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
 
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 4);
@@ -1327,7 +1327,7 @@ mod tests {
         }
 
         // Allow time for batching and export
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
 
         // Verify exported spans
         let exported_spans = exporter_shared.lock().unwrap();

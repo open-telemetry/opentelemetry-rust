@@ -158,6 +158,14 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        let severity = severity_of_level(event.metadata().level());
+        let target = event.metadata().target();
+        #[cfg(feature = "spec_unstable_logs_enabled")]
+        if !self.logger.event_enabled(severity, target) {
+            // TODO: See if we need internal logs or track the count.
+            return;
+        }
+
         #[cfg(feature = "experimental_metadata_attributes")]
         let normalized_meta = event.normalized_metadata();
 
@@ -170,9 +178,9 @@ where
         let mut log_record = self.logger.create_log_record();
 
         // TODO: Fix heap allocation
-        log_record.set_target(meta.target().to_string());
+        log_record.set_target(target.to_string());
         log_record.set_event_name(meta.name());
-        log_record.set_severity_number(severity_of_level(meta.level()));
+        log_record.set_severity_number(severity);
         log_record.set_severity_text(meta.level().as_str());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
@@ -180,7 +188,7 @@ where
         // Visit fields.
         event.record(&mut visitor);
 
-        /*#[cfg(feature = "experimental_use_tracing_span_context")]
+        #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
             use tracing_opentelemetry::OtelData;
             let opt_span_id = span
@@ -198,21 +206,10 @@ where
             if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
                 log_record.set_trace_context(trace_id, span_id, None);
             }
-        } */
+        }
 
         //emit record
         self.logger.emit(log_record);
-    }
-
-    #[cfg(feature = "spec_unstable_logs_enabled")]
-    fn event_enabled(
-        &self,
-        _event: &tracing_core::Event<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
-    ) -> bool {
-        let severity = severity_of_level(_event.metadata().level());
-        self.logger
-            .event_enabled(severity, _event.metadata().target())
     }
 }
 
@@ -266,17 +263,11 @@ mod tests {
     struct ReentrantLogExporter;
 
     impl LogExporter for ReentrantLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async {
-                // This will cause a deadlock as the export itself creates a log
-                // while still within the lock of the SimpleLogProcessor.
-                warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-                Ok(())
-            }
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            // This will cause a deadlock as the export itself creates a log
+            // while still within the lock of the SimpleLogProcessor.
+            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+            Ok(())
         }
     }
 
@@ -516,7 +507,7 @@ mod tests {
         }
     }
 
-    /*#[cfg(feature = "experimental_use_tracing_span_context")]
+    #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
         use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
@@ -575,7 +566,7 @@ mod tests {
         assert_eq!(trace_ctx1.trace_id, trace_id);
         assert_eq!(trace_ctx0.span_id, outer_span_id);
         assert_eq!(trace_ctx1.span_id, inner_span_id);
-    }*/
+    }
 
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
