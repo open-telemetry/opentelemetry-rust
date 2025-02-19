@@ -105,7 +105,7 @@ impl HasHttpConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
     }
 }
 
-/// OTLP exporter that sends log data
+/// OTLP exporter that sends tracing data
 #[derive(Debug)]
 pub struct SpanExporter {
     client: SupportedTransportClient,
