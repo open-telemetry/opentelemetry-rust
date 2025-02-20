@@ -1,9 +1,12 @@
 use opentelemetry::{
     global::{self},
-    trace::{Span, TraceError, Tracer},
+    trace::{Span, Tracer},
     InstrumentationScope, KeyValue,
 };
-use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+use opentelemetry_sdk::{
+    trace::{SdkTracerProvider, TraceError},
+    Resource,
+};
 use opentelemetry_zipkin::ZipkinExporter;
 use std::thread;
 use std::time::Duration;
