@@ -301,7 +301,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
 
 fn histograms(c: &mut Criterion) {
     let mut group = c.benchmark_group("Histogram");
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for bound_size in [10, 49, 50, 1000].iter() {
         let (_, hist) = bench_histogram(*bound_size);
@@ -313,7 +313,7 @@ fn histograms(c: &mut Criterion) {
                     format!("V,{},{},{}", bound_size, attr_size, i),
                 ))
             }
-            let value: u64 = rng.gen_range(0..MAX_BOUND).try_into().unwrap();
+            let value: u64 = rng.random_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
                 format!("Record{}Attrs{}bounds", attr_size, bound_size),
                 |b| b.iter(|| hist.record(value, &attributes)),

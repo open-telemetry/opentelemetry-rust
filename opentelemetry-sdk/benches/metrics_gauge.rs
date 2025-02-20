@@ -24,7 +24,7 @@ use std::cell::RefCell;
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 }
 
 static ATTRIBUTE_VALUES: [&str; 10] = [
@@ -55,10 +55,10 @@ fn gauge_record(c: &mut Criterion) {
             let rands = CURRENT_RNG.with(|rng| {
                 let mut rng = rng.borrow_mut();
                 [
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..10),
-                    rng.gen_range(0..10),
+                    rng.random_range(0..4),
+                    rng.random_range(0..4),
+                    rng.random_range(0..10),
+                    rng.random_range(0..10),
                 ]
             });
             let index_first_attribute = rands[0];
