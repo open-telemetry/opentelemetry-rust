@@ -303,7 +303,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "trace")]
     pub(crate) fn build_span_exporter(
         self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         otel_debug!(name: "TracesTonicChannelBuilding");

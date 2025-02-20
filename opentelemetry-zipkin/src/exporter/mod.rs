@@ -4,9 +4,9 @@ mod uploader;
 
 use http::Uri;
 use model::endpoint::Endpoint;
-use opentelemetry::trace::TraceError;
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::trace::TraceError;
 use opentelemetry_sdk::{trace, ExportError};
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::Arc;
@@ -157,12 +157,6 @@ pub enum Error {
 }
 
 impl ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "zipkin"
-    }
-}
-
-impl opentelemetry::trace::ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "zipkin"
     }

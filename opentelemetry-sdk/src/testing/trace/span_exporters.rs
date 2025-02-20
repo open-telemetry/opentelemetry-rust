@@ -2,6 +2,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
     trace::{SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
+    ExportError,
 };
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{
@@ -74,7 +75,7 @@ pub struct TestExportError(String);
 
 impl std::error::Error for TestExportError {}
 
-impl opentelemetry::trace::ExportError for TestExportError {
+impl ExportError for TestExportError {
     fn exporter_name(&self) -> &'static str {
         "test"
     }
