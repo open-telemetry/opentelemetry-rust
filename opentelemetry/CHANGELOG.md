@@ -2,6 +2,27 @@
 
 ## vNext
 
+- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+ ```rust
+  fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+```
+  to
+```rust
+  fn export(
+    &mut self,
+    batch: Vec<SpanData>,
+) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+```
+  This affects the exporter devs, as custom implementations of SpanExporter 
+  should now define export as an `async fn`:
+```rust
+  impl trace::SpanExporter for CustomExporter {
+    async fn export(&mut self, batch: Vec<trace::SpanData>) -> OTelSdkResult {
+        // Implementation here
+    }
+}
+```
+
 ## 0.28.0
 
 Released 2025-Feb-10
