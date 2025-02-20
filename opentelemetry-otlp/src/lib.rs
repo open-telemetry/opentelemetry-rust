@@ -97,7 +97,7 @@
 //! * `logs`: Includes the logs exporters.
 //!
 //! The following feature flags generate additional code and types:
-//! * `serialize`: Enables serialization support for type defined in this create via `serde`.
+//! * `serialize`: Enables serialization support for type defined in this crate via `serde`.
 //!
 //! The following feature flags offer additional configurations on gRPC:
 //!
