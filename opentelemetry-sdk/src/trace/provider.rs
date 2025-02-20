@@ -754,7 +754,8 @@ mod tests {
             .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]))
             .build()
             .inner
-            .config.resource
+            .config
+            .resource
             .clone()
             .into_owned();
 
