@@ -65,7 +65,7 @@ pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// Maximum allowed time to export data.
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Environment variable to configure max concurrent exports for batch span
 /// processor.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
@@ -710,7 +710,7 @@ impl Default for BatchConfigBuilder {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-            max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
+            max_export_timeout: OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
             max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT,
         }
         .init_from_env_vars()
@@ -905,7 +905,7 @@ mod tests {
         );
         assert_eq!(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT, 512);
         assert_eq!(OTEL_BSP_EXPORT_TIMEOUT, "OTEL_BSP_EXPORT_TIMEOUT");
-        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, 30000);
+        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30000);
     }
 
     #[test]
@@ -928,10 +928,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
         );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -971,10 +968,7 @@ mod tests {
             config.scheduled_delay,
             Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
         );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]
