@@ -8,7 +8,7 @@
 
 [![Crates.io: opentelemetry-zipkin](https://img.shields.io/crates/v/opentelemetry-zipkin.svg)](https://crates.io/crates/opentelemetry-zipkin)
 [![Documentation](https://docs.rs/opentelemetry-zipkin/badge.svg)](https://docs.rs/opentelemetry-zipkin)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-zipkin)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-zipkin)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-zipkin/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
@@ -109,7 +109,7 @@ available so be sure to match them appropriately.
 
 ## Release Notes
 
-You can find the release notes (changelog) [here](./CHANGELOG.md).
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-zipkin/CHANGELOG.md).
 
 ## Supported Rust Versions
 
