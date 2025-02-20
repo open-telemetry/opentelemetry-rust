@@ -166,7 +166,7 @@ pub trait InstrumentProvider {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
+    use rand::random;
 
     use crate::KeyValue;
     use std::collections::hash_map::DefaultHasher;
@@ -201,10 +201,8 @@ mod tests {
             assert_eq!(kv1, kv2);
         }
 
-        let mut rng = rand::thread_rng();
-
         for _ in 0..100 {
-            let random_value = rng.gen::<f64>();
+            let random_value = random::<f64>();
             let kv1 = KeyValue::new("key", random_value);
             let kv2 = KeyValue::new("key", random_value);
             assert_eq!(kv1, kv2);
@@ -228,10 +226,8 @@ mod tests {
             assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
         }
 
-        let mut rng = rand::thread_rng();
-
         for _ in 0..100 {
-            let random_value = rng.gen::<f64>();
+            let random_value = random::<f64>();
             let kv1 = KeyValue::new("key", random_value);
             let kv2 = KeyValue::new("key", random_value);
             assert_eq!(hash_helper(&kv1), hash_helper(&kv2));

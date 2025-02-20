@@ -32,7 +32,7 @@ opentelemetry_sdk = { version = "0.28", path = "../opentelemetry-sdk", features 
 opentelemetry-http = { version = "0.28", path = "../opentelemetry-http" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-typed-builder = "0.18"
+typed-builder = "0.20"
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }

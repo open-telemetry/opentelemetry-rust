@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use futures_util::future::BoxFuture;
 use opentelemetry::{
     trace::{Span, Tracer, TracerProvider},
     KeyValue,
@@ -60,8 +59,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 struct VoidExporter;
 
 impl SpanExporter for VoidExporter {
-    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        Box::pin(futures_util::future::ready(Ok(())))
+    async fn export(&mut self, _spans: Vec<SpanData>) -> OTelSdkResult {
+        Ok(())
     }
 }
 

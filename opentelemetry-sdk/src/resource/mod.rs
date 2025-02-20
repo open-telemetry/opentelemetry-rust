@@ -169,11 +169,11 @@ impl Resource {
     /// 5. If both resources do not have a schema url, the schema url will be empty.
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
-        if self.is_empty() {
+    pub(crate) fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
+        if self.is_empty() && self.schema_url().is_none() {
             return other.clone();
         }
-        if other.is_empty() {
+        if other.is_empty() && other.schema_url().is_none() {
             return self.clone();
         }
         let mut combined_attrs = self.inner.attrs.clone();
@@ -419,18 +419,29 @@ mod tests {
     }
 
     #[rstest]
-    #[case(vec![], vec![KeyValue::new("key", "b")], "http://schema/a", None)]
-    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], "http://schema/a", Some("http://schema/a"))]
-    fn merge_resource_with_missing_attribtes(
+    #[case(vec![], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], None, Some("http://schema/b"), Some("http://schema/b"))]
+    fn merge_resource_with_missing_attributes(
         #[case] key_values_a: Vec<KeyValue>,
         #[case] key_values_b: Vec<KeyValue>,
-        #[case] schema_url: &'static str,
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
         #[case] expected_schema_url: Option<&'static str>,
     ) {
-        let resource = Resource::from_schema_url(key_values_a, schema_url);
-        let other_resource = Resource::builder_empty()
-            .with_attributes(key_values_b)
-            .build();
+        let resource = match schema_url_a {
+            Some(schema) => Resource::from_schema_url(key_values_a, schema),
+            None => Resource::new(key_values_a),
+        };
+
+        let other_resource = match schema_url_b {
+            Some(schema) => Resource::builder_empty()
+                .with_schema_url(key_values_b, schema)
+                .build(),
+            None => Resource::new(key_values_b),
+        };
 
         assert_eq!(
             resource.merge(&other_resource).schema_url(),

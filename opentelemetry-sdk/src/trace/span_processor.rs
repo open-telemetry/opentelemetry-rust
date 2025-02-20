@@ -112,20 +112,20 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// - `reqwest-client`: TracerProvider may be created anywhere, but spans must be
 ///   emitted from a tokio runtime thread.
 #[derive(Debug)]
-pub struct SimpleSpanProcessor {
-    exporter: Mutex<Box<dyn SpanExporter>>,
+pub struct SimpleSpanProcessor<T: SpanExporter> {
+    exporter: Mutex<T>,
 }
 
-impl SimpleSpanProcessor {
+impl<T: SpanExporter> SimpleSpanProcessor<T> {
     /// Create a new [SimpleSpanProcessor] using the provided exporter.
-    pub fn new(exporter: Box<dyn SpanExporter>) -> Self {
+    pub fn new(exporter: T) -> Self {
         Self {
             exporter: Mutex::new(exporter),
         }
     }
 }
 
-impl SpanProcessor for SimpleSpanProcessor {
+impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     fn on_start(&self, _span: &mut Span, _cx: &Context) {
         // Ignored
     }
@@ -852,7 +852,7 @@ mod tests {
     #[test]
     fn simple_span_processor_on_end_calls_export() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
         processor.on_end(span_data.clone());
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
@@ -862,7 +862,7 @@ mod tests {
     #[test]
     fn simple_span_processor_on_end_skips_export_if_not_sampled() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleSpanProcessor::new(exporter.clone());
         let unsampled = SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
@@ -884,7 +884,7 @@ mod tests {
     #[test]
     fn simple_span_processor_shutdown_calls_shutdown() {
         let exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
         processor.on_end(span_data.clone());
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
@@ -1014,8 +1014,6 @@ mod tests {
     }
 
     use crate::Resource;
-    use futures_util::future::BoxFuture;
-    use futures_util::FutureExt;
     use opentelemetry::{Key, KeyValue, Value};
     use std::sync::{atomic::Ordering, Arc, Mutex};
 
@@ -1036,13 +1034,10 @@ mod tests {
     }
 
     impl SpanExporter for MockSpanExporter {
-        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
+        async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
             let exported_spans = self.exported_spans.clone();
-            async move {
-                exported_spans.lock().unwrap().extend(batch);
-                Ok(())
-            }
-            .boxed()
+            exported_spans.lock().unwrap().extend(batch);
+            Ok(())
         }
 
         fn shutdown(&mut self) -> OTelSdkResult {

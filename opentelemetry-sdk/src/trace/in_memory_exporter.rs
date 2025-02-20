@@ -1,8 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
+use crate::trace::error::{TraceError, TraceResult};
 use crate::trace::{SpanData, SpanExporter};
-use futures_util::future::BoxFuture;
-use opentelemetry::trace::{TraceError, TraceResult};
 use std::sync::{Arc, Mutex};
 
 /// An in-memory span exporter that stores span data in memory.
@@ -131,7 +130,7 @@ impl InMemorySpanExporter {
 }
 
 impl SpanExporter for InMemorySpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
         let result = self
             .spans
             .lock()
@@ -139,7 +138,7 @@ impl SpanExporter for InMemorySpanExporter {
             .map_err(|err| {
                 OTelSdkError::InternalFailure(format!("Failed to lock spans: {:?}", err))
             });
-        Box::pin(std::future::ready(result))
+        result
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {

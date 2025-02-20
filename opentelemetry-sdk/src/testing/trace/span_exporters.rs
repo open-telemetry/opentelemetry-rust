@@ -2,8 +2,8 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
     trace::{SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
+    ExportError,
 };
-use futures_util::future::BoxFuture;
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{
     trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
@@ -41,14 +41,12 @@ pub struct TokioSpanExporter {
 }
 
 impl SpanExporter for TokioSpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        let result = batch.into_iter().try_for_each(|span_data| {
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+        batch.into_iter().try_for_each(|span_data| {
             self.tx_export
                 .send(span_data)
                 .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {:?}", err)))
-        });
-
-        Box::pin(std::future::ready(result))
+        })
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
@@ -77,7 +75,7 @@ pub struct TestExportError(String);
 
 impl std::error::Error for TestExportError {}
 
-impl opentelemetry::trace::ExportError for TestExportError {
+impl ExportError for TestExportError {
     fn exporter_name(&self) -> &'static str {
         "test"
     }
@@ -112,7 +110,7 @@ impl NoopSpanExporter {
 }
 
 impl SpanExporter for NoopSpanExporter {
-    fn export(&mut self, _: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        Box::pin(std::future::ready(Ok(())))
+    async fn export(&mut self, _: Vec<SpanData>) -> OTelSdkResult {
+        Ok(())
     }
 }
