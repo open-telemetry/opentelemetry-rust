@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn test_default_const_values() {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
-        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, 1_000);
+        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT.as_millis(), 1_000);
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
@@ -375,7 +375,7 @@ mod tests {
 
         assert_eq!(
             config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+            OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
         );
         assert_eq!(
             config.max_export_timeout,
@@ -418,7 +418,7 @@ mod tests {
         assert_eq!(config.max_export_batch_size, 256);
         assert_eq!(
             config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+            OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
         );
         assert_eq!(
             config.max_export_timeout,
@@ -455,7 +455,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
@@ -746,7 +746,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
