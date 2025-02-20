@@ -32,5 +32,5 @@ impl IdGenerator for RandomIdGenerator {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 }
