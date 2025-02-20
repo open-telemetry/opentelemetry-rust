@@ -480,7 +480,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BSP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
