@@ -317,7 +317,7 @@ impl TonicExporterBuilder {
 
         let client = TonicTracesClient::new(channel, interceptor, compression);
 
-        Ok(crate::SpanExporter::new(client))
+        Ok(crate::SpanExporter::from_tonic(client))
     }
 }
 

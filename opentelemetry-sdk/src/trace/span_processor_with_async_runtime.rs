@@ -6,6 +6,7 @@ use crate::trace::Span;
 use crate::trace::SpanProcessor;
 use crate::trace::{SpanData, SpanExporter};
 use futures_channel::oneshot;
+use futures_util::pin_mut;
 use futures_util::{
     future::{self, BoxFuture, Either},
     select,
@@ -183,29 +184,27 @@ enum BatchMessage {
     SetResource(Arc<Resource>),
 }
 
-struct BatchSpanProcessorInternal<R> {
+struct BatchSpanProcessorInternal<E, R> {
     spans: Vec<SpanData>,
     export_tasks: FuturesUnordered<BoxFuture<'static, OTelSdkResult>>,
     runtime: R,
-    exporter: Box<dyn SpanExporter>,
+    exporter: E,
     config: BatchConfig,
 }
 
-impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
+impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<OTelSdkResult>>) {
-        let export_task = self.export();
+        let export_result = self.export().await;
         let task = Box::pin(async move {
-            let result = export_task.await;
-
             if let Some(channel) = res_channel {
                 // If a response channel is provided, attempt to send the export result through it.
-                if let Err(result) = channel.send(result) {
+                if let Err(result) = channel.send(export_result) {
                     otel_debug!(
                         name: "BatchSpanProcessor.Flush.SendResultError",
                         reason = format!("{:?}", result)
                     );
                 }
-            } else if let Err(err) = result {
+            } else if let Err(err) = export_result {
                 // If no channel is provided and the export operation encountered an error,
                 // log the error directly here.
                 // TODO: Consider returning the status instead of logging it.
@@ -244,9 +243,9 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
                         self.export_tasks.next().await;
                     }
 
-                    let export_task = self.export();
+                    let export_result = self.export().await;
                     let task = async move {
-                        if let Err(err) = export_task.await {
+                        if let Err(err) = export_result {
                             otel_error!(
                                 name: "BatchSpanProcessor.Export.Error",
                                 reason = format!("{}", err)
@@ -300,23 +299,23 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
         true
     }
 
-    fn export(&mut self) -> BoxFuture<'static, OTelSdkResult> {
+    async fn export(&mut self) -> OTelSdkResult {
         // Batch size check for flush / shutdown. Those methods may be called
         // when there's no work to do.
         if self.spans.is_empty() {
-            return Box::pin(future::ready(Ok(())));
+            return Ok(());
         }
 
         let export = self.exporter.export(self.spans.split_off(0));
         let timeout = self.runtime.delay(self.config.max_export_timeout);
         let time_out = self.config.max_export_timeout;
+        pin_mut!(export);
+        pin_mut!(timeout);
 
-        Box::pin(async move {
-            match future::select(export, timeout).await {
-                Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
-            }
-        })
+        match future::select(export, timeout).await {
+            Either::Left((export_res, _)) => export_res,
+            Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+        }
     }
 
     async fn run(mut self, mut messages: impl FusedStream<Item = BatchMessage> + Unpin) {
@@ -343,7 +342,10 @@ impl<R: RuntimeChannel> BatchSpanProcessorInternal<R> {
 }
 
 impl<R: RuntimeChannel> BatchSpanProcessor<R> {
-    pub(crate) fn new(exporter: Box<dyn SpanExporter>, config: BatchConfig, runtime: R) -> Self {
+    pub(crate) fn new<E>(exporter: E, config: BatchConfig, runtime: R) -> Self
+    where
+        E: SpanExporter + Send + Sync + 'static,
+    {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
 
@@ -414,7 +416,7 @@ where
 
     /// Build a batch processor
     pub fn build(self) -> BatchSpanProcessor<R> {
-        BatchSpanProcessor::new(Box::new(self.exporter), self.config, self.runtime)
+        BatchSpanProcessor::new(self.exporter, self.config, self.runtime)
     }
 }
 
@@ -455,12 +457,9 @@ mod tests {
         D: Fn(Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
-        fn export(
-            &mut self,
-            _batch: Vec<SpanData>,
-        ) -> futures_util::future::BoxFuture<'static, OTelSdkResult> {
-            use futures_util::FutureExt;
-            Box::pin((self.delay_fn)(self.delay_for).map(|_| Ok(())))
+        async fn export(&mut self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            (self.delay_fn)(self.delay_for).await;
+            Ok(())
         }
     }
 
@@ -510,8 +509,7 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(60 * 60 * 24)) // set the tick to 24 hours so we know the span must be exported via force_flush
             .build();
-        let processor =
-            BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         let handle = tokio::spawn(async move {
             loop {
                 if let Some(span) = export_receiver.recv().await {
@@ -546,8 +544,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
-        let processor =
-            BatchSpanProcessor::new(Box::new(exporter), config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
@@ -606,7 +603,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: async_std::task::sleep,
         };
-        let processor = BatchSpanProcessor::new(Box::new(exporter), config, runtime::AsyncStd);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::AsyncStd);
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
         if time_out {
