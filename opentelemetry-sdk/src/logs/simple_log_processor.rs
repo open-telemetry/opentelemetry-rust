@@ -168,20 +168,14 @@ mod tests {
     }
 
     impl LogExporter for LogExporterThatRequiresTokio {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
             // Simulate minimal dependency on tokio by sleeping asynchronously for a short duration
-            async move {
-                tokio::time::sleep(Duration::from_millis(50)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
 
-                for _ in batch.iter() {
-                    self.export_count.fetch_add(1, Ordering::Acquire);
-                }
-                Ok(())
+            for _ in batch.iter() {
+                self.export_count.fetch_add(1, Ordering::Acquire);
             }
+            Ok(())
         }
     }
 

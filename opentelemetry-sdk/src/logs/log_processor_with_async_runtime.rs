@@ -317,12 +317,8 @@ mod tests {
     }
 
     impl LogExporter for MockLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async { Ok(()) }
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            Ok(())
         }
 
         fn shutdown(&mut self) -> OTelSdkResult {
