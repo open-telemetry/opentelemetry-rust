@@ -4,7 +4,6 @@
 
 use std::fmt::Debug;
 
-use futures_core::future::BoxFuture;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::trace::SpanData;
 
@@ -66,7 +65,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
     pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         opentelemetry::otel_debug!(name: "SpanExporterBuilt");
-        Ok(SpanExporter::new(span_exporter))
+        Ok(span_exporter)
     }
 }
 
@@ -74,7 +73,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
 impl SpanExporterBuilder<HttpExporterBuilderSet> {
     pub fn build(self) -> Result<SpanExporter, opentelemetry::trace::TraceError> {
         let span_exporter = self.client.0.build_span_exporter()?;
-        Ok(SpanExporter::new(span_exporter))
+        Ok(span_exporter)
     }
 }
 
@@ -106,9 +105,19 @@ impl HasHttpConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
     }
 }
 
-/// OTLP exporter that sends tracing information
+/// OTLP exporter that sends tracing data
 #[derive(Debug)]
-pub struct SpanExporter(Box<dyn opentelemetry_sdk::trace::SpanExporter>);
+pub struct SpanExporter {
+    client: SupportedTransportClient,
+}
+
+#[derive(Debug)]
+enum SupportedTransportClient {
+    #[cfg(feature = "grpc-tonic")]
+    Tonic(crate::exporter::tonic::trace::TonicTracesClient),
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    Http(crate::exporter::http::OtlpHttpClient),
+}
 
 impl SpanExporter {
     /// Obtain a builder to configure a [SpanExporter].
@@ -116,18 +125,37 @@ impl SpanExporter {
         SpanExporterBuilder::default()
     }
 
-    /// Build a new span exporter from a client
-    pub fn new(client: impl opentelemetry_sdk::trace::SpanExporter + 'static) -> Self {
-        SpanExporter(Box::new(client))
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub(crate) fn from_http(client: crate::exporter::http::OtlpHttpClient) -> Self {
+        SpanExporter {
+            client: SupportedTransportClient::Http(client),
+        }
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    pub(crate) fn from_tonic(client: crate::exporter::tonic::trace::TonicTracesClient) -> Self {
+        SpanExporter {
+            client: SupportedTransportClient::Tonic(client),
+        }
     }
 }
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        self.0.export(batch)
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+        match &mut self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.export(batch).await,
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.export(batch).await,
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.0.set_resource(resource);
+        match &mut self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.set_resource(resource),
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.set_resource(resource),
+        }
     }
 }

@@ -223,7 +223,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
         )?;
 
-        Ok(crate::SpanExporter::new(client))
+        Ok(crate::SpanExporter::from_http(client))
     }
 
     /// Create a log exporter with the current configuration
