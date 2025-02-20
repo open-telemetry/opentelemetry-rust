@@ -232,7 +232,8 @@ impl MeterProviderBuilder {
     /// with all [Meter]s the [MeterProvider] will create.
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
-    /// Note that the calls to this method are additive, each call merges the provided
+    ///
+    /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
     ///
     /// [Meter]: opentelemetry::metrics::Meter
