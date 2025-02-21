@@ -120,7 +120,7 @@ impl HttpExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_millis(seconds),
+                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
                 Err(_) => self.exporter_config.timeout,
             },
             None => self.exporter_config.timeout,
@@ -210,7 +210,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
         mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
@@ -301,7 +301,7 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
-    ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
+    ) -> opentelemetry_sdk::trace::TraceResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
         let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
 
@@ -310,7 +310,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry::trace::TraceError::from(e.to_string())),
+                Err(e) => Err(opentelemetry_sdk::trace::TraceError::from(e.to_string())),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }

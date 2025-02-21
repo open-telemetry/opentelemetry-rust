@@ -200,7 +200,7 @@ impl TonicExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_millis(seconds),
+                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
                 Err(_) => config.timeout,
             },
             None => config.timeout,
@@ -303,7 +303,7 @@ impl TonicExporterBuilder {
     #[cfg(feature = "trace")]
     pub(crate) fn build_span_exporter(
         self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         otel_debug!(name: "TracesTonicChannelBuilding");
