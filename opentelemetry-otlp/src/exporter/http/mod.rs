@@ -675,7 +675,10 @@ mod tests {
         use std::collections::HashMap;
         // Arrange
         let initial_headers = HashMap::from([("k1".to_string(), "v1".to_string())]);
-        let extra_headers = HashMap::from([("k2".to_string(), "v2".to_string())]);
+        let extra_headers = HashMap::from([
+            ("k2".to_string(), "v2".to_string()),
+            ("k3".to_string(), "v3".to_string()),
+        ]);
         let expected_headers = initial_headers.iter().chain(extra_headers.iter()).fold(
             HashMap::new(),
             |mut acc, (k, v)| {
