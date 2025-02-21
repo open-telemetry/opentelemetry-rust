@@ -33,7 +33,17 @@
     }
 }
 ```
-
+- **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
+  Before: 
+  ```rust
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult 
+  ```
+  After: 
+  ```rust 
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult  
+  ```
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
+  
 ## 0.28.0
 
 Released 2025-Feb-10

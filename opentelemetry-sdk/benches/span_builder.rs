@@ -65,7 +65,7 @@ fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::SdkTracer) 
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    async fn export(&mut self, _spans: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
         Ok(())
     }
 }

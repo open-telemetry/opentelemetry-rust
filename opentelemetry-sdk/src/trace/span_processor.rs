@@ -139,7 +139,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             .exporter
             .lock()
             .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|mut exporter| futures_executor::block_on(exporter.export(vec![span])));
+            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span])));
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -1022,7 +1022,7 @@ mod tests {
     }
 
     impl SpanExporter for MockSpanExporter {
-        async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
             let exported_spans = self.exported_spans.clone();
             exported_spans.lock().unwrap().extend(batch);
             Ok(())
