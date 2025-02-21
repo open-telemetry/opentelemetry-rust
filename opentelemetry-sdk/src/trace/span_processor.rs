@@ -53,7 +53,7 @@ use std::time::Instant;
 /// Delay interval between two consecutive exports.
 pub(crate) const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-pub(crate) const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: u64 = 5_000;
+pub(crate) const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(5_000);
 /// Maximum queue size
 pub(crate) const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
 /// Default maximum queue size
@@ -65,7 +65,7 @@ pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 /// Maximum allowed time to export data.
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Environment variable to configure max concurrent exports for batch span
 /// processor.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
@@ -708,9 +708,9 @@ impl Default for BatchConfigBuilder {
     fn default() -> Self {
         BatchConfigBuilder {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
-            scheduled_delay: Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT),
+            scheduled_delay: OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
             max_export_batch_size: OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-            max_export_timeout: Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT),
+            max_export_timeout: OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
             max_concurrent_exports: OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT,
         }
         .init_from_env_vars()
@@ -898,14 +898,14 @@ mod tests {
         assert_eq!(OTEL_BSP_MAX_QUEUE_SIZE, "OTEL_BSP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, 2048);
         assert_eq!(OTEL_BSP_SCHEDULE_DELAY, "OTEL_BSP_SCHEDULE_DELAY");
-        assert_eq!(OTEL_BSP_SCHEDULE_DELAY_DEFAULT, 5000);
+        assert_eq!(OTEL_BSP_SCHEDULE_DELAY_DEFAULT.as_millis(), 5000);
         assert_eq!(
             OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
             "OTEL_BSP_MAX_EXPORT_BATCH_SIZE"
         );
         assert_eq!(OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT, 512);
         assert_eq!(OTEL_BSP_EXPORT_TIMEOUT, "OTEL_BSP_EXPORT_TIMEOUT");
-        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, 30000);
+        assert_eq!(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30000);
     }
 
     #[test]
@@ -924,14 +924,8 @@ mod tests {
             config.max_concurrent_exports,
             OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT
         );
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
-        );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BSP_SCHEDULE_DELAY_DEFAULT);
+        assert_eq!(config.max_export_timeout, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -967,14 +961,8 @@ mod tests {
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BSP_SCHEDULE_DELAY_DEFAULT)
-        );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BSP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BSP_SCHEDULE_DELAY_DEFAULT);
+        assert_eq!(config.max_export_timeout, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]
