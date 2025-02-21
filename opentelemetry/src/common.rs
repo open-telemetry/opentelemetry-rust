@@ -427,22 +427,33 @@ pub struct InstrumentationScope {
     attributes: Vec<KeyValue>,
 }
 
-// Uniqueness for InstrumentationScope does not depend on attributes
-impl Eq for InstrumentationScope {}
-
 impl PartialEq for InstrumentationScope {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.version == other.version
             && self.schema_url == other.schema_url
+            && {
+                let mut self_attrs = self.attributes.clone();
+                let mut other_attrs = other.attributes.clone();
+                self_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+                other_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+                self_attrs == other_attrs
+            }
     }
 }
+
+impl Eq for InstrumentationScope {}
 
 impl hash::Hash for InstrumentationScope {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.version.hash(state);
         self.schema_url.hash(state);
+        let mut sorted_attrs = self.attributes.clone();
+        sorted_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+        for attribute in sorted_attrs {
+            attribute.hash(state);
+        }
     }
 }
 
@@ -559,5 +570,71 @@ impl InstrumentationScopeBuilder {
             schema_url: self.schema_url,
             attributes: self.attributes.unwrap_or_default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::{Hash, Hasher};
+
+    use crate::{InstrumentationScope, KeyValue};
+
+    #[test]
+    fn instrumentation_scope_equality() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k", "v")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k", "v")])
+            .build();
+        assert_eq!(scope1, scope2);
+    }
+
+    #[test]
+    fn instrumentation_scope_equality_attributes_diff_order() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k2", "v2"), KeyValue::new("k1", "v1")])
+            .build();
+        assert_eq!(scope1, scope2);
+
+        // assert hash are same for both scopes
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        scope1.hash(&mut hasher1);
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        scope2.hash(&mut hasher2);
+        assert_eq!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn instrumentation_scope_equality_different_attributes() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k2", "v3"), KeyValue::new("k4", "v5")])
+            .build();
+        assert_ne!(scope1, scope2);
+
+        // assert hash are same for both scopes
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        scope1.hash(&mut hasher1);
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        scope2.hash(&mut hasher2);
+        assert_ne!(hasher1.finish(), hasher2.finish());
     }
 }

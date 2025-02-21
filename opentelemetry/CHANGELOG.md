@@ -6,6 +6,7 @@
 - *Breaking* Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - *Breaking* Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
 - {PLACEHOLDER} - Remove the above completely. // TODO fill this when changes are actually in.
+- Bug Fix: `InstrumentationScope` implementation for `PartialEq` and `Hash` fixed to include Attributes also.
 
 ## 0.28.0
 
