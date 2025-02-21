@@ -59,7 +59,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 struct VoidExporter;
 
 impl SpanExporter for VoidExporter {
-    async fn export(&mut self, _spans: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
         Ok(())
     }
 }

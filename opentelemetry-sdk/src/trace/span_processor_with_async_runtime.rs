@@ -457,7 +457,7 @@ mod tests {
         D: Fn(Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
-        async fn export(&mut self, _batch: Vec<SpanData>) -> OTelSdkResult {
+        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
             (self.delay_fn)(self.delay_for).await;
             Ok(())
         }
