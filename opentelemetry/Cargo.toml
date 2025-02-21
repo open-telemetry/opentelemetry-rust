@@ -57,5 +57,10 @@ harness = false
 name = "anyvalue"
 harness = false
 
+[[bench]]
+name = "context_attach"
+harness = false
+required-features = ["tracing"]
+
 [lints]
 workspace = true
