@@ -45,7 +45,7 @@ pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_mil
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Maximum queue size.
 pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
 /// Default maximum queue size.
@@ -619,7 +619,7 @@ impl Default for BatchConfigBuilder {
             scheduled_delay: OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-            max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
+            max_export_timeout: OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT,
         }
         .init_from_env_vars()
     }
@@ -740,7 +740,7 @@ mod tests {
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
+        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
         assert_eq!(
@@ -765,10 +765,7 @@ mod tests {
 
         assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -808,10 +805,7 @@ mod tests {
         assert_eq!(config.max_export_batch_size, 256);
         assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]

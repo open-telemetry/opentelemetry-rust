@@ -351,7 +351,7 @@ mod tests {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT.as_millis(), 1_000);
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
-        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
+        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
         assert_eq!(
@@ -374,10 +374,7 @@ mod tests {
         let config = temp_env::with_vars_unset(env_vars, BatchConfig::default);
 
         assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -414,10 +411,7 @@ mod tests {
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
         assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]
