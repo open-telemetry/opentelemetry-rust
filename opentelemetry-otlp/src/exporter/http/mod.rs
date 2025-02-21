@@ -671,7 +671,7 @@ mod tests {
     }
 
     #[test]
-    fn test_http_exporter_builder_with_header() {
+    fn test_http_exporter_builder_with_headers() {
         use std::collections::HashMap;
         // Arrange
         let initial_headers = HashMap::from([("k1".to_string(), "v1".to_string())]);
