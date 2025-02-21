@@ -449,13 +449,13 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
-        self.http_client_config()
+        let http_client_headers = self
+            .http_client_config()
             .headers
-            .iter_mut()
-            .zip(headers)
-            .for_each(|(http_client_headers, (key, value))| {
-                http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
-            });
+            .get_or_insert(HashMap::new());
+        headers.into_iter().for_each(|(key, value)| {
+            http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
+        });
         self
     }
 }
