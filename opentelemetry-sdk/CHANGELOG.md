@@ -2,12 +2,37 @@
 
 ## vNext
 
-- Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`, 
+- Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
-- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
+- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
+- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+
+```rust
+  fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+```
+
+  to
+
+```rust
+  fn export(
+    &mut self,
+    batch: Vec<SpanData>,
+) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+```
+
+  This affects anyone who writes custom exporters, as custom implementations of SpanExporter
+  should now define export as an `async fn`:
+
+```rust
+  impl trace::SpanExporter for CustomExporter {
+    async fn export(&mut self, batch: Vec<trace::SpanData>) -> OTelSdkResult {
+        // Implementation here
+    }
+}
+```
 
 ## 0.28.0
 
