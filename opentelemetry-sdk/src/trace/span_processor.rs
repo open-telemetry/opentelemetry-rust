@@ -39,8 +39,7 @@ use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
 use opentelemetry::Context;
-use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry::{otel_error, otel_info};
+use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::cmp::min;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -317,7 +316,7 @@ impl BatchSpanProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
             .spawn(move || {
-                otel_info!(
+                otel_debug!(
                     name: "BatchSpanProcessor.ThreadStarted",
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
                     max_export_batch_size = config.max_export_batch_size,
@@ -413,7 +412,7 @@ impl BatchSpanProcessor {
                         }
                     }
                 }
-                otel_info!(
+                otel_debug!(
                     name: "BatchSpanProcessor.ThreadStopped"
                 );
             })
