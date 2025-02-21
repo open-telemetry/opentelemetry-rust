@@ -8,6 +8,18 @@
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
+- **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
+  Before: 
+  ```rust
+    async fn export(&mut self, _batch: LogBatch<'_>)
+     -> LogResult<()>` 
+  ```
+  After: 
+  ```rust 
+  async fn export(&self, _batch: LogBatch<'_>) ->
+  LogResult<()>` 
+  ```
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
 
 ## 0.28.0
 
