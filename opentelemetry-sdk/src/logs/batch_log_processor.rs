@@ -23,7 +23,7 @@ use crate::{
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
@@ -342,7 +342,7 @@ impl BatchLogProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
-                otel_info!(
+                otel_debug!(
                     name: "BatchLogProcessor.ThreadStarted",
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
                     max_export_batch_size = config.max_export_batch_size,
@@ -476,7 +476,7 @@ impl BatchLogProcessor {
                         }
                     }
                 }
-                otel_info!(
+                otel_debug!(
                     name: "BatchLogProcessor.ThreadStopped"
                 );
             })
