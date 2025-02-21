@@ -563,6 +563,25 @@ mod tests {
     }
 
     #[test]
+    fn same_meter_reused_same_scope_attributes() {
+        let meter_provider = super::SdkMeterProvider::builder().build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
+
+        let _meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let _meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+
+        assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 1);
+    }
+
+    #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkMeterProvider::builder()
             .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
