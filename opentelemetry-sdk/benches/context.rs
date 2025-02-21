@@ -136,7 +136,7 @@ fn parent_sampled_tracer(inner_sampler: Sampler) -> (SdkTracerProvider, BoxedTra
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    async fn export(&mut self, _spans: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
         Ok(())
     }
 }

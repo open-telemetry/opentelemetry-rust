@@ -9,7 +9,7 @@ use opentelemetry_sdk::{
 };
 
 impl SpanExporter for OtlpHttpClient {
-    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         let client = match self
             .client
             .lock()

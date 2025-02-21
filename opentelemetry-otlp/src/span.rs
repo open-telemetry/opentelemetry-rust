@@ -141,8 +141,8 @@ impl SpanExporter {
 }
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
-        match &mut self.client {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.export(batch).await,
             #[cfg(any(feature = "http-proto", feature = "http-json"))]

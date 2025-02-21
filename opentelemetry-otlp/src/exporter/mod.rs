@@ -52,7 +52,7 @@ const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each signal batch.
-pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: u64 = 10000;
+pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(10000);
 
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 #[cfg(feature = "grpc-tonic")]
@@ -87,7 +87,7 @@ impl Default for ExportConfig {
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
-            timeout: Duration::from_millis(OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT),
+            timeout: OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
         }
     }
 }
