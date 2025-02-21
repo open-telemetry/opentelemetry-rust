@@ -11,13 +11,11 @@
 - **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
   Before: 
   ```rust
-    async fn export(&mut self, _batch: LogBatch<'_>)
-     -> LogResult<()>` 
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult 
   ```
   After: 
   ```rust 
-  async fn export(&self, _batch: LogBatch<'_>) ->
-  LogResult<()>` 
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult  
   ```
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
