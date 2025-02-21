@@ -5,6 +5,32 @@
 Fixes [1682](https://github.com/open-telemetry/opentelemetry-rust/issues/1682).
 "spec_unstable_logs_enabled" feature now do not suppress logs for other layers.
 
+The special treatment of the "message" field has been extended when recording
+string values. With this change, when a log is emitted with a field named
+"message" (and string value), its value is directly assigned to the LogRecord’s
+body rather than being stored as an attribute named "message". This offers a
+slight performance improvement over previous.
+
+For example, the below will now produce LogRecord with the message value
+populated as LogRecord's body:
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
+```
+
+Previously, Body was only populated when the below style was used.
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message");
+```
+
+This style, while slightly slower, should still be used when the value is not a
+simple string, but require format arguments as in the below example.
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message with format arguments {} and {}", "foo", "bar");
+```
+
 ## 0.28.1
 
 Released 2025-Feb-12
