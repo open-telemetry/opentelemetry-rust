@@ -28,7 +28,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// Any retry logic that is required by the exporter is the responsibility
     /// of the exporter.
     fn export(
-        &mut self,
+        &self,
         batch: Vec<SpanData>,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
