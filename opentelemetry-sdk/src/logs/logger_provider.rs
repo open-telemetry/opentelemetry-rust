@@ -160,7 +160,7 @@ impl LoggerProviderInner {
 impl Drop for LoggerProviderInner {
     fn drop(&mut self) {
         if !self.is_shutdown.load(Ordering::Relaxed) {
-            otel_debug!(
+            otel_info!(
                 name: "LoggerProvider.Drop",
                 message = "Last reference of LoggerProvider dropped, initiating shutdown."
             );

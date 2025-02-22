@@ -153,7 +153,7 @@ impl Drop for SdkMeterProviderInner {
                 message = "MeterProvider was already shut down; drop will not attempt shutdown again."
             );
         } else {
-            otel_debug!(
+            otel_info!(
                 name: "MeterProvider.Drop",
                 message = "Last reference of MeterProvider dropped, initiating shutdown."
             );
