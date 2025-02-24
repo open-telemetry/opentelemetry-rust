@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_warn};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -251,7 +251,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                             // tells that it timed out.
                             if export_result.is_err() || shutdown_result.is_err() {
                                 if response_sender.send(false).is_err() {
-                                    otel_debug!(
+                                    otel_info!(
                                         name: "PeriodReaderThreadShutdown.ResponseSendError",
                                         message = "PeriodicReader's shutdown has failed, but unable to send this info back to caller.
                                         This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
