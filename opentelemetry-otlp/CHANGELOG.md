@@ -3,6 +3,7 @@
 ## vNext
 
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
+- Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
 
 ## 0.28.0
 
@@ -41,7 +42,7 @@ Released 2024-Nov-11
 - Update `opentelemetry-http` dependency version to 0.27
 - Update `opentelemetry-proto` dependency version to 0.27
 
-- **BREAKING**: 
+- **BREAKING**:
   - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
     ```rust
@@ -88,9 +89,9 @@ Released 2024-Nov-11
       - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
   - [#2263](https://github.com/open-telemetry/opentelemetry-rust/pull/2263)
-  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`. 
+  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`.
   Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
-  
+
 ## v0.26.0
 Released 2024-Sep-30
 
