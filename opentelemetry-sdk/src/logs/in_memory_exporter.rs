@@ -4,6 +4,7 @@ use crate::logs::{LogBatch, LogExporter};
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 type LogResult<T> = Result<T, OTelSdkError>;
@@ -42,6 +43,7 @@ pub struct InMemoryLogExporter {
     logs: Arc<Mutex<Vec<OwnedLogData>>>,
     resource: Arc<Mutex<Resource>>,
     should_reset_on_shutdown: bool,
+    shutdown_called: Arc<AtomicBool>,
 }
 
 impl Default for InMemoryLogExporter {
@@ -124,6 +126,7 @@ impl InMemoryLogExporterBuilder {
             logs: Arc::new(Mutex::new(Vec::new())),
             resource: Arc::new(Mutex::new(Resource::builder().build())),
             should_reset_on_shutdown: self.reset_on_shutdown,
+            shutdown_called: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -137,6 +140,12 @@ impl InMemoryLogExporterBuilder {
 }
 
 impl InMemoryLogExporter {
+    /// Returns true if shutdown was called.
+    pub fn is_shutdown_called(&self) -> bool {
+        self.shutdown_called
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Returns the logs emitted via Logger as a vector of `LogDataWithResource`.
     ///
     /// # Example
@@ -203,6 +212,8 @@ impl LogExporter for InMemoryLogExporter {
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
+        self.shutdown_called
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {
             self.reset();
         }

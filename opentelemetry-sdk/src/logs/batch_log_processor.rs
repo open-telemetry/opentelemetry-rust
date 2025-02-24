@@ -436,6 +436,7 @@ impl BatchLogProcessor {
                                 &current_batch_size,
                                 &config,
                             );
+                            let _ = exporter.shutdown();
                             let _ = sender.send(result);
 
                             otel_debug!(
@@ -925,7 +926,8 @@ mod tests {
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
         processor.emit(&mut record, &instrumentation);
-        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
+        assert!(exporter.is_shutdown_called());
     }
 
     #[tokio::test(flavor = "current_thread")]
