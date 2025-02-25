@@ -110,7 +110,7 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> OTelSdkResult {
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
@@ -164,7 +164,7 @@ impl Drop for SdkMeterProviderInner {
                     reason = format!("{}", err)
                 );
             } else {
-                otel_info!(
+                otel_debug!(
                     name: "MeterProvider.Drop.ShutdownCompleted",
                 );
             }
@@ -310,7 +310,7 @@ impl MeterProviderBuilder {
             }),
         };
 
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Built",
         );
         meter_provider
