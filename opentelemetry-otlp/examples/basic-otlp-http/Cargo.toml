@@ -12,8 +12,8 @@ reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
 [dependencies]
 opentelemetry = { path = "../../../opentelemetry" }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
-opentelemetry-otlp = { path = "../.."}
-opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing"}
+opentelemetry-otlp = { workspace = true }
+opentelemetry-appender-tracing = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true, features = ["std"]}
