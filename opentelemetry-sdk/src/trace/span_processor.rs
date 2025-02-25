@@ -1240,7 +1240,6 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(5)
             .with_max_export_batch_size(3)
-            .with_scheduled_delay(Duration::from_millis(50))
             .build();
 
         let processor = BatchSpanProcessor::new(exporter, config);
@@ -1264,7 +1263,6 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(5)
             .with_max_export_batch_size(3)
-            .with_scheduled_delay(Duration::from_millis(50))
             .build();
 
         let processor = BatchSpanProcessor::new(exporter, config);
@@ -1288,7 +1286,6 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(20)
             .with_max_export_batch_size(5)
-            .with_scheduled_delay(Duration::from_millis(50))
             .build();
 
         // Create the processor with the thread-safe exporter
