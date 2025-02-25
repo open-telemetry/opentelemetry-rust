@@ -12,9 +12,10 @@ jobs:
           toolchain: stable
       - uses: boa-dev/criterion-compare-action@v3
         with:
-          benchName: "context_attach"
+          cwd: opentelemetry
+#          benchName: "context_attach"
 #          branchName: main
 #          token: bloop
           branchName: ${{ github.base_ref }}
           # Optional. Default is `${{ github.token }}`.
-          token: ${{ secrets.GITHUB_TOKEN }}
+#          token: ${{ secrets.GITHUB_TOKEN }}

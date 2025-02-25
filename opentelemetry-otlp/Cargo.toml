@@ -86,3 +86,6 @@ integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
