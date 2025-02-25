@@ -3,6 +3,8 @@ name: benchmark pull requests
 jobs:
   runBenchmark:
     name: run benchmark
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
