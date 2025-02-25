@@ -57,5 +57,8 @@ harness = false
 name = "anyvalue"
 harness = false
 
+[lib]
+bench = false
+
 [lints]
 workspace = true

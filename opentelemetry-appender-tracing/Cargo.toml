@@ -44,5 +44,8 @@ name = "logs"
 harness = false
 required-features = ["spec_unstable_logs_enabled"]
 
+[lib]
+bench = false
+
 [lints]
 workspace = true
