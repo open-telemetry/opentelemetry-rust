@@ -1,0 +1,11 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+json = "0.12.4"
+serde = { workspace = true, features = ["derive"] }
+toml = "0.8.19"
+xshell = "0.2.6"
