@@ -782,7 +782,7 @@ mod tests {
             .build();
 
         // Act
-        // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
+        // Meters are identical.
         // Hence there should be a single metric stream output for this test.
         let make_scope = |attributes| {
             InstrumentationScope::builder("test.meter")
@@ -795,7 +795,7 @@ mod tests {
         let meter1 =
             meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
         let meter2 =
-            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
 
         let counter1 = meter1
             .u64_counter("my_counter")

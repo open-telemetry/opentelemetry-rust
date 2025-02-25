@@ -41,7 +41,7 @@ pub struct TokioSpanExporter {
 }
 
 impl SpanExporter for TokioSpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         batch.into_iter().try_for_each(|span_data| {
             self.tx_export
                 .send(span_data)
@@ -110,7 +110,7 @@ impl NoopSpanExporter {
 }
 
 impl SpanExporter for NoopSpanExporter {
-    async fn export(&mut self, _: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _: Vec<SpanData>) -> OTelSdkResult {
         Ok(())
     }
 }

@@ -23,7 +23,7 @@ use crate::{
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
@@ -39,13 +39,13 @@ use std::{
 /// Delay interval between two consecutive exports.
 pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: u64 = 1_000;
+pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
 /// Maximum allowed time to export data.
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: u64 = 30_000;
+pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Maximum queue size.
 pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
 /// Default maximum queue size.
@@ -342,7 +342,7 @@ impl BatchLogProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
-                otel_info!(
+                otel_debug!(
                     name: "BatchLogProcessor.ThreadStarted",
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
                     max_export_batch_size = config.max_export_batch_size,
@@ -436,6 +436,7 @@ impl BatchLogProcessor {
                                 &current_batch_size,
                                 &config,
                             );
+                            let _ = exporter.shutdown();
                             let _ = sender.send(result);
 
                             otel_debug!(
@@ -475,7 +476,7 @@ impl BatchLogProcessor {
                         }
                     }
                 }
-                otel_info!(
+                otel_debug!(
                     name: "BatchLogProcessor.ThreadStopped"
                 );
             })
@@ -616,10 +617,10 @@ impl Default for BatchConfigBuilder {
     fn default() -> Self {
         BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
-            scheduled_delay: Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT),
+            scheduled_delay: OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
             #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-            max_export_timeout: Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT),
+            max_export_timeout: OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT,
         }
         .init_from_env_vars()
     }
@@ -736,11 +737,11 @@ mod tests {
     #[test]
     fn test_default_const_values() {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
-        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, 1_000);
+        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT.as_millis(), 1_000);
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
+        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
         assert_eq!(
@@ -763,15 +764,9 @@ mod tests {
 
         let config = temp_env::with_vars_unset(env_vars, BatchConfig::default);
 
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -809,15 +804,9 @@ mod tests {
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]
@@ -852,7 +841,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
@@ -936,7 +925,8 @@ mod tests {
         processor.shutdown().unwrap();
         // todo: expect to see errors here. How should we assert this?
         processor.emit(&mut record, &instrumentation);
-        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
+        assert!(exporter.is_shutdown_called());
     }
 
     #[tokio::test(flavor = "current_thread")]

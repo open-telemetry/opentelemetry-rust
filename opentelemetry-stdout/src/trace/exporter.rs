@@ -2,15 +2,15 @@ use chrono::{DateTime, Utc};
 use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::trace::SpanData;
-use std::sync::atomic;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use opentelemetry_sdk::resource::Resource;
 
 /// An OpenTelemetry exporter that writes Spans to stdout on export.
 pub struct SpanExporter {
     resource: Resource,
-    is_shutdown: atomic::AtomicBool,
-    resource_emitted: bool,
+    is_shutdown: AtomicBool,
+    resource_emitted: AtomicBool,
 }
 
 impl fmt::Debug for SpanExporter {
@@ -23,23 +23,26 @@ impl Default for SpanExporter {
     fn default() -> Self {
         SpanExporter {
             resource: Resource::builder().build(),
-            is_shutdown: atomic::AtomicBool::new(false),
-            resource_emitted: false,
+            is_shutdown: AtomicBool::new(false),
+            resource_emitted: AtomicBool::new(false),
         }
     }
 }
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
-    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
-        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        if self.is_shutdown.load(Ordering::SeqCst) {
             Err(OTelSdkError::AlreadyShutdown)
         } else {
             println!("Spans");
-            if self.resource_emitted {
+            if self
+                .resource_emitted
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
                 print_spans(batch);
             } else {
-                self.resource_emitted = true;
                 println!("Resource");
                 if let Some(schema_url) = self.resource.schema_url() {
                     println!("\tResource SchemaUrl: {:?}", schema_url);
@@ -57,7 +60,7 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
-        self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        self.is_shutdown.store(true, Ordering::SeqCst);
         Ok(())
     }
 

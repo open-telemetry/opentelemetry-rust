@@ -130,7 +130,7 @@ impl InMemorySpanExporter {
 }
 
 impl SpanExporter for InMemorySpanExporter {
-    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         let result = self
             .spans
             .lock()

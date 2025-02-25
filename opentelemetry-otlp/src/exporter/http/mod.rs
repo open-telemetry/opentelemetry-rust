@@ -120,7 +120,7 @@ impl HttpExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_millis(seconds),
+                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
                 Err(_) => self.exporter_config.timeout,
             },
             None => self.exporter_config.timeout,
@@ -449,13 +449,13 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
-        self.http_client_config()
+        let http_client_headers = self
+            .http_client_config()
             .headers
-            .iter_mut()
-            .zip(headers)
-            .for_each(|(http_client_headers, (key, value))| {
-                http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
-            });
+            .get_or_insert(HashMap::new());
+        headers.into_iter().for_each(|(key, value)| {
+            http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
+        });
         self
     }
 }
@@ -671,11 +671,14 @@ mod tests {
     }
 
     #[test]
-    fn test_http_exporter_builder_with_header() {
+    fn test_http_exporter_builder_with_headers() {
         use std::collections::HashMap;
         // Arrange
         let initial_headers = HashMap::from([("k1".to_string(), "v1".to_string())]);
-        let extra_headers = HashMap::from([("k2".to_string(), "v2".to_string())]);
+        let extra_headers = HashMap::from([
+            ("k2".to_string(), "v2".to_string()),
+            ("k3".to_string(), "v3".to_string()),
+        ]);
         let expected_headers = initial_headers.iter().chain(extra_headers.iter()).fold(
             HashMap::new(),
             |mut acc, (k, v)| {

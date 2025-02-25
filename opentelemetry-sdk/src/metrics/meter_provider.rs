@@ -110,7 +110,7 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> OTelSdkResult {
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
@@ -164,7 +164,7 @@ impl Drop for SdkMeterProviderInner {
                     reason = format!("{}", err)
                 );
             } else {
-                otel_info!(
+                otel_debug!(
                     name: "MeterProvider.Drop.ShutdownCompleted",
                 );
             }
@@ -310,7 +310,7 @@ impl MeterProviderBuilder {
             }),
         };
 
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Built",
         );
         meter_provider
@@ -560,6 +560,25 @@ mod tests {
         let _meter8 = provider.meter_with_scope(make_scope("abc"));
 
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn same_meter_reused_same_scope_attributes() {
+        let meter_provider = super::SdkMeterProvider::builder().build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
+
+        let _meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let _meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+
+        assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 1);
     }
 
     #[test]
