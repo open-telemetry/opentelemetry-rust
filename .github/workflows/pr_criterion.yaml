@@ -7,8 +7,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: arduino/setup-protoc@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
       - uses: boa-dev/criterion-compare-action@v3
         with:
+#          benchName: "anyvalue"
+#          branchName: main
+#          token: bloop
           branchName: ${{ github.base_ref }}
           # Optional. Default is `${{ github.token }}`.
-          # token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

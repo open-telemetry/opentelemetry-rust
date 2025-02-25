@@ -108,5 +108,8 @@ name = "log"
 harness = false
 required-features = ["logs"]
 
+[lib]
+bench = false
+
 [lints]
 workspace = true
