@@ -12,7 +12,8 @@ jobs:
           toolchain: stable
       - uses: boa-dev/criterion-compare-action@v3
         with:
-#          benchName: "anyvalue"
+          features: ["rt-tokio", "testing", "metrics", "logs"]
+          benchName: "context_attach"
 #          branchName: main
 #          token: bloop
           branchName: ${{ github.base_ref }}
