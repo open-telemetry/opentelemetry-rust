@@ -115,16 +115,32 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn logger_attributes() {
-        let provider = SdkLoggerProvider::builder().build();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
+            .build();
+
         let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
 
         let logger = provider.logger_with_scope(scope);
-        let instrumentation_scope = logger.instrumentation_scope();
+
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(Severity::Error);
+
+        logger.emit(log_record);
+
+        let mut exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs.remove(0);
+        assert_eq!(log.record.severity_number, Some(Severity::Error));
+
+        let instrumentation_scope = log.instrumentation;
         assert_eq!(instrumentation_scope.name(), "test_logger");
         assert_eq!(
             instrumentation_scope.schema_url(),

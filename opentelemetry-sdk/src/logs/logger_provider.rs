@@ -700,21 +700,23 @@ mod tests {
         scoped_logger.emit(scoped_record);
 
         // Assert: Verify that the emitted logs are processed correctly
-        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        let mut emitted_logs = exporter.get_emitted_logs().unwrap();
         assert_eq!(emitted_logs.len(), 2);
+        let log1 = emitted_logs.remove(0);
         // Assert the first log
         assert_eq!(
-            emitted_logs[0].clone().record.body,
+            log1.record.body,
             Some(AnyValue::String("Testing empty logger name".into()))
         );
-        assert_eq!(logger.instrumentation_scope().name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
 
         // Assert the second log created through the scope
+        let log2 = emitted_logs.remove(0);
         assert_eq!(
-            emitted_logs[1].clone().record.body,
+            log2.record.body,
             Some(AnyValue::String("Testing empty logger scope name".into()))
         );
-        assert_eq!(scoped_logger.instrumentation_scope().name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
     }
 
     #[test]

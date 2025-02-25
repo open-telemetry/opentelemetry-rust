@@ -18,11 +18,6 @@ impl SdkLogger {
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
         SdkLogger { scope, provider }
     }
-
-    #[cfg(test)]
-    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
-        &self.scope
-    }
 }
 
 impl opentelemetry::logs::Logger for SdkLogger {
