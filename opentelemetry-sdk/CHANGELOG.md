@@ -2,7 +2,54 @@
 
 ## vNext
 
-- *Breaking* Make `force_flush()` in `PushMetricExporter` synchronous
+- Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
+  `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
+- Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
+- Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
+- Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
+- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
+- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+
+```rust
+  fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
+```
+
+  to
+
+```rust
+  fn export(
+    &mut self,
+    batch: Vec<SpanData>,
+) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+```
+
+  This affects anyone who writes custom exporters, as custom implementations of SpanExporter
+  should now define export as an `async fn`:
+
+```rust
+  impl trace::SpanExporter for CustomExporter {
+    async fn export(&mut self, batch: Vec<trace::SpanData>) -> OTelSdkResult {
+        // Implementation here
+    }
+}
+```
+
+- **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
+  Before:
+  ```rust
+    async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult
+  ```
+  After:
+  ```rust
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
+  ```
+
+  Custom exporters will need to internally synchronize any mutable state, if applicable.
+
+- Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
+  when its `shutdown` is invoked.
+
+- Reduced some info level logs to debug
 
 ## 0.28.0
 
@@ -45,7 +92,7 @@ field as metadata, a feature introduced in version 0.1.40.
 - `Resource::{new,empty,from_detectors,new_with_defaults,from_schema_url,merge,default}`.
    To create Resources you should only use `Resource::builder()` or `Resource::builder_empty()`. See
    [#2322](https://github.com/open-telemetry/opentelemetry-rust/pull/2322) for a migration guide.
-  
+
   Example Usage:
 
   ```rust
@@ -133,7 +180,7 @@ field as metadata, a feature introduced in version 0.1.40.
   - Does not support `hyper`, `reqwest` HTTP Clients
   - Does not support multiple concurrent exports (`with_max_concurrent_exports`
      is not supported). This existed only for traces.
-  
+
   If this applies to you, you can get the old behavior back by following steps
   below:
   - Enable one or more of the feature flag from below
@@ -201,7 +248,7 @@ limit.
 - *Breaking*: Rename namespaces for InMemoryExporters. (The module is still
   under "testing" feature flag)
   before:
-  
+
   ```rust
   opentelemetry_sdk::testing::logs::{InMemoryLogExporter,
   InMemoryLogExporterBuilder};
@@ -212,7 +259,7 @@ limit.
   ```
 
   now:
-  
+
   ```rust
   opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
   opentelemetry_sdk::trace::{InMemorySpanExporter,

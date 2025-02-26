@@ -317,12 +317,8 @@ mod tests {
     }
 
     impl LogExporter for MockLogExporter {
-        #[allow(clippy::manual_async_fn)]
-        fn export(
-            &self,
-            _batch: LogBatch<'_>,
-        ) -> impl std::future::Future<Output = OTelSdkResult> + Send {
-            async { Ok(()) }
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            Ok(())
         }
 
         fn shutdown(&mut self) -> OTelSdkResult {
@@ -349,9 +345,9 @@ mod tests {
     #[test]
     fn test_default_const_values() {
         assert_eq!(OTEL_BLRP_SCHEDULE_DELAY, "OTEL_BLRP_SCHEDULE_DELAY");
-        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT, 1_000);
+        assert_eq!(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT.as_millis(), 1_000);
         assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
-        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, 30_000);
+        assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT.as_millis(), 30_000);
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE, "OTEL_BLRP_MAX_QUEUE_SIZE");
         assert_eq!(OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, 2_048);
         assert_eq!(
@@ -373,14 +369,8 @@ mod tests {
 
         let config = temp_env::with_vars_unset(env_vars, BatchConfig::default);
 
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
-        );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
         assert_eq!(config.max_queue_size, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT);
         assert_eq!(
             config.max_export_batch_size,
@@ -416,14 +406,8 @@ mod tests {
 
         assert_eq!(config.max_queue_size, 256);
         assert_eq!(config.max_export_batch_size, 256);
-        assert_eq!(
-            config.scheduled_delay,
-            Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
-        );
-        assert_eq!(
-            config.max_export_timeout,
-            Duration::from_millis(OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT)
-        );
+        assert_eq!(config.scheduled_delay, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT);
+        assert_eq!(config.max_export_timeout, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT);
     }
 
     #[test]
@@ -455,7 +439,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
@@ -541,8 +525,7 @@ mod tests {
             )
             .build();
 
-        // wait for the batch processor to process the resource.
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        provider.force_flush().unwrap();
 
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
@@ -746,7 +729,7 @@ mod tests {
             assert_eq!(builder.config.max_export_batch_size, 500);
             assert_eq!(
                 builder.config.scheduled_delay,
-                Duration::from_millis(OTEL_BLRP_SCHEDULE_DELAY_DEFAULT)
+                OTEL_BLRP_SCHEDULE_DELAY_DEFAULT
             );
             assert_eq!(
                 builder.config.max_queue_size,
@@ -804,7 +787,7 @@ mod tests {
                 KeyValue::new("k5", "v5"),
             ]))
             .build();
-        tokio::time::sleep(Duration::from_millis(500)).await; // set resource in batch log processor is not blocking. Should we make it blocking?
+        provider.force_flush().unwrap();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
         let _ = provider.shutdown();
     }

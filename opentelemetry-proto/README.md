@@ -10,7 +10,7 @@ repository and transformation between types from generated files and types defin
 
 ## Release Notes
 
-You can find the release notes (changelog) [here](./CHANGELOG.md).
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-proto/CHANGELOG.md).
 
 ## Supported Rust Versions
 

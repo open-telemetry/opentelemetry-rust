@@ -7,6 +7,7 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
+mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -22,6 +23,7 @@ pub mod span_processor_with_async_runtime;
 mod tracer;
 
 pub use config::{config, Config};
+pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 
@@ -79,7 +81,7 @@ mod tests {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -113,7 +115,7 @@ mod tests {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -149,7 +151,7 @@ mod tests {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -185,7 +187,7 @@ mod tests {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -221,7 +223,7 @@ mod tests {
         // Arrange
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -257,7 +259,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOff)
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         let tracer = provider.tracer("test");
@@ -310,7 +312,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_sampler(TestRecordOnlySampler::default())
-            .with_span_processor(SimpleSpanProcessor::new(Box::new(exporter.clone())))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
 
         let tracer = provider.tracer("test");
@@ -380,7 +382,7 @@ mod tests {
         }
 
         let exporter = InMemorySpanExporter::default();
-        let span_processor = SimpleSpanProcessor::new(Box::new(exporter.clone()));
+        let span_processor = SimpleSpanProcessor::new(exporter.clone());
         let tracer_provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
             .build();

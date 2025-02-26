@@ -29,7 +29,7 @@ lazy_static! {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 }
 
 fn main() {
@@ -41,6 +41,6 @@ fn test_counter() {
     // memory usage indefinitely even when user code misbehaves by producing
     // unbounded metric points (unique time series).
     // It also checks that SDK's internal logging is also done in a bounded way.
-    let rand = CURRENT_RNG.with(|rng| rng.borrow_mut().gen_range(0..100000000));
+    let rand = CURRENT_RNG.with(|rng| rng.borrow_mut().random_range(0..100000000));
     COUNTER.add(1, &[KeyValue::new("A", rand)]);
 }

@@ -1,6 +1,6 @@
 use core::fmt;
+use tokio::sync::Mutex;
 
-use futures_core::future::BoxFuture;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
@@ -24,7 +24,7 @@ pub(crate) struct TonicTracesClient {
 
 struct ClientInner {
     client: TraceServiceClient<Channel>,
-    interceptor: BoxInterceptor,
+    interceptor: Mutex<BoxInterceptor>,
 }
 
 impl fmt::Debug for TonicTracesClient {
@@ -51,7 +51,7 @@ impl TonicTracesClient {
         TonicTracesClient {
             inner: Some(ClientInner {
                 client,
-                interceptor,
+                interceptor: Mutex::new(interceptor),
             }),
             resource: Default::default(),
         }
@@ -59,39 +59,34 @@ impl TonicTracesClient {
 }
 
 impl SpanExporter for TonicTracesClient {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        let (mut client, metadata, extensions) = match &mut self.inner {
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        let (mut client, metadata, extensions) = match &self.inner {
             Some(inner) => {
-                let (m, e, _) = match inner.interceptor.call(Request::new(())) {
-                    Ok(res) => res.into_parts(),
-                    Err(e) => {
-                        return Box::pin(std::future::ready(Err(OTelSdkError::InternalFailure(
-                            e.to_string(),
-                        ))))
-                    }
-                };
+                let (m, e, _) = inner
+                    .interceptor
+                    .lock()
+                    .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
+                    .call(Request::new(()))
+                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                    .into_parts();
                 (inner.client.clone(), m, e)
             }
-            None => {
-                return Box::pin(std::future::ready(Err(OTelSdkError::AlreadyShutdown)));
-            }
+            None => return Err(OTelSdkError::AlreadyShutdown),
         };
 
         let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
 
         otel_debug!(name: "TonicsTracesClient.CallingExport");
 
-        Box::pin(async move {
-            client
-                .export(Request::from_parts(
-                    metadata,
-                    extensions,
-                    ExportTraceServiceRequest { resource_spans },
-                ))
-                .await
-                .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-            Ok(())
-        })
+        client
+            .export(Request::from_parts(
+                metadata,
+                extensions,
+                ExportTraceServiceRequest { resource_spans },
+            ))
+            .await
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
+        Ok(())
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {

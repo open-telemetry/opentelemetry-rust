@@ -280,6 +280,22 @@ this crate.
 ## Performance
 
 // Call out things done specifically for performance
+// Rough draft
+
+1. `LogRecord` is stack allocated and not Boxed unless required by the component
+needing to store it beyond the logging call. (eg: BatchProcessor)
+2. LogRecords's Attribute storage is specially designed struct, that holds up to
+five attributes in stack.
+3. When passing `LogRecord`s to processor, a mutable ref is passed. This allows
+calling multiple processors one after another, without the need for cloning.
+4. `Logger` provides a `Enabled` check which can optimize performance when
+no-one is interested in the log. The check is passed from `Logger` to the
+processor, which may consult its exporter to make the decision. An example use
+case - an ETW or user-events exporter can check for the presence of listener and
+convey that decision back to logger, allowing appender to avoid even the cost of
+creating a `LogRecord` in the first place if there is no listener. This check is
+done for each log emission, and can react dynamically to changes in interest, by
+enabling/disabling ETW/user-event listener.
 
 ### Perf test - benchmarks
 
@@ -288,6 +304,23 @@ this crate.
 ### Perf test - stress test
 
 // Share ~~ numbers
+
+## Internal logs
+
+OTel itself is instrumented with `tracing` crate to emit internal logs about its
+operations. This is feature gated under "internal-logs", and is enabled by
+default for all components. The `opentelemetry` provide few helper macros
+`otel_warn` etc., which in turn invokes various `tracing` macros like `warn!`
+etc. The cargo package name will be set as `target` when using `tracing`. For
+example, logs from `opentelemetry-otlp` will have target set to
+"opentelemetry-otlp".
+
+The helper macros are part of public API, so can be used by anyone. But it is
+only meant for OTel components itself and anyone writing extensions like custom
+Exporters etc.
+
+// TODO: Document the principles followed when selecting severity for internal
+logs // TODO: Document how this can cause circular loop and plans to address it.
 
 ## Summary
 

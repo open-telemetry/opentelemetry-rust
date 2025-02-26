@@ -293,6 +293,7 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
 pub struct TracerProviderBuilder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
+    resource: Option<Resource>,
 }
 
 impl TracerProviderBuilder {
@@ -308,7 +309,7 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let simple = SimpleSpanProcessor::new(Box::new(exporter));
+        let simple = SimpleSpanProcessor::new(exporter);
         self.with_span_processor(simple)
     }
 
@@ -410,17 +411,27 @@ impl TracerProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
+    /// *Note*: Calls to this method are additive, each call merges the provided
+    /// resource with the previous one.
+    ///
     /// [Tracer]: opentelemetry::trace::Tracer
     pub fn with_resource(self, resource: Resource) -> Self {
-        TracerProviderBuilder {
-            config: self.config.with_resource(resource),
-            ..self
-        }
+        let resource = match self.resource {
+            Some(existing) => Some(existing.merge(&resource)),
+            None => Some(resource),
+        };
+
+        TracerProviderBuilder { resource, ..self }
     }
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkTracerProvider {
         let mut config = self.config;
+
+        // Now, we can update the config with the resource.
+        if let Some(resource) = self.resource {
+            config = config.with_resource(resource);
+        };
 
         // Standard config will contain an owned [`Resource`] (either sdk default or use supplied)
         // we can optimize the common case with a static ref to avoid cloning the underlying
@@ -462,8 +473,8 @@ mod tests {
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::trace::provider::TracerProviderInner;
-    use crate::trace::SpanData;
     use crate::trace::{Config, Span, SpanProcessor};
+    use crate::trace::{SdkTracerProvider, SpanData};
     use crate::Resource;
     use opentelemetry::trace::{Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
@@ -728,6 +739,39 @@ mod tests {
 
         // also existing tracer's tracer provider are in shutdown state
         assert!(test_tracer_1.provider().is_shutdown());
+    }
+
+    #[test]
+    fn with_resource_multiple_calls_ensure_additive() {
+        let resource = SdkTracerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
+            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(vec![], "http://example.com")
+                    .build(),
+            )
+            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]))
+            .build()
+            .inner
+            .config
+            .resource
+            .clone()
+            .into_owned();
+
+        assert_eq!(
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
+        );
+        assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 
     #[derive(Debug)]

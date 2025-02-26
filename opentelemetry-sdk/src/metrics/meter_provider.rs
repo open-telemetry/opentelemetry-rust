@@ -110,7 +110,7 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown(&self) -> OTelSdkResult {
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
@@ -164,7 +164,7 @@ impl Drop for SdkMeterProviderInner {
                     reason = format!("{}", err)
                 );
             } else {
-                otel_info!(
+                otel_debug!(
                     name: "MeterProvider.Drop.ShutdownCompleted",
                 );
             }
@@ -233,9 +233,16 @@ impl MeterProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
+    /// *Note*: Calls to this method are additive, each call merges the provided
+    /// resource with the previous one.
+    ///
     /// [Meter]: opentelemetry::metrics::Meter
     pub fn with_resource(mut self, resource: Resource) -> Self {
-        self.resource = Some(resource);
+        self.resource = match self.resource {
+            Some(existing) => Some(existing.merge(&resource)),
+            None => Some(resource),
+        };
+
         self
     }
 
@@ -303,7 +310,7 @@ impl MeterProviderBuilder {
             }),
         };
 
-        otel_info!(
+        otel_debug!(
             name: "MeterProvider.Built",
         );
         meter_provider
@@ -322,6 +329,7 @@ impl fmt::Debug for MeterProviderBuilder {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use crate::error::OTelSdkError;
+    use crate::metrics::SdkMeterProvider;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
@@ -552,5 +560,53 @@ mod tests {
         let _meter8 = provider.meter_with_scope(make_scope("abc"));
 
         assert_eq!(provider.inner.meters.lock().unwrap().len(), 5);
+    }
+
+    #[test]
+    fn same_meter_reused_same_scope_attributes() {
+        let meter_provider = super::SdkMeterProvider::builder().build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
+
+        let _meter1 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+        let _meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
+
+        assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn with_resource_multiple_calls_ensure_additive() {
+        let builder = SdkMeterProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
+            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(vec![], "http://example.com")
+                    .build(),
+            )
+            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+
+        let resource = builder.resource.unwrap();
+
+        assert_eq!(
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
+        );
+        assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 }

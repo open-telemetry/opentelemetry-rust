@@ -8,8 +8,6 @@ use crate::trace::SpanExporter;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::{error::OTelSdkResult, runtime};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use futures_util::future::BoxFuture;
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::global::*;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::trace::Tracer;
@@ -19,7 +17,6 @@ use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::sync::Arc;
-
 #[derive(Debug)]
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 struct SpanCountExporter {
@@ -28,9 +25,9 @@ struct SpanCountExporter {
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl SpanExporter for SpanCountExporter {
-    fn export(&mut self, batch: Vec<crate::trace::SpanData>) -> BoxFuture<'static, OTelSdkResult> {
+    async fn export(&self, batch: Vec<crate::trace::SpanData>) -> OTelSdkResult {
         self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
-        Box::pin(async { Ok(()) })
+        Ok(())
     }
 }
 

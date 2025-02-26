@@ -782,7 +782,7 @@ mod tests {
             .build();
 
         // Act
-        // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
+        // Meters are identical.
         // Hence there should be a single metric stream output for this test.
         let make_scope = |attributes| {
             InstrumentationScope::builder("test.meter")
@@ -795,7 +795,7 @@ mod tests {
         let meter1 =
             meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
         let meter2 =
-            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
 
         let counter1 = meter1
             .u64_counter("my_counter")
@@ -1924,16 +1924,16 @@ mod tests {
         let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
-        let mut rand = rngs::SmallRng::from_entropy();
+        let mut rand = rngs::SmallRng::from_os_rng();
         let values_kv1 = (0..50)
-            .map(|_| rand.gen_range(0..100))
+            .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv1.iter() {
             histogram.record(*value, &[KeyValue::new("key1", "value1")]);
         }
 
         let values_kv2 = (0..30)
-            .map(|_| rand.gen_range(0..100))
+            .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv2.iter() {
             histogram.record(*value, &[KeyValue::new("key1", "value2")]);

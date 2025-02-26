@@ -30,7 +30,10 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [
   "testing",
   "spec_unstable_logs_enabled",
 ] }
-opentelemetry-stdout = { path = "../opentelemetry-stdout", features = ["logs"] }
+opentelemetry-stdout = { workspace = true, features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["std", "derive"] }
+
+[lints]
+workspace = true

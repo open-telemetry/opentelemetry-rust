@@ -32,7 +32,7 @@ opentelemetry_sdk = { version = "0.28", path = "../opentelemetry-sdk", features 
 opentelemetry-http = { version = "0.28", path = "../opentelemetry-http" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-typed-builder = "0.18"
+typed-builder = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -46,3 +46,6 @@ http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
 opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
 temp-env = { workspace = true }
+
+[lints]
+workspace = true

@@ -120,7 +120,7 @@ impl HttpExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_millis(seconds),
+                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
                 Err(_) => self.exporter_config.timeout,
             },
             None => self.exporter_config.timeout,
@@ -210,7 +210,7 @@ impl HttpExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(
         mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
@@ -223,7 +223,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
         )?;
 
-        Ok(crate::SpanExporter::new(client))
+        Ok(crate::SpanExporter::from_http(client))
     }
 
     /// Create a log exporter with the current configuration
@@ -301,7 +301,7 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
-    ) -> opentelemetry::trace::TraceResult<(Vec<u8>, &'static str)> {
+    ) -> opentelemetry_sdk::trace::TraceResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
         let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
 
@@ -310,7 +310,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry::trace::TraceError::from(e.to_string())),
+                Err(e) => Err(opentelemetry_sdk::trace::TraceError::from(e.to_string())),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
@@ -449,13 +449,13 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         // headers will be wrapped, so we must do some logic to unwrap first.
-        self.http_client_config()
+        let http_client_headers = self
+            .http_client_config()
             .headers
-            .iter_mut()
-            .zip(headers)
-            .for_each(|(http_client_headers, (key, value))| {
-                http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
-            });
+            .get_or_insert(HashMap::new());
+        headers.into_iter().for_each(|(key, value)| {
+            http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
+        });
         self
     }
 }
@@ -671,11 +671,14 @@ mod tests {
     }
 
     #[test]
-    fn test_http_exporter_builder_with_header() {
+    fn test_http_exporter_builder_with_headers() {
         use std::collections::HashMap;
         // Arrange
         let initial_headers = HashMap::from([("k1".to_string(), "v1".to_string())]);
-        let extra_headers = HashMap::from([("k2".to_string(), "v2".to_string())]);
+        let extra_headers = HashMap::from([
+            ("k2".to_string(), "v2".to_string()),
+            ("k3".to_string(), "v3".to_string()),
+        ]);
         let expected_headers = initial_headers.iter().chain(extra_headers.iter()).fold(
             HashMap::new(),
             |mut acc, (k, v)| {
