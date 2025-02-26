@@ -167,6 +167,6 @@ jobs:
           for example in examples/*; do
             if [ -d "$example" ]; then
               echo "Building $example"
-              cargo build --example $(basename $example)
+              cargo build
             fi
           done
