@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
     global::BoxedTracer,
     trace::{
@@ -17,7 +17,6 @@ use std::fmt::Display;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("context");
-    group.throughput(Throughput::Elements(1));
     for env in [
         Environment::InContext,
         Environment::NoContext,
