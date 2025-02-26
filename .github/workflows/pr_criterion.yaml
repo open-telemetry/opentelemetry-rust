@@ -1,0 +1,28 @@
+on: [pull_request]
+name: benchmark pull requests
+jobs:
+  runBenchmark:
+    name: run benchmark
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: arduino/setup-protoc@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          cwd: opentelemetry
+          branchName: ${{ github.base_ref }}
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          cwd: opentelemetry-appender-tracing
+          features: spec_unstable_logs_enabled
+          branchName: ${{ github.base_ref }}
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          cwd: opentelemetry-sdk
+          features: rt-tokio,testing,metrics,logs,spec_unstable_metrics_views
+          branchName: ${{ github.base_ref }}
