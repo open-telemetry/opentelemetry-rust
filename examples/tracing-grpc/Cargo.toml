@@ -20,7 +20,7 @@ opentelemetry-stdout = { workspace = true, features = ["trace"] }
 prost = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tonic = { workspace = true, default-features = false, features = [
-    "transport", "codegen", "prost"
+    "transport", "codegen", "prost", "channel"
 ] }
 
 [build-dependencies]
