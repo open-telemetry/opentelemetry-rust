@@ -223,7 +223,8 @@ mod tests {
 
         processor.emit(&mut record, &instrumentation);
 
-        assert_eq!(1, exporter.get_emitted_logs().unwrap().len())
+        assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
+        assert!(exporter.is_shutdown_called());
     }
 
     #[test]

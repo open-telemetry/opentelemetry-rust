@@ -186,6 +186,7 @@ you're more than welcome to participate!
 ### Approvers
 
 * [Shaun Cox](https://github.com/shaun-cox)
+* [Scott Gerring](https://github.com/scottgerring)
 
 ### Emeritus
 
