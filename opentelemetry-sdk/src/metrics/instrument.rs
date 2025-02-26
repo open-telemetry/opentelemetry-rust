@@ -1,14 +1,13 @@
-use std::{any::Any, borrow::Cow, collections::HashSet, hash::Hash, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use opentelemetry::{
-    metrics::{AsyncInstrument, SyncCounter, SyncGauge, SyncHistogram, SyncUpDownCounter},
-    Key, KeyValue,
+    metrics::{AsyncInstrument, SyncInstrument},
+    InstrumentationScope, Key, KeyValue,
 };
 
-use crate::{
-    instrumentation::Scope,
-    metrics::{aggregation::Aggregation, internal::Measure},
-};
+use crate::metrics::{aggregation::Aggregation, internal::Measure};
+
+use super::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -37,6 +36,35 @@ pub enum InstrumentKind {
     ObservableGauge,
 }
 
+impl InstrumentKind {
+    /// Select the [Temporality] preference based on [InstrumentKind]
+    ///
+    /// [exporter-docs]: https://github.com/open-telemetry/opentelemetry-specification/blob/a1c13d59bb7d0fb086df2b3e1eaec9df9efef6cc/specification/metrics/sdk_exporters/otlp.md#additional-configuration
+    pub(crate) fn temporality_preference(&self, temporality: Temporality) -> Temporality {
+        match temporality {
+            Temporality::Cumulative => Temporality::Cumulative,
+            Temporality::Delta => match self {
+                Self::Counter
+                | Self::Histogram
+                | Self::ObservableCounter
+                | Self::Gauge
+                | Self::ObservableGauge => Temporality::Delta,
+                Self::UpDownCounter | InstrumentKind::ObservableUpDownCounter => {
+                    Temporality::Cumulative
+                }
+            },
+            Temporality::LowMemory => match self {
+                Self::Counter | InstrumentKind::Histogram => Temporality::Delta,
+                Self::ObservableCounter
+                | Self::Gauge
+                | Self::ObservableGauge
+                | Self::UpDownCounter
+                | Self::ObservableUpDownCounter => Temporality::Cumulative,
+            },
+        }
+    }
+}
+
 /// Describes properties an instrument is created with, also used for filtering
 /// in [View](crate::metrics::View)s.
 ///
@@ -55,6 +83,7 @@ pub enum InstrumentKind {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
     pub name: Cow<'static, str>,
@@ -65,9 +94,10 @@ pub struct Instrument {
     /// Unit is the unit of measurement recorded by the instrument.
     pub unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
-    pub scope: Scope,
+    pub scope: InstrumentationScope,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Instrument {
     /// Create a new instrument with default values
     pub fn new() -> Self {
@@ -93,7 +123,7 @@ impl Instrument {
     }
 
     /// Set the instrument scope.
-    pub fn scope(mut self, scope: Scope) -> Self {
+    pub fn scope(mut self, scope: InstrumentationScope) -> Self {
         self.scope = scope;
         self
     }
@@ -104,7 +134,7 @@ impl Instrument {
             && self.description == ""
             && self.kind.is_none()
             && self.unit == ""
-            && self.scope == Scope::default()
+            && self.scope == InstrumentationScope::default()
     }
 
     pub(crate) fn matches(&self, other: &Instrument) -> bool {
@@ -132,13 +162,11 @@ impl Instrument {
     }
 
     pub(crate) fn matches_scope(&self, other: &Instrument) -> bool {
-        (self.scope.name.is_empty() || self.scope.name.as_ref() == other.scope.name.as_ref())
-            && (self.scope.version.is_none()
-                || self.scope.version.as_ref().map(AsRef::as_ref)
-                    == other.scope.version.as_ref().map(AsRef::as_ref))
-            && (self.scope.schema_url.is_none()
-                || self.scope.schema_url.as_ref().map(AsRef::as_ref)
-                    == other.scope.schema_url.as_ref().map(AsRef::as_ref))
+        (self.scope.name().is_empty() || self.scope.name() == other.scope.name())
+            && (self.scope.version().is_none()
+                || self.scope.version().as_ref() == other.scope.version().as_ref())
+            && (self.scope.schema_url().is_none()
+                || self.scope.schema_url().as_ref() == other.scope.schema_url().as_ref())
     }
 }
 
@@ -159,6 +187,7 @@ impl Instrument {
 /// ```
 #[derive(Default, Debug)]
 #[non_exhaustive]
+#[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
     pub name: Cow<'static, str>,
@@ -176,6 +205,7 @@ pub struct Stream {
     pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 }
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 impl Stream {
     /// Create a new stream with empty values.
     pub fn new() -> Self {
@@ -252,32 +282,8 @@ pub(crate) struct ResolvedMeasures<T> {
     pub(crate) measures: Vec<Arc<dyn Measure<T>>>,
 }
 
-impl<T: Copy + 'static> SyncCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncUpDownCounter<T> for ResolvedMeasures<T> {
-    fn add(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncGauge<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
-        for measure in &self.measures {
-            measure.call(val, attrs)
-        }
-    }
-}
-
-impl<T: Copy + 'static> SyncHistogram<T> for ResolvedMeasures<T> {
-    fn record(&self, val: T, attrs: &[KeyValue]) {
+impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
+    fn measure(&self, val: T, attrs: &[KeyValue]) {
         for measure in &self.measures {
             measure.call(val, attrs)
         }
@@ -300,9 +306,5 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
         for measure in &self.measures {
             measure.call(measurement, attrs)
         }
-    }
-
-    fn as_any(&self) -> Arc<dyn Any> {
-        Arc::new(self.clone())
     }
 }

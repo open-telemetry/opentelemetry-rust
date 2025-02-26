@@ -28,12 +28,12 @@ lazy_static! {
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
         "value10"
     ];
-    static ref GAUGE: Gauge<u64> = PROVIDER.meter("test").u64_gauge("test_gauge").init();
+    static ref GAUGE: Gauge<u64> = PROVIDER.meter("test").u64_gauge("test_gauge").build();
 }
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 }
 
 fn main() {
@@ -45,9 +45,9 @@ fn test_gauge() {
     let rands = CURRENT_RNG.with(|rng| {
         let mut rng = rng.borrow_mut();
         [
-            rng.gen_range(0..len),
-            rng.gen_range(0..len),
-            rng.gen_range(0..len),
+            rng.random_range(0..len),
+            rng.random_range(0..len),
+            rng.random_range(0..len),
         ]
     });
     let index_first_attribute = rands[0];

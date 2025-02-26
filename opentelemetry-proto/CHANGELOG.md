@@ -2,6 +2,25 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
+- Bump msrv to 1.75.0.
+- Update proto definitions to v1.5.0 [#2439](https://github.com/open-telemetry/opentelemetry-rust/pull/2439)
+- Feature flag "populate-logs-event-name" is removed as no longer relevant.
+  LogRecord's `event_name()` is now automatically populated on the newly added
+  "event_name" field in LogRecord proto definition.
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+- Update `opentelemetry_sdk` dependency version to 0.27
+
 ## v0.26.1
 
 - Require tonic 0.12.3 to match generated gRPC code [#2168](https://github.com/open-telemetry/opentelemetry-rust/pull/2168)

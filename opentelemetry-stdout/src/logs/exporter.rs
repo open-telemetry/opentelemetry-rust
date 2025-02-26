@@ -1,46 +1,48 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry::logs::LogResult;
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
+use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
+use std::sync::atomic::Ordering;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
     resource: Resource,
     is_shutdown: atomic::AtomicBool,
-    resource_emitted: bool,
+    resource_emitted: atomic::AtomicBool,
 }
 
 impl Default for LogExporter {
     fn default() -> Self {
         LogExporter {
-            resource: Resource::default(),
+            resource: Resource::builder().build(),
             is_shutdown: atomic::AtomicBool::new(false),
-            resource_emitted: false,
+            resource_emitted: atomic::AtomicBool::new(false),
         }
     }
 }
 
 impl fmt::Debug for LogExporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("LogsExporter")
+        f.write_str("LogExporter")
     }
 }
 
-#[async_trait]
-impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    /// Export spans to stdout
-    async fn export(&mut self, batch: LogBatch<'_>) -> LogResult<()> {
+impl opentelemetry_sdk::logs::LogExporter for LogExporter {
+    /// Export logs to stdout
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            return Err("exporter is shut down".into());
+            Err(OTelSdkError::AlreadyShutdown)
         } else {
             println!("Logs");
-            if self.resource_emitted {
+            if self
+                .resource_emitted
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
                 print_logs(batch);
             } else {
-                self.resource_emitted = true;
                 println!("Resource");
                 if let Some(schema_url) = self.resource.schema_url() {
                     println!("\t Resource SchemaUrl: {:?}", schema_url);
@@ -48,7 +50,6 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                 self.resource.iter().for_each(|(k, v)| {
                     println!("\t ->  {}={:?}", k, v);
                 });
-
                 print_logs(batch);
             }
 
@@ -56,8 +57,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -68,35 +70,41 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
-        let (record, _library) = log;
-        if let Some(event_name) = record.event_name {
+        let (record, library) = log;
+
+        println!("\t Instrumentation Scope: {:?}", library);
+
+        if let Some(event_name) = record.event_name() {
             println!("\t EventName: {:?}", event_name);
         }
-        if let Some(target) = &record.target {
+        if let Some(target) = record.target() {
             println!("\t Target (Scope): {:?}", target);
         }
-        if let Some(trace_context) = &record.trace_context {
+        if let Some(trace_context) = record.trace_context() {
             println!("\t TraceId: {:?}", trace_context.trace_id);
             println!("\t SpanId: {:?}", trace_context.span_id);
+            if let Some(trace_flags) = trace_context.trace_flags {
+                println!("\t TraceFlags: {:?}", trace_flags);
+            }
         }
-        if let Some(timestamp) = record.timestamp {
+        if let Some(timestamp) = record.timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();
             println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
         }
-        if let Some(timestamp) = record.observed_timestamp {
+        if let Some(timestamp) = record.observed_timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();
             println!(
                 "\t Observed Timestamp: {}",
                 datetime.format("%Y-%m-%d %H:%M:%S%.6f")
             );
         }
-        if let Some(severity) = record.severity_text {
+        if let Some(severity) = record.severity_text() {
             println!("\t SeverityText: {:?}", severity);
         }
-        if let Some(severity) = record.severity_number {
+        if let Some(severity) = record.severity_number() {
             println!("\t SeverityNumber: {:?}", severity);
         }
-        if let Some(body) = &record.body {
+        if let Some(body) = record.body() {
             println!("\t Body: {:?}", body);
         }
 

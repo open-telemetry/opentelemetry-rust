@@ -1,11 +1,12 @@
 use crate::runtime::RuntimeChannel;
+use crate::trace::error::TraceError;
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
 use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
 use crate::trace::{Sampler, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
-use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceError, TraceId};
-use opentelemetry::{global, Context, KeyValue};
+use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceId};
+use opentelemetry::{otel_warn, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -203,7 +204,13 @@ impl JaegerRemoteSampler {
                     // send request
                     match Self::request_new_strategy(&client, endpoint.clone()).await {
                         Ok(remote_strategy_resp) => strategy.update(remote_strategy_resp),
-                        Err(err_msg) => global::handle_error(TraceError::Other(err_msg.into())),
+                        Err(err_msg) => {
+                            otel_warn!(
+                                name: "JaegerRemoteSampler.FailedToFetchStrategy",
+                                message= "Failed to fetch the sampling strategy from the remote endpoint. The last successfully fetched configuration will be used if available; otherwise, the default sampler will be applied until a successful configuration fetch.",
+                                reason = format!("{}", err_msg),
+                            );
+                        }
                     };
                 } else {
                     // shutdown
@@ -222,7 +229,7 @@ impl JaegerRemoteSampler {
     {
         let request = http::Request::get(endpoint)
             .header("Content-Type", "application/json")
-            .body(Vec::new())
+            .body(Default::default())
             .unwrap();
 
         let resp = client

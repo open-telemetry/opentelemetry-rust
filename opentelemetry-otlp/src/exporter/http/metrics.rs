@@ -1,48 +1,52 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
+use crate::metric::MetricsClient;
 use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::metrics::{MetricsError, Result};
+use opentelemetry::otel_debug;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
-
-use crate::{metric::MetricsClient, Error};
 
 use super::OtlpHttpClient;
 
-#[async_trait]
 impl MetricsClient for OtlpHttpClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> Result<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         let client = self
             .client
             .lock()
-            .map_err(Into::into)
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e:?}")))
             .and_then(|g| match &*g {
                 Some(client) => Ok(Arc::clone(client)),
-                _ => Err(MetricsError::Other("exporter is already shut down".into())),
+                _ => Err(OTelSdkError::AlreadyShutdown),
             })?;
 
-        let (body, content_type) = self.build_metrics_export_body(metrics)?;
+        let (body, content_type) = self.build_metrics_export_body(metrics).map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to serialize metrics: {e:?}"))
+        })?;
         let mut request = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
             .header(CONTENT_TYPE, content_type)
-            .body(body)
-            .map_err(|e| crate::Error::RequestFailed(Box::new(e)))?;
+            .body(body.into())
+            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
 
         for (k, v) in &self.headers {
             request.headers_mut().insert(k.clone(), v.clone());
         }
 
+        otel_debug!(name: "HttpMetricsClient.CallingExport");
         client
-            .send(request)
+            .send_bytes(request)
             .await
-            .map_err(|e| MetricsError::ExportErr(Box::new(Error::RequestFailed(e))))?;
+            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
 
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
-        let _ = self.client.lock()?.take();
+    fn shutdown(&self) -> OTelSdkResult {
+        self.client
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .take();
 
         Ok(())
     }

@@ -13,67 +13,48 @@
     | ot_layer_enabled            | 196 ns      |
 */
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::logs::LogResult;
-use opentelemetry::{InstrumentationLibrary, KeyValue};
+use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
 use tracing_subscriber::Registry;
 
-#[derive(Debug, Clone)]
-struct NoopExporter {
+#[derive(Debug)]
+struct NoopProcessor {
     enabled: bool,
 }
 
-#[async_trait]
-impl LogExporter for NoopExporter {
-    async fn export(&mut self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
-    }
-
-    fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
-        self.enabled
-    }
-}
-
-#[derive(Debug)]
-struct NoopProcessor {
-    exporter: Box<dyn LogExporter>,
-}
-
 impl NoopProcessor {
-    fn new(exporter: Box<dyn LogExporter>) -> Self {
-        Self { exporter }
+    fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationLibrary) {
-        // no-op
-    }
+    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 
     fn event_enabled(
         &self,
-        level: opentelemetry::logs::Severity,
-        target: &str,
-        name: &str,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: &str,
     ) -> bool {
-        self.exporter.event_enabled(level, target, name)
+        self.enabled
     }
 }
 
@@ -123,13 +104,13 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 }
 
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
-    let exporter = NoopExporter { enabled };
-    let processor = NoopProcessor::new(Box::new(exporter));
-    let provider = LoggerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "benchmark",
-        )]))
+    let processor = NoopProcessor::new(enabled);
+    let provider = SdkLoggerProvider::builder()
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name("benchmark")
+                .build(),
+        )
         .with_log_processor(processor)
         .build();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);

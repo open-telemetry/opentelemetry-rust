@@ -37,7 +37,8 @@ pub struct ResourceLogs {
     #[prost(message, repeated, tag = "2")]
     pub scope_logs: ::prost::alloc::vec::Vec<ScopeLogs>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_logs" field which have their own schema_url field.
@@ -60,7 +61,8 @@ pub struct ScopeLogs {
     #[prost(message, repeated, tag = "2")]
     pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
     /// The Schema URL, if known. This is the identifier of the Schema that the log data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all logs in the "logs" field.
     #[prost(string, tag = "3")]
@@ -122,13 +124,6 @@ pub struct LogRecord {
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
     #[prost(message, optional, tag = "5")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::serializers::serialize_to_value",
-            deserialize_with = "crate::proto::serializers::deserialize_from_value"
-        )
-    )]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
@@ -185,6 +180,20 @@ pub struct LogRecord {
         )
     )]
     pub span_id: ::prost::alloc::vec::Vec<u8>,
+    /// A unique identifier of event category/type.
+    /// All events with the same event_name are expected to conform to the same
+    /// schema for both their attributes and their body.
+    ///
+    /// Recommended to be fully qualified and short (no longer than 256 characters).
+    ///
+    /// Presence of event_name on the log record identifies this record
+    /// as an event.
+    ///
+    /// \[Optional\].
+    ///
+    /// Status: \[Development\]
+    #[prost(string, tag = "12")]
+    pub event_name: ::prost::alloc::string::String,
 }
 /// Possible values for LogRecord.SeverityNumber.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]

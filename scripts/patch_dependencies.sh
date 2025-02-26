@@ -6,4 +6,5 @@ function patch_version() {
     cargo update -p $1:$latest_version --precise $2
 }
 
-
+patch_version url 2.5.2 #https://github.com/servo/rust-url/issues/992
+patch_version native-tls 0.2.13 # 0.2.14 needs rustc v1.80

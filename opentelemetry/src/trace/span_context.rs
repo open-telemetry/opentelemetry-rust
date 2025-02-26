@@ -1,217 +1,8 @@
-use crate::trace::{TraceError, TraceResult};
+use crate::{SpanId, TraceFlags, TraceId};
 use std::collections::VecDeque;
-use std::fmt;
 use std::hash::Hash;
-use std::num::ParseIntError;
-use std::ops::{BitAnd, BitOr, Not};
 use std::str::FromStr;
 use thiserror::Error;
-
-/// Flags that can be set on a [`SpanContext`].
-///
-/// The current version of the specification only supports a single flag
-/// [`TraceFlags::SAMPLED`].
-///
-/// See the W3C TraceContext specification's [trace-flags] section for more
-/// details.
-///
-/// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
-#[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
-pub struct TraceFlags(u8);
-
-impl TraceFlags {
-    /// Trace flags with the `sampled` flag set to `0`.
-    ///
-    /// Spans that are not sampled will be ignored by most tracing tools.
-    /// See the `sampled` section of the [W3C TraceContext specification] for details.
-    ///
-    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
-    pub const NOT_SAMPLED: TraceFlags = TraceFlags(0x00);
-
-    /// Trace flags with the `sampled` flag set to `1`.
-    ///
-    /// Spans that are not sampled will be ignored by most tracing tools.
-    /// See the `sampled` section of the [W3C TraceContext specification] for details.
-    ///
-    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
-    pub const SAMPLED: TraceFlags = TraceFlags(0x01);
-
-    /// Construct new trace flags
-    pub const fn new(flags: u8) -> Self {
-        TraceFlags(flags)
-    }
-
-    /// Returns `true` if the `sampled` flag is set
-    pub fn is_sampled(&self) -> bool {
-        (*self & TraceFlags::SAMPLED) == TraceFlags::SAMPLED
-    }
-
-    /// Returns copy of the current flags with the `sampled` flag set.
-    pub fn with_sampled(&self, sampled: bool) -> Self {
-        if sampled {
-            *self | TraceFlags::SAMPLED
-        } else {
-            *self & !TraceFlags::SAMPLED
-        }
-    }
-
-    /// Returns the flags as a `u8`
-    pub fn to_u8(self) -> u8 {
-        self.0
-    }
-}
-
-impl BitAnd for TraceFlags {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
-    }
-}
-
-impl BitOr for TraceFlags {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
-    }
-}
-
-impl Not for TraceFlags {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        Self(!self.0)
-    }
-}
-
-impl fmt::LowerHex for TraceFlags {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.0, f)
-    }
-}
-
-/// A 16-byte value which identifies a given trace.
-///
-/// The id is valid if it contains at least one non-zero byte.
-#[derive(Clone, PartialEq, Eq, Copy, Hash)]
-pub struct TraceId(u128);
-
-impl TraceId {
-    /// Invalid trace id
-    pub const INVALID: TraceId = TraceId(0);
-
-    /// Create a trace id from its representation as a byte array.
-    pub const fn from_bytes(bytes: [u8; 16]) -> Self {
-        TraceId(u128::from_be_bytes(bytes))
-    }
-
-    /// Return the representation of this trace id as a byte array.
-    pub const fn to_bytes(self) -> [u8; 16] {
-        self.0.to_be_bytes()
-    }
-
-    /// Converts a string in base 16 to a trace id.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::trace::TraceId;
-    ///
-    /// assert!(TraceId::from_hex("42").is_ok());
-    /// assert!(TraceId::from_hex("58406520a006649127e371903a2de979").is_ok());
-    ///
-    /// assert!(TraceId::from_hex("not_hex").is_err());
-    /// ```
-    pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
-        u128::from_str_radix(hex, 16).map(TraceId)
-    }
-}
-
-impl From<u128> for TraceId {
-    fn from(value: u128) -> Self {
-        TraceId(value)
-    }
-}
-
-impl fmt::Debug for TraceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:032x}", self.0))
-    }
-}
-
-impl fmt::Display for TraceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:032x}", self.0))
-    }
-}
-
-impl fmt::LowerHex for TraceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.0, f)
-    }
-}
-
-/// An 8-byte value which identifies a given span.
-///
-/// The id is valid if it contains at least one non-zero byte.
-#[derive(Clone, PartialEq, Eq, Copy, Hash)]
-pub struct SpanId(u64);
-
-impl SpanId {
-    /// Invalid span id
-    pub const INVALID: SpanId = SpanId(0);
-
-    /// Create a span id from its representation as a byte array.
-    pub const fn from_bytes(bytes: [u8; 8]) -> Self {
-        SpanId(u64::from_be_bytes(bytes))
-    }
-
-    /// Return the representation of this span id as a byte array.
-    pub const fn to_bytes(self) -> [u8; 8] {
-        self.0.to_be_bytes()
-    }
-
-    /// Converts a string in base 16 to a span id.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::trace::SpanId;
-    ///
-    /// assert!(SpanId::from_hex("42").is_ok());
-    /// assert!(SpanId::from_hex("58406520a0066491").is_ok());
-    ///
-    /// assert!(SpanId::from_hex("not_hex").is_err());
-    /// ```
-    pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
-        u64::from_str_radix(hex, 16).map(SpanId)
-    }
-}
-
-impl From<u64> for SpanId {
-    fn from(value: u64) -> Self {
-        SpanId(value)
-    }
-}
-
-impl fmt::Debug for SpanId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:016x}", self.0))
-    }
-}
-
-impl fmt::Display for SpanId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:016x}", self.0))
-    }
-}
-
-impl fmt::LowerHex for SpanId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.0, f)
-    }
-}
 
 /// TraceState carries system-specific configuration data, represented as a list
 /// of key-value pairs. TraceState allows multiple tracing systems to
@@ -283,7 +74,7 @@ impl TraceState {
     /// assert!(trace_state.is_ok());
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
-    pub fn from_key_value<T, K, V>(trace_state: T) -> TraceResult<Self>
+    pub fn from_key_value<T, K, V>(trace_state: T) -> TraceStateResult<Self>
     where
         T: IntoIterator<Item = (K, V)>,
         K: ToString,
@@ -330,17 +121,17 @@ impl TraceState {
     /// updated key/value is returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn insert<K, V>(&self, key: K, value: V) -> TraceResult<TraceState>
+    pub fn insert<K, V>(&self, key: K, value: V) -> TraceStateResult<TraceState>
     where
         K: Into<String>,
         V: Into<String>,
     {
         let (key, value) = (key.into(), value.into());
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::Key(key).into());
+            return Err(TraceStateError::Key(key));
         }
         if !TraceState::valid_value(value.as_str()) {
-            return Err(TraceStateError::Value(value).into());
+            return Err(TraceStateError::Value(value));
         }
 
         let mut trace_state = self.delete_from_deque(key.clone());
@@ -358,10 +149,10 @@ impl TraceState {
     /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn delete<K: Into<String>>(&self, key: K) -> TraceResult<TraceState> {
+    pub fn delete<K: Into<String>>(&self, key: K) -> TraceStateResult<TraceState> {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::Key(key).into());
+            return Err(TraceStateError::Key(key));
         }
 
         Ok(self.delete_from_deque(key))
@@ -399,7 +190,7 @@ impl TraceState {
 }
 
 impl FromStr for TraceState {
-    type Err = TraceError;
+    type Err = TraceStateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let list_members: Vec<&str> = s.split_terminator(',').collect();
@@ -407,7 +198,7 @@ impl FromStr for TraceState {
 
         for list_member in list_members {
             match list_member.find('=') {
-                None => return Err(TraceStateError::List(list_member.to_string()).into()),
+                None => return Err(TraceStateError::List(list_member.to_string())),
                 Some(separator_index) => {
                     let (key, value) = list_member.split_at(separator_index);
                     key_value_pairs
@@ -420,10 +211,13 @@ impl FromStr for TraceState {
     }
 }
 
+/// A specialized `Result` type for trace state operations.
+type TraceStateResult<T> = Result<T, TraceStateError>;
+
 /// Error returned by `TraceState` operations.
 #[derive(Error, Debug)]
 #[non_exhaustive]
-enum TraceStateError {
+pub enum TraceStateError {
     /// The key is invalid.
     ///
     /// See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
@@ -441,12 +235,6 @@ enum TraceStateError {
     /// See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
     #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context/#list for more details")]
     List(String),
-}
-
-impl From<TraceStateError> for TraceError {
-    fn from(err: TraceStateError) -> Self {
-        TraceError::Other(Box::new(err))
-    }
 }
 
 /// Immutable portion of a [`Span`] which can be serialized and propagated.
@@ -544,24 +332,7 @@ impl SpanContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[rustfmt::skip]
-    fn trace_id_test_data() -> Vec<(TraceId, &'static str, [u8; 16])> {
-        vec![
-            (TraceId(0), "00000000000000000000000000000000", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-            (TraceId(42), "0000000000000000000000000000002a", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42]),
-            (TraceId(126642714606581564793456114182061442190), "5f467fe7bf42676c05e20ba4a90e448e", [95, 70, 127, 231, 191, 66, 103, 108, 5, 226, 11, 164, 169, 14, 68, 142])
-        ]
-    }
-
-    #[rustfmt::skip]
-    fn span_id_test_data() -> Vec<(SpanId, &'static str, [u8; 8])> {
-        vec![
-            (SpanId(0), "0000000000000000", [0, 0, 0, 0, 0, 0, 0, 0]),
-            (SpanId(42), "000000000000002a", [0, 0, 0, 0, 0, 0, 0, 42]),
-            (SpanId(5508496025762705295), "4c721bf33e3caf8f", [76, 114, 27, 243, 62, 60, 175, 143])
-        ]
-    }
+    use crate::{trace::TraceContextExt, Context};
 
     #[rustfmt::skip]
     fn trace_state_test_data() -> Vec<(TraceState, &'static str, &'static str)> {
@@ -570,30 +341,6 @@ mod tests {
             (TraceState::from_key_value(vec![("foo", ""), ("apple", "banana")]).unwrap(), "foo=,apple=banana", "apple"),
             (TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]).unwrap(), "foo=bar,apple=banana", "apple"),
         ]
-    }
-
-    #[test]
-    fn test_trace_id() {
-        for test_case in trace_id_test_data() {
-            assert_eq!(format!("{}", test_case.0), test_case.1);
-            assert_eq!(format!("{:032x}", test_case.0), test_case.1);
-            assert_eq!(test_case.0.to_bytes(), test_case.2);
-
-            assert_eq!(test_case.0, TraceId::from_hex(test_case.1).unwrap());
-            assert_eq!(test_case.0, TraceId::from_bytes(test_case.2));
-        }
-    }
-
-    #[test]
-    fn test_span_id() {
-        for test_case in span_id_test_data() {
-            assert_eq!(format!("{}", test_case.0), test_case.1);
-            assert_eq!(format!("{:016x}", test_case.0), test_case.1);
-            assert_eq!(test_case.0.to_bytes(), test_case.2);
-
-            assert_eq!(test_case.0, SpanId::from_hex(test_case.1).unwrap());
-            assert_eq!(test_case.0, SpanId::from_bytes(test_case.2));
-        }
     }
 
     #[test]
@@ -646,5 +393,28 @@ mod tests {
         let inserted_trace_state = trace_state.insert("testkey", "testvalue").unwrap();
         assert!(trace_state.get("testkey").is_none()); // The original state doesn't change
         assert_eq!(inserted_trace_state.get("testkey").unwrap(), "testvalue"); //
+    }
+
+    #[test]
+    fn test_context_span_debug() {
+        let cx = Context::current();
+        assert_eq!(
+            format!("{:?}", cx),
+            "Context { span: \"None\", entries: 0 }"
+        );
+        let cx = Context::current().with_remote_span_context(SpanContext::NONE);
+        assert_eq!(
+            format!("{:?}", cx),
+            "Context { \
+               span: SpanContext { \
+                       trace_id: 00000000000000000000000000000000, \
+                       span_id: 0000000000000000, \
+                       trace_flags: TraceFlags(0), \
+                       is_remote: false, \
+                       trace_state: TraceState(None) \
+                     }, \
+               entries: 1 \
+             }"
+        );
     }
 }

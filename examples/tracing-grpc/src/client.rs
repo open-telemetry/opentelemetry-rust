@@ -1,9 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::{global, propagation::Injector};
-use opentelemetry_sdk::{
-    propagation::TraceContextPropagator, runtime::Tokio, trace::TracerProvider,
-};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace as sdktrace};
 use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
@@ -11,19 +9,20 @@ use opentelemetry::{
     Context, KeyValue,
 };
 
-fn init_tracer() {
+fn init_tracer() -> sdktrace::SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
-    let provider = TracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default(), Tokio)
+    let provider = sdktrace::SdkTracerProvider::builder()
+        .with_batch_exporter(SpanExporter::default())
         .build();
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 struct MetadataMap<'a>(&'a mut tonic::metadata::MetadataMap);
 
-impl<'a> Injector for MetadataMap<'a> {
+impl Injector for MetadataMap<'_> {
     /// Set a key and value in the MetadataMap.  Does nothing if the key or value are not valid inputs
     fn set(&mut self, key: &str, value: String) {
         if let Ok(key) = tonic::metadata::MetadataKey::from_bytes(key.as_bytes()) {
@@ -75,9 +74,10 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    init_tracer();
+    let provider = init_tracer();
     greet().await?;
-    opentelemetry::global::shutdown_tracer_provider();
+
+    provider.shutdown()?;
 
     Ok(())
 }

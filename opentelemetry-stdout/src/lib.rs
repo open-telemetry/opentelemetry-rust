@@ -11,22 +11,17 @@
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
-//! The following feature flags generate additional code and types:
-//! * `populate-logs-event-name`: Enables sending `LogRecord::event_name` as an attribute
-//!    with the key `name`
-//!
 //! # Examples
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "metrics", feature = "trace", feature = "logs"))]
 //! {
 //! use opentelemetry::metrics::MeterProvider;
-//! use opentelemetry::trace::{Span, Tracer, TracerProvider as _};
+//! use opentelemetry::trace::{Span, Tracer, TracerProvider};
 //! use opentelemetry::{Context, KeyValue};
 //!
 //! use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
-//! use opentelemetry_sdk::runtime;
-//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry_sdk::trace::SdkTracerProvider;
 //!
 //! use opentelemetry_sdk::logs::LoggerProvider;
 //!
@@ -38,9 +33,8 @@
 //! }
 //!
 //! fn init_metrics() -> SdkMeterProvider {
-//!     let exporter = opentelemetry_stdout::MetricsExporter::default();
-//!     let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
-//!     SdkMeterProvider::builder().with_reader(reader).build()
+//!     let exporter = opentelemetry_stdout::MetricExporter::default();
+//!     SdkMeterProvider::builder().with_periodic_exporter(exporter).build()
 //! }
 //!
 //! fn init_logs() -> LoggerProvider {
@@ -64,8 +58,6 @@
     feature(doc_cfg, doc_auto_cfg),
     deny(rustdoc::broken_intra_doc_links)
 )]
-
-pub(crate) mod common;
 
 #[cfg(feature = "metrics")]
 mod metrics;

@@ -13,7 +13,7 @@ use opentelemetry::propagation::{Extractor, Injector};
 /// for example usage.
 pub struct HeaderInjector<'a>(pub &'a mut http::HeaderMap);
 
-impl<'a> Injector for HeaderInjector<'a> {
+impl Injector for HeaderInjector<'_> {
     /// Set a key and value in the HeaderMap.  Does nothing if the key or value are not valid inputs.
     fn set(&mut self, key: &str, value: String) {
         if let Ok(name) = http::header::HeaderName::from_bytes(key.as_bytes()) {
@@ -30,7 +30,7 @@ impl<'a> Injector for HeaderInjector<'a> {
 /// for example usage.
 pub struct HeaderExtractor<'a>(pub &'a http::HeaderMap);
 
-impl<'a> Extractor for HeaderExtractor<'a> {
+impl Extractor for HeaderExtractor<'_> {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
     fn get(&self, key: &str) -> Option<&str> {
         self.0.get(key).and_then(|value| value.to_str().ok())
@@ -55,22 +55,36 @@ pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// users to bring their choice of HTTP client.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
-    /// Send the specified HTTP request
+    /// Send the specified HTTP request with `Vec<u8>` payload
     ///
     /// Returns the HTTP response including the status code and body.
     ///
     /// Returns an error if it can't connect to the server or the request could not be completed,
     /// e.g. because of a timeout, infinite redirects, or a loss of connection.
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError>;
+    #[deprecated(note = "Use `send_bytes` with `Bytes` payload instead.")]
+    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        self.send_bytes(request.map(Into::into)).await
+    }
+
+    /// Send the specified HTTP request with `Bytes` payload.
+    ///
+    /// Returns the HTTP response including the status code and body.
+    ///
+    /// Returns an error if it can't connect to the server or the request could not be completed,
+    /// e.g. because of a timeout, infinite redirects, or a loss of connection.
+    async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
 #[cfg(feature = "reqwest")]
 mod reqwest {
+    use opentelemetry::otel_debug;
+
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
@@ -86,7 +100,8 @@ mod reqwest {
     #[cfg(not(target_arch = "wasm32"))]
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
             let headers = std::mem::take(response.headers_mut());
@@ -102,13 +117,16 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use crate::ResponseExt;
-
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
-    use hyper_util::client::legacy::{connect::Connect, Client};
+    use hyper_util::client::legacy::{
+        connect::{Connect, HttpConnector},
+        Client,
+    };
+    use opentelemetry::otel_debug;
     use std::fmt::Debug;
     use std::pin::Pin;
     use std::task::{self, Poll};
@@ -116,40 +134,44 @@ pub mod hyper {
     use tokio::time;
 
     #[derive(Debug, Clone)]
-    pub struct HyperClient<C> {
+    pub struct HyperClient<C = HttpConnector>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
         inner: Client<C, Body>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
 
-    impl<C> HyperClient<C> {
-        pub fn new_with_timeout(inner: Client<C, Body>, timeout: Duration) -> Self {
+    impl<C> HyperClient<C>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
+        pub fn new(connector: C, timeout: Duration, authorization: Option<HeaderValue>) -> Self {
+            // TODO - support custom executor
+            let inner = Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
             Self {
                 inner,
                 timeout,
-                authorization: None,
-            }
-        }
-
-        pub fn new_with_timeout_and_authorization_header(
-            inner: Client<C, Body>,
-            timeout: Duration,
-            authorization: HeaderValue,
-        ) -> Self {
-            Self {
-                inner,
-                timeout,
-                authorization: Some(authorization),
+                authorization,
             }
         }
     }
 
+    impl HyperClient<HttpConnector> {
+        /// Creates a new `HyperClient` with a default `HttpConnector`.
+        pub fn with_default_connector(
+            timeout: Duration,
+            authorization: Option<HeaderValue>,
+        ) -> Self {
+            Self::new(HttpConnector::new(), timeout, authorization)
+        }
+    }
+
     #[async_trait]
-    impl<C> HttpClient for HyperClient<C>
-    where
-        C: Connect + Send + Sync + Clone + Debug + 'static,
-    {
-        async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
+    impl HttpClient for HyperClient {
+        async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
+            otel_debug!(name: "HyperClient.Send");
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Body(Full::from(body)));
             if let Some(ref authorization) = self.authorization {

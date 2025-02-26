@@ -1,9 +1,9 @@
 [package]
 name = "opentelemetry"
-version = "0.26.0"
+version = "0.28.0"
 description = "OpenTelemetry API for Rust"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust"
-repository = "https://github.com/open-telemetry/opentelemetry-rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 readme = "README.md"
 categories = [
     "development-tools::debugging",
@@ -14,35 +14,35 @@ categories = [
 keywords = ["opentelemetry", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75.0"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-futures-core = { workspace = true }
-futures-sink = "0.3"
-once_cell = { workspace = true }
+futures-core = { workspace = true, optional = true }
+futures-sink = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
-thiserror = { workspace = true }
+thiserror = { workspace = true, optional = true}
+tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
 
 [features]
-default = ["trace", "metrics", "logs"]
-trace = ["pin-project-lite"]
+default = ["trace", "metrics", "logs", "internal-logs"]
+trace = ["pin-project-lite", "futures-sink", "futures-core", "thiserror"]
 metrics = []
-testing = ["trace", "metrics"]
+testing = ["trace"]
 logs = []
-logs_level_enabled = ["logs"]
-otel_unstable = []
+spec_unstable_logs_enabled = ["logs"]
+internal-logs = ["tracing"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["logs_level_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
 criterion = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 
 [[bench]]
 name = "metrics"
@@ -56,3 +56,14 @@ harness = false
 [[bench]]
 name = "anyvalue"
 harness = false
+
+[[bench]]
+name = "context_attach"
+harness = false
+required-features = ["tracing"]
+
+[lib]
+bench = false
+
+[lints]
+workspace = true

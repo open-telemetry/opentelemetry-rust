@@ -1,13 +1,9 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
 
-use opentelemetry::metrics::Result;
+use crate::{error::OTelSdkResult, metrics::MetricResult};
 
-use super::{
-    data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
-    pipeline::Pipeline,
-};
+use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
 /// The interface used between the SDK and an exporter.
 ///
@@ -23,7 +19,7 @@ use super::{
 ///
 /// Pull-based exporters will typically implement `MetricReader` themselves,
 /// since they read on demand.
-pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static {
+pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     /// Registers a [MetricReader] with a [Pipeline].
     ///
     /// The pipeline argument allows the `MetricReader` to signal the sdk to collect
@@ -34,13 +30,13 @@ pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static
     /// SDK and stores it in the provided [ResourceMetrics] reference.
     ///
     /// An error is returned if this is called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> Result<()>;
+    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
 
     /// Flushes all metric measurements held in an export pipeline.
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    fn force_flush(&self) -> Result<()>;
+    fn force_flush(&self) -> OTelSdkResult;
 
     /// Flushes all metric measurements held in an export pipeline and releases any
     /// held computational resources.
@@ -50,39 +46,17 @@ pub trait MetricReader: TemporalitySelector + fmt::Debug + Send + Sync + 'static
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> Result<()>;
+    fn shutdown(&self) -> OTelSdkResult;
+
+    /// The output temporality, a function of instrument kind.
+    /// This SHOULD be obtained from the exporter.
+    ///
+    /// If not configured, the Cumulative temporality SHOULD be used.
+    fn temporality(&self, kind: InstrumentKind) -> Temporality;
 }
 
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> Result<()>;
-}
-
-/// An interface for selecting the temporality for an [InstrumentKind].
-pub trait TemporalitySelector: Send + Sync {
-    /// Selects the temporality to use based on the [InstrumentKind].
-    fn temporality(&self, kind: InstrumentKind) -> Temporality;
-}
-
-/// The default temporality used if not specified for a given [InstrumentKind].
-///
-/// [Temporality::Cumulative] will be used for all instrument kinds if this
-/// [TemporalitySelector] is used.
-#[derive(Clone, Default, Debug)]
-pub struct DefaultTemporalitySelector {
-    pub(crate) _private: (),
-}
-
-impl DefaultTemporalitySelector {
-    /// Create a new default temporality selector.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl TemporalitySelector for DefaultTemporalitySelector {
-    fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Cumulative
-    }
+    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
 }

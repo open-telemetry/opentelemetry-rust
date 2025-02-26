@@ -95,6 +95,9 @@ pub use crate::attribute::AWS_DYNAMODB_TABLE_NAMES;
 pub use crate::attribute::AWS_DYNAMODB_TOTAL_SEGMENTS;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_EXTENDED_REQUEST_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_LAMBDA_INVOKED_ARN;
 
 #[cfg(feature = "semconv_experimental")]
@@ -119,7 +122,49 @@ pub use crate::attribute::AWS_S3_PART_NUMBER;
 pub use crate::attribute::AWS_S3_UPLOAD_ID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZ_NAMESPACE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AZ_SERVICE_REQUEST_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_CLIENT_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_CONNECTION_MODE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_CONSISTENCY_LEVEL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_OPERATION_CONTACTED_REGIONS;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_OPERATION_REQUEST_CHARGE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_REQUEST_BODY_SIZE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_CONSISTENCY_LEVEL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_COORDINATOR_DC;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_COORDINATOR_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_PAGE_SIZE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_QUERY_IDEMPOTENT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CASSANDRA_SPECULATIVE_EXECUTION_COUNT;
 
 pub use crate::attribute::CLIENT_ADDRESS;
 
@@ -129,118 +174,41 @@ pub use crate::attribute::CLIENT_PORT;
 pub use crate::attribute::CLOUD_RESOURCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CLOUDEVENTS_EVENT_ID;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CLOUDEVENTS_EVENT_SOURCE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CLOUDEVENTS_EVENT_SPEC_VERSION;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CLOUDEVENTS_EVENT_SUBJECT;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CLOUDEVENTS_EVENT_TYPE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_COLUMN;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_FILEPATH;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_FUNCTION;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_LINENO;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_NAMESPACE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::CODE_STACKTRACE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_CONSISTENCY_LEVEL;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_COORDINATOR_DC;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_COORDINATOR_ID;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_IDEMPOTENCE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_PAGE_SIZE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT;
-
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_COLLECTION_NAME;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_CLIENT_ID;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_CONNECTION_MODE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_OPERATION_TYPE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_REQUEST_CHARGE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_REQUEST_CONTENT_LENGTH;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_STATUS_CODE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_COSMOSDB_SUB_STATUS_CODE;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_ELASTICSEARCH_NODE_NAME;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_ELASTICSEARCH_PATH_PARTS;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_NAMESPACE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DB_OPERATION_BATCH_SIZE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_OPERATION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_QUERY_PARAMETER;
+pub use crate::attribute::DB_OPERATION_PARAMETER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DB_QUERY_SUMMARY;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_QUERY_TEXT;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::DB_SYSTEM;
+pub use crate::attribute::DB_RESPONSE_RETURNED_ROWS;
 
 #[cfg(feature = "semconv_experimental")]
-#[allow(deprecated)]
-pub use crate::attribute::ENDUSER_ID;
+pub use crate::attribute::DB_RESPONSE_STATUS_CODE;
 
 #[cfg(feature = "semconv_experimental")]
-#[allow(deprecated)]
-pub use crate::attribute::ENDUSER_ROLE;
+pub use crate::attribute::DB_SYSTEM_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-#[allow(deprecated)]
-pub use crate::attribute::ENDUSER_SCOPE;
+pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
 
 pub use crate::attribute::ERROR_TYPE;
 
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::EVENT_NAME;
-
+#[allow(deprecated)]
 pub use crate::attribute::EXCEPTION_ESCAPED;
 
 pub use crate::attribute::EXCEPTION_MESSAGE;
@@ -286,22 +254,46 @@ pub use crate::attribute::FAAS_TIME;
 pub use crate::attribute::FAAS_TRIGGER;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_CONTEXT_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_EVALUATION_ERROR_MESSAGE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_EVALUATION_REASON;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_KEY;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_PROVIDER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_SET_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_VARIANT;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::GEN_AI_COMPLETION;
+pub use crate::attribute::FEATURE_FLAG_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_OPENAI_REQUEST_SERVICE_TIER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_OPERATION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::GEN_AI_PROMPT;
+pub use crate::attribute::GEN_AI_REQUEST_ENCODING_FORMATS;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_REQUEST_FREQUENCY_PENALTY;
@@ -314,6 +306,9 @@ pub use crate::attribute::GEN_AI_REQUEST_MODEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_REQUEST_PRESENCE_PENALTY;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_REQUEST_SEED;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_REQUEST_STOP_SEQUENCES;
@@ -354,6 +349,9 @@ pub use crate::attribute::GRAPHQL_OPERATION_NAME;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GRAPHQL_OPERATION_TYPE;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::HTTP_REQUEST_BODY_SIZE;
+
 pub use crate::attribute::HTTP_REQUEST_HEADER;
 
 pub use crate::attribute::HTTP_REQUEST_METHOD;
@@ -362,7 +360,16 @@ pub use crate::attribute::HTTP_REQUEST_METHOD_ORIGINAL;
 
 pub use crate::attribute::HTTP_REQUEST_RESEND_COUNT;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::HTTP_REQUEST_SIZE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::HTTP_RESPONSE_BODY_SIZE;
+
 pub use crate::attribute::HTTP_RESPONSE_HEADER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::HTTP_RESPONSE_SIZE;
 
 pub use crate::attribute::HTTP_RESPONSE_STATUS_CODE;
 
@@ -433,14 +440,19 @@ pub use crate::attribute::NETWORK_TRANSPORT;
 pub use crate::attribute::NETWORK_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::OPENTRACING_REF_TYPE;
-
-pub use crate::attribute::OTEL_STATUS_CODE;
-
-pub use crate::attribute::OTEL_STATUS_DESCRIPTION;
+pub use crate::attribute::PROCESS_COMMAND_ARGS;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::PEER_SERVICE;
+pub use crate::attribute::PROCESS_EXECUTABLE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_EXECUTABLE_PATH;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_EXIT_CODE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_PID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::RPC_CONNECT_RPC_ERROR_CODE;
@@ -497,12 +509,6 @@ pub use crate::attribute::SERVER_ADDRESS;
 
 pub use crate::attribute::SERVER_PORT;
 
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::THREAD_ID;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::THREAD_NAME;
-
 pub use crate::attribute::URL_FULL;
 
 pub use crate::attribute::URL_PATH;
@@ -511,4 +517,10 @@ pub use crate::attribute::URL_QUERY;
 
 pub use crate::attribute::URL_SCHEME;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::URL_TEMPLATE;
+
 pub use crate::attribute::USER_AGENT_ORIGINAL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::USER_AGENT_SYNTHETIC_TYPE;

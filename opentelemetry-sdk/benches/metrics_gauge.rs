@@ -1,12 +1,13 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
-    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
+    rustc 1.82.0 (f6e511eec 2024-10-15)
+    OS: Ubuntu 22.04.4 LTS (5.15.167.4-microsoft-standard-WSL2)
+    Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     RAM: 64.0 GB
     | Test                           | Average time|
     |--------------------------------|-------------|
-    | Gauge_Add                      | 178.37 ns   |
+    | Gauge_Add                      | 187.49 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -23,7 +24,7 @@ use std::cell::RefCell;
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 }
 
 static ATTRIBUTE_VALUES: [&str; 10] = [
@@ -39,7 +40,7 @@ fn create_gauge() -> Gauge<u64> {
         .build();
     let meter = meter_provider.meter("benchmarks");
 
-    meter.u64_gauge("gauge_bench").init()
+    meter.u64_gauge("gauge_bench").build()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -54,10 +55,10 @@ fn gauge_record(c: &mut Criterion) {
             let rands = CURRENT_RNG.with(|rng| {
                 let mut rng = rng.borrow_mut();
                 [
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..4),
-                    rng.gen_range(0..10),
-                    rng.gen_range(0..10),
+                    rng.random_range(0..4),
+                    rng.random_range(0..4),
+                    rng.random_range(0..10),
+                    rng.random_range(0..10),
                 ]
             });
             let index_first_attribute = rands[0];

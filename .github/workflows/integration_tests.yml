@@ -9,7 +9,6 @@ jobs:
   integration_tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: ${{ github.event.label.name == 'integration tests' || contains(github.event.pull_request.labels.*.name, 'integration tests') }}
     steps:
       - name: Free disk space
         run: |
@@ -24,5 +23,5 @@ jobs:
         with:
           components: rustfmt
       - uses: arduino/setup-protoc@v3
-      - name: Run integration tests using docker compose
+      - name: Run integration tests
         run: ./scripts/integration_tests.sh

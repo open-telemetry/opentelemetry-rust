@@ -8,7 +8,7 @@ pub mod tonic {
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
-    use opentelemetry_sdk::export::trace::SpanData;
+    use opentelemetry_sdk::trace::SpanData;
     use std::collections::HashMap;
 
     impl From<SpanKind> for span::SpanKind {
@@ -45,8 +45,8 @@ pub mod tonic {
             }
         }
     }
-    impl From<opentelemetry_sdk::export::trace::SpanData> for Span {
-        fn from(source_span: opentelemetry_sdk::export::trace::SpanData) -> Self {
+    impl From<opentelemetry_sdk::trace::SpanData> for Span {
+        fn from(source_span: opentelemetry_sdk::trace::SpanData) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             Span {
                 trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
@@ -101,12 +101,11 @@ pub mod tonic {
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_spans: vec![ScopeSpans {
                     schema_url: source_span
-                        .instrumentation_lib
-                        .schema_url
-                        .as_ref()
-                        .map(ToString::to_string)
+                        .instrumentation_scope
+                        .schema_url()
+                        .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some((source_span.instrumentation_lib, None).into()),
+                    scope: Some((source_span.instrumentation_scope, None).into()),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),
@@ -155,12 +154,11 @@ pub mod tonic {
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
-        // Group spans by their instrumentation library
+        // Group spans by their instrumentation scope
         let scope_map = spans.iter().fold(
             HashMap::new(),
-            |mut scope_map: HashMap<&opentelemetry_sdk::InstrumentationLibrary, Vec<&SpanData>>,
-             span| {
-                let instrumentation = &span.instrumentation_lib;
+            |mut scope_map: HashMap<&opentelemetry::InstrumentationScope, Vec<&SpanData>>, span| {
+                let instrumentation = &span.instrumentation_scope;
                 scope_map.entry(instrumentation).or_default().push(span);
                 scope_map
             },
@@ -195,16 +193,17 @@ pub mod tonic {
 mod tests {
     use crate::tonic::common::v1::any_value::Value;
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
+    use opentelemetry::time::now;
     use opentelemetry::trace::{
         SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
-    use opentelemetry_sdk::export::trace::SpanData;
     use opentelemetry_sdk::resource::Resource;
+    use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
-    use opentelemetry_sdk::InstrumentationLibrary;
     use std::borrow::Cow;
-    use std::time::{Duration, SystemTime};
+    use std::time::Duration;
 
     fn create_test_span_data(instrumentation_name: &'static str) -> SpanData {
         let span_context = SpanContext::new(
@@ -220,20 +219,22 @@ mod tests {
             parent_span_id: SpanId::from_u64(0),
             span_kind: SpanKind::Internal,
             name: Cow::Borrowed("test_span"),
-            start_time: SystemTime::now(),
-            end_time: SystemTime::now() + Duration::from_secs(1),
+            start_time: now(),
+            end_time: now() + Duration::from_secs(1),
             attributes: vec![KeyValue::new("key", "value")],
             dropped_attributes_count: 0,
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_lib: InstrumentationLibrary::builder(instrumentation_name).build(),
+            instrumentation_scope: InstrumentationScope::builder(instrumentation_name).build(),
         }
     }
 
     #[test]
     fn test_group_spans_by_resource_and_scope_single_scope() {
-        let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("resource_key", "resource_value"))
+            .build();
         let span_data = create_test_span_data("lib1");
 
         let spans = vec![span_data.clone()];
@@ -278,7 +279,9 @@ mod tests {
 
     #[test]
     fn test_group_spans_by_resource_and_scope_multiple_scopes() {
-        let resource = Resource::new(vec![KeyValue::new("resource_key", "resource_value")]);
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("resource_key", "resource_value"))
+            .build();
         let span_data1 = create_test_span_data("lib1");
         let span_data2 = create_test_span_data("lib1");
         let span_data3 = create_test_span_data("lib2");

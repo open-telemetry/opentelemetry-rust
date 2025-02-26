@@ -1,3 +1,4 @@
+use anyhow::Result;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
 
@@ -42,6 +43,8 @@ impl LogsAsserter {
             for i in 0..result_resource_logs.scope_logs.len() {
                 let result_scope_logs = &result_resource_logs.scope_logs[i];
                 let expected_scope_logs = &expected_resource_logs.scope_logs[i];
+
+                assert_eq!(result_scope_logs.scope, expected_scope_logs.scope);
 
                 results_logs.extend(result_scope_logs.log_records.clone());
                 expected_logs.extend(expected_scope_logs.log_records.clone());
@@ -94,9 +97,9 @@ impl std::fmt::Debug for LogRecordWrapper {
 }
 
 // read a file contains ResourceSpans in json format
-pub fn read_logs_from_json(file: File) -> Vec<ResourceLogs> {
+pub fn read_logs_from_json(file: File) -> Result<Vec<ResourceLogs>> {
     let reader = std::io::BufReader::new(file);
 
-    let log_data: LogsData = serde_json::from_reader(reader).unwrap();
-    log_data.resource_logs
+    let log_data: LogsData = serde_json::from_reader(reader)?;
+    Ok(log_data.resource_logs)
 }

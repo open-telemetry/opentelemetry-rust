@@ -19,10 +19,7 @@
 //! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(Resource::new(vec![
-//!         KeyValue::new(semconv::resource::SERVICE_NAME, "my-service"),
-//!         KeyValue::new(semconv::resource::SERVICE_NAMESPACE, "my-namespace"),
-//!     ])))
+//!     .with_config(config().with_resource(Resource::builder_empty().with_service_name("my-service").build()))
 //!     .build();
 //! ```
 
@@ -94,6 +91,36 @@ pub use crate::attribute::CLOUD_REGION;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_RESOURCE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_APP_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_APP_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_ORG_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_ORG_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_PROCESS_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_PROCESS_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SPACE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SPACE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SYSTEM_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUDFOUNDRY_SYSTEM_INSTANCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CONTAINER_COMMAND;
@@ -329,6 +356,9 @@ pub use crate::attribute::PROCESS_EXECUTABLE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_EXECUTABLE_PATH;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::PROCESS_LINUX_CGROUP;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_OWNER;

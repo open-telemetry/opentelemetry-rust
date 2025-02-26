@@ -274,12 +274,22 @@ mod json_serde {
                                 kind: 2,
                                 start_time_unix_nano: 1544712660000000000,
                                 end_time_unix_nano: 1544712661000000000,
-                                attributes: vec![KeyValue {
-                                    key: String::from("my.span.attr"),
-                                    value: Some(AnyValue {
-                                        value: Some(Value::StringValue(String::from("some value"))),
-                                    }),
-                                }],
+                                attributes: vec![
+                                    KeyValue {
+                                        key: String::from("my.span.attr"),
+                                        value: Some(AnyValue {
+                                            value: Some(Value::StringValue(String::from(
+                                                "some value",
+                                            ))),
+                                        }),
+                                    },
+                                    KeyValue {
+                                        key: String::from("my.span.bytes.attr"),
+                                        value: Some(AnyValue {
+                                            value: Some(Value::BytesValue(vec![0x80, 0x80, 0x80])),
+                                        }),
+                                    },
+                                ],
                                 dropped_attributes_count: 1,
                                 events: vec![Event {
                                     time_unix_nano: 1544712660500000000,
@@ -368,6 +378,12 @@ mod json_serde {
                   "key": "my.span.attr",
                   "value": {
                     "stringValue": "some value"
+                  }
+                },
+                {
+                  "key": "my.span.bytes.attr",
+                  "value": {
+                    "bytesValue": "gICA"
                   }
                 }
               ],
@@ -518,14 +534,10 @@ mod json_serde {
   "arrayValue": {
     "values": [
       {
-        "value": {
-          "stringValue": "foo"
-        }
+        "stringValue": "foo"
       },
       {
-        "value": {
-          "stringValue": "bar"
-        }
+        "stringValue": "bar"
       }
     ]
   }
@@ -557,14 +569,10 @@ mod json_serde {
   "arrayValue": {
     "values": [
       {
-        "value": {
-          "stringValue": "foo"
-        }
+        "stringValue": "foo"
       },
       {
-        "value": {
-          "intValue": 1337
-        }
+        "intValue": "1337"
       }
     ]
   }
@@ -1195,6 +1203,7 @@ mod json_serde {
                                         "Example log record",
                                     ))),
                                 }),
+                                event_name: "test_log_event".to_string(),
                                 attributes: vec![
                                     KeyValue {
                                         key: String::from("string.attribute"),
@@ -1339,14 +1348,10 @@ mod json_serde {
                     "arrayValue": {
                       "values": [
                         {
-                          "value": {
-                            "stringValue": "many"
-                          }
+                          "stringValue": "many"
                         },
                         {
-                          "value": {
-                            "stringValue": "values"
-                          }
+                          "stringValue": "values"
                         }
                       ]
                     }
@@ -1371,7 +1376,8 @@ mod json_serde {
               "droppedAttributesCount": 0,
               "flags": 0,
               "traceId": "5b8efff798038103d269b633813fc60c",
-              "spanId": "eee19b7ec3c1b174"
+              "spanId": "eee19b7ec3c1b174",
+              "eventName": "test_log_event"
             }
           ],
           "schemaUrl": ""
@@ -1453,14 +1459,10 @@ mod json_serde {
                     "arrayValue": {
                       "values": [
                         {
-                          "value": {
-                            "stringValue": "many"
-                          }
+                          "stringValue": "many"
                         },
                         {
-                          "value": {
-                            "stringValue": "values"
-                          }
+                          "stringValue": "values"
                         }
                       ]
                     }
@@ -1481,7 +1483,8 @@ mod json_serde {
                     }
                   }
                 }
-              ]
+              ],
+              "eventName": "test_log_event"
             }
           ]
         }

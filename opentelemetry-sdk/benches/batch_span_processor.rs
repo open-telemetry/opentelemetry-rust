@@ -1,15 +1,14 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use opentelemetry::time::now;
 use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
-use opentelemetry_sdk::export::trace::SpanData;
-use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
+use opentelemetry_sdk::trace::SpanData;
 use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
 };
 use std::sync::Arc;
-use std::time::SystemTime;
 use tokio::runtime::Runtime;
 
 fn get_span_data() -> Vec<SpanData> {
@@ -25,14 +24,14 @@ fn get_span_data() -> Vec<SpanData> {
             parent_span_id: SpanId::from_u64(12),
             span_kind: SpanKind::Client,
             name: Default::default(),
-            start_time: SystemTime::now(),
-            end_time: SystemTime::now(),
+            start_time: now(),
+            end_time: now(),
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: SpanEvents::default(),
             links: SpanLinks::default(),
             status: Status::Unset,
-            instrumentation_lib: Default::default(),
+            instrumentation_scope: Default::default(),
         })
         .collect::<Vec<SpanData>>()
 }
@@ -49,14 +48,13 @@ fn criterion_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     let rt = Runtime::new().unwrap();
                     rt.block_on(async move {
-                        let span_processor =
-                            BatchSpanProcessor::builder(NoopSpanExporter::new(), Tokio)
-                                .with_batch_config(
-                                    BatchConfigBuilder::default()
-                                        .with_max_queue_size(10_000)
-                                        .build(),
-                                )
-                                .build();
+                        let span_processor = BatchSpanProcessor::builder(NoopSpanExporter::new())
+                            .with_batch_config(
+                                BatchConfigBuilder::default()
+                                    .with_max_queue_size(10_000)
+                                    .build(),
+                            )
+                            .build();
                         let mut shared_span_processor = Arc::new(span_processor);
                         let mut handles = Vec::with_capacity(10);
                         for _ in 0..task_num {
@@ -70,10 +68,9 @@ fn criterion_benchmark(c: &mut Criterion) {
                             }));
                         }
                         futures_util::future::join_all(handles).await;
-                        let _ =
-                            Arc::<BatchSpanProcessor<Tokio>>::get_mut(&mut shared_span_processor)
-                                .unwrap()
-                                .shutdown();
+                        let _ = Arc::<BatchSpanProcessor>::get_mut(&mut shared_span_processor)
+                            .unwrap()
+                            .shutdown();
                     });
                 })
             },

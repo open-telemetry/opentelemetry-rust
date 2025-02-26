@@ -3,6 +3,24 @@
 /// storage, OR can be embedded by other protocols that transfer OTLP metrics
 /// data but do not implement the OTLP protocol.
 ///
+/// MetricsData
+/// └─── ResourceMetrics
+///    ├── Resource
+///    ├── SchemaURL
+///    └── ScopeMetrics
+///       ├── Scope
+///       ├── SchemaURL
+///       └── Metric
+///          ├── Name
+///          ├── Description
+///          ├── Unit
+///          └── data
+///             ├── Gauge
+///             ├── Sum
+///             ├── Histogram
+///             ├── ExponentialHistogram
+///             └── Summary
+///
 /// The main difference between this message and collector protocol is that
 /// in this message there will not be any "control" or "metadata" specific to
 /// OTLP protocol.
@@ -37,7 +55,8 @@ pub struct ResourceMetrics {
     #[prost(message, repeated, tag = "2")]
     pub scope_metrics: ::prost::alloc::vec::Vec<ScopeMetrics>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_metrics" field which have their own schema_url field.
@@ -60,7 +79,8 @@ pub struct ScopeMetrics {
     #[prost(message, repeated, tag = "2")]
     pub metrics: ::prost::alloc::vec::Vec<Metric>,
     /// The Schema URL, if known. This is the identifier of the Schema that the metric data
-    /// is recorded in. To learn more about Schema URL see
+    /// is recorded in. Notably, the last part of the URL path is the version number of the
+    /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to all metrics in the "metrics" field.
     #[prost(string, tag = "3")]
@@ -70,7 +90,6 @@ pub struct ScopeMetrics {
 /// brief summary of the Metric data model.  For more details, see:
 ///
 ///    <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md>
-///
 ///
 /// The data model and relation between entities is shown in the
 /// diagram below. Here, "DataPoint" is the term used to refer to any
@@ -83,7 +102,7 @@ pub struct ScopeMetrics {
 /// - DataPoint contains timestamps, attributes, and one of the possible value type
 ///    fields.
 ///
-///      Metric
+///     Metric
 ///   +------------+
 ///   |name        |
 ///   |description |
@@ -277,6 +296,9 @@ pub struct ExponentialHistogram {
 /// data type. These data points cannot always be merged in a meaningful way.
 /// While they can be useful in some applications, histogram data points are
 /// recommended for new applications.
+/// Summary metrics do not have an aggregation temporality field. This is
+/// because the count and sum fields of a SummaryDataPoint are assumed to be
+/// cumulative values.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
@@ -417,7 +439,7 @@ pub struct HistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
@@ -500,7 +522,7 @@ pub struct ExponentialHistogramDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
@@ -587,7 +609,8 @@ pub mod exponential_histogram_data_point {
     }
 }
 /// SummaryDataPoint is a single data point in a timeseries that describes the
-/// time-varying values of a Summary metric.
+/// time-varying values of a Summary metric. The count and sum fields represent
+/// cumulative values.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
@@ -622,7 +645,7 @@ pub struct SummaryDataPoint {
     /// events, and is assumed to be monotonic over the values of these events.
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
-    /// see: <https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#summary>
+    /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated

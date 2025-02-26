@@ -17,30 +17,33 @@ analysis in order to understand your software's performance and behavior. You
 can export and analyze them using [Prometheus], [Jaeger], and other
 observability tools.
 
-*Compiler support: [requires `rustc` 1.70+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ## Project Status
 
+The table below summarizes the overall status of each component. Some components
+include unstable features, which are documented in their respective crate
+documentation.
+
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
-| Logs-API              | Beta*              |
-| Logs-SDK              | Beta               |
-| Logs-OTLP Exporter    | Beta               |
-| Logs-Appender-Tracing | Beta               |
-| Metrics-API           | Beta               |
-| Metrics-SDK           | Alpha              |
-| Metrics-OTLP Exporter | Alpha              |
+| Logs-API              | Stable*            |
+| Logs-SDK              | RC                 |
+| Logs-OTLP Exporter    | RC                 |
+| Logs-Appender-Tracing | RC                 |
+| Metrics-API           | Stable             |
+| Metrics-SDK           | RC                 |
+| Metrics-OTLP Exporter | RC                 |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
 | Traces-OTLP Exporter  | Beta               |
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
-API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/bridge-api.md),
+API](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/api.md),
 that allows one to write log appenders that can bridge existing logging
 libraries to the OpenTelemetry log data model. The following log appenders are
 available:
@@ -52,49 +55,28 @@ If you already use the logging APIs from above, continue to use them, and use
 the appenders above to bridge the logs to OpenTelemetry. If you are using a
 library not listed here, feel free to contribute a new appender for the same.
 
-If you are starting fresh, then consider using
+If you are starting fresh, we recommend using
 [tracing](https://github.com/tokio-rs/tracing) as your logging API. It supports
-structured logging and is actively maintained.
+structured logging and is actively maintained. `OpenTelemetry` itself uses
+`tracing` for its internal logging.
 
 Project versioning information and stability guarantees can be found
 [here](VERSIONING.md).
 
 ## Getting Started
 
-```rust
-use opentelemetry::{
-    global,
-    trace::{Tracer, TracerProvider as _},
-};
-use opentelemetry_sdk::trace::TracerProvider;
+If you are new to OpenTelemetry, start with the [Stdout
+Example](./opentelemetry-stdout/examples/basic.rs). This example demonstrates
+how to use OpenTelemetry for logs, metrics, and traces, and display
+telemetry data on your console.
 
-fn main() {
-    // Create a new trace pipeline that prints to stdout
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
-    let tracer = provider.tracer("readme_example");
+For those using OTLP, the recommended OpenTelemetry Exporter for production
+scenarios, refer to the [OTLP Example -
+HTTP](./opentelemetry-otlp/examples/basic-otlp-http/README.md) and the [OTLP
+Example - gRPC](./opentelemetry-otlp/examples/basic-otlp/README.md).
 
-    tracer.in_span("doing_work", |cx| {
-        // Traced app logic here...
-    });
-
-    // Shutdown trace pipeline
-    global::shutdown_tracer_provider();
-}
-```
-
-The example above requires the following packages:
-
-```toml
-# Cargo.toml
-[dependencies]
-opentelemetry = "0.22"
-opentelemetry_sdk = "0.22"
-opentelemetry-stdout = { version = "0.3", features = ["trace"] }
-```
-
-See the [examples](./examples) directory for different integration patterns.
+Additional examples for various integration patterns can be found in the
+[examples](./examples) directory.
 
 ## Overview of crates
 
@@ -159,7 +141,7 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.70. The current OpenTelemetry version is not guaranteed to build
+version is 1.75. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
@@ -181,7 +163,7 @@ for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
 Meeting notes are available as a public [Google
-doc](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit).
+doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
 If you have trouble accessing the doc, please get in touch on
 [Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
 
@@ -198,12 +180,13 @@ you're more than welcome to participate!
 * [Harold Dost](https://github.com/hdost)
 * [Julian Tescher](https://github.com/jtescher)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
+* [Utkarsh Umesan Pillai](https://github.com/utpilla)
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
 * [Shaun Cox](https://github.com/shaun-cox)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
+* [Scott Gerring](https://github.com/scottgerring)
 
 ### Emeritus
 

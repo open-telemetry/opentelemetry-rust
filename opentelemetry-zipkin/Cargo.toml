@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.26.0"
+version = "0.28.0"
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -26,24 +26,26 @@ reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 
 [dependencies]
-async-trait = { workspace = true }
 once_cell = { workspace = true }
-opentelemetry = { version = "0.26", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.26", path = "../opentelemetry-sdk", features = ["trace"] }
-opentelemetry-http = { version = "0.26", path = "../opentelemetry-http" }
-opentelemetry-semantic-conventions = { version = "0.26", path = "../opentelemetry-semantic-conventions" }
+opentelemetry = { version = "0.28", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.28", path = "../opentelemetry-sdk", features = ["trace"] }
+opentelemetry-http = { version = "0.28", path = "../opentelemetry-http" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-typed-builder = "0.18"
+typed-builder = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
 futures-core = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
 opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
 temp-env = { workspace = true }
+
+[lints]
+workspace = true

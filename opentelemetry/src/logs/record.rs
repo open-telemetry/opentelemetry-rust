@@ -1,7 +1,6 @@
 use crate::{Key, StringValue};
 
-#[cfg(feature = "trace")]
-use crate::trace::{SpanId, TraceFlags, TraceId};
+use crate::{SpanId, TraceFlags, TraceId};
 
 use std::{borrow::Cow, collections::HashMap, time::SystemTime};
 
@@ -47,7 +46,6 @@ pub trait LogRecord {
         V: Into<AnyValue>;
 
     /// Sets the trace context of the log.
-    #[cfg(feature = "trace")]
     fn set_trace_context(
         &mut self,
         trace_id: TraceId,
@@ -61,7 +59,16 @@ pub trait LogRecord {
 }
 
 /// Value types for representing arbitrary values in a log record.
+/// Note: The `tracing` and `log` crates only support basic types that can be
+/// converted to these core variants: `i64`, `f64`, `StringValue`, and `bool`.
+/// Any complex and custom types are supported through their Debug implementation,
+/// and converted to String. More complex types (`Bytes`, `ListAny`, and `Map`) are
+/// included here to meet specification requirements and are available to support
+/// custom appenders that may be implemented for other logging crates.
+/// These types allow for handling dynamic data structures, so keep in mind the
+/// potential performance overhead of using boxed vectors and maps in appenders.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum AnyValue {
     /// An integer value
     Int(i64),

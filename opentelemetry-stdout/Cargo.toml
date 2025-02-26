@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stdout"
-version = "0.26.0"
+version = "0.28.0"
 description = "An OpenTelemetry exporter for stdout"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "tracing", "metrics", "logs"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -22,27 +22,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "futures-util"]
-metrics = ["async-trait", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "async-trait", "thiserror", "opentelemetry_sdk/logs_level_enabled"]
-populate-logs-event-name = []
+metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry_sdk/spec_unstable_logs_enabled"]
 
 [dependencies]
-async-trait = { workspace = true, optional = true }
-chrono = { version = "0.4.34", default-features = false, features = ["now"] }
-thiserror = { workspace = true, optional = true }
+chrono = { workspace = true, features = ["now"] }
 futures-util = { workspace = true, optional = true }
-opentelemetry = { version = "0.26", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.26", path = "../opentelemetry-sdk" }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-ordered-float = { workspace = true }
+opentelemetry = { version = "0.28", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.28", path = "../opentelemetry-sdk" }
 
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
-opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
-opentelemetry-semantic-conventions = { path = "../opentelemetry-semantic-conventions" }
+opentelemetry-appender-tracing = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 tokio = { workspace = true, features = ["full"] }
 once_cell = { workspace = true }
+
+[lints]
+workspace = true

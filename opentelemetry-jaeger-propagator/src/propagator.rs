@@ -1,8 +1,7 @@
-use opentelemetry::propagation::PropagationError;
 use opentelemetry::{
-    global::{self, Error},
+    otel_warn,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{SpanContext, SpanId, TraceContextExt, TraceError, TraceFlags, TraceId, TraceState},
+    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
 use std::borrow::Cow;
@@ -82,10 +81,11 @@ impl Propagator {
 
         let parts = header_value.split_terminator(':').collect::<Vec<&str>>();
         if parts.len() != 4 {
-            global::handle_error(Error::Propagation(PropagationError::extract(
-                "invalid jaeger header format",
-                "JaegerPropagator",
-            )));
+            otel_warn!(
+                name: "JaegerPropagator.InvalidHeader",
+                message = "Invalid jaeger header format",
+                header_value = header_value.to_string(),
+            );
             return None;
         }
 
@@ -100,10 +100,11 @@ impl Propagator {
                 Some(SpanContext::new(trace_id, span_id, flags, true, state))
             }
             _ => {
-                global::handle_error(Error::Propagation(PropagationError::extract(
-                    "invalid jaeger header format",
-                    "JaegerPropagator",
-                )));
+                otel_warn!(
+                    name: "JaegerPropagator.InvalidHeader",
+                    message = "Invalid jaeger header format",
+                    header_value = header_value.to_string(),
+                );
                 None
             }
         }
@@ -171,7 +172,11 @@ impl Propagator {
         match TraceState::from_key_value(baggage_keys) {
             Ok(trace_state) => Ok(trace_state),
             Err(trace_state_err) => {
-                global::handle_error(Error::Trace(TraceError::Other(Box::new(trace_state_err))));
+                otel_warn!(
+                    name: "JaegerPropagator.InvalidTraceState",
+                    message = "Invalid trace state",
+                    reason = format!("{:?}", trace_state_err),
+                );
                 Err(()) //todo: assign an error type instead of using ()
             }
         }

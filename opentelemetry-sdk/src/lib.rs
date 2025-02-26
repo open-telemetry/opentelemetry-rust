@@ -1,6 +1,6 @@
 //! Implements the [`SDK`] component of [OpenTelemetry].
 //!
-//! *Compiler support: [requires `rustc` 1.70+][msrv]*
+//! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! [`SDK`]: https://opentelemetry.io/docs/specs/otel/overview/#sdk
 //! [OpenTelemetry]: https://opentelemetry.io/docs/what-is-opentelemetry/
@@ -11,12 +11,12 @@
 //! ```no_run
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{global, trace::{Tracer, TracerProvider as _}};
-//! use opentelemetry_sdk::trace::TracerProvider;
+//! use opentelemetry::{global, trace::{Tracer, TracerProvider}};
+//! use opentelemetry_sdk::trace::SdkTracerProvider;
 //!
 //! fn main() {
 //!     // Choose an exporter like `opentelemetry_stdout::SpanExporter`
-//!     # fn example<T: opentelemetry_sdk::export::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
+//!     # fn example<T: opentelemetry_sdk::trace::SpanExporter + 'static>(new_exporter: impl Fn() -> T) {
 //!     let exporter = new_exporter();
 //!
 //!     // Create a new trace pipeline that prints to stdout
@@ -30,7 +30,7 @@
 //!     });
 //!
 //!     // Shutdown trace pipeline
-//!     global::shutdown_tracer_provider();
+//!     provider.shutdown().expect("TracerProvider should shutdown successfully")
 //!     # }
 //! }
 //! # }
@@ -44,10 +44,7 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`trace`]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html
 //!
-//! # Metrics (Alpha)
-//!
-//! Note: the metrics implementation is **still in progress** and **subject to major
-//! changes**.
+//! # Metrics
 //!
 //! ### Creating instruments and recording measurements
 //!
@@ -60,7 +57,7 @@
 //! let meter = global::meter("my_service");
 //!
 //! // create an instrument
-//! let counter = meter.u64_counter("my_counter").init();
+//! let counter = meter.u64_counter("my_counter").build();
 //!
 //! // record a measurement
 //! counter.add(1, &[KeyValue::new("http.client_ip", "83.164.160.102")]);
@@ -89,11 +86,12 @@
 //!
 //! For `logs` the following feature flags are available:
 //!
-//! * `logs_level_enabled`: control the log level
+//! * `spec_unstable_logs_enabled`: control the log level
 //!
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:
 //!
+//! * `experimental_async_runtime`: Enables the experimental `Runtime` trait and related functionality.
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
 //! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
@@ -120,9 +118,8 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-pub mod export;
 pub(crate) mod growable_array;
-mod instrumentation;
+
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
@@ -133,6 +130,7 @@ pub mod metrics;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod propagation;
 pub mod resource;
+#[cfg(feature = "experimental_async_runtime")]
 pub mod runtime;
 #[cfg(any(feature = "testing", test))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
@@ -146,6 +144,8 @@ pub mod trace;
 #[doc(hidden)]
 pub mod util;
 
-pub use instrumentation::{InstrumentationLibrary, Scope};
 #[doc(inline)]
 pub use resource::Resource;
+
+pub mod error;
+pub use error::ExportError;

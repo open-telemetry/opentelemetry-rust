@@ -2,6 +2,21 @@
 
 ## vNext
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Bump msrv to 1.75.0.
+- Add "internal-logs" feature flag (enabled by default), and emit internal logs via `tracing` crate.
+- Add `HttpClient::send_bytes` with `bytes::Bytes` request payload and deprecate old `HttpClient::send` function.
+
+## 0.27.0
+
+Released 2024-Nov-08
+
+- Update `opentelemetry` dependency version to 0.27
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
 
 ## v0.26.0

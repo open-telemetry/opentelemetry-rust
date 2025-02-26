@@ -1,32 +1,43 @@
 //! # OpenTelemetry Log SDK
-mod log_emitter;
+mod batch_log_processor;
+mod error;
+mod export;
 mod log_processor;
+mod logger;
+mod logger_provider;
 pub(crate) mod record;
+mod simple_log_processor;
 
-pub use log_emitter::{Builder, Logger, LoggerProvider};
-pub use log_processor::{
-    BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder, LogProcessor,
-    SimpleLogProcessor,
+/// In-Memory log exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+
+pub use batch_log_processor::{
+    BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder,
 };
-pub use record::{LogRecord, TraceContext};
+pub use error::{LogError, LogResult};
+pub use export::{LogBatch, LogExporter};
+pub use log_processor::LogProcessor;
+pub use logger::SdkLogger;
+pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
+pub use record::{SdkLogRecord, TraceContext};
+pub use simple_log_processor::SimpleLogProcessor;
 
-use opentelemetry::InstrumentationLibrary;
-/// `LogData` represents a single log event without resource context.
-#[derive(Clone, Debug)]
-pub struct LogData {
-    /// Log record
-    pub record: LogRecord,
-    /// Instrumentation details for the emitter who produced this `LogEvent`.
-    pub instrumentation: InstrumentationLibrary,
-}
+#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+/// Module for BatchLogProcessor with async runtime.
+pub mod log_processor_with_async_runtime;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use crate::testing::logs::InMemoryLogsExporter;
     use crate::Resource;
     use opentelemetry::logs::LogRecord;
-    use opentelemetry::logs::{Logger, LoggerProvider as _, Severity};
+    use opentelemetry::logs::{Logger, LoggerProvider, Severity};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use std::borrow::Borrow;
     use std::collections::HashMap;
@@ -34,16 +45,18 @@ mod tests {
     #[test]
     fn logging_sdk_test() {
         // Arrange
-        let resource = Resource::new(vec![
-            KeyValue::new("k1", "v1"),
-            KeyValue::new("k2", "v2"),
-            KeyValue::new("k3", "v3"),
-            KeyValue::new("k4", "v4"),
-        ]);
-        let exporter: InMemoryLogsExporter = InMemoryLogsExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let resource = Resource::builder_empty()
+            .with_attributes([
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "v3"),
+                KeyValue::new("k4", "v4"),
+            ])
+            .build();
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
             .with_resource(resource.clone())
-            .with_log_processor(SimpleLogProcessor::new(Box::new(exporter.clone())))
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
             .build();
 
         // Act
@@ -87,7 +100,7 @@ mod tests {
         let log = exported_logs
             .first()
             .expect("Atleast one log is expected to be present.");
-        assert_eq!(log.instrumentation.name, "test-logger");
+        assert_eq!(log.instrumentation.name(), "test-logger");
         assert_eq!(log.record.severity_number, Some(Severity::Error));
         assert_eq!(log.record.attributes_len(), 10);
         for i in 1..=10 {
@@ -103,43 +116,38 @@ mod tests {
 
     #[test]
     fn logger_attributes() {
-        let provider = LoggerProvider::builder().build();
-        let logger = provider
-            .logger_builder("test_logger")
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
+            .build();
+
+        let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schema/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
-        let instrumentation_library = logger.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.name, "test_logger");
-        assert_eq!(
-            instrumentation_library.schema_url,
-            Some("https://opentelemetry.io/schema/1.0.0".into())
-        );
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
-    }
 
-    #[test]
-    #[allow(deprecated)]
-    fn versioned_logger_options() {
-        let provider = LoggerProvider::builder().build();
-        let logger = provider.versioned_logger(
-            "test_logger",
-            Some("v1.2.3".into()),
-            Some("https://opentelemetry.io/schema/1.0.0".into()),
-            Some(vec![(KeyValue::new("test_k", "test_v"))]),
-        );
-        let instrumentation_library = logger.instrumentation_library();
-        let attributes = &instrumentation_library.attributes;
-        assert_eq!(instrumentation_library.version, Some("v1.2.3".into()));
+        let logger = provider.logger_with_scope(scope);
+
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(Severity::Error);
+
+        logger.emit(log_record);
+
+        let mut exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs.remove(0);
+        assert_eq!(log.record.severity_number, Some(Severity::Error));
+
+        let instrumentation_scope = log.instrumentation;
+        assert_eq!(instrumentation_scope.name(), "test_logger");
         assert_eq!(
-            instrumentation_library.schema_url,
-            Some("https://opentelemetry.io/schema/1.0.0".into())
+            instrumentation_scope.schema_url(),
+            Some("https://opentelemetry.io/schema/1.0.0")
         );
-        assert_eq!(attributes.len(), 1);
-        assert_eq!(attributes[0].key, "test_k".into());
-        assert_eq!(attributes[0].value, "test_v".into());
+        assert!(instrumentation_scope
+            .attributes()
+            .eq(&[KeyValue::new("test_k", "test_v")]));
     }
 }

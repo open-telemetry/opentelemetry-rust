@@ -10,7 +10,7 @@ implementation for
 
 [![Crates.io: opentelemetry-otlp](https://img.shields.io/crates/v/opentelemetry-otlp.svg)](https://crates.io/crates/opentelemetry-otlp)
 [![Documentation](https://docs.rs/opentelemetry-otlp/badge.svg)](https://docs.rs/opentelemetry-otlp)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-otlp)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-otlp)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
@@ -30,20 +30,23 @@ can easily instrument your applications or systems, no matter their language,
 infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
-*Compiler support: [requires `rustc` 1.71.1+][msrv]*
+*[Supported Rust Versions](#supported-rust-versions)*
 
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
-[msrv]: #supported-rust-versions
 
 ## Getting started
 
 See [docs](https://docs.rs/opentelemetry-otlp).
 
+## Release Notes
+
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/CHANGELOG.md).
+
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.71.1. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

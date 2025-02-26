@@ -1,49 +1,40 @@
-# Basic OTLP exporter Example
+# Basic OTLP Exporter Example
 
-This example shows how to setup OpenTelemetry OTLP exporter for logs, metrics
-and traces to export them to the [OpenTelemetry
+This example demonstrates how to set up an OpenTelemetry OTLP exporter for logs,
+metrics, and traces to send data to the [OpenTelemetry
 Collector](https://github.com/open-telemetry/opentelemetry-collector) via OTLP
-over selected protocol such as HTTP/protobuf or HTTP/json. The Collector then sends the data to the appropriate
-backend, in this case, the logging Exporter, which displays data to console.
+over HTTP (using `protobuf` encoding by default but can be changed to use
+`json`). The Collector then forwards the data to the configured backend, which
+in this case is the logging exporter, displaying data on the console.
+Additionally, the example configures a `tracing::fmt` layer to output logs
+emitted via `tracing` to `stdout`. For demonstration, this layer uses a filter
+to display `DEBUG` level logs from various OpenTelemetry components. In real
+applications, these filters should be adjusted appropriately.
+
+The example employs a `BatchExporter` for logs and traces, which is the
+recommended approach when using OTLP exporters. While it can be modified to use
+a `SimpleExporter`, this requires making the main function a regular main and
+*not* tokio main.
+
+// TODO: Document how to use hyper client.
 
 ## Usage
 
-### `docker-compose`
-
-By default runs against the `otel/opentelemetry-collector:latest` image, and uses `reqwest-client`
-as the http client, using http as the transport.
-
-```shell
-docker-compose up
-```
-
-In another terminal run the application `cargo run`
-
-The docker-compose terminal will display logs, traces, metrics.
-
-Press Ctrl+C to stop the collector, and then tear it down:
-
-```shell
-docker-compose down
-```
-
-### Manual
-
-If you don't want to use `docker-compose`, you can manually run the `otel/opentelemetry-collector` container
-and inspect the logs to see traces being transferred.
+Run the `otel/opentelemetry-collector` container using docker
+and inspect the logs to see the exported telemetry.
 
 On Unix based systems use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 On Windows use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4318:4318 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 Run the app which exports logs, metrics and traces via OTLP to the collector
@@ -52,13 +43,7 @@ Run the app which exports logs, metrics and traces via OTLP to the collector
 cargo run
 ```
 
-
-By default the app will use a `reqwest` client to send. A hyper 0.14 client can be used with the `hyper` feature enabled
-
-```shell
-cargo run --no-default-features --features=hyper
-```
-
+The app will use a `reqwest-blocking` client to send.
 
 ## View results
 
@@ -121,7 +106,7 @@ SpanEvent #0
      -> Timestamp: 2024-05-14 02:15:56.824201397 +0000 UTC
      -> DroppedAttributesCount: 0
      -> Attributes::
-          -> bogons: Int(100)
+          -> some.key: Int(100)
         {"kind": "exporter", "data_type": "traces", "name": "logging"}
 ...
 ```

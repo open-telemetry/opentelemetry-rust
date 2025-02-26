@@ -2,9 +2,59 @@
 
 ## vNext
 
+Fixes [1682](https://github.com/open-telemetry/opentelemetry-rust/issues/1682).
+"spec_unstable_logs_enabled" feature now do not suppress logs for other layers.
+
+The special treatment of the "message" field has been extended when recording
+string values. With this change, when a log is emitted with a field named
+"message" (and string value), its value is directly assigned to the LogRecord’s
+body rather than being stored as an attribute named "message". This offers a
+slight performance improvement over previous.
+
+For example, the below will now produce LogRecord with the message value
+populated as LogRecord's body:
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
+```
+
+Previously, Body was only populated when the below style was used.
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message");
+```
+
+This style, while slightly slower, should still be used when the value is not a
+simple string, but require format arguments as in the below example.
+
+```rust
+error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message with format arguments {} and {}", "foo", "bar");
+```
+
+## 0.28.1
+
+Released 2025-Feb-12
+
+- New *experimental* feature to use trace_id & span_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
+
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Bump msrv to 1.75.0.
+
+## 0.27.0
+
+Released 2024-Nov-11
+
+- Update `opentelemetry` dependency version to 0.27
+
 - Bump MSRV to 1.70 [#2179](https://github.com/open-telemetry/opentelemetry-rust/pull/2179)
+- **Breaking** [2291](https://github.com/open-telemetry/opentelemetry-rust/pull/2291) Rename `logs_level_enabled flag` to `spec_unstable_logs_enabled`. Please enable this updated flag if the feature is needed. This flag will be removed once the feature is stabilized in the specifications.
 
 ## v0.26.0
+
 Released 2024-Sep-30
 
 - Update `opentelemetry` dependency version to 0.26
@@ -23,7 +73,7 @@ Released 2024-Sep-30
   Exporters might use the target to override the instrumentation scope, which previously contained "opentelemetry-appender-tracing".
 
 - **Breaking** [1928](https://github.com/open-telemetry/opentelemetry-rust/pull/1928) Insert tracing event name into LogRecord::event_name instead of attributes.
-   - If using a custom exporter, then they must serialize this field directly from LogRecord::event_name instead of iterating over the attributes. OTLP Exporter is modified to handle this.
+  - If using a custom exporter, then they must serialize this field directly from LogRecord::event_name instead of iterating over the attributes. OTLP Exporter is modified to handle this.
 - Update `opentelemetry` dependency version to 0.24
 
 ## v0.4.0

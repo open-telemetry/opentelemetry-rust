@@ -35,7 +35,6 @@ use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Inner structure of `Resource` holding the actual data.
 /// This structure is designed to be shared among `Resource` instances via `Arc`.
@@ -52,23 +51,36 @@ pub struct Resource {
     inner: Arc<ResourceInner>,
 }
 
-impl Default for Resource {
-    fn default() -> Self {
-        Self::from_detectors(
-            Duration::from_secs(0),
-            vec![
+impl Resource {
+    /// Creates a [ResourceBuilder] that allows you to configure multiple aspects of the Resource.
+    ///
+    /// This [ResourceBuilder] will include the following [ResourceDetector]s:
+    /// - [SdkProvidedResourceDetector]
+    /// - [TelemetryResourceDetector]
+    /// - [EnvResourceDetector]
+    ///   If you'd like to start from an empty resource, use [Resource::builder_empty].
+    pub fn builder() -> ResourceBuilder {
+        ResourceBuilder {
+            resource: Self::from_detectors(&[
                 Box::new(SdkProvidedResourceDetector),
                 Box::new(TelemetryResourceDetector),
                 Box::new(EnvResourceDetector::new()),
-            ],
-        )
+            ]),
+        }
     }
-}
 
-impl Resource {
+    /// Creates a [ResourceBuilder] that allows you to configure multiple aspects of the Resource.
+    ///
+    /// This [ResourceBuilder] will not include any attributes or [ResourceDetector]s by default.
+    pub fn builder_empty() -> ResourceBuilder {
+        ResourceBuilder {
+            resource: Resource::empty(),
+        }
+    }
+
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
-    pub fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Resource {
             inner: Arc::new(ResourceInner {
                 attrs: HashMap::new(),
@@ -79,9 +91,8 @@ impl Resource {
 
     /// Create a new `Resource` from key value pairs.
     ///
-    /// Values are de-duplicated by key, and the first key-value pair with a non-empty string value
-    /// will be retained
-    pub fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
+    /// Values are de-duplicated by key, and the last key-value pair will be retained
+    pub(crate) fn new<T: IntoIterator<Item = KeyValue>>(kvs: T) -> Self {
         let mut attrs = HashMap::new();
         for kv in kvs {
             attrs.insert(kv.key, kv.value);
@@ -103,7 +114,7 @@ impl Resource {
     /// schema_url must be a valid URL using HTTP or HTTPS protocol.
     ///
     /// [schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub fn from_schema_url<KV, S>(kvs: KV, schema_url: S) -> Self
+    fn from_schema_url<KV, S>(kvs: KV, schema_url: S) -> Self
     where
         KV: IntoIterator<Item = KeyValue>,
         S: Into<Cow<'static, str>>,
@@ -127,12 +138,10 @@ impl Resource {
     }
 
     /// Create a new `Resource` from resource detectors.
-    ///
-    /// timeout will be applied to each detector.
-    pub fn from_detectors(timeout: Duration, detectors: Vec<Box<dyn ResourceDetector>>) -> Self {
+    fn from_detectors(detectors: &[Box<dyn ResourceDetector>]) -> Self {
         let mut resource = Resource::empty();
         for detector in detectors {
-            let detected_res = detector.detect(timeout);
+            let detected_res = detector.detect();
             // This call ensures that if the Arc is not uniquely owned,
             // the data is cloned before modification, preserving safety.
             // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
@@ -160,17 +169,18 @@ impl Resource {
     /// 5. If both resources do not have a schema url, the schema url will be empty.
     ///
     /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
-    pub fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
-        if self.is_empty() {
+    pub(crate) fn merge<T: Deref<Target = Self>>(&self, other: T) -> Self {
+        if self.is_empty() && self.schema_url().is_none() {
             return other.clone();
         }
-        if other.is_empty() {
+        if other.is_empty() && other.schema_url().is_none() {
             return self.clone();
         }
         let mut combined_attrs = self.inner.attrs.clone();
         for (k, v) in other.inner.attrs.iter() {
             combined_attrs.insert(k.clone(), v.clone());
         }
+
         // Resolve the schema URL according to the precedence rules
         let combined_schema_url = match (&self.inner.schema_url, &other.inner.schema_url) {
             // If both resources have a schema URL and it's the same, use it
@@ -215,8 +225,8 @@ impl Resource {
     }
 
     /// Retrieve the value from resource associate with given key.
-    pub fn get(&self, key: Key) -> Option<Value> {
-        self.inner.attrs.get(&key).cloned()
+    pub fn get(&self, key: &Key) -> Option<Value> {
+        self.inner.attrs.get(key).cloned()
     }
 }
 
@@ -244,50 +254,120 @@ impl<'a> IntoIterator for &'a Resource {
 /// ResourceDetector detects OpenTelemetry resource information
 ///
 /// Implementations of this trait can be passed to
-/// the [`Resource::from_detectors`] function to generate a Resource from the merged information.
+/// the [`ResourceBuilder::with_detectors`] function to generate a Resource from the merged information.
 pub trait ResourceDetector {
     /// detect returns an initialized Resource based on gathered information.
-    ///
-    /// timeout is used in case the detection operation takes too much time.
     ///
     /// If source information to construct a Resource is inaccessible, an empty Resource should be returned
     ///
     /// If source information to construct a Resource is invalid, for example,
     /// missing required values. an empty Resource should be returned.
-    fn detect(&self, timeout: Duration) -> Resource;
+    fn detect(&self) -> Resource;
+}
+
+/// Builder for [Resource]
+#[derive(Debug)]
+pub struct ResourceBuilder {
+    resource: Resource,
+}
+
+impl ResourceBuilder {
+    /// Add a single [ResourceDetector] to your resource.
+    pub fn with_detector(self, detector: Box<dyn ResourceDetector>) -> Self {
+        self.with_detectors(&[detector])
+    }
+
+    /// Add multiple [ResourceDetector]s to your resource.
+    pub fn with_detectors(mut self, detectors: &[Box<dyn ResourceDetector>]) -> Self {
+        self.resource = self.resource.merge(&Resource::from_detectors(detectors));
+        self
+    }
+
+    /// Add a [KeyValue] to the resource.
+    pub fn with_attribute(self, kv: KeyValue) -> Self {
+        self.with_attributes([kv])
+    }
+
+    /// Add multiple [KeyValue]s to the resource.
+    pub fn with_attributes<T: IntoIterator<Item = KeyValue>>(mut self, kvs: T) -> Self {
+        self.resource = self.resource.merge(&Resource::new(kvs));
+        self
+    }
+
+    /// Add `service.name` resource attribute.
+    pub fn with_service_name(self, name: impl Into<Value>) -> Self {
+        self.with_attribute(KeyValue::new(SERVICE_NAME, name.into()))
+    }
+
+    /// This will merge the provided `schema_url` with the current state of the Resource being built. It
+    /// will use the following rules to determine which `schema_url` should be used.
+    ///
+    /// ### [Schema url]
+    /// Schema url is determined by the following rules, in order:
+    /// 1. If the current builder resource doesn't have a `schema_url`, the provided `schema_url` will be used.
+    /// 2. If the current builder resource has a `schema_url`, and the provided `schema_url` is different from the builder resource, `schema_url` will be empty.
+    /// 3. If the provided `schema_url` is the same as the current builder resource, it will be used.
+    ///
+    /// [Schema url]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.9.0/specification/schemas/overview.md#schema-url
+    pub fn with_schema_url<KV, S>(mut self, attributes: KV, schema_url: S) -> Self
+    where
+        KV: IntoIterator<Item = KeyValue>,
+        S: Into<Cow<'static, str>>,
+    {
+        self.resource = Resource::from_schema_url(attributes, schema_url).merge(&self.resource);
+        self
+    }
+
+    /// Create a [Resource] with the options provided to the [ResourceBuilder].
+    pub fn build(self) -> Resource {
+        self.resource
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
-    use std::time;
 
-    #[test]
-    fn new_resource() {
-        let args_with_dupe_keys = vec![KeyValue::new("a", ""), KeyValue::new("a", "final")];
+    #[rstest]
+    #[case([KeyValue::new("a", ""), KeyValue::new("a", "final")], [(Key::new("a"), Value::from("final"))])]
+    #[case([KeyValue::new("a", "final"), KeyValue::new("a", "")], [(Key::new("a"), Value::from(""))])]
+    fn new_resource(
+        #[case] given_attributes: [KeyValue; 2],
+        #[case] expected_attrs: [(Key, Value); 1],
+    ) {
+        // Arrange
+        let expected = HashMap::from_iter(expected_attrs.into_iter());
 
-        let mut expected_attrs = HashMap::new();
-        expected_attrs.insert(Key::new("a"), Value::from("final"));
-
-        let resource = Resource::new(args_with_dupe_keys);
+        // Act
+        let resource = Resource::builder_empty()
+            .with_attributes(given_attributes)
+            .build();
         let resource_inner = Arc::try_unwrap(resource.inner).expect("Failed to unwrap Arc");
-        assert_eq!(resource_inner.attrs, expected_attrs);
+
+        // Assert
+        assert_eq!(resource_inner.attrs, expected);
         assert_eq!(resource_inner.schema_url, None);
     }
 
     #[test]
     fn merge_resource_key_value_pairs() {
-        let resource_a = Resource::new(vec![
-            KeyValue::new("a", ""),
-            KeyValue::new("b", "b-value"),
-            KeyValue::new("d", "d-value"),
-        ]);
+        let resource_a = Resource::builder_empty()
+            .with_attributes([
+                KeyValue::new("a", ""),
+                KeyValue::new("b", "b-value"),
+                KeyValue::new("d", "d-value"),
+            ])
+            .build();
 
-        let resource_b = Resource::new(vec![
-            KeyValue::new("a", "a-value"),
-            KeyValue::new("c", "c-value"),
-            KeyValue::new("d", ""),
-        ]);
+        let resource_b = Resource::builder_empty()
+            .with_attributes([
+                KeyValue::new("a", "a-value"),
+                KeyValue::new("c", "c-value"),
+                KeyValue::new("d", ""),
+            ])
+            .build();
 
         let mut expected_attrs = HashMap::new();
         expected_attrs.insert(Key::new("a"), Value::from("a-value"));
@@ -305,47 +385,68 @@ mod tests {
         assert_eq!(resource_a.merge(&resource_b), expected_resource);
     }
 
-    #[test]
-    fn merge_resource_schema_url() {
-        // if both resources contains key value pairs
-        let test_cases = vec![
-            (Some("http://schema/a"), None, Some("http://schema/a")),
-            (Some("http://schema/a"), Some("http://schema/b"), None),
-            (None, Some("http://schema/b"), Some("http://schema/b")),
-            (
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-                Some("http://schema/a"),
-            ),
-            (None, None, None),
-        ];
+    #[rstest]
+    #[case(Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(None, Some("http://schema/b"), Some("http://schema/b"))]
+    #[case(
+        Some("http://schema/a"),
+        Some("http://schema/a"),
+        Some("http://schema/a")
+    )]
+    #[case(None, None, None)]
+    fn merge_resource_schema_url(
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource_a =
+            Resource::from_schema_url([KeyValue::new("key", "")], schema_url_a.unwrap_or(""));
+        let resource_b =
+            Resource::from_schema_url([KeyValue::new("key", "")], schema_url_b.unwrap_or(""));
 
-        for (schema_url_a, schema_url_b, expected_schema_url) in test_cases.into_iter() {
-            let resource_a = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_a.unwrap_or(""),
-            );
-            let resource_b = Resource::from_schema_url(
-                vec![KeyValue::new("key", "")],
-                schema_url_b.unwrap_or(""),
-            );
+        let merged_resource = resource_a.merge(&resource_b);
+        let result_schema_url = merged_resource.schema_url();
 
-            let merged_resource = resource_a.merge(&resource_b);
-            let result_schema_url = merged_resource.schema_url();
+        assert_eq!(
+            result_schema_url.map(|s| s as &str),
+            expected_schema_url,
+            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
+            schema_url_a,
+            schema_url_b,
+            expected_schema_url
+        );
+    }
 
-            assert_eq!(
-                result_schema_url.map(|s| s as &str),
-                expected_schema_url,
-                "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-                schema_url_a, schema_url_b, expected_schema_url
-            );
-        }
+    #[rstest]
+    #[case(vec![], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), None, Some("http://schema/a"))]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(vec![KeyValue::new("key", "a")], vec![KeyValue::new("key", "b")], None, Some("http://schema/b"), Some("http://schema/b"))]
+    fn merge_resource_with_missing_attributes(
+        #[case] key_values_a: Vec<KeyValue>,
+        #[case] key_values_b: Vec<KeyValue>,
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let resource = match schema_url_a {
+            Some(schema) => Resource::from_schema_url(key_values_a, schema),
+            None => Resource::new(key_values_a),
+        };
 
-        // if only one resource contains key value pairs
-        let resource = Resource::from_schema_url(vec![], "http://schema/a");
-        let other_resource = Resource::new(vec![KeyValue::new("key", "")]);
+        let other_resource = match schema_url_b {
+            Some(schema) => Resource::builder_empty()
+                .with_schema_url(key_values_b, schema)
+                .build(),
+            None => Resource::new(key_values_b),
+        };
 
-        assert_eq!(resource.merge(&other_resource).schema_url(), None);
+        assert_eq!(
+            resource.merge(&other_resource).schema_url(),
+            expected_schema_url
+        );
     }
 
     #[test]
@@ -360,18 +461,96 @@ mod tests {
             ],
             || {
                 let detector = EnvResourceDetector::new();
-                let resource = Resource::from_detectors(
-                    time::Duration::from_secs(5),
-                    vec![Box::new(detector)],
-                );
+                let resource = Resource::from_detectors(&[Box::new(detector)]);
                 assert_eq!(
                     resource,
-                    Resource::new(vec![
-                        KeyValue::new("key", "value"),
-                        KeyValue::new("k", "v"),
-                        KeyValue::new("a", "x"),
-                        KeyValue::new("a", "z"),
+                    Resource::builder_empty()
+                        .with_attributes([
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
+                )
+            },
+        )
+    }
+
+    #[rstest]
+    #[case(Some("http://schema/a"), Some("http://schema/b"), None)]
+    #[case(None, Some("http://schema/b"), Some("http://schema/b"))]
+    #[case(
+        Some("http://schema/a"),
+        Some("http://schema/a"),
+        Some("http://schema/a")
+    )]
+    fn builder_with_schema_url(
+        #[case] schema_url_a: Option<&'static str>,
+        #[case] schema_url_b: Option<&'static str>,
+        #[case] expected_schema_url: Option<&'static str>,
+    ) {
+        let base_builder = if let Some(url) = schema_url_a {
+            ResourceBuilder {
+                resource: Resource::from_schema_url(vec![KeyValue::new("key", "")], url),
+            }
+        } else {
+            ResourceBuilder {
+                resource: Resource::empty(),
+            }
+        };
+
+        let resource = base_builder
+            .with_schema_url(
+                vec![KeyValue::new("key", "")],
+                schema_url_b.expect("should always be Some for this test"),
+            )
+            .build();
+
+        assert_eq!(
+            resource.schema_url().map(|s| s as &str),
+            expected_schema_url,
+            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
+            schema_url_a,
+            schema_url_b,
+            expected_schema_url
+        );
+    }
+
+    #[test]
+    fn builder_detect_resource() {
+        temp_env::with_vars(
+            [
+                (
+                    "OTEL_RESOURCE_ATTRIBUTES",
+                    Some("key=value, k = v , a= x, a=z"),
+                ),
+                ("IRRELEVANT", Some("20200810")),
+            ],
+            || {
+                let resource = Resource::builder_empty()
+                    .with_detector(Box::new(EnvResourceDetector::new()))
+                    .with_service_name("testing_service")
+                    .with_attribute(KeyValue::new("test1", "test_value"))
+                    .with_attributes([
+                        KeyValue::new("test1", "test_value1"),
+                        KeyValue::new("test2", "test_value2"),
                     ])
+                    .build();
+
+                assert_eq!(
+                    resource,
+                    Resource::builder_empty()
+                        .with_attributes([
+                            KeyValue::new("key", "value"),
+                            KeyValue::new("test1", "test_value1"),
+                            KeyValue::new("test2", "test_value2"),
+                            KeyValue::new(SERVICE_NAME, "testing_service"),
+                            KeyValue::new("k", "v"),
+                            KeyValue::new("a", "x"),
+                            KeyValue::new("a", "z"),
+                        ])
+                        .build()
                 )
             },
         )

@@ -59,12 +59,12 @@ mod tests {
     use crate::exporter::model::endpoint::Endpoint;
     use crate::exporter::model::span::{Kind, Span};
     use crate::exporter::model::{into_zipkin_span, OTEL_ERROR_DESCRIPTION, OTEL_STATUS_CODE};
+    use opentelemetry::time::now;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId};
-    use opentelemetry_sdk::export::trace::SpanData;
+    use opentelemetry_sdk::trace::SpanData;
     use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
     use std::collections::HashMap;
     use std::net::Ipv4Addr;
-    use std::time::SystemTime;
 
     #[test]
     fn test_empty() {
@@ -89,14 +89,12 @@ mod tests {
                 .duration(150_000)
                 .local_endpoint(
                     Endpoint::builder()
-                        .service_name("remote-service".to_owned())
                         .ipv4(Ipv4Addr::new(192, 168, 0, 1))
                         .port(8080)
                         .build()
                 )
                 .remote_endpoint(
                     Endpoint::builder()
-                        .service_name("open-telemetry".to_owned())
                         .ipv4(Ipv4Addr::new(127, 0, 0, 1))
                         .port(8080)
                         .build()
@@ -109,7 +107,7 @@ mod tests {
                 ])
                 .tags(tags)
                 .build(),
-            "{\"traceId\":\"4e441824ec2b6a44ffdc9bb9a6453df3\",\"parentId\":\"ffdc9bb9a6453df3\",\"id\":\"efdc9cd9a1849df3\",\"kind\":\"SERVER\",\"name\":\"main\",\"timestamp\":1502787600000000,\"duration\":150000,\"localEndpoint\":{\"serviceName\":\"remote-service\",\"ipv4\":\"192.168.0.1\",\"port\":8080},\"remoteEndpoint\":{\"serviceName\":\"open-telemetry\",\"ipv4\":\"127.0.0.1\",\"port\":8080},\"annotations\":[{\"timestamp\":1502780000000000,\"value\":\"interesting event\"}],\"tags\":{\"a\":\"b\"},\"debug\":false,\"shared\":false}",
+            "{\"traceId\":\"4e441824ec2b6a44ffdc9bb9a6453df3\",\"parentId\":\"ffdc9bb9a6453df3\",\"id\":\"efdc9cd9a1849df3\",\"kind\":\"SERVER\",\"name\":\"main\",\"timestamp\":1502787600000000,\"duration\":150000,\"localEndpoint\":{\"ipv4\":\"192.168.0.1\",\"port\":8080},\"remoteEndpoint\":{\"ipv4\":\"127.0.0.1\",\"port\":8080},\"annotations\":[{\"timestamp\":1502780000000000,\"value\":\"interesting event\"}],\"tags\":{\"a\":\"b\"},\"debug\":false,\"shared\":false}",
         );
     }
 
@@ -158,16 +156,16 @@ mod tests {
                 parent_span_id: SpanId::from_u64(1),
                 span_kind: SpanKind::Client,
                 name: "".into(),
-                start_time: SystemTime::now(),
-                end_time: SystemTime::now(),
+                start_time: now(),
+                end_time: now(),
                 attributes: Vec::new(),
                 dropped_attributes_count: 0,
                 events: SpanEvents::default(),
                 links: SpanLinks::default(),
                 status,
-                instrumentation_lib: Default::default(),
+                instrumentation_scope: Default::default(),
             };
-            let local_endpoint = Endpoint::new("test".into(), None);
+            let local_endpoint = Endpoint::new(None);
             let span = into_zipkin_span(local_endpoint, span_data);
             if let Some(tags) = span.tags.as_ref() {
                 assert_tag_contains(tags, OTEL_STATUS_CODE, status_tag_val);

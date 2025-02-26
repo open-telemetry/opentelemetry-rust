@@ -1,12 +1,10 @@
 use std::sync::{Arc, Mutex, Weak};
 
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::metrics::{
-    data::{ResourceMetrics, Temporality},
-    instrument::InstrumentKind,
-    pipeline::Pipeline,
-    reader::{MetricReader, TemporalitySelector},
+    data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
-use opentelemetry::metrics::Result;
+use crate::metrics::{MetricResult, Temporality};
 
 #[derive(Debug, Clone)]
 pub struct TestMetricReader {
@@ -36,26 +34,24 @@ impl Default for TestMetricReader {
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
-    fn collect(&self, _rm: &mut ResourceMetrics) -> Result<()> {
+    fn collect(&self, _rm: &mut ResourceMetrics) -> MetricResult<()> {
         Ok(())
     }
 
-    fn force_flush(&self) -> Result<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> Result<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         let result = self.force_flush();
         {
             let mut is_shutdown = self.is_shutdown.lock().unwrap();
             *is_shutdown = true;
         }
-        result
+        result.map_err(|e| OTelSdkError::InternalFailure(e.to_string()))
     }
-}
 
-impl TemporalitySelector for TestMetricReader {
     fn temporality(&self, _kind: InstrumentKind) -> Temporality {
-        Temporality::Cumulative
+        Temporality::default()
     }
 }

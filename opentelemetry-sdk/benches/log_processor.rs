@@ -11,23 +11,28 @@
     | log_clone_and_send_to_channel_processor     | 403 ns      |
 */
 
+use opentelemetry::time::now;
 use std::{
     sync::{Arc, Mutex},
     thread::sleep,
-    time::SystemTime,
 };
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::logs::{LogRecord as _, LogResult, Logger as _, LoggerProvider as _, Severity};
-use opentelemetry::InstrumentationLibrary;
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, Logger, LoggerProvider};
+use opentelemetry::{
+    logs::{LogRecord as _, Logger, LoggerProvider, Severity},
+    InstrumentationScope,
+};
+use opentelemetry_sdk::{
+    error::OTelSdkResult,
+    logs::{LogProcessor, SdkLogRecord, SdkLogger, SdkLoggerProvider},
+};
 
 // Run this benchmark with:
 // cargo bench --bench log_processor
 
-fn create_log_record(logger: &Logger) -> LogRecord {
+fn create_log_record(logger: &SdkLogger) -> SdkLogRecord {
     let mut log_record = logger.create_log_record();
-    let now = SystemTime::now();
+    let now = now();
     log_record.set_observed_timestamp(now);
     log_record.set_target("my-target".to_string());
     log_record.set_event_name("CheckoutFailed");
@@ -43,13 +48,13 @@ fn create_log_record(logger: &Logger) -> LogRecord {
 struct NoopProcessor;
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _data: &mut LogRecord, _library: &InstrumentationLibrary) {}
+    fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -58,23 +63,23 @@ impl LogProcessor for NoopProcessor {
 struct CloningProcessor;
 
 impl LogProcessor for CloningProcessor {
-    fn emit(&self, data: &mut LogRecord, _library: &InstrumentationLibrary) {
+    fn emit(&self, data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
         let _data_cloned = data.clone();
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
 
 #[derive(Debug)]
 struct SendToChannelProcessor {
-    sender: std::sync::mpsc::Sender<(LogRecord, InstrumentationLibrary)>,
-    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(LogRecord, InstrumentationLibrary)>>>,
+    sender: std::sync::mpsc::Sender<(SdkLogRecord, InstrumentationScope)>,
+    receiver: Arc<Mutex<std::sync::mpsc::Receiver<(SdkLogRecord, InstrumentationScope)>>>,
 }
 
 impl SendToChannelProcessor {
@@ -101,18 +106,18 @@ impl SendToChannelProcessor {
 }
 
 impl LogProcessor for SendToChannelProcessor {
-    fn emit(&self, record: &mut LogRecord, library: &InstrumentationLibrary) {
-        let res = self.sender.send((record.clone(), library.clone()));
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
+        let res = self.sender.send((record.clone(), scope.clone()));
         if res.is_err() {
             println!("Error sending log data to channel {0}", res.err().unwrap());
         }
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -124,7 +129,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn log_noop_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
         .build();
     let logger = provider.logger("benchmark");
@@ -138,7 +143,7 @@ fn log_noop_processor(c: &mut Criterion) {
 }
 
 fn log_cloning_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(CloningProcessor {})
         .build();
     let logger = provider.logger("benchmark");
@@ -152,7 +157,7 @@ fn log_cloning_processor(c: &mut Criterion) {
 }
 
 fn log_cloning_and_send_to_channel_processor(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(SendToChannelProcessor::new())
         .build();
     let logger = provider.logger("benchmark");

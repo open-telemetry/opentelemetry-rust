@@ -8,7 +8,7 @@
 
 [![Crates.io: opentelemetry-zipkin](https://img.shields.io/crates/v/opentelemetry-zipkin.svg)](https://crates.io/crates/opentelemetry-zipkin)
 [![Documentation](https://docs.rs/opentelemetry-zipkin/badge.svg)](https://docs.rs/opentelemetry-zipkin)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-zipkin)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-zipkin)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-zipkin/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
@@ -29,6 +29,8 @@ of telemetry is intentionally left to other tools.
 
 [`Zipkin`]: https://zipkin.io/
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+
+*[Supported Rust Versions](#supported-rust-versions)*
 
 ## Quickstart
 
@@ -54,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Traced app logic here...
     });
 
-    global::shutdown_tracer_provider();
+    provider.shutdown().expect("TracerProvider should shutdown successfully");
 
     Ok(())
 }
@@ -103,12 +105,16 @@ available so be sure to match them appropriately.
 [Example](https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/#kitchen-sink-full-configuration) showing how to override all configuration options. See the
 [`ZipkinPipelineBuilder`] docs for details of each option.
 
-[`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinPipelineBuilder.html
+[`ZipkinPipelineBuilder`]: https://docs.rs/opentelemetry-zipkin/latest/opentelemetry_zipkin/struct.ZipkinExporterBuilder.html
+
+## Release Notes
+
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-zipkin/CHANGELOG.md).
 
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.70. The current OpenTelemetry version is not guaranteed to build on
+version is 1.75.0. The current OpenTelemetry version is not guaranteed to build on
 Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions before
