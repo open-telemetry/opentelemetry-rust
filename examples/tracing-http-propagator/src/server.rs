@@ -93,7 +93,7 @@ async fn router(
     response
 }
 
-fn init_tracer() {
+fn init_tracer() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     // Setup tracerprovider with stdout exporter
@@ -102,14 +102,15 @@ fn init_tracer() {
         .with_simple_exporter(SpanExporter::default())
         .build();
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() {
     use hyper_util::server::conn::auto::Builder;
 
-    init_tracer();
+    let provider = init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = TcpListener::bind(addr).await.unwrap();
 
@@ -121,4 +122,6 @@ async fn main() {
             eprintln!("{err}");
         }
     }
+
+    provider.shutdown().expect("Shutdown provider failed");
 }
