@@ -345,6 +345,8 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
 
     b.iter(|| {
         let _ = r.collect(&mut rm);
+        // TODO - this assertion fails periodically, and breaks
+        // our bench testing. We should fix it.
         // assert_eq!(rm.scope_metrics[0].metrics.len(), n);
     })
 }
