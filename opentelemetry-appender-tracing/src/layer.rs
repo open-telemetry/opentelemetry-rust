@@ -524,7 +524,7 @@ mod tests {
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
         let log_layer =
             layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
 
@@ -536,10 +536,10 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
-        tracing::info_span!("outer-span").in_scope(|| {
+        tracing::error_span!("outer-span").in_scope(|| {
             error!("first-event");
 
-            tracing::info_span!("inner-span").in_scope(|| {
+            tracing::error_span!("inner-span").in_scope(|| {
                 error!("second-event");
             });
         });
@@ -547,7 +547,7 @@ mod tests {
         assert!(logger_provider.force_flush().is_ok());
 
         let logs = exporter.get_emitted_logs().expect("No emitted logs");
-        assert_eq!(logs.len(), 2);
+        assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
 
         let spans = span_exporter.get_finished_spans().unwrap();
         assert_eq!(spans.len(), 2);
