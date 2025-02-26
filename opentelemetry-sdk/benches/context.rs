@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
     global::BoxedTracer,
     trace::{
@@ -17,7 +17,6 @@ use std::fmt::Display;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("context");
-    group.throughput(Throughput::Elements(1));
     for env in [
         Environment::InContext,
         Environment::NoContext,
@@ -30,25 +29,55 @@ fn criterion_benchmark(c: &mut Criterion) {
             group.bench_function(
                 BenchmarkId::new("has_active_span", param.clone()),
                 |b| match api {
-                    Api::Alt => b.iter(|| Context::map_current(TraceContextExt::has_active_span)),
-                    Api::Spec => b.iter(|| Context::current().has_active_span()),
+                    Api::Alt => b.iter(has_active_span_alt),
+                    Api::Spec => b.iter(has_active_span_spec),
                 },
             );
             group.bench_function(
                 BenchmarkId::new("is_sampled", param.clone()),
                 |b| match api {
-                    Api::Alt => {
-                        b.iter(|| Context::map_current(|cx| cx.span().span_context().is_sampled()))
-                    }
-                    Api::Spec => b.iter(|| Context::current().span().span_context().is_sampled()),
+                    Api::Alt => b.iter(is_sampled_alt),
+                    Api::Spec => b.iter(is_sampled_spec),
                 },
             );
             group.bench_function(BenchmarkId::new("is_recording", param), |b| match api {
-                Api::Alt => b.iter(|| Context::map_current(|cx| cx.span().is_recording())),
-                Api::Spec => b.iter(|| Context::current().span().is_recording()),
+                Api::Alt => b.iter(is_recording_alt),
+                Api::Spec => b.iter(is_recording_spec),
             });
         }
     }
+}
+
+#[inline(never)]
+fn has_active_span_alt() {
+    let _ = black_box(Context::map_current(TraceContextExt::has_active_span));
+}
+
+#[inline(never)]
+fn has_active_span_spec() {
+    let _ = black_box(Context::current().has_active_span());
+}
+
+#[inline(never)]
+fn is_sampled_alt() {
+    let _ = black_box(Context::map_current(|cx| {
+        cx.span().span_context().is_sampled()
+    }));
+}
+
+#[inline(never)]
+fn is_sampled_spec() {
+    let _ = black_box(Context::current().span().span_context().is_sampled());
+}
+
+#[inline(never)]
+fn is_recording_alt() {
+    let _ = black_box(Context::map_current(|cx| cx.span().is_recording()));
+}
+
+#[inline(never)]
+fn is_recording_spec() {
+    let _ = black_box(Context::current().span().is_recording());
 }
 
 #[derive(Copy, Clone)]
