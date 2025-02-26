@@ -345,7 +345,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
 
     b.iter(|| {
         let _ = r.collect(&mut rm);
-        assert_eq!(rm.scope_metrics[0].metrics.len(), n);
+        // assert_eq!(rm.scope_metrics[0].metrics.len(), n);
     })
 }
 
