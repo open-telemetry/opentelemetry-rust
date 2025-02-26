@@ -6,6 +6,7 @@ jobs:
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'performance') }}
     steps:
       - uses: actions/checkout@v3
       - uses: arduino/setup-protoc@v3
