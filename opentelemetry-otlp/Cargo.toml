@@ -34,7 +34,7 @@ opentelemetry-proto = { version = "0.28", path = "../opentelemetry-proto", defau
 tracing = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
-tonic = { workspace = true, default-features = false, optional = true }
+tonic = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }

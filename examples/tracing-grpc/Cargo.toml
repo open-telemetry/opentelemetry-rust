@@ -19,9 +19,6 @@ opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] 
 opentelemetry-stdout = { workspace = true, features = ["trace"] }
 prost = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tonic = { workspace = true, default-features = false, features = [
-    "transport", "codegen", "prost", "channel"
-] }
 tonic = { workspace = true, features = ["server", "codegen", "channel", "prost"] }
 
 [build-dependencies]
