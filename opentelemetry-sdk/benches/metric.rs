@@ -338,16 +338,15 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         h.record(1, &[]);
     }
 
-    let mut _rm = ResourceMetrics {
+    let mut rm = ResourceMetrics {
         resource: Resource::builder_empty().build(),
         scope_metrics: Vec::new(),
     };
 
-    // TODO - this assertion fails intermittently. Work out why!
-    // b.iter(|| {
-    //     let _ = r.collect(&mut rm);
-    //     assert_eq!(rm.scope_metrics[0].metrics.len(), n);
-    // })
+    b.iter(|| {
+        let _ = r.collect(&mut rm);
+        assert_eq!(rm.scope_metrics[0].metrics.len(), n);
+    })
 }
 
 criterion_group!(benches, counters, histograms);
