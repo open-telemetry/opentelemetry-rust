@@ -365,6 +365,7 @@ mod metric;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
+mod retry;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
