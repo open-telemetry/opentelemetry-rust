@@ -88,15 +88,14 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         if is_duplicated_metadata(field.name()) {
             return;
         }
-        //TODO: Consider special casing "message" to populate body and document
-        // to users to use message field for log message, to avoid going to the
-        // record_debug, which has dyn dispatch, string allocation and
-        // formatting cost.
-
         //TODO: Fix heap allocation. Check if lifetime of &str can be used
         // to optimize sync exporter scenario.
-        self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
+        if field.name() == "message" {
+            self.log_record.set_body(AnyValue::from(value.to_owned()));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(value.to_owned()));
+        }
     }
 
     fn record_bool(&mut self, field: &tracing_core::Field, value: bool) {
@@ -525,7 +524,7 @@ mod tests {
             .build();
         let tracer = tracer_provider.tracer("test-tracer");
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
         let log_layer =
             layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
 
@@ -537,10 +536,10 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
-        tracing::info_span!("outer-span").in_scope(|| {
+        tracing::error_span!("outer-span").in_scope(|| {
             error!("first-event");
 
-            tracing::info_span!("inner-span").in_scope(|| {
+            tracing::error_span!("inner-span").in_scope(|| {
                 error!("second-event");
             });
         });
@@ -548,7 +547,7 @@ mod tests {
         assert!(logger_provider.force_flush().is_ok());
 
         let logs = exporter.get_emitted_logs().expect("No emitted logs");
-        assert_eq!(logs.len(), 2);
+        assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
 
         let spans = span_exporter.get_finished_spans().unwrap();
         assert_eq!(spans.len(), 2);

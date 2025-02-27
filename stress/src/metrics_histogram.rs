@@ -36,7 +36,7 @@ lazy_static! {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_entropy());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
 
     static PROVIDER_PER_THREAD: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
@@ -57,7 +57,7 @@ fn test_histogram_shared() {
 }
 
 fn test_histogram_per_thread() {
-    HISTOGRAM_PER_THREAD.with(|h| test_histogram(h));
+    HISTOGRAM_PER_THREAD.with(test_histogram);
 }
 
 fn test_histogram(histogram: &Histogram<u64>) {
@@ -65,9 +65,9 @@ fn test_histogram(histogram: &Histogram<u64>) {
     let rands = CURRENT_RNG.with(|rng| {
         let mut rng = rng.borrow_mut();
         [
-            rng.gen_range(0..len),
-            rng.gen_range(0..len),
-            rng.gen_range(0..len),
+            rng.random_range(0..len),
+            rng.random_range(0..len),
+            rng.random_range(0..len),
         ]
     });
     let index_first_attribute = rands[0];

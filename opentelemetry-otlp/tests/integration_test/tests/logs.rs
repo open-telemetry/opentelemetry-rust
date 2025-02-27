@@ -276,7 +276,7 @@ mod logtests {
     // Client - Tonic, Reqwest-blocking
     #[test]
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
-    pub fn logs_simple_non_tokio_main_with_init_logs_inside_rt() -> Result<()> {
+    pub fn logs_simple_non_tokio_main_with_init_logs_inside_rt_blocking() -> Result<()> {
         logs_non_tokio_helper(true, true)
     }
 
@@ -295,7 +295,7 @@ mod logtests {
     // Client - Reqwest-blocking
     #[test]
     #[cfg(feature = "reqwest-blocking-client")]
-    pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt() -> Result<()> {
+    pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt_blocking() -> Result<()> {
         logs_non_tokio_helper(true, false)
     }
 
@@ -320,7 +320,7 @@ mod logtests {
     #[ignore] // request-blocking client does not work with tokio
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[cfg(feature = "reqwest-blocking-client")]
-    pub async fn logs_simple_tokio_multi_thread() -> Result<()> {
+    pub async fn logs_simple_tokio_multi_thread_blocking() -> Result<()> {
         logs_tokio_helper(true, false, false).await
     }
 

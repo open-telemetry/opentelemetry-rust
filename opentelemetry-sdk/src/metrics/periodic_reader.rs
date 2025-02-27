@@ -160,7 +160,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
             .spawn(move || {
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
-                otel_info!(
+                otel_debug!(
                     name: "PeriodReaderThreadStarted",
                     interval_in_millisecs = interval.as_millis(),
                 );
@@ -190,16 +190,16 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
 
                             if export_result.is_err() {
                                 if response_sender.send(false).is_err() {
-                                    otel_info!(
+                                    otel_debug!(
                                         name: "PeriodReader.Flush.ResponseSendError",
-                                        message = "PeriodicReader's flush has failed, but unable to send this info back to caller. 
+                                        message = "PeriodicReader's flush has failed, but unable to send this info back to caller.
                                         This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
                                     );
                                 }
                             } else if response_sender.send(true).is_err() {
-                                otel_info!(
+                                otel_debug!(
                                     name: "PeriodReader.Flush.ResponseSendError",
-                                    message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller. 
+                                    message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller.
                                     This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
                                 );
                             }
@@ -253,14 +253,14 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                                 if response_sender.send(false).is_err() {
                                     otel_info!(
                                         name: "PeriodReaderThreadShutdown.ResponseSendError",
-                                        message = "PeriodicReader's shutdown has failed, but unable to send this info back to caller. 
+                                        message = "PeriodicReader's shutdown has failed, but unable to send this info back to caller.
                                         This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
                                     );
                                 }
                             } else if response_sender.send(true).is_err() {
-                                otel_info!(
+                                otel_debug!(
                                     name: "PeriodReaderThreadShutdown.ResponseSendError",
-                                    message = "PeriodicReader completed its shutdown, but unable to send this info back to caller. 
+                                    message = "PeriodicReader completed its shutdown, but unable to send this info back to caller.
                                     This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
                                 );
                             }
@@ -312,7 +312,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                         }
                     }
                 }
-                otel_info!(
+                otel_debug!(
                     name: "PeriodReaderThreadStopped"
                 );
             });
@@ -499,7 +499,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     /// This function SHOULD be obtained from the exporter.
     ///
     /// If not configured, the Cumulative temporality SHOULD be used.
-    ///  
+    ///
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         kind.temporality_preference(self.inner.temporality(kind))

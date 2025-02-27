@@ -2,8 +2,8 @@
 name = "opentelemetry_sdk"
 version = "0.28.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
-homepage = "https://github.com/open-telemetry/opentelemetry-rust"
-repository = "https://github.com/open-telemetry/opentelemetry-rust"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
@@ -13,12 +13,12 @@ rust-version = "1.75.0"
 opentelemetry = { version = "0.28", path = "../opentelemetry/" }
 opentelemetry-http = { version = "0.28", path = "../opentelemetry-http", optional = true }
 async-std = { workspace = true, features = ["unstable"], optional = true }
-futures-channel = "0.3"
+futures-channel = { workspace = true }
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
-percent-encoding = { version = "2.0", optional = true }
-rand = { workspace = true, features = ["std", "std_rng","small_rng"], optional = true }
-glob = { version = "0.3.1", optional =true}
+percent-encoding = { workspace = true, optional = true }
+rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
+glob = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -34,7 +34,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
-rstest = "0.23.0"
+rstest = { workspace = true }
 temp-env = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
@@ -83,10 +83,13 @@ harness = false
 [[bench]]
 name = "trace"
 harness = false
-required-features = ["testing"]
 
 [[bench]]
 name = "log_processor"
+harness = false
+
+[[bench]]
+name = "tracer_creation"
 harness = false
 
 [[bench]]
@@ -107,3 +110,9 @@ required-features = ["metrics"]
 name = "log"
 harness = false
 required-features = ["logs"]
+
+[lib]
+bench = false
+
+[lints]
+workspace = true

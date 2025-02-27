@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use futures_util::future::BoxFuture;
 use opentelemetry::{
     trace::{Span, Tracer, TracerProvider},
     KeyValue,
@@ -66,8 +65,8 @@ fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::SdkTracer) 
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-        Box::pin(futures_util::future::ready(Ok(())))
+    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
+        Ok(())
     }
 }
 

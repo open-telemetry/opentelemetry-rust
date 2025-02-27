@@ -235,11 +235,16 @@ impl LoggerProviderBuilder {
     }
 
     /// The `Resource` to be associated with this Provider.
+    ///
+    /// *Note*: Calls to this method are additive, each call merges the provided
+    /// resource with the previous one.
     pub fn with_resource(self, resource: Resource) -> Self {
-        LoggerProviderBuilder {
-            resource: Some(resource),
-            ..self
-        }
+        let resource = match self.resource {
+            Some(existing) => Some(existing.merge(&resource)),
+            None => Some(resource),
+        };
+
+        LoggerProviderBuilder { resource, ..self }
     }
 
     /// Create a new provider from this configuration.
@@ -695,21 +700,52 @@ mod tests {
         scoped_logger.emit(scoped_record);
 
         // Assert: Verify that the emitted logs are processed correctly
-        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        let mut emitted_logs = exporter.get_emitted_logs().unwrap();
         assert_eq!(emitted_logs.len(), 2);
+        let log1 = emitted_logs.remove(0);
         // Assert the first log
         assert_eq!(
-            emitted_logs[0].clone().record.body,
+            log1.record.body,
             Some(AnyValue::String("Testing empty logger name".into()))
         );
-        assert_eq!(logger.instrumentation_scope().name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
 
         // Assert the second log created through the scope
+        let log2 = emitted_logs.remove(0);
         assert_eq!(
-            emitted_logs[1].clone().record.body,
+            log2.record.body,
             Some(AnyValue::String("Testing empty logger scope name".into()))
         );
-        assert_eq!(scoped_logger.instrumentation_scope().name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
+    }
+
+    #[test]
+    fn with_resource_multiple_calls_ensure_additive() {
+        let builder = SdkLoggerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
+            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(vec![], "http://example.com")
+                    .build(),
+            )
+            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+
+        let resource = builder.resource.unwrap();
+
+        assert_eq!(
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
+        );
+        assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 
     #[derive(Debug)]

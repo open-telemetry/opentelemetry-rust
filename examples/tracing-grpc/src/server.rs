@@ -1,5 +1,6 @@
 use hello_world::greeter_server::{Greeter, GreeterServer};
 use hello_world::{HelloReply, HelloRequest};
+use opentelemetry::KeyValue;
 use opentelemetry::{
     global,
     propagation::Extractor,
@@ -13,7 +14,7 @@ fn init_tracer() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default())
+        .with_simple_exporter(SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider.clone());
@@ -65,6 +66,11 @@ impl Greeter for MyGreeter {
         let mut span = tracer
             .span_builder("Greeter/server")
             .with_kind(SpanKind::Server)
+            .with_attributes([
+                KeyValue::new("rpc.system", "grpc"),
+                KeyValue::new("server.port", 50052),
+                KeyValue::new("rpc.method", "say_hello"),
+            ])
             .start_with_context(&tracer, &parent_cx);
 
         let name = request.into_inner().name;
@@ -83,7 +89,7 @@ impl Greeter for MyGreeter {
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let provider = init_tracer();
 
-    let addr = "[::1]:50051".parse()?;
+    let addr = "[::1]:50052".parse()?;
     let greeter = MyGreeter::default();
 
     Server::builder()

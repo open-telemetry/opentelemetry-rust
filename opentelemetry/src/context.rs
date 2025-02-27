@@ -339,7 +339,7 @@ impl fmt::Debug for Context {
             }
         }
 
-        dbg.field("entries", &entries).finish()
+        dbg.field("entries count", &entries).finish()
     }
 }
 

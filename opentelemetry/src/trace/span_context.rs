@@ -1,4 +1,3 @@
-use crate::trace::{TraceError, TraceResult};
 use crate::{SpanId, TraceFlags, TraceId};
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -75,7 +74,7 @@ impl TraceState {
     /// assert!(trace_state.is_ok());
     /// assert_eq!(trace_state.unwrap().header(), String::from("foo=bar,apple=banana"))
     /// ```
-    pub fn from_key_value<T, K, V>(trace_state: T) -> TraceResult<Self>
+    pub fn from_key_value<T, K, V>(trace_state: T) -> TraceStateResult<Self>
     where
         T: IntoIterator<Item = (K, V)>,
         K: ToString,
@@ -122,17 +121,17 @@ impl TraceState {
     /// updated key/value is returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn insert<K, V>(&self, key: K, value: V) -> TraceResult<TraceState>
+    pub fn insert<K, V>(&self, key: K, value: V) -> TraceStateResult<TraceState>
     where
         K: Into<String>,
         V: Into<String>,
     {
         let (key, value) = (key.into(), value.into());
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::Key(key).into());
+            return Err(TraceStateError::Key(key));
         }
         if !TraceState::valid_value(value.as_str()) {
-            return Err(TraceStateError::Value(value).into());
+            return Err(TraceStateError::Value(value));
         }
 
         let mut trace_state = self.delete_from_deque(key.clone());
@@ -150,10 +149,10 @@ impl TraceState {
     /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
-    pub fn delete<K: Into<String>>(&self, key: K) -> TraceResult<TraceState> {
+    pub fn delete<K: Into<String>>(&self, key: K) -> TraceStateResult<TraceState> {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::Key(key).into());
+            return Err(TraceStateError::Key(key));
         }
 
         Ok(self.delete_from_deque(key))
@@ -191,7 +190,7 @@ impl TraceState {
 }
 
 impl FromStr for TraceState {
-    type Err = TraceError;
+    type Err = TraceStateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let list_members: Vec<&str> = s.split_terminator(',').collect();
@@ -199,7 +198,7 @@ impl FromStr for TraceState {
 
         for list_member in list_members {
             match list_member.find('=') {
-                None => return Err(TraceStateError::List(list_member.to_string()).into()),
+                None => return Err(TraceStateError::List(list_member.to_string())),
                 Some(separator_index) => {
                     let (key, value) = list_member.split_at(separator_index);
                     key_value_pairs
@@ -212,10 +211,13 @@ impl FromStr for TraceState {
     }
 }
 
+/// A specialized `Result` type for trace state operations.
+type TraceStateResult<T> = Result<T, TraceStateError>;
+
 /// Error returned by `TraceState` operations.
 #[derive(Error, Debug)]
 #[non_exhaustive]
-enum TraceStateError {
+pub enum TraceStateError {
     /// The key is invalid.
     ///
     /// See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
@@ -233,12 +235,6 @@ enum TraceStateError {
     /// See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
     #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context/#list for more details")]
     List(String),
-}
-
-impl From<TraceStateError> for TraceError {
-    fn from(err: TraceStateError) -> Self {
-        TraceError::Other(Box::new(err))
-    }
 }
 
 /// Immutable portion of a [`Span`] which can be serialized and propagated.
@@ -404,7 +400,7 @@ mod tests {
         let cx = Context::current();
         assert_eq!(
             format!("{:?}", cx),
-            "Context { span: \"None\", entries: 0 }"
+            "Context { span: \"None\", entries count: 0 }"
         );
         let cx = Context::current().with_remote_span_context(SpanContext::NONE);
         assert_eq!(
@@ -417,7 +413,7 @@ mod tests {
                        is_remote: false, \
                        trace_state: TraceState(None) \
                      }, \
-               entries: 1 \
+               entries count: 1 \
              }"
         );
     }
