@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use core::fmt;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
@@ -12,6 +13,8 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
+
+use crate::retry::{retry_with_exponential_backoff, RetryPolicy};
 
 pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -58,41 +61,61 @@ impl TonicLogsClient {
 
 impl LogExporter for TonicLogsClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = match self.inner.lock().await.as_mut() {
-            Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
-                    .into_parts();
-                (inner.client.clone(), m, e)
-            }
-            None => return Err(OTelSdkError::AlreadyShutdown),
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
         };
 
-        let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
+        let batch = Arc::new(batch);
 
-        otel_debug!(name: "TonicLogsClient.ExportStarted");
+        retry_with_exponential_backoff(policy, "TonicLogsClient.Export", {
+            let batch = Arc::clone(&batch);
+            let inner = &self.inner;
+            let resource = &self.resource;
+            move || {
+                let batch = Arc::clone(&batch);
+                Box::pin(async move {
+                    let (mut client, metadata, extensions) = match inner.lock().await.as_mut() {
+                        Some(inner) => {
+                            let (m, e, _) = inner
+                                .interceptor
+                                .call(Request::new(()))
+                                .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
+                                .into_parts();
+                            (inner.client.clone(), m, e)
+                        }
+                        None => return Err(OTelSdkError::AlreadyShutdown),
+                    };
 
-        let result = client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await;
+                    let resource_logs = group_logs_by_resource_and_scope(&*batch, resource);
 
-        match result {
-            Ok(_) => {
-                otel_debug!(name: "TonicLogsClient.ExportSucceeded");
-                Ok(())
+                    otel_debug!(name: "TonicsLogsClient.ExportStarted");
+
+                    let result = client
+                        .export(Request::from_parts(
+                            metadata,
+                            extensions,
+                            ExportLogsServiceRequest { resource_logs },
+                        ))
+                        .await;
+
+                    match result {
+                        Ok(_) => {
+                            otel_debug!(name: "TonicLogsClient.ExportSucceeded");
+                            Ok(())
+                        }
+                        Err(e) => {
+                            let error = format!("export error: {e:?}");
+                            otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
+                            Err(OTelSdkError::InternalFailure(error))
+                        }
+                    }
+                })
             }
-            Err(e) => {
-                let error = format!("export error: {e:?}");
-                otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
-                Err(OTelSdkError::InternalFailure(error))
-            }
-        }
+        })
+        .await
     }
 
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
