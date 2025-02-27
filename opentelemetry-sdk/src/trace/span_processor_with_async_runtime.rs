@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::runtime::{RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
@@ -309,6 +309,7 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
         let export = self.exporter.export(self.spans.split_off(0));
         let timeout = self.runtime.delay(self.config.max_export_timeout);
         let time_out = self.config.max_export_timeout;
+
         pin_mut!(export);
         pin_mut!(timeout);
 
@@ -353,11 +354,10 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
 
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(async move {
+        runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
-            let ticker = inner_runtime
-                .interval(config.scheduled_delay)
+            let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
                 .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
@@ -372,7 +372,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             };
 
             processor.run(messages).await
-        }));
+        });
 
         // Return batch processor with link to worker
         BatchSpanProcessor {

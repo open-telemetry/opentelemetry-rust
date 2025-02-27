@@ -2,13 +2,15 @@
 
 ## vNext
 
+- **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
+  for the changes.
 - Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
-- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
-- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+- **Breaking**: Make `force_flush()` in `PushMetricExporter` synchronous
+- **Breaking**: Updated the `SpanExporter` trait method signature:
 
 ```rust
   fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;

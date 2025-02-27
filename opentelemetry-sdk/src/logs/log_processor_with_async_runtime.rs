@@ -17,7 +17,7 @@ use std::{
 };
 
 use super::{BatchConfig, LogProcessor};
-use crate::runtime::{RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, Either},
@@ -126,13 +126,13 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let inner_runtime = runtime.clone();
 
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(Box::pin(async move {
+        runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
-            let ticker = inner_runtime
-                .interval(config.scheduled_delay)
+            let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
                 .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                 .map(|_| BatchMessage::Flush(None));
+
             let timeout_runtime = inner_runtime.clone();
             let mut logs = Vec::new();
             let mut messages = Box::pin(stream::select(message_receiver, ticker));
@@ -204,7 +204,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                 }
             }
-        }));
+        });
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
