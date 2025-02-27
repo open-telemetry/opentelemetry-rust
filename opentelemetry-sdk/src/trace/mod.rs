@@ -77,7 +77,7 @@ mod tests {
     };
 
     #[test]
-    fn span_context_immutable() {
+    fn span_modification_via_context() {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
@@ -91,32 +91,36 @@ mod tests {
 
         // start with Current, which should have no span
         let cx = Context::current();
-        assert!(cx.has_active_span() == false);
+        assert!(!cx.has_active_span());
 
         // add span to context
         let cx_with_span = cx.with_span(span);
-        assert!(cx_with_span.has_active_span() == true);
-        assert!(cx.has_active_span() == false);
+        assert!(cx_with_span.has_active_span());
+        assert!(!cx.has_active_span());
 
-        // modify the span in the context
+        // modify the span by using span_ref from the context
+        // this is the only way to modify the span as span
+        // is moved to context.
         let span_ref = cx_with_span.span();
         span_ref.set_attribute(KeyValue::new("attribute1", "value1"));
 
         // create a new context, which should not affect the original
         let cx_with_span_and_more = cx_with_span.with_value(ValueA(1));
 
-        // modify the span in the new context, which should not affect the original
+        // modify the span again using the new context.
+        // this should still be using the original span itself.
         let span_ref_new = cx_with_span_and_more.span();
         span_ref_new.set_attribute(KeyValue::new("attribute2", "value2"));
 
-        span_ref.end();
         span_ref_new.end();
 
         let exported_spans = exporter
             .get_finished_spans()
             .expect("Spans are expected to be exported.");
-        // There should be 2 independent spans.
-        assert_eq!(exported_spans.len(), 2);
+        // There should be a single span, with attributes from both modifications.
+        assert_eq!(exported_spans.len(), 1);
+        let span = &exported_spans[0];
+        assert_eq!(span.attributes.len(), 2);
     }
 
     #[test]
