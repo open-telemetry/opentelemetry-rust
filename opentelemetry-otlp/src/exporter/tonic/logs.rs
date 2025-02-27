@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use core::fmt;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
@@ -11,6 +12,8 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 
 use super::BoxInterceptor;
 use tokio::sync::Mutex;
+
+use crate::retry::{retry_with_exponential_backoff, RetryPolicy};
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
@@ -57,33 +60,50 @@ impl TonicLogsClient {
 
 impl LogExporter for TonicLogsClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = match &self.inner {
-            Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .lock()
-                    .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
-                    .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
-                    .into_parts();
-                (inner.client.clone(), m, e)
-            }
-            None => return Err(OTelSdkError::AlreadyShutdown),
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
         };
 
-        let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
+        let batch = Arc::new(batch); // Wrap batch in Arc<Mutex<LogBatch>>
 
-        otel_debug!(name: "TonicsLogsClient.CallingExport");
+        retry_with_exponential_backoff(policy, "TonicLogsClient.Export", {
+            let batch = Arc::clone(&batch);
+            move || {
+                let batch = Arc::clone(&batch); // Clone the Arc inside the closure
+                Box::pin(async move {
+                    let (mut client, metadata, extensions) = match &self.inner {
+                        Some(inner) => {
+                            let (m, e, _) = inner
+                                .interceptor
+                                .lock()
+                                .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
+                                .call(Request::new(()))
+                                .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                                .into_parts();
+                            (inner.client.clone(), m, e)
+                        }
+                        None => return Err(OTelSdkError::AlreadyShutdown),
+                    };
 
-        client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("export error: {:?}", e)))?;
-        Ok(())
+                    let resource_logs = group_logs_by_resource_and_scope(&*batch, &self.resource);
+
+                    otel_debug!(name: "TonicsLogsClient.CallingExport");
+
+                    client
+                        .export(Request::from_parts(
+                            metadata,
+                            extensions,
+                            ExportLogsServiceRequest { resource_logs },
+                        ))
+                        .await
+                        .map(|_| ()) // Map the successful result to Ok(())
+                        .map_err(|e| OTelSdkError::InternalFailure(format!("export error: {:?}", e)))
+                })
+            }
+        }).await
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
