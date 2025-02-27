@@ -307,15 +307,16 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
         }
 
         let export = self.exporter.export(self.spans.split_off(0));
-        let timeout_future = Box::pin(self.runtime.delay(self.config.max_export_timeout));
-        let timeout = self.config.max_export_timeout;
+        let timeout = self.runtime.delay(self.config.max_export_timeout);
+        let time_out = self.config.max_export_timeout;
 
-        Box::pin(async move {
-            match future::select(export, timeout_future).await {
-                Either::Left((export_res, _)) => export_res,
-                Either::Right((_, _)) => Err(OTelSdkError::Timeout(timeout)),
-            }
-        })
+        pin_mut!(export);
+        pin_mut!(timeout);
+
+        match future::select(export, timeout).await {
+            Either::Left((export_res, _)) => export_res,
+            Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+        }
     }
 
     async fn run(mut self, mut messages: impl FusedStream<Item = BatchMessage> + Unpin) {
