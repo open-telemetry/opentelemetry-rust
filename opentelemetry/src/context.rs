@@ -460,4 +460,46 @@ mod tests {
             true
         }));
     }
+
+    #[test]
+    #[ignore = "overlapping contexts are not supported yet"]
+    fn overlapping_contexts() {
+        #[derive(Debug, PartialEq)]
+        struct ValueA(&'static str);
+        #[derive(Debug, PartialEq)]
+        struct ValueB(u64);
+
+        let outer_guard = Context::new().with_value(ValueA("a")).attach();
+
+        // Only value `a` is set
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get::<ValueB>(), None);
+
+        let inner_guard = Context::current_with_value(ValueB(42)).attach();
+        // Both values are set in inner context
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        assert!(Context::map_current(|cx| {
+            assert_eq!(cx.get(), Some(&ValueA("a")));
+            assert_eq!(cx.get(), Some(&ValueB(42)));
+            true
+        }));
+
+        drop(outer_guard);
+
+        // `inner_guard` is still alive so both `ValueA` and `ValueB` should still be accessible
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        drop(inner_guard);
+
+        // Both guards are dropped and neither value should be accessible.
+        let current = Context::current();
+        assert_eq!(current.get::<ValueA>(), None);
+        assert_eq!(current.get::<ValueB>(), None);
+    }
 }
