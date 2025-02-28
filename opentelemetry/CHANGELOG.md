@@ -10,6 +10,7 @@
 - *Breaking* Changed value type of `Baggage` from `Value` to `StringValue`
 - Updated `Baggage` constants to reflect latest standard (`MAX_KEY_VALUE_PAIRS` - 180 -> 64, `MAX_BYTES_FOR_ONE_PAIR` - removed) and increased insert performance see #[2284](https://github.com/open-telemetry/opentelemetry-rust/pull/2284).
 - *Breaking* Align `Baggage.remove()` signature with `.get()` to take the key as a reference
+- Changed `Context` to use a stack to properly handle out of order dropping of `ContextGuard`. This imposes a limit of `65535` nested contexts on a single thread. See #[2378](https://github.com/open-telemetry/opentelemetry-rust/pull/2284) and #[1887](https://github.com/open-telemetry/opentelemetry-rust/issues/1887).
 
 ## 0.28.0
 
