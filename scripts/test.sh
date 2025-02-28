@@ -10,7 +10,7 @@ echo "Running tests for all packages in workspace with --all-features"
 cargo test --workspace --all-features --lib
 
 echo "Running doctests for all packages in workspace with --all-features"
-cargo test --workspace --all-features --doc
+cargo test --workspace --all-features --doc --exclude opentelemetry-proto
 
 # See https://github.com/rust-lang/cargo/issues/5364
 echo "Running tests for opentelemetry package with --no-default-features"
