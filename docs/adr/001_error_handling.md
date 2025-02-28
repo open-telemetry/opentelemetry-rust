@@ -14,8 +14,8 @@ There are various ways to handle errors on trait methods, including swallowing t
 
 ## Design Guidance
 
-### 1. Panics are only appropriate at startup
-Failures _after_ startup should not panic, instead returning errors to the caller where appropriate, _or_ logging an error if not appropriate.
+### 1. No panics from SDK APIs
+Failures during regular operation should not panic, instead returning errors to the caller where appropriate, _or_ logging an error if not appropriate.
 Some of the opentelemetry SDK interfaces are dictated by the specification in way such that they may not return errors. 
 
 ### 2. Consolidate error types within a trait where we can, let them diverge when we can't**
@@ -73,7 +73,6 @@ pub type OTelSdkResult = Result<(), OTelSdkError>;
 // pub trait LogExporter {
 // pub trait SpanExporter {
 pub trait PushMetricExporter {
-
     fn export(&self, /* ... */) -> OtelSdkResult;
     fn force_flush(&self, /* ... */ ) -> OTelSdkResult;
     fn shutdown(&self, /* ... */ ) -> OTelSdkResult;
