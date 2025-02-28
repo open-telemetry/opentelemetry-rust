@@ -22,8 +22,8 @@
 //!
 //! ```no_run
 //! use opentelemetry::global;
-//! use opentelemetry::trace::{Tracer, TraceError};
-//! use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+//! use opentelemetry::trace::Tracer;
+//! use opentelemetry_sdk::{trace::{SdkTracerProvider, TraceError}, Resource};
 //! use opentelemetry_zipkin::ZipkinExporter;
 //!
 //! fn main() -> Result<(), TraceError> {
@@ -70,7 +70,7 @@
 //! };
 //! use opentelemetry_zipkin::ZipkinExporter;
 //!
-//! fn main() -> Result<(), opentelemetry::trace::TraceError> {
+//! fn main() -> Result<(), opentelemetry_sdk::trace::TraceError> {
 //!     let exporter = ZipkinExporter::builder()
 //!         .build()?;
 //!
@@ -113,8 +113,8 @@
 //!
 //!
 //! ```no_run
-//! use opentelemetry::{global, InstrumentationScope, KeyValue, trace::{Tracer, TraceError}};
-//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+//! use opentelemetry::{global, InstrumentationScope, KeyValue, trace::Tracer};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler, TraceError}, Resource};
 //! use opentelemetry_http::{HttpClient, HttpError};
 //! use opentelemetry_zipkin::{Error as ZipkinError, ZipkinExporter};
 //! use async_trait::async_trait;
