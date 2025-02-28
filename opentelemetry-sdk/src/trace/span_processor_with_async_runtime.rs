@@ -68,7 +68,7 @@ use std::sync::Arc;
 ///         .build();
 ///
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
-///     let provider = trace::TracerProvider::builder()
+///     let provider = trace::SdkTracerProvider::builder()
 ///         .with_span_processor(batch)
 ///         .build();
 ///

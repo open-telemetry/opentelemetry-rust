@@ -107,7 +107,7 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// ### Using a BatchLogProcessor:
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, LoggerProvider};
+/// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, SdkLoggerProvider};
 /// use opentelemetry::global;
 /// use std::time::Duration;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
@@ -123,7 +123,7 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 ///     )
 ///     .build();
 ///
-/// let provider = LoggerProvider::builder()
+/// let provider = SdkLoggerProvider::builder()
 ///     .with_log_processor(processor)
 ///     .build();
 ///

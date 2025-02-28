@@ -193,7 +193,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 /// ```rust
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{
-///     trace::{BatchSpanProcessor, BatchConfigBuilder, TracerProvider},
+///     trace::{BatchSpanProcessor, BatchConfigBuilder, SdkTracerProvider},
 ///     runtime,
 ///     testing::trace::NoopSpanExporter,
 /// };
@@ -217,7 +217,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 ///         .build();
 ///
 ///     // Step 3: Set up a TracerProvider with the configured processor.
-///     let provider = TracerProvider::builder()
+///     let provider = SdkTracerProvider::builder()
 ///         .with_span_processor(batch_processor)
 ///         .build();
 ///     global::set_tracer_provider(provider.clone());
