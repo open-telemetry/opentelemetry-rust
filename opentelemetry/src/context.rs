@@ -386,6 +386,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn context_immutable() {
+        #[derive(Debug, PartialEq)]
+        struct ValueA(u64);
+        #[derive(Debug, PartialEq)]
+        struct ValueB(u64);
+
+        // start with Current, which should be an empty context
+        let cx = Context::current();
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+
+        // with_value should return a new context,
+        // leaving the original context unchanged
+        let cx_new = cx.with_value(ValueA(1));
+
+        // cx should be unchanged
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+
+        // cx_new should contain the new value
+        assert_eq!(cx_new.get::<ValueA>(), Some(&ValueA(1)));
+
+        // cx_new should be unchanged
+        let cx_newer = cx_new.with_value(ValueB(1));
+
+        // Cx and cx_new are unchanged
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+        assert_eq!(cx_new.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(cx_new.get::<ValueB>(), None);
+
+        // cx_newer should contain both values
+        assert_eq!(cx_newer.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(cx_newer.get::<ValueB>(), Some(&ValueB(1)));
+    }
+
+    #[test]
     fn nested_contexts() {
         #[derive(Debug, PartialEq)]
         struct ValueA(&'static str);
