@@ -302,10 +302,22 @@ impl From<Cow<'static, str>> for StringValue {
     }
 }
 
+impl From<Value> for StringValue {
+    fn from(s: Value) -> Self {
+        match s {
+            Value::Bool(v) => format!("{}", v).into(),
+            Value::I64(v) => format!("{}", v).into(),
+            Value::F64(v) => format!("{}", v).into(),
+            Value::String(v) => v,
+            Value::Array(v) => format!("{}", v).into(),
+        }
+    }
+}
+
 impl Value {
     /// String representation of the `Value`
     ///
-    /// This will allocate iff the underlying value is not a `String`.
+    /// This will allocate if the underlying value is not a `String`.
     pub fn as_str(&self) -> Cow<'_, str> {
         match self {
             Value::Bool(v) => format!("{}", v).into(),
