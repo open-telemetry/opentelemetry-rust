@@ -1,16 +1,13 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationScope, Key,
+    Key,
 };
-use std::borrow::Cow;
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_core::Metadata;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{registry::LookupSpan, Layer};
-
-const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 
 /// Visitor to record the fields from the event record.
 struct EventVisitor<'a, LR: LogRecord> {
@@ -135,12 +132,13 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        let scope = InstrumentationScope::builder(INSTRUMENTATION_LIBRARY_NAME)
-            .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-            .build();
-
         OpenTelemetryTracingBridge {
-            logger: provider.logger_with_scope(scope),
+            // Using empty scope name.
+            // The name/version of this library itself can be added
+            // as a Scope attribute, once a semantic convention is
+            // defined for the same.
+            // See https://github.com/open-telemetry/semantic-conventions/issues/1550
+            logger: provider.logger(""),
             _phantom: Default::default(),
         }
     }
@@ -348,8 +346,18 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "my-system"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "my-event-name"
+        );
 
         // Validate trace context is none.
         assert!(log.record.trace_context().is_none());
@@ -398,6 +406,37 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+
+        // Test when target, eventname are not explicitly provided
+        exporter.reset();
+        error!(
+            event_id = 20,
+            user_name = "otel",
+            user_email = "otel@opentelemetry.io"
+        );
+        assert!(logger_provider.force_flush().is_ok());
+
+        // Assert TODO: move to helper methods
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+
+        // Validate target - tracing defaults to module path
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "opentelemetry_appender_tracing::layer::tests"
+        );
+        // Validate event name - tracing defaults to event followed source & line number
+        // Assert is doing "contains" check to avoid tests failing when line number changes.
+        assert!(log
+            .record
+            .event_name()
+            .expect("event_name is expected")
+            .contains("event opentelemetry-appender-tracing/src/layer.rs"),);
     }
 
     #[test]
@@ -442,8 +481,18 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "my-system"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "my-event-name"
+        );
 
         // validate trace context.
         assert!(log.record.trace_context().is_some());
@@ -583,7 +632,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!(target: "my-system", "log from log crate");
+        log::error!("log from log crate");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -596,8 +645,19 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Target and EventName from Log crate are "log" and "log event" respectively.
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "log"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "log event"
+        );
 
         // Validate trace context is none.
         assert!(log.record.trace_context().is_none());
@@ -675,7 +735,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
