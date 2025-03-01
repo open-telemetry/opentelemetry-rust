@@ -8,6 +8,7 @@
 - {PLACEHOLDER} - Remove the above completely. // TODO fill this when changes are actually in.
 - Bug Fix: `InstrumentationScope` implementation for `PartialEq` and `Hash` fixed to include Attributes also.
 - *Breaking* Changed value type of `Baggage` from `Value` to `StringValue`
+- *Breaking* Align `Baggage.remove()` signature with `.get()` to take the key as a reference
 
 ## 0.28.0
 
