@@ -161,8 +161,8 @@ impl Baggage {
 
     /// Removes a name from the baggage, returning the value
     /// corresponding to the name if the pair was previously in the map.
-    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(Value, BaggageMetadata)> {
-        self.inner.remove(&key.into())
+    pub fn remove<K: AsRef<str>>(&mut self, key: K) -> Option<(Value, BaggageMetadata)> {
+        self.inner.remove(key.as_ref())
     }
 
     /// Returns the number of attributes for this baggage
@@ -607,5 +607,26 @@ mod tests {
         b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
         assert!(b.to_string().contains("bar=2;yellow"));
         assert!(b.to_string().contains("foo=1;red;state=on"));
+    }
+
+    #[test]
+    fn test_crud_operations() {
+        let mut baggage = Baggage::default();
+        assert!(baggage.is_empty());
+
+        // create
+        baggage.insert("foo", "1");
+        assert_eq!(baggage.len(), 1);
+
+        // get
+        assert_eq!(baggage.get("foo"), Some(&Value::from("1")));
+
+        // update
+        baggage.insert("foo", "2");
+        assert_eq!(baggage.get("foo"), Some(&Value::from("2")));
+
+        // delete
+        baggage.remove("foo");
+        assert!(baggage.is_empty());
     }
 }
