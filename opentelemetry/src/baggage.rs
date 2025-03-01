@@ -566,4 +566,22 @@ mod tests {
         assert!(b.to_string().contains("bar=2;yellow"));
         assert!(b.to_string().contains("foo=1;red;state=on"));
     }
+
+    #[test]
+    fn replace_existing_key() {
+        let half_minus2: StringValue = (0..MAX_LEN_OF_ALL_PAIRS / 2 - 2)
+            .map(|_| 'x')
+            .collect::<String>()
+            .into();
+
+        let mut b = Baggage::default();
+        b.insert("a", half_minus2.clone()); // +1 for key
+        b.insert("b", half_minus2); // +1 for key
+        b.insert("c", StringValue::from(".")); // total of 2 bytes
+        assert!(b.get("a").is_some());
+        assert!(b.get("b").is_some());
+        assert!(b.get("c").is_some());
+        assert!(b.insert("c", StringValue::from("..")).is_none()); // exceeds MAX_LEN_OF_ALL_PAIRS
+        assert_eq!(b.insert("c", StringValue::from("!")).unwrap(), ".".into()); // replaces existing
+    }
 }
