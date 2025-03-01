@@ -622,11 +622,11 @@ mod tests {
         assert_eq!(baggage.len(), 1);
 
         // get
-        assert_eq!(baggage.get("foo"), Some(&Value::from("1")));
+        assert_eq!(baggage.get("foo"), Some(&StringValue::from("1")));
 
         // update
         baggage.insert("foo", "2");
-        assert_eq!(baggage.get("foo"), Some(&Value::from("2")));
+        assert_eq!(baggage.get("foo"), Some(&StringValue::from("2")));
 
         // delete
         baggage.remove("foo");
