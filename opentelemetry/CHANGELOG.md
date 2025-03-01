@@ -7,6 +7,7 @@
 - *Breaking* Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
 - {PLACEHOLDER} - Remove the above completely. // TODO fill this when changes are actually in.
 - Bug Fix: `InstrumentationScope` implementation for `PartialEq` and `Hash` fixed to include Attributes also.
+- *Breaking* Changed value type of `Baggage` from `Value` to `StringValue`
 
 ## 0.28.0
 
