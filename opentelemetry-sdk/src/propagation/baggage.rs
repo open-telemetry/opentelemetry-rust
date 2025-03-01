@@ -166,34 +166,34 @@ mod tests {
     use std::collections::HashMap;
 
     #[rustfmt::skip]
-    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, Value>)> {
+    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, StringValue>)> {
         vec![
             // "valid w3cHeader"
-            ("key1=val1,key2=val2", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=val1,key2=val2", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid w3cHeader with spaces"
-            ("key1 =   val1,  key2 =val2   ", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1 =   val1,  key2 =val2   ", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid header with url-escaped comma"
-            ("key1=val1,key2=val2%2Cval3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2,val3"))].into_iter().collect()),
+            ("key1=val1,key2=val2%2Cval3", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2,val3"))].into_iter().collect()),
             // "valid header with an invalid header"
-            ("key1=val1,key2=val2,a,val3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=val1,key2=val2,a,val3", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid header with no value"
-            ("key1=,key2=val2", vec![(Key::new("key1"), Value::from("")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=,key2=val2", vec![(Key::new("key1"), StringValue::from("")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
         ]
     }
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, BaggageMetadata)>)> {
+    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (StringValue, BaggageMetadata)>)> {
         vec![
             // "valid w3cHeader with properties"
-            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (StringValue::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (StringValue::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
             // prop can don't need to be key value pair
-            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (StringValue::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (StringValue::from("val2"), BaggageMetadata::from("prop1")))].into_iter().collect()),
             ("key1=value1;property1;property2, key2 = value2, key3=value3; propertyKey=propertyValue",
              vec![
-                 (Key::new("key1"), (Value::from("value1"), BaggageMetadata::from("property1;property2"))),
-                 (Key::new("key2"), (Value::from("value2"), BaggageMetadata::default())),
-                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
+                 (Key::new("key1"), (StringValue::from("value1"), BaggageMetadata::from("property1;property2"))),
+                 (Key::new("key2"), (StringValue::from("value2"), BaggageMetadata::default())),
+                 (Key::new("key3"), (StringValue::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
              ].into_iter().collect()),
         ]
     }
