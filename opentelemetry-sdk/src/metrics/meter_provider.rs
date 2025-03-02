@@ -581,13 +581,16 @@ mod tests {
         assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 1);
 
         // these are identical because InstrumentScope ignores the order of attributes
-        let _meter3 =
-            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1"), KeyValue::new("key2", "value2")]));
-        let _meter4 =
-            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key2", "value2"), KeyValue::new("key1", "value1")]));
+        let _meter3 = meter_provider.meter_with_scope(make_scope(vec![
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key2", "value2"),
+        ]));
+        let _meter4 = meter_provider.meter_with_scope(make_scope(vec![
+            KeyValue::new("key2", "value2"),
+            KeyValue::new("key1", "value1"),
+        ]));
 
         assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 2);
-
     }
 
     #[test]
@@ -603,10 +606,16 @@ mod tests {
 
         let _meter1 = meter_provider.meter_with_scope(make_scope(vec![]));
         // _meter2 and _meter3, and _meter4 are different because attribute is case sensitive
-        let _meter2 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1")]));
-        let _meter3 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("Key1", "value1")]));
-        let _meter4 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "Value1")]));
-        let _meter5 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1"), KeyValue::new("key2", "value2")]));
+        let _meter2 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1")]));
+        let _meter3 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("Key1", "value1")]));
+        let _meter4 =
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "Value1")]));
+        let _meter5 = meter_provider.meter_with_scope(make_scope(vec![
+            KeyValue::new("key1", "value1"),
+            KeyValue::new("key2", "value2"),
+        ]));
 
         assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 5);
     }
