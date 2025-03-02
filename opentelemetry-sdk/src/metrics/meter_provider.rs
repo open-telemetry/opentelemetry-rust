@@ -591,6 +591,27 @@ mod tests {
     }
 
     #[test]
+    fn different_meter_different_attributes() {
+        let meter_provider = super::SdkMeterProvider::builder().build();
+        let make_scope = |attributes| {
+            InstrumentationScope::builder("test.meter")
+                .with_version("v0.1.0")
+                .with_schema_url("http://example.com")
+                .with_attributes(attributes)
+                .build()
+        };
+
+        let _meter1 = meter_provider.meter_with_scope(make_scope(vec![]));
+        // _meter2 and _meter3, and _meter4 are different because attribute is case sensitive
+        let _meter2 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1")]));
+        let _meter3 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("Key1", "value1")]));
+        let _meter4 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "Value1")]));
+        let _meter5 = meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key1", "value1"), KeyValue::new("key2", "value2")]));
+
+        assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 5);
+    }
+
+    #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkMeterProvider::builder()
             .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
