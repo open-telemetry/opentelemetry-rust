@@ -8,6 +8,7 @@
 - {PLACEHOLDER} - Remove the above completely. // TODO fill this when changes are actually in.
 - Bug Fix: `InstrumentationScope` implementation for `PartialEq` and `Hash` fixed to include Attributes also.
 - *Breaking* Changed value type of `Baggage` from `Value` to `StringValue`
+- Updated `Baggage` constants to reflect latest standard (`MAX_KEY_VALUE_PAIRS` - 180 -> 64, `MAX_BYTES_FOR_ONE_PAIR` - removed) and increased insert performance see #[2284](https://github.com/open-telemetry/opentelemetry-rust/pull/2284).
 
 ## 0.28.0
 
