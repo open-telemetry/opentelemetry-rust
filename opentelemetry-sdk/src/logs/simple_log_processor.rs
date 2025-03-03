@@ -47,12 +47,12 @@ use std::sync::Mutex;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
-/// let provider = LoggerProvider::builder()
+/// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
 ///
