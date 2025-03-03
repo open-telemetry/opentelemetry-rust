@@ -5,12 +5,45 @@ use rand::Rng;
 
 const MAX_KEY_VALUE_PAIRS: usize = 64;
 
+// Run this benchmark with:
+// cargo bench --bench baggage
+// Adding results in comments for a quick reference.
+// Apple M4 Pro
+//     Total Number of Cores:	14 (10 performance and 4 efficiency)
+// Results:
+// set_baggage_static_key_value 12 ns
+// set_baggage_static_key 28 ns
+// set_baggage_dynamic 60 ns
+// set_baggage_dynamic_with_metadata 112 ns
+
 fn criterion_benchmark(c: &mut Criterion) {
-    set_baggage_value(c);
-    set_baggage_value_with_metadata(c);
+    set_baggage_static_key_value(c);
+    set_baggage_static_key(c);
+    set_baggage_dynamic(c);
+    set_baggage_dynamic_with_metadata(c);
 }
 
-fn set_baggage_value(c: &mut Criterion) {
+fn set_baggage_static_key_value(c: &mut Criterion) {
+    let mut baggage = Baggage::new();
+
+    c.bench_function("set_baggage_static_key_value", move |b| {
+        b.iter(|| {
+            baggage.insert("key", "value");
+        })
+    });
+}
+
+fn set_baggage_static_key(c: &mut Criterion) {
+    let mut baggage = Baggage::new();
+
+    c.bench_function("set_baggage_static_key", move |b| {
+        b.iter(|| {
+            baggage.insert("key", "value".to_string());
+        })
+    });
+}
+
+fn set_baggage_dynamic(c: &mut Criterion) {
     let mut baggage = Baggage::new();
 
     let mut rng = rand::rng();
@@ -23,7 +56,7 @@ fn set_baggage_value(c: &mut Criterion) {
         })
         .collect::<Vec<(String, String)>>();
 
-    c.bench_function("set_baggage_value", move |b| {
+    c.bench_function("set_baggage_dynamic", move |b| {
         b.iter_batched(
             || rng.random_range(0..MAX_KEY_VALUE_PAIRS),
             |idx| {
@@ -35,7 +68,7 @@ fn set_baggage_value(c: &mut Criterion) {
     });
 }
 
-fn set_baggage_value_with_metadata(c: &mut Criterion) {
+fn set_baggage_dynamic_with_metadata(c: &mut Criterion) {
     let mut baggage = Baggage::new();
 
     let mut rng = rand::rng();
@@ -49,7 +82,7 @@ fn set_baggage_value_with_metadata(c: &mut Criterion) {
         })
         .collect::<Vec<(String, String, String)>>();
 
-    c.bench_function("set_baggage_value_with_metadata", move |b| {
+    c.bench_function("set_baggage_dynamic_with_metadata", move |b| {
         b.iter_batched(
             || rng.random_range(0..MAX_KEY_VALUE_PAIRS),
             |idx| {
