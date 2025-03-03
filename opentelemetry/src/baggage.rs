@@ -308,10 +308,13 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, StringValue};
+    /// use opentelemetry::{baggage::{Baggage, BaggageExt}, Context, StringValue};
+    ///
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert("my-name", "my-value");
     ///
     /// let cx = Context::map_current(|cx| {
-    ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
+    ///     cx.with_baggage(baggage)
     /// });
     ///
     /// assert_eq!(
@@ -319,28 +322,26 @@ pub trait BaggageExt {
     ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
-    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
-        &self,
-        baggage: T,
-    ) -> Self;
+    fn with_baggage(&self, baggage: Baggage) -> Self;
 
     /// Returns a clone of the current context with the included name/value pairs.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, StringValue};
+    /// use opentelemetry::{baggage::{Baggage, BaggageExt}, Context, StringValue};
     ///
-    /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert("my-name", "my-value");
+    ///
+    /// let cx = Context::current_with_baggage(baggage);
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
     ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
-    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
-        baggage: T,
-    ) -> Self;
+    fn current_with_baggage(baggage: Baggage) -> Self;
 
     /// Returns a clone of the given context with no baggage.
     ///
@@ -360,25 +361,17 @@ pub trait BaggageExt {
     fn baggage(&self) -> &Baggage;
 }
 
-impl BaggageExt for Context {
-    fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
-        &self,
-        baggage: T,
-    ) -> Self {
-        let old = self.baggage();
-        let mut merged = Baggage {
-            inner: old.inner.clone(),
-            kv_content_len: old.kv_content_len,
-        };
-        for kvm in baggage.into_iter().map(|kv| kv.into()) {
-            merged.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
-        }
+/// Solely used to store `Baggage` in the `Context` without allowing direct access
+#[derive(Debug)]
+struct BaggageContextValue(Baggage);
 
-        self.with_value(merged)
+impl BaggageExt for Context {
+    fn with_baggage(&self, baggage: Baggage) -> Self {
+        self.with_value(BaggageContextValue(baggage))
     }
 
-    fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(kvs: T) -> Self {
-        Context::map_current(|cx| cx.with_baggage(kvs))
+    fn current_with_baggage(baggage: Baggage) -> Self {
+        Context::map_current(|cx| cx.with_baggage(baggage))
     }
 
     fn with_cleared_baggage(&self) -> Self {
@@ -386,7 +379,8 @@ impl BaggageExt for Context {
     }
 
     fn baggage(&self) -> &Baggage {
-        self.get::<Baggage>().unwrap_or(get_default_baggage())
+        self.get::<BaggageContextValue>()
+            .map_or(get_default_baggage(), |b| &b.0)
     }
 }
 
