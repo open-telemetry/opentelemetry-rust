@@ -245,6 +245,7 @@ mod tests {
             .any(|(k, v)| k == key && v == value)
     }
 
+    #[allow(impl_trait_overcaptures)] // can only be fixed with Rust 1.82+
     fn create_tracing_subscriber(
         _exporter: InMemoryLogExporter,
         logger_provider: &SdkLoggerProvider,
