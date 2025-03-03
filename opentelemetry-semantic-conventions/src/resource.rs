@@ -15,11 +15,11 @@
 //!
 //! ```rust
 //! use opentelemetry::KeyValue;
-//! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
+//! use opentelemetry_sdk::{trace::{config, SdkTracerProvider}, Resource};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
-//! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(Resource::builder_empty().with_service_name("my-service").build()))
+//! let _tracer = SdkTracerProvider::builder()
+//!     .with_resource(Resource::builder_empty().with_service_name("my-service").build())
 //!     .build();
 //! ```
 

@@ -62,6 +62,10 @@ name = "context_attach"
 harness = false
 required-features = ["tracing"]
 
+[[bench]]
+name = "baggage"
+harness = false
+
 [lib]
 bench = false
 

@@ -14,15 +14,15 @@
 //! accordance with the [W3C Baggage] specification.
 //!
 //! [W3C Baggage]: https://w3c.github.io/baggage
-use crate::{Context, Key, KeyValue, Value};
+use crate::{Context, Key, KeyValue, StringValue};
+use std::collections::hash_map::Entry;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::sync::OnceLock;
 
 static DEFAULT_BAGGAGE: OnceLock<Baggage> = OnceLock::new();
 
-const MAX_KEY_VALUE_PAIRS: usize = 180;
-const MAX_BYTES_FOR_ONE_PAIR: usize = 4096;
+const MAX_KEY_VALUE_PAIRS: usize = 64;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
 /// Returns the default baggage, ensuring it is initialized only once.
@@ -49,14 +49,13 @@ fn get_default_baggage() -> &'static Baggage {
 ///
 /// ### Limits
 ///
-/// * Maximum number of name/value pairs: `180`.
-/// * Maximum number of bytes per a single name/value pair: `4096`.
+/// * Maximum number of name/value pairs: `64`.
 /// * Maximum total length of all name/value pairs: `8192`.
 ///
-/// [RFC2616, Section 2.2]: https://tools.ietf.org/html/rfc2616#section-2.2
+/// <https://www.w3.org/TR/baggage/#limits>
 #[derive(Debug, Default)]
 pub struct Baggage {
-    inner: HashMap<Key, (Value, BaggageMetadata)>,
+    inner: HashMap<Key, (StringValue, BaggageMetadata)>,
     kv_content_len: usize, // the length of key-value-metadata string in `inner`
 }
 
@@ -74,14 +73,14 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, StringValue};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&Value::from("my-value")))
+    /// assert_eq!(cc.get("my-name"), Some(&StringValue::from("my-value")))
     /// ```
-    pub fn get<K: AsRef<str>>(&self, key: K) -> Option<&Value> {
+    pub fn get<K: AsRef<str>>(&self, key: K) -> Option<&StringValue> {
         self.inner.get(key.as_ref()).map(|(value, _metadata)| value)
     }
 
@@ -89,15 +88,18 @@ impl Baggage {
     ///
     /// # Examples
     /// ```
-    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, StringValue};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
     /// // By default, the metadata is empty
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::from("my-value"), BaggageMetadata::from(""))))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from(""))))
     /// ```
-    pub fn get_with_metadata<K: AsRef<str>>(&self, key: K) -> Option<&(Value, BaggageMetadata)> {
+    pub fn get_with_metadata<K: AsRef<str>>(
+        &self,
+        key: K,
+    ) -> Option<&(StringValue, BaggageMetadata)> {
         self.inner.get(key.as_ref())
     }
 
@@ -109,17 +111,17 @@ impl Baggage {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::Baggage, Value};
+    /// use opentelemetry::{baggage::Baggage, StringValue};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&Value::from("my-value")))
+    /// assert_eq!(cc.get("my-name"), Some(&StringValue::from("my-value")))
     /// ```
-    pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<Value>
+    pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<StringValue>
     where
         K: Into<Key>,
-        V: Into<Value>,
+        V: Into<StringValue>,
     {
         self.insert_with_metadata(key, value, BaggageMetadata::default())
             .map(|pair| pair.0)
@@ -130,38 +132,68 @@ impl Baggage {
     /// Same with `insert`, if the name was not present, [`None`] will be returned.
     /// If the name is present, the old value and metadata will be returned.
     ///
+    /// Also checks for [limits](https://w3c.github.io/baggage/#limits).
+    ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, Value};
+    /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, StringValue};
     ///
     /// let mut cc = Baggage::new();
     /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
     ///
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(Value::from("my-value"), BaggageMetadata::from("test"))))
+    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from("test"))))
     /// ```
     pub fn insert_with_metadata<K, V, S>(
         &mut self,
         key: K,
         value: V,
         metadata: S,
-    ) -> Option<(Value, BaggageMetadata)>
+    ) -> Option<(StringValue, BaggageMetadata)>
     where
         K: Into<Key>,
-        V: Into<Value>,
+        V: Into<StringValue>,
         S: Into<BaggageMetadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
-        if self.insertable(&key, &value, &metadata) {
-            self.inner.insert(key, (value, metadata))
-        } else {
-            None
+        if !key.as_str().is_ascii() {
+            return None;
+        }
+        let entry_content_len =
+            key_value_metadata_bytes_size(key.as_str(), value.as_str(), metadata.as_str());
+        let entries_count = self.inner.len();
+        match self.inner.entry(key) {
+            Entry::Occupied(mut occupied_entry) => {
+                let prev_content_len = key_value_metadata_bytes_size(
+                    occupied_entry.key().as_str(),
+                    occupied_entry.get().0.as_str(),
+                    occupied_entry.get().1.as_str(),
+                );
+                let new_content_len = self.kv_content_len + entry_content_len - prev_content_len;
+                if new_content_len > MAX_LEN_OF_ALL_PAIRS {
+                    return None;
+                }
+                self.kv_content_len = new_content_len;
+                Some(occupied_entry.insert((value, metadata)))
+            }
+            Entry::Vacant(vacant_entry) => {
+                if entries_count == MAX_KEY_VALUE_PAIRS {
+                    return None;
+                }
+                let new_content_len = self.kv_content_len + entry_content_len;
+                if new_content_len > MAX_LEN_OF_ALL_PAIRS {
+                    return None;
+                }
+                self.kv_content_len = new_content_len;
+                vacant_entry.insert((value, metadata));
+                None
+            }
         }
     }
 
     /// Removes a name from the baggage, returning the value
     /// corresponding to the name if the pair was previously in the map.
-    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(Value, BaggageMetadata)> {
+    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(StringValue, BaggageMetadata)> {
         self.inner.remove(&key.into())
     }
 
@@ -175,58 +207,9 @@ impl Baggage {
         self.inner.is_empty()
     }
 
-    /// Gets an iterator over the baggage items, sorted by name.
+    /// Gets an iterator over the baggage items, in any order.
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
-    }
-
-    /// Determine whether the key value pair exceed one of the [limits](https://w3c.github.io/baggage/#limits).
-    /// If not, update the total length of key values
-    fn insertable(&mut self, key: &Key, value: &Value, metadata: &BaggageMetadata) -> bool {
-        if !key.as_str().is_ascii() {
-            return false;
-        }
-        let value = value.as_str();
-        if key_value_metadata_bytes_size(key.as_str(), value.as_ref(), metadata.as_str())
-            < MAX_BYTES_FOR_ONE_PAIR
-        {
-            match self.inner.get(key) {
-                None => {
-                    // check total length
-                    if self.kv_content_len
-                        + metadata.as_str().len()
-                        + value.len()
-                        + key.as_str().len()
-                        > MAX_LEN_OF_ALL_PAIRS
-                    {
-                        return false;
-                    }
-                    // check number of pairs
-                    if self.inner.len() + 1 > MAX_KEY_VALUE_PAIRS {
-                        return false;
-                    }
-                    self.kv_content_len +=
-                        metadata.as_str().len() + value.len() + key.as_str().len()
-                }
-                Some((old_value, old_metadata)) => {
-                    let old_value = old_value.as_str();
-                    if self.kv_content_len - old_metadata.as_str().len() - old_value.len()
-                        + metadata.as_str().len()
-                        + value.len()
-                        > MAX_LEN_OF_ALL_PAIRS
-                    {
-                        return false;
-                    }
-                    self.kv_content_len =
-                        self.kv_content_len - old_metadata.as_str().len() - old_value.len()
-                            + metadata.as_str().len()
-                            + value.len()
-                }
-            }
-            true
-        } else {
-            false
-        }
     }
 }
 
@@ -237,10 +220,10 @@ fn key_value_metadata_bytes_size(key: &str, value: &str, metadata: &str) -> usiz
 
 /// An iterator over the entries of a [`Baggage`].
 #[derive(Debug)]
-pub struct Iter<'a>(hash_map::Iter<'a, Key, (Value, BaggageMetadata)>);
+pub struct Iter<'a>(hash_map::Iter<'a, Key, (StringValue, BaggageMetadata)>);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a Key, &'a (Value, BaggageMetadata));
+    type Item = (&'a Key, &'a (StringValue, BaggageMetadata));
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -248,7 +231,7 @@ impl<'a> Iterator for Iter<'a> {
 }
 
 impl<'a> IntoIterator for &'a Baggage {
-    type Item = (&'a Key, &'a (Value, BaggageMetadata));
+    type Item = (&'a Key, &'a (StringValue, BaggageMetadata));
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -256,8 +239,8 @@ impl<'a> IntoIterator for &'a Baggage {
     }
 }
 
-impl FromIterator<(Key, (Value, BaggageMetadata))> for Baggage {
-    fn from_iter<I: IntoIterator<Item = (Key, (Value, BaggageMetadata))>>(iter: I) -> Self {
+impl FromIterator<(Key, (StringValue, BaggageMetadata))> for Baggage {
+    fn from_iter<I: IntoIterator<Item = (Key, (StringValue, BaggageMetadata))>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for (key, (value, metadata)) in iter.into_iter() {
             baggage.insert_with_metadata(key, value, metadata);
@@ -304,7 +287,7 @@ fn encode(s: &str) -> String {
 impl fmt::Display for Baggage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, (k, v)) in self.into_iter().enumerate() {
-            write!(f, "{}={}", k, encode(v.0.as_str().as_ref()))?;
+            write!(f, "{}={}", k, encode(v.0.as_str()))?;
             if !v.1.as_str().is_empty() {
                 write!(f, ";{}", v.1)?;
             }
@@ -325,7 +308,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, StringValue};
     ///
     /// let cx = Context::map_current(|cx| {
     ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
@@ -333,7 +316,7 @@ pub trait BaggageExt {
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::from("my-value")),
+    ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
     fn with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
@@ -346,13 +329,13 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, StringValue};
     ///
     /// let cx = Context::current_with_baggage(vec![KeyValue::new("my-name", "my-value")]);
     ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
-    ///     Some(&Value::from("my-value")),
+    ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
     fn current_with_baggage<T: IntoIterator<Item = I>, I: Into<KeyValueMetadata>>(
@@ -364,7 +347,7 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::BaggageExt, Context, KeyValue, Value};
+    /// use opentelemetry::{baggage::BaggageExt, Context};
     ///
     /// let cx = Context::map_current(|cx| cx.with_cleared_baggage());
     ///
@@ -382,13 +365,11 @@ impl BaggageExt for Context {
         &self,
         baggage: T,
     ) -> Self {
-        let mut merged: Baggage = self
-            .baggage()
-            .iter()
-            .map(|(key, (value, metadata))| {
-                KeyValueMetadata::new(key.clone(), value.clone(), metadata.clone())
-            })
-            .collect();
+        let old = self.baggage();
+        let mut merged = Baggage {
+            inner: old.inner.clone(),
+            kv_content_len: old.kv_content_len,
+        };
         for kvm in baggage.into_iter().map(|kv| kv.into()) {
             merged.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
         }
@@ -448,7 +429,7 @@ pub struct KeyValueMetadata {
     /// Dimension or event key
     pub key: Key,
     /// Dimension or event value
-    pub value: Value,
+    pub value: StringValue,
     /// Metadata associate with this key value pair
     pub metadata: BaggageMetadata,
 }
@@ -458,7 +439,7 @@ impl KeyValueMetadata {
     pub fn new<K, V, S>(key: K, value: V, metadata: S) -> Self
     where
         K: Into<Key>,
-        V: Into<Value>,
+        V: Into<StringValue>,
         S: Into<BaggageMetadata>,
     {
         KeyValueMetadata {
@@ -473,7 +454,7 @@ impl From<KeyValue> for KeyValueMetadata {
     fn from(kv: KeyValue) -> Self {
         KeyValueMetadata {
             key: kv.key,
-            value: kv.value,
+            value: kv.value.into(),
             metadata: BaggageMetadata::default(),
         }
     }
@@ -526,29 +507,6 @@ mod tests {
         }
         let baggage = data.into_iter().collect::<Baggage>();
         assert_eq!(baggage.len(), MAX_KEY_VALUE_PAIRS)
-    }
-
-    #[test]
-    fn insert_too_long_pair() {
-        let pair = KeyValue::new(
-            "test",
-            String::from_utf8_lossy(vec![12u8; MAX_BYTES_FOR_ONE_PAIR].as_slice()).to_string(),
-        );
-        let mut baggage = Baggage::default();
-        baggage.insert(pair.key.clone(), pair.value.clone());
-        assert_eq!(
-            baggage.len(),
-            0,
-            "The input pair is too long to insert into baggage"
-        );
-
-        baggage.insert("test", "value");
-        baggage.insert(pair.key.clone(), pair.value);
-        assert_eq!(
-            baggage.get(pair.key),
-            Some(&Value::from("value")),
-            "If the input pair is too long, then don't replace entry with same key"
-        )
     }
 
     #[test]
@@ -607,5 +565,23 @@ mod tests {
         b.insert_with_metadata("bar", StringValue::from("2"), "yellow");
         assert!(b.to_string().contains("bar=2;yellow"));
         assert!(b.to_string().contains("foo=1;red;state=on"));
+    }
+
+    #[test]
+    fn replace_existing_key() {
+        let half_minus2: StringValue = (0..MAX_LEN_OF_ALL_PAIRS / 2 - 2)
+            .map(|_| 'x')
+            .collect::<String>()
+            .into();
+
+        let mut b = Baggage::default();
+        b.insert("a", half_minus2.clone()); // +1 for key
+        b.insert("b", half_minus2); // +1 for key
+        b.insert("c", StringValue::from(".")); // total of 2 bytes
+        assert!(b.get("a").is_some());
+        assert!(b.get("b").is_some());
+        assert!(b.get("c").is_some());
+        assert!(b.insert("c", StringValue::from("..")).is_none()); // exceeds MAX_LEN_OF_ALL_PAIRS
+        assert_eq!(b.insert("c", StringValue::from("!")).unwrap(), ".".into()); // replaces existing
     }
 }
