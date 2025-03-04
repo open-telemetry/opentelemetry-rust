@@ -12,7 +12,7 @@
   - Updated `Baggage` constants to reflect latest standard (`MAX_KEY_VALUE_PAIRS` - 180 -> 64, `MAX_BYTES_FOR_ONE_PAIR` - removed) and increased insert performance see #[2284](https://github.com/open-telemetry/opentelemetry-rust/pull/2284).
   - Align `Baggage.remove()` signature with `.get()` to take the key as a reference
   - `Baggage` can't be retrieved from the `Context` directly anymore and needs to be accessed via `context.baggage()`
-  - `with_baggage()` and `current_with_baggage()` only accept a `Baggage` instance and override any existing `Baggage` in the `Context`
+  - `with_baggage()` and `current_with_baggage()` override any existing `Baggage` in the `Context`
 
 ## 0.28.0
 

@@ -1,5 +1,5 @@
 use opentelemetry::{
-    baggage::{Baggage, BaggageExt, KeyValueMetadata},
+    baggage::{BaggageExt, KeyValueMetadata},
     otel_warn,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     Context,
@@ -151,7 +151,7 @@ impl TextMapPropagator for BaggagePropagator {
                     None
                 }
             });
-            cx.with_baggage(Baggage::from_iter(baggage))
+            cx.with_baggage(baggage)
         } else {
             cx.clone()
         }
@@ -278,7 +278,7 @@ mod tests {
 
         for (kvm, header_parts) in valid_inject_data() {
             let mut injector = HashMap::new();
-            let cx = Context::current_with_baggage(Baggage::from_iter(kvm));
+            let cx = Context::current_with_baggage(kvm);
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(BAGGAGE_HEADER).unwrap();
             assert_eq!(header_parts.join(",").len(), header_value.len(),);
@@ -310,7 +310,7 @@ mod tests {
 
         for (kvm, header_parts) in valid_inject_data_metadata() {
             let mut injector = HashMap::new();
-            let cx = Context::current_with_baggage(Baggage::from_iter(kvm));
+            let cx = Context::current_with_baggage(kvm);
             propagator.inject_context(&cx, &mut injector);
             let header_value = injector.get(BAGGAGE_HEADER).unwrap();
 

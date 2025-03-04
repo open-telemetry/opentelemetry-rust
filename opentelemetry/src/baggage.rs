@@ -273,6 +273,16 @@ impl FromIterator<KeyValueMetadata> for Baggage {
     }
 }
 
+impl<I> From<I> for Baggage
+where
+    I: IntoIterator,
+    I::Item: Into<KeyValueMetadata>,
+{
+    fn from(value: I) -> Self {
+        value.into_iter().map(Into::into).collect()
+    }
+}
+
 fn encode(s: &str) -> String {
     let mut encoded_string = String::with_capacity(s.len());
 
@@ -312,8 +322,9 @@ pub trait BaggageExt {
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::{Baggage, BaggageExt}, Context, StringValue};
+    /// use opentelemetry::{baggage::{Baggage, BaggageExt}, Context, KeyValue, StringValue};
     ///
+    /// // Explicit `Baggage` creation
     /// let mut baggage = Baggage::new();
     /// let _ = baggage.insert("my-name", "my-value");
     ///
@@ -321,12 +332,17 @@ pub trait BaggageExt {
     ///     cx.with_baggage(baggage)
     /// });
     ///
+    /// // Passing an iterator
+    /// let cx = Context::map_current(|cx| {
+    ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
+    /// });
+    ///
     /// assert_eq!(
     ///     cx.baggage().get("my-name"),
     ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
-    fn with_baggage(&self, baggage: Baggage) -> Self;
+    fn with_baggage<T: Into<Baggage>>(&self, baggage: T) -> Self;
 
     /// Returns a clone of the current context with the included name/value pairs.
     ///
@@ -345,7 +361,7 @@ pub trait BaggageExt {
     ///     Some(&StringValue::from("my-value")),
     /// )
     /// ```
-    fn current_with_baggage(baggage: Baggage) -> Self;
+    fn current_with_baggage<T: Into<Baggage>>(baggage: T) -> Self;
 
     /// Returns a clone of the given context with no baggage.
     ///
@@ -370,11 +386,11 @@ pub trait BaggageExt {
 struct BaggageContextValue(Baggage);
 
 impl BaggageExt for Context {
-    fn with_baggage(&self, baggage: Baggage) -> Self {
-        self.with_value(BaggageContextValue(baggage))
+    fn with_baggage<T: Into<Baggage>>(&self, baggage: T) -> Self {
+        self.with_value(BaggageContextValue(baggage.into()))
     }
 
-    fn current_with_baggage(baggage: Baggage) -> Self {
+    fn current_with_baggage<T: Into<Baggage>>(baggage: T) -> Self {
         Context::map_current(|cx| cx.with_baggage(baggage))
     }
 

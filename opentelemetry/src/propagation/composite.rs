@@ -23,7 +23,7 @@ use std::collections::HashSet;
 ///
 /// ```
 /// use opentelemetry::{
-///     baggage::{Baggage, BaggageExt},
+///     baggage::BaggageExt,
 ///     propagation::{TextMapPropagator, TextMapCompositePropagator},
 ///
 ///     trace::{TraceContextExt, Tracer, TracerProvider},
@@ -56,7 +56,7 @@ use std::collections::HashSet;
 /// // with the current context, call inject to add the headers
 /// composite_propagator.inject_context(
 ///     &Context::current_with_span(example_span)
-///         .with_baggage(Baggage::from_iter([KeyValue::new("test", "example")])),
+///         .with_baggage(vec![KeyValue::new("test", "example")]),
 ///     &mut injector,
 /// );
 ///
@@ -115,7 +115,7 @@ impl TextMapPropagator for TextMapCompositePropagator {
 
 #[cfg(all(test, feature = "trace"))]
 mod tests {
-    use crate::baggage::{Baggage, BaggageExt};
+    use crate::baggage::BaggageExt;
     use crate::propagation::TextMapCompositePropagator;
     use crate::testing::trace::TestSpan;
     use crate::{
@@ -162,9 +162,7 @@ mod tests {
                     false,
                     TraceState::default(),
                 )),
-                ("baggage", Some(_)) => {
-                    cx.with_baggage(Baggage::from_iter([KeyValue::new("baggagekey", "value")]))
-                }
+                ("baggage", Some(_)) => cx.with_baggage(vec![KeyValue::new("baggagekey", "value")]),
                 _ => cx.clone(),
             }
         }
@@ -184,7 +182,7 @@ mod tests {
             TraceState::default(),
         )));
         // setup for baggage propagator
-        cx.with_baggage(Baggage::from_iter([KeyValue::new("baggagekey", "value")]))
+        cx.with_baggage(vec![KeyValue::new("baggagekey", "value")])
     }
 
     fn test_data() -> Vec<(&'static str, &'static str)> {
