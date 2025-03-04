@@ -35,10 +35,11 @@ pub mod log_processor_with_async_runtime;
 mod tests {
     use super::*;
     use crate::Resource;
+    use opentelemetry::baggage::BaggageExt;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider, Severity};
-    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
+    use opentelemetry::{Context, InstrumentationScope};
     use std::borrow::Borrow;
     use std::collections::HashMap;
 
@@ -149,5 +150,64 @@ mod tests {
         assert!(instrumentation_scope
             .attributes()
             .eq(&[KeyValue::new("test_k", "test_v")]));
+    }
+
+    #[derive(Debug)]
+    struct EnrichWithBaggageProcessor;
+    impl LogProcessor for EnrichWithBaggageProcessor {
+        fn emit(&self, data: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {
+            Context::map_current(|cx| {
+                for (kk, vv) in cx.baggage().iter() {
+                    data.add_attribute(kk.clone(), vv.0.clone());
+                }
+            });
+        }
+
+        fn force_flush(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+    }
+    #[test]
+    fn log_and_baggage() {
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_log_processor(EnrichWithBaggageProcessor)
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
+            .build();
+
+        // Act
+        let logger = logger_provider.logger("test-logger");
+        let context_with_baggage =
+            Context::current_with_baggage(vec![KeyValue::new("key-from-bag", "value-from-bag")]);
+        let _cx_guard = context_with_baggage.attach();
+        let mut log_record = logger.create_log_record();
+        log_record.add_attribute("key", "value");
+        logger.emit(log_record);
+
+        // Assert
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        assert_eq!(log.instrumentation.name(), "test-logger");
+        assert_eq!(log.record.attributes_len(), 2);
+
+        // Assert that the log record contains the baggage attribute
+        // and the attribute added to the log record.
+        assert!(log
+            .record
+            .attributes_contains(&Key::new("key"), &AnyValue::String("value".into())));
+        assert!(log.record.attributes_contains(
+            &Key::new("key-from-bag"),
+            &AnyValue::String("value-from-bag".into())
+        ));
     }
 }

@@ -13,6 +13,10 @@
 //! Baggage can be sent between systems using a baggage propagator in
 //! accordance with the [W3C Baggage] specification.
 //!
+//! Note: Baggage is not automatically added to any telemetry. Users have to
+//! explicitly add baggage entries to telemetry items.
+//!
+//!
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, StringValue};
 use std::collections::hash_map::Entry;
@@ -75,10 +79,10 @@ impl Baggage {
     /// ```
     /// use opentelemetry::{baggage::Baggage, StringValue};
     ///
-    /// let mut cc = Baggage::new();
-    /// let _ = cc.insert("my-name", "my-value");
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&StringValue::from("my-value")))
+    /// assert_eq!(baggage.get("my-name"), Some(&StringValue::from("my-value")))
     /// ```
     pub fn get<K: AsRef<str>>(&self, key: K) -> Option<&StringValue> {
         self.inner.get(key.as_ref()).map(|(value, _metadata)| value)
@@ -90,11 +94,11 @@ impl Baggage {
     /// ```
     /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, StringValue};
     ///
-    /// let mut cc = Baggage::new();
-    /// let _ = cc.insert("my-name", "my-value");
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert("my-name", "my-value");
     ///
     /// // By default, the metadata is empty
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from(""))))
+    /// assert_eq!(baggage.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from(""))))
     /// ```
     pub fn get_with_metadata<K: AsRef<str>>(
         &self,
@@ -113,10 +117,10 @@ impl Baggage {
     /// ```
     /// use opentelemetry::{baggage::Baggage, StringValue};
     ///
-    /// let mut cc = Baggage::new();
-    /// let _ = cc.insert("my-name", "my-value");
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert("my-name", "my-value");
     ///
-    /// assert_eq!(cc.get("my-name"), Some(&StringValue::from("my-value")))
+    /// assert_eq!(baggage.get("my-name"), Some(&StringValue::from("my-value")))
     /// ```
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<StringValue>
     where
@@ -127,7 +131,7 @@ impl Baggage {
             .map(|pair| pair.0)
     }
 
-    /// Inserts a name/value pair into the baggage.
+    /// Inserts a name/value(+metadata) pair into the baggage.
     ///
     /// Same with `insert`, if the name was not present, [`None`] will be returned.
     /// If the name is present, the old value and metadata will be returned.
@@ -139,10 +143,10 @@ impl Baggage {
     /// ```
     /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, StringValue};
     ///
-    /// let mut cc = Baggage::new();
-    /// let _ = cc.insert_with_metadata("my-name", "my-value", "test");
+    /// let mut baggage = Baggage::new();
+    /// let _ = baggage.insert_with_metadata("my-name", "my-value", "test");
     ///
-    /// assert_eq!(cc.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from("test"))))
+    /// assert_eq!(baggage.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from("test"))))
     /// ```
     pub fn insert_with_metadata<K, V, S>(
         &mut self,
@@ -193,8 +197,8 @@ impl Baggage {
 
     /// Removes a name from the baggage, returning the value
     /// corresponding to the name if the pair was previously in the map.
-    pub fn remove<K: Into<Key>>(&mut self, key: K) -> Option<(StringValue, BaggageMetadata)> {
-        self.inner.remove(&key.into())
+    pub fn remove<K: AsRef<str>>(&mut self, key: K) -> Option<(StringValue, BaggageMetadata)> {
+        self.inner.remove(key.as_ref())
     }
 
     /// Returns the number of attributes for this baggage
@@ -583,5 +587,26 @@ mod tests {
         assert!(b.get("c").is_some());
         assert!(b.insert("c", StringValue::from("..")).is_none()); // exceeds MAX_LEN_OF_ALL_PAIRS
         assert_eq!(b.insert("c", StringValue::from("!")).unwrap(), ".".into()); // replaces existing
+    }
+
+    #[test]
+    fn test_crud_operations() {
+        let mut baggage = Baggage::default();
+        assert!(baggage.is_empty());
+
+        // create
+        baggage.insert("foo", "1");
+        assert_eq!(baggage.len(), 1);
+
+        // get
+        assert_eq!(baggage.get("foo"), Some(&StringValue::from("1")));
+
+        // update
+        baggage.insert("foo", "2");
+        assert_eq!(baggage.get("foo"), Some(&StringValue::from("2")));
+
+        // delete
+        baggage.remove("foo");
+        assert!(baggage.is_empty());
     }
 }
