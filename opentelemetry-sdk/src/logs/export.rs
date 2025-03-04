@@ -141,7 +141,7 @@ pub trait LogExporter: Send + Sync + Debug {
     }
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logs are enabled.
-    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: Option<&str>) -> bool {
         // By default, all logs are enabled
         true
     }

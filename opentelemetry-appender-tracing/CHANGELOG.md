@@ -38,6 +38,10 @@ Receivers (processors, exporters) are expected to use `LogRecord.target()` as
 scope name. This is already done in OTLP Exporters, so this change should be
 transparent to most users.
 
+- Passes event name  to the `event_enabled` method on the `Logger`. This allows
+  implementations (SDK, processor, exporters) to leverage this additional
+  information to determine if an event is enabled.
+
 ## 0.28.1
 
 Released 2025-Feb-12
