@@ -44,6 +44,10 @@ name = "logs"
 harness = false
 required-features = ["spec_unstable_logs_enabled"]
 
+[[bench]]
+name = "log-attributes"
+harness = false
+
 [lib]
 bench = false
 

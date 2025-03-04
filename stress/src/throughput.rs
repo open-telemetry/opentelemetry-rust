@@ -155,7 +155,7 @@ impl<'a> UnsafeSlice<'a> {
     #[inline(always)]
     unsafe fn increment(&self, i: usize) {
         let value = self.slice[i].get();
-        (*value).count += 1;
+        unsafe { (*value).count += 1 };
     }
 
     #[inline(always)]
