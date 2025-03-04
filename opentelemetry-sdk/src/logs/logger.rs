@@ -53,10 +53,10 @@ impl opentelemetry::logs::Logger for SdkLogger {
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
-    fn event_enabled(&self, level: Severity, target: &str) -> bool {
+    fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         self.provider
             .log_processors()
             .iter()
-            .any(|processor| processor.event_enabled(level, target, self.scope.name().as_ref()))
+            .any(|processor| processor.event_enabled(level, target, name))
     }
 }

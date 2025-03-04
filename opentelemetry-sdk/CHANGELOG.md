@@ -38,10 +38,13 @@
 
 - **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
   Before:
+
   ```rust
     async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
+
   After:
+  
   ```rust
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
@@ -52,6 +55,12 @@
   when its `shutdown` is invoked.
 
 - Reduced some info level logs to debug
+- **Breaking** for custom LogProcessor/Exporter authors:
+  Added an additional `name: Option<&str>` parameter to the `event_enabled`
+  method on the `LogProcessor` and `LogExporter` traits. This allows
+  implementations to leverage this additional information to determine if an
+  event is enabled. `SdkLogger` no longer passes its `scope` name but instead
+  passes the incoming `name` when invoking `event_enabled` on processors.
 
 ## 0.28.0
 

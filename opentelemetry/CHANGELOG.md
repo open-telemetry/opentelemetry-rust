@@ -11,6 +11,10 @@
 - Updated `Baggage` constants to reflect latest standard (`MAX_KEY_VALUE_PAIRS` - 180 -> 64, `MAX_BYTES_FOR_ONE_PAIR` - removed) and increased insert performance see #[2284](https://github.com/open-telemetry/opentelemetry-rust/pull/2284).
 - *Breaking* Align `Baggage.remove()` signature with `.get()` to take the key as a reference
 
+- Added additional `name: Option<&str>` parameter to the `event_enabled` method
+  on the `Logger` trait. This allows implementations (SDK, processor, exporters)
+  to leverage this additional information to determine if an event is enabled.
+
 ## 0.28.0
 
 Released 2025-Feb-10
