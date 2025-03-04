@@ -132,7 +132,7 @@ mod tests {
             if let Some(baggage_value) = baggage.get("bag-key") {
                 span.set_attribute(KeyValue::new("bag-key", baggage_value.to_string()));
             } else {
-                assert!(false, "Baggage should be present in the context");
+                unreachable!("Baggage should be present in the context");
             }
         }
 
