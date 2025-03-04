@@ -430,6 +430,11 @@ mod tests {
         struct ValueB(u64);
         let _outer_guard = Context::new().with_value(ValueA("a")).attach();
 
+        /// s = "foo"
+        /// s.toUpper() = "FOO"
+        /// baggage == {k=v}
+        /// baggage.AddA(); {k=v, k2=v2}
+
         // Only value `a` is set
         let current = Context::current();
         assert_eq!(current.get(), Some(&ValueA("a")));

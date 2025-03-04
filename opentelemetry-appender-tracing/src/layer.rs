@@ -433,11 +433,13 @@ mod tests {
         );
         // Validate event name - tracing defaults to event followed source & line number
         // Assert is doing "contains" check to avoid tests failing when line number changes.
+        // and also account for the fact that the module path is different on different platforms.
+        // Ex.: The path will be different on a Windows and Linux machine.
         assert!(log
             .record
             .event_name()
             .expect("event_name is expected")
-            .contains("event opentelemetry-appender-tracing/src/layer.rs"),);
+            .contains("event opentelemetry-appender-tracing"),);
     }
 
     #[test]
