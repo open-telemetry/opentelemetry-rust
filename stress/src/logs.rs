@@ -6,7 +6,7 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~40 M /sec
+    ~44 M /sec
 
     Hardware: Apple M4 Pro
     Total Number of Cores:	14 (10 performance and 4 efficiency)

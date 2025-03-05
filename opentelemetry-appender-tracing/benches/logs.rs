@@ -10,7 +10,7 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 196 ns      |
+    | ot_layer_enabled            | 167 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -94,7 +94,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
     c.bench_function("log_no_subscriber", |b| {
         b.iter(|| {
             error!(
-                name = "CheckoutFailed",
+                name : "CheckoutFailed",
                 book_id = "12345",
                 book_title = "Rust Programming Adventures",
                 message = "Unable to process checkout."
@@ -120,7 +120,7 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
                     message = "Unable to process checkout."
@@ -137,7 +137,7 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
                     "Unable to process checkout."
