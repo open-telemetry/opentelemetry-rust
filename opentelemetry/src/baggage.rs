@@ -334,7 +334,7 @@ pub trait BaggageExt {
     ///
     /// // Passing an iterator
     /// let cx = Context::map_current(|cx| {
-    ///     cx.with_baggage(vec![KeyValue::new("my-name", "my-value")])
+    ///     cx.with_baggage([KeyValue::new("my-name", "my-value")])
     /// });
     ///
     /// assert_eq!(
