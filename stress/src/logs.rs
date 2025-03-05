@@ -70,7 +70,7 @@ impl LogProcessor for MockLogProcessor {
 
 fn main() {
     // change this to false to test the throughput when enabled is false.
-    let enabled = false;
+    let enabled = true;
 
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
