@@ -11,6 +11,16 @@
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
     | ot_layer_enabled            | 167 ns      |
+
+    Hardware: Apple M4 Pro
+    Total Number of Cores:	14 (10 performance and 4 efficiency)
+    | Test                        | Average time|
+    |-----------------------------|-------------|
+    | log_no_subscriber           | 285 ps      |
+    | noop_layer_disabled         | 8 ns       |
+    | noop_layer_enabled          | 14 ns       |
+    | ot_layer_disabled           | 12 ns       |
+    | ot_layer_enabled            | 186 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -140,7 +150,7 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
                     name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
-                    "Unable to process checkout."
+                    message = "Unable to process checkout."
                 );
             });
         });
