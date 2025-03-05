@@ -10,7 +10,7 @@
 
     Hardware: Apple M4 Pro
     Total Number of Cores:	14 (10 performance and 4 efficiency)
-    ~40 M/sec
+    ~50 M/sec
     ~1.1 B/sec (when disabled)
 */
 
@@ -88,7 +88,7 @@ fn main() {
 
 fn test_log() {
     error!(
-        name = "CheckoutFailed",
+        name : "CheckoutFailed",
         book_id = "12345",
         book_title = "Rust Programming Adventures",
         message = "Unable to process checkout."
