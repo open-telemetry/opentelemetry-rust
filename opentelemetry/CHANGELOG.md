@@ -13,7 +13,7 @@
   - Align `Baggage.remove()` signature with `.get()` to take the key as a reference
   - `Baggage` can't be retrieved from the `Context` directly anymore and needs to be accessed via `context.baggage()`
   - `with_baggage()` and `current_with_baggage()` override any existing `Baggage` in the `Context`
-
+- Changed `Context` to use a stack to properly handle out of order dropping of `ContextGuard`. This imposes a limit of `65535` nested contexts on a single thread. See #[2378](https://github.com/open-telemetry/opentelemetry-rust/pull/2284) and #[1887](https://github.com/open-telemetry/opentelemetry-rust/issues/1887).
 - Added additional `name: Option<&str>` parameter to the `event_enabled` method
   on the `Logger` trait. This allows implementations (SDK, processor, exporters)
   to leverage this additional information to determine if an event is enabled.
