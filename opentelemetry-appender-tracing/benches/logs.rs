@@ -52,7 +52,7 @@ impl LogProcessor for NoopProcessor {
         &self,
         _level: opentelemetry::logs::Severity,
         _target: &str,
-        _name: &str,
+        _name: Option<&str>,
     ) -> bool {
         self.enabled
     }

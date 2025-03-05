@@ -155,10 +155,12 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        let severity = severity_of_level(event.metadata().level());
-        let target = event.metadata().target();
+        let metadata = event.metadata();
+        let severity = severity_of_level(metadata.level());
+        let target = metadata.target();
+        let name = metadata.name();
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        if !self.logger.event_enabled(severity, target) {
+        if !self.logger.event_enabled(severity, target, Some(name)) {
             // TODO: See if we need internal logs or track the count.
             return;
         }
@@ -169,16 +171,13 @@ where
         #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
 
-        #[cfg(not(feature = "experimental_metadata_attributes"))]
-        let meta = event.metadata();
-
         let mut log_record = self.logger.create_log_record();
 
         // TODO: Fix heap allocation
         log_record.set_target(target.to_string());
-        log_record.set_event_name(meta.name());
+        log_record.set_event_name(name);
         log_record.set_severity_number(severity);
-        log_record.set_severity_text(meta.level().as_str());
+        log_record.set_severity_text(metadata.level().as_str());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);
@@ -226,9 +225,10 @@ mod tests {
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::error::OTelSdkResult;
-    use opentelemetry_sdk::logs::InMemoryLogExporter;
+    use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
@@ -244,10 +244,7 @@ mod tests {
     }
 
     #[allow(impl_trait_overcaptures)] // can only be fixed with Rust 1.82+
-    fn create_tracing_subscriber(
-        _exporter: InMemoryLogExporter,
-        logger_provider: &SdkLoggerProvider,
-    ) -> impl tracing::Subscriber {
+    fn create_tracing_subscriber(logger_provider: &SdkLoggerProvider) -> impl tracing::Subscriber {
         let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
         let layer =
             layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
@@ -327,7 +324,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -450,7 +447,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -627,7 +624,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -703,7 +700,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -784,5 +781,71 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+    }
+
+    #[derive(Debug)]
+    struct LogProcessorWithIsEnabled {
+        severity_level: Severity,
+        name: String,
+        target: String,
+    }
+
+    impl LogProcessorWithIsEnabled {
+        fn new(severity_level: Severity, name: String, target: String) -> Self {
+            LogProcessorWithIsEnabled {
+                severity_level,
+                name,
+                target,
+            }
+        }
+    }
+
+    impl LogProcessor for LogProcessorWithIsEnabled {
+        fn emit(&self, _record: &mut SdkLogRecord, _scope: &InstrumentationScope) {
+            // no-op
+        }
+
+        #[cfg(feature = "spec_unstable_logs_enabled")]
+        fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+            // assert that passed in arguments are same as the ones set in the test.
+            assert_eq!(self.severity_level, level);
+            assert_eq!(self.target, target);
+            assert_eq!(
+                self.name,
+                name.expect("name is expected from tracing appender")
+            );
+            true
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[test]
+    fn is_enabled() {
+        // Arrange
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_log_processor(LogProcessorWithIsEnabled::new(
+                Severity::Error,
+                "my-event-name".to_string(),
+                "my-system".to_string(),
+            ))
+            .build();
+
+        let subscriber = create_tracing_subscriber(&logger_provider);
+
+        // avoiding setting tracing subscriber as global as that does not
+        // play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Name, Target and Severity are expected to be passed to the IsEnabled check
+        // The validation is done in the LogProcessorWithIsEnabled struct.
+        error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
     }
 }
