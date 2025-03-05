@@ -147,7 +147,7 @@ fn exporter_without_future(c: &mut Criterion) {
     let logger = provider.logger("benchmark");
 
     c.bench_function("LogExporterWithoutFuture", |b| {
-        b.iter(|| { 
+        b.iter(|| {
             let mut log_record = logger.create_log_record();
             let now = now();
             log_record.set_observed_timestamp(now);
