@@ -76,7 +76,7 @@ fn main() {
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_log_processor(MockLogProcessor {
             exporter: MockLogExporter {},
-            enabled: enabled,
+            enabled,
         })
         .build();
 
