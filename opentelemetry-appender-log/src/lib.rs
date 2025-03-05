@@ -136,9 +136,11 @@ where
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        return self
-            .logger
-            .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
+        return self.logger.event_enabled(
+            severity_of_level(_metadata.level()),
+            _metadata.target(),
+            None,
+        );
         #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         true
     }

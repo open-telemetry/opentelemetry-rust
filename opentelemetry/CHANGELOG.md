@@ -14,6 +14,10 @@
   - `Baggage` can't be retrieved from the `Context` directly anymore and needs to be accessed via `context.baggage()`
   - `with_baggage()` and `current_with_baggage()` override any existing `Baggage` in the `Context`
 
+- Added additional `name: Option<&str>` parameter to the `event_enabled` method
+  on the `Logger` trait. This allows implementations (SDK, processor, exporters)
+  to leverage this additional information to determine if an event is enabled.
+
 ## 0.28.0
 
 Released 2025-Feb-10
