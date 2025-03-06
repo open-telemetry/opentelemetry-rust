@@ -45,9 +45,9 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCO
 /// Default protocol if no features are enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
 
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
-const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
+pub(crate) const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
+pub(crate) const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
+pub(crate) const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";

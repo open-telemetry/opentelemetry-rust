@@ -4,6 +4,7 @@
 
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Implement `FromStr` and `Display` for `opentelemetry_otlp::Protocol`. [#2758](https://github.com/open-telemetry/opentelemetry-rust/pull/2758)
 
 ## 0.28.0
 

@@ -221,6 +221,9 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+use std::fmt::Display;
+use std::str::FromStr;
+
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 #[cfg(feature = "trace")]
@@ -257,6 +260,9 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
+use exporter::OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
+use exporter::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
+use exporter::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
 use opentelemetry_sdk::ExportError;
 
 /// Type to indicate the builder does not have a client set.
@@ -352,6 +358,10 @@ pub enum Error {
     #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
     #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
     FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
+
+    /// Unsupported protocol.
+    #[error("unsupported protocol '{0}'")]
+    UnsupportedProtocol(String),
 }
 
 #[cfg(feature = "grpc-tonic")]
@@ -396,7 +406,53 @@ pub enum Protocol {
     HttpJson,
 }
 
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Protocol::Grpc => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC),
+            Protocol::HttpBinary => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF),
+            Protocol::HttpJson => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON),
+        }
+    }
+}
+
+impl FromStr for Protocol {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Ok(Protocol::Grpc),
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Ok(Protocol::HttpBinary),
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Ok(Protocol::HttpJson),
+            _ => Err(Error::UnsupportedProtocol(s.to_string())),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_protocol() {
+        assert_eq!("grpc".parse::<Protocol>().unwrap(), Protocol::Grpc);
+        assert_eq!(
+            "http/protobuf".parse::<Protocol>().unwrap(),
+            Protocol::HttpBinary
+        );
+        assert_eq!("http/json".parse::<Protocol>().unwrap(), Protocol::HttpJson);
+        assert!("invalid".parse::<Protocol>().is_err());
+    }
+
+    #[test]
+    fn test_display_protocol() {
+        assert_eq!(Protocol::Grpc.to_string(), "grpc");
+        assert_eq!(Protocol::HttpBinary.to_string(), "http/protobuf");
+        assert_eq!(Protocol::HttpJson.to_string(), "http/json");
+    }
+}
