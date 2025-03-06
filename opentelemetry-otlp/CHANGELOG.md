@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** `opentelemetry_otlp::Protocol` implementations of `Serialize` and `Deserialize` have been changed to [match standard otel values for protocol](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_protocol). [#2765](https://github.com/open-telemetry/opentelemetry-rust/pull/2765)
+
 ## 0.30.0
 
 Released 2025-May-23
