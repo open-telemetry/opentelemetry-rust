@@ -1,16 +1,13 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationScope, Key,
+    Key,
 };
-use std::borrow::Cow;
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_core::Metadata;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{registry::LookupSpan, Layer};
-
-const INSTRUMENTATION_LIBRARY_NAME: &str = "opentelemetry-appender-tracing";
 
 /// Visitor to record the fields from the event record.
 struct EventVisitor<'a, LR: LogRecord> {
@@ -135,12 +132,13 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        let scope = InstrumentationScope::builder(INSTRUMENTATION_LIBRARY_NAME)
-            .with_version(Cow::Borrowed(env!("CARGO_PKG_VERSION")))
-            .build();
-
         OpenTelemetryTracingBridge {
-            logger: provider.logger_with_scope(scope),
+            // Using empty scope name.
+            // The name/version of this library itself can be added
+            // as a Scope attribute, once a semantic convention is
+            // defined for the same.
+            // See https://github.com/open-telemetry/semantic-conventions/issues/1550
+            logger: provider.logger(""),
             _phantom: Default::default(),
         }
     }
@@ -157,10 +155,12 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        let severity = severity_of_level(event.metadata().level());
-        let target = event.metadata().target();
+        let metadata = event.metadata();
+        let severity = severity_of_level(metadata.level());
+        let target = metadata.target();
+        let name = metadata.name();
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        if !self.logger.event_enabled(severity, target) {
+        if !self.logger.event_enabled(severity, target, Some(name)) {
             // TODO: See if we need internal logs or track the count.
             return;
         }
@@ -171,16 +171,13 @@ where
         #[cfg(feature = "experimental_metadata_attributes")]
         let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
 
-        #[cfg(not(feature = "experimental_metadata_attributes"))]
-        let meta = event.metadata();
-
         let mut log_record = self.logger.create_log_record();
 
         // TODO: Fix heap allocation
         log_record.set_target(target.to_string());
-        log_record.set_event_name(meta.name());
+        log_record.set_event_name(name);
         log_record.set_severity_number(severity);
-        log_record.set_severity_text(meta.level().as_str());
+        log_record.set_severity_text(metadata.level().as_str());
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);
@@ -228,9 +225,10 @@ mod tests {
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::error::OTelSdkResult;
-    use opentelemetry_sdk::logs::InMemoryLogExporter;
+    use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
@@ -245,10 +243,8 @@ mod tests {
             .any(|(k, v)| k == key && v == value)
     }
 
-    fn create_tracing_subscriber(
-        _exporter: InMemoryLogExporter,
-        logger_provider: &SdkLoggerProvider,
-    ) -> impl tracing::Subscriber {
+    #[allow(impl_trait_overcaptures)] // can only be fixed with Rust 1.82+
+    fn create_tracing_subscriber(logger_provider: &SdkLoggerProvider) -> impl tracing::Subscriber {
         let level_filter = tracing_subscriber::filter::LevelFilter::WARN; // Capture WARN and ERROR levels
         let layer =
             layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
@@ -328,7 +324,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -348,8 +344,18 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "my-system"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "my-event-name"
+        );
 
         // Validate trace context is none.
         assert!(log.record.trace_context().is_none());
@@ -398,6 +404,39 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+
+        // Test when target, eventname are not explicitly provided
+        exporter.reset();
+        error!(
+            event_id = 20,
+            user_name = "otel",
+            user_email = "otel@opentelemetry.io"
+        );
+        assert!(logger_provider.force_flush().is_ok());
+
+        // Assert TODO: move to helper methods
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+
+        // Validate target - tracing defaults to module path
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "opentelemetry_appender_tracing::layer::tests"
+        );
+        // Validate event name - tracing defaults to event followed source & line number
+        // Assert is doing "contains" check to avoid tests failing when line number changes.
+        // and also account for the fact that the module path is different on different platforms.
+        // Ex.: The path will be different on a Windows and Linux machine.
+        assert!(log
+            .record
+            .event_name()
+            .expect("event_name is expected")
+            .contains("event opentelemetry-appender-tracing"),);
     }
 
     #[test]
@@ -408,7 +447,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -442,8 +481,18 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "my-system"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "my-event-name"
+        );
 
         // validate trace context.
         assert!(log.record.trace_context().is_some());
@@ -575,7 +624,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -583,7 +632,7 @@ mod tests {
         drop(tracing_log::LogTracer::init());
 
         // Act
-        log::error!(target: "my-system", "log from log crate");
+        log::error!("log from log crate");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -596,8 +645,19 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // Validate common fields
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
+        // Target and EventName from Log crate are "log" and "log event" respectively.
+        // Validate target
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "log"
+        );
+        // Validate event name
+        assert_eq!(
+            log.record.event_name().expect("event_name is expected"),
+            "log event"
+        );
 
         // Validate trace context is none.
         assert!(log.record.trace_context().is_none());
@@ -640,7 +700,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let subscriber = create_tracing_subscriber(exporter.clone(), &logger_provider);
+        let subscriber = create_tracing_subscriber(&logger_provider);
 
         // avoiding setting tracing subscriber as global as that does not
         // play well with unit tests.
@@ -675,7 +735,7 @@ mod tests {
             .expect("Atleast one log is expected to be present.");
 
         // validate common fields.
-        assert_eq!(log.instrumentation.name(), "opentelemetry-appender-tracing");
+        assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
 
         // validate trace context.
@@ -721,5 +781,71 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+    }
+
+    #[derive(Debug)]
+    struct LogProcessorWithIsEnabled {
+        severity_level: Severity,
+        name: String,
+        target: String,
+    }
+
+    impl LogProcessorWithIsEnabled {
+        fn new(severity_level: Severity, name: String, target: String) -> Self {
+            LogProcessorWithIsEnabled {
+                severity_level,
+                name,
+                target,
+            }
+        }
+    }
+
+    impl LogProcessor for LogProcessorWithIsEnabled {
+        fn emit(&self, _record: &mut SdkLogRecord, _scope: &InstrumentationScope) {
+            // no-op
+        }
+
+        #[cfg(feature = "spec_unstable_logs_enabled")]
+        fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+            // assert that passed in arguments are same as the ones set in the test.
+            assert_eq!(self.severity_level, level);
+            assert_eq!(self.target, target);
+            assert_eq!(
+                self.name,
+                name.expect("name is expected from tracing appender")
+            );
+            true
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[test]
+    fn is_enabled() {
+        // Arrange
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_log_processor(LogProcessorWithIsEnabled::new(
+                Severity::Error,
+                "my-event-name".to_string(),
+                "my-system".to_string(),
+            ))
+            .build();
+
+        let subscriber = create_tracing_subscriber(&logger_provider);
+
+        // avoiding setting tracing subscriber as global as that does not
+        // play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Name, Target and Severity are expected to be passed to the IsEnabled check
+        // The validation is done in the LogProcessorWithIsEnabled struct.
+        error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
     }
 }

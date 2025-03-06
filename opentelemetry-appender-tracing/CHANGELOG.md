@@ -31,6 +31,17 @@ simple string, but require format arguments as in the below example.
 error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message with format arguments {} and {}", "foo", "bar");
 ```
 
+Fixes [2658](https://github.com/open-telemetry/opentelemetry-rust/issues/2658)
+InstrumentationScope(Logger) used by the appender now uses an empty ("") named
+Logger. Previously, a Logger with name and version of the crate was used.
+Receivers (processors, exporters) are expected to use `LogRecord.target()` as
+scope name. This is already done in OTLP Exporters, so this change should be
+transparent to most users.
+
+- Passes event name  to the `event_enabled` method on the `Logger`. This allows
+  implementations (SDK, processor, exporters) to leverage this additional
+  information to determine if an event is enabled.
+
 ## 0.28.1
 
 Released 2025-Feb-12
