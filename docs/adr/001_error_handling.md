@@ -4,7 +4,7 @@
 
 ## Summary
 
-This ADR describes the general pattern we will follow when modelling errors in public API interfaces - that is, APIs that are exposed to users of the project's published crates. . It summarises the discussion and final option from [#2571](https://github.com/open-telemetry/opentelemetry-rust/issues/2571); for more context check out that issue. 
+This ADR describes the general pattern we will follow when modelling errors in public API interfaces - that is, APIs that are exposed to users of the project's published crates. It summarises the discussion and final option from [#2571](https://github.com/open-telemetry/opentelemetry-rust/issues/2571); for more context check out that issue. 
 
 We will focus on the exporter traits in this example, but the outcome should be applied to _all_ public traits and their fallible operations. 
 
@@ -83,7 +83,7 @@ we would let that error traits diverge at that point.
 
 ### 4. Box custom errors where a savvy caller may be able to handle them, stringify them if not
 
-Note above that we do not box anything into `InternalFailure`. Our rule here is that if the caller cannot reasonably be expected to handle a particular error variant, we will use a simplified interface that returns only a descriptive string. In the concrete example we are using with the exporters, we have a [strong signal in the opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/sdk.md#export) that indicates that the error types _are not actionable_ by the caller. 
+Note above that we do not box any `Error` into `InternalFailure`. Our rule here is that if the caller cannot reasonably be expected to handle a particular error variant, we will use a simplified interface that returns only a descriptive string. In the concrete example we are using with the exporters, we have a [strong signal in the opentelemetry-specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/sdk.md#export) that indicates that the error types _are not actionable_ by the caller. 
 
 If the caller may potentially recover from an error, we will follow the generally-accepted best practice (e.g., see [canonical's guide](https://canonical.github.io/rust-best-practices/error-and-panic-discipline.html) and instead preserve the nested error:
 
