@@ -21,7 +21,28 @@ Some of the opentelemetry SDK interfaces are dictated by the specification in wa
 ### 2. Consolidate error types within a trait where we can, let them diverge when we can't**
 
 We aim to consolidate error types where possible _without indicating a function may return more errors than it can actually return_. 
-Here's an example:
+
+**Don't do this** - each function's signature indicates that it returns errors it will _never_ return, forcing the caller to write handlers for dead paths:
+```rust
+enum MegaError {
+  TooBig,
+  TooSmall,
+  TooLong,
+  TooShort
+}
+
+trait MyTrait {
+
+  // Will only ever return TooBig,TooSmall errors
+  fn action_one() -> Result<(), MegaError>;
+
+  // These will only ever return TooLong,TooShort errors
+  fn action_two() -> Result<(), MegaError>;
+  fn action_three() -> Result<(), MegaError>;
+}
+```
+
+**Instead, do this** - each function's signature indicates only the errors it can return, providing an accurate contract to the caller:
 
 ```rust
 enum ErrorOne {
@@ -45,10 +66,39 @@ trait MyTrait {
   fn action_three() -> Result<(), ErrorTwo>;
 }
 ```
+
 ## 3. Consolidate error types between signals where we can, let them diverge where we can't
 
 Consider the `Exporter`s mentioned earlier. Each of them has the same failure indicators - as dicated by the OpenTelemetry spec  - and we will
 share the error types accordingly: 
+
+**Don't do this** - each signal has its own error type, despite having exactly the same failure cases: 
+
+```rust
+#[derive(Error, Debug)]
+pub enum OtelTraceError {
+    #[error("Shutdown already invoked")]
+    AlreadyShutdown,
+    
+    #[error("Operation failed: {0}")]
+    InternalFailure(String),
+
+    /** ... additional errors ... **/ 
+}
+
+#[derive(Error, Debug)]
+pub enum OtelLogError {
+    #[error("Shutdown already invoked")]
+    AlreadyShutdown,
+    
+    #[error("Operation failed: {0}")]
+    InternalFailure(String),
+
+    /** ... additional errors ... **/ 
+}
+```
+
+**Instead, do this** - error types are consolidated between signals where this can be done appropriately:
 
 ```rust
 
@@ -87,6 +137,20 @@ Note above that we do not box any `Error` into `InternalFailure`. Our rule here 
 
 If the caller may potentially recover from an error, we will follow the generally-accepted best practice (e.g., see [canonical's guide](https://canonical.github.io/rust-best-practices/error-and-panic-discipline.html) and instead preserve the nested error:
 
+**Don't do this if the OtherError is potentially recoverable by a savvy caller**:
+```rust
+
+#[derive(Debug, Error)]
+pub enum MyError {
+    #[error("Error one occurred")]
+    ErrorOne, 
+
+    #[error("Operation failed: {0}")]
+    OtherError(String),
+```
+
+**Instead, do this**, allowing the caller to match on the nested error:
+
 ```rust
 #[derive(Debug, Error)]
 pub enum MyError {
@@ -100,4 +164,10 @@ pub enum MyError {
     },
 }
 ```
+
+Note that at the time of writing, there is no instance we have identified within the project that has required this. 
+
+### 5. Use thiserror by default
+We will use [thiserror](https://docs.rs/thiserror/latest/thiserror/) by default to implement Rust's [error trait](https://doc.rust-lang.org/core/error/trait.Error.html).
+This keeps our code clean, and as it does not appear in our interface, we can choose to replace any particular usage with a hand-rolled implementation should we need to.
 
