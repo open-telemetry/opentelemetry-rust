@@ -34,6 +34,7 @@ use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 
 use std::fmt::Debug;
+use std::time::Duration;
 
 /// The interface for plugging into a [`SdkLogger`].
 ///
@@ -56,7 +57,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> OTelSdkResult;
+    fn shutdown(&self, timeout: Duration) -> OTelSdkResult;
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
@@ -81,6 +82,7 @@ pub(crate) mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     #[derive(Debug, Clone)]
     pub(crate) struct MockLogExporter {
@@ -92,7 +94,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&mut self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -138,7 +140,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -168,7 +170,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
     }

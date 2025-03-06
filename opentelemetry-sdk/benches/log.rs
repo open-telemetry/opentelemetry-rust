@@ -17,6 +17,7 @@ RAM: 64.0 GB
 
 use opentelemetry::time::now;
 use std::collections::HashMap;
+use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -38,7 +39,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }

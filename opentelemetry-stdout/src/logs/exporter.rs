@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
+use std::time::Duration;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
@@ -57,7 +58,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&mut self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

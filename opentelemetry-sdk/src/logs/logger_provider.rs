@@ -3,6 +3,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
+use std::time::Duration;
 use std::{
     borrow::Cow,
     sync::{
@@ -100,8 +101,13 @@ impl SdkLoggerProvider {
         }
     }
 
-    /// Shuts down this `LoggerProvider`
+    /// Shuts down this `LoggerProvider` with default timeout.
     pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5)) // TODO: make this configurable
+    }
+
+    /// Shuts down this `LoggerProvider` with a timeout.
+    pub fn shutdown_with_timeout(&self, timeout: Duration)  -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );
@@ -112,7 +118,7 @@ impl SdkLoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let result = self.inner.shutdown();
+            let result = self.inner.shutdown(timeout);
             if result.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
@@ -139,10 +145,10 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+    pub(crate) fn shutdown(&self, timeout: Duration) -> Vec<OTelSdkResult> {
         let mut results = vec![];
         for processor in &self.processors {
-            let result = processor.shutdown();
+            let result = processor.shutdown(timeout);
             if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
@@ -164,7 +170,7 @@ impl Drop for LoggerProviderInner {
                 name: "LoggerProvider.Drop",
                 message = "Last reference of LoggerProvider dropped, initiating shutdown."
             );
-            let _ = self.shutdown(); // errors are handled within shutdown
+            let _ = self.shutdown(Duration::from_secs(5)); // errors are handled within shutdown
         } else {
             otel_debug!(
                 name: "LoggerProvider.Drop.AlreadyShutdown",
@@ -331,7 +337,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -776,7 +782,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -807,7 +813,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

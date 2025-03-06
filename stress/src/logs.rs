@@ -9,6 +9,8 @@
     ~40 M /sec
 */
 
+use std::time::Duration;
+
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
@@ -48,7 +50,7 @@ impl LogProcessor for MockLogProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }

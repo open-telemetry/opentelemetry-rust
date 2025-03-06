@@ -14,7 +14,7 @@
 use opentelemetry::time::now;
 use std::{
     sync::{Arc, Mutex},
-    thread::sleep,
+    thread::sleep, time::Duration,
 };
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -54,7 +54,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -71,7 +71,7 @@ impl LogProcessor for CloningProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -117,7 +117,7 @@ impl LogProcessor for SendToChannelProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
