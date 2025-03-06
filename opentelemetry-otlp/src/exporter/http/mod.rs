@@ -322,7 +322,7 @@ impl OtlpHttpClient {
         logs: LogBatch<'_>,
     ) -> opentelemetry_sdk::logs::LogResult<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-        let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
+        let resource_logs = group_logs_by_resource_and_scope(&logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
 
         match self.protocol {
