@@ -248,10 +248,11 @@ fn create_benchmark(c: &mut Criterion, num_attributes: usize) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    create_benchmark(c, 2);
     // Run benchmarks for 0 to 12 attributes
-    for num_attributes in 0..=12 {
-        create_benchmark(c, num_attributes);
-    }
+    // for num_attributes in 0..=12 {
+    //     create_benchmark(c, 2);
+    // }
 }
 
 #[cfg(not(target_os = "windows"))]
