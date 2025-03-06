@@ -64,8 +64,9 @@ mod tests {
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
-    use opentelemetry::trace::{
-        SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
+    use opentelemetry::{
+        baggage::BaggageExt,
+        trace::{SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -121,6 +122,96 @@ mod tests {
         assert_eq!(exported_spans.len(), 1);
         let span = &exported_spans[0];
         assert_eq!(span.attributes.len(), 2);
+    }
+
+    #[derive(Debug)]
+    struct BaggageInspectingSpanProcessor;
+    impl SpanProcessor for BaggageInspectingSpanProcessor {
+        fn on_start(&self, span: &mut crate::trace::Span, cx: &Context) {
+            let baggage = cx.baggage();
+            if let Some(baggage_value) = baggage.get("bag-key") {
+                span.set_attribute(KeyValue::new("bag-key", baggage_value.to_string()));
+            } else {
+                unreachable!("Baggage should be present in the context");
+            }
+        }
+
+        fn on_end(&self, _span: SpanData) {}
+
+        fn force_flush(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn span_and_baggage() {
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(BaggageInspectingSpanProcessor)
+            .build();
+
+        let cx_with_baggage =
+            Context::current_with_baggage(vec![KeyValue::new("bag-key", "bag-value")]);
+
+        // assert baggage is in the context
+        assert_eq!(
+            cx_with_baggage
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        // Attach context to current
+        let _cx_guard1 = cx_with_baggage.attach();
+        // now Current should have the baggage
+        assert_eq!(
+            Context::current()
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        let tracer = provider.tracer("test_tracer");
+        let mut span = tracer
+            .span_builder("span-name")
+            .start_with_context(&tracer, &Context::current());
+        span.set_attribute(KeyValue::new("attribute1", "value1"));
+
+        // We have not added span to the context yet
+        // so the current context should not have any span.
+        let cx = Context::current();
+        assert!(!cx.has_active_span());
+
+        // Now add span to context which already has baggage.
+        let cx_with_baggage_and_span = cx.with_span(span);
+        assert!(cx_with_baggage_and_span.has_active_span());
+        assert_eq!(
+            cx_with_baggage_and_span
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        let _cx_guard2 = cx_with_baggage_and_span.attach();
+        // Now current context should have both baggage and span.
+        assert!(Context::current().has_active_span());
+        assert_eq!(
+            Context::current()
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
     }
 
     #[test]
