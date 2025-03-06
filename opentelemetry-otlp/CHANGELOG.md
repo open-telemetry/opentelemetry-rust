@@ -4,6 +4,7 @@
 
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- **BREAKING** `opentelemetry_otlp::Protocol` implementations of `Serialize` and `Deserialize` have been changed to [match standard otel values for protocol](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_protocol). [#2765](https://github.com/open-telemetry/opentelemetry-rust/pull/2765)
 
 ## 0.28.0
 
