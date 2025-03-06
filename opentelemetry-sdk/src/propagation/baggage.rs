@@ -1,8 +1,8 @@
 use opentelemetry::{
-    baggage::{BaggageExt, KeyValueMetadata},
+    baggage::{BaggageExt, BaggageMetadata},
     otel_warn,
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    Context,
+    Context, Key, StringValue,
 };
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::iter;
@@ -122,10 +122,10 @@ impl TextMapPropagator for BaggagePropagator {
                                 .collect::<Vec<String>>()
                                 .join(";"); // join with ; because we deleted all ; when calling split above
 
-                            Some(KeyValueMetadata::new(
-                                name.trim().to_owned(),
-                                value.trim().to_string(),
-                                decoded_props.as_str(),
+                            Some((
+                                Key::from(name.trim().to_owned()),
+                                StringValue::from(value.trim().to_owned()),
+                                BaggageMetadata::from(decoded_props.as_str()),
                             ))
                         } else {
                             otel_warn!(
@@ -238,13 +238,14 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    fn valid_inject_data_metadata() -> Vec<(Vec<KeyValueMetadata>, Vec<&'static str>)> {
+    #[allow(clippy::type_complexity)]
+    fn valid_inject_data_metadata() -> Vec<(Vec<(KeyValue, BaggageMetadata)>, Vec<&'static str>)> {
         vec![
             (
                 vec![
-                    KeyValueMetadata::new("key1", "val1", "prop1"),
-                    KeyValue::new("key2", "val2").into(),
-                    KeyValueMetadata::new("key3", "val3", "anykey=anyvalue"),
+                    (KeyValue::new("key1", "val1"), BaggageMetadata::from("prop1")),
+                    (KeyValue::new("key2", "val2"), BaggageMetadata::default()),
+                    (KeyValue::new("key3", "val3"), BaggageMetadata::from("anykey=anyvalue")),
                 ],
                 vec![
                     "key1=val1;prop1",

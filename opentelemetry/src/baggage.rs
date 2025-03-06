@@ -439,7 +439,7 @@ impl fmt::Display for BaggageMetadata {
 
 /// [`Baggage`] name/value pairs with their associated metadata.
 #[derive(Clone, Debug, PartialEq)]
-pub struct KeyValueMetadata {
+struct KeyValueMetadata {
     /// Dimension or event key
     pub key: Key,
     /// Dimension or event value
@@ -448,28 +448,32 @@ pub struct KeyValueMetadata {
     pub metadata: BaggageMetadata,
 }
 
-impl KeyValueMetadata {
-    /// Create a new `KeyValue` pair with metadata
-    pub fn new<K, V, S>(key: K, value: V, metadata: S) -> Self
-    where
-        K: Into<Key>,
-        V: Into<StringValue>,
-        S: Into<BaggageMetadata>,
-    {
-        KeyValueMetadata {
-            key: key.into(),
-            value: value.into(),
-            metadata: metadata.into(),
-        }
-    }
-}
-
 impl From<KeyValue> for KeyValueMetadata {
     fn from(kv: KeyValue) -> Self {
         KeyValueMetadata {
             key: kv.key,
             value: kv.value.into(),
             metadata: BaggageMetadata::default(),
+        }
+    }
+}
+
+impl From<(KeyValue, BaggageMetadata)> for KeyValueMetadata {
+    fn from((kv, metadata): (KeyValue, BaggageMetadata)) -> Self {
+        Self {
+            key: kv.key,
+            value: kv.value.into(),
+            metadata,
+        }
+    }
+}
+
+impl From<(Key, StringValue, BaggageMetadata)> for KeyValueMetadata {
+    fn from((key, value, metadata): (Key, StringValue, BaggageMetadata)) -> Self {
+        Self {
+            key,
+            value,
+            metadata,
         }
     }
 }
