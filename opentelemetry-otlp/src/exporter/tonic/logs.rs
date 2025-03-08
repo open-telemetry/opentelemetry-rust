@@ -10,7 +10,6 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
-use tokio::sync::Mutex;
 
 pub(crate) struct TonicLogsClient {
     inner: Option<ClientInner>,
@@ -21,7 +20,7 @@ pub(crate) struct TonicLogsClient {
 
 struct ClientInner {
     client: LogsServiceClient<Channel>,
-    interceptor: Mutex<BoxInterceptor>,
+    interceptor: tokio::sync::Mutex<BoxInterceptor>,
 }
 
 impl fmt::Debug for TonicLogsClient {
@@ -48,7 +47,7 @@ impl TonicLogsClient {
         TonicLogsClient {
             inner: Some(ClientInner {
                 client,
-                interceptor: Mutex::new(interceptor),
+                interceptor: tokio::sync::Mutex::new(interceptor),
             }),
             resource: Default::default(),
         }
