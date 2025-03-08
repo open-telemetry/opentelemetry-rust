@@ -73,9 +73,7 @@ impl LogExporter for TonicLogsClient {
                         .into_parts();
                     Ok((inner.client.clone(), m, e))
                 }
-                None => Err(OTelSdkError::InternalFailure(
-                    "exporter is already shut down".into(),
-                )),
+                None => Err(OTelSdkError::AlreadyShutdown),
             })?;
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
