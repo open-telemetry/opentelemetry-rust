@@ -4,6 +4,12 @@
 
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Fixed
+  [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770) to
+  properly handle `shutdown()`. When using gRPC/tonic, `shutdown()` must now be
+  called from a Tokio runtime. Previously, it was required to initialize the
+  provider from a Tokio runtime, and this requirement is now extended to
+  `shutdown()` as well.
 
 ## 0.28.0
 
