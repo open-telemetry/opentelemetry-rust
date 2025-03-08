@@ -7,12 +7,12 @@ use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
-
 use super::BoxInterceptor;
+use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+use std::sync::Mutex;
 
 pub(crate) struct TonicLogsClient {
-    inner: Option<ClientInner>,
+    inner: Mutex<Option<ClientInner>>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -20,7 +20,7 @@ pub(crate) struct TonicLogsClient {
 
 struct ClientInner {
     client: LogsServiceClient<Channel>,
-    interceptor: tokio::sync::Mutex<BoxInterceptor>,
+    interceptor: BoxInterceptor,
 }
 
 impl fmt::Debug for TonicLogsClient {
@@ -45,10 +45,10 @@ impl TonicLogsClient {
         otel_debug!(name: "TonicsLogsClientBuilt");
 
         TonicLogsClient {
-            inner: Some(ClientInner {
+            inner: Mutex::new(Some(ClientInner {
                 client,
-                interceptor: tokio::sync::Mutex::new(interceptor),
-            }),
+                interceptor: interceptor,
+            })),
             resource: Default::default(),
         }
     }
@@ -56,19 +56,27 @@ impl TonicLogsClient {
 
 impl LogExporter for TonicLogsClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = match &self.inner {
-            Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .lock()
-                    .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
-                    .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
-                    .into_parts();
-                (inner.client.clone(), m, e)
-            }
-            None => return Err(OTelSdkError::AlreadyShutdown),
-        };
+        let (mut client, metadata, extensions) = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e:?}")))
+            .and_then(|mut inner| match &mut *inner {
+                Some(inner) => {
+                    let (m, e, _) = inner
+                        .interceptor
+                        .call(Request::new(()))
+                        .map_err(|e| {
+                            OTelSdkError::InternalFailure(format!(
+                                "unexpected status while exporting {e:?}"
+                            ))
+                        })?
+                        .into_parts();
+                    Ok((inner.client.clone(), m, e))
+                }
+                None => Err(OTelSdkError::InternalFailure(
+                    "exporter is already shut down".into(),
+                )),
+            })?;
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
@@ -85,8 +93,13 @@ impl LogExporter for TonicLogsClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
-        match self.inner.take() {
+    fn shutdown(&self) -> OTelSdkResult {
+        match self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .take()
+        {
             Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
             None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
         }
