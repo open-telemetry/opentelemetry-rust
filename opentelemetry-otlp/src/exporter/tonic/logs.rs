@@ -47,7 +47,7 @@ impl TonicLogsClient {
         TonicLogsClient {
             inner: Mutex::new(Some(ClientInner {
                 client,
-                interceptor: interceptor,
+                interceptor,
             })),
             resource: Default::default(),
         }
