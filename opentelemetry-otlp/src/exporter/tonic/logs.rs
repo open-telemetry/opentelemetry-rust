@@ -85,8 +85,16 @@ impl LogExporter for TonicLogsClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        let handle = tokio::runtime::Handle::try_current()
-            .unwrap_or_else(|_| tokio::runtime::Runtime::new().unwrap().handle().clone());
+        otel_debug!(name: "TonicsLogsClient.Shutdown");
+        let handle = match tokio::runtime::Handle::try_current() {
+            Ok(handle) => handle,
+            Err(e) => {
+                return Err(OTelSdkError::InternalFailure(format!(
+                    "Shutdown must be called from a tokio runtime: {:?}",
+                    e
+                )));
+            }
+        };
 
         let mut inner = handle.block_on(self.inner.lock());
         match inner.take() {
