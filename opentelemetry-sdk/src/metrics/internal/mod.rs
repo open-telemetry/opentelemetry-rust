@@ -11,10 +11,10 @@ use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::Ordering;
 
-#[cfg(not(any(target_arch = "xtensa")))]
+#[cfg(not(target_arch = "xtensa"))]
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
 
-#[cfg(any(target_arch = "xtensa"))]
+#[cfg(target_arch = "xtensa")]
 use portable_atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
 
 use std::sync::{Arc, OnceLock, RwLock};
