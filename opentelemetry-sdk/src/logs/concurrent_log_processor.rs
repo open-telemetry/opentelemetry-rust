@@ -13,18 +13,18 @@ use super::{LogBatch, LogExporter, LogProcessor, SdkLogRecord};
 /// This is intended to be used when exporting to operating system
 /// tracing facilities like Windows ETW, Linux TracePoints etc.
 #[derive(Debug)]
-pub struct ConcurrentExportProcessor<T: LogExporter> {
+pub struct SimpleConcurrentProcessor<T: LogExporter> {
     exporter: T,
 }
 
-impl<T: LogExporter> ConcurrentExportProcessor<T> {
+impl<T: LogExporter> SimpleConcurrentProcessor<T> {
     /// Creates a new `ConcurrentExportProcessor` with the given exporter.
     pub fn new(exporter: T) -> Self {
         Self { exporter }
     }
 }
 
-impl<T: LogExporter> LogProcessor for ConcurrentExportProcessor<T> {
+impl<T: LogExporter> LogProcessor for SimpleConcurrentProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
         let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));

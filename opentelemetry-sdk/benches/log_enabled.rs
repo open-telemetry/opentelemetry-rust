@@ -12,7 +12,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::logs::concurrent_log_processor::ConcurrentExportProcessor;
+use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentProcessor;
 use opentelemetry_sdk::logs::{
     LogBatch, LogExporter, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
 };
@@ -60,7 +60,7 @@ where
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let processor = ConcurrentExportProcessor::new(NoopExporter);
+    let processor = SimpleConcurrentProcessor::new(NoopExporter);
     benchmark_exporter_enabled_false(c, "exporter_disabled_concurrent_processor", processor);
     let simple = SimpleLogProcessor::new(NoopExporter);
     benchmark_exporter_enabled_false(c, "exporter_disabled_simple_processor", simple);
