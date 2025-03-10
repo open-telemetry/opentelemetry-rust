@@ -4,6 +4,10 @@
 
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Fixed
+  [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
+  partially to properly handle `shutdown()` when using `http`. (`tonic` still
+  does not do proper shutdown)
 
 ## 0.28.0
 
