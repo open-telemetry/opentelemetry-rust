@@ -20,7 +20,7 @@
 // See issue: https://github.com/tokio-rs/tracing/issues/2774
 #[macro_export]
 macro_rules! otel_info {
-    (name: $name:expr $(,)?) => {
+    (name: $name:expr_2021 $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::info!( name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
@@ -30,7 +30,7 @@ macro_rules! otel_info {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr_2021, $($key:ident = $value:expr_2021),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
@@ -55,7 +55,7 @@ macro_rules! otel_info {
 /// ```
 #[macro_export]
 macro_rules! otel_warn {
-    (name: $name:expr $(,)?) => {
+    (name: $name:expr_2021 $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
@@ -65,7 +65,7 @@ macro_rules! otel_warn {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr_2021, $($key:ident = $value:expr_2021),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::warn!(name: $name,
@@ -97,7 +97,7 @@ macro_rules! otel_warn {
 /// ```
 #[macro_export]
 macro_rules! otel_debug {
-    (name: $name:expr $(,)?) => {
+    (name: $name:expr_2021 $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
@@ -107,7 +107,7 @@ macro_rules! otel_debug {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr_2021, $($key:ident = $value:expr_2021),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
@@ -132,7 +132,7 @@ macro_rules! otel_debug {
 /// ```
 #[macro_export]
 macro_rules! otel_error {
-    (name: $name:expr $(,)?) => {
+    (name: $name:expr_2021 $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
@@ -142,7 +142,7 @@ macro_rules! otel_error {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr_2021, $($key:ident = $value:expr_2021),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             tracing::error!(name: $name,

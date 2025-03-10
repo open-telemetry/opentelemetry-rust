@@ -197,7 +197,7 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
 }
 
 macro_rules! into_array {
-    ($(($t:ty, $val:expr),)+) => {
+    ($(($t:ty, $val:expr_2021),)+) => {
         $(
             impl From<$t> for Array {
                 fn from(t: $t) -> Self {
@@ -332,7 +332,7 @@ impl Value {
 macro_rules! from_values {
    (
         $(
-            ($t:ty, $val:expr);
+            ($t:ty, $val:expr_2021);
         )+
     ) => {
         $(
