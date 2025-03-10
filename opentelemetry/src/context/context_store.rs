@@ -1,3 +1,4 @@
+
 use crate::otel_warn;
 #[cfg(feature = "trace")]
 use crate::trace::context::SynchronizedSpan;
@@ -78,7 +79,7 @@ thread_local! {
 #[derive(Clone, Default)]
 pub struct Context {
     #[cfg(feature = "trace")]
-    pub(super) span: Option<Arc<SynchronizedSpan>>,
+    pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
 }
 
@@ -314,7 +315,7 @@ impl Context {
     }
 
     #[cfg(feature = "trace")]
-    pub(super) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
+    pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
         Context {
             span: Some(Arc::new(value)),
             entries: Context::map_current(|cx| cx.entries.clone()),
@@ -322,7 +323,7 @@ impl Context {
     }
 
     #[cfg(feature = "trace")]
-    pub(super) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
+    pub(crate) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
         Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
