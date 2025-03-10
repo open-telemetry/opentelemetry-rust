@@ -1,5 +1,4 @@
 use core::fmt;
-use std::time::Duration;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
@@ -87,7 +86,7 @@ impl LogExporter for TonicLogsClient {
         Ok(())
     }
 
-    fn shutdown(&mut self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown(&mut self) -> OTelSdkResult {
         match self.inner.take() {
             Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
             None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.

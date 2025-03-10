@@ -435,7 +435,7 @@ impl BatchLogProcessor {
                                 &current_batch_size,
                                 &config,
                             );
-                            let _ = exporter.shutdown(Duration::from_secs(5));
+                            let _ = exporter.shutdown();
                             let _ = sender.send(result);
 
                             otel_debug!(

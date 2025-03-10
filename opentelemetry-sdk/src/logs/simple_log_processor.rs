@@ -115,11 +115,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self, timeout: Duration) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown(timeout)
+            exporter.shutdown()
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),

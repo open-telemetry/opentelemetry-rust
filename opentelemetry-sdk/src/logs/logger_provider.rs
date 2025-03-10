@@ -107,7 +107,7 @@ impl SdkLoggerProvider {
     }
 
     /// Shuts down this `LoggerProvider` with a timeout.
-    pub fn shutdown_with_timeout(&self, timeout: Duration)  -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );

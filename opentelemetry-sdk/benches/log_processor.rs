@@ -14,7 +14,8 @@
 use opentelemetry::time::now;
 use std::{
     sync::{Arc, Mutex},
-    thread::sleep, time::Duration,
+    thread::sleep,
+    time::Duration,
 };
 
 use criterion::{criterion_group, criterion_main, Criterion};

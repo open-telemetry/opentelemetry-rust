@@ -229,6 +229,7 @@ mod tests {
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
     use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
+    use std::time;
 
     #[derive(Debug)]
     struct MockProcessor;
@@ -240,7 +241,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

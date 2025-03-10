@@ -441,7 +441,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, timeout: Duration) -> OTelSdkResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
@@ -449,7 +449,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         // TODO: Make this timeout configurable.
-        match response_rx.recv_timeout(Duration::from_secs(5)) {
+        match response_rx.recv_timeout(timeout) {
             Ok(response) => {
                 if response {
                     Ok(())
@@ -457,9 +457,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
                     Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                Err(OTelSdkError::Timeout(Duration::from_secs(5)))
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(OTelSdkError::Timeout(timeout)),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
             }
@@ -490,8 +488,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> OTelSdkResult {
-        self.inner.shutdown()
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
+        self.inner.shutdown(_timeout)
     }
 
     /// To construct a [MetricReader][metric-reader] when setting up an SDK,

@@ -94,7 +94,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self, _timeout: Duration) -> OTelSdkResult {
+        fn shutdown(&mut self) -> OTelSdkResult {
             Ok(())
         }
 

@@ -6,7 +6,6 @@ use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 type LogResult<T> = Result<T, OTelSdkError>;
 
@@ -212,7 +211,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown(&mut self) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {
