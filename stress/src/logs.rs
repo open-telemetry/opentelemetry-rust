@@ -12,6 +12,10 @@
     Total Number of Cores:	14 (10 performance and 4 efficiency)
     ~50 M/sec
     ~1.1 B/sec (when disabled)
+
+    With existing SimpleLogProcessor:
+     3 M/sec (when enabled)  (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(true))))
+    26 M/sec (when disabled) (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(false)))
 */
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
@@ -57,7 +61,7 @@ impl LogExporter for NoopExporter {
 
 fn main() {
     // change this to false to test the throughput when enabled is false.
-    let enabled = false;
+    let enabled = true;
 
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
