@@ -13,44 +13,29 @@
     ~50 M/sec
     ~1.1 B/sec (when disabled)
 */
-
-use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::concurrent_log_processor::ConcurrentExportProcessor;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 
+use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
 
-#[derive(Debug, Clone)]
-struct MockLogExporter;
-
-impl LogExporter for MockLogExporter {
-    async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
-pub struct MockLogProcessor {
-    exporter: MockLogExporter,
+struct NoopExporter {
     enabled: bool,
 }
-
-impl LogProcessor for MockLogProcessor {
-    fn emit(
-        &self,
-        record: &mut opentelemetry_sdk::logs::SdkLogRecord,
-        scope: &InstrumentationScope,
-    ) {
-        let log_tuple = &[(record as &SdkLogRecord, scope)];
-        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
+impl NoopExporter {
+    fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
-
-    fn force_flush(&self) -> OTelSdkResult {
+}
+impl LogExporter for NoopExporter {
+    async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
         Ok(())
     }
 
@@ -66,18 +51,17 @@ impl LogProcessor for MockLogProcessor {
     ) -> bool {
         self.enabled
     }
+
+    fn set_resource(&mut self, _: &Resource) {}
 }
 
 fn main() {
     // change this to false to test the throughput when enabled is false.
-    let enabled = true;
+    let enabled = false;
 
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
-        .with_log_processor(MockLogProcessor {
-            exporter: MockLogExporter {},
-            enabled,
-        })
+        .with_log_processor(ConcurrentExportProcessor::new(NoopExporter::new(enabled)))
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
