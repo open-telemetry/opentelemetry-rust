@@ -4,15 +4,10 @@ use crate::{
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
-use futures_core::stream::Stream;
-use futures_sink::Sink;
-use pin_project_lite::pin_project;
 use std::{
     borrow::Cow,
     error::Error,
-    pin::Pin,
     sync::Mutex,
-    task::{Context as TaskContext, Poll},
 };
 
 // Re-export for compatability. This used to be contained here.
@@ -373,78 +368,5 @@ where
     F: FnOnce(SpanRef<'_>) -> T,
 {
     Context::map_current(|cx| f(cx.span()))
-}
-
-pin_project! {
-    /// A future, stream, or sink that has an associated context.
-    #[derive(Clone, Debug)]
-    pub struct WithContext<T> {
-        #[pin]
-        pub(crate) inner: T,
-        pub(crate) otel_cx: Context,
-    }
-}
-
-impl<T: Sized> FutureExt for T {}
-
-impl<T: std::future::Future> std::future::Future for WithContext<T> {
-    type Output = T::Output;
-
-    fn poll(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-
-        this.inner.poll(task_cx)
-    }
-}
-
-impl<T: Stream> Stream for WithContext<T> {
-    type Item = T::Item;
-
-    fn poll_next(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_next(this.inner, task_cx)
-    }
-}
-
-impl<I, T: Sink<I>> Sink<I> for WithContext<T>
-where
-    T: Sink<I>,
-{
-    type Error = T::Error;
-
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_ready(this.inner, task_cx)
-    }
-
-    fn start_send(self: Pin<&mut Self>, item: I) -> Result<(), Self::Error> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::start_send(this.inner, item)
-    }
-
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_flush(this.inner, task_cx)
-    }
-
-    fn poll_close(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _enter = this.otel_cx.clone().attach();
-        T::poll_close(this.inner, task_cx)
-    }
 }
 
