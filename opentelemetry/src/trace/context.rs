@@ -290,11 +290,11 @@ impl TraceContextExt for Context {
     }
 
     fn span(&self) -> SpanRef<'_> {
-        if let Some(span) = self.span.as_ref() {
+        match self.span.as_ref() { Some(span) => {
             SpanRef(span)
-        } else {
+        } _ => {
             SpanRef(&NOOP_SPAN)
-        }
+        }}
     }
 
     fn has_active_span(&self) -> bool {

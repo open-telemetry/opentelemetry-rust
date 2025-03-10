@@ -125,11 +125,11 @@ where
 
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
+        match trackers.get(attributes) { Some(tracker) => {
             tracker.update(value);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+        } _ => { match trackers.get(sorted_attrs.as_slice()) { Some(tracker) => {
             tracker.update(value);
-        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
+        } _ => if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
             let new_tracker = Arc::new(A::create(&self.config));
             new_tracker.update(value);
 
@@ -138,16 +138,16 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else { match trackers.get(stream_overflow_attributes().as_slice()) { Some(overflow_value) => {
             overflow_value.update(value);
-        } else {
+        } _ => {
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
             otel_warn!( name: "ValueMap.measure",
                 message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
             );
-        }
+        }}}}}}
     }
 
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
@@ -187,14 +187,14 @@ where
             ));
         }
 
-        if let Ok(mut trackers_collect) = self.trackers_for_collect().write() {
-            if let Ok(mut trackers_current) = self.trackers.write() {
+        match self.trackers_for_collect().write() { Ok(mut trackers_collect) => {
+            match self.trackers.write() { Ok(mut trackers_current) => {
                 swap(trackers_collect.deref_mut(), trackers_current.deref_mut());
                 self.count.store(0, Ordering::SeqCst);
-            } else {
+            } _ => {
                 otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
                 return;
-            }
+            }}
 
             let mut seen = HashSet::new();
             for (attrs, tracker) in trackers_collect.drain() {
@@ -202,9 +202,9 @@ where
                     dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
                 }
             }
-        } else {
+        } _ => {
             otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers for collect lock poisoned");
-        }
+        }}
     }
 }
 

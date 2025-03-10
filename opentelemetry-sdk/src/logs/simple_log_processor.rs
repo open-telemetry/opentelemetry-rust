@@ -117,13 +117,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
+        match self.exporter.lock() { Ok(mut exporter) => {
             exporter.shutdown()
-        } else {
+        } _ => {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
             ))
-        }
+        }}
     }
 
     fn set_resource(&self, resource: &Resource) {

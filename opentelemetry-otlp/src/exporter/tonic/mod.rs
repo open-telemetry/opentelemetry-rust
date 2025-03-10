@@ -244,15 +244,15 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, crate::Error> {
-        if let Some(compression) = self.tonic_config.compression {
+        match self.tonic_config.compression { Some(compression) => {
             Ok(Some(compression.try_into()?))
-        } else if let Ok(compression) = env::var(env_override) {
+        } _ => if let Ok(compression) = env::var(env_override) {
             Ok(Some(compression.parse::<Compression>()?.try_into()?))
         } else if let Ok(compression) = env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
             Ok(Some(compression.parse::<Compression>()?.try_into()?))
         } else {
             Ok(None)
-        }
+        }}
     }
 
     /// Build a new tonic log exporter

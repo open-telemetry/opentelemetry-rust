@@ -155,13 +155,13 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        if let Ok(mut exporter) = self.exporter.lock() {
+        match self.exporter.lock() { Ok(mut exporter) => {
             exporter.shutdown()
-        } else {
+        } _ => {
             Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
             ))
-        }
+        }}
     }
 
     fn set_resource(&mut self, resource: &Resource) {

@@ -1469,7 +1469,7 @@ mod tests {
             test_name
         );
 
-        if let Some(a) = a.as_any().downcast_ref::<Gauge<T>>() {
+        match a.as_any().downcast_ref::<Gauge<T>>() { Some(a) => {
             let b = b.as_any().downcast_ref::<Gauge<T>>().unwrap();
             assert_eq!(
                 a.data_points.len(),
@@ -1480,7 +1480,7 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<Sum<T>>() {
+        } _ => { match a.as_any().downcast_ref::<Sum<T>>() { Some(a) => {
             let b = b.as_any().downcast_ref::<Sum<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
@@ -1501,7 +1501,7 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<Histogram<T>>() {
+        } _ => { match a.as_any().downcast_ref::<Histogram<T>>() { Some(a) => {
             let b = b.as_any().downcast_ref::<Histogram<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
@@ -1517,7 +1517,7 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<ExponentialHistogram<T>>() {
+        } _ => { match a.as_any().downcast_ref::<ExponentialHistogram<T>>() { Some(a) => {
             let b = b
                 .as_any()
                 .downcast_ref::<ExponentialHistogram<T>>()
@@ -1541,9 +1541,9 @@ mod tests {
                     test_name,
                 );
             }
-        } else {
+        } _ => {
             panic!("Aggregation of unknown types")
-        }
+        }}}}}}}}
     }
 
     fn assert_sum_data_points_eq<T: Number>(

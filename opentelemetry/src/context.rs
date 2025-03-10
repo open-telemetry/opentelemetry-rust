@@ -214,15 +214,15 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let entries = if let Some(current_entries) = &self.entries {
+        let entries = match &self.entries { Some(current_entries) => {
             let mut inner_entries = (**current_entries).clone();
             inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
             Some(Arc::new(inner_entries))
-        } else {
+        } _ => {
             let mut entries = EntryMap::default();
             entries.insert(TypeId::of::<T>(), Arc::new(value));
             Some(Arc::new(entries))
-        };
+        }};
         Context {
             entries,
             #[cfg(feature = "trace")]
@@ -336,12 +336,12 @@ impl fmt::Debug for Context {
         let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
         #[cfg(feature = "trace")]
         {
-            if let Some(span) = &self.span {
+            match &self.span { Some(span) => {
                 dbg.field("span", &span.span_context());
                 entries += 1;
-            } else {
+            } _ => {
                 dbg.field("span", &"None");
-            }
+            }}
         }
 
         dbg.field("entries count", &entries).finish()

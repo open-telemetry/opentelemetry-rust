@@ -191,14 +191,14 @@ impl MeterProvider for SdkMeterProvider {
             otel_info!(name: "MeterNameEmpty", message = "Meter name is empty; consider providing a meaningful name. Meter will function normally and the provided name will be used as-is.");
         };
 
-        if let Ok(mut meters) = self.inner.meters.lock() {
-            if let Some(existing_meter) = meters.get(&scope) {
+        match self.inner.meters.lock() { Ok(mut meters) => {
+            match meters.get(&scope) { Some(existing_meter) => {
                 otel_debug!(
                     name: "MeterProvider.ExistingMeterReturned",
                     meter_name = scope.name(),
                 );
                 Meter::new(existing_meter.clone())
-            } else {
+            } _ => {
                 let new_meter = Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
                 meters.insert(scope.clone(), new_meter.clone());
                 otel_debug!(
@@ -206,14 +206,14 @@ impl MeterProvider for SdkMeterProvider {
                     meter_name = scope.name(),
                 );
                 Meter::new(new_meter)
-            }
-        } else {
+            }}
+        } _ => {
             otel_debug!(
                 name: "MeterProvider.NoOpMeterReturned",
                 meter_name = scope.name(),
             );
             Meter::new(Arc::new(NoopMeter::new()))
-        }
+        }}
     }
 }
 

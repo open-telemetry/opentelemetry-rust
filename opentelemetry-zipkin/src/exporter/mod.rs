@@ -78,7 +78,7 @@ impl ZipkinExporterBuilder {
     pub fn build(self) -> Result<ZipkinExporter, TraceError> {
         let endpoint = Endpoint::new(self.service_addr);
 
-        if let Some(client) = self.client {
+        match self.client { Some(client) => {
             let exporter = ZipkinExporter::new(
                 endpoint,
                 client,
@@ -87,9 +87,9 @@ impl ZipkinExporterBuilder {
                     .map_err::<Error, _>(Into::into)?,
             );
             Ok(exporter)
-        } else {
+        } _ => {
             Err(Error::NoHttpClient.into())
-        }
+        }}
     }
 
     /// Assign client implementation

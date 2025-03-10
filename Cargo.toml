@@ -89,7 +89,6 @@ opentelemetry-stdout = { path = "opentelemetry-stdout" }
 rust_2024_compatibility = { level = "warn", priority = -1 }
 # No need to enable those, because it either not needed or results in ugly syntax
 edition_2024_expr_fragment_specifier = "allow"
-if_let_rescope = "allow"
 tail_expr_drop_order = "allow"
 
 [workspace.lints.clippy]

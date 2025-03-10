@@ -114,13 +114,13 @@ impl AttributeSetFilter {
     }
 
     pub(crate) fn apply(&self, attrs: &[KeyValue], run: impl FnOnce(&[KeyValue])) {
-        if let Some(filter) = &self.filter {
+        match &self.filter { Some(filter) => {
             let filtered_attrs: Vec<KeyValue> =
                 attrs.iter().filter(|kv| filter(kv)).cloned().collect();
             run(&filtered_attrs);
-        } else {
+        } _ => {
             run(attrs);
-        };
+        }};
     }
 }
 

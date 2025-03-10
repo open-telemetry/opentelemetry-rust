@@ -24,24 +24,24 @@ where
 {
     // Try to set the global meter provider. If the RwLock is poisoned, we'll log an error.
     let mut global_provider = global_meter_provider().write();
-    if let Ok(ref mut provider) = global_provider {
+    match global_provider { Ok(ref mut provider) => {
         **provider = Arc::new(new_provider);
         otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
-    } else {
+    } _ => {
         otel_error!(name: "MeterProvider.GlobalSetFailed", message = "Setting global meter provider failed. Meters created using global::meter() or global::meter_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-    }
+    }}
 }
 
 /// Returns an instance of the currently configured global [`MeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {
     // Try to get the global meter provider. If the RwLock is poisoned, we'll log an error and return a NoopMeterProvider.
     let global_provider = global_meter_provider().read();
-    if let Ok(provider) = global_provider {
+    match global_provider { Ok(provider) => {
         provider.clone()
-    } else {
+    } _ => {
         otel_error!(name: "MeterProvider.GlobalGetFailed", message = "Getting global meter provider failed. Meters created using global::meter() or global::meter_with_scope() will not function. Report this issue in OpenTelemetry repo.");
         Arc::new(crate::metrics::noop::NoopMeterProvider::new())
-    }
+    }}
 }
 
 /// Creates a named [`Meter`] via the currently configured global [`MeterProvider`].
