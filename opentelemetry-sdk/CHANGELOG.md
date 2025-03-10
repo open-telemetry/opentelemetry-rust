@@ -61,7 +61,7 @@
   `scope` name but instead passes the incoming `name` when invoking
   `event_enabled` on processors.
 - **Breaking** for custom LogExporter authors: `shutdown()` method in
- `LogExporter` trait no longer requires a mutable ref to self. If the exporter
+ `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
 

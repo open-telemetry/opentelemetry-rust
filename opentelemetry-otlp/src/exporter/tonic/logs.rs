@@ -86,8 +86,8 @@ impl LogExporter for TonicLogsClient {
 
     fn shutdown(&self) -> OTelSdkResult {
         // TODO: Implement actual shutdown
-        // Due to the use to tokio::sync::Mutex to guard
-        // the inner client, we need to lock the mutex
+        // Due to the use of tokio::sync::Mutex to guard
+        // the inner client, we need to await the call to lock the mutex
         // and that requires async runtime.
         // It is possible to fix this by using
         // a dedicated thread just to handle shutdown.
