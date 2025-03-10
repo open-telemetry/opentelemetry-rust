@@ -1,4 +1,3 @@
-
 use crate::otel_warn;
 #[cfg(feature = "trace")]
 use crate::trace::context::SynchronizedSpan;

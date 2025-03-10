@@ -1,10 +1,10 @@
-use std::pin::Pin;
-use std::task::Poll;
+use crate::Context;
 use futures_core::Stream;
 use futures_sink::Sink;
 use pin_project_lite::pin_project;
-use crate::Context;
+use std::pin::Pin;
 use std::task::Context as TaskContext;
+use std::task::Poll;
 impl<T: Sized> FutureExt for T {}
 
 impl<T: std::future::Future> std::future::Future for WithContext<T> {
@@ -77,8 +77,6 @@ where
         T::poll_close(this.inner, task_cx)
     }
 }
-
-
 
 /// Extension trait allowing futures, streams, and sinks to be traced with a span.
 pub trait FutureExt: Sized {

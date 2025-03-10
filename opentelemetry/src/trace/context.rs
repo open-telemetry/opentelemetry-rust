@@ -4,11 +4,7 @@ use crate::{
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
-use std::{
-    borrow::Cow,
-    error::Error,
-    sync::Mutex,
-};
+use std::{borrow::Cow, error::Error, sync::Mutex};
 
 // Re-export for compatability. This used to be contained here.
 pub use crate::context::FutureExt;
@@ -369,4 +365,3 @@ where
 {
     Context::map_current(|cx| f(cx.span()))
 }
-
