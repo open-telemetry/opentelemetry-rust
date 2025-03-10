@@ -15,6 +15,9 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
+// Re-export for compatability. This used to be contained here.
+pub use crate::context::FutureExt;
+
 const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,
     inner: None,
@@ -377,8 +380,8 @@ pin_project! {
     #[derive(Clone, Debug)]
     pub struct WithContext<T> {
         #[pin]
-        inner: T,
-        otel_cx: Context,
+        pub(crate) inner: T,
+        pub(crate) otel_cx: Context,
     }
 }
 
@@ -445,31 +448,3 @@ where
     }
 }
 
-/// Extension trait allowing futures, streams, and sinks to be traced with a span.
-pub trait FutureExt: Sized {
-    /// Attaches the provided [`Context`] to this type, returning a `WithContext`
-    /// wrapper.
-    ///
-    /// When the wrapped type is a future, stream, or sink, the attached context
-    /// will be set as current while it is being polled.
-    ///
-    /// [`Context`]: crate::Context
-    fn with_context(self, otel_cx: Context) -> WithContext<Self> {
-        WithContext {
-            inner: self,
-            otel_cx,
-        }
-    }
-
-    /// Attaches the current [`Context`] to this type, returning a `WithContext`
-    /// wrapper.
-    ///
-    /// When the wrapped type is a future, stream, or sink, the attached context
-    /// will be set as the default while it is being polled.
-    ///
-    /// [`Context`]: crate::Context
-    fn with_current_context(self) -> WithContext<Self> {
-        let otel_cx = Context::current();
-        self.with_context(otel_cx)
-    }
-}
