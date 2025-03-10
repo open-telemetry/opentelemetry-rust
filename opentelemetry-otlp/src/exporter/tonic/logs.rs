@@ -85,22 +85,14 @@ impl LogExporter for TonicLogsClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        otel_debug!(name: "TonicsLogsClient.Shutdown");
-        let handle = match tokio::runtime::Handle::try_current() {
-            Ok(handle) => handle,
-            Err(e) => {
-                return Err(OTelSdkError::InternalFailure(format!(
-                    "Shutdown must be called from a tokio runtime: {:?}",
-                    e
-                )));
-            }
-        };
-
-        let mut inner = handle.block_on(self.inner.lock());
-        match inner.take() {
-            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
-            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
-        }
+        // TODO: Implement actual shutdown
+        // Due to the use to tokio::sync::Mutex to guard
+        // the inner client, we need to lock the mutex
+        // and that requires async runtime.
+        // It is possible to fix this by using
+        // a dedicated thread just to handle shutdown.
+        // But for now, we just return Ok.
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
