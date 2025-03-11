@@ -19,7 +19,7 @@
 */
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentProcessor;
+use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 
@@ -65,7 +65,9 @@ fn main() {
 
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
-        .with_log_processor(SimpleConcurrentProcessor::new(NoopExporter::new(enabled)))
+        .with_log_processor(SimpleConcurrentLogProcessor::new(NoopExporter::new(
+            enabled,
+        )))
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
