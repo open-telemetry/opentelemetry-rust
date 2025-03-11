@@ -205,9 +205,9 @@ impl LoggerProviderBuilder {
     ///
     /// The following environment variables can be used to configure the batching configuration:
     ///
-    /// * `OTEL_BSP_SCHEDULE_DELAY` - Corresponds to `with_scheduled_delay`.
-    /// * `OTEL_BSP_MAX_QUEUE_SIZE` - Corresponds to `with_max_queue_size`.
-    /// * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` - Corresponds to `with_max_export_batch_size`.
+    /// * `OTEL_BLRP_SCHEDULE_DELAY` - Corresponds to `with_scheduled_delay`.
+    /// * `OTEL_BLRP_MAX_QUEUE_SIZE` - Corresponds to `with_max_queue_size`.
+    /// * `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` - Corresponds to `with_max_export_batch_size`.
     ///
     /// # Arguments
     ///
