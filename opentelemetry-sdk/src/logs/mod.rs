@@ -37,7 +37,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::baggage::BaggageExt;
     use opentelemetry::logs::LogRecord;
-    use opentelemetry::logs::{Logger, LoggerProvider, Severity};
+    use opentelemetry::logs::{Logger, LoggerProvider, Severity, };
     use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use opentelemetry::{Context, InstrumentationScope};
     use std::borrow::Borrow;

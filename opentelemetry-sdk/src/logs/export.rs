@@ -77,6 +77,14 @@ impl LogBatch<'_> {
             index: 0,
         }
     }
+
+    /// Returns the number of log records in the batch.
+    pub fn len(&self) -> usize {
+        match &self.data {
+            LogBatchData::SliceOfOwnedData(data) => data.len(),
+            LogBatchData::SliceOfBorrowedData(data) => data.len(),
+        }
+    }
 }
 
 struct LogBatchDataIter<'a> {
