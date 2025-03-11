@@ -1,15 +1,15 @@
 use core::fmt;
+use opentelemetry::{
+    metrics::{Meter, MeterProvider},
+    otel_debug, otel_error, otel_info, InstrumentationScope,
+};
+use std::time::Duration;
 use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-};
-
-use opentelemetry::{
-    metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, otel_info, InstrumentationScope,
 };
 
 use crate::error::OTelSdkResult;
@@ -109,12 +109,16 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
-        self.inner.shutdown()
+        self.inner.shutdown(timeout)
+    }
+    /// Shuts down with Default timeout of 5 seconds.
+    pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -130,7 +134,7 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, timeout: Duration) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
@@ -138,7 +142,7 @@ impl SdkMeterProviderInner {
             // If the previous value was true, shutdown was already invoked.
             Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
-            self.pipes.shutdown()
+            self.pipes.shutdown(timeout)
         }
     }
 }
@@ -157,7 +161,7 @@ impl Drop for SdkMeterProviderInner {
                 name: "MeterProvider.Drop",
                 message = "Last reference of MeterProvider dropped, initiating shutdown."
             );
-            if let Err(err) = self.shutdown() {
+            if let Err(err) = self.shutdown(Duration::from_secs(5)) {
                 otel_error!(
                     name: "MeterProvider.Drop.ShutdownFailed",
                     message = "Shutdown attempt failed during drop of MeterProvider.",

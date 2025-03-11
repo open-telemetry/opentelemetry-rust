@@ -42,6 +42,7 @@ mod tests {
     use opentelemetry::{Context, InstrumentationScope};
     use std::borrow::Borrow;
     use std::collections::HashMap;
+    use std::time::Duration;
 
     #[test]
     fn logging_sdk_test() {
@@ -167,7 +168,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> crate::error::OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
             Ok(())
         }
     }

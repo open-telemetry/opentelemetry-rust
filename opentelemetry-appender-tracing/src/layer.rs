@@ -232,6 +232,7 @@ mod tests {
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
+    use std::time::Duration;
     use tracing::{error, warn};
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
@@ -821,7 +822,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
     }

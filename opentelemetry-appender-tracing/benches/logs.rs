@@ -22,7 +22,6 @@
     | ot_layer_disabled           | 12 ns       |
     | ot_layer_enabled            | 186 ns      |
 */
-
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
@@ -31,6 +30,7 @@ use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
+use std::time::Duration;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
@@ -54,7 +54,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

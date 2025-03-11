@@ -13,6 +13,7 @@
 use opentelemetry::time::now;
 use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -73,7 +74,7 @@ impl LogProcessor for ExportingProcessorWithFuture {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -104,7 +105,7 @@ impl LogProcessor for ExportingProcessorWithoutFuture {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
