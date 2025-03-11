@@ -211,7 +211,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {

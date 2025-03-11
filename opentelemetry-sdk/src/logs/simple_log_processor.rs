@@ -117,7 +117,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown()
         } else {
             Err(OTelSdkError::InternalFailure(
