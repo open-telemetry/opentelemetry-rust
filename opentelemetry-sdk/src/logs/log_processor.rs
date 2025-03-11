@@ -92,7 +92,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 
