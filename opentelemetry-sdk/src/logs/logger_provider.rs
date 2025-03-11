@@ -200,15 +200,22 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { processors, ..self }
     }
 
-    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline,
+    /// using the default [super::BatchConfig].
+    ///
+    /// The following environment variables can be used to configure the batching configuration:
+    ///
+    /// * `OTEL_BSP_SCHEDULE_DELAY` - Corresponds to `with_scheduled_delay`.
+    /// * `OTEL_BSP_MAX_QUEUE_SIZE` - Corresponds to `with_max_queue_size`.
+    /// * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` - Corresponds to `with_max_export_batch_size`.
     ///
     /// # Arguments
     ///
-    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    /// * `exporter` - The exporter to be used by the `BatchLogProcessor`.
     ///
     /// # Returns
     ///
-    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    /// A new `LoggerProviderBuilder` instance with the `BatchLogProcessor` added to the pipeline.
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
