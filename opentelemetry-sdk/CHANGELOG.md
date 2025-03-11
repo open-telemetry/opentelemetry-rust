@@ -2,13 +2,15 @@
 
 ## vNext
 
+- **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
+  for the changes.
 - Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
-- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
-- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+- **Breaking**: Make `force_flush()` in `PushMetricExporter` synchronous
+- **Breaking**: Updated the `SpanExporter` trait method signature:
 
 ```rust
   fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
@@ -36,10 +38,13 @@
 
 - **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
   Before:
+
   ```rust
     async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
+
   After:
+  
   ```rust
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
@@ -50,6 +55,15 @@
   when its `shutdown` is invoked.
 
 - Reduced some info level logs to debug
+- **Breaking** for custom LogProcessor/Exporter authors: Changed `name`
+  parameter from `&str` to `Option<&str>` in `event_enabled` method on the
+  `LogProcessor` and `LogExporter` traits. `SdkLogger` no longer passes its
+  `scope` name but instead passes the incoming `name` when invoking
+  `event_enabled` on processors.
+- **Breaking** for custom LogExporter authors: `shutdown()` method in
+ `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
+ needs to mutate state, it should rely on interior mutability.
+ [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
 
 ## 0.28.0
 

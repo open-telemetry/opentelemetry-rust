@@ -8,7 +8,7 @@ for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
 Meeting notes are available as a public [Google
-doc](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit).
+doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
 If you have trouble accessing the doc, please get in touch on
 [Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
 

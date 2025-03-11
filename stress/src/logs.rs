@@ -6,7 +6,12 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~40 M /sec
+    ~44 M /sec
+
+    Hardware: Apple M4 Pro
+    Total Number of Cores:	14 (10 performance and 4 efficiency)
+    ~50 M/sec
+    ~1.1 B/sec (when disabled)
 */
 
 use std::time::Duration;
@@ -34,6 +39,7 @@ impl LogExporter for MockLogExporter {
 #[derive(Debug)]
 pub struct MockLogProcessor {
     exporter: MockLogExporter,
+    enabled: bool,
 }
 
 impl LogProcessor for MockLogProcessor {
@@ -53,13 +59,26 @@ impl LogProcessor for MockLogProcessor {
     fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
+
+    fn event_enabled(
+        &self,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: Option<&str>,
+    ) -> bool {
+        self.enabled
+    }
 }
 
 fn main() {
+    // change this to false to test the throughput when enabled is false.
+    let enabled = true;
+
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_log_processor(MockLogProcessor {
             exporter: MockLogExporter {},
+            enabled,
         })
         .build();
 
@@ -71,7 +90,7 @@ fn main() {
 
 fn test_log() {
     error!(
-        name = "CheckoutFailed",
+        name : "CheckoutFailed",
         book_id = "12345",
         book_title = "Rust Programming Adventures",
         message = "Unable to process checkout."

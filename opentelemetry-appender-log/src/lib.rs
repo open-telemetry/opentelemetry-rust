@@ -12,12 +12,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! let exporter = opentelemetry_stdout::LogExporter::default();
 //!
-//! let logger_provider = LoggerProvider::builder()
-//!     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! let logger_provider = SdkLoggerProvider::builder()
+//!     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //!     .build();
 //! # }
 //! ```
@@ -26,12 +26,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! # use opentelemetry_appender_log::OpenTelemetryLogBridge;
 //! # let exporter = opentelemetry_stdout::LogExporter::default();
-//! # let logger_provider = LoggerProvider::builder()
-//! #     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! # let logger_provider = SdkLoggerProvider::builder()
+//! #     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //! #     .build();
 //! let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 //!
@@ -136,9 +136,11 @@ where
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        return self
-            .logger
-            .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
+        return self.logger.event_enabled(
+            severity_of_level(_metadata.level()),
+            _metadata.target(),
+            None,
+        );
         #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         true
     }

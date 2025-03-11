@@ -48,12 +48,12 @@ use std::time::Duration;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
-/// let provider = LoggerProvider::builder()
+/// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
 ///
@@ -118,7 +118,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown()
         } else {
             Err(OTelSdkError::InternalFailure(

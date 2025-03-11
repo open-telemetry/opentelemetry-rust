@@ -17,7 +17,7 @@ type LogResult<T> = Result<T, OTelSdkError>;
 ///
 /// # Example
 /// ```no_run
-///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 ///# use opentelemetry_sdk::runtime;
 ///# use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
@@ -26,7 +26,7 @@ type LogResult<T> = Result<T, OTelSdkError>;
 ///    // Create an InMemoryLogExporter
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
 ///    //Create a LoggerProvider and register the exporter
-///    let logger_provider = LoggerProvider::builder()
+///    let logger_provider = SdkLoggerProvider::builder()
 ///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
@@ -78,7 +78,7 @@ pub struct LogDataWithResource {
 ///
 /// ```no_run
 ///# use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
-///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 ///# use opentelemetry_sdk::runtime;
 ///
 ///# #[tokio::main]
@@ -86,7 +86,7 @@ pub struct LogDataWithResource {
 ///    //Create an InMemoryLogExporter
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
-///    let logger_provider = LoggerProvider::builder()
+///    let logger_provider = SdkLoggerProvider::builder()
 ///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
@@ -211,7 +211,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {

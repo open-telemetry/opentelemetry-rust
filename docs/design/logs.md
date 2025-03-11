@@ -296,6 +296,19 @@ convey that decision back to logger, allowing appender to avoid even the cost of
 creating a `LogRecord` in the first place if there is no listener. This check is
 done for each log emission, and can react dynamically to changes in interest, by
 enabling/disabling ETW/user-event listener.
+5. `tracing` has a notion of "target", which is expected to be mapped to OTel's
+concept of Instrumentation Scope for Logs, when `OpenTelemetry-Tracing-Appender`
+bridges `tracing` to OpenTelemetry. Since scopes are tied to Loggers, a naive
+approach would require creating a separate logger for each unique target. This
+would necessitate an RWLock-protected HashMap lookup, introducing contention and
+reducing throughput. To avoid this, `OpenTelemetry-Tracing-Appender` instead
+stores the target directly in the LogRecord as a top-level field, ensuring fast
+access in the hot path. Components processing the LogRecord can retrieve the
+target via LogRecord.target(), treating it as the scope. The OTLP Exporter
+already handles this automatically, so end-users will see “target” reflected in
+the Instrumentation Scope. An alternative design would be to use thread-local
+HashMaps - but it can cause increased memory usage, as there can be 100s of
+unique targets. (because `tracing` defaults to using module path as target).
 
 ### Perf test - benchmarks
 

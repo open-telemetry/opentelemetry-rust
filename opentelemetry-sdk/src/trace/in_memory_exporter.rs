@@ -16,12 +16,12 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry_sdk::propagation::TraceContextPropagator;
 ///# use opentelemetry_sdk::runtime;
 ///# use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
-///# use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
+///# use opentelemetry_sdk::trace::{BatchSpanProcessor, SdkTracerProvider};
 ///
 ///# #[tokio::main]
 ///# async fn main() {
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
-///     let provider = TracerProvider::builder()
+///     let provider = SdkTracerProvider::builder()
 ///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build())
 ///         .build();
 ///
@@ -37,11 +37,8 @@ use std::sync::{Arc, Mutex};
 ///     cx.span().add_event("handling this...", Vec::new());
 ///     cx.span().end();
 ///
-///     let results = provider.force_flush();
-///     for result in results {
-///         if let Err(e) = result {
-///             println!("{:?}", e)
-///         }
+///     if let Err(e) = provider.force_flush() {
+///         println!("{:?}", e)
 ///     }
 ///     let spans = exporter.get_finished_spans().unwrap();
 ///     for span in spans {
