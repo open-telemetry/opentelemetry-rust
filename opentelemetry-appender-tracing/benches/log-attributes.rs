@@ -21,7 +21,6 @@
 | otel_11_attributes   | 625 ns       | +106 ns   | // vec! initial capacity is 5. 11th attribute causes vec! to be reallocated
 | otel_12_attributes   | 676 ns       | +51 ns    |
 */
-
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
@@ -30,6 +29,7 @@ use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
+use std::time::Duration;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Registry;
@@ -44,7 +44,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }
