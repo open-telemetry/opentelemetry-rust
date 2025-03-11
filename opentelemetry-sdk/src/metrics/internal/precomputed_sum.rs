@@ -1,12 +1,11 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, Aggregation, SumDataPoint};
+use crate::metrics::data::{self, Aggregation, Sum, SumDataPoint};
 use crate::metrics::Temporality;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use super::{ComputeAggregation, Measure};
-use std::sync::Arc;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
@@ -41,7 +40,7 @@ impl<T: Number> PrecomputedSum<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Sum<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
@@ -92,7 +91,7 @@ impl<T: Number> PrecomputedSum<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Sum<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
@@ -124,7 +123,7 @@ impl<T: Number> PrecomputedSum<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<PrecomputedSum<T>>
+impl<T> Measure<T> for PrecomputedSum<T>
 where
     T: Number,
 {
@@ -135,7 +134,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<PrecomputedSum<T>>
+impl<T> ComputeAggregation for PrecomputedSum<T>
 where
     T: Number,
 {

@@ -8,6 +8,10 @@ repository and transformation between types from generated files and types defin
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+## Release Notes
+
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-proto/CHANGELOG.md).
+
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported

@@ -12,12 +12,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! let exporter = opentelemetry_stdout::LogExporter::default();
 //!
-//! let logger_provider = LoggerProvider::builder()
-//!     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! let logger_provider = SdkLoggerProvider::builder()
+//!     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //!     .build();
 //! # }
 //! ```
@@ -26,12 +26,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! # use opentelemetry_appender_log::OpenTelemetryLogBridge;
 //! # let exporter = opentelemetry_stdout::LogExporter::default();
-//! # let logger_provider = LoggerProvider::builder()
-//! #     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! # let logger_provider = SdkLoggerProvider::builder()
+//! #     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //! #     .build();
 //! let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 //!
@@ -116,7 +116,9 @@ use opentelemetry::{
     InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
-use opentelemetry_semantic_conventions::attribute::{CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE};
+use opentelemetry_semantic_conventions::attribute::{
+    CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+};
 
 pub struct OpenTelemetryLogBridge<P, L>
 where
@@ -134,9 +136,11 @@ where
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        return self
-            .logger
-            .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
+        return self.logger.event_enabled(
+            severity_of_level(_metadata.level()),
+            _metadata.target(),
+            None,
+        );
         #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         true
     }
@@ -158,7 +162,7 @@ where
                 }
 
                 if let Some(line_no) = record.line() {
-                    log_record.add_attribute(Key::new(CODE_LINENO), AnyValue::from(line_no));
+                    log_record.add_attribute(Key::new(CODE_LINE_NUMBER), AnyValue::from(line_no));
                 }
 
                 if let Some(module) = record.module_path() {
@@ -769,7 +773,7 @@ mod tests {
     use super::OpenTelemetryLogBridge;
 
     use opentelemetry::{logs::AnyValue, StringValue};
-    use opentelemetry_sdk::{logs::LoggerProvider, testing::logs::InMemoryLogExporter};
+    use opentelemetry_sdk::{logs::InMemoryLogExporter, logs::SdkLoggerProvider};
 
     use log::Log;
 
@@ -777,7 +781,7 @@ mod tests {
     fn logbridge_with_default_metadata_is_enabled() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
             .build();
 
@@ -796,7 +800,7 @@ mod tests {
     fn logbridge_with_record_can_log() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -910,7 +914,7 @@ mod tests {
 
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -1171,12 +1175,12 @@ mod tests {
     #[test]
     fn logbridge_code_attributes() {
         use opentelemetry_semantic_conventions::attribute::{
-            CODE_FILEPATH, CODE_LINENO, CODE_NAMESPACE,
+            CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
         };
 
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
@@ -1212,14 +1216,14 @@ mod tests {
             Some(AnyValue::String(StringValue::from("service"))),
             get(CODE_NAMESPACE)
         );
-        assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINENO));
+        assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINE_NUMBER));
     }
 
     #[test]
     fn test_flush() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
             .build();
 

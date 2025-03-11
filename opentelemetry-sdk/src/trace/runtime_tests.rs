@@ -2,13 +2,11 @@
 // need to run those tests one by one as the GlobalTracerProvider is a shared object between
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use crate::export::trace::{ExportResult, SpanExporter};
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use crate::runtime;
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime::RuntimeChannel;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use futures_util::future::BoxFuture;
+use crate::trace::SpanExporter;
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+use crate::{error::OTelSdkResult, runtime};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use opentelemetry::global::*;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
@@ -19,7 +17,6 @@ use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::sync::Arc;
-
 #[derive(Debug)]
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 struct SpanCountExporter {
@@ -28,12 +25,9 @@ struct SpanCountExporter {
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl SpanExporter for SpanCountExporter {
-    fn export(
-        &mut self,
-        batch: Vec<crate::export::trace::SpanData>,
-    ) -> BoxFuture<'static, ExportResult> {
+    async fn export(&self, batch: Vec<crate::trace::SpanData>) -> OTelSdkResult {
         self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
-        Box::pin(async { Ok(()) })
+        Ok(())
     }
 }
 
@@ -50,17 +44,21 @@ impl SpanCountExporter {
 fn build_batch_tracer_provider<R: RuntimeChannel>(
     exporter: SpanCountExporter,
     runtime: R,
-) -> crate::trace::TracerProvider {
-    use crate::trace::TracerProvider;
-    TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime)
+) -> crate::trace::SdkTracerProvider {
+    use crate::trace::SdkTracerProvider;
+    let processor = crate::trace::span_processor_with_async_runtime::BatchSpanProcessor::builder(
+        exporter, runtime,
+    )
+    .build();
+    SdkTracerProvider::builder()
+        .with_span_processor(processor)
         .build()
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::TracerProvider {
-    use crate::trace::TracerProvider;
-    TracerProvider::builder()
+fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::SdkTracerProvider {
+    use crate::trace::SdkTracerProvider;
+    SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
         .build()
 }
@@ -68,7 +66,7 @@ fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::Tr
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 async fn test_set_provider_in_tokio<R: RuntimeChannel>(
     runtime: R,
-) -> (Arc<AtomicUsize>, crate::trace::TracerProvider) {
+) -> (Arc<AtomicUsize>, crate::trace::SdkTracerProvider) {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
     let tracer_provider = build_batch_tracer_provider(exporter, runtime);

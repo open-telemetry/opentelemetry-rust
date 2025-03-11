@@ -1,12 +1,8 @@
-use super::{BatchLogProcessor, LogProcessor, LogRecord, SimpleLogProcessor, TraceContext};
-use crate::{export::logs::LogExporter, Resource};
-use crate::{logs::LogError, logs::LogResult};
-use opentelemetry::{otel_debug, otel_info, trace::TraceContextExt, Context, InstrumentationScope};
-
-#[cfg(feature = "spec_unstable_logs_enabled")]
-use opentelemetry::logs::Severity;
-
-use std::time::SystemTime;
+use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
+use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::LogExporter;
+use crate::Resource;
+use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
 use std::{
     borrow::Cow,
     sync::{
@@ -17,11 +13,11 @@ use std::{
 
 // a no nop logger provider used as placeholder when the provider is shutdown
 // TODO - replace it with LazyLock once it is stable
-static NOOP_LOGGER_PROVIDER: OnceLock<LoggerProvider> = OnceLock::new();
+static NOOP_LOGGER_PROVIDER: OnceLock<SdkLoggerProvider> = OnceLock::new();
 
 #[inline]
-fn noop_logger_provider() -> &'static LoggerProvider {
-    NOOP_LOGGER_PROVIDER.get_or_init(|| LoggerProvider {
+fn noop_logger_provider() -> &'static SdkLoggerProvider {
+    NOOP_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
             resource: Resource::empty(),
@@ -33,23 +29,23 @@ fn noop_logger_provider() -> &'static LoggerProvider {
 #[derive(Debug, Clone)]
 /// Handles the creation and coordination of [`Logger`]s.
 ///
-/// All `Logger`s created by a `LoggerProvider` will share the same
+/// All `Logger`s created by a `SdkLoggerProvider` will share the same
 /// [`Resource`] and have their created log records processed by the
-/// configured log processors. This is a clonable handle to the `LoggerProvider`
+/// configured log processors. This is a clonable handle to the `SdkLoggerProvider`
 /// itself, and cloning it will create a new reference, not a new instance of a
-/// `LoggerProvider`. Dropping the last reference will trigger the shutdown of
+/// `SdkLoggerProvider`. Dropping the last reference will trigger the shutdown of
 /// the provider, ensuring that all remaining logs are flushed and no further
 /// logs are processed. Shutdown can also be triggered manually by calling
-/// the [`shutdown`](LoggerProvider::shutdown) method.
+/// the [`shutdown`](SdkLoggerProvider::shutdown) method.
 ///
 /// [`Logger`]: opentelemetry::logs::Logger
 /// [`Resource`]: crate::Resource
-pub struct LoggerProvider {
+pub struct SdkLoggerProvider {
     inner: Arc<LoggerProviderInner>,
 }
 
-impl opentelemetry::logs::LoggerProvider for LoggerProvider {
-    type Logger = Logger;
+impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
+    type Logger = SdkLogger;
 
     fn logger(&self, name: impl Into<Cow<'static, str>>) -> Self::Logger {
         let scope = InstrumentationScope::builder(name).build();
@@ -63,7 +59,7 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
                 name: "LoggerProvider.NoOpLoggerReturned",
                 logger_name = scope.name(),
             );
-            return Logger::new(scope, noop_logger_provider().clone());
+            return SdkLogger::new(scope, noop_logger_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
@@ -72,14 +68,14 @@ impl opentelemetry::logs::LoggerProvider for LoggerProvider {
             name: "LoggerProvider.NewLoggerReturned",
             logger_name = scope.name(),
         );
-        Logger::new(scope, self.clone())
+        SdkLogger::new(scope, self.clone())
     }
 }
 
-impl LoggerProvider {
+impl SdkLoggerProvider {
     /// Create a new `LoggerProvider` builder.
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> LoggerProviderBuilder {
+        LoggerProviderBuilder::default()
     }
 
     pub(crate) fn log_processors(&self) -> &[Box<dyn LogProcessor>] {
@@ -91,15 +87,21 @@ impl LoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> Vec<LogResult<()>> {
-        self.log_processors()
+    pub fn force_flush(&self) -> OTelSdkResult {
+        let result: Vec<_> = self
+            .log_processors()
             .iter()
             .map(|processor| processor.force_flush())
-            .collect()
+            .collect();
+        if result.iter().all(|r| r.is_ok()) {
+            Ok(())
+        } else {
+            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+        }
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> LogResult<()> {
+    pub fn shutdown(&self) -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );
@@ -110,14 +112,20 @@ impl LoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let errs = self.inner.shutdown();
-            if errs.is_empty() {
+            let result = self.inner.shutdown();
+            if result.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
-                Err(LogError::Other(format!("{errs:?}").into()))
+                Err(OTelSdkError::InternalFailure(format!(
+                    "Shutdown errors: {:?}",
+                    result
+                        .into_iter()
+                        .filter_map(Result::err)
+                        .collect::<Vec<_>>()
+                )))
             }
         } else {
-            Err(LogError::AlreadyShutdown("LoggerProvider".to_string()))
+            Err(OTelSdkError::AlreadyShutdown)
         }
     }
 }
@@ -131,32 +139,21 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<LogError> {
-        let mut errs = vec![];
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        let mut results = vec![];
         for processor in &self.processors {
-            if let Err(err) = processor.shutdown() {
+            let result = processor.shutdown();
+            if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
-                //  - Or the error occurs during `LoggerProviderInner::Drop` as part of telemetry shutdown,
+                //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
                 //    which is non-actionable by the user
-                match err {
-                    // specific handling for mutex poisioning
-                    LogError::MutexPoisoned(_) => {
-                        otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownMutexPoisoned",
-                        );
-                    }
-                    _ => {
-                        otel_debug!(
-                            name: "LoggerProvider.Drop.ShutdownError",
-                            error = format!("{err}")
-                        );
-                    }
-                }
-                errs.push(err);
+                otel_debug!(name: "LoggerProvider.ShutdownError",
+                        error = format!("{err}"));
             }
+            results.push(result);
         }
-        errs
+        results
     }
 }
 
@@ -179,47 +176,82 @@ impl Drop for LoggerProviderInner {
 
 #[derive(Debug, Default)]
 /// Builder for provider attributes.
-pub struct Builder {
+pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
 }
 
-impl Builder {
-    /// The `LogExporter` that this provider should use.
+impl LoggerProviderBuilder {
+    /// Adds a [SimpleLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the SimpleLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the SimpleLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(SimpleLogProcessor::new(exporter)));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
-    /// The `LogExporter` setup using a default `BatchLogProcessor` that this provider should use.
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
         let batch = BatchLogProcessor::builder(exporter).build();
         self.with_log_processor(batch)
     }
 
-    /// The `LogProcessor` that this provider should use.
+    /// Adds a custom [LogProcessor] to the pipeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `processor` - The `LogProcessor` to be added.
+    ///
+    /// # Returns
+    ///
+    /// A new `Builder` instance with the custom `LogProcessor` added to the pipeline.
+    ///
+    /// Processors are invoked in the order they are added.
     pub fn with_log_processor<T: LogProcessor + 'static>(self, processor: T) -> Self {
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
-        Builder { processors, ..self }
+        LoggerProviderBuilder { processors, ..self }
     }
 
     /// The `Resource` to be associated with this Provider.
+    ///
+    /// *Note*: Calls to this method are additive, each call merges the provided
+    /// resource with the previous one.
     pub fn with_resource(self, resource: Resource) -> Self {
-        Builder {
-            resource: Some(resource),
-            ..self
-        }
+        let resource = match self.resource {
+            Some(existing) => Some(existing.merge(&resource)),
+            None => Some(resource),
+        };
+
+        LoggerProviderBuilder { resource, ..self }
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> LoggerProvider {
+    pub fn build(self) -> SdkLoggerProvider {
         let resource = self.resource.unwrap_or(Resource::builder().build());
 
-        let logger_provider = LoggerProvider {
+        let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors: self.processors,
                 resource,
@@ -239,84 +271,23 @@ impl Builder {
     }
 }
 
-#[derive(Debug)]
-/// The object for emitting [`LogRecord`]s.
-///
-/// [`LogRecord`]: opentelemetry::logs::LogRecord
-pub struct Logger {
-    scope: InstrumentationScope,
-    provider: LoggerProvider,
-}
-
-impl Logger {
-    pub(crate) fn new(scope: InstrumentationScope, provider: LoggerProvider) -> Self {
-        Logger { scope, provider }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
-        &self.scope
-    }
-}
-
-impl opentelemetry::logs::Logger for Logger {
-    type LogRecord = LogRecord;
-
-    fn create_log_record(&self) -> Self::LogRecord {
-        LogRecord::default()
-    }
-
-    /// Emit a `LogRecord`.
-    fn emit(&self, mut record: Self::LogRecord) {
-        let provider = &self.provider;
-        let processors = provider.log_processors();
-
-        //let mut log_record = record;
-        if record.trace_context.is_none() {
-            let trace_context = Context::map_current(|cx| {
-                cx.has_active_span()
-                    .then(|| TraceContext::from(cx.span().span_context()))
-            });
-
-            if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone());
-            }
-        }
-        if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(SystemTime::now());
-        }
-
-        for p in processors {
-            p.emit(&mut record, &self.scope);
-        }
-    }
-
-    #[cfg(feature = "spec_unstable_logs_enabled")]
-    fn event_enabled(&self, level: Severity, target: &str) -> bool {
-        let provider = &self.provider;
-
-        let mut enabled = false;
-        for processor in provider.log_processors() {
-            enabled = enabled || processor.event_enabled(level, target, self.scope.name().as_ref());
-        }
-        enabled
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
+        logs::{InMemoryLogExporter, SdkLogRecord, TraceContext},
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        testing::logs::InMemoryLogExporter,
-        trace::TracerProvider,
+        trace::SdkTracerProvider,
         Resource,
     };
 
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger as _, LoggerProvider as _};
-    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider as _};
+    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
+    use opentelemetry::{
+        logs::{AnyValue, LogRecord as _, Logger, LoggerProvider},
+        trace::TraceContextExt,
+    };
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
@@ -344,7 +315,7 @@ mod tests {
     }
 
     impl LogProcessor for ShutdownTestLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             self.is_shutdown
                 .lock()
                 .map(|is_shutdown| {
@@ -356,11 +327,11 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -370,35 +341,35 @@ mod tests {
     }
     #[test]
     fn test_logger_provider_default_resource() {
-        let assert_resource = |provider: &super::LoggerProvider,
+        let assert_resource = |provider: &super::SdkLoggerProvider,
                                resource_key: &'static str,
                                expect: Option<&'static str>| {
             assert_eq!(
                 provider
                     .resource()
-                    .get(Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
-        let assert_telemetry_resource = |provider: &super::LoggerProvider| {
+        let assert_telemetry_resource = |provider: &super::SdkLoggerProvider| {
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_LANGUAGE.into()),
+                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
                 Some(Value::from("rust"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_NAME.into()),
+                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
                 Some(Value::from("opentelemetry"))
             );
             assert_eq!(
-                provider.resource().get(TELEMETRY_SDK_VERSION.into()),
+                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
                 Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
-            let default_config_provider = super::LoggerProvider::builder().build();
+            let default_config_provider = super::SdkLoggerProvider::builder().build();
             assert_resource(
                 &default_config_provider,
                 SERVICE_NAME,
@@ -408,7 +379,7 @@ mod tests {
         });
 
         // If user provided a resource, use that.
-        let custom_config_provider = super::LoggerProvider::builder()
+        let custom_config_provider = super::SdkLoggerProvider::builder()
             .with_resource(
                 Resource::builder_empty()
                     .with_service_name("test_service")
@@ -423,7 +394,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("key1=value1, k2, k3=value2"),
             || {
-                let env_resource_provider = super::LoggerProvider::builder().build();
+                let env_resource_provider = super::SdkLoggerProvider::builder().build();
                 assert_resource(
                     &env_resource_provider,
                     SERVICE_NAME,
@@ -441,7 +412,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("my-custom-key=env-val,k2=value2"),
             || {
-                let user_provided_resource_config_provider = super::LoggerProvider::builder()
+                let user_provided_resource_config_provider = super::SdkLoggerProvider::builder()
                     .with_resource(
                         Resource::builder()
                             .with_attributes([
@@ -477,7 +448,7 @@ mod tests {
         );
 
         // If user provided a resource, it takes priority during collision.
-        let no_service_name = super::LoggerProvider::builder()
+        let no_service_name = super::SdkLoggerProvider::builder()
             .with_resource(Resource::empty())
             .build();
         assert_eq!(no_service_name.resource().len(), 0);
@@ -487,13 +458,13 @@ mod tests {
     fn trace_context_test() {
         let exporter = InMemoryLogExporter::default();
 
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
         let logger = logger_provider.logger("test-logger");
 
-        let tracer_provider = TracerProvider::builder().build();
+        let tracer_provider = SdkTracerProvider::builder().build();
 
         let tracer = tracer_provider.tracer("test-tracer");
 
@@ -552,7 +523,7 @@ mod tests {
     #[test]
     fn shutdown_test() {
         let counter = Arc::new(AtomicU64::new(0));
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
             .build();
 
@@ -576,7 +547,7 @@ mod tests {
     #[test]
     fn shutdown_idempotent_test() {
         let counter = Arc::new(AtomicU64::new(0));
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
             .build();
 
@@ -599,7 +570,7 @@ mod tests {
         // Arrange
         let shutdown_called = Arc::new(Mutex::new(false));
         let flush_called = Arc::new(Mutex::new(false));
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(LazyLogProcessor::new(
                 shutdown_called.clone(),
                 flush_called.clone(),
@@ -642,10 +613,10 @@ mod tests {
             });
 
             {
-                let logger_provider1 = LoggerProvider {
+                let logger_provider1 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
                 };
-                let logger_provider2 = LoggerProvider {
+                let logger_provider2 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
                 };
 
@@ -684,15 +655,16 @@ mod tests {
 
         // Create a scope to test behavior when providers are dropped
         {
-            let logger_provider1 = LoggerProvider {
+            let logger_provider1 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
             };
-            let logger_provider2 = LoggerProvider {
+            let logger_provider2 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
             };
 
             // Explicitly shut down the logger provider
             let shutdown_result = logger_provider1.shutdown();
+            println!("---->Result: {:?}", shutdown_result);
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
@@ -712,7 +684,7 @@ mod tests {
     #[test]
     fn test_empty_logger_name() {
         let exporter = InMemoryLogExporter::default();
-        let logger_provider = LoggerProvider::builder()
+        let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
         let logger = logger_provider.logger("");
@@ -728,21 +700,52 @@ mod tests {
         scoped_logger.emit(scoped_record);
 
         // Assert: Verify that the emitted logs are processed correctly
-        let emitted_logs = exporter.get_emitted_logs().unwrap();
+        let mut emitted_logs = exporter.get_emitted_logs().unwrap();
         assert_eq!(emitted_logs.len(), 2);
+        let log1 = emitted_logs.remove(0);
         // Assert the first log
         assert_eq!(
-            emitted_logs[0].clone().record.body,
+            log1.record.body,
             Some(AnyValue::String("Testing empty logger name".into()))
         );
-        assert_eq!(logger.scope.name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
 
         // Assert the second log created through the scope
+        let log2 = emitted_logs.remove(0);
         assert_eq!(
-            emitted_logs[1].clone().record.body,
+            log2.record.body,
             Some(AnyValue::String("Testing empty logger scope name".into()))
         );
-        assert_eq!(scoped_logger.scope.name(), "");
+        assert_eq!(log1.instrumentation.name(), "");
+    }
+
+    #[test]
+    fn with_resource_multiple_calls_ensure_additive() {
+        let builder = SdkLoggerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
+            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(vec![], "http://example.com")
+                    .build(),
+            )
+            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+
+        let resource = builder.resource.unwrap();
+
+        assert_eq!(
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
+        );
+        assert_eq!(
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
+        );
+        assert_eq!(resource.schema_url(), Some("http://example.com"));
     }
 
     #[derive(Debug)]
@@ -764,16 +767,16 @@ mod tests {
     }
 
     impl LogProcessor for LazyLogProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -795,16 +798,16 @@ mod tests {
     }
 
     impl LogProcessor for CountingShutdownProcessor {
-        fn emit(&self, _data: &mut LogRecord, _scope: &InstrumentationScope) {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
             // nothing to do
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

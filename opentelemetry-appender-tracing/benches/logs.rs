@@ -10,70 +10,61 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 196 ns      |
+    | ot_layer_enabled            | 167 ns      |
+
+    Hardware: Apple M4 Pro
+    Total Number of Cores:	14 (10 performance and 4 efficiency)
+    | Test                        | Average time|
+    |-----------------------------|-------------|
+    | log_no_subscriber           | 285 ps      |
+    | noop_layer_disabled         | 8 ns       |
+    | noop_layer_enabled          | 14 ns       |
+    | ot_layer_disabled           | 12 ns       |
+    | ot_layer_enabled            | 186 ns      |
 */
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
-use opentelemetry_sdk::export::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::LogResult;
-use opentelemetry_sdk::logs::{LogProcessor, LogRecord, LoggerProvider};
+use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::Layer;
 use tracing_subscriber::Registry;
 
-#[derive(Debug, Clone)]
-struct NoopExporter {
+#[derive(Debug)]
+struct NoopProcessor {
     enabled: bool,
 }
 
-#[async_trait]
-impl LogExporter for NoopExporter {
-    async fn export(&self, _: LogBatch<'_>) -> LogResult<()> {
-        LogResult::Ok(())
-    }
-
-    fn event_enabled(&self, _: opentelemetry::logs::Severity, _: &str, _: &str) -> bool {
-        self.enabled
-    }
-}
-
-#[derive(Debug)]
-struct NoopProcessor {
-    exporter: Box<dyn LogExporter>,
-}
-
 impl NoopProcessor {
-    fn new(exporter: Box<dyn LogExporter>) -> Self {
-        Self { exporter }
+    fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
 }
 
 impl LogProcessor for NoopProcessor {
-    fn emit(&self, _: &mut LogRecord, _: &InstrumentationScope) {
-        // no-op
-    }
+    fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {}
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 
     fn event_enabled(
         &self,
-        level: opentelemetry::logs::Severity,
-        target: &str,
-        name: &str,
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: Option<&str>,
     ) -> bool {
-        self.exporter.event_enabled(level, target, name)
+        self.enabled
     }
 }
 
@@ -113,7 +104,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
     c.bench_function("log_no_subscriber", |b| {
         b.iter(|| {
             error!(
-                name = "CheckoutFailed",
+                name : "CheckoutFailed",
                 book_id = "12345",
                 book_title = "Rust Programming Adventures",
                 message = "Unable to process checkout."
@@ -123,9 +114,8 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
 }
 
 fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
-    let exporter = NoopExporter { enabled };
-    let processor = NoopProcessor::new(Box::new(exporter));
-    let provider = LoggerProvider::builder()
+    let processor = NoopProcessor::new(enabled);
+    let provider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("benchmark")
@@ -140,7 +130,7 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
                     message = "Unable to process checkout."
@@ -157,10 +147,10 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
-                    "Unable to process checkout."
+                    message = "Unable to process checkout."
                 );
             });
         });

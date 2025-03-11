@@ -1,11 +1,13 @@
-use crate::export::logs::{LogBatch, LogExporter};
-use crate::logs::LogRecord;
-use crate::logs::{LogError, LogResult};
+use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::SdkLogRecord;
+use crate::logs::{LogBatch, LogExporter};
 use crate::Resource;
-use async_trait::async_trait;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+
+type LogResult<T> = Result<T, OTelSdkError>;
 
 /// An in-memory logs exporter that stores logs data in memory..
 ///
@@ -15,16 +17,16 @@ use std::sync::{Arc, Mutex};
 ///
 /// # Example
 /// ```no_run
-///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 ///# use opentelemetry_sdk::runtime;
-///# use opentelemetry_sdk::testing::logs::InMemoryLogExporter;
+///# use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 ///# #[tokio::main]
 ///# async fn main() {
 ///    // Create an InMemoryLogExporter
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
 ///    //Create a LoggerProvider and register the exporter
-///    let logger_provider = LoggerProvider::builder()
+///    let logger_provider = SdkLoggerProvider::builder()
 ///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
@@ -41,6 +43,7 @@ pub struct InMemoryLogExporter {
     logs: Arc<Mutex<Vec<OwnedLogData>>>,
     resource: Arc<Mutex<Resource>>,
     should_reset_on_shutdown: bool,
+    shutdown_called: Arc<AtomicBool>,
 }
 
 impl Default for InMemoryLogExporter {
@@ -53,17 +56,17 @@ impl Default for InMemoryLogExporter {
 #[derive(Debug, Clone)]
 pub struct OwnedLogData {
     /// Log record, which can be borrowed or owned.
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogEvent`.
     pub instrumentation: InstrumentationScope,
 }
 
-/// `LogDataWithResource` associates a [`LogRecord`] with a [`Resource`] and
+/// `LogDataWithResource` associates a [`SdkLogRecord`] with a [`Resource`] and
 /// [`InstrumentationScope`].
 #[derive(Clone, Debug)]
 pub struct LogDataWithResource {
     /// Log record
-    pub record: LogRecord,
+    pub record: SdkLogRecord,
     /// Instrumentation details for the emitter who produced this `LogRecord`.
     pub instrumentation: InstrumentationScope,
     /// Resource for the emitter who produced this `LogRecord`.
@@ -74,8 +77,8 @@ pub struct LogDataWithResource {
 /// # Example
 ///
 /// ```no_run
-///# use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
-///# use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+///# use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+///# use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 ///# use opentelemetry_sdk::runtime;
 ///
 ///# #[tokio::main]
@@ -83,7 +86,7 @@ pub struct LogDataWithResource {
 ///    //Create an InMemoryLogExporter
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
-///    let logger_provider = LoggerProvider::builder()
+///    let logger_provider = SdkLoggerProvider::builder()
 ///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
 ///        .build();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
@@ -123,6 +126,7 @@ impl InMemoryLogExporterBuilder {
             logs: Arc::new(Mutex::new(Vec::new())),
             resource: Arc::new(Mutex::new(Resource::builder().build())),
             should_reset_on_shutdown: self.reset_on_shutdown,
+            shutdown_called: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -136,20 +140,31 @@ impl InMemoryLogExporterBuilder {
 }
 
 impl InMemoryLogExporter {
+    /// Returns true if shutdown was called.
+    pub fn is_shutdown_called(&self) -> bool {
+        self.shutdown_called
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Returns the logs emitted via Logger as a vector of `LogDataWithResource`.
     ///
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+    /// use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
     ///
     /// let exporter = InMemoryLogExporterBuilder::default().build();
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
-        let logs_guard = self.logs.lock().map_err(LogError::from)?;
-        let resource_guard = self.resource.lock().map_err(LogError::from)?;
+        let logs_guard = self
+            .logs
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to lock logs: {}", e)))?;
+        let resource_guard = self.resource.lock().map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to lock resource: {}", e))
+        })?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
@@ -166,7 +181,7 @@ impl InMemoryLogExporter {
     /// # Example
     ///
     /// ```
-    /// use opentelemetry_sdk::testing::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
+    /// use opentelemetry_sdk::logs::{InMemoryLogExporter, InMemoryLogExporterBuilder};
     ///
     /// let exporter = InMemoryLogExporterBuilder::default().build();
     /// exporter.reset();
@@ -177,14 +192,15 @@ impl InMemoryLogExporter {
             .logs
             .lock()
             .map(|mut logs_guard| logs_guard.clear())
-            .map_err(LogError::from);
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {}", e)));
     }
 }
 
-#[async_trait]
 impl LogExporter for InMemoryLogExporter {
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
-        let mut logs_guard = self.logs.lock().map_err(LogError::from)?;
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        let mut logs_guard = self.logs.lock().map_err(|e| {
+            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
+        })?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
                 record: (*log_record).clone(),
@@ -195,10 +211,13 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_called
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {
             self.reset();
         }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

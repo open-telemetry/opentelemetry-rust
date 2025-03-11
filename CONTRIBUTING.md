@@ -8,7 +8,7 @@ for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
 Meeting notes are available as a public [Google
-doc](https://docs.google.com/document/d/1tGKuCsSnyT2McDncVJrMgg74_z8V06riWZa0Sr79I_4/edit).
+doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
 If you have trouble accessing the doc, please get in touch on
 [Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
 
@@ -78,9 +78,13 @@ Open a pull request against the main
 [opentelemetry-rust](https://github.com/open-telemetry/opentelemetry-rust)
 repo.
 
+Your pull request should be named according to the
+[conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) standard. This ensures that
+when the PR is squashed into `main`, the resulting commit message is consistent and makes it easier
+for us to generate a changelog  standard. 
+
 > **Note**
-> It is recommended to run [pre-commit script](scripts/precommit.sh) from the root of
-the repo to catch any issues locally.
+> It is recommended to run [pre-commit script](scripts/precommit.sh) to catch any issues locally.
 
 ### How to Receive Comments
 

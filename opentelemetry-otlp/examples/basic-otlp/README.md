@@ -49,42 +49,21 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
 ## Usage
 
-### `docker-compose`
-
-By default runs against the `otel/opentelemetry-collector:latest` image, and uses the `tonic`'s
-`grpc` example as the transport.
-
-```shell
-docker-compose up
-```
-
-In another terminal run the application `cargo run`
-
-The docker-compose terminal will display logs, traces, metrics.
-
-Press Ctrl+C to stop the collector, and then tear it down:
-
-```shell
-docker-compose down
-```
-
-### Manual
-
-If you don't want to use `docker-compose`, you can manually run the `otel/opentelemetry-collector` container
-and inspect the logs to see traces being transferred.
+Run the `otel/opentelemetry-collector` container using docker
+and inspect the logs to see the exported telemetry.
 
 On Unix based systems use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4317:4317 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v $(pwd):/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 On Windows use:
 
 ```shell
 # From the current directory, run `opentelemetry-collector`
-docker run --rm -it -p 4317:4317 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
+docker run --rm -it -p 4317:4317 -p 4318:4318 -v "%cd%":/cfg otel/opentelemetry-collector:latest --config=/cfg/otel-collector-config.yaml
 ```
 
 Run the app which exports logs, metrics and traces via OTLP to the collector

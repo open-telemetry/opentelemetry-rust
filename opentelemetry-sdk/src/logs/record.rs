@@ -19,11 +19,11 @@ const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
-pub struct LogRecord {
+pub struct SdkLogRecord {
     /// Event name. Optional as not all the logging API support it.
     pub(crate) event_name: Option<&'static str>,
 
@@ -52,7 +52,7 @@ pub struct LogRecord {
     pub(crate) attributes: LogRecordAttributes,
 }
 
-impl opentelemetry::logs::LogRecord for LogRecord {
+impl opentelemetry::logs::LogRecord for SdkLogRecord {
     fn set_event_name(&mut self, name: &'static str) {
         self.event_name = Some(name);
     }
@@ -118,7 +118,22 @@ impl opentelemetry::logs::LogRecord for LogRecord {
     }
 }
 
-impl LogRecord {
+impl SdkLogRecord {
+    /// Crate only default constructor
+    pub(crate) fn new() -> Self {
+        SdkLogRecord {
+            event_name: None,
+            target: None,
+            timestamp: None,
+            observed_timestamp: None,
+            trace_context: None,
+            severity_text: None,
+            severity_number: None,
+            body: None,
+            attributes: LogRecordAttributes::default(),
+        }
+    }
+
     /// Returns the event name
     #[inline]
     pub fn event_name(&self) -> Option<&'static str> {
@@ -282,50 +297,50 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, Severity};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
+    use opentelemetry::time::now;
     use std::borrow::Cow;
-    use std::time::SystemTime;
 
     #[test]
     fn test_set_eventname() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         log_record.set_event_name("test_event");
         assert_eq!(log_record.event_name, Some("test_event"));
     }
 
     #[test]
     fn test_set_target() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         log_record.set_target("foo::bar");
         assert_eq!(log_record.target, Some(Cow::Borrowed("foo::bar")));
     }
 
     #[test]
     fn test_set_timestamp() {
-        let mut log_record = LogRecord::default();
-        let now = SystemTime::now();
+        let mut log_record = SdkLogRecord::new();
+        let now = now();
         log_record.set_timestamp(now);
         assert_eq!(log_record.timestamp, Some(now));
     }
 
     #[test]
     fn test_set_observed_timestamp() {
-        let mut log_record = LogRecord::default();
-        let now = SystemTime::now();
+        let mut log_record = SdkLogRecord::new();
+        let now = now();
         log_record.set_observed_timestamp(now);
         assert_eq!(log_record.observed_timestamp, Some(now));
     }
 
     #[test]
     fn test_set_severity_text() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         log_record.set_severity_text("ERROR");
         assert_eq!(log_record.severity_text, Some("ERROR"));
     }
 
     #[test]
     fn test_set_severity_number() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         let severity_number = Severity::Error;
         log_record.set_severity_number(severity_number);
         assert_eq!(log_record.severity_number, Some(Severity::Error));
@@ -333,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_set_body() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         let body = AnyValue::String("Test body".into());
         log_record.set_body(body.clone());
         assert_eq!(log_record.body, Some(body));
@@ -341,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_set_attributes() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         let attributes = vec![(Key::new("key"), AnyValue::String("value".into()))];
         log_record.add_attributes(attributes.clone());
         for (key, value) in attributes {
@@ -351,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_set_attribute() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         log_record.add_attribute("key", "value");
         let key = Key::new("key");
         let value = AnyValue::String("value".into());
@@ -381,11 +396,11 @@ mod tests {
 
     #[test]
     fn compare_log_record() {
-        let mut log_record = LogRecord {
+        let mut log_record = SdkLogRecord {
             event_name: Some("test_event"),
             target: Some(Cow::Borrowed("foo::bar")),
-            timestamp: Some(SystemTime::now()),
-            observed_timestamp: Some(SystemTime::now()),
+            timestamp: Some(now()),
+            observed_timestamp: Some(now()),
             severity_text: Some("ERROR"),
             severity_number: Some(Severity::Error),
             body: Some(AnyValue::String("Test body".into())),
@@ -410,14 +425,14 @@ mod tests {
 
     #[test]
     fn compare_log_record_target_borrowed_eq_owned() {
-        let log_record_borrowed = LogRecord {
+        let log_record_borrowed = SdkLogRecord {
             event_name: Some("test_event"),
-            ..Default::default()
+            ..SdkLogRecord::new()
         };
 
-        let log_record_owned = LogRecord {
+        let log_record_owned = SdkLogRecord {
             event_name: Some("test_event"),
-            ..Default::default()
+            ..SdkLogRecord::new()
         };
 
         assert_eq!(log_record_borrowed, log_record_owned);

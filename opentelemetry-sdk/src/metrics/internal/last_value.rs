@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use crate::metrics::{
-    data::{self, Aggregation, GaugeDataPoint},
+    data::{self, Aggregation, Gauge, GaugeDataPoint},
     Temporality,
 };
 use opentelemetry::KeyValue;
@@ -67,7 +65,7 @@ impl<T: Number> LastValue<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -99,7 +97,7 @@ impl<T: Number> LastValue<T> {
         dest: Option<&mut dyn Aggregation>,
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Gauge<T>>());
+        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -128,7 +126,7 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<LastValue<T>>
+impl<T> Measure<T> for LastValue<T>
 where
     T: Number,
 {
@@ -139,7 +137,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<LastValue<T>>
+impl<T> ComputeAggregation for LastValue<T>
 where
     T: Number,
 {

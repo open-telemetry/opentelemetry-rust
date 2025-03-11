@@ -10,28 +10,26 @@
     | LogExporterWithoutFuture       | 92 ns      |
 */
 
+use opentelemetry::time::now;
+use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
-use std::time::SystemTime;
 
-use async_trait::async_trait;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use opentelemetry::logs::{LogRecord as _, Logger as _, LoggerProvider as _, Severity};
-use opentelemetry_sdk::logs::LogResult;
-
+use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::InstrumentationScope;
-use opentelemetry_sdk::export::logs::LogBatch;
+use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
-use opentelemetry_sdk::logs::LogRecord;
-use opentelemetry_sdk::logs::LoggerProvider;
+use opentelemetry_sdk::logs::SdkLogRecord;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
 // Run this benchmark with:
 // cargo bench --bench log_exporter
-#[async_trait]
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    async fn export(&mut self, batch: LogBatch<'_>);
+    fn export(&mut self, batch: LogBatch<'_>) -> impl std::future::Future<Output = ()> + Send;
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {
@@ -41,7 +39,6 @@ pub trait LogExporterWithoutFuture: Send + Sync + Debug {
 #[derive(Debug)]
 struct NoOpExporterWithFuture {}
 
-#[async_trait]
 impl LogExporterWithFuture for NoOpExporterWithFuture {
     async fn export(&mut self, _batch: LogBatch<'_>) {}
 }
@@ -66,17 +63,17 @@ impl ExportingProcessorWithFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
         let mut exporter = self.exporter.lock().expect("lock error");
-        let logs = [(record as &LogRecord, scope)];
+        let logs = [(record as &SdkLogRecord, scope)];
         futures_executor::block_on(exporter.export(LogBatch::new(&logs)));
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -95,19 +92,19 @@ impl ExportingProcessorWithoutFuture {
 }
 
 impl LogProcessor for ExportingProcessorWithoutFuture {
-    fn emit(&self, record: &mut LogRecord, scope: &InstrumentationScope) {
-        let logs = [(record as &LogRecord, scope)];
+    fn emit(&self, record: &mut SdkLogRecord, scope: &InstrumentationScope) {
+        let logs = [(record as &SdkLogRecord, scope)];
         self.exporter
             .lock()
             .expect("lock error")
             .export(LogBatch::new(&logs));
     }
 
-    fn force_flush(&self) -> LogResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown(&self) -> LogResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -118,7 +115,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn exporter_with_future(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(ExportingProcessorWithFuture::new(NoOpExporterWithFuture {}))
         .build();
     let logger = provider.logger("benchmark");
@@ -126,7 +123,7 @@ fn exporter_with_future(c: &mut Criterion) {
     c.bench_function("LogExporterWithFuture", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");
@@ -142,7 +139,7 @@ fn exporter_with_future(c: &mut Criterion) {
 }
 
 fn exporter_without_future(c: &mut Criterion) {
-    let provider = LoggerProvider::builder()
+    let provider = SdkLoggerProvider::builder()
         .with_log_processor(ExportingProcessorWithoutFuture::new(
             NoOpExporterWithoutFuture {},
         ))
@@ -152,7 +149,7 @@ fn exporter_without_future(c: &mut Criterion) {
     c.bench_function("LogExporterWithoutFuture", |b| {
         b.iter(|| {
             let mut log_record = logger.create_log_record();
-            let now = SystemTime::now();
+            let now = now();
             log_record.set_observed_timestamp(now);
             log_record.set_target("my-target".to_string());
             log_record.set_event_name("CheckoutFailed");

@@ -1,15 +1,10 @@
-use std::{
-    f64::consts::LOG2_E,
-    mem::replace,
-    ops::DerefMut,
-    sync::{Arc, Mutex},
-};
+use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
 
 use crate::metrics::{
-    data::{self, Aggregation},
+    data::{self, Aggregation, ExponentialHistogram},
     Temporality,
 };
 
@@ -391,7 +386,7 @@ impl<T: Number> ExpoHistogram<T> {
     fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -448,7 +443,7 @@ impl<T: Number> ExpoHistogram<T> {
     ) -> (usize, Option<Box<dyn Aggregation>>) {
         let time = self.init_time.cumulative();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -500,7 +495,7 @@ impl<T: Number> ExpoHistogram<T> {
     }
 }
 
-impl<T> Measure<T> for Arc<ExpoHistogram<T>>
+impl<T> Measure<T> for ExpoHistogram<T>
 where
     T: Number,
 {
@@ -518,7 +513,7 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Arc<ExpoHistogram<T>>
+impl<T> ComputeAggregation for ExpoHistogram<T>
 where
     T: Number,
 {
@@ -529,10 +524,12 @@ where
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
-    use std::{ops::Neg, time::SystemTime};
+    use data::{ExponentialHistogram, Gauge, Histogram, Sum};
+    use opentelemetry::time::now;
+    use std::ops::Neg;
+    use tests::internal::AggregateFns;
 
     use crate::metrics::internal::{self, AggregateBuilder};
 
@@ -695,14 +692,14 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = Arc::new(ExpoHistogram::new(
+            let h = ExpoHistogram::new(
                 Temporality::Cumulative,
                 AttributeSetFilter::new(None),
                 4,
                 20,
                 true,
                 true,
-            ));
+            );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
@@ -751,14 +748,14 @@ mod tests {
         ];
 
         for test in test_cases {
-            let h = Arc::new(ExpoHistogram::new(
+            let h = ExpoHistogram::new(
                 Temporality::Cumulative,
                 AttributeSetFilter::new(None),
                 4,
                 20,
                 true,
                 true,
-            ));
+            );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
@@ -1252,15 +1249,6 @@ mod tests {
         hist_aggregation::<f64>();
     }
 
-    fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
-    ) -> (
-        Box<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-    ) {
-        (Box::new(m), Box::new(ca))
-    }
-
     fn hist_aggregation<T: Number + From<u32>>() {
         let max_size = 4;
         let max_scale = 20;
@@ -1270,12 +1258,7 @@ mod tests {
         #[allow(clippy::type_complexity)]
         struct TestCase<T> {
             name: &'static str,
-            build: Box<
-                dyn Fn() -> (
-                    Box<dyn internal::Measure<T>>,
-                    Box<dyn internal::ComputeAggregation>,
-                ),
-            >,
+            build: Box<dyn Fn() -> AggregateFns<T>>,
             input: Vec<Vec<T>>,
             want: data::ExponentialHistogram<T>,
             want_count: usize,
@@ -1284,14 +1267,11 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    box_val(
-                        AggregateBuilder::new(Temporality::Delta, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
+                    AggregateBuilder::new(Temporality::Delta, None).exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
                     )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
@@ -1319,23 +1299,21 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
             TestCase {
                 name: "Cumulative Single",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1362,23 +1340,21 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
             TestCase {
                 name: "Delta Multiple",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Delta, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Delta, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),
@@ -1408,23 +1384,21 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
             TestCase {
                 name: "Cumulative Multiple ",
                 build: Box::new(move || {
-                    box_val(
-                        internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                            .exponential_bucket_histogram(
-                                max_size,
-                                max_scale,
-                                record_min_max,
-                                record_sum,
-                            ),
-                    )
+                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),
@@ -1454,28 +1428,28 @@ mod tests {
                         zero_threshold: 0.0,
                         zero_count: 0,
                     }],
-                    start_time: SystemTime::now(),
-                    time: SystemTime::now(),
+                    start_time: now(),
+                    time: now(),
                 },
                 want_count: 1,
             },
         ];
 
         for test in test_cases {
-            let (in_fn, out_fn) = (test.build)();
+            let AggregateFns { measure, collect } = (test.build)();
 
             let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
                 data_points: vec![],
-                start_time: SystemTime::now(),
-                time: SystemTime::now(),
+                start_time: now(),
+                time: now(),
                 temporality: Temporality::Delta,
             });
             let mut count = 0;
             for n in test.input {
                 for v in n {
-                    in_fn.call(v, &[])
+                    measure.call(v, &[])
                 }
-                count = out_fn.call(Some(got.as_mut())).0
+                count = collect.call(Some(got.as_mut())).0
             }
 
             assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
@@ -1495,8 +1469,8 @@ mod tests {
             test_name
         );
 
-        if let Some(a) = a.as_any().downcast_ref::<data::Gauge<T>>() {
-            let b = b.as_any().downcast_ref::<data::Gauge<T>>().unwrap();
+        if let Some(a) = a.as_any().downcast_ref::<Gauge<T>>() {
+            let b = b.as_any().downcast_ref::<Gauge<T>>().unwrap();
             assert_eq!(
                 a.data_points.len(),
                 b.data_points.len(),
@@ -1506,8 +1480,8 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Sum<T>>() {
-            let b = b.as_any().downcast_ref::<data::Sum<T>>().unwrap();
+        } else if let Some(a) = a.as_any().downcast_ref::<Sum<T>>() {
+            let b = b.as_any().downcast_ref::<Sum<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{} mismatching sum temporality",
@@ -1527,8 +1501,8 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::Histogram<T>>() {
-            let b = b.as_any().downcast_ref::<data::Histogram<T>>().unwrap();
+        } else if let Some(a) = a.as_any().downcast_ref::<Histogram<T>>() {
+            let b = b.as_any().downcast_ref::<Histogram<T>>().unwrap();
             assert_eq!(
                 a.temporality, b.temporality,
                 "{}: mismatching hist temporality",
@@ -1543,10 +1517,10 @@ mod tests {
             for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                 assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<data::ExponentialHistogram<T>>() {
+        } else if let Some(a) = a.as_any().downcast_ref::<ExponentialHistogram<T>>() {
             let b = b
                 .as_any()
-                .downcast_ref::<data::ExponentialHistogram<T>>()
+                .downcast_ref::<ExponentialHistogram<T>>()
                 .unwrap();
             assert_eq!(
                 a.temporality, b.temporality,

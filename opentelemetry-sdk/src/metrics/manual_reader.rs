@@ -5,7 +5,10 @@ use std::{
 
 use opentelemetry::otel_debug;
 
-use crate::metrics::{MetricError, MetricResult, Temporality};
+use crate::{
+    error::{OTelSdkError, OTelSdkResult},
+    metrics::{MetricError, MetricResult, Temporality},
+};
 
 use super::{
     data::ResourceMetrics,
@@ -102,13 +105,16 @@ impl MetricReader for ManualReader {
     }
 
     /// ForceFlush is a no-op, it always returns nil.
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn shutdown(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?;
 
         // Any future call to collect will now return an error.
         inner.sdk_producer = None;

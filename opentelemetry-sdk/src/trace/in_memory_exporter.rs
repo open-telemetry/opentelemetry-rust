@@ -1,7 +1,7 @@
-use crate::export::trace::{ExportResult, SpanData, SpanExporter};
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use futures_util::future::BoxFuture;
-use opentelemetry::trace::{TraceError, TraceResult};
+use crate::trace::error::{TraceError, TraceResult};
+use crate::trace::{SpanData, SpanExporter};
 use std::sync::{Arc, Mutex};
 
 /// An in-memory span exporter that stores span data in memory.
@@ -15,14 +15,14 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry::{global, trace::Tracer, Context};
 ///# use opentelemetry_sdk::propagation::TraceContextPropagator;
 ///# use opentelemetry_sdk::runtime;
-///# use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
-///# use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
+///# use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
+///# use opentelemetry_sdk::trace::{BatchSpanProcessor, SdkTracerProvider};
 ///
 ///# #[tokio::main]
 ///# async fn main() {
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
-///     let provider = TracerProvider::builder()
-///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone(), runtime::Tokio).build())
+///     let provider = SdkTracerProvider::builder()
+///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build())
 ///         .build();
 ///
 ///     global::set_tracer_provider(provider.clone());
@@ -37,11 +37,8 @@ use std::sync::{Arc, Mutex};
 ///     cx.span().add_event("handling this...", Vec::new());
 ///     cx.span().end();
 ///
-///     let results = provider.force_flush();
-///     for result in results {
-///         if let Err(e) = result {
-///             println!("{:?}", e)
-///         }
+///     if let Err(e) = provider.force_flush() {
+///         println!("{:?}", e)
 ///     }
 ///     let spans = exporter.get_finished_spans().unwrap();
 ///     for span in spans {
@@ -64,7 +61,7 @@ impl Default for InMemorySpanExporter {
 /// Builder for [`InMemorySpanExporter`].
 /// # Example
 /// ```
-///# use opentelemetry_sdk::testing::trace::InMemorySpanExporterBuilder;
+///# use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
 ///
 /// let exporter = InMemorySpanExporterBuilder::new().build();
 /// ```
@@ -102,7 +99,7 @@ impl InMemorySpanExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::trace::InMemorySpanExporter;
+    /// # use opentelemetry_sdk::trace::InMemorySpanExporter;
     ///
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
@@ -119,7 +116,7 @@ impl InMemorySpanExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::trace::InMemorySpanExporter;
+    /// # use opentelemetry_sdk::trace::InMemorySpanExporter;
     ///
     /// let exporter = InMemorySpanExporter::default();
     /// exporter.reset();
@@ -130,20 +127,20 @@ impl InMemorySpanExporter {
 }
 
 impl SpanExporter for InMemorySpanExporter {
-    fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
-        if let Err(err) = self
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        let result = self
             .spans
             .lock()
             .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
-            .map_err(TraceError::from)
-        {
-            return Box::pin(std::future::ready(Err(Into::into(err))));
-        }
-        Box::pin(std::future::ready(Ok(())))
+            .map_err(|err| {
+                OTelSdkError::InternalFailure(format!("Failed to lock spans: {:?}", err))
+            });
+        result
     }
 
-    fn shutdown(&mut self) {
-        self.reset()
+    fn shutdown(&mut self) -> OTelSdkResult {
+        self.reset();
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &Resource) {

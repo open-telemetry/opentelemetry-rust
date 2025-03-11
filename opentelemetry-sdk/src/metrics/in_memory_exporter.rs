@@ -1,10 +1,10 @@
-use crate::metrics::data;
+use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::MetricError;
 use crate::metrics::MetricResult;
 use crate::metrics::Temporality;
-use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry_sdk::metrics;
 ///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
-///# use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+///# use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 ///# use opentelemetry_sdk::metrics::PeriodicReader;
 ///
 ///# #[tokio::main]
@@ -86,7 +86,7 @@ impl Default for InMemoryMetricExporter {
 /// # Example
 ///
 /// ```
-/// # use opentelemetry_sdk::testing::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+/// # use opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 ///
 /// let exporter = InMemoryMetricExporterBuilder::new().build();
 /// ```
@@ -138,7 +138,7 @@ impl InMemoryMetricExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     ///
     /// let exporter = InMemoryMetricExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
@@ -155,7 +155,7 @@ impl InMemoryMetricExporter {
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::testing::metrics::InMemoryMetricExporter;
+    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     ///
     /// let exporter = InMemoryMetricExporter::default();
     /// exporter.reset();
@@ -213,7 +213,7 @@ impl InMemoryMetricExporter {
                 time: hist.time,
                 temporality: hist.temporality,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<i64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<i64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -221,7 +221,7 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<f64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<f64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -229,7 +229,7 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<data::Sum<u64>>() {
+        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<u64>>() {
             Some(Box::new(data::Sum {
                 data_points: sum.data_points.clone(),
                 start_time: sum.start_time,
@@ -237,19 +237,19 @@ impl InMemoryMetricExporter {
                 temporality: sum.temporality,
                 is_monotonic: sum.is_monotonic,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<i64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<i64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
                 time: gauge.time,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<f64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<f64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
                 time: gauge.time,
             }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<data::Gauge<u64>>() {
+        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<u64>>() {
             Some(Box::new(data::Gauge {
                 data_points: gauge.data_points.clone(),
                 start_time: gauge.start_time,
@@ -262,27 +262,21 @@ impl InMemoryMetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for InMemoryMetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
                 metrics_guard.push_back(InMemoryMetricExporter::clone_metrics(metrics))
             })
-            .map_err(MetricError::from)
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(()) // In this implementation, flush does nothing
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        self.metrics
-            .lock()
-            .map(|mut metrics_guard| metrics_guard.clear())
-            .map_err(MetricError::from)?;
-
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 

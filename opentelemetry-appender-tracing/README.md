@@ -14,7 +14,7 @@ traces.
 
 [![Crates.io: opentelemetry-appender-tracing](https://img.shields.io/crates/v/opentelemetry-appender-tracing.svg)](https://crates.io/crates/opentelemetry-appender-tracing)
 [![Documentation](https://docs.rs/opentelemetry-appender-tracing/badge.svg)](https://docs.rs/opentelemetry-appender-tracing)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-appender-tracing)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-appender-tracing)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
@@ -34,6 +34,10 @@ infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
+
+## Release Notes
+
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/CHANGELOG.md).
 
 ## Supported Rust Versions
 

@@ -1,11 +1,16 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
-use opentelemetry_sdk::metrics::{
-    data::{self, ScopeMetrics},
-    exporter::PushMetricExporter,
+use opentelemetry_sdk::metrics::Temporality;
+use opentelemetry_sdk::{
+    error::OTelSdkResult,
+    metrics::{
+        data::{
+            ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
+            ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
+        },
+        exporter::PushMetricExporter,
+    },
 };
-use opentelemetry_sdk::metrics::{MetricError, MetricResult, Temporality};
 use std::fmt::Debug;
 use std::sync::atomic;
 
@@ -33,12 +38,11 @@ impl fmt::Debug for MetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut data::ResourceMetrics) -> MetricResult<()> {
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Err(MetricError::Other("exporter is shut down".into()))
+            Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
             println!("Metrics");
             println!("Resource");
@@ -54,12 +58,12 @@ impl PushMetricExporter for MetricExporter {
         }
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         // exporter holds no state, nothing to flush
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
@@ -97,34 +101,34 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
             println!("\t\tUnit         : {}", &metric.unit);
 
             let data = metric.data.as_any();
-            if let Some(hist) = data.downcast_ref::<data::Histogram<u64>>() {
+            if let Some(hist) = data.downcast_ref::<Histogram<u64>>() {
                 println!("\t\tType         : Histogram");
                 print_histogram(hist);
-            } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
+            } else if let Some(hist) = data.downcast_ref::<Histogram<f64>>() {
                 println!("\t\tType         : Histogram");
                 print_histogram(hist);
-            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<u64>>() {
+            } else if let Some(_hist) = data.downcast_ref::<ExponentialHistogram<u64>>() {
                 println!("\t\tType         : Exponential Histogram");
                 // TODO
-            } else if let Some(_hist) = data.downcast_ref::<data::ExponentialHistogram<f64>>() {
+            } else if let Some(_hist) = data.downcast_ref::<ExponentialHistogram<f64>>() {
                 println!("\t\tType         : Exponential Histogram");
                 // TODO
-            } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
+            } else if let Some(sum) = data.downcast_ref::<Sum<u64>>() {
                 println!("\t\tType         : Sum");
                 print_sum(sum);
-            } else if let Some(sum) = data.downcast_ref::<data::Sum<i64>>() {
+            } else if let Some(sum) = data.downcast_ref::<Sum<i64>>() {
                 println!("\t\tType         : Sum");
                 print_sum(sum);
-            } else if let Some(sum) = data.downcast_ref::<data::Sum<f64>>() {
+            } else if let Some(sum) = data.downcast_ref::<Sum<f64>>() {
                 println!("\t\tType         : Sum");
                 print_sum(sum);
-            } else if let Some(gauge) = data.downcast_ref::<data::Gauge<u64>>() {
+            } else if let Some(gauge) = data.downcast_ref::<Gauge<u64>>() {
                 println!("\t\tType         : Gauge");
                 print_gauge(gauge);
-            } else if let Some(gauge) = data.downcast_ref::<data::Gauge<i64>>() {
+            } else if let Some(gauge) = data.downcast_ref::<Gauge<i64>>() {
                 println!("\t\tType         : Gauge");
                 print_gauge(gauge);
-            } else if let Some(gauge) = data.downcast_ref::<data::Gauge<f64>>() {
+            } else if let Some(gauge) = data.downcast_ref::<Gauge<f64>>() {
                 println!("\t\tType         : Gauge");
                 print_gauge(gauge);
             } else {
@@ -134,7 +138,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
     }
 }
 
-fn print_sum<T: Debug>(sum: &data::Sum<T>) {
+fn print_sum<T: Debug>(sum: &Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic);
     if sum.temporality == Temporality::Cumulative {
@@ -155,7 +159,7 @@ fn print_sum<T: Debug>(sum: &data::Sum<T>) {
     print_sum_data_points(&sum.data_points);
 }
 
-fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
+fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
     println!("\t\tGauge DataPoints");
     if let Some(start_time) = gauge.start_time {
         let datetime: DateTime<Utc> = start_time.into();
@@ -172,7 +176,7 @@ fn print_gauge<T: Debug>(gauge: &data::Gauge<T>) {
     print_gauge_data_points(&gauge.data_points);
 }
 
-fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
+fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
     if histogram.temporality == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
@@ -192,7 +196,7 @@ fn print_histogram<T: Debug>(histogram: &data::Histogram<T>) {
     print_hist_data_points(&histogram.data_points);
 }
 
-fn print_sum_data_points<T: Debug>(data_points: &[data::SumDataPoint<T>]) {
+fn print_sum_data_points<T: Debug>(data_points: &[SumDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
@@ -203,7 +207,7 @@ fn print_sum_data_points<T: Debug>(data_points: &[data::SumDataPoint<T>]) {
     }
 }
 
-fn print_gauge_data_points<T: Debug>(data_points: &[data::GaugeDataPoint<T>]) {
+fn print_gauge_data_points<T: Debug>(data_points: &[GaugeDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
@@ -214,7 +218,7 @@ fn print_gauge_data_points<T: Debug>(data_points: &[data::GaugeDataPoint<T>]) {
     }
 }
 
-fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>]) {
+fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
     for (i, data_point) in data_points.iter().enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count);
@@ -231,6 +235,20 @@ fn print_hist_data_points<T: Debug>(data_points: &[data::HistogramDataPoint<T>])
         for kv in data_point.attributes.iter() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
+
+        println!("\t\t\tBuckets");
+        let mut lower_bound = f64::NEG_INFINITY;
+        for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
+            let count = data_point.bucket_counts.get(i).unwrap_or(&0);
+            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+            lower_bound = upper_bound;
+        }
+
+        let last_count = data_point
+            .bucket_counts
+            .get(data_point.bounds.len())
+            .unwrap_or(&0);
+        println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
     }
 }
 

@@ -2,16 +2,21 @@ use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{body::Incoming, service::service_fn, Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::{
-    global,
+    global::{self, BoxedTracer},
     trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
 };
 use opentelemetry_http::{Bytes, HeaderExtractor};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::TracerProvider};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::SdkTracerProvider};
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::SpanExporter;
-use std::{convert::Infallible, net::SocketAddr};
+use std::{convert::Infallible, net::SocketAddr, sync::OnceLock};
 use tokio::net::TcpListener;
+
+fn get_tracer() -> &'static BoxedTracer {
+    static TRACER: OnceLock<BoxedTracer> = OnceLock::new();
+    TRACER.get_or_init(|| global::tracer("example/server"))
+}
 
 // Utility function to extract the context from the incoming request headers
 fn extract_context_from_request(req: &Request<Incoming>) -> Context {
@@ -24,11 +29,11 @@ fn extract_context_from_request(req: &Request<Incoming>) -> Context {
 async fn handle_health_check(
     _req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
-    let tracer = global::tracer("example/server");
+    let tracer = get_tracer();
     let mut span = tracer
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
-        .start(&tracer);
+        .start(tracer);
     span.add_event("Health check accessed", vec![]);
 
     let res = Response::new(
@@ -44,11 +49,11 @@ async fn handle_health_check(
 async fn handle_echo(
     req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
-    let tracer = global::tracer("example/server");
+    let tracer = get_tracer();
     let mut span = tracer
         .span_builder("echo")
         .with_kind(SpanKind::Internal)
-        .start(&tracer);
+        .start(tracer);
     span.add_event("Echoing back the request", vec![]);
 
     let res = Response::new(req.into_body().boxed());
@@ -63,11 +68,11 @@ async fn router(
     let parent_cx = extract_context_from_request(&req);
     let response = {
         // Create a span parenting the remote client span.
-        let tracer = global::tracer("example/server");
+        let tracer = get_tracer();
         let mut span = tracer
             .span_builder("router")
             .with_kind(SpanKind::Server)
-            .start_with_context(&tracer, &parent_cx);
+            .start_with_context(tracer, &parent_cx);
 
         span.add_event("dispatching request", vec![]);
 
@@ -88,23 +93,24 @@ async fn router(
     response
 }
 
-fn init_tracer() {
+fn init_tracer() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     // Setup tracerprovider with stdout exporter
     // that prints the spans to stdout.
-    let provider = TracerProvider::builder()
+    let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
         .build();
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
 }
 
 #[tokio::main]
 async fn main() {
     use hyper_util::server::conn::auto::Builder;
 
-    init_tracer();
+    let provider = init_tracer();
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = TcpListener::bind(addr).await.unwrap();
 
@@ -116,4 +122,6 @@ async fn main() {
             eprintln!("{err}");
         }
     }
+
+    provider.shutdown().expect("Shutdown provider failed");
 }

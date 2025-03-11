@@ -11,6 +11,7 @@ use std::{
 use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -19,31 +20,14 @@ use super::{
     data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
 };
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
 
 const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
-const METRIC_EXPORT_TIMEOUT_NAME: &str = "OTEL_METRIC_EXPORT_TIMEOUT";
 
 /// Configuration options for [PeriodicReader].
-///
-/// A periodic reader is a [MetricReader] that collects and exports metric data
-/// to the exporter at a defined interval.
-///
-/// By default, the returned [MetricReader] will collect and export data every
-/// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeout. Instead timeout
-/// is passed on to the exporter for each export attempt.
-///
-/// The [collect] method of the returned [MetricReader] continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
-///
-/// [collect]: MetricReader::collect
 #[derive(Debug)]
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
-    timeout: Duration,
     exporter: E,
 }
 
@@ -56,16 +40,8 @@ where
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
             .unwrap_or(DEFAULT_INTERVAL);
-        let timeout = env::var(METRIC_EXPORT_TIMEOUT_NAME)
-            .ok()
-            .and_then(|v| v.parse().map(Duration::from_millis).ok())
-            .unwrap_or(DEFAULT_TIMEOUT);
 
-        PeriodicReaderBuilder {
-            interval,
-            timeout,
-            exporter,
-        }
+        PeriodicReaderBuilder { interval, exporter }
     }
 
     /// Configures the intervening time between exports for a [PeriodicReader].
@@ -82,42 +58,56 @@ where
         self
     }
 
-    /// Configures the timeout for an export to complete. PeriodicReader itself
-    /// does not enforce timeout. Instead timeout is passed on to the exporter
-    /// for each export attempt.
-    ///
-    /// This option overrides any value set for the `OTEL_METRIC_EXPORT_TIMEOUT`
-    /// environment variable.
-    ///
-    /// If this option is not used or `timeout` is equal to zero, 30 seconds is used
-    /// as the default.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        if !timeout.is_zero() {
-            self.timeout = timeout;
-        }
-        self
-    }
-
     /// Create a [PeriodicReader] with the given config.
-    pub fn build(self) -> PeriodicReader {
-        PeriodicReader::new(self.exporter, self.interval, self.timeout)
+    pub fn build(self) -> PeriodicReader<E> {
+        PeriodicReader::new(self.exporter, self.interval)
     }
 }
 
-/// A [MetricReader] that continuously collects and exports metric data at a set
-/// interval.
+/// A `MetricReader` that periodically collects and exports metrics at a configurable interval.
 ///
-/// By default, PeriodicReader will collect and export data every
-/// 60 seconds. The export time is not counted towards the interval between
-/// attempts. PeriodicReader itself does not enforce timeout.
-/// Instead timeout is passed on to the exporter for each export attempt.
+/// By default, [`PeriodicReader`] collects and exports metrics every **60 seconds**.
+/// The time taken for export is **not** included in the interval. Use [`PeriodicReaderBuilder`]
+/// to customize the interval.
 ///
-/// The [collect] method of the returned continues to gather and
-/// return metric data to the user. It will not automatically send that data to
-/// the exporter outside of the predefined interval.
+/// [`PeriodicReader`] spawns a background thread to handle metric collection and export.
+/// This thread remains active until [`shutdown()`] is called.
 ///
+/// ## Collection Process
+/// "Collection" refers to gathering aggregated metrics from the SDK's internal storage.
+/// During this phase, callbacks from observable instruments are also triggered.
 ///
-/// [collect]: MetricReader::collect
+/// [`PeriodicReader`] does **not** enforce a timeout for collection. If an
+/// observable callback takes too long, it may delay the next collection cycle.
+/// If a callback never returns, it **will stall** all metric collection (and exports)
+/// indefinitely.
+///
+/// ## Exporter Compatibility
+/// When used with the [`OTLP Exporter`](https://docs.rs/opentelemetry-otlp), the following
+/// transport options are supported:
+///
+/// - **`grpc-tonic`**: Requires [`MeterProvider`] to be initialized within a `tokio` runtime.
+/// - **`reqwest-blocking-client`**: Works with both a standard (`main`) function and `tokio::main`.
+///
+/// [`PeriodicReader`] does **not** enforce a timeout for exports either. Instead,
+/// the configured exporter is responsible for enforcing timeouts. If an export operation
+/// never returns, [`PeriodicReader`] will **stop exporting new metrics**, stalling
+/// metric collection.
+///
+/// ## Manual Export & Shutdown
+/// Users can manually trigger an export via [`force_flush()`]. Calling [`shutdown()`]
+/// exports any remaining metrics and should be done before application exit to ensure
+/// all data is sent.
+///
+/// **Warning**: If using **tokio’s current-thread runtime**, calling [`shutdown()`]
+/// from the main thread may cause a deadlock. To prevent this, call [`shutdown()`]
+/// from a separate thread or use tokio's `spawn_blocking`.
+///
+/// [`PeriodicReader`]: crate::metrics::PeriodicReader
+/// [`PeriodicReaderBuilder`]: crate::metrics::PeriodicReaderBuilder
+/// [`MeterProvider`]: crate::metrics::SdkMeterProvider
+/// [`shutdown()`]: crate::metrics::SdkMeterProvider::shutdown
+/// [`force_flush()`]: crate::metrics::SdkMeterProvider::force_flush
 ///
 /// # Example
 ///
@@ -134,31 +124,33 @@ where
 /// # drop(reader);
 /// # }
 /// ```
-#[derive(Clone)]
-pub struct PeriodicReader {
-    inner: Arc<PeriodicReaderInner>,
+pub struct PeriodicReader<E: PushMetricExporter> {
+    inner: Arc<PeriodicReaderInner<E>>,
 }
 
-impl PeriodicReader {
+impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<E: PushMetricExporter> PeriodicReader<E> {
     /// Configuration options for a periodic reader with own thread
-    pub fn builder<E>(exporter: E) -> PeriodicReaderBuilder<E>
-    where
-        E: PushMetricExporter,
-    {
+    pub fn builder(exporter: E) -> PeriodicReaderBuilder<E> {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new<E>(exporter: E, interval: Duration, timeout: Duration) -> Self
-    where
-        E: PushMetricExporter,
-    {
+    fn new(exporter: E, interval: Duration) -> Self {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
+        let exporter_arc = Arc::new(exporter);
         let reader = PeriodicReader {
             inner: Arc::new(PeriodicReaderInner {
-                message_sender: Arc::new(message_sender),
+                message_sender,
                 producer: Mutex::new(None),
-                exporter: Arc::new(exporter),
+                exporter: exporter_arc.clone(),
             }),
         };
         let cloned_reader = reader.clone();
@@ -168,10 +160,9 @@ impl PeriodicReader {
             .spawn(move || {
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
-                otel_info!(
+                otel_debug!(
                     name: "PeriodReaderThreadStarted",
                     interval_in_millisecs = interval.as_millis(),
-                    timeout_in_millisecs = timeout.as_millis()
                 );
                 loop {
                     otel_debug!(
@@ -182,10 +173,35 @@ impl PeriodicReader {
                             otel_debug!(
                                 name: "PeriodReaderThreadExportingDueToFlush"
                             );
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                                response_sender.send(false).unwrap();
-                            } else {
-                                response_sender.send(true).unwrap();
+                            let export_result = cloned_reader.collect_and_export();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
+
+                            // If response_sender is disconnected, we can't send
+                            // the result back. This occurs when the thread that
+                            // initiated flush gave up due to timeout.
+                            // Gracefully handle that with internal logs. The
+                            // internal errors are of Info level, as this is
+                            // useful for user to know whether the flush was
+                            // successful or not, when flush() itself merely
+                            // tells that it timed out.
+
+                            if export_result.is_err() {
+                                if response_sender.send(false).is_err() {
+                                    otel_debug!(
+                                        name: "PeriodReader.Flush.ResponseSendError",
+                                        message = "PeriodicReader's flush has failed, but unable to send this info back to caller.
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                    );
+                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_debug!(
+                                    name: "PeriodReader.Flush.ResponseSendError",
+                                    message = "PeriodicReader's flush has completed successfully, but unable to send this info back to caller.
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the flush timeout."
+                                );
                             }
 
                             // Adjust the remaining interval after the flush
@@ -213,10 +229,40 @@ impl PeriodicReader {
                         Ok(Message::Shutdown(response_sender)) => {
                             // Perform final export and break out of loop and exit the thread
                             otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                                response_sender.send(false).unwrap();
-                            } else {
-                                response_sender.send(true).unwrap();
+                            let export_result = cloned_reader.collect_and_export();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
+                            let shutdown_result = exporter_arc.shutdown();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExporterShutdown",
+                                shutdown_result = format!("{:?}", shutdown_result)
+                            );
+
+                            // If response_sender is disconnected, we can't send
+                            // the result back. This occurs when the thread that
+                            // initiated shutdown gave up due to timeout.
+                            // Gracefully handle that with internal logs and
+                            // continue with shutdown (i.e exit thread) The
+                            // internal errors are of Info level, as this is
+                            // useful for user to know whether the shutdown was
+                            // successful or not, when shutdown() itself merely
+                            // tells that it timed out.
+                            if export_result.is_err() || shutdown_result.is_err() {
+                                if response_sender.send(false).is_err() {
+                                    otel_info!(
+                                        name: "PeriodReaderThreadShutdown.ResponseSendError",
+                                        message = "PeriodicReader's shutdown has failed, but unable to send this info back to caller.
+                                        This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
+                                    );
+                                }
+                            } else if response_sender.send(true).is_err() {
+                                otel_debug!(
+                                    name: "PeriodReaderThreadShutdown.ResponseSendError",
+                                    message = "PeriodicReader completed its shutdown, but unable to send this info back to caller.
+                                    This occurs when the caller has timed out waiting for the response. If you see this occuring frequently, consider increasing the shutdown timeout."
+                                );
                             }
 
                             otel_debug!(
@@ -231,11 +277,11 @@ impl PeriodicReader {
                                 name: "PeriodReaderThreadExportingDueToTimer"
                             );
 
-                            if let Err(_e) = cloned_reader.collect_and_export(timeout) {
-                                otel_debug!(
-                                    name: "PeriodReaderThreadExportingDueToTimerFailed"
-                                );
-                            }
+                            let export_result = cloned_reader.collect_and_export();
+                            otel_debug!(
+                                name: "PeriodReaderInvokedExport",
+                                export_result = format!("{:?}", export_result)
+                            );
 
                             let time_taken_for_export = export_start.elapsed();
                             if time_taken_for_export > interval {
@@ -260,13 +306,13 @@ impl PeriodicReader {
                             // out (i.e exit the thread)
                             otel_debug!(
                                 name: "PeriodReaderThreadExiting",
-                                reason = "MessageReceiverDisconnected"
+                                reason = "MessageSenderDisconnected"
                             );
                             break;
                         }
                     }
                 }
-                otel_info!(
+                otel_debug!(
                     name: "PeriodReaderThreadStopped"
                 );
             });
@@ -283,24 +329,24 @@ impl PeriodicReader {
         reader
     }
 
-    fn collect_and_export(&self, timeout: Duration) -> MetricResult<()> {
-        self.inner.collect_and_export(timeout)
+    fn collect_and_export(&self) -> OTelSdkResult {
+        self.inner.collect_and_export()
     }
 }
 
-impl fmt::Debug for PeriodicReader {
+impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PeriodicReader").finish()
     }
 }
 
-struct PeriodicReaderInner {
-    exporter: Arc<dyn PushMetricExporter>,
-    message_sender: Arc<mpsc::Sender<Message>>,
+struct PeriodicReaderInner<E: PushMetricExporter> {
+    exporter: Arc<E>,
+    message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
 }
 
-impl PeriodicReaderInner {
+impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
         let mut inner = self.producer.lock().expect("lock poisoned");
         *inner = Some(producer);
@@ -318,11 +364,17 @@ impl PeriodicReaderInner {
                 .produce(rm)?;
             Ok(())
         } else {
-            Err(MetricError::Other("pipeline is not registered".into()))
+            otel_warn!(
+            name: "PeriodReader.MeterProviderNotRegistered",
+            message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
+                   This occurs when a periodic reader is created but not associated with a MeterProvider \
+                   by calling `.with_reader(reader)` on MeterProviderBuilder."
+            );
+            Err(MetricError::Other("MeterProvider is not registered".into()))
         }
     }
 
-    fn collect_and_export(&self, _timeout: Duration) -> MetricResult<()> {
+    fn collect_and_export(&self) -> OTelSdkResult {
         // TODO: Reuse the internal vectors. Or refactor to avoid needing any
         // owned data structures to be passed to exporters.
         let mut rm = ResourceMetrics {
@@ -330,14 +382,17 @@ impl PeriodicReaderInner {
             scope_metrics: Vec::new(),
         };
 
+        let current_time = Instant::now();
         let collect_result = self.collect(&mut rm);
+        let time_taken_for_collect = current_time.elapsed();
+
         #[allow(clippy::question_mark)]
         if let Err(e) = collect_result {
             otel_warn!(
                 name: "PeriodReaderCollectError",
                 error = format!("{:?}", e)
             );
-            return Err(e);
+            return Err(OTelSdkError::InternalFailure(e.to_string()));
         }
 
         if rm.scope_metrics.is_empty() {
@@ -348,29 +403,14 @@ impl PeriodicReaderInner {
         let metrics_count = rm.scope_metrics.iter().fold(0, |count, scope_metrics| {
             count + scope_metrics.metrics.len()
         });
-        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count);
+        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count, time_taken_in_millis = time_taken_for_collect.as_millis());
 
-        // TODO: substract the time taken for collect from the timeout. collect
-        // involves observable callbacks too, which are user defined and can
-        // take arbitrary time.
-        //
         // Relying on futures executor to execute async call.
-        // TODO: Add timeout and pass it to exporter or consider alternative
-        // design to enforce timeout here.
-        let exporter_result = futures_executor::block_on(self.exporter.export(&mut rm));
-        #[allow(clippy::question_mark)]
-        if let Err(e) = exporter_result {
-            otel_warn!(
-                name: "PeriodReaderExportError",
-                error = format!("{:?}", e)
-            );
-            return Err(e);
-        }
-
-        Ok(())
+        // TODO: Pass timeout to exporter
+        futures_executor::block_on(self.exporter.export(&mut rm))
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         // TODO: Better message for this scenario.
         // Flush and Shutdown called from 2 threads Flush check shutdown
         // flag before shutdown thread sets it. Both threads attempt to send
@@ -387,35 +427,42 @@ impl PeriodicReaderInner {
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Flush(response_tx))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         if let Ok(response) = response_rx.recv() {
             // TODO: call exporter's force_flush method.
             if response {
                 Ok(())
             } else {
-                Err(MetricError::Other("Failed to flush".into()))
+                Err(OTelSdkError::InternalFailure("Failed to flush".into()))
             }
         } else {
-            Err(MetricError::Other("Failed to flush".into()))
+            Err(OTelSdkError::InternalFailure("Failed to flush".into()))
         }
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
             .send(Message::Shutdown(response_tx))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
-            if response {
-                Ok(())
-            } else {
-                Err(MetricError::Other("Failed to shutdown".into()))
+        // TODO: Make this timeout configurable.
+        match response_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(response) => {
+                if response {
+                    Ok(())
+                } else {
+                    Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
+                }
             }
-        } else {
-            Err(MetricError::Other("Failed to shutdown".into()))
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                Err(OTelSdkError::Timeout(Duration::from_secs(5)))
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
+            }
         }
     }
 }
@@ -426,7 +473,7 @@ enum Message {
     Shutdown(Sender<bool>),
 }
 
-impl MetricReader for PeriodicReader {
+impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         self.inner.register_pipeline(pipeline);
     }
@@ -435,7 +482,7 @@ impl MetricReader for PeriodicReader {
         self.inner.collect(rm)
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.inner.force_flush()
     }
 
@@ -443,7 +490,7 @@ impl MetricReader for PeriodicReader {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.inner.shutdown()
     }
 
@@ -452,7 +499,7 @@ impl MetricReader for PeriodicReader {
     /// This function SHOULD be obtained from the exporter.
     ///
     /// If not configured, the Cumulative temporality SHOULD be used.
-    ///  
+    ///
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         kind.temporality_preference(self.inner.temporality(kind))
@@ -463,18 +510,17 @@ impl MetricReader for PeriodicReader {
 mod tests {
     use super::PeriodicReader;
     use crate::{
+        error::{OTelSdkError, OTelSdkResult},
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader, MetricError,
-            MetricResult, SdkMeterProvider, Temporality,
+            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
+            InMemoryMetricExporter, SdkMeterProvider, Temporality,
         },
-        testing::metrics::InMemoryMetricExporter,
         Resource,
     };
-    use async_trait::async_trait;
     use opentelemetry::metrics::MeterProvider;
     use std::{
         sync::{
-            atomic::{AtomicUsize, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
             mpsc, Arc,
         },
         time::Duration,
@@ -502,21 +548,44 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl PushMetricExporter for MetricExporterThatFailsOnlyOnFirst {
-        async fn export(&self, _metrics: &mut ResourceMetrics) -> MetricResult<()> {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
             if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
-                Err(MetricError::Other("export failed".into()))
+                Err(OTelSdkError::InternalFailure("export failed".into()))
             } else {
                 Ok(())
             }
         }
 
-        async fn force_flush(&self) -> MetricResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> MetricResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[derive(Debug, Clone, Default)]
+    struct MockMetricExporter {
+        is_shutdown: Arc<AtomicBool>,
+    }
+
+    impl PushMetricExporter for MockMetricExporter {
+        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }
 
@@ -560,11 +629,8 @@ mod tests {
     #[test]
     fn shutdown_repeat() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.shutdown();
@@ -573,20 +639,19 @@ mod tests {
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert!(matches!(result, Err(OTelSdkError::AlreadyShutdown)));
 
         // calling shutdown again should return Err
         let result = meter_provider.shutdown();
         assert!(result.is_err());
+        assert!(matches!(result, Err(OTelSdkError::AlreadyShutdown)));
     }
 
     #[test]
     fn flush_after_shutdown() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -603,11 +668,8 @@ mod tests {
     #[test]
     fn flush_repeat() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -621,11 +683,8 @@ mod tests {
     #[test]
     fn periodic_reader_without_pipeline() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let rm = &mut ResourceMetrics {
             resource: Resource::empty(),
@@ -685,6 +744,24 @@ mod tests {
 
         // Assert that atleast 2 exports are attempted given the 1st one fails.
         assert!(exporter.get_count() >= 2);
+    }
+
+    #[test]
+    fn shutdown_passed_to_exporter() {
+        // Arrange
+        let exporter = MockMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("sync_counter").build();
+        counter.add(1, &[]);
+
+        // shutdown the provider, which should call shutdown on periodic reader
+        // which in turn should call shutdown on exporter.
+        let result = meter_provider.shutdown();
+        assert!(result.is_ok());
+        assert!(exporter.is_shutdown.load(Ordering::Relaxed));
     }
 
     #[test]
@@ -749,11 +826,8 @@ mod tests {
 
     fn collection_helper(trigger: fn(SdkMeterProvider)) {
         // Arrange
-        let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
         let (sender, receiver) = mpsc::channel();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
@@ -867,11 +941,8 @@ mod tests {
     }
 
     fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
-        let interval = std::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
-            .with_interval(interval)
-            .build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
@@ -887,7 +958,7 @@ mod tests {
                 })
                 .build();
             // rt here is a reference to the current tokio runtime.
-            // Droppng it occurs when the tokio::main itself ends.
+            // Dropping it occurs when the tokio::main itself ends.
         } else {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let _gauge = meter

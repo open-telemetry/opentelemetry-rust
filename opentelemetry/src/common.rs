@@ -2,6 +2,8 @@ use std::borrow::{Borrow, Cow};
 use std::sync::Arc;
 use std::{fmt, hash};
 
+use std::hash::{Hash, Hasher};
+
 /// The key part of attribute [KeyValue] pairs.
 ///
 /// See the [attribute naming] spec for guidelines.
@@ -300,10 +302,22 @@ impl From<Cow<'static, str>> for StringValue {
     }
 }
 
+impl From<Value> for StringValue {
+    fn from(s: Value) -> Self {
+        match s {
+            Value::Bool(v) => format!("{}", v).into(),
+            Value::I64(v) => format!("{}", v).into(),
+            Value::F64(v) => format!("{}", v).into(),
+            Value::String(v) => v,
+            Value::Array(v) => format!("{}", v).into(),
+        }
+    }
+}
+
 impl Value {
     /// String representation of the `Value`
     ///
-    /// This will allocate iff the underlying value is not a `String`.
+    /// This will allocate if the underlying value is not a `String`.
     pub fn as_str(&self) -> Cow<'_, str> {
         match self {
             Value::Bool(v) => format!("{}", v).into(),
@@ -399,6 +413,42 @@ impl KeyValue {
     }
 }
 
+struct F64Hashable(f64);
+
+impl PartialEq for F64Hashable {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for F64Hashable {}
+
+impl Hash for F64Hashable {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
+impl Hash for KeyValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
+        match &self.value {
+            Value::F64(f) => F64Hashable(*f).hash(state),
+            Value::Array(a) => match a {
+                Array::Bool(b) => b.hash(state),
+                Array::I64(i) => i.hash(state),
+                Array::F64(f) => f.iter().for_each(|f| F64Hashable(*f).hash(state)),
+                Array::String(s) => s.hash(state),
+            },
+            Value::Bool(b) => b.hash(state),
+            Value::I64(i) => i.hash(state),
+            Value::String(s) => s.hash(state),
+        };
+    }
+}
+
+impl Eq for KeyValue {}
+
 /// Information about a library or crate providing instrumentation.
 ///
 /// An instrumentation scope should be named to follow any naming conventions
@@ -427,22 +477,33 @@ pub struct InstrumentationScope {
     attributes: Vec<KeyValue>,
 }
 
-// Uniqueness for InstrumentationScope does not depend on attributes
-impl Eq for InstrumentationScope {}
-
 impl PartialEq for InstrumentationScope {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.version == other.version
             && self.schema_url == other.schema_url
+            && {
+                let mut self_attrs = self.attributes.clone();
+                let mut other_attrs = other.attributes.clone();
+                self_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+                other_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+                self_attrs == other_attrs
+            }
     }
 }
+
+impl Eq for InstrumentationScope {}
 
 impl hash::Hash for InstrumentationScope {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.version.hash(state);
         self.schema_url.hash(state);
+        let mut sorted_attrs = self.attributes.clone();
+        sorted_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+        for attribute in sorted_attrs {
+            attribute.hash(state);
+        }
     }
 }
 
@@ -559,5 +620,142 @@ impl InstrumentationScopeBuilder {
             schema_url: self.schema_url,
             attributes: self.attributes.unwrap_or_default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::{Hash, Hasher};
+
+    use crate::{InstrumentationScope, KeyValue};
+
+    use rand::random;
+    use std::collections::hash_map::DefaultHasher;
+    use std::f64;
+
+    #[test]
+    fn kv_float_equality() {
+        let kv1 = KeyValue::new("key", 1.0);
+        let kv2 = KeyValue::new("key", 1.0);
+        assert_eq!(kv1, kv2);
+
+        let kv1 = KeyValue::new("key", 1.0);
+        let kv2 = KeyValue::new("key", 1.01);
+        assert_ne!(kv1, kv2);
+
+        let kv1 = KeyValue::new("key", f64::NAN);
+        let kv2 = KeyValue::new("key", f64::NAN);
+        assert_ne!(kv1, kv2, "NAN is not equal to itself");
+
+        for float_val in [
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::MAX,
+            f64::MIN,
+            f64::MIN_POSITIVE,
+        ]
+        .iter()
+        {
+            let kv1 = KeyValue::new("key", *float_val);
+            let kv2 = KeyValue::new("key", *float_val);
+            assert_eq!(kv1, kv2);
+        }
+
+        for _ in 0..100 {
+            let random_value = random::<f64>();
+            let kv1 = KeyValue::new("key", random_value);
+            let kv2 = KeyValue::new("key", random_value);
+            assert_eq!(kv1, kv2);
+        }
+    }
+
+    #[test]
+    fn kv_float_hash() {
+        for float_val in [
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::MAX,
+            f64::MIN,
+            f64::MIN_POSITIVE,
+        ]
+        .iter()
+        {
+            let kv1 = KeyValue::new("key", *float_val);
+            let kv2 = KeyValue::new("key", *float_val);
+            assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+        }
+
+        for _ in 0..100 {
+            let random_value = random::<f64>();
+            let kv1 = KeyValue::new("key", random_value);
+            let kv2 = KeyValue::new("key", random_value);
+            assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+        }
+    }
+
+    fn hash_helper<T: Hash>(item: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        item.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn instrumentation_scope_equality() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k", "v")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k", "v")])
+            .build();
+        assert_eq!(scope1, scope2);
+    }
+
+    #[test]
+    fn instrumentation_scope_equality_attributes_diff_order() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k2", "v2"), KeyValue::new("k1", "v1")])
+            .build();
+        assert_eq!(scope1, scope2);
+
+        // assert hash are same for both scopes
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        scope1.hash(&mut hasher1);
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        scope2.hash(&mut hasher2);
+        assert_eq!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn instrumentation_scope_equality_different_attributes() {
+        let scope1 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")])
+            .build();
+        let scope2 = InstrumentationScope::builder("my-crate")
+            .with_version("v0.1.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .with_attributes([KeyValue::new("k2", "v3"), KeyValue::new("k4", "v5")])
+            .build();
+        assert_ne!(scope1, scope2);
+
+        // assert hash are same for both scopes
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        scope1.hash(&mut hasher1);
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        scope2.hash(&mut hasher2);
+        assert_ne!(hasher1.finish(), hasher2.finish());
     }
 }

@@ -1,9 +1,9 @@
 //! # Zipkin Span Exporter
 use crate::exporter::model::span::Span;
-use crate::exporter::Error;
 use http::{header::CONTENT_TYPE, Method, Request, Uri};
 use opentelemetry_http::{HttpClient, ResponseExt};
-use opentelemetry_sdk::export::trace::ExportResult;
+use opentelemetry_sdk::error::OTelSdkError;
+use opentelemetry_sdk::error::OTelSdkResult;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ impl Uploader {
     }
 
     /// Upload spans to Zipkin
-    pub(crate) async fn upload(&self, spans: Vec<Span>) -> ExportResult {
+    pub(crate) async fn upload(&self, spans: Vec<Span>) -> OTelSdkResult {
         match self {
             Uploader::Http(client) => client.upload(spans).await,
         }
@@ -36,14 +36,27 @@ pub(crate) struct JsonV2Client {
 }
 
 impl JsonV2Client {
-    async fn upload(&self, spans: Vec<Span>) -> ExportResult {
+    async fn upload(&self, spans: Vec<Span>) -> OTelSdkResult {
+        let body = serde_json::to_vec(&spans).map_err(|e| {
+            OTelSdkError::InternalFailure(format!("JSON serialization failed: {}", e))
+        })?;
         let req = Request::builder()
             .method(Method::POST)
             .uri(self.collector_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
-            .body(serde_json::to_vec(&spans).unwrap_or_default())
-            .map_err::<Error, _>(Into::into)?;
-        let _ = self.client.send(req).await?.error_for_status()?;
+            .body(body.into())
+            .map_err(|e| {
+                OTelSdkError::InternalFailure(format!("Failed to create request: {}", e))
+            })?;
+
+        let response =
+            self.client.send_bytes(req).await.map_err(|e| {
+                OTelSdkError::InternalFailure(format!("HTTP request failed: {}", e))
+            })?;
+
+        response
+            .error_for_status()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("HTTP response error: {}", e)))?;
         Ok(())
     }
 }

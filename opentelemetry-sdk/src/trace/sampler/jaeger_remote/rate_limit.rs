@@ -1,5 +1,5 @@
+use opentelemetry::time::now;
 use std::time::SystemTime;
-
 // leaky bucket based rate limit
 // should be Send+Sync
 pub(crate) struct LeakyBucket {
@@ -16,7 +16,7 @@ impl LeakyBucket {
             span_per_sec,
             available: bucket_size,
             bucket_size,
-            last_time: opentelemetry::time::now(),
+            last_time: now(),
         }
     }
 
@@ -25,7 +25,7 @@ impl LeakyBucket {
     }
 
     pub(crate) fn should_sample(&mut self) -> bool {
-        self.check_availability(opentelemetry::time::now)
+        self.check_availability(now)
     }
 
     fn check_availability<F>(&mut self, now: F) -> bool
@@ -69,14 +69,15 @@ impl LeakyBucket {
 #[cfg(test)]
 mod tests {
     use crate::trace::sampler::jaeger_remote::rate_limit::LeakyBucket;
+    use opentelemetry::time::now;
     use std::ops::{Add, Sub};
-    use std::time::{Duration, SystemTime};
+    use std::time::Duration;
 
     #[test]
     fn test_leaky_bucket() {
         // maximum bucket size 2, add 1 allowance every 10 seconds
         let mut leaky_bucket = LeakyBucket::new(2.0, 0.1);
-        let current_time = SystemTime::now();
+        let current_time = now();
         leaky_bucket.last_time = current_time;
 
         let test_cases = vec![
@@ -102,7 +103,7 @@ mod tests {
     #[test]
     fn test_rewind_clock_should_pass() {
         let mut leaky_bucket = LeakyBucket::new(2.0, 0.1);
-        let current_time = SystemTime::now();
+        let current_time = now();
         leaky_bucket.last_time = current_time;
 
         assert!(leaky_bucket.check_availability(|| { current_time.sub(Duration::from_secs(10)) }))

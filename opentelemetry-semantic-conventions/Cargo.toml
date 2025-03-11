@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-semantic-conventions"
-version = "0.27.0"
+version = "0.28.0"
 description = "Semantic conventions for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-semantic-conventions"
@@ -26,3 +26,6 @@ semconv_experimental = []
 [dev-dependencies]
 opentelemetry = { default-features = false, path = "../opentelemetry" } # for doctests
 opentelemetry_sdk = { features = ["trace"], path = "../opentelemetry-sdk" } # for doctests
+
+[lints]
+workspace = true

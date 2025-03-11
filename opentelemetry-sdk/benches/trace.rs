@@ -1,12 +1,11 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use futures_util::future::BoxFuture;
 use opentelemetry::{
     trace::{Span, Tracer, TracerProvider},
     KeyValue,
 };
 use opentelemetry_sdk::{
-    export::trace::{ExportResult, SpanData, SpanExporter},
-    trace as sdktrace,
+    error::OTelSdkResult,
+    trace::{self as sdktrace, SpanData, SpanExporter},
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -60,16 +59,16 @@ fn criterion_benchmark(c: &mut Criterion) {
 struct VoidExporter;
 
 impl SpanExporter for VoidExporter {
-    fn export(&mut self, _spans: Vec<SpanData>) -> BoxFuture<'static, ExportResult> {
-        Box::pin(futures_util::future::ready(Ok(())))
+    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
+        Ok(())
     }
 }
 
-fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str, f: F) {
+fn trace_benchmark_group<F: Fn(&sdktrace::SdkTracer)>(c: &mut Criterion, name: &str, f: F) {
     let mut group = c.benchmark_group(name);
 
     group.bench_function("always-sample", |b| {
-        let provider = sdktrace::TracerProvider::builder()
+        let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOn)
             .with_simple_exporter(VoidExporter)
             .build();
@@ -79,7 +78,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
     });
 
     group.bench_function("never-sample", |b| {
-        let provider = sdktrace::TracerProvider::builder()
+        let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOff)
             .with_simple_exporter(VoidExporter)
             .build();

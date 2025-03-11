@@ -12,7 +12,7 @@ pub mod tonic {
         transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
-    use opentelemetry_sdk::export::logs::LogBatch;
+    use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
@@ -56,8 +56,8 @@ pub mod tonic {
         }
     }
 
-    impl From<&opentelemetry_sdk::logs::LogRecord> for LogRecord {
-        fn from(log_record: &opentelemetry_sdk::logs::LogRecord) -> Self {
+    impl From<&opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
+        fn from(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> Self {
             let trace_context = log_record.trace_context();
             let severity_number = match log_record.severity_number() {
                 Some(Severity::Trace) => SeverityNumber::Trace,
@@ -91,7 +91,7 @@ pub mod tonic {
                 time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
                 observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
                 attributes: {
-                    let attributes: Vec<KeyValue> = log_record
+                    log_record
                         .attributes_iter()
                         .map(|kv| KeyValue {
                             key: kv.0.to_string(),
@@ -99,24 +99,7 @@ pub mod tonic {
                                 value: Some(kv.1.clone().into()),
                             }),
                         })
-                        .collect();
-                    #[cfg(feature = "populate-logs-event-name")]
-                    {
-                        if let Some(event_name) = &log_record.event_name() {
-                            let mut attributes_with_name = attributes;
-                            attributes_with_name.push(KeyValue {
-                                key: "event.name".into(),
-                                value: Some(AnyValue {
-                                    value: Some(Value::StringValue(event_name.to_string())),
-                                }),
-                            });
-                            attributes_with_name
-                        } else {
-                            attributes
-                        }
-                    }
-                    #[cfg(not(feature = "populate-logs-event-name"))]
-                    attributes
+                        .collect()
                 },
                 event_name: log_record.event_name().unwrap_or_default().into(),
                 severity_number: severity_number.into(),
@@ -146,7 +129,7 @@ pub mod tonic {
     impl
         From<(
             (
-                &opentelemetry_sdk::logs::LogRecord,
+                &opentelemetry_sdk::logs::SdkLogRecord,
                 &opentelemetry::InstrumentationScope,
             ),
             &ResourceAttributesWithSchema,
@@ -155,7 +138,7 @@ pub mod tonic {
         fn from(
             data: (
                 (
-                    &opentelemetry_sdk::logs::LogRecord,
+                    &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 ),
                 &ResourceAttributesWithSchema,
@@ -191,7 +174,7 @@ pub mod tonic {
             |mut scope_map: HashMap<
                 Cow<'static, str>,
                 Vec<(
-                    &opentelemetry_sdk::logs::LogRecord,
+                    &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 )>,
             >,
@@ -238,17 +221,42 @@ pub mod tonic {
 mod tests {
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
+    use opentelemetry::logs::Logger;
+    use opentelemetry::logs::LoggerProvider;
+    use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
-    use opentelemetry_sdk::{export::logs::LogBatch, logs::LogRecord, Resource};
-    use std::time::SystemTime;
+    use opentelemetry_sdk::error::OTelSdkResult;
+    use opentelemetry_sdk::logs::LogProcessor;
+    use opentelemetry_sdk::logs::SdkLoggerProvider;
+    use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
+
+    #[derive(Debug)]
+    struct MockProcessor;
+
+    impl LogProcessor for MockProcessor {
+        fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
 
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
-    ) -> (LogRecord, InstrumentationScope) {
-        let mut logrecord = LogRecord::default();
-        logrecord.set_timestamp(SystemTime::now());
-        logrecord.set_observed_timestamp(SystemTime::now());
+    ) -> (SdkLogRecord, InstrumentationScope) {
+        let processor = MockProcessor {};
+        let logger = SdkLoggerProvider::builder()
+            .with_log_processor(processor)
+            .build()
+            .logger("test");
+        let mut logrecord = logger.create_log_record();
+        logrecord.set_timestamp(now());
+        logrecord.set_observed_timestamp(now());
         let instrumentation =
             InstrumentationScope::builder(instrumentation_name.to_string()).build();
         (logrecord, instrumentation)

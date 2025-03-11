@@ -99,6 +99,7 @@
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{otel_error, otel_warn, InstrumentationScope, Key, Value};
 use opentelemetry_sdk::{
+    error::OTelSdkResult,
     metrics::{
         data::{self, ResourceMetrics},
         reader::MetricReader,
@@ -157,11 +158,11 @@ impl MetricReader for PrometheusExporter {
         self.reader.collect(rm)
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.reader.force_flush()
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.reader.shutdown()
     }
 
@@ -284,7 +285,7 @@ impl prometheus::core::Collector for Collector {
         };
 
         let mut metrics = ResourceMetrics {
-            resource: Resource::empty(),
+            resource: Resource::builder_empty().build(),
             scope_metrics: vec![],
         };
         if let Err(err) = self.reader.collect(&mut metrics) {

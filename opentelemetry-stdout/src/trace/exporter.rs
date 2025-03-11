@@ -1,17 +1,16 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
-use futures_util::future::BoxFuture;
-use opentelemetry::trace::TraceError;
-use opentelemetry_sdk::export::{self, trace::ExportResult};
-use std::sync::atomic;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
+use opentelemetry_sdk::trace::SpanData;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use opentelemetry_sdk::resource::Resource;
 
 /// An OpenTelemetry exporter that writes Spans to stdout on export.
 pub struct SpanExporter {
     resource: Resource,
-    is_shutdown: atomic::AtomicBool,
-    resource_emitted: bool,
+    is_shutdown: AtomicBool,
+    resource_emitted: AtomicBool,
 }
 
 impl fmt::Debug for SpanExporter {
@@ -24,25 +23,26 @@ impl Default for SpanExporter {
     fn default() -> Self {
         SpanExporter {
             resource: Resource::builder().build(),
-            is_shutdown: atomic::AtomicBool::new(false),
-            resource_emitted: false,
+            is_shutdown: AtomicBool::new(false),
+            resource_emitted: AtomicBool::new(false),
         }
     }
 }
 
-impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
+impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
-    fn export(&mut self, batch: Vec<export::trace::SpanData>) -> BoxFuture<'static, ExportResult> {
-        if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            Box::pin(std::future::ready(Err(TraceError::from(
-                "exporter is shut down",
-            ))))
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        if self.is_shutdown.load(Ordering::SeqCst) {
+            Err(OTelSdkError::AlreadyShutdown)
         } else {
             println!("Spans");
-            if self.resource_emitted {
+            if self
+                .resource_emitted
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_err()
+            {
                 print_spans(batch);
             } else {
-                self.resource_emitted = true;
                 println!("Resource");
                 if let Some(schema_url) = self.resource.schema_url() {
                     println!("\tResource SchemaUrl: {:?}", schema_url);
@@ -55,12 +55,13 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
                 print_spans(batch);
             }
 
-            Box::pin(std::future::ready(Ok(())))
+            Ok(())
         }
     }
 
-    fn shutdown(&mut self) {
-        self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+    fn shutdown(&mut self) -> OTelSdkResult {
+        self.is_shutdown.store(true, Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -68,7 +69,7 @@ impl opentelemetry_sdk::export::trace::SpanExporter for SpanExporter {
     }
 }
 
-fn print_spans(batch: Vec<export::trace::SpanData>) {
+fn print_spans(batch: Vec<SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{}", i);
         println!("\tInstrumentation Scope");
@@ -96,6 +97,7 @@ fn print_spans(batch: Vec<export::trace::SpanData>) {
         println!("\tName        : {}", &span.name);
         println!("\tTraceId     : {}", &span.span_context.trace_id());
         println!("\tSpanId      : {}", &span.span_context.span_id());
+        println!("\tTraceFlags  : {:?}", &span.span_context.trace_flags());
         println!("\tParentSpanId: {}", &span.parent_span_id);
         println!("\tKind        : {:?}", &span.span_kind);
 

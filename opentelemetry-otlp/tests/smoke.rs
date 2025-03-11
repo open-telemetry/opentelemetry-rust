@@ -83,7 +83,7 @@ async fn smoke_tracer() {
         println!("Installing tracer provider...");
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert("x-header-key", "header-value".parse().unwrap());
-        let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
+        let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
             .with_batch_exporter(
                 #[cfg(feature = "gzip-tonic")]
                 opentelemetry_otlp::SpanExporter::builder()
@@ -100,7 +100,6 @@ async fn smoke_tracer() {
                     .with_metadata(metadata)
                     .build()
                     .expect("NON gzip-tonic SpanExporter failed to build"),
-                opentelemetry_sdk::runtime::Tokio,
             )
             .build();
 

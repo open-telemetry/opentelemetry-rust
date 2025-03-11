@@ -25,7 +25,7 @@ jobs:
           - rust: stable
             os: macos-latest
           - rust: stable
-            os: otel-linux-arm64
+            os: ubuntu-22.04-arm
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'beta' }}
     steps:

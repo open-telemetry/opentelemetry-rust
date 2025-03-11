@@ -57,6 +57,14 @@ pub(crate) mod pipeline;
 pub mod reader;
 pub(crate) mod view;
 
+/// In-Memory metric exporter for testing purpose.
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub mod in_memory_exporter;
+#[cfg(any(feature = "testing", test))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
+pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+
 pub use aggregation::*;
 pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
@@ -105,10 +113,14 @@ pub enum Temporality {
 mod tests {
     use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::*;
+    use crate::metrics::data::Aggregation;
     use crate::metrics::data::ResourceMetrics;
-    use crate::testing::metrics::InMemoryMetricExporter;
-    use crate::testing::metrics::InMemoryMetricExporterBuilder;
+    use crate::metrics::InMemoryMetricExporter;
+    use crate::metrics::InMemoryMetricExporterBuilder;
+    use data::Gauge;
     use data::GaugeDataPoint;
+    use data::Histogram;
+    use data::Sum;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
@@ -120,15 +132,16 @@ mod tests {
     use std::time::Duration;
 
     // Run all tests in this mod
-    // cargo test metrics::tests --features=testing
+    // cargo test metrics::tests --features=testing,spec_unstable_metrics_views
     // Note for all tests from this point onwards in this mod:
     // "multi_thread" tokio flavor must be used else flush won't
     // be able to make progress!
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
     async fn invalid_instrument_config_noops() {
         // Run this test with stdout enabled to see output.
-        // cargo test invalid_instrument_config_noops --features=testing -- --nocapture
+        // cargo test invalid_instrument_config_noops --features=testing,spec_unstable_metrics_views -- --nocapture
         let invalid_instrument_names = vec![
             "_startWithNoneAlphabet",
             "utf8char锈",
@@ -197,8 +210,99 @@ mod tests {
             histogram.record(1.9, &[]);
             test_context.flush_metrics();
 
-            // As bucket boundaires provided via advisory params are invalid, no
-            // metrics should be exported
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
+            test_context.check_no_metrics();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "experimental_metrics_disable_name_validation")]
+    async fn valid_instrument_config_with_feature_experimental_metrics_disable_name_validation() {
+        // Run this test with stdout enabled to see output.
+        // cargo test valid_instrument_config_with_feature_experimental_metrics_disable_name_validation --all-features -- --nocapture
+        let invalid_instrument_names = vec![
+            "_startWithNoneAlphabet",
+            "utf8char锈",
+            "",
+            "a".repeat(256).leak(),
+            "\\allow\\slash /sec",
+            "\\allow\\$$slash /sec",
+            "Total $ Count",
+            "\\test\\UsagePercent(Total) > 80%",
+            "invalid name",
+        ];
+        for name in invalid_instrument_names {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let counter = test_context.meter().u64_counter(name).build();
+            counter.add(1, &[]);
+
+            let up_down_counter = test_context.meter().i64_up_down_counter(name).build();
+            up_down_counter.add(1, &[]);
+
+            let gauge = test_context.meter().f64_gauge(name).build();
+            gauge.record(1.9, &[]);
+
+            let histogram = test_context.meter().f64_histogram(name).build();
+            histogram.record(1.0, &[]);
+
+            let _observable_counter = test_context
+                .meter()
+                .u64_observable_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .build();
+
+            let _observable_gauge = test_context
+                .meter()
+                .f64_observable_gauge(name)
+                .with_callback(move |observer| {
+                    observer.observe(1.0, &[]);
+                })
+                .build();
+
+            let _observable_up_down_counter = test_context
+                .meter()
+                .i64_observable_up_down_counter(name)
+                .with_callback(move |observer| {
+                    observer.observe(1, &[]);
+                })
+                .build();
+
+            test_context.flush_metrics();
+
+            // As instrument name are valid because of the feature flag, metrics should be exported
+            let resource_metrics = test_context
+                .exporter
+                .get_finished_metrics()
+                .expect("metrics expected to be exported");
+
+            assert!(!resource_metrics.is_empty(), "metrics should be exported");
+        }
+
+        // Ensuring that the Histograms with invalid bucket boundaries are not exported
+        // when using the feature flag
+        let invalid_bucket_boundaries = vec![
+            vec![1.0, 1.0],                          // duplicate boundaries
+            vec![1.0, 2.0, 3.0, 2.0],                // duplicate non consequent boundaries
+            vec![1.0, 2.0, 3.0, 4.0, 2.5],           // unsorted boundaries
+            vec![1.0, 2.0, 3.0, f64::INFINITY, 4.0], // boundaries with positive infinity
+            vec![1.0, 2.0, 3.0, f64::NAN],           // boundaries with NaNs
+            vec![f64::NEG_INFINITY, 2.0, 3.0],       // boundaries with negative infinity
+        ];
+        for bucket_boundaries in invalid_bucket_boundaries {
+            let test_context = TestContext::new(Temporality::Cumulative);
+            let histogram = test_context
+                .meter()
+                .f64_histogram("test")
+                .with_boundaries(bucket_boundaries)
+                .build();
+            histogram.record(1.9, &[]);
+            test_context.flush_metrics();
+
+            // As bucket boundaries provided via advisory params are invalid,
+            // no metrics should be exported
             test_context.check_no_metrics();
         }
     }
@@ -225,7 +329,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -248,7 +352,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -259,11 +363,13 @@ mod tests {
         assert_eq!(data_point.value, 50, "Unexpected data point value");
     }
 
+    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
     }
 
+    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
@@ -448,7 +554,7 @@ mod tests {
 
         for (iter, v) in values_clone.iter().enumerate() {
             test_context.flush_metrics();
-            let sum = test_context.get_aggregation::<data::Sum<u64>>("my_observable_counter", None);
+            let sum = test_context.get_aggregation::<Sum<u64>>("my_observable_counter", None);
             assert_eq!(sum.data_points.len(), 1);
             assert!(sum.is_monotonic, "Counter should produce monotonic.");
             if let Temporality::Cumulative = temporality {
@@ -512,8 +618,9 @@ mod tests {
         }
 
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Test Meter creation in 2 ways, both with empty string as meter name
         let meter1 = meter_provider.meter("");
@@ -528,8 +635,9 @@ mod tests {
     async fn counter_duplicate_instrument_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
         let meter = meter_provider.meter("test");
@@ -565,7 +673,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series.
@@ -579,8 +687,9 @@ mod tests {
     async fn counter_duplicate_instrument_different_meter_no_merge() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
         let meter1 = meter_provider.meter("test.meter1");
@@ -631,7 +740,7 @@ mod tests {
             let sum1 = metric1
                 .data
                 .as_any()
-                .downcast_ref::<data::Sum<u64>>()
+                .downcast_ref::<Sum<u64>>()
                 .expect("Sum aggregation expected for Counter instruments by default");
 
             // Expecting 1 time-series.
@@ -651,7 +760,7 @@ mod tests {
             let sum2 = metric2
                 .data
                 .as_any()
-                .downcast_ref::<data::Sum<u64>>()
+                .downcast_ref::<Sum<u64>>()
                 .expect("Sum aggregation expected for Counter instruments by default");
 
             // Expecting 1 time-series.
@@ -668,11 +777,12 @@ mod tests {
     async fn instrumentation_scope_identity_test() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
-        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
 
         // Act
-        // Meters are identical except for scope attributes, but scope attributes are not an identifying property.
+        // Meters are identical.
         // Hence there should be a single metric stream output for this test.
         let make_scope = |attributes| {
             InstrumentationScope::builder("test.meter")
@@ -685,7 +795,7 @@ mod tests {
         let meter1 =
             meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
         let meter2 =
-            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value2")]));
+            meter_provider.meter_with_scope(make_scope(vec![KeyValue::new("key", "value1")]));
 
         let counter1 = meter1
             .u64_counter("my_counter")
@@ -735,7 +845,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series.
@@ -752,10 +862,9 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("test_histogram");
         let stream_invalid_aggregation = Stream::new()
-            .aggregation(Aggregation::ExplicitBucketHistogram {
+            .aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
                 boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
                 record_min_max: false,
             })
@@ -765,7 +874,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -802,7 +911,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -810,7 +918,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -858,7 +966,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for ObservableCounter instruments by default");
 
         // Expecting 1 time-series only, as the view drops all attributes resulting
@@ -877,7 +985,6 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
         let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
         let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
@@ -885,7 +992,7 @@ mod tests {
         let view =
             new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
         let meter_provider = SdkMeterProvider::builder()
-            .with_reader(reader)
+            .with_periodic_exporter(exporter.clone())
             .with_view(view)
             .build();
 
@@ -935,7 +1042,7 @@ mod tests {
         let sum = metric
             .data
             .as_any()
-            .downcast_ref::<data::Sum<u64>>()
+            .downcast_ref::<Sum<u64>>()
             .expect("Sum aggregation expected for Counter instruments by default");
 
         // Expecting 1 time-series only, as the view drops all attributes resulting
@@ -955,7 +1062,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -978,7 +1085,7 @@ mod tests {
         counter.add(50, &[]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_counter", Some("my_unit"));
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_counter", Some("my_unit"));
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(!sum.is_monotonic, "Should not produce monotonic.");
@@ -1000,12 +1107,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -1027,12 +1134,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(5, &[]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         assert_eq!(sum.data_points.len(), 1, "Expected only one data point");
         assert!(sum.is_monotonic, "Should produce monotonic.");
@@ -1054,12 +1161,12 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-        let _ = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let _ = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         test_context.reset_metrics();
 
         counter.add(50, &[KeyValue::new("a", "b")]);
         test_context.flush_metrics();
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         let no_attr_data_point = sum.data_points.iter().find(|x| x.attributes.is_empty());
 
@@ -1090,7 +1197,7 @@ mod tests {
         counter.add(1, &[KeyValue::new("key1", "value2")]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
@@ -1215,7 +1322,7 @@ mod tests {
             match instrument_name {
                 "counter" => {
                     let counter_data =
-                        test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
+                        test_context.get_aggregation::<Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_sum_datapoint_with_no_attributes(&counter_data.data_points)
@@ -1231,7 +1338,7 @@ mod tests {
                 }
                 "updown_counter" => {
                     let updown_counter_data =
-                        test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
+                        test_context.get_aggregation::<Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_sum_datapoint_with_no_attributes(&updown_counter_data.data_points)
@@ -1246,8 +1353,8 @@ mod tests {
                     assert_eq!(data_point1.value, 20);
                 }
                 "histogram" => {
-                    let histogram_data = test_context
-                        .get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+                    let histogram_data =
+                        test_context.get_aggregation::<Histogram<u64>>("test_histogram", None);
                     assert_eq!(histogram_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_histogram_datapoint_with_no_attributes(&histogram_data.data_points)
@@ -1268,8 +1375,7 @@ mod tests {
                     assert_eq!(data_point1.max, Some(30));
                 }
                 "gauge" => {
-                    let gauge_data =
-                        test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
+                    let gauge_data = test_context.get_aggregation::<Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
@@ -1289,22 +1395,32 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn asynchronous_instruments_cumulative_with_gap_in_measurements() {
+    async fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement() {
         // Run this test with stdout enabled to see output.
-        // cargo test asynchronous_instruments_cumulative_with_gap_in_measurements --features=testing -- --nocapture
+        // cargo test asynchronous_instruments_cumulative_data_points_only_from_last_measurement --features=testing -- --nocapture
 
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("counter");
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("updown_counter");
-        asynchronous_instruments_cumulative_with_gap_in_measurements_helper("gauge");
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "gauge", true,
+        );
+        // TODO fix: all asynchronous instruments should not emit data points if not measured
+        // but these implementations are still buggy
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "counter", false,
+        );
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
+            "updown_counter",
+            false,
+        );
     }
 
-    fn asynchronous_instruments_cumulative_with_gap_in_measurements_helper(
+    fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
         instrument_name: &'static str,
+        should_not_emit: bool,
     ) {
         let mut test_context = TestContext::new(Temporality::Cumulative);
         let attributes = Arc::new([KeyValue::new("key1", "value1")]);
 
-        // Create instrument and emit measurements
+        // Create instrument and emit measurements once
         match instrument_name {
             "counter" => {
                 let has_run = AtomicBool::new(false);
@@ -1361,14 +1477,18 @@ mod tests {
 
         test_context.flush_metrics();
 
-        // Test that latest export has the same data as the previous one
-        assert_correct_export(&mut test_context, instrument_name);
+        if should_not_emit {
+            test_context.check_no_metrics();
+        } else {
+            // Test that latest export has the same data as the previous one
+            assert_correct_export(&mut test_context, instrument_name);
+        }
 
         fn assert_correct_export(test_context: &mut TestContext, instrument_name: &'static str) {
             match instrument_name {
                 "counter" => {
                     let counter_data =
-                        test_context.get_aggregation::<data::Sum<u64>>("test_counter", None);
+                        test_context.get_aggregation::<Sum<u64>>("test_counter", None);
                     assert_eq!(counter_data.data_points.len(), 2);
                     assert!(counter_data.is_monotonic);
                     let zero_attribute_datapoint =
@@ -1385,7 +1505,7 @@ mod tests {
                 }
                 "updown_counter" => {
                     let updown_counter_data =
-                        test_context.get_aggregation::<data::Sum<i64>>("test_updowncounter", None);
+                        test_context.get_aggregation::<Sum<i64>>("test_updowncounter", None);
                     assert_eq!(updown_counter_data.data_points.len(), 2);
                     assert!(!updown_counter_data.is_monotonic);
                     let zero_attribute_datapoint =
@@ -1401,8 +1521,7 @@ mod tests {
                     assert_eq!(data_point1.value, 20);
                 }
                 "gauge" => {
-                    let gauge_data =
-                        test_context.get_aggregation::<data::Gauge<u64>>("test_gauge", None);
+                    let gauge_data = test_context.get_aggregation::<Gauge<u64>>("test_gauge", None);
                     assert_eq!(gauge_data.data_points.len(), 2);
                     let zero_attribute_datapoint =
                         find_gauge_datapoint_with_no_attributes(&gauge_data.data_points)
@@ -1451,8 +1570,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let sums =
-            test_context.get_from_multiple_aggregations::<data::Sum<u64>>("my_counter", None, 6);
+        let sums = test_context.get_from_multiple_aggregations::<Sum<u64>>("my_counter", None, 6);
 
         let mut sum_zero_attributes = 0;
         let mut sum_key1_value1 = 0;
@@ -1504,8 +1622,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let sums =
-            test_context.get_from_multiple_aggregations::<data::Sum<f64>>("test_counter", None, 6);
+        let sums = test_context.get_from_multiple_aggregations::<Sum<f64>>("test_counter", None, 6);
 
         let mut sum_zero_attributes = 0.0;
         let mut sum_key1_value1 = 0.0;
@@ -1558,7 +1675,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let histograms = test_context.get_from_multiple_aggregations::<data::Histogram<u64>>(
+        let histograms = test_context.get_from_multiple_aggregations::<Histogram<u64>>(
             "test_histogram",
             None,
             6,
@@ -1695,7 +1812,7 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        let histograms = test_context.get_from_multiple_aggregations::<data::Histogram<f64>>(
+        let histograms = test_context.get_from_multiple_aggregations::<Histogram<f64>>(
             "test_histogram",
             None,
             6,
@@ -1807,16 +1924,16 @@ mod tests {
         let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
-        let mut rand = rngs::SmallRng::from_entropy();
+        let mut rand = rngs::SmallRng::from_os_rng();
         let values_kv1 = (0..50)
-            .map(|_| rand.gen_range(0..100))
+            .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv1.iter() {
             histogram.record(*value, &[KeyValue::new("key1", "value1")]);
         }
 
         let values_kv2 = (0..30)
-            .map(|_| rand.gen_range(0..100))
+            .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
         for value in values_kv2.iter() {
             histogram.record(*value, &[KeyValue::new("key1", "value2")]);
@@ -1825,8 +1942,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("my_histogram", None);
         // Expecting 2 time-series.
         assert_eq!(histogram_data.data_points.len(), 2);
         if let Temporality::Cumulative = temporality {
@@ -1872,8 +1988,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("my_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("my_histogram", None);
         assert_eq!(histogram_data.data_points.len(), 2);
         let data_point1 =
             find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
@@ -1922,8 +2037,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let histogram_data =
-            test_context.get_aggregation::<data::Histogram<u64>>("test_histogram", None);
+        let histogram_data = test_context.get_aggregation::<Histogram<u64>>("test_histogram", None);
         // Expecting 2 time-series.
         assert_eq!(histogram_data.data_points.len(), 1);
         if let Temporality::Cumulative = temporality {
@@ -1976,7 +2090,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let gauge_data_point = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        let gauge_data_point = test_context.get_aggregation::<Gauge<i64>>("my_gauge", None);
         // Expecting 2 time-series.
         assert_eq!(gauge_data_point.data_points.len(), 2);
 
@@ -2005,7 +2119,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("my_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("my_gauge", None);
         assert_eq!(gauge.data_points.len(), 2);
         let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2034,7 +2148,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("test_observable_gauge", None);
         // Expecting 2 time-series.
         let expected_time_series_count = if use_empty_attributes { 3 } else { 2 };
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
@@ -2062,7 +2176,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let gauge = test_context.get_aggregation::<data::Gauge<i64>>("test_observable_gauge", None);
+        let gauge = test_context.get_aggregation::<Gauge<i64>>("test_observable_gauge", None);
         assert_eq!(gauge.data_points.len(), expected_time_series_count);
 
         if use_empty_attributes {
@@ -2100,7 +2214,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
         assert!(sum.is_monotonic, "Counter should produce monotonic.");
@@ -2137,7 +2251,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
         assert_eq!(sum.data_points.len(), 2);
         let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2177,7 +2291,7 @@ mod tests {
         counter.add(100, &[KeyValue::new("A", "yet_another")]);
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 2002 metric points. (2000 + 1 overflow + Empty attributes)
         assert_eq!(sum.data_points.len(), 2002);
@@ -2271,7 +2385,7 @@ mod tests {
         );
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<u64>>("my_counter", None);
+        let sum = test_context.get_aggregation::<Sum<u64>>("my_counter", None);
 
         // Expecting 1 time-series.
         assert_eq!(sum.data_points.len(), 1);
@@ -2300,7 +2414,7 @@ mod tests {
         test_context.flush_metrics();
 
         // Assert
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_updown_counter", None);
         // Expecting 2 time-series.
         assert_eq!(sum.data_points.len(), 2);
         assert!(
@@ -2336,7 +2450,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        let sum = test_context.get_aggregation::<data::Sum<i64>>("my_updown_counter", None);
+        let sum = test_context.get_aggregation::<Sum<i64>>("my_updown_counter", None);
         assert_eq!(sum.data_points.len(), 2);
         let data_point1 = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "value1")
             .expect("datapoint with key1=value1 expected");
@@ -2430,10 +2544,10 @@ mod tests {
     impl TestContext {
         fn new(temporality: Temporality) -> Self {
             let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
-
             let exporter = exporter.build();
-            let reader = PeriodicReader::builder(exporter.clone()).build();
-            let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(exporter.clone())
+                .build();
 
             TestContext {
                 exporter,
@@ -2491,7 +2605,7 @@ mod tests {
             assert!(resource_metrics.is_empty(), "no metrics should be exported");
         }
 
-        fn get_aggregation<T: data::Aggregation>(
+        fn get_aggregation<T: Aggregation>(
             &mut self,
             counter_name: &str,
             unit_name: Option<&str>,
@@ -2534,7 +2648,7 @@ mod tests {
                 .expect("Failed to cast aggregation to expected type")
         }
 
-        fn get_from_multiple_aggregations<T: data::Aggregation>(
+        fn get_from_multiple_aggregations<T: Aggregation>(
             &mut self,
             counter_name: &str,
             unit_name: Option<&str>,

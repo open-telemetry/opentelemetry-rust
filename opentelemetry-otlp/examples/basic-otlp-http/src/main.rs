@@ -1,87 +1,73 @@
-/// To use hyper as the HTTP client - cargo run --features="hyper" --no-default-features
-use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    trace::{TraceContextExt, TraceError, Tracer},
+    trace::{TraceContextExt, Tracer},
     InstrumentationScope, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
-    logs::LoggerProvider,
-    metrics::{MetricError, SdkMeterProvider},
-    runtime,
-    trace::{self as sdktrace, TracerProvider},
+    logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
-use opentelemetry_sdk::{
-    logs::{self as sdklogs},
-    Resource,
-};
-use std::error::Error;
+use std::{error::Error, sync::OnceLock};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-static RESOURCE: Lazy<Resource> = Lazy::new(|| {
-    Resource::builder()
-        .with_service_name("basic-otlp-example")
-        .build()
-});
-
-fn init_logs() -> Result<sdklogs::LoggerProvider, opentelemetry_sdk::logs::LogError> {
-    let exporter = LogExporter::builder()
-        .with_http()
-        .with_endpoint("http://localhost:4318/v1/logs")
-        .with_protocol(Protocol::HttpBinary)
-        .build()?;
-
-    Ok(LoggerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(RESOURCE.clone())
-        .build())
+fn get_resource() -> Resource {
+    static RESOURCE: OnceLock<Resource> = OnceLock::new();
+    RESOURCE
+        .get_or_init(|| {
+            Resource::builder()
+                .with_service_name("basic-otlp-example-grpc")
+                .build()
+        })
+        .clone()
 }
 
-fn init_traces() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_logs() -> SdkLoggerProvider {
+    let exporter = LogExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary)
+        .build()
+        .expect("Failed to create log exporter");
+
+    SdkLoggerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(get_resource())
+        .build()
+}
+
+fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
-        .with_endpoint("http://localhost:4318/v1/traces")
-        .build()?;
+        .build()
+        .expect("Failed to create trace exporter");
 
-    Ok(TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
-        .with_resource(RESOURCE.clone())
-        .build())
+    SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(get_resource())
+        .build()
 }
 
-fn init_metrics() -> Result<opentelemetry_sdk::metrics::SdkMeterProvider, MetricError> {
+fn init_metrics() -> SdkMeterProvider {
     let exporter = MetricExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
-        .with_endpoint("http://localhost:4318/v1/metrics")
-        .build()?;
+        .build()
+        .expect("Failed to create metric exporter");
 
-    #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
-    let reader =
-        opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(
-            exporter,
-            runtime::Tokio,
-        )
-        .build();
-    // TODO: This does not work today. See https://github.com/open-telemetry/opentelemetry-rust/issues/2400
-    #[cfg(not(feature = "experimental_metrics_periodicreader_with_async_runtime"))]
-    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(exporter).build();
-
-    Ok(SdkMeterProvider::builder()
-        .with_reader(reader)
-        .with_resource(RESOURCE.clone())
-        .build())
+    SdkMeterProvider::builder()
+        .with_periodic_exporter(exporter)
+        .with_resource(get_resource())
+        .build()
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let logger_provider = init_logs()?;
+    let logger_provider = init_logs();
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
@@ -119,10 +105,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with(fmt_layer)
         .init();
 
-    let tracer_provider = init_traces()?;
+    // At this point Logs (OTel Logs and Fmt Logs) are initialized, which will
+    // allow internal-logs from Tracing/Metrics initializer to be captured.
+
+    let tracer_provider = init_traces();
+    // Set the global tracer provider using a clone of the tracer_provider.
+    // Setting global tracer provider is required if other parts of the application
+    // uses global::tracer() or global::tracer_with_version() to get a tracer.
+    // Cloning simply creates a new reference to the same tracer provider. It is
+    // important to hold on to the tracer_provider here, so as to invoke
+    // shutdown on it when application ends.
     global::set_tracer_provider(tracer_provider.clone());
 
-    let meter_provider = init_metrics()?;
+    let meter_provider = init_metrics();
+    // Set the global meter provider using a clone of the meter_provider.
+    // Setting global meter provider is required if other parts of the application
+    // uses global::meter() or global::meter_with_version() to get a meter.
+    // Cloning simply creates a new reference to the same meter provider. It is
+    // important to hold on to the meter_provider here, so as to invoke
+    // shutdown on it when application ends.
     global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
@@ -164,8 +165,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
     tracer_provider.shutdown()?;
-    logger_provider.shutdown()?;
     meter_provider.shutdown()?;
+    logger_provider.shutdown()?;
 
     Ok(())
 }

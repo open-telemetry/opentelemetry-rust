@@ -45,12 +45,12 @@ impl Default for EnvResourceDetector {
 fn construct_otel_resources(s: String) -> Resource {
     Resource::builder_empty()
         .with_attributes(s.split_terminator(',').filter_map(|entry| {
-            let mut parts = entry.splitn(2, '=');
-            let key = parts.next()?.trim();
-            let value = parts.next()?.trim();
-            if value.find('=').is_some() {
-                return None;
-            }
+            let parts = match entry.split_once('=') {
+                Some(p) => p,
+                None => return None,
+            };
+            let key = parts.0.trim();
+            let value = parts.1.trim();
 
             Some(KeyValue::new(key.to_owned(), value.to_owned()))
         }))
@@ -84,7 +84,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                     .or_else(|| {
                         EnvResourceDetector::new()
                             .detect()
-                            .get(Key::new(super::SERVICE_NAME))
+                            .get(&Key::new(super::SERVICE_NAME))
                     })
                     .unwrap_or_else(|| "unknown_service".into()),
             )])
@@ -106,7 +106,7 @@ mod tests {
             [
                 (
                     "OTEL_RESOURCE_ATTRIBUTES",
-                    Some("key=value, k = v , a= x, a=z"),
+                    Some("key=value, k = v , a= x, a=z,base64=SGVsbG8sIFdvcmxkIQ=="),
                 ),
                 ("IRRELEVANT", Some("20200810")),
             ],
@@ -121,6 +121,7 @@ mod tests {
                             KeyValue::new("k", "v"),
                             KeyValue::new("a", "x"),
                             KeyValue::new("a", "z"),
+                            KeyValue::new("base64", "SGVsbG8sIFdvcmxkIQ=="), // base64('Hello, World!')
                         ])
                         .build()
                 );
@@ -137,14 +138,14 @@ mod tests {
         // Ensure no env var set
         let no_env = SdkProvidedResourceDetector.detect();
         assert_eq!(
-            no_env.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+            no_env.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
             Some(Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
             let with_service = SdkProvidedResourceDetector.detect();
             assert_eq!(
-                with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                 Some(Value::from("test service")),
             )
         });
@@ -155,7 +156,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service1")),
                 )
             },
@@ -170,7 +171,7 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
                     Some(Value::from("test service"))
                 );
             },

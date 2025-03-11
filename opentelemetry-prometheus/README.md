@@ -11,7 +11,7 @@ implementation is based on Opentelemetry API and SDK 0.27**.
 
 [![Crates.io: opentelemetry-prometheus](https://img.shields.io/crates/v/opentelemetry-prometheus.svg)](https://crates.io/crates/opentelemetry-prometheus)
 [![Documentation](https://docs.rs/opentelemetry-prometheus/badge.svg)](https://docs.rs/opentelemetry-prometheus)
-[![LICENSE](https://img.shields.io/crates/l/opentelemetry-prometheus)](./LICENSE)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-prometheus)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-prometheus/LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
@@ -32,3 +32,7 @@ of telemetry is intentionally left to other tools.
 
 [`Prometheus`]: https://prometheus.io
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
+
+## Release Notes
+
+You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-prometheus/CHANGELOG.md).

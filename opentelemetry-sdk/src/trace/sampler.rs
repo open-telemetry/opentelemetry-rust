@@ -57,7 +57,7 @@ use opentelemetry_http::HttpClient;
 /// [OpenTelemetry SDK]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#sampling
 /// [`SpanContext`]: opentelemetry::trace::SpanContext
 /// [`SpanContext::trace_flags()`]: opentelemetry::trace::SpanContext#method.trace_flags
-/// [`SpanExporter`]: crate::export::trace::SpanExporter
+/// [`SpanExporter`]: crate::trace::SpanExporter
 /// [`SpanProcessor`]: crate::trace::SpanProcessor
 /// [`Span`]: opentelemetry::trace::Span
 /// [`Span::is_recording()`]: opentelemetry::trace::Span#tymethod.is_recording
@@ -250,7 +250,7 @@ mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
     use opentelemetry::trace::{SpanContext, SpanId, TraceFlags};
-    use rand::Rng;
+    use rand::random;
 
     #[rustfmt::skip]
     fn sampler_data() -> Vec<(&'static str, Sampler, f64, bool, bool)> {
@@ -301,7 +301,6 @@ mod tests {
     #[test]
     fn sampling() {
         let total = 10_000;
-        let mut rng = rand::thread_rng();
         for (name, sampler, expectation, parent, sample_parent) in sampler_data() {
             let mut sampled = 0;
             for _ in 0..total {
@@ -324,7 +323,7 @@ mod tests {
                     None
                 };
 
-                let trace_id = TraceId::from(rng.gen::<u128>());
+                let trace_id = TraceId::from(random::<u128>());
                 if sampler
                     .should_sample(
                         parent_context.as_ref(),

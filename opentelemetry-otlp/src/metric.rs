@@ -14,8 +14,8 @@ use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporter
 
 use crate::NoExporterBuilderSet;
 
-use async_trait::async_trait;
 use core::fmt;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
@@ -120,16 +120,26 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 }
 
 /// An interface for OTLP metrics clients
-#[async_trait]
-pub trait MetricsClient: fmt::Debug + Send + Sync + 'static {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()>;
-    fn shutdown(&self) -> MetricResult<()>;
+pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
+    fn export(
+        &self,
+        metrics: &mut ResourceMetrics,
+    ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+    fn shutdown(&self) -> OTelSdkResult;
 }
 
 /// Export metrics in OTEL format.
 pub struct MetricExporter {
-    client: Box<dyn MetricsClient>,
+    client: SupportedTransportClient,
     temporality: Temporality,
+}
+
+#[derive(Debug)]
+enum SupportedTransportClient {
+    #[cfg(feature = "grpc-tonic")]
+    Tonic(crate::exporter::tonic::metrics::TonicMetricsClient),
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    Http(crate::exporter::http::OtlpHttpClient),
 }
 
 impl Debug for MetricExporter {
@@ -138,19 +148,28 @@ impl Debug for MetricExporter {
     }
 }
 
-#[async_trait]
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> MetricResult<()> {
-        self.client.export(metrics).await
+    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+        match &self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.export(metrics).await,
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.export(metrics).await,
+        }
     }
 
-    async fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         // this component is stateless
         Ok(())
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        self.client.shutdown()
+    fn shutdown(&self) -> OTelSdkResult {
+        match &self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.shutdown(),
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.shutdown(),
+        }
     }
 
     fn temporality(&self) -> Temporality {
@@ -164,10 +183,24 @@ impl MetricExporter {
         MetricExporterBuilder::default()
     }
 
-    /// Create a new metrics exporter
-    pub fn new(client: impl MetricsClient, temporality: Temporality) -> MetricExporter {
-        MetricExporter {
-            client: Box::new(client),
+    #[cfg(feature = "grpc-tonic")]
+    pub(crate) fn from_tonic(
+        client: crate::exporter::tonic::metrics::TonicMetricsClient,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            client: SupportedTransportClient::Tonic(client),
+            temporality,
+        }
+    }
+
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub(crate) fn from_http(
+        client: crate::exporter::http::OtlpHttpClient,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            client: SupportedTransportClient::Http(client),
             temporality,
         }
     }

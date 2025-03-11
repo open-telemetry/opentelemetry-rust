@@ -13,8 +13,9 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::Runtime;
+use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
     Resource,
 };
@@ -102,15 +103,14 @@ where
     }
 
     /// Create a [PeriodicReader] with the given config.
-    pub fn build(self) -> PeriodicReader {
+    pub fn build(self) -> PeriodicReader<E> {
         let (message_sender, message_receiver) = mpsc::channel(256);
 
-        let worker = move |reader: &PeriodicReader| {
+        let worker = move |reader: &PeriodicReader<E>| {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
-            self.runtime.spawn(Box::pin(async move {
-                let ticker = runtime
-                    .interval(self.interval)
+            self.runtime.spawn(async move {
+                let ticker = to_interval_stream(runtime.clone(), self.interval)
                     .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                     .map(|_| Message::Export);
                 let messages = Box::pin(stream::select(message_receiver, ticker));
@@ -125,7 +125,7 @@ where
                 }
                 .run(messages)
                 .await
-            }));
+            });
         };
 
         otel_debug!(
@@ -183,57 +183,67 @@ where
 /// # drop(reader);
 /// # }
 /// ```
-#[derive(Clone)]
-pub struct PeriodicReader {
-    exporter: Arc<dyn PushMetricExporter>,
-    inner: Arc<Mutex<PeriodicReaderInner>>,
+pub struct PeriodicReader<E: PushMetricExporter> {
+    exporter: Arc<E>,
+    inner: Arc<Mutex<PeriodicReaderInner<E>>>,
 }
 
-impl PeriodicReader {
+impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
+    fn clone(&self) -> Self {
+        Self {
+            exporter: Arc::clone(&self.exporter),
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<E: PushMetricExporter> PeriodicReader<E> {
     /// Configuration options for a periodic reader
-    pub fn builder<E, RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
+    pub fn builder<RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
     where
-        E: PushMetricExporter,
         RT: Runtime,
     {
         PeriodicReaderBuilder::new(exporter, runtime)
     }
 }
 
-impl fmt::Debug for PeriodicReader {
+impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PeriodicReader").finish()
     }
 }
 
-struct PeriodicReaderInner {
+struct PeriodicReaderInner<E: PushMetricExporter> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker,
+    sdk_producer_or_worker: ProducerOrWorker<E>,
 }
 
 #[derive(Debug)]
 enum Message {
     Export,
-    Flush(oneshot::Sender<MetricResult<()>>),
-    Shutdown(oneshot::Sender<MetricResult<()>>),
+    Flush(oneshot::Sender<OTelSdkResult>),
+    Shutdown(oneshot::Sender<OTelSdkResult>),
 }
 
-enum ProducerOrWorker {
+enum ProducerOrWorker<E: PushMetricExporter> {
     Producer(Weak<dyn SdkProducer>),
-    Worker(Box<dyn FnOnce(&PeriodicReader) + Send + Sync>),
+    #[allow(clippy::type_complexity)]
+    Worker(Box<dyn FnOnce(&PeriodicReader<E>) + Send + Sync>),
 }
 
-struct PeriodicReaderWorker<RT: Runtime> {
-    reader: PeriodicReader,
+struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
+    reader: PeriodicReader<E>,
     timeout: Duration,
     runtime: RT,
     rm: ResourceMetrics,
 }
 
-impl<RT: Runtime> PeriodicReaderWorker<RT> {
-    async fn collect_and_export(&mut self) -> MetricResult<()> {
-        self.reader.collect(&mut self.rm)?;
+impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
+    async fn collect_and_export(&mut self) -> OTelSdkResult {
+        self.reader
+            .collect(&mut self.rm)
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if self.rm.scope_metrics.is_empty() {
             otel_debug!(
                 name: "PeriodicReaderWorker.NoMetricsToExport",
@@ -256,7 +266,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
             Either::Left((res, _)) => {
                 res // return the status of export.
             }
-            Either::Right(_) => Err(MetricError::Other("export timed out".into())),
+            Either::Right(_) => Err(OTelSdkError::Timeout(self.timeout)),
         }
     }
 
@@ -295,7 +305,9 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
                 );
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if let Err(send_error) = ch.send(res) {
+                if let Err(send_error) =
+                    ch.send(res.map_err(|e| OTelSdkError::InternalFailure(e.to_string())))
+                {
                     otel_debug!(
                         name: "PeriodicReader.Shutdown.SendResultError",
                         message = "Failed to send shutdown result",
@@ -318,7 +330,7 @@ impl<RT: Runtime> PeriodicReaderWorker<RT> {
     }
 }
 
-impl MetricReader for PeriodicReader {
+impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
@@ -357,42 +369,51 @@ impl MetricReader for PeriodicReader {
         Ok(())
     }
 
-    fn force_flush(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn force_flush(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Flush(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         drop(inner); // don't hold lock when blocking on future
 
         futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> MetricResult<()> {
-        let mut inner = self.inner.lock()?;
+    fn shutdown(&self) -> OTelSdkResult {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is already shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
 
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
             .try_send(Message::Shutdown(sender))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
         let shutdown_result = futures_executor::block_on(receiver)
-            .map_err(|err| MetricError::Other(err.to_string()))?;
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag
-        let mut inner = self.inner.lock()?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         inner.is_shutdown = true;
 
         shutdown_result
@@ -416,8 +437,8 @@ mod tests {
     use crate::metrics::reader::MetricReader;
     use crate::metrics::MetricError;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::SdkMeterProvider, runtime,
-        testing::metrics::InMemoryMetricExporter, Resource,
+        metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
+        runtime, Resource,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;

@@ -40,19 +40,21 @@ path = "src/random.rs"
 doc = false
 
 [dependencies]
-ctrlc = "3.2.5"
-lazy_static = "1.4.0"
-num_cpus = "1.15.0"
+ctrlc = { workspace = true }
+lazy_static = { workspace = true }
+num_cpus = { workspace = true }
 opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled"] }
-opentelemetry-appender-tracing = { path = "../opentelemetry-appender-tracing"}
-rand = { version = "0.8.4", features = ["small_rng"] }
+opentelemetry-appender-tracing = { workspace = true, features = ["spec_unstable_logs_enabled"] }
+rand = { workspace = true, features = ["small_rng", "os_rng"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
-num-format = "0.4.4"
-sysinfo = { version = "0.32", optional = true }
-async-trait = "0.1.51"
+num-format = { workspace = true }
+sysinfo = { workspace = true, optional = true }
 futures-executor = { workspace = true }
 
 [features]
 stats = ["sysinfo"]
+
+[lints]
+workspace = true

@@ -1,7 +1,7 @@
 use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
 use opentelemetry::{global, propagation::Injector};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, runtime::Tokio, trace as sdktrace};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace as sdktrace};
 use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
@@ -9,11 +9,11 @@ use opentelemetry::{
     Context, KeyValue,
 };
 
-fn init_tracer() -> sdktrace::TracerProvider {
+fn init_tracer() -> sdktrace::SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
-    let provider = sdktrace::TracerProvider::builder()
-        .with_batch_exporter(SpanExporter::default(), Tokio)
+    let provider = sdktrace::SdkTracerProvider::builder()
+        .with_simple_exporter(SpanExporter::default())
         .build();
 
     global::set_tracer_provider(provider.clone());
@@ -43,10 +43,14 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
     let span = tracer
         .span_builder("Greeter/client")
         .with_kind(SpanKind::Client)
-        .with_attributes([KeyValue::new("component", "grpc")])
+        .with_attributes([
+            KeyValue::new("rpc.system", "grpc"),
+            KeyValue::new("server.port", 50052),
+            KeyValue::new("rpc.method", "say_hello"),
+        ])
         .start(&tracer);
     let cx = Context::current_with_span(span);
-    let mut client = GreeterClient::connect("http://[::1]:50051").await?;
+    let mut client = GreeterClient::connect("http://[::1]:50052").await?;
 
     let mut request = tonic::Request::new(HelloRequest {
         name: "Tonic".into(),
@@ -58,16 +62,23 @@ async fn greet() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static
 
     let response = client.say_hello(request).await;
 
+    let span = cx.span();
     let status = match response {
-        Ok(_res) => "OK".to_string(),
+        Ok(_res) => {
+            span.set_attribute(KeyValue::new("response", "OK"));
+            "OK".to_string()
+        }
         Err(status) => {
             // Access the status code
             let status_code = status.code();
+            span.set_attribute(KeyValue::new(
+                "response_code_desc",
+                status_code.description(),
+            ));
             status_code.to_string()
         }
     };
-    cx.span()
-        .add_event("Got response!", vec![KeyValue::new("status", status)]);
+    span.add_event("Got response!", vec![KeyValue::new("status", status)]);
 
     Ok(())
 }

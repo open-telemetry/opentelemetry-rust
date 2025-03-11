@@ -2,8 +2,40 @@
 
 ## vNext
 
-- Bump msrv to 1.75.0.
+- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
+- Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Fixed
+  [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
+  partially to properly handle `shutdown()` when using `http`. (`tonic` still
+  does not do proper shutdown)
 
+## 0.28.0
+
+Released 2025-Feb-10
+
+- Update `opentelemetry` dependency version to 0.28.
+- Update `opentelemetry_sdk` dependency version to 0.28.
+- Update `opentelemetry-http` dependency version to 0.28.
+- Update `opentelemetry-proto` dependency version to 0.28.
+- Bump msrv to 1.75.0.
+- Feature flag "populate-logs-event-name" is removed as no longer relevant.
+  LogRecord's `event_name()` is now automatically populated on the newly added
+  "event_name" field in LogRecord proto definition.
+- Remove "grpc-tonic" feature from default, and instead add "http-proto" and
+  "reqwest-blocking-client" features as default, to align with the
+  specification.
+  [2516](https://github.com/open-telemetry/opentelemetry-rust/pull/2516)
+- Remove unnecessarily public trait `opentelemetry_otlp::metrics::MetricsClient`
+  and `MetricExporter::new(..)` method. Use
+  `MetricExporter::builder()...build()` to obtain `MetricExporter`.
+- The HTTP clients (reqwest, reqwest-blocking, hyper) now support the
+  export timeout interval configured in below order
+  - Signal specific env variable `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`,
+  `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` or `OTEL_EXPORTER_OTLP_TIMEOUT`.
+  - `OTEL_EXPORTER_OTLP_TIMEOUT` env variable.
+  - `with_http().with_timeout()` API method of
+`LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
+  - The default interval of 10 seconds is used if none is configured.
 
 ## 0.27.0
 
@@ -14,7 +46,7 @@ Released 2024-Nov-11
 - Update `opentelemetry-http` dependency version to 0.27
 - Update `opentelemetry-proto` dependency version to 0.27
 
-- **BREAKING**: 
+- **BREAKING**:
   - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
     ```rust
@@ -61,9 +93,9 @@ Released 2024-Nov-11
       - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
   - [#2263](https://github.com/open-telemetry/opentelemetry-rust/pull/2263)
-  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`. 
+  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`.
   Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
-  
+
 ## v0.26.0
 Released 2024-Sep-30
 

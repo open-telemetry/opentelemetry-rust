@@ -8,13 +8,12 @@ use std::{
 use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
 
 use crate::{
+    error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal,
-        internal::AggregateBuilder,
-        internal::Number,
+        internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
         MetricError, MetricResult,
@@ -22,7 +21,9 @@ use crate::{
     Resource,
 };
 
-use super::Aggregation;
+use self::internal::AggregateFns;
+
+use super::{Aggregation, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -89,12 +90,12 @@ impl Pipeline {
     }
 
     /// Send accumulated telemetry
-    fn force_flush(&self) -> MetricResult<()> {
+    fn force_flush(&self) -> OTelSdkResult {
         self.reader.force_flush()
     }
 
     /// Shut down pipeline
-    fn shutdown(&self) -> MetricResult<()> {
+    fn shutdown(&self) -> OTelSdkResult {
         self.reader.shutdown()
     }
 }
@@ -176,7 +177,7 @@ struct InstrumentSync {
     name: Cow<'static, str>,
     description: Cow<'static, str>,
     unit: Cow<'static, str>,
-    comp_agg: Box<dyn internal::ComputeAggregation>,
+    comp_agg: Arc<dyn internal::ComputeAggregation>,
 }
 
 impl fmt::Debug for InstrumentSync {
@@ -385,9 +386,9 @@ where
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
             let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
-            let (m, ca) = match aggregate_fn(b, &agg, kind) {
-                Ok(Some((m, ca))) => (m, ca),
-                other => return other.map(|fs| fs.map(|(m, _)| m)), // Drop aggregator or error
+            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
+                Ok(Some(inst)) => inst,
+                other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
 
             self.pipeline.add_sync(
@@ -396,11 +397,11 @@ where
                     name: stream.name,
                     description: stream.description,
                     unit: stream.unit,
-                    comp_agg: ca,
+                    comp_agg: collect,
                 },
             );
 
-            Ok(Some(m))
+            Ok(Some(measure))
         });
 
         match cached {
@@ -476,11 +477,6 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
     }
 }
 
-type AggregateFns<T> = (
-    Arc<dyn internal::Measure<T>>,
-    Box<dyn internal::ComputeAggregation>,
-);
-
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
@@ -489,25 +485,27 @@ fn aggregate_fn<T: Number>(
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> MetricResult<Option<AggregateFns<T>>> {
-    fn box_val<T>(
-        (m, ca): (impl internal::Measure<T>, impl internal::ComputeAggregation),
-    ) -> (
-        Arc<dyn internal::Measure<T>>,
-        Box<dyn internal::ComputeAggregation>,
-    ) {
-        (Arc::new(m), Box::new(ca))
-    }
-
     match agg {
         Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
         Aggregation::Drop => Ok(None),
-        Aggregation::LastValue => Ok(Some(box_val(b.last_value()))),
+        Aggregation::LastValue => {
+            match kind {
+                InstrumentKind::Gauge => Ok(Some(b.last_value(None))),
+                // temporality for LastValue only affects how data points are reported, so we can always use
+                // delta temporality, because observable instruments should report data points only since previous collection
+                InstrumentKind::ObservableGauge => Ok(Some(b.last_value(Some(Temporality::Delta)))),
+                _ => Err(MetricError::Other(format!("LastValue aggregation is only available for Gauge or ObservableGauge, but not for {kind:?}")))
+            }
+        }
         Aggregation::Sum => {
             let fns = match kind {
-                InstrumentKind::ObservableCounter => box_val(b.precomputed_sum(true)),
-                InstrumentKind::ObservableUpDownCounter => box_val(b.precomputed_sum(false)),
-                InstrumentKind::Counter | InstrumentKind::Histogram => box_val(b.sum(true)),
-                _ => box_val(b.sum(false)),
+                // TODO implement: observable instruments should not report data points on every collect
+                // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
+                // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
+                InstrumentKind::ObservableCounter => b.precomputed_sum(true),
+                InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
+                InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),
+                _ => b.sum(false),
             };
             Ok(Some(fns))
         }
@@ -521,11 +519,14 @@ fn aggregate_fn<T: Number>(
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
             );
-            Ok(Some(box_val(b.explicit_bucket_histogram(
+            // TODO implement: observable instruments should not report data points on every collect
+            // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
+            // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
+            Ok(Some(b.explicit_bucket_histogram(
                 boundaries.to_vec(),
                 *record_min_max,
                 record_sum,
-            ))))
+            )))
         }
         Aggregation::Base2ExponentialHistogram {
             max_size,
@@ -538,12 +539,12 @@ fn aggregate_fn<T: Number>(
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
             );
-            Ok(Some(box_val(b.exponential_bucket_histogram(
+            Ok(Some(b.exponential_bucket_histogram(
                 *max_size,
                 *max_scale,
                 *record_min_max,
                 record_sum,
-            ))))
+            )))
         }
     }
 }
@@ -647,7 +648,7 @@ impl Pipelines {
     }
 
     /// Force flush all pipelines
-    pub(crate) fn force_flush(&self) -> MetricResult<()> {
+    pub(crate) fn force_flush(&self) -> OTelSdkResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.force_flush() {
@@ -658,12 +659,12 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(OTelSdkError::InternalFailure(format!("{errs:?}")))
         }
     }
 
     /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> MetricResult<()> {
+    pub(crate) fn shutdown(&self) -> OTelSdkResult {
         let mut errs = vec![];
         for pipeline in &self.0 {
             if let Err(err) = pipeline.shutdown() {
@@ -674,7 +675,9 @@ impl Pipelines {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(MetricError::Other(format!("{errs:?}")))
+            Err(crate::error::OTelSdkError::InternalFailure(format!(
+                "{errs:?}"
+            )))
         }
     }
 }

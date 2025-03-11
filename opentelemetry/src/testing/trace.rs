@@ -1,6 +1,6 @@
 use crate::{
-    trace::{Span, SpanContext, SpanId, Status, TraceId},
-    KeyValue,
+    trace::{Span, SpanContext, Status},
+    KeyValue, SpanId, TraceId,
 };
 use std::borrow::Cow;
 

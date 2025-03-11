@@ -20,10 +20,10 @@ use crate::{
 };
 
 #[cfg(feature = "logs")]
-mod logs;
+pub(crate) mod logs;
 
 #[cfg(feature = "metrics")]
-mod metrics;
+pub(crate) mod metrics;
 
 #[cfg(feature = "trace")]
 pub(crate) mod trace;
@@ -200,7 +200,7 @@ impl TonicExporterBuilder {
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
         {
             Some(val) => match val.parse() {
-                Ok(seconds) => Duration::from_secs(seconds),
+                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
                 Err(_) => config.timeout,
             },
             None => config.timeout,
@@ -273,7 +273,7 @@ impl TonicExporterBuilder {
 
         let client = TonicLogsClient::new(channel, interceptor, compression);
 
-        Ok(crate::logs::LogExporter::new(client))
+        Ok(crate::logs::LogExporter::from_tonic(client))
     }
 
     /// Build a new tonic metrics exporter
@@ -296,14 +296,14 @@ impl TonicExporterBuilder {
 
         let client = TonicMetricsClient::new(channel, interceptor, compression);
 
-        Ok(MetricExporter::new(client, temporality))
+        Ok(MetricExporter::from_tonic(client, temporality))
     }
 
     /// Build a new tonic span exporter
     #[cfg(feature = "trace")]
     pub(crate) fn build_span_exporter(
         self,
-    ) -> Result<crate::SpanExporter, opentelemetry::trace::TraceError> {
+    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         otel_debug!(name: "TracesTonicChannelBuilding");
@@ -317,7 +317,7 @@ impl TonicExporterBuilder {
 
         let client = TonicTracesClient::new(channel, interceptor, compression);
 
-        Ok(crate::SpanExporter::new(client))
+        Ok(crate::SpanExporter::from_tonic(client))
     }
 }
 

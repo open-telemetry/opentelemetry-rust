@@ -1,8 +1,7 @@
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry_sdk::export::logs::LogBatch;
-use opentelemetry_sdk::logs::LogResult;
+use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
+use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
@@ -30,12 +29,11 @@ impl fmt::Debug for LogExporter {
     }
 }
 
-#[async_trait]
-impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
-    /// Export spans to stdout
-    async fn export(&self, batch: LogBatch<'_>) -> LogResult<()> {
+impl opentelemetry_sdk::logs::LogExporter for LogExporter {
+    /// Export logs to stdout
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-            return Err("exporter is shut down".into());
+            Err(OTelSdkError::AlreadyShutdown)
         } else {
             println!("Logs");
             if self
@@ -52,7 +50,6 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
                 self.resource.iter().for_each(|(k, v)| {
                     println!("\t ->  {}={:?}", k, v);
                 });
-
                 print_logs(batch);
             }
 
@@ -60,8 +57,9 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
+        Ok(())
     }
 
     fn set_resource(&mut self, res: &opentelemetry_sdk::Resource) {
@@ -72,7 +70,10 @@ impl opentelemetry_sdk::export::logs::LogExporter for LogExporter {
 fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
         println!("Log #{}", i);
-        let (record, _library) = log;
+        let (record, library) = log;
+
+        println!("\t Instrumentation Scope: {:?}", library);
+
         if let Some(event_name) = record.event_name() {
             println!("\t EventName: {:?}", event_name);
         }
@@ -82,6 +83,9 @@ fn print_logs(batch: LogBatch<'_>) {
         if let Some(trace_context) = record.trace_context() {
             println!("\t TraceId: {:?}", trace_context.trace_id);
             println!("\t SpanId: {:?}", trace_context.span_id);
+            if let Some(trace_flags) = trace_context.trace_flags {
+                println!("\t TraceFlags: {:?}", trace_flags);
+            }
         }
         if let Some(timestamp) = record.timestamp() {
             let datetime: DateTime<Utc> = timestamp.into();
