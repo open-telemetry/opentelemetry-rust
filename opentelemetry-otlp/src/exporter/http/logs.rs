@@ -15,7 +15,7 @@ impl LogExporter for OtlpHttpClient {
 
         let (body, content_type) = self
             .build_logs_export_body(batch)
-            .map_err(|e| OTelSdkError::InternalFailure(e))?;
+            .map_err(OTelSdkError::InternalFailure)?;
 
         let mut request = http::Request::builder()
             .method(Method::POST)
