@@ -12,6 +12,7 @@ use tonic::transport::Channel;
 #[cfg(feature = "tls")]
 use tonic::transport::ClientTlsConfig;
 
+use super::ExporterBuildError;
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use crate::exporter::Compression;
 use crate::{
@@ -46,21 +47,21 @@ pub struct TonicConfig {
 }
 
 impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
-    type Error = crate::Error;
+    type Error = ExporterBuildError;
 
-    fn try_from(value: Compression) -> Result<Self, Self::Error> {
+    fn try_from(value: Compression) -> Result<Self, ExporterBuildError> {
         match value {
             #[cfg(feature = "gzip-tonic")]
             Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
             #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+            Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
                 "gzip-tonic",
                 Compression::Gzip,
             )),
             #[cfg(feature = "zstd-tonic")]
             Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
             #[cfg(not(feature = "zstd-tonic"))]
-            Compression::Zstd => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+            Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
                 "zstd-tonic",
                 Compression::Zstd,
             )),
@@ -151,7 +152,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
-    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
+    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), ExporterBuildError> {
         let compression = self.resolve_compression(signal_compression_var)?;
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
@@ -194,7 +195,8 @@ impl TonicExporterBuilder {
         // Used for logging the endpoint
         let endpoint_clone = endpoint.clone();
 
-        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
+        let endpoint = Channel::from_shared(endpoint)
+            .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
         let timeout = match env::var(signal_timeout_var)
             .ok()
             .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
@@ -210,7 +212,7 @@ impl TonicExporterBuilder {
         let channel = match self.tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
-                .map_err(crate::Error::from)?,
+                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
             None => endpoint,
         }
         .timeout(timeout)
@@ -243,7 +245,7 @@ impl TonicExporterBuilder {
     fn resolve_compression(
         &self,
         env_override: &str,
-    ) -> Result<Option<CompressionEncoding>, crate::Error> {
+    ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
         if let Some(compression) = self.tonic_config.compression {
             Ok(Some(compression.try_into()?))
         } else if let Ok(compression) = env::var(env_override) {
@@ -257,9 +259,7 @@ impl TonicExporterBuilder {
 
     /// Build a new tonic log exporter
     #[cfg(feature = "logs")]
-    pub(crate) fn build_log_exporter(
-        self,
-    ) -> Result<crate::logs::LogExporter, opentelemetry_sdk::logs::LogError> {
+    pub(crate) fn build_log_exporter(self) -> Result<crate::logs::LogExporter, ExporterBuildError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
         otel_debug!(name: "LogsTonicChannelBuilding");
@@ -281,7 +281,7 @@ impl TonicExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         self,
         temporality: opentelemetry_sdk::metrics::Temporality,
-    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
+    ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::MetricExporter;
         use metrics::TonicMetricsClient;
 
@@ -301,9 +301,7 @@ impl TonicExporterBuilder {
 
     /// Build a new tonic span exporter
     #[cfg(feature = "trace")]
-    pub(crate) fn build_span_exporter(
-        self,
-    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
+    pub(crate) fn build_span_exporter(self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         otel_debug!(name: "TracesTonicChannelBuilding");

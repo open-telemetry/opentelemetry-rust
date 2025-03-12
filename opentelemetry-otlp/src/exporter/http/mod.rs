@@ -1,5 +1,5 @@
 use super::{
-    default_headers, default_protocol, parse_header_string,
+    default_headers, default_protocol, parse_header_string, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{
@@ -108,7 +108,7 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
-    ) -> Result<OtlpHttpClient, crate::Error> {
+    ) -> Result<OtlpHttpClient, ExporterBuildError> {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
@@ -168,12 +168,12 @@ impl HttpExporterBuilder {
                             .unwrap_or_else(|_| reqwest::blocking::Client::new())
                     })
                     .join()
-                    .unwrap(), // Unwrap thread result
+                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
                 ) as Arc<dyn HttpClient>);
             }
         }
 
-        let http_client = http_client.ok_or(crate::Error::NoHttpClient)?;
+        let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
 
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
@@ -208,9 +208,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "trace")]
-    pub fn build_span_exporter(
-        mut self,
-    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
+    pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
@@ -228,7 +226,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> opentelemetry_sdk::logs::LogResult<crate::LogExporter> {
+    pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
@@ -249,7 +247,7 @@ impl HttpExporterBuilder {
     pub fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
-    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
+    ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -309,7 +307,7 @@ impl OtlpHttpClient {
         match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into(), "application/json")),
+                Ok(json) => Ok((json.into_bytes(), "application/json")),
                 Err(e) => Err(opentelemetry_sdk::trace::TraceError::from(e.to_string())),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
@@ -320,7 +318,7 @@ impl OtlpHttpClient {
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> opentelemetry_sdk::logs::LogResult<(Vec<u8>, &'static str)> {
+    ) -> Result<(Vec<u8>, &'static str), String> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
@@ -329,7 +327,7 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry_sdk::logs::LogError::from(e.to_string())),
+                Err(e) => Err(e.to_string()),
             },
             _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
         }
@@ -357,13 +355,16 @@ impl OtlpHttpClient {
     }
 }
 
-fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, crate::Error> {
+fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, ExporterBuildError> {
     let path = if endpoint.ends_with('/') && path.starts_with('/') {
         path.strip_prefix('/').unwrap()
     } else {
         path
     };
-    format!("{endpoint}{path}").parse().map_err(From::from)
+    let endpoint = format!("{endpoint}{path}");
+    endpoint.parse().map_err(|er: http::uri::InvalidUri| {
+        ExporterBuildError::InvalidUri(endpoint, er.to_string())
+    })
 }
 
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
@@ -371,7 +372,7 @@ fn resolve_http_endpoint(
     signal_endpoint_var: &str,
     signal_endpoint_path: &str,
     provided_endpoint: Option<String>,
-) -> Result<Uri, crate::Error> {
+) -> Result<Uri, ExporterBuildError> {
     // per signal env var is not modified
     if let Some(endpoint) = env::var(signal_endpoint_var)
         .ok()
@@ -388,14 +389,18 @@ fn resolve_http_endpoint(
         return Ok(endpoint);
     }
 
-    provided_endpoint
-        .map(|e| e.parse().map_err(From::from))
-        .unwrap_or_else(|| {
-            build_endpoint_uri(
-                OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
-                signal_endpoint_path,
-            )
-        })
+    if let Some(provider_endpoint) = provided_endpoint {
+        provider_endpoint
+            .parse()
+            .map_err(|er: http::uri::InvalidUri| {
+                ExporterBuildError::InvalidUri(provider_endpoint, er.to_string())
+            })
+    } else {
+        build_endpoint_uri(
+            OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
+            signal_endpoint_path,
+        )
+    }
 }
 
 #[allow(clippy::mutable_key_type)] // http headers are not mutated
