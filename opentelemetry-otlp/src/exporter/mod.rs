@@ -339,6 +339,7 @@ mod tests {
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
 
+    #[cfg(feature = "logs")]
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn invalid_http_endpoint() {
