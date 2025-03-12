@@ -23,7 +23,7 @@ serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
 url = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["rt", "time"], optional = true }
+tokio = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 tracing = {workspace = true, optional = true}
@@ -48,9 +48,21 @@ logs = ["opentelemetry/logs", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
 metrics = ["opentelemetry/metrics", "glob"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
-experimental_async_runtime = []
-rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
-rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
+experimental_async_runtime = ["tokio", "tokio/sync"]
+rt-tokio = [
+    "tokio",
+    "tokio-stream",
+    "tokio/rt",
+    "tokio/time",
+    "experimental_async_runtime"
+]
+rt-tokio-current-thread = [
+    "tokio",
+    "tokio-stream",
+    "tokio/rt",
+    "tokio/time",
+    "experimental_async_runtime"
+]
 rt-async-std = ["async-std", "experimental_async_runtime"]
 internal-logs = ["tracing"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics"]

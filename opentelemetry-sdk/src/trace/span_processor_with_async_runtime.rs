@@ -6,18 +6,20 @@ use crate::trace::Span;
 use crate::trace::SpanProcessor;
 use crate::trace::{SpanData, SpanExporter};
 use futures_channel::oneshot;
-use futures_util::pin_mut;
 use futures_util::{
     future::{self, BoxFuture, Either},
-    select,
+    pin_mut, select,
     stream::{self, FusedStream, FuturesUnordered},
-    StreamExt as _,
+    FutureExt as _, StreamExt as _, TryFutureExt as _,
 };
 use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
+use std::collections::VecDeque;
 use std::fmt;
+use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
 /// them at a preconfigured interval.
@@ -185,17 +187,20 @@ enum BatchMessage {
 }
 
 struct BatchSpanProcessorInternal<E, R> {
-    spans: Vec<SpanData>,
+    spans: VecDeque<SpanData>,
     export_tasks: FuturesUnordered<BoxFuture<'static, OTelSdkResult>>,
     runtime: R,
-    exporter: E,
+    exporter: Arc<RwLock<E>>,
     config: BatchConfig,
 }
 
-impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
+impl<E, R> BatchSpanProcessorInternal<E, R>
+where
+    E: SpanExporter + 'static,
+    R: RuntimeChannel,
+{
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<OTelSdkResult>>) {
-        let export_result = self.export().await;
-        let task = Box::pin(async move {
+        let task = self.export().map(|export_result| {
             if let Some(channel) = res_channel {
                 // If a response channel is provided, attempt to send the export result through it.
                 if let Err(result) = channel.send(export_result) {
@@ -221,7 +226,7 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
         if self.config.max_concurrent_exports == 1 {
             let _ = task.await;
         } else {
-            self.export_tasks.push(task);
+            self.export_tasks.push(task.boxed());
             while self.export_tasks.next().await.is_some() {}
         }
     }
@@ -233,27 +238,32 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
         match message {
             // Span has finished, add to buffer of pending spans.
             BatchMessage::ExportSpan(span) => {
-                self.spans.push(span);
+                if self.spans.len() == self.config.max_export_batch_size {
+                    // Replace the oldest span with the new span to avoid suspending messages
+                    // processing.
+                    self.spans.pop_front();
+                }
+                self.spans.push_back(span);
 
                 if self.spans.len() == self.config.max_export_batch_size {
                     // If concurrent exports are saturated, wait for one to complete.
                     if !self.export_tasks.is_empty()
                         && self.export_tasks.len() == self.config.max_concurrent_exports
                     {
+                        // TODO: Refactor to avoid stopping message processing to not delay
+                        //       shutdown/resource set because of export saturation.
                         self.export_tasks.next().await;
                     }
 
-                    let export_result = self.export().await;
-                    let task = async move {
-                        if let Err(err) = export_result {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Export.Error",
-                                reason = format!("{}", err)
-                            );
-                        }
+                    let task = self.export().or_else(|err| async move {
+                        otel_error!(
+                            name: "BatchSpanProcessor.Export.Error",
+                            reason = format!("{err}"),
+                        );
 
                         Ok(())
-                    };
+                    });
+
                     // Special case when not using concurrent exports
                     if self.config.max_concurrent_exports == 1 {
                         let _ = task.await;
@@ -288,34 +298,42 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
             // Stream has terminated or processor is shutdown, return to finish execution.
             BatchMessage::Shutdown(ch) => {
                 self.flush(Some(ch)).await;
-                let _ = self.exporter.shutdown();
+                let _ = self.exporter.write().await.shutdown();
                 return false;
             }
             // propagate the resource
             BatchMessage::SetResource(resource) => {
-                self.exporter.set_resource(&resource);
+                self.exporter.write().await.set_resource(&resource);
             }
         }
         true
     }
 
-    async fn export(&mut self) -> OTelSdkResult {
-        // Batch size check for flush / shutdown. Those methods may be called
-        // when there's no work to do.
-        if self.spans.is_empty() {
-            return Ok(());
-        }
-
-        let export = self.exporter.export(self.spans.split_off(0));
-        let timeout = self.runtime.delay(self.config.max_export_timeout);
+    #[allow(impl_trait_overcaptures)] // MSRV compatibility.
+    fn export(&mut self) -> impl Future<Output = OTelSdkResult> {
+        let spans = self.spans.drain(..).collect::<Vec<_>>();
+        let exporter = self.exporter.clone();
+        let runtime = self.runtime.clone();
         let time_out = self.config.max_export_timeout;
 
-        pin_mut!(export);
-        pin_mut!(timeout);
+        async move {
+            // Batch size check for flush / shutdown. Those methods may be called
+            // when there's no work to do.
+            if spans.is_empty() {
+                return Ok(());
+            }
 
-        match future::select(export, timeout).await {
-            Either::Left((export_res, _)) => export_res,
-            Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+            let exporter = exporter.read().await;
+            let export = exporter.export(spans);
+            let timeout = runtime.delay(time_out);
+
+            pin_mut!(export);
+            pin_mut!(timeout);
+
+            match future::select(export, timeout).await {
+                Either::Left((export_res, _)) => export_res,
+                Either::Right((_, _)) => Err(OTelSdkError::Timeout(time_out)),
+            }
         }
     }
 
@@ -328,14 +346,14 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
                     // An export task completed; do we need to do anything with it?
                 },
                 message = messages.next() => {
-                    match message {
-                        Some(message) => {
-                            if !self.process_message(message).await {
-                                break;
-                            }
-                        },
-                        None => break,
+                    if let Some(m) = message {
+                        if self.process_message(m).await {
+                            continue;
+                        }
                     }
+
+                    // Shutdown if there's no message, or the message indicates shutdown.
+                    break;
                 },
             }
         }
@@ -364,11 +382,11 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
 
             let messages = Box::pin(stream::select(message_receiver, ticker));
             let processor = BatchSpanProcessorInternal {
-                spans: Vec::new(),
+                spans: VecDeque::new(),
                 export_tasks: FuturesUnordered::new(),
                 runtime: timeout_runtime,
                 config,
-                exporter,
+                exporter: Arc::new(RwLock::new(exporter)),
             };
 
             processor.run(messages).await
