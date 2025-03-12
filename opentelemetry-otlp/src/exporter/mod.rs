@@ -96,6 +96,9 @@ impl Default for ExportConfig {
 #[derive(Error, Debug)]
 /// Errors that can occur while building an exporter.
 // TODO: Refine and polish this.
+// Non-exhaustive to allow for future expansion without breaking changes.
+// This could be refined after polishing and finalizing the errors.
+#[non_exhaustive]
 pub enum ExporterBuildError {
     /// Spawning a new thread failed.
     #[error("Spawning a new thread failed. Unable to create Reqwest-Blocking client.")]
@@ -334,6 +337,48 @@ mod tests {
         let exporter_builder = crate::HttpExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
+    }
+
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    #[test]
+    fn invalid_http_endpoint() {
+        use std::time::Duration;
+
+        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+
+        let ex_config = ExportConfig {
+            endpoint: Some("invalid_uri/something".to_string()),
+            protocol: Protocol::HttpBinary,
+            timeout: Duration::from_secs(10),
+        };
+
+        let exporter_result = LogExporter::builder()
+            .with_http()
+            .with_export_config(ex_config)
+            .build();
+
+        assert!(exporter_result.is_err());
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn invalid_grpc_endpoint() {
+        use std::time::Duration;
+
+        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+
+        let ex_config = ExportConfig {
+            endpoint: Some("invalid_uri/something".to_string()),
+            protocol: Protocol::Grpc,
+            timeout: Duration::from_secs(10),
+        };
+
+        let exporter_result = LogExporter::builder()
+            .with_tonic()
+            .with_export_config(ex_config)
+            .build();
+
+        assert!(exporter_result.is_err());
     }
 
     #[cfg(feature = "grpc-tonic")]
