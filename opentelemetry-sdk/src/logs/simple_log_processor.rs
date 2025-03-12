@@ -65,7 +65,8 @@ pub struct SimpleLogProcessor<T: LogExporter> {
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
-    pub(crate) fn new(exporter: T) -> Self {
+    /// Creates a new instance of `SimpleLogProcessor`.
+    pub fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -129,6 +130,20 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn set_resource(&self, resource: &Resource) {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
+        }
+    }
+
+    #[cfg(feature = "spec_unstable_logs_enabled")]
+    fn event_enabled(
+        &self,
+        level: opentelemetry::logs::Severity,
+        target: &str,
+        name: Option<&str>,
+    ) -> bool {
+        if let Ok(exporter) = self.exporter.lock() {
+            exporter.event_enabled(level, target, name)
+        } else {
+            true
         }
     }
 }
