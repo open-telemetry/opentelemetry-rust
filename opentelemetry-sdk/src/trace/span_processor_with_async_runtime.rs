@@ -234,14 +234,21 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
         match message {
             // Span has finished, add to buffer of pending spans.
             BatchMessage::ExportSpan(span) => {
-                if self.spans.len() == self.config.max_export_batch_size {
+                if self.spans.len() == self.config.max_queue_size {
                     // Replace the oldest span with the new span to avoid suspending messages
                     // processing.
                     self.spans.pop_front();
+
+                    otel_warn!(
+                        name: "BatchSpanProcessor.Export.Error",
+                        dropped_spans = 1,
+                        max_queue_size = self.config.max_queue_size,
+                        message = "Spans were dropped due to a full queue / slow export. The count represents the total count of span records dropped in the lifetime of the BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                    );
                 }
                 self.spans.push_back(span);
 
-                if self.spans.len() == self.config.max_export_batch_size {
+                if self.spans.len() >= self.config.max_export_batch_size {
                     // If concurrent exports are saturated, wait for one to complete.
                     if !self.export_tasks.is_empty()
                         && self.export_tasks.len() == self.config.max_concurrent_exports
@@ -314,7 +321,8 @@ impl<E: SpanExporter, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
             return Ok(());
         }
 
-        let export = self.exporter.export(self.spans.drain(..).collect());
+        let count = self.spans.len().min(self.config.max_export_batch_size);
+        let export = self.exporter.export(self.spans.drain(..count).collect());
         let timeout = self.runtime.delay(self.config.max_export_timeout);
         let time_out = self.config.max_export_timeout;
 
