@@ -115,6 +115,10 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
         match i64::try_from(value) {
             Ok(signed) => {
                 self.log_record
@@ -789,6 +793,10 @@ mod tests {
             log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
+
+        for attribute in log.record.attributes_iter() {
+            println!("key: {:?}, value: {:?}", attribute.0, attribute.1);
+        }
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]
