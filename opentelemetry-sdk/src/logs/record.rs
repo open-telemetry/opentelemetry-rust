@@ -297,7 +297,7 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
+    use opentelemetry::logs::{AnyValue, Severity};
     use opentelemetry::time::now;
     use std::borrow::Cow;
 
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_update_attribute() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         let key = Key::new("key1");
         let value = AnyValue::String("value1".into());
         let updated_value = AnyValue::String("updated_value".into());
@@ -459,7 +459,7 @@ mod tests {
 
     #[test]
     fn test_delete_attribute() {
-        let mut log_record = LogRecord::default();
+        let mut log_record = SdkLogRecord::new();
         let key = Key::new("key1");
         let value = AnyValue::String("value1".into());
 

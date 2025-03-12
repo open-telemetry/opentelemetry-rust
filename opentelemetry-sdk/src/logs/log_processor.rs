@@ -174,22 +174,22 @@ pub(crate) mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> LogResult<()> {
+        fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
 
-        fn shutdown(&self) -> LogResult<()> {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }
 
     #[derive(Debug)]
     struct ThirdProcessor {
-        pub(crate) logs: Arc<Mutex<Vec<(LogRecord, InstrumentationScope)>>>,
+        pub(crate) logs: Arc<Mutex<Vec<(SdkLogRecord, InstrumentationScope)>>>,
     }
 
     impl LogProcessor for ThirdProcessor {
-        fn emit(&self, record: &mut LogRecord, instrumentation: &InstrumentationScope) {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             assert!(record.attributes_contains(
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("SecondProcessor".into())
