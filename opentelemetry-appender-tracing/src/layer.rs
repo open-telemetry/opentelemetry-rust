@@ -114,6 +114,8 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
             .add_attribute(Key::new(field.name()), AnyValue::from(value));
     }
 
+    // TODO: We might need to do similar for record_i128,record_u128 too
+    // to avoid stringification, unless needed.
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
