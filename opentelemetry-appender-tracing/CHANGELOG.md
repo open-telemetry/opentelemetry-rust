@@ -47,6 +47,8 @@ when conversion is feasible. Otherwise stored as
 `opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
 allocation when values can be represented in their original types.
 
+- perf - small perf improvement by avoiding string allocation of `target`
+
 ## 0.28.1
 
 Released 2025-Feb-12
