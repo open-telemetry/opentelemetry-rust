@@ -1,7 +1,8 @@
-use opentelemetry::global;
+use std::borrow::Cow;
+use opentelemetry::{global, Context};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
+use opentelemetry_sdk::metrics::{Aggregation, Instrument, MeasurementProcessor, SdkMeterProvider, Stream, Temporality};
 use opentelemetry_sdk::Resource;
 use std::error::Error;
 
@@ -57,6 +58,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_drop_attributes)
         .with_view(my_view_change_aggregation)
+        .with_measurement_processor(UserTypeMeasurementProcessor)
         .build();
     global::set_meter_provider(provider.clone());
     provider
@@ -128,6 +130,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         ],
     );
 
+    // Enrich the next measurement with user type
+    let guard = Context::current_with_value(UserType::Admin).attach();
     histogram2.record(
         1.2,
         &[
@@ -137,6 +141,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             KeyValue::new("mykey4", "myvalue4"),
         ],
     );
+    drop(guard);
 
     histogram2.record(
         1.23,
@@ -153,4 +158,37 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // the metrics, instead of waiting for the 30 sec interval.
     meter_provider.shutdown()?;
     Ok(())
+}
+
+
+
+enum UserType {
+    User,
+    Admin,
+}
+
+impl UserType {
+    fn as_str(&self) -> &'static str {
+        match self {
+            UserType::User => "user",
+            UserType::Admin => "admin",
+        }
+    }
+}
+
+struct UserTypeMeasurementProcessor;
+
+impl MeasurementProcessor for UserTypeMeasurementProcessor {
+    fn process<'a>(&self, attributes: Cow<'a, [KeyValue]>) -> Cow<'a, [KeyValue]> {
+        match Context::current().get::<UserType>() {
+            Some(user_type) => {
+                let mut attrs = attributes.to_vec();
+                attrs.push(KeyValue::new("user_type", user_type.as_str()));
+                Cow::Owned(attrs)
+            }
+
+            // No changes to the attributes
+            None => attributes,
+        }
+    }
 }

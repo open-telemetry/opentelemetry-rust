@@ -5,11 +5,11 @@ use std::{
     sync::{Arc, Mutex},
     time::SystemTime,
 };
-
+use std::borrow::Cow;
 use crate::metrics::{data::Aggregation, Temporality};
 use opentelemetry::time::now;
 use opentelemetry::KeyValue;
-
+use crate::metrics::measurement_processor::MeasurementProcessor;
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
     precomputed_sum::PrecomputedSum, sum::Sum, Number,
@@ -106,21 +106,41 @@ type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 #[derive(Clone)]
 pub(crate) struct AttributeSetFilter {
     filter: Option<Filter>,
+    processor: Option<AggregateProcessor>
 }
 
 impl AttributeSetFilter {
-    pub(crate) fn new(filter: Option<Filter>) -> Self {
-        Self { filter }
+    pub(crate) fn new(filter: Option<Filter>, processors: Vec<Arc<dyn MeasurementProcessor>>) -> Self {
+        Self { filter, processor: AggregateProcessor::try_create(processors) }
     }
 
     pub(crate) fn apply(&self, attrs: &[KeyValue], run: impl FnOnce(&[KeyValue])) {
-        if let Some(filter) = &self.filter {
-            let filtered_attrs: Vec<KeyValue> =
-                attrs.iter().filter(|kv| filter(kv)).cloned().collect();
-            run(&filtered_attrs);
-        } else {
-            run(attrs);
-        };
+        match (&self.filter, &self.processor) {
+            (None, None) => {
+                run(attrs);
+            },
+            (Some(filter), None) => {
+                let filtered_attrs: Vec<KeyValue> =
+                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+
+                run(&filtered_attrs);
+            },
+            (None, Some(processor)) => {
+                let attributes = Cow::Borrowed(attrs);
+                let attributes = processor.process(attributes);
+
+                run(attributes.as_ref());
+            },
+            (Some(filter), Some(processor)) => {
+                let filtered_attrs: Vec<KeyValue> =
+                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+
+                let attributes = Cow::Owned(filtered_attrs);
+                let attributes = processor.process(attributes);
+
+                run(attributes.as_ref());
+            }
+        }
     }
 }
 
@@ -137,10 +157,10 @@ pub(crate) struct AggregateBuilder<T> {
 }
 
 impl<T: Number> AggregateBuilder<T> {
-    pub(crate) fn new(temporality: Temporality, filter: Option<Filter>) -> Self {
+    pub(crate) fn new(temporality: Temporality, filter: Option<Filter>, processors: Vec<Arc<dyn MeasurementProcessor>>) -> Self {
         AggregateBuilder {
             temporality,
-            filter: AttributeSetFilter::new(filter),
+            filter: AttributeSetFilter::new(filter, processors),
             _marker: marker::PhantomData,
         }
     }
@@ -201,6 +221,31 @@ impl<T: Number> AggregateBuilder<T> {
     }
 }
 
+
+#[derive(Clone)]
+struct AggregateProcessor(Arc<Vec<Arc<dyn MeasurementProcessor>>>);
+
+impl AggregateProcessor {
+    pub fn try_create(
+        processors: Vec<Arc<dyn MeasurementProcessor>>,
+    ) -> Option<Self> {
+        if processors.is_empty() {
+            return None;
+        }
+        Some(Self(Arc::new(processors)))
+    }
+}
+
+impl MeasurementProcessor for AggregateProcessor {
+    fn process<'a>(&self, mut attributes: Cow<'a, [KeyValue]>) -> Cow<'a, [KeyValue]> {
+        for processor in self.0.iter() {
+            attributes = processor.process(attributes);
+        }
+
+        attributes
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::metrics::data::{
@@ -214,7 +259,7 @@ mod tests {
     #[test]
     fn last_value_aggregation() {
         let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value(None);
+            AggregateBuilder::<u64>::new(Temporality::Cumulative, None, vec![]).last_value(None);
         let mut a = Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
@@ -240,7 +285,7 @@ mod tests {
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None).precomputed_sum(true);
+                AggregateBuilder::<u64>::new(temporality, None, vec![]).precomputed_sum(true);
             let mut a = Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -282,7 +327,7 @@ mod tests {
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None).sum(true);
+                AggregateBuilder::<u64>::new(temporality, None, vec![]).sum(true);
             let mut a = Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -323,7 +368,7 @@ mod tests {
     #[test]
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None)
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None, vec![])
                 .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = Histogram {
                 data_points: vec![HistogramDataPoint {
@@ -366,7 +411,7 @@ mod tests {
     #[test]
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None)
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None, vec![])
                 .exponential_bucket_histogram(4, 20, true, true);
             let mut a = ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {

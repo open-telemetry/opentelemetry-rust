@@ -23,7 +23,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::{Aggregation, Temporality};
+use super::{Aggregation, MeasurementProcessor, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -39,6 +39,7 @@ pub struct Pipeline {
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
     inner: Mutex<PipelineInner>,
+    processors: Vec<Arc<dyn MeasurementProcessor>>,
 }
 
 impl fmt::Debug for Pipeline {
@@ -385,7 +386,7 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
-            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
+            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter, self.pipeline.processors.clone());
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
@@ -621,6 +622,7 @@ impl Pipelines {
         res: Resource,
         readers: Vec<Box<dyn MetricReader>>,
         views: Vec<Arc<dyn View>>,
+        processors: Vec<Arc<dyn MeasurementProcessor>>,
     ) -> Self {
         let mut pipes = Vec::with_capacity(readers.len());
         for r in readers {
@@ -629,6 +631,7 @@ impl Pipelines {
                 reader: r,
                 views: views.clone(),
                 inner: Default::default(),
+                processors: processors.clone(),
             });
             p.reader.register_pipeline(Arc::downgrade(&p));
             pipes.push(p);
