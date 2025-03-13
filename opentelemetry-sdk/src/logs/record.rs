@@ -1,4 +1,5 @@
 use crate::growable_array::GrowableArray;
+use opentelemetry::logs::LogRecord as _;
 use opentelemetry::{
     logs::{AnyValue, Severity},
     trace::{SpanContext, SpanId, TraceFlags, TraceId},
@@ -201,6 +202,73 @@ impl SdkLogRecord {
             .flatten()
             .any(|(k, v)| k == key && v == value)
     }
+
+    /// Updates the first occurrence of an attribute with the specified key.
+    ///
+    /// This method searches for the first occurrence of the attribute with the given key
+    /// in the `attributes` collection. If the key is found, its value is updated with the
+    /// provided value. If the key is not found, the attribute is added.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: A reference to the key of the attribute to update.
+    /// - `value`: A new value for the attribute.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(AnyValue)`: The old value of the attribute if found and updated.
+    /// - `None`: If the attribute was not found, and a new one was added.
+    ///
+    pub fn update_attribute(&mut self, key: &Key, value: AnyValue) -> Option<AnyValue> {
+        // First, search for the attribute mutably
+        if let Some(attr) = self
+            .attributes
+            .iter_mut()
+            .find(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false))
+        {
+            // Take the old value and update the attribute
+            let old_value = attr.take().map(|(_, v)| v);
+            *attr = Some((key.clone(), value));
+            return old_value;
+        }
+
+        // If not found, add a new attribute
+        self.add_attribute(key.clone(), value.clone());
+        None
+    }
+
+    /// Removes all occurrences of an attribute with the specified key.
+    ///
+    /// This method searches for all occurrences of the attribute with the given key
+    /// in the `attributes` collection and removes them.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: A reference to the key of the attribute to remove.
+    ///
+    /// # Returns
+    ///
+    /// - The number of removed occurrences of the key.
+    ///
+    pub fn remove_attribute(&mut self, key: &Key) -> usize {
+        let mut deleted_count = 0;
+
+        // Loop to find and remove all occurrences
+        while let Some(index) = {
+            // Isolate the immutable borrow in a block scope
+            let position = self
+                .attributes
+                .iter()
+                .position(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false));
+            position
+        } {
+            // Now proceed with the mutable borrow and remove the item
+            self.attributes.remove_at(index);
+            deleted_count += 1;
+        }
+
+        deleted_count
+    }
 }
 
 /// TraceContext stores the trace context for logs that have an associated
@@ -229,7 +297,7 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
+    use opentelemetry::logs::{AnyValue, Severity};
     use opentelemetry::time::now;
     use std::borrow::Cow;
 
@@ -368,5 +436,42 @@ mod tests {
         };
 
         assert_eq!(log_record_borrowed, log_record_owned);
+    }
+
+    #[test]
+    fn test_update_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+        let updated_value = AnyValue::String("updated_value".into());
+
+        // Add a new attribute
+        assert!(log_record.update_attribute(&key, value.clone()).is_none());
+        assert!(log_record.attributes_contains(&key, &value));
+
+        // Update the existing attribute
+        assert_eq!(
+            log_record.update_attribute(&key, updated_value.clone()),
+            Some(value)
+        );
+        assert!(log_record.attributes_contains(&key, &updated_value));
+    }
+
+    #[test]
+    fn test_delete_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+
+        // Add an attribute
+        log_record.add_attribute(key.clone(), value.clone());
+        assert!(log_record.attributes_contains(&key, &value));
+
+        // Delete the attribute
+        let del_count = log_record.remove_attribute(&key);
+        assert_eq!(del_count, 1);
+
+        // Ensure it is deleted
+        assert!(!log_record.attributes_contains(&key, &value));
     }
 }

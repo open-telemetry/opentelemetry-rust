@@ -64,6 +64,16 @@
  `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
+- Added Two new methods to the LogRecord struct's public API:
+```rust
+  update_attribute(&Key, &AnyValue) -> Option<AnyValue>
+```
+  - Updates the value of the first occurrence of an attribute with the specified key. 
+  - If the key exists, the old value is returned. If not, the new key-value pair is added, and None is returned.
+```rust
+remove_attribute(&mut self, key: &Key) -> usize
+```
+- Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
 
 ## 0.28.0
 
@@ -281,7 +291,6 @@ limit.
   opentelemetry_sdk::metrics::{InMemoryMetricExporter,
   InMemoryMetricExporterBuilder};
   ```
-
 - *Breaking* Renamed `LoggerProvider`, `Logger` and `LogRecord` to
   `SdkLoggerProvider`,`SdkLogger` and `SdkLogRecord` respectively to avoid name
   collision with public API types.
@@ -444,6 +453,7 @@ Released 2024-Sep-30
 - *Breaking* - Remove support for `MetricProducer` which allowed metrics from
   external sources to be sent through OpenTelemetry.
   [#2105](https://github.com/open-telemetry/opentelemetry-rust/pull/2105)
+
 - Feature: `SimpleSpanProcessor::new` is now public [#2119](https://github.com/open-telemetry/opentelemetry-rust/pull/2119)
 - For Delta Temporality, exporters are not invoked unless there were new
   measurements since the last collect/export.
