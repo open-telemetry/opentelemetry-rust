@@ -149,3 +149,6 @@ pub use resource::Resource;
 
 pub mod error;
 pub use error::ExportError;
+
+/// Retry logic for exporting telemetry data.
+pub mod retry;
