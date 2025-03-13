@@ -113,7 +113,7 @@
 use log::{Level, Metadata, Record};
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationScope, Key,
+    Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{
@@ -189,12 +189,13 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        let scope = InstrumentationScope::builder("opentelemetry-log-appender")
-            .with_version(env!("CARGO_PKG_VERSION"))
-            .build();
-
-        OpenTelemetryLogBridge {
-            logger: provider.logger_with_scope(scope),
+        Self {
+            // Using empty scope name.
+            // The name/version of this library itself can be added
+            // as a Scope attribute once a semantic convention is
+            // defined for the same.
+            // See https://github.com/open-telemetry/semantic-conventions/issues/1550
+            logger: provider.logger(""),
             _phantom: Default::default(),
         }
     }
@@ -985,9 +986,13 @@ mod tests {
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+
+        let log = logs.first().unwrap();
+        assert_eq!(log.instrumentation.name(), "");
 
         let get = |needle: &str| -> Option<AnyValue> {
-            logs[0].record.attributes_iter().find_map(|(k, v)| {
+            log.record.attributes_iter().find_map(|(k, v)| {
                 if k.as_str() == needle {
                     Some(v.clone())
                 } else {
@@ -1197,9 +1202,13 @@ mod tests {
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+
+        let log = logs.first().unwrap();
+        assert_eq!(log.instrumentation.name(), "");
 
         let get = |needle: &str| -> Option<AnyValue> {
-            logs[0].record.attributes_iter().find_map(|(k, v)| {
+            log.record.attributes_iter().find_map(|(k, v)| {
                 if k.as_str() == needle {
                     Some(v.clone())
                 } else {
