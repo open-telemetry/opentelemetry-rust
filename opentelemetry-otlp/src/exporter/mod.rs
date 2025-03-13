@@ -342,7 +342,7 @@ mod tests {
     #[cfg(feature = "logs")]
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
-    fn invalid_http_endpoint() {
+    fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
@@ -358,12 +358,15 @@ mod tests {
             .with_export_config(ex_config)
             .build();
 
-        assert!(exporter_result.is_err());
+        assert!(matches!(
+            exporter_result,
+            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+        ));
     }
 
     #[cfg(feature = "grpc-tonic")]
     #[test]
-    fn invalid_grpc_endpoint() {
+    fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
@@ -379,7 +382,10 @@ mod tests {
             .with_export_config(ex_config)
             .build();
 
-        assert!(exporter_result.is_err());
+        assert!(matches!(
+            exporter_result,
+            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+        ));
     }
 
     #[cfg(feature = "grpc-tonic")]
