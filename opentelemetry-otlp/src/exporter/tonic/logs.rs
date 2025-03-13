@@ -6,17 +6,17 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
-use tokio::sync::Mutex;
 
 use opentelemetry_sdk::retry::{retry_with_exponential_backoff, RetryPolicy};
 
 pub(crate) struct TonicLogsClient {
-    inner: Option<ClientInner>,
+    inner: Mutex<Option<ClientInner>>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -24,7 +24,7 @@ pub(crate) struct TonicLogsClient {
 
 struct ClientInner {
     client: LogsServiceClient<Channel>,
-    interceptor: Mutex<BoxInterceptor>,
+    interceptor: BoxInterceptor,
 }
 
 impl fmt::Debug for TonicLogsClient {
@@ -49,10 +49,10 @@ impl TonicLogsClient {
         otel_debug!(name: "TonicsLogsClientBuilt");
 
         TonicLogsClient {
-            inner: Some(ClientInner {
+            inner: Mutex::new(Some(ClientInner {
                 client,
-                interceptor: Mutex::new(interceptor),
-            }),
+                interceptor,
+            })),
             resource: Default::default(),
         }
     }

@@ -20,7 +20,7 @@
 //!     let exporter = new_exporter();
 //!
 //!     // Create a new trace pipeline that prints to stdout
-//!     let provider = TracerProvider::builder()
+//!     let provider = SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build();
 //!     let tracer = provider.tracer("readme_example");

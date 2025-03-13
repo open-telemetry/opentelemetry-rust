@@ -17,17 +17,17 @@
 //! # #[cfg(all(feature = "metrics", feature = "trace", feature = "logs"))]
 //! {
 //! use opentelemetry::metrics::MeterProvider;
-//! use opentelemetry::trace::{Span, Tracer, TracerProvider};
+//! use opentelemetry::trace::{Span, Tracer};
 //! use opentelemetry::{Context, KeyValue};
 //!
 //! use opentelemetry_sdk::metrics::{SdkMeterProvider, PeriodicReader};
 //! use opentelemetry_sdk::trace::SdkTracerProvider;
 //!
-//! use opentelemetry_sdk::logs::LoggerProvider;
+//! use opentelemetry_sdk::logs::SdkLoggerProvider;
 //!
-//! fn init_trace() -> TracerProvider {
+//! fn init_trace() -> SdkTracerProvider {
 //!     let exporter = opentelemetry_stdout::SpanExporter::default();
-//!     TracerProvider::builder()
+//!     SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build()
 //! }
@@ -37,9 +37,9 @@
 //!     SdkMeterProvider::builder().with_periodic_exporter(exporter).build()
 //! }
 //!
-//! fn init_logs() -> LoggerProvider {
+//! fn init_logs() -> SdkLoggerProvider {
 //!     let exporter = opentelemetry_stdout::LogExporter::default();
-//!     LoggerProvider::builder()
+//!     SdkLoggerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build()
 //! }

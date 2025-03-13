@@ -23,5 +23,7 @@ jobs:
         with:
           components: rustfmt
       - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         run: ./scripts/integration_tests.sh

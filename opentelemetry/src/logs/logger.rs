@@ -21,7 +21,7 @@ pub trait Logger {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if the given log level is enabled.
-    fn event_enabled(&self, level: Severity, target: &str) -> bool;
+    fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool;
 }
 
 /// Interfaces that can create [`Logger`] instances.

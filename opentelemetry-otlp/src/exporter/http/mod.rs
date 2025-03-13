@@ -57,12 +57,12 @@ pub struct HttpConfig {
 ///
 /// ## Examples
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature="metrics")]
 /// use opentelemetry_sdk::metrics::Temporality;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// // Create a span exporter you can use to when configuring tracer providers
+/// // Create a span exporter you can use when configuring tracer providers
 /// # #[cfg(feature="trace")]
 /// let span_exporter = opentelemetry_otlp::SpanExporter::builder().with_http().build()?;
 ///

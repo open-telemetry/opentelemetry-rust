@@ -193,7 +193,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 /// ```rust
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{
-///     trace::{BatchSpanProcessor, BatchConfigBuilder, TracerProvider},
+///     trace::{BatchSpanProcessor, BatchConfigBuilder, SdkTracerProvider},
 ///     runtime,
 ///     testing::trace::NoopSpanExporter,
 /// };
@@ -217,7 +217,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 ///         .build();
 ///
 ///     // Step 3: Set up a TracerProvider with the configured processor.
-///     let provider = TracerProvider::builder()
+///     let provider = SdkTracerProvider::builder()
 ///         .with_span_processor(batch_processor)
 ///         .build();
 ///     global::set_tracer_provider(provider.clone());
@@ -971,15 +971,20 @@ mod tests {
             .with_scheduled_delay(Duration::from_millis(10))
             .with_max_queue_size(10);
         #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-        let batch = batch.with_max_concurrent_exports(10);
-        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-        let batch = batch.with_max_export_timeout(Duration::from_millis(10));
+        let batch = {
+            batch
+                .with_max_concurrent_exports(10)
+                .with_max_export_timeout(Duration::from_millis(10))
+        };
         let batch = batch.build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
-        assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
-        assert_eq!(batch.max_concurrent_exports, 10);
         assert_eq!(batch.max_queue_size, 10);
+        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+        {
+            assert_eq!(batch.max_concurrent_exports, 10);
+            assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
+        }
     }
 
     // Helper function to create a default test span
