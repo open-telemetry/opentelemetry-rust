@@ -118,15 +118,11 @@ impl LogExporter for TonicLogsClient {
         .await
     }
 
-    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-        // TODO: Implement actual shutdown
-        // Due to the use of tokio::sync::Mutex to guard
-        // the inner client, we need to await the call to lock the mutex
-        // and that requires async runtime.
-        // It is possible to fix this by using
-        // a dedicated thread just to handle shutdown.
-        // But for now, we just return Ok.
-        Ok(())
+    fn shutdown(&mut self) -> OTelSdkResult {
+        match self.inner.take() {
+            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
+            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
