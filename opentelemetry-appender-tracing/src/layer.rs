@@ -173,7 +173,8 @@ where
 
         let mut log_record = self.logger.create_log_record();
 
-        log_record.set_target(target);
+        // TODO: Fix heap allocation
+        log_record.set_target(target.to_string());
         log_record.set_event_name(name);
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
