@@ -14,7 +14,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 
 use super::BoxInterceptor;
 
-use crate::retry::{retry_with_exponential_backoff, RetryPolicy};
+use opentelemetry_sdk::retry::{retry_with_exponential_backoff, RetryPolicy};
 
 pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -70,7 +70,7 @@ impl LogExporter for TonicLogsClient {
 
         let batch = Arc::new(batch);
 
-        retry_with_exponential_backoff(policy, "TonicLogsClient.Export", {
+        retry_with_exponential_backoff::<_, _, _, _, tokio::time::Sleep>(policy, "TonicLogsClient.Export", {
             let batch = Arc::clone(&batch);
             let inner = &self.inner;
             let resource = &self.resource;
