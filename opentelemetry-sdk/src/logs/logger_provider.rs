@@ -258,7 +258,7 @@ impl LoggerProviderBuilder {
 
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
-                processors: processors,
+                processors
                 is_shutdown: AtomicBool::new(false),
             }),
         };
