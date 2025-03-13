@@ -123,10 +123,10 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
         if let Ok(signed) = i64::try_from(value) {
             self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
         } else {
             self.log_record
-            .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
         }
     }
 
