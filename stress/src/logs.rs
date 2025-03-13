@@ -17,12 +17,12 @@
      3 M/sec (when enabled)  (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(true))))
     26 M/sec (when disabled) (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(false)))
 */
+use opentelemetry::Key;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry::Key;
 use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
