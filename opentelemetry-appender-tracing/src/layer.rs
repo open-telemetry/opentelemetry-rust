@@ -121,15 +121,12 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         if is_duplicated_metadata(field.name()) {
             return;
         }
-        match i64::try_from(value) {
-            Ok(signed) => {
-                self.log_record
-                    .add_attribute(Key::new(field.name()), AnyValue::from(signed));
-            }
-            Err(_) => {
-                self.log_record
-                    .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
-            }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+            .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+            .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
         }
     }
 
