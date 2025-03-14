@@ -71,6 +71,9 @@
  `opentelemetry_sdk::error::OTelSdkResult`.
  // PLACEHOLDER to fill in when the similar change is done for traces, metrics.
  // PLACEHOLDER to put all the PR links together.
+- **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
+  to require mutable ref.
+  `fn set_resource(&mut self, _resource: &Resource) {}`
 
 ## 0.28.0
 

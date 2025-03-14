@@ -65,7 +65,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     }
 
     /// Set the resource for the log processor.
-    fn set_resource(&self, _resource: &Resource) {}
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
