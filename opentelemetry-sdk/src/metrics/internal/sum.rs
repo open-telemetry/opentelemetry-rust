@@ -2,11 +2,11 @@ use crate::metrics::data::{self, Aggregation, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
+use super::aggregate::{AggregateTime, AggregateTimeInitiator, AttributeSetFilter};
+use super::{AggregationImpl, Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
 
-struct Increment<T>
+pub(crate) struct Increment<T>
 where
     T: AtomicallyUpdate<T>,
 {
@@ -159,6 +159,55 @@ where
         match self.temporality {
             Temporality::Delta => self.delta(dest),
             _ => self.cumulative(dest),
+        }
+    }
+}
+
+pub(crate) struct SumNew {
+    pub(crate) monotonic: bool,
+}
+
+impl<T> AggregationImpl<T> for SumNew
+where
+    T: Number,
+{
+    type Aggr = Increment<T>;
+    type AggrData = data::Sum<T>;
+
+    fn precompute(&self, value: T) -> T {
+        value
+    }
+
+    fn new_aggregation_data(&self, temporality: Temporality, time: AggregateTime) -> data::Sum<T> {
+        data::Sum {
+            data_points: vec![],
+            start_time: time.start,
+            time: time.current,
+            temporality,
+            is_monotonic: self.monotonic,
+        }
+    }
+
+    fn reset_aggregation_data(
+        &self,
+        existing: &mut data::Sum<T>,
+        temporality: Temporality,
+        time: AggregateTime,
+    ) {
+        existing.data_points.clear();
+        existing.start_time = time.start;
+        existing.time = time.current;
+        existing.temporality = temporality;
+        existing.is_monotonic = self.monotonic;
+    }
+
+    fn build_create_points_fn(
+        &self,
+    ) -> impl FnMut(Vec<KeyValue>, &Increment<T>) -> SumDataPoint<T> {
+        |attributes, aggr| SumDataPoint {
+            attributes,
+            value: aggr.value.get_value(),
+            exemplars: vec![],
         }
     }
 }
