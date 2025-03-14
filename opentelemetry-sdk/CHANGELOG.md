@@ -64,7 +64,7 @@
  `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
-- **Breaking** for custom LogProcessor/Exporter authors: Changed `set_resource`
+- **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
 
