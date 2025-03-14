@@ -1,6 +1,5 @@
 //! # OpenTelemetry Log SDK
 mod batch_log_processor;
-mod error;
 mod export;
 mod log_processor;
 mod logger;
@@ -19,7 +18,6 @@ pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 pub use batch_log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder,
 };
-pub use error::{LogError, LogResult};
 pub use export::{LogBatch, LogExporter};
 pub use log_processor::LogProcessor;
 pub use logger::SdkLogger;

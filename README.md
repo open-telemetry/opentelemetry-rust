@@ -30,6 +30,9 @@ documentation.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
+| Context               | Beta               |
+| Baggage               | Beta               |
+| Propagators           | Beta               |
 | Logs-API              | Stable*            |
 | Logs-SDK              | RC                 |
 | Logs-OTLP Exporter    | RC                 |
