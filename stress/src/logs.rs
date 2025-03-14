@@ -17,12 +17,12 @@
      3 M/sec (when enabled)  (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(true))))
     26 M/sec (when disabled) (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(false)))
 */
+use opentelemetry::Key;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-
 use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -32,14 +32,23 @@ mod throughput;
 #[derive(Debug)]
 struct NoopExporter {
     enabled: bool,
+    service_name: Option<String>,
 }
+
 impl NoopExporter {
     fn new(enabled: bool) -> Self {
-        Self { enabled }
+        Self {
+            enabled,
+            service_name: None,
+        }
     }
 }
+
 impl LogExporter for NoopExporter {
     async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
+        if let Some(_service_name) = &self.service_name {
+            // do something with the service name
+        }
         Ok(())
     }
 
@@ -56,7 +65,11 @@ impl LogExporter for NoopExporter {
         self.enabled
     }
 
-    fn set_resource(&mut self, _: &Resource) {}
+    fn set_resource(&mut self, res: &Resource) {
+        self.service_name = res
+            .get(&Key::from_static_str("service.name"))
+            .map(|v| v.to_string());
+    }
 }
 
 fn main() {

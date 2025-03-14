@@ -20,7 +20,6 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
     NOOP_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
-            resource: Resource::empty(),
             is_shutdown: AtomicBool::new(true),
         }),
     })
@@ -82,10 +81,6 @@ impl SdkLoggerProvider {
         &self.inner.processors
     }
 
-    pub(crate) fn resource(&self) -> &Resource {
-        &self.inner.resource
-    }
-
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> OTelSdkResult {
         let result: Vec<_> = self
@@ -133,7 +128,6 @@ impl SdkLoggerProvider {
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
-    resource: Resource,
     is_shutdown: AtomicBool,
 }
 
@@ -257,19 +251,17 @@ impl LoggerProviderBuilder {
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkLoggerProvider {
         let resource = self.resource.unwrap_or(Resource::builder().build());
+        let mut processors = self.processors;
+        for processor in &mut processors {
+            processor.set_resource(&resource);
+        }
 
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
-                processors: self.processors,
-                resource,
+                processors,
                 is_shutdown: AtomicBool::new(false),
             }),
         };
-
-        // invoke set_resource on all the processors
-        for processor in logger_provider.log_processors() {
-            processor.set_resource(logger_provider.resource());
-        }
 
         otel_debug!(
             name: "LoggerProvider.Built",
@@ -281,7 +273,7 @@ impl LoggerProviderBuilder {
 #[cfg(test)]
 mod tests {
     use crate::{
-        logs::{InMemoryLogExporter, SdkLogRecord, TraceContext},
+        logs::{InMemoryLogExporter, LogBatch, SdkLogRecord, TraceContext},
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
@@ -346,71 +338,190 @@ mod tests {
             Ok(())
         }
     }
+
+    #[derive(Debug, Clone)]
+    struct TestExporterForResource {
+        resource: Arc<Mutex<Resource>>,
+    }
+    impl TestExporterForResource {
+        fn new() -> Self {
+            TestExporterForResource {
+                resource: Arc::new(Mutex::new(Resource::empty())),
+            }
+        }
+
+        fn resource(&self) -> Resource {
+            self.resource.lock().unwrap().clone()
+        }
+    }
+    impl LogExporter for TestExporterForResource {
+        async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let mut res = self.resource.lock().unwrap();
+            *res = resource.clone();
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct TestProcessorForResource {
+        resource: Arc<Mutex<Resource>>,
+        exporter: TestExporterForResource,
+    }
+    impl LogProcessor for TestProcessorForResource {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
+            // nothing to do.
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let mut res = self.resource.lock().unwrap();
+            *res = resource.clone();
+            self.exporter.set_resource(resource);
+        }
+    }
+    impl TestProcessorForResource {
+        fn new(exporter: TestExporterForResource) -> Self {
+            TestProcessorForResource {
+                resource: Arc::new(Mutex::new(Resource::empty())),
+                exporter,
+            }
+        }
+        fn resource(&self) -> Resource {
+            self.resource.lock().unwrap().clone()
+        }
+    }
+
     #[test]
-    fn test_logger_provider_default_resource() {
-        let assert_resource = |provider: &super::SdkLoggerProvider,
+    fn test_resource_handling_provider_processor_exporter() {
+        let assert_resource = |processor: &TestProcessorForResource,
+                               exporter: &TestExporterForResource,
                                resource_key: &'static str,
                                expect: Option<&'static str>| {
             assert_eq!(
-                provider
+                processor
+                    .resource()
+                    .get(&Key::from_static_str(resource_key))
+                    .map(|v| v.to_string()),
+                expect.map(|s| s.to_string())
+            );
+
+            assert_eq!(
+                exporter
                     .resource()
                     .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
-        let assert_telemetry_resource = |provider: &super::SdkLoggerProvider| {
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
-                Some(Value::from("rust"))
-            );
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
-                Some(Value::from("opentelemetry"))
-            );
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
-                Some(Value::from(env!("CARGO_PKG_VERSION")))
-            );
-        };
+        let assert_telemetry_resource =
+            |processor: &TestProcessorForResource, exporter: &TestExporterForResource| {
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
+                );
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
+                );
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
+                );
+            };
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
-            let default_config_provider = super::SdkLoggerProvider::builder().build();
+            let exporter_with_resource = TestExporterForResource::new();
+            let processor_with_resource =
+                TestProcessorForResource::new(exporter_with_resource.clone());
+            let _ = super::SdkLoggerProvider::builder()
+                .with_log_processor(processor_with_resource.clone())
+                .build();
             assert_resource(
-                &default_config_provider,
+                &processor_with_resource,
+                &exporter_with_resource,
                 SERVICE_NAME,
                 Some("unknown_service"),
             );
-            assert_telemetry_resource(&default_config_provider);
+            assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
         });
 
         // If user provided a resource, use that.
-        let custom_config_provider = super::SdkLoggerProvider::builder()
+        let exporter_with_resource = TestExporterForResource::new();
+        let processor_with_resource = TestProcessorForResource::new(exporter_with_resource.clone());
+        let _ = super::SdkLoggerProvider::builder()
             .with_resource(
                 Resource::builder_empty()
                     .with_service_name("test_service")
                     .build(),
             )
+            .with_log_processor(processor_with_resource.clone())
             .build();
-        assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
-        assert_eq!(custom_config_provider.resource().len(), 1);
+        assert_resource(
+            &processor_with_resource,
+            &exporter_with_resource,
+            SERVICE_NAME,
+            Some("test_service"),
+        );
+        assert_eq!(processor_with_resource.resource().len(), 1);
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         temp_env::with_var(
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("key1=value1, k2, k3=value2"),
             || {
-                let env_resource_provider = super::SdkLoggerProvider::builder().build();
+                let exporter_with_resource = TestExporterForResource::new();
+                let processor_with_resource =
+                    TestProcessorForResource::new(exporter_with_resource.clone());
+                let _ = super::SdkLoggerProvider::builder()
+                    .with_log_processor(processor_with_resource.clone())
+                    .build();
                 assert_resource(
-                    &env_resource_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     SERVICE_NAME,
                     Some("unknown_service"),
                 );
-                assert_resource(&env_resource_provider, "key1", Some("value1"));
-                assert_resource(&env_resource_provider, "k3", Some("value2"));
-                assert_telemetry_resource(&env_resource_provider);
-                assert_eq!(env_resource_provider.resource().len(), 6);
+                assert_resource(
+                    &processor_with_resource,
+                    &exporter_with_resource,
+                    "key1",
+                    Some("value1"),
+                );
+                assert_resource(
+                    &processor_with_resource,
+                    &exporter_with_resource,
+                    "k3",
+                    Some("value2"),
+                );
+                assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
+                assert_eq!(processor_with_resource.resource().len(), 6);
             },
         );
 
@@ -419,7 +530,10 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("my-custom-key=env-val,k2=value2"),
             || {
-                let user_provided_resource_config_provider = super::SdkLoggerProvider::builder()
+                let exporter_with_resource = TestExporterForResource::new();
+                let processor_with_resource =
+                    TestProcessorForResource::new(exporter_with_resource.clone());
+                let _ = super::SdkLoggerProvider::builder()
                     .with_resource(
                         Resource::builder()
                             .with_attributes([
@@ -428,37 +542,45 @@ mod tests {
                             ])
                             .build(),
                     )
+                    .with_log_processor(processor_with_resource.clone())
                     .build();
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     SERVICE_NAME,
                     Some("unknown_service"),
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "my-custom-key",
                     Some("my-custom-value"),
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "my-custom-key2",
                     Some("my-custom-value2"),
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "k2",
                     Some("value2"),
                 );
-                assert_telemetry_resource(&user_provided_resource_config_provider);
-                assert_eq!(user_provided_resource_config_provider.resource().len(), 7);
+                assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
+                assert_eq!(processor_with_resource.resource().len(), 7);
             },
         );
 
         // If user provided a resource, it takes priority during collision.
-        let no_service_name = super::SdkLoggerProvider::builder()
+        let exporter_with_resource = TestExporterForResource::new();
+        let processor_with_resource = TestProcessorForResource::new(exporter_with_resource);
+        let _ = super::SdkLoggerProvider::builder()
             .with_resource(Resource::empty())
+            .with_log_processor(processor_with_resource.clone())
             .build();
-        assert_eq!(no_service_name.resource().len(), 0);
+        assert_eq!(processor_with_resource.resource().len(), 0);
     }
 
     #[test]
@@ -615,7 +737,6 @@ mod tests {
                     shutdown_called.clone(),
                     flush_called.clone(),
                 ))],
-                resource: Resource::empty(),
                 is_shutdown: AtomicBool::new(false),
             });
 
@@ -656,7 +777,6 @@ mod tests {
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))],
-            resource: Resource::empty(),
             is_shutdown: AtomicBool::new(false),
         });
 
