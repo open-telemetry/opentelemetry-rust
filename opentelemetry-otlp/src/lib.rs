@@ -1,8 +1,8 @@
 //! # OpenTelemetry OTLP Exporter
 //!
-//! The OTLP Exporter enables exporting telemetry data (logs, metrics, and traces) in the 
+//! The OTLP Exporter enables exporting telemetry data (logs, metrics, and traces) in the
 //! OpenTelemetry Protocol (OTLP) format to compatible backends. These backends include:
-//! 
+//!
 //! - OpenTelemetry Collector
 //! - Open-source observability tools (Prometheus, Jaeger, etc.)
 //! - Vendor-specific monitoring platforms
@@ -101,6 +101,9 @@
 //!
 //! After running your application configured with the OTLP exporter, view traces at:
 //! `http://localhost:16686`
+//!
+//! ## Using with Prometheus (TODO)
+//! ## Show Logs, Metrics too (TODO)
 //!
 //! ## Performance
 //!
