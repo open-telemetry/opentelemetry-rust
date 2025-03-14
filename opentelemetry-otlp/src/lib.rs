@@ -29,6 +29,7 @@
 //! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
 //! use opentelemetry_otlp::Protocol;
+//! use opentelemetry_otlp::WithExportConfig;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Initialize OTLP exporter using HTTP binary protocol
