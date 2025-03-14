@@ -1,3 +1,14 @@
+//! Execution-scoped context propagation.
+//!
+//! The `context` module provides mechanisms for propagating values across API boundaries and between
+//! logically associated execution units. It enables cross-cutting concerns to access their data in-process
+//! using a shared context object.
+//!
+//! # Main Types
+//!
+//! - [`Context`]: An immutable, execution-scoped collection of values.
+//!
+
 use crate::otel_warn;
 #[cfg(feature = "trace")]
 use crate::trace::context::SynchronizedSpan;
@@ -12,7 +23,6 @@ use std::sync::Arc;
 mod future_ext;
 
 pub use future_ext::FutureExt;
-
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
