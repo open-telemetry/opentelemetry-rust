@@ -1,49 +1,67 @@
-//! The OTLP Exporter allows exporting logs, metrics, and traces in the OTLP
-//! format to any backend that supports OTLP. This includes the OpenTelemetry Collector,
-//! open-source telemetry solutions like Prometheus and Jaeger, and vendor-specific endpoints.
+//! # OpenTelemetry OTLP Exporter
 //!
-//! The OpenTelemetry Collector provides a vendor-neutral way to receive, process, and export telemetry data.
-//! It simplifies instrumentation by removing the need to operate multiple agents for different telemetry formats.
+//! The OTLP Exporter enables exporting telemetry data (logs, metrics, and traces) in the 
+//! OpenTelemetry Protocol (OTLP) format to compatible backends. These backends include:
+//! 
+//! - OpenTelemetry Collector
+//! - Open-source observability tools (Prometheus, Jaeger, etc.)
+//! - Vendor-specific monitoring platforms
 //!
-//! Currently, this crate supports sending telemetry in OTLP via gRPC and HTTP (binary and JSON).
+//! This crate supports sending OTLP data via:
+//! - gRPC
+//! - HTTP (binary protobuf or JSON)
 //!
-//! # Quickstart with OpenTelemetry Collector (HTTP)
+//! ## Quickstart with OpenTelemetry Collector
 //!
-//! The following examples sets up Collector to receive OTLP data over HTTP on port 4318,
-//! and the application is configured to send OTLP data to this Collector.
+//! ### HTTP Transport (Port 4318)
+//!
+//! Run the OpenTelemetry Collector:
 //!
 //! ```shell
 //! $ docker run -p 4318:4318 otel/opentelemetry-collector:latest
 //! ```
+//!
+//! Configure your application to export traces via HTTP:
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "http-proto"))]
 //! # {
 //! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
+//! use opentelemetry_otlp::Protocol;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_http().with_protocol(Protocol::HttpBinary).build()?;
+//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_http()
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .build()?;
+//!
+//!     // Create a tracer provider with the exporter
 //!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced application logic here...
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
 //!     });
 //!
 //!     Ok(())
-//!   # }
+//! # }
 //! }
 //! ```
-//! # Quickstart with OpenTelemetry Collector (gRPC)
 //!
-//! The following examples sets up Collector to receive OTLP data over gRPC on port 4317,
-//! and the application is configured to send OTLP data to this Collector.
+//! ### gRPC Transport (Port 4317)
+//!
+//! Run the OpenTelemetry Collector:
 //!
 //! ```shell
 //! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
+//!
+//! Configure your application to export traces via gRPC:
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
@@ -52,28 +70,37 @@
 //! use opentelemetry::trace::Tracer;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
+//!     // Initialize OTLP exporter using gRPC (Tonic)
+//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_tonic()
+//!         .build()?;
+//!
+//!     // Create a tracer provider with the exporter
 //!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced application logic here...
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
 //!     });
 //!
 //!     Ok(())
-//!   # }
+//! # }
 //! }
 //! ```
-//! 
-//! The same application can also send traces to Jaeger, which natively supports OTLP.
-//! The following command shows how to run Jaeger with the OTLP endpoint enabled.
-//! 
+//!
+//! ## Using with Jaeger
+//!
+//! Jaeger natively supports the OTLP protocol, making it easy to send traces directly:
+//!
 //! ```shell
-//! docker run -p16686:16686 -p4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest
+//! $ docker run -p 16686:16686 -p 4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest
 //! ```
-//! 
-//! After running the application, you can view the traces in Jaeger UI at `http://localhost:16686`.
+//!
+//! After running your application configured with the OTLP exporter, view traces at:
+//! `http://localhost:16686`
 //!
 //! ## Performance
 //!
