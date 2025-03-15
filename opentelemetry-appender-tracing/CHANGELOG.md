@@ -48,6 +48,10 @@ when conversion is feasible. Otherwise stored as
 allocation when values can be represented in their original types.
 - Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
 of string.
+- `Error` fields are reported using attribute named "exception.message". For
+  example, the below will now report an attribute named "exception.message",
+  instead of previously reporting the user provided attribute "error".
+  `error!(....error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error...)`
 - perf - small perf improvement by avoiding string allocation of `target`
 
 ## 0.28.1
