@@ -223,6 +223,7 @@ mod span;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
+pub use crate::exporter::ExporterBuildError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{

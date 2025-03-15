@@ -59,6 +59,7 @@ internal-logs = ["tracing"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics"]
 spec_unstable_metrics_views = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs"]
+experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["trace"]
 experimental_metrics_disable_name_validation = ["metrics"]
 
@@ -90,6 +91,11 @@ harness = false
 [[bench]]
 name = "log_processor"
 harness = false
+
+[[bench]]
+name = "log_enabled"
+harness = false
+required-features = ["spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor"]
 
 [[bench]]
 name = "tracer_creation"

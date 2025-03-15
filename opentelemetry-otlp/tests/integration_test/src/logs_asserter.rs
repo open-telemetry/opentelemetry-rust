@@ -1,5 +1,8 @@
 use anyhow::Result;
-use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
+use opentelemetry_proto::tonic::{
+    common::v1::KeyValue,
+    logs::v1::{LogRecord, LogsData, ResourceLogs},
+};
 use std::fs::File;
 
 // Given two ResourceLogs, assert that they are equal except for the timestamps
@@ -75,8 +78,22 @@ impl PartialEq for LogRecordWrapper {
             a.severity_text, b.severity_text,
             "severity_text does not match"
         );
+        let a_attrs = a.attributes.clone();
+        #[cfg(feature = "experimental_metadata_attributes")]
+        let a_attrs: Vec<_> = a_attrs
+            .into_iter()
+            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .collect();
+
+        let b_attrs = b.attributes.clone();
+        #[cfg(feature = "experimental_metadata_attributes")]
+        let b_attrs: Vec<_> = b_attrs
+            .into_iter()
+            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .collect();
+
         assert_eq!(a.body, b.body, "body does not match");
-        assert_eq!(a.attributes, b.attributes, "attributes do not match");
+        assert_eq!(a_attrs, b_attrs, "attributes do not match");
         assert_eq!(
             a.dropped_attributes_count, b.dropped_attributes_count,
             "dropped_attributes_count does not match"

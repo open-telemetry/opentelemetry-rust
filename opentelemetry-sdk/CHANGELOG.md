@@ -64,6 +64,16 @@
  `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
+- *Breaking (Affects custom Exporter/Processor authors only)* Removed
+ `opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
+ intended to be public. If you are authoring custom processor/exporters, use
+ `opentelemetry_sdk::error::OTelSdkError` and
+ `opentelemetry_sdk::error::OTelSdkResult`.
+ // PLACEHOLDER to fill in when the similar change is done for traces, metrics.
+ // PLACEHOLDER to put all the PR links together.
+- **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
+  to require mutable ref.
+  `fn set_resource(&mut self, _resource: &Resource) {}`
 
 ## 0.28.0
 

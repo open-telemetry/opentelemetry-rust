@@ -12,45 +12,43 @@
     Total Number of Cores:	14 (10 performance and 4 efficiency)
     ~50 M/sec
     ~1.1 B/sec (when disabled)
-*/
 
-use opentelemetry::InstrumentationScope;
+    With existing SimpleLogProcessor:
+     3 M/sec (when enabled)  (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(true))))
+    26 M/sec (when disabled) (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(false)))
+*/
+use opentelemetry::Key;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
-
+use opentelemetry_sdk::Resource;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
 
-#[derive(Debug, Clone)]
-struct MockLogExporter;
-
-impl LogExporter for MockLogExporter {
-    async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
-pub struct MockLogProcessor {
-    exporter: MockLogExporter,
+struct NoopExporter {
     enabled: bool,
+    service_name: Option<String>,
 }
 
-impl LogProcessor for MockLogProcessor {
-    fn emit(
-        &self,
-        record: &mut opentelemetry_sdk::logs::SdkLogRecord,
-        scope: &InstrumentationScope,
-    ) {
-        let log_tuple = &[(record as &SdkLogRecord, scope)];
-        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
+impl NoopExporter {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            service_name: None,
+        }
     }
+}
 
-    fn force_flush(&self) -> OTelSdkResult {
+impl LogExporter for NoopExporter {
+    async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
+        if let Some(_service_name) = &self.service_name {
+            // do something with the service name
+        }
         Ok(())
     }
 
@@ -66,6 +64,12 @@ impl LogProcessor for MockLogProcessor {
     ) -> bool {
         self.enabled
     }
+
+    fn set_resource(&mut self, res: &Resource) {
+        self.service_name = res
+            .get(&Key::from_static_str("service.name"))
+            .map(|v| v.to_string());
+    }
 }
 
 fn main() {
@@ -74,10 +78,9 @@ fn main() {
 
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
-        .with_log_processor(MockLogProcessor {
-            exporter: MockLogExporter {},
+        .with_log_processor(SimpleConcurrentLogProcessor::new(NoopExporter::new(
             enabled,
-        })
+        )))
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.

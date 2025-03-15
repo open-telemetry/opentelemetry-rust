@@ -115,6 +115,12 @@ impl_trivial_from!(StringValue, AnyValue::String);
 
 impl_trivial_from!(bool, AnyValue::Boolean);
 
+impl From<&[u8]> for AnyValue {
+    fn from(val: &[u8]) -> AnyValue {
+        AnyValue::Bytes(Box::new(val.to_vec()))
+    }
+}
+
 impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
     /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
