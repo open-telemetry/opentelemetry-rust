@@ -164,9 +164,27 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    tracer_provider.shutdown()?;
-    meter_provider.shutdown()?;
-    logger_provider.shutdown()?;
+    // Collect all shutdown errors
+    let mut shutdown_errors = Vec::new();
+    if let Err(e) = tracer_provider.shutdown() {
+        shutdown_errors.push(format!("tracer provider: {}", e));
+    }
 
+    if let Err(e) = meter_provider.shutdown() {
+        shutdown_errors.push(format!("meter provider: {}", e));
+    }
+
+    if let Err(e) = logger_provider.shutdown() {
+        shutdown_errors.push(format!("logger provider: {}", e));
+    }
+
+    // Return an error if any shutdown failed
+    if !shutdown_errors.is_empty() {
+        return Err(format!(
+            "Failed to shutdown providers:{}",
+            shutdown_errors.join("\n")
+        )
+        .into());
+    }
     Ok(())
 }
