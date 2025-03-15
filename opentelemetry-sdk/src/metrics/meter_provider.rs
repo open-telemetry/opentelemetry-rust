@@ -15,10 +15,7 @@ use opentelemetry::{
 use crate::error::OTelSdkResult;
 use crate::Resource;
 
-use super::{
-    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
-    reader::MetricReader, view::View, PeriodicReader,
-};
+use super::{exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines, reader::MetricReader, view::View, MeasurementProcessor, PeriodicReader};
 
 /// Handles the creation and coordination of [Meter]s.
 ///
@@ -223,6 +220,7 @@ pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    measurement_processors: Vec<Arc<dyn MeasurementProcessor>>,
 }
 
 impl MeterProviderBuilder {
@@ -291,6 +289,11 @@ impl MeterProviderBuilder {
         self
     }
 
+    pub fn with_measurement_processor<T: MeasurementProcessor>(mut self, processor: T) -> Self {
+        self.measurement_processors.push(Arc::new(processor));
+        self
+    }
+
     /// Construct a new [MeterProvider] with this configuration.
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
@@ -304,6 +307,7 @@ impl MeterProviderBuilder {
                     self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
+                    self.measurement_processors,
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),

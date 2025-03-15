@@ -61,6 +61,10 @@ pub(crate) mod view;
 #[cfg(any(feature = "testing", test))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub mod in_memory_exporter;
+
+mod measurement_processor;
+pub use measurement_processor::MeasurementProcessor;
+
 #[cfg(any(feature = "testing", test))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
