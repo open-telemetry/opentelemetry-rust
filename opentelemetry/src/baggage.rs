@@ -29,6 +29,12 @@ static DEFAULT_BAGGAGE: OnceLock<Baggage> = OnceLock::new();
 const MAX_KEY_VALUE_PAIRS: usize = 64;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
+// https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.6
+const INVALID_ASCII_KEY_CHARS: [u8; 17] = [
+    b'(', b')', b',', b'/', b':', b';', b'<', b'=', b'>', b'?', b'@', b'[', b'\\', b']', b'{',
+    b'}', b'"',
+];
+
 /// Returns the default baggage, ensuring it is initialized only once.
 #[inline]
 fn get_default_baggage() -> &'static Baggage {
@@ -160,16 +166,14 @@ impl Baggage {
         S: Into<BaggageMetadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
-        if !key.as_str().is_ascii() {
-            return None;
-        }
-        let entry_content_len =
-            key_value_metadata_bytes_size(key.as_str(), value.as_str(), metadata.as_str());
         let entries_count = self.inner.len();
         match self.inner.entry(key) {
             Entry::Occupied(mut occupied_entry) => {
+                let key_str = occupied_entry.key().as_str();
+                let entry_content_len =
+                    key_value_metadata_bytes_size(key_str, value.as_str(), metadata.as_str());
                 let prev_content_len = key_value_metadata_bytes_size(
-                    occupied_entry.key().as_str(),
+                    key_str,
                     occupied_entry.get().0.as_str(),
                     occupied_entry.get().1.as_str(),
                 );
@@ -181,9 +185,15 @@ impl Baggage {
                 Some(occupied_entry.insert((value, metadata)))
             }
             Entry::Vacant(vacant_entry) => {
+                let key_str = vacant_entry.key().as_str();
+                if !Self::is_key_valid(key_str.as_bytes()) {
+                    return None;
+                }
                 if entries_count == MAX_KEY_VALUE_PAIRS {
                     return None;
                 }
+                let entry_content_len =
+                    key_value_metadata_bytes_size(key_str, value.as_str(), metadata.as_str());
                 let new_content_len = self.kv_content_len + entry_content_len;
                 if new_content_len > MAX_LEN_OF_ALL_PAIRS {
                     return None;
@@ -215,11 +225,18 @@ impl Baggage {
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
+
+    fn is_key_valid(key: &[u8]) -> bool {
+        !key.is_empty()
+            && key
+                .iter()
+                .all(|b| b.is_ascii() && !INVALID_ASCII_KEY_CHARS.contains(b))
+    }
 }
 
 /// Get the number of bytes for one key-value pair
 fn key_value_metadata_bytes_size(key: &str, value: &str, metadata: &str) -> usize {
-    key.bytes().len() + value.bytes().len() + metadata.bytes().len()
+    key.len() + value.len() + metadata.len()
 }
 
 /// An iterator over the entries of a [`Baggage`].
@@ -617,6 +634,23 @@ mod tests {
 
         // delete
         baggage.remove("foo");
+        assert!(baggage.is_empty());
+    }
+
+    #[test]
+    fn test_insert_invalid_key() {
+        let mut baggage = Baggage::default();
+
+        // empty
+        baggage.insert("", "1");
+        assert!(baggage.is_empty());
+
+        // non-ascii
+        baggage.insert("Grüße", "1");
+        assert!(baggage.is_empty());
+
+        // invalid ascii chars
+        baggage.insert("(example)", "1");
         assert!(baggage.is_empty());
     }
 }
