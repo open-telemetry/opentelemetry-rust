@@ -234,7 +234,7 @@ impl JaegerRemoteSampler {
             .unwrap();
 
         let resp = client
-            .send(request)
+            .send_bytes(request)
             .await
             .map_err(|err| format!("the request is failed to send {}", err))?;
 
