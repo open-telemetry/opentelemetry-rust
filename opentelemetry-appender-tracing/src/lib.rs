@@ -130,9 +130,9 @@
 //!
 //! ## Feature Flags
 //! `spec_unstable_logs_enabled`: TODO
-//! 
+//!
 //! `experimental_metadata_attributes`: TODO
-//! 
+//!
 //! `experimental_use_tracing_span_context`: TODO
 //!
 //! ## Limitations
