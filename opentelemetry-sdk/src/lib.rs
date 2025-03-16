@@ -136,7 +136,6 @@ pub mod runtime;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub mod testing;
 
-#[allow(deprecated)]
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;

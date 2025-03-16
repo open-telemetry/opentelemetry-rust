@@ -74,6 +74,7 @@
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
+- **Breaking** Removed deprecated functions and methods related to `trace::Config` 
 
 ## 0.28.0
 
