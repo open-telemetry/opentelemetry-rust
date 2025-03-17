@@ -140,7 +140,7 @@
 //! `experimental_use_tracing_span_context`: TODO
 //!
 //! ## Limitations
-//! // TODO
+//! 1. There is no support for `Valuable` crate. [2819](https://github.com/open-telemetry/opentelemetry-rust/issues/2819)
 //!
 //! ## Stability Guarantees
 //! // TODO
