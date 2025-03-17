@@ -40,11 +40,11 @@
 //! Before integrating with `tracing`, create an OpenTelemetry [`SdkLoggerProvider`](https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/struct.SdkLoggerProvider.html):
 //!
 //! ```rust
-//! use opentelemetry_sdk::logs::LoggerProvider;
+//! use opentelemetry_sdk::logs::SdkLoggerProvider;
 //! use opentelemetry_stdout::LogExporter;
 //!
 //! let exporter = LogExporter::default();
-//! let provider = LoggerProvider::builder()
+//! let provider = SdkLoggerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //! ```
@@ -54,17 +54,17 @@
 //!
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
-//! ```rust
-//! use opentelemetry_appender_tracing::OpenTelemetryTracingBridge;
+//! ```rust,no_run
+//! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 //!
-//! let otel_layer = OpenTelemetryTracingBridge::new(&provider);
+//! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! ```
 //!
 //! ### 4. Register the `tracing` Subscriber
 //!
 //! Since this crate provides a `Layer` for `tracing`, you can register it with the `tracing` subscriber as shown below.
 //!
-//! ```rust
+//! ```rust,no_run
 //! use tracing_subscriber::prelude::*;
 //! tracing_subscriber::registry().with(otel_layer).init();
 //! ```
@@ -72,7 +72,7 @@
 //! While it is possible to setup a subscriber with OpenTelemetry as the only layer (like shown above), most common use cases involve
 //! using `tracing` with other layers, such as `fmt`.
 //!
-//! ```rust
+//! ```rust,no_run
 //! use tracing_subscriber::prelude::*;
 //!
 //! tracing_subscriber::registry()
