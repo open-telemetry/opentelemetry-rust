@@ -342,6 +342,8 @@ mod tests {
     #[cfg(feature = "logs")]
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
+    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
+
     fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
@@ -370,6 +372,7 @@ mod tests {
 
     #[cfg(feature = "grpc-tonic")]
     #[tokio::test]
+    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
     async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
