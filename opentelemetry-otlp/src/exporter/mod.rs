@@ -343,7 +343,6 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
-
     fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
