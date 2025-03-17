@@ -360,8 +360,8 @@ mod tests {
 
         assert!(
             matches!(
-            exporter_result,
-            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+                exporter_result,
+                Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
             ),
             "Expected InvalidUri error, but got {:?}",
             exporter_result
