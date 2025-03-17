@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 
 For optimal performance, a batch exporter is recommended as the simple exporter
 will export each span synchronously on drop. You can enable the [`rt-tokio`] or
-[`rt-tokio-current-thread`]features and specify a runtime
+[`rt-tokio-current-thread`] features and specify a runtime
 on the pipeline builder to have a batch exporter configured for you
 automatically.
 
