@@ -342,6 +342,7 @@ mod tests {
     #[cfg(feature = "logs")]
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
+    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
     fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
@@ -358,15 +359,20 @@ mod tests {
             .with_export_config(ex_config)
             .build();
 
-        assert!(matches!(
-            exporter_result,
-            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
-        ));
+        assert!(
+            matches!(
+                exporter_result,
+                Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+            ),
+            "Expected InvalidUri error, but got {:?}",
+            exporter_result
+        );
     }
 
     #[cfg(feature = "grpc-tonic")]
-    #[test]
-    fn export_builder_error_invalid_grpc_endpoint() {
+    #[tokio::test]
+    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
+    async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
