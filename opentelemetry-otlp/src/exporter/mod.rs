@@ -358,15 +358,19 @@ mod tests {
             .with_export_config(ex_config)
             .build();
 
-        assert!(matches!(
+        assert!(
+            matches!(
             exporter_result,
             Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
-        ));
+            ),
+            "Expected InvalidUri error, but got {:?}",
+            exporter_result
+        );
     }
 
     #[cfg(feature = "grpc-tonic")]
-    #[test]
-    fn export_builder_error_invalid_grpc_endpoint() {
+    #[tokio::test]
+    async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
