@@ -345,15 +345,6 @@ impl TracerProviderBuilder {
         TracerProviderBuilder { processors, ..self }
     }
 
-    /// The sdk [`crate::trace::Config`] that this provider will use.
-    #[deprecated(
-        since = "0.27.1",
-        note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
-    )]
-    pub fn with_config(self, config: crate::trace::Config) -> Self {
-        TracerProviderBuilder { config, ..self }
-    }
-
     /// Specify the sampler to be used.
     pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
         self.config.sampler = Box::new(sampler);
@@ -428,7 +419,7 @@ impl TracerProviderBuilder {
 
         // Now, we can update the config with the resource.
         if let Some(resource) = self.resource {
-            config = config.with_resource(resource);
+            config.resource = Cow::Owned(resource);
         };
 
         // Standard config will contain an owned [`Resource`] (either sdk default or use supplied)

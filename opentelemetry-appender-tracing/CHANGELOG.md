@@ -46,7 +46,8 @@ transparent to most users.
 when conversion is feasible. Otherwise stored as
 `opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
 allocation when values can be represented in their original types.
-
+- Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
+of string.
 - perf - small perf improvement by avoiding string allocation of `target`
 
 ## 0.28.1

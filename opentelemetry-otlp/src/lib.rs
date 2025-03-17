@@ -153,15 +153,12 @@
 //!
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(exporter)
-//!         .with_config(
-//!             trace::Config::default()
-//!                 .with_sampler(Sampler::AlwaysOn)
-//!                 .with_id_generator(RandomIdGenerator::default())
-//!                 .with_max_events_per_span(64)
-//!                 .with_max_attributes_per_span(16)
-//!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
-//!         ).build();
+//!         .with_sampler(Sampler::AlwaysOn)
+//!         .with_id_generator(RandomIdGenerator::default())
+//!         .with_max_events_per_span(64)
+//!         .with_max_attributes_per_span(16)
+//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
+//!         .build();
 //!     global::set_tracer_provider(tracer_provider.clone());
 //!     let tracer = global::tracer("tracer-name");
 //!         # tracer
@@ -223,6 +220,7 @@ mod span;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
+pub use crate::exporter::ExporterBuildError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{
