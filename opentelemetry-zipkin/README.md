@@ -65,8 +65,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 ## Performance
 
 For optimal performance, a batch exporter is recommended as the simple exporter
-will export each span synchronously on drop. You can enable the [`rt-tokio`],
-[`rt-tokio-current-thread`] or [`rt-async-std`] features and specify a runtime
+will export each span synchronously on drop. You can enable the [`rt-tokio`] or
+[`rt-tokio-current-thread`]features and specify a runtime
 on the pipeline builder to have a batch exporter configured for you
 automatically.
 
@@ -83,7 +83,6 @@ let tracer = opentelemetry_zipkin::new_pipeline()
 ```
 
 [`rt-tokio`]: https://tokio.rs
-[`async-std`]: https://async.rs
 
 ## Choosing an HTTP client
 

@@ -1,20 +1,18 @@
 //! Provides an abstraction of several async runtimes
 //!
-//! This  allows OpenTelemetry to work with any current or future runtime. There are currently
-//! builtin implementations for [Tokio] and [async-std].
+//! This  allows OpenTelemetry to work with any current or future runtime. There is currently
+//! built-in implementation for [Tokio].
 //!
 //! [Tokio]: https://crates.io/crates/tokio
-//! [async-std]: https://crates.io/crates/async-std
 
 use futures_util::stream::{unfold, Stream};
 use std::{fmt::Debug, future::Future, time::Duration};
 use thiserror::Error;
 
-/// A runtime is an abstraction of an async runtime like [Tokio] or [async-std]. It allows
+/// A runtime is an abstraction of an async runtime like [Tokio]. It allows
 /// OpenTelemetry to work with any current and hopefully future runtime implementations.
 ///
 /// [Tokio]: https://crates.io/crates/tokio
-/// [async-std]: https://crates.io/crates/async-std
 ///
 /// # Note
 ///
@@ -139,34 +137,6 @@ impl Runtime for TokioCurrentThread {
     }
 }
 
-/// Runtime implementation, which works with async-std.
-#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
-)]
-#[derive(Debug, Clone)]
-pub struct AsyncStd;
-
-#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
-)]
-impl Runtime for AsyncStd {
-    fn spawn<F>(&self, future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        #[allow(clippy::let_underscore_future)]
-        let _ = async_std::task::spawn(future);
-    }
-
-    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
-        async_std::task::sleep(duration)
-    }
-}
-
 /// `RuntimeChannel` is an extension to [`Runtime`]. Currently, it provides a
 /// channel that is used by the [log] and [span] batch processors.
 ///
@@ -276,31 +246,3 @@ impl RuntimeChannel for TokioCurrentThread {
     }
 }
 
-#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
-impl<T: Send> TrySend for async_std::channel::Sender<T> {
-    type Message = T;
-
-    fn try_send(&self, item: Self::Message) -> Result<(), TrySendError> {
-        self.try_send(item).map_err(|err| match err {
-            async_std::channel::TrySendError::Full(_) => TrySendError::ChannelFull,
-            async_std::channel::TrySendError::Closed(_) => TrySendError::ChannelClosed,
-        })
-    }
-}
-
-#[cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-async-std")))
-)]
-impl RuntimeChannel for AsyncStd {
-    type Receiver<T: Debug + Send> = async_std::channel::Receiver<T>;
-    type Sender<T: Debug + Send> = async_std::channel::Sender<T>;
-
-    fn batch_message_channel<T: Debug + Send>(
-        &self,
-        capacity: usize,
-    ) -> (Self::Sender<T>, Self::Receiver<T>) {
-        async_std::channel::bounded(capacity)
-    }
-}
