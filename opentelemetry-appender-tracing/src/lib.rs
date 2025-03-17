@@ -87,24 +87,10 @@
 //! ### 5. Log Events Using `tracing`
 //!
 //! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
-//! # let exporter = LogExporter::default();
-//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
-//! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-//! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
-//! # use tracing_subscriber::prelude::*;
-//! # tracing_subscriber::registry().with(otel_layer).init();
 //! use tracing::error;
 //! error!(name: "my-event-name1", target: "my-system", event_id = 10, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
 //! ```
 //!
-//! ### 5. Log Events Using `tracing`
-//!
-//! ```rust
-//! use tracing::error;
-//! error!(name: "my-event-name1", target: "my-system", event_id = 10, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
-//! ```
 //!
 //! ## Mapping details
 //!
