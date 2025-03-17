@@ -54,31 +54,49 @@
 //!
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
-//! ```rust,no_run
+//! ```rust
+//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
+//! # use opentelemetry_stdout::LogExporter;
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-//!
-//! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
+//! # let exporter = LogExporter::default();
+//! # let provider = SdkLoggerProvider::builder()
+//!     .with_simple_exporter(exporter)
+//!     .build();
+//! let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! ```
 //!
 //! ### 4. Register the `tracing` Subscriber
 //!
 //! Since this crate provides a `Layer` for `tracing`, you can register it with the `tracing` subscriber as shown below.
 //!
-//! ```rust,no_run
-//! use tracing_subscriber::prelude::*;
-//! tracing_subscriber::registry().with(otel_layer).init();
-//! ```
-//!
-//! While it is possible to setup a subscriber with OpenTelemetry as the only layer (like shown above), most common use cases involve
-//! using `tracing` with other layers, such as `fmt`.
-//!
-//! ```rust,no_run
+//! ```rust
+//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
+//! # use opentelemetry_stdout::LogExporter;
+//! # let exporter = LogExporter::default();
+//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
+//! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+//! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! use tracing_subscriber::prelude::*;
 //!
 //! tracing_subscriber::registry()
 //!     .with(otel_layer)
 //!     .with(tracing_subscriber::fmt::layer())
 //!     .init();
+//! ```
+//!
+//! ### 5. Log Events Using `tracing`
+//!
+//! ```rust
+//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
+//! # use opentelemetry_stdout::LogExporter;
+//! # let exporter = LogExporter::default();
+//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
+//! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+//! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
+//! # use tracing_subscriber::prelude::*;
+//! # tracing_subscriber::registry().with(otel_layer).init();
+//! use tracing::error;
+//! error!(name: "my-event-name1", target: "my-system", event_id = 10, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
 //! ```
 //!
 //! ### 5. Log Events Using `tracing`
