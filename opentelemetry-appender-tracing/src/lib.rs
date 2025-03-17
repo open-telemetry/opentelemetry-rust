@@ -123,10 +123,10 @@
 //! > `tracing-opentelemetry`:
 //! > - Converts `tracing` spans into OpenTelemetry spans  
 //! > - Converts `tracing` events into OpenTelemetry `SpanEvents` rather than logs
-//! > Depending on the outcome of the
-//! > [discussion](https://github.com/open-telemetry/opentelemetry-rust/issues/1571),
-//! > the OpenTelemetry project may provide direct support to map `tracing`
-//! > spans to OpenTelemetry in the future.
+//! >   Depending on the outcome of the
+//! >   [discussion](https://github.com/open-telemetry/opentelemetry-rust/issues/1571),
+//! >   the OpenTelemetry project may provide direct support to map `tracing`
+//! >   spans to OpenTelemetry in the future.
 //!
 //! ## Feature Flags
 //! `spec_unstable_logs_enabled`: TODO
