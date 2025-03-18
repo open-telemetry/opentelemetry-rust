@@ -5,9 +5,11 @@
     Total Number of Cores:   14 (10 performance and 4 efficiency)
     | Test                                         | Average time|
     |---------------------------------------------|-------------|
-    | exporter_disabled_concurrent_processor      |  1.9 ns     |
-    | exporter_disabled_simple_processor          |  5.0 ns     |
+    | exporter_disabled_concurrent_processor      |  980 ps     |
+    | exporter_disabled_simple_processor          |  4.3 ns     |
 */
+
+// cargo bench --bench log_enabled --features="spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor"
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{Logger, LoggerProvider};
@@ -31,6 +33,7 @@ impl LogExporter for NoopExporter {
         Ok(())
     }
 
+    #[inline]
     fn event_enabled(
         &self,
         _level: opentelemetry::logs::Severity,
