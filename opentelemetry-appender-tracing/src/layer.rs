@@ -80,6 +80,11 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
     }
 
+    fn record_bytes(&mut self, field: &tracing_core::Field, value: &[u8]) {
+        self.log_record
+            .add_attribute(Key::new(field.name()), AnyValue::from(value));
+    }
+
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -350,7 +355,7 @@ mod tests {
         let big_u64value: u64 = u64::MAX;
         let small_usizevalue: usize = 42;
         let big_usizevalue: usize = usize::MAX;
-        error!(name: "my-event-name", target: "my-system", event_id = 20, small_u64value, big_u64value, small_usizevalue, big_usizevalue, user_name = "otel", user_email = "otel@opentelemetry.io");
+        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], small_u64value, big_u64value, small_usizevalue, big_usizevalue, user_name = "otel", user_email = "otel@opentelemetry.io");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -381,9 +386,9 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_iter().count(), 7);
+        assert_eq!(log.record.attributes_iter().count(), 8);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 11);
+        assert_eq!(log.record.attributes_iter().count(), 12);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -418,6 +423,11 @@ mod tests {
             &log.record,
             &Key::new("big_usizevalue"),
             &AnyValue::String(format!("{}", u64::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bytes"),
+            &AnyValue::Bytes(Box::new(b"abc".to_vec()))
         ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {

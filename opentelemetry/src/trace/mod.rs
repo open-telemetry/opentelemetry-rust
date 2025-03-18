@@ -83,13 +83,12 @@
 //!
 //! Exporting spans often involves sending data over a network or performing
 //! other I/O tasks. OpenTelemetry allows you to schedule these tasks using
-//! whichever runtime you are already using such as [Tokio] or [async-std].
+//! whichever runtime you are already using such as [Tokio].
 //! When using an async runtime it's best to use the batch span processor
 //! where the spans will be sent in batches as opposed to being sent once ended,
 //! which often ends up being more efficient.
 //!
 //! [Tokio]: https://tokio.rs
-//! [async-std]: https://async.rs
 //!
 //! ## Managing Active Spans
 //!
@@ -177,9 +176,7 @@ mod tracer;
 mod tracer_provider;
 
 pub use self::{
-    context::{
-        get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
-    },
+    context::{get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt},
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
