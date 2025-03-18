@@ -90,6 +90,11 @@ impl SpanExporter for TonicTracesClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        // ToDo: as part of https://github.com/open-telemetry/opentelemetry-rust/pull/2812
+        // self is no longer mutable due to trait change for span exporter
+        // the shutdown for gRPC needs to implemented and tracked in
+        // https://github.com/open-telemetry/opentelemetry-rust/issues/2777
+        //
         // match self.inner.take() {
         //     Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
         //     None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.

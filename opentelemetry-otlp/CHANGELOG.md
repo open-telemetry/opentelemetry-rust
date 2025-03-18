@@ -17,6 +17,10 @@
  `Error` which contained many variants unrelated to building an exporter, the
  new one returns specific variants applicable to building an exporter. Some
  variants might be applicable only on select features.
+- *Breaking*
+  [#2779](https://github.com/open-telemetry/opentelemetry-rust/issues/2779) handle
+  shutdown for span exporter for `http` exporters, shutdown for `grpc` would be added
+  separately.
 
 ## 0.28.0
 
