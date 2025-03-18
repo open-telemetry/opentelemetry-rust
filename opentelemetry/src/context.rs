@@ -461,6 +461,7 @@ impl Context {
     /// let _guard = Context::enter_suppressed();
     /// assert_eq!(Context::is_current_suppressed(), true);
     /// ```
+    #[inline]
     pub fn is_current_suppressed() -> bool {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
     }
