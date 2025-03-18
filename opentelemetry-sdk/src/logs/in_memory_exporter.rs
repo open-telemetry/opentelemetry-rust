@@ -198,6 +198,9 @@ impl InMemoryLogExporter {
 
 impl LogExporter for InMemoryLogExporter {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        if self.is_shutdown_called() {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
         let mut logs_guard = self.logs.lock().map_err(|e| {
             OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
         })?;
