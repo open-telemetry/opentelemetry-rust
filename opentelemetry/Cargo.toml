@@ -63,6 +63,10 @@ harness = false
 required-features = ["tracing"]
 
 [[bench]]
+name = "context_suppression"
+harness = false
+
+[[bench]]
 name = "baggage"
 harness = false
 
