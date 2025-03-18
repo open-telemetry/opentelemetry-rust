@@ -44,7 +44,7 @@ use std::sync::Arc;
 ///
 /// This processor can be configured with an [`executor`] of your choice to
 /// batch and upload spans asynchronously when they end. If you have added a
-/// library like [`tokio`] or [`async-std`], you can pass in their respective
+/// library like [`tokio`], you can pass in their respective
 /// `spawn` and `interval` functions to have batching performed in those
 /// contexts.
 ///
@@ -79,7 +79,6 @@ use std::sync::Arc;
 ///
 /// [`executor`]: https://docs.rs/futures/0.3/futures/executor/index.html
 /// [`tokio`]: https://tokio.rs
-/// [`async-std`]: https://async.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
@@ -576,42 +575,5 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(timeout_test_tokio(false));
-    }
-
-    #[test]
-    #[cfg(feature = "rt-async-std")]
-    fn test_timeout_async_std_timeout() {
-        async_std::task::block_on(timeout_test_std_async(true));
-    }
-
-    #[test]
-    #[cfg(feature = "rt-async-std")]
-    fn test_timeout_async_std_not_timeout() {
-        async_std::task::block_on(timeout_test_std_async(false));
-    }
-
-    // If the time_out is true, then the result suppose to ended with timeout.
-    // otherwise the exporter should be able to export within time out duration.
-    #[cfg(feature = "rt-async-std")]
-    async fn timeout_test_std_async(time_out: bool) {
-        let config = BatchConfig {
-            max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
-            scheduled_delay: Duration::from_secs(60 * 60 * 24), // set the tick to 24 hours so we know the span must be exported via force_flush
-            ..Default::default()
-        };
-        let exporter = BlockingExporter {
-            delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
-            delay_fn: async_std::task::sleep,
-        };
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::AsyncStd);
-        processor.on_end(new_test_export_span_data());
-        let flush_res = processor.force_flush();
-        if time_out {
-            assert!(flush_res.is_err());
-        } else {
-            assert!(flush_res.is_ok());
-        }
-        let shutdown_res = processor.shutdown();
-        assert!(shutdown_res.is_ok());
     }
 }

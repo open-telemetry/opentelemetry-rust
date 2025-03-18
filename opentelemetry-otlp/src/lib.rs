@@ -141,7 +141,6 @@
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
 //!
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:

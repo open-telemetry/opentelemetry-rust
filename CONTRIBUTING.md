@@ -172,7 +172,7 @@ It's important to regularly review and remove the `otel_unstable` flag from the 
 
 The potential features include:
 
-- Stable and non-experimental features that compliant to specification, and have a feature flag to minimize compilation size. Example: feature flags for signals (like `logs`, `traces`, `metrics`) and runtimes (`rt-tokio`, `rt-tokio-current-thread`, `rt-async-std`).
+- Stable and non-experimental features that are compliant with the specification and have a feature flag to minimize compilation size. Example: feature flags for signals (like `logs`, `traces`, `metrics`) and runtimes (`rt-tokio`, `rt-tokio-current-thread`).
 - Stable and non-experimental features, although not part of the specification, are crucial for enhancing the tracing/log crate's functionality or boosting performance. These features are also subject to discussion and approval by the OpenTelemetry Rust Maintainers.
 
 All such features should adhere to naming convention  `<signal>_<feature_name>`
