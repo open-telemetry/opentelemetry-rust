@@ -493,12 +493,11 @@ impl Context {
 
     #[cfg(feature = "trace")]
     pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Context {
+        Self::map_current(|cx| Context {
             span: Some(Arc::new(value)),
-            entries: Context::map_current(|cx| cx.entries.clone()),
-            suppress_telemetry: Context::map_current(|cx| cx.suppress_telemetry),
-            // TODO: Do this while inside the `map_current` closure
-        }
+            entries: cx.entries.clone(),
+            suppress_telemetry: cx.suppress_telemetry,
+        })
     }
 
     #[cfg(feature = "trace")]
