@@ -497,6 +497,7 @@ impl Context {
             span: Some(Arc::new(value)),
             entries: Context::map_current(|cx| cx.entries.clone()),
             suppress_telemetry: Context::map_current(|cx| cx.suppress_telemetry),
+            // TODO: Do this while inside the `map_current` closure
         }
     }
 
