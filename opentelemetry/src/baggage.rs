@@ -230,7 +230,7 @@ impl Baggage {
         !key.is_empty()
             && key
                 .iter()
-                .all(|b| b.is_ascii() && !INVALID_ASCII_KEY_CHARS.contains(b))
+                .all(|b| b.is_ascii_graphic() && !INVALID_ASCII_KEY_CHARS.contains(b))
     }
 }
 
