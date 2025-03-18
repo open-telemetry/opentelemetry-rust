@@ -16,13 +16,6 @@ use opentelemetry::Context;
 // | is_current_suppressed_true | 1.2       |
 
 fn criterion_benchmark(c: &mut Criterion) {
-    // Original benchmarks...
-
-    // New benchmarks for telemetry suppression
-    suppression_benchmarks(c);
-}
-
-fn suppression_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("telemetry_suppression");
 
     // Benchmark the cost of entering a suppressed scope
