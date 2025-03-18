@@ -17,6 +17,9 @@
  `Error` which contained many variants unrelated to building an exporter, the
  new one returns specific variants applicable to building an exporter. Some
  variants might be applicable only on select features.
+- *Breaking* `ExportConfig`'s `timeout` field is now optional, and the order of
+  priority changed in favor of compile time values. Additionally the `endpoint`
+  field prioritizes compile time values over environment variables.
 
 ## 0.28.0
 

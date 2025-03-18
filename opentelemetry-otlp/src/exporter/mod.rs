@@ -9,6 +9,7 @@ use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
@@ -76,19 +77,19 @@ pub struct ExportConfig {
     pub protocol: Protocol,
 
     /// The timeout to the collector.
-    pub timeout: Duration,
+    pub timeout: Option<Duration>,
 }
 
 impl Default for ExportConfig {
     fn default() -> Self {
         let protocol = default_protocol();
 
-        ExportConfig {
+        Self {
             endpoint: None,
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
-            timeout: OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+            timeout: None,
         }
     }
 }
@@ -250,7 +251,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 
     fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.export_config().timeout = timeout;
+        self.export_config().timeout = Some(timeout);
         self
     }
 
@@ -259,6 +260,27 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
         self
+    }
+}
+
+fn resolve_timeout(signal_timeout_var: &str, provided_timeout: Option<&Duration>) -> Duration {
+    // programmatic configuration overrides any value set via environment variables
+    if let Some(timeout) = provided_timeout {
+        *timeout
+    } else if let Some(timeout) = env::var(signal_timeout_var)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // per signal env var is not modified
+        Duration::from_millis(timeout)
+    } else if let Some(timeout) = env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_TIMEOUT env var is set
+        Duration::from_millis(timeout)
+    } else {
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT
     }
 }
 
@@ -342,7 +364,6 @@ mod tests {
     #[cfg(feature = "logs")]
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
-    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
     fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
@@ -351,7 +372,7 @@ mod tests {
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
             protocol: Protocol::HttpBinary,
-            timeout: Duration::from_secs(10),
+            timeout: Some(Duration::from_secs(10)),
         };
 
         let exporter_result = LogExporter::builder()
@@ -371,7 +392,6 @@ mod tests {
 
     #[cfg(feature = "grpc-tonic")]
     #[tokio::test]
-    #[ignore = "Unstable due to interference from env variable tests. Re-enable after https://github.com/open-telemetry/opentelemetry-rust/issues/2818 is resolved."]
     async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
@@ -380,7 +400,7 @@ mod tests {
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
             protocol: Protocol::Grpc,
-            timeout: Duration::from_secs(10),
+            timeout: Some(Duration::from_secs(10)),
         };
 
         let exporter_result = LogExporter::builder()
@@ -499,5 +519,45 @@ mod tests {
                 expected_headers.map(|(k, v)| (k, v.to_string())),
             )
         }
+    }
+
+    #[test]
+    fn test_priority_of_signal_env_over_generic_env_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout =
+                    super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+                assert_eq!(timeout.as_millis(), 3000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout = super::resolve_timeout(
+                    crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                    Some(&std::time::Duration::from_millis(1000)),
+                );
+                assert_eq!(timeout.as_millis(), 1000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_timeout() {
+        run_env_test(vec![], || {
+            let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+            assert_eq!(timeout.as_millis(), 10_000);
+        });
     }
 }
