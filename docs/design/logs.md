@@ -195,6 +195,13 @@ They get called in the order of registration. Log records are passed to the
 records, enrich them, filter them, and export to destinations by leveraging
 LogRecord Exporters.
 
+Similar to [LoggerProvider](#sdkloggerprovider), methods on the `LogProcessor`
+trait also takes a immutable self (`&self`) only, forcing the need to use
+interior mutability, if any mutation is required. The exception to this is
+`set_resource`, which takes a `&mut self`. This is acceptable as `set_resource`
+is called by the `SdkLoggerProvider` during build() method only, and is not
+required after that.
+
 Following built-in Log processors are provided in the Log SDK:
 
 ##### SimpleLogProcessor
@@ -232,8 +239,13 @@ other words, that many logs can be lost if the app crashes in the middle.
 
 ## LogExporters
 
-LogExporters are responsible for exporting logs to a destination. Some of them
-include:
+LogExporters are responsible for exporting logs to a destination.
+`SdkLoggerProvider` does not have a direct knowledge of the `LogExporter`, as it
+only deals with `LogProcessors`. It is the `LogProcessor`s that invokes
+`LogExporter` methods. Most methods on `LogExporter` trait also only takes
+`&self`, following the same reasoning as [LogProcessors](#logrecord-processors)
+
+Some of the exporters are:
 
 1. **InMemoryExporter** - exports to an in-memory list, primarily for
    unit-testing. This is used extensively in the repo itself, and external users
