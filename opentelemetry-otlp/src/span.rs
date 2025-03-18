@@ -159,4 +159,12 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
             SupportedTransportClient::Http(client) => client.set_resource(resource),
         }
     }
+    fn shutdown(&self) -> OTelSdkResult {
+        match &self.client {
+            #[cfg(feature = "grpc-tonic")]
+            SupportedTransportClient::Tonic(client) => client.shutdown(),
+            #[cfg(any(feature = "http-proto", feature = "http-json"))]
+            SupportedTransportClient::Http(client) => client.shutdown(),
+        }
+    }
 }

@@ -89,11 +89,12 @@ impl SpanExporter for TonicTracesClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
-        match self.inner.take() {
-            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
-            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
-        }
+    fn shutdown(&self) -> OTelSdkResult {
+        // match self.inner.take() {
+        //     Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
+        //     None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
+        // }
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
