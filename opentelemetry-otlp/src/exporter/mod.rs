@@ -9,7 +9,6 @@ use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
@@ -69,14 +68,19 @@ pub(crate) mod tonic;
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
 pub struct ExportConfig {
-    /// The address of the OTLP collector. If it's not provided via builder or environment variables.
+    /// The address of the OTLP collector.
     /// Default address will be used based on the protocol.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
 
     /// The timeout to the collector.
+    /// The default value is 10 seconds.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub timeout: Option<Duration>,
 }
 
@@ -224,6 +228,8 @@ impl HasExportConfig for HttpExporterBuilder {
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
     ///
@@ -231,11 +237,15 @@ pub trait WithExportConfig {
     /// will use default protocol in this case.
     ///
     /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is an no-op at the moment.
+    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
-    /// Set export config. This will override all previous configuration.
+    /// Set export config. This will override all previous configurations.
+    ///
+    /// Note: Programmatically setting this will override any value set via environment variables.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
 
@@ -263,17 +273,18 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn resolve_timeout(signal_timeout_var: &str, provided_timeout: Option<&Duration>) -> Duration {
     // programmatic configuration overrides any value set via environment variables
     if let Some(timeout) = provided_timeout {
         *timeout
-    } else if let Some(timeout) = env::var(signal_timeout_var)
+    } else if let Some(timeout) = std::env::var(signal_timeout_var)
         .ok()
         .and_then(|s| s.parse().ok())
     {
         // per signal env var is not modified
         Duration::from_millis(timeout)
-    } else if let Some(timeout) = env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+    } else if let Some(timeout) = std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
         .ok()
         .and_then(|s| s.parse().ok())
     {
