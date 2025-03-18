@@ -72,32 +72,35 @@ pub async fn start_collector_container() -> Result<()> {
         upsert_empty_file(LOGS_FILE);
 
         // Start a new container
-        let container_instance = GenericImage::new("otel/opentelemetry-collector", "latest")
-            .with_wait_for(WaitFor::http(
-                HttpWaitStrategy::new("/")
-                    .with_expected_status_code(404u16)
-                    .with_port(ContainerPort::Tcp(4318)),
-            ))
-            .with_mapped_port(4317, ContainerPort::Tcp(4317))
-            .with_mapped_port(4318, ContainerPort::Tcp(4318))
-            .with_mount(Mount::bind_mount(
-                fs::canonicalize("./otel-collector-config.yaml")?.to_string_lossy(),
-                "/etc/otelcol/config.yaml",
-            ))
-            .with_mount(Mount::bind_mount(
-                fs::canonicalize("./actual/logs.json")?.to_string_lossy(),
-                "/testresults/logs.json",
-            ))
-            .with_mount(Mount::bind_mount(
-                fs::canonicalize("./actual/metrics.json")?.to_string_lossy(),
-                "/testresults/metrics.json",
-            ))
-            .with_mount(Mount::bind_mount(
-                fs::canonicalize("./actual/traces.json")?.to_string_lossy(),
-                "/testresults/traces.json",
-            ))
-            .start()
-            .await?;
+        let container_instance = GenericImage::new(
+            "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+            "latest",
+        )
+        .with_wait_for(WaitFor::http(
+            HttpWaitStrategy::new("/")
+                .with_expected_status_code(404u16)
+                .with_port(ContainerPort::Tcp(4318)),
+        ))
+        .with_mapped_port(4317, ContainerPort::Tcp(4317))
+        .with_mapped_port(4318, ContainerPort::Tcp(4318))
+        .with_mount(Mount::bind_mount(
+            fs::canonicalize("./otel-collector-config.yaml")?.to_string_lossy(),
+            "/etc/otelcol/config.yaml",
+        ))
+        .with_mount(Mount::bind_mount(
+            fs::canonicalize("./actual/logs.json")?.to_string_lossy(),
+            "/testresults/logs.json",
+        ))
+        .with_mount(Mount::bind_mount(
+            fs::canonicalize("./actual/metrics.json")?.to_string_lossy(),
+            "/testresults/metrics.json",
+        ))
+        .with_mount(Mount::bind_mount(
+            fs::canonicalize("./actual/traces.json")?.to_string_lossy(),
+            "/testresults/traces.json",
+        ))
+        .start()
+        .await?;
 
         let container = Arc::new(container_instance);
         otel_info!(
