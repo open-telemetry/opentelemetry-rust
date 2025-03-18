@@ -330,37 +330,11 @@ impl Context {
         }
     }
 
-    /// Returns whether telemetry is suppressed in this context.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// let cx = Context::new();
-    /// assert_eq!(cx.is_telemetry_suppressed(), false);
-    ///
-    /// let suppressed_cx = cx.with_telemetry_suppressed();
-    /// assert_eq!(suppressed_cx.is_telemetry_suppressed(), true);
-    /// ```
-    pub fn is_telemetry_suppressed(&self) -> bool {
+    fn is_telemetry_suppressed(&self) -> bool {
         self.suppress_telemetry
     }
 
-    /// Returns a copy of the context with telemetry suppression enabled.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// let cx = Context::new();
-    /// assert_eq!(cx.is_telemetry_suppressed(), false);
-    ///
-    /// let suppressed_cx = cx.with_telemetry_suppressed();
-    /// assert_eq!(suppressed_cx.is_telemetry_suppressed(), true);
-    /// ```
-    pub fn with_telemetry_suppressed(&self) -> Self {
+    fn with_telemetry_suppressed(&self) -> Self {
         Context {
             entries: self.entries.clone(),
             #[cfg(feature = "trace")]
@@ -369,68 +343,11 @@ impl Context {
         }
     }
 
-    /// Returns a copy of the context with telemetry suppression disabled.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// let cx = Context::new().with_telemetry_suppressed();
-    /// assert_eq!(cx.is_telemetry_suppressed(), true);
-    ///
-    /// let unsuppressed_cx = cx.with_telemetry_unsuppressed();
-    /// assert_eq!(unsuppressed_cx.is_telemetry_suppressed(), false);
-    /// ```
-    pub fn with_telemetry_unsuppressed(&self) -> Self {
-        Context {
-            entries: self.entries.clone(),
-            #[cfg(feature = "trace")]
-            span: self.span.clone(),
-            suppress_telemetry: false,
-        }
-    }
-
-    /// Returns a clone of the current thread's context with telemetry suppression enabled.
-    ///
-    /// This is a more efficient form of `Context::current().with_telemetry_suppressed()`
-    /// as it avoids the intermediate context clone.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// // Get a suppressed context based on the current one
-    /// let suppressed = Context::current_with_telemetry_suppressed();
-    /// assert_eq!(suppressed.is_telemetry_suppressed(), true);
-    /// ```
-    pub fn current_with_telemetry_suppressed() -> Self {
-        Self::map_current(|cx| cx.with_telemetry_suppressed())
-    }
-
-    /// Returns a clone of the current thread's context with telemetry suppression disabled.
-    ///
-    /// This is a more efficient form of `Context::current().with_telemetry_unsuppressed()`
-    /// as it avoids the intermediate context clone.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// // Get an unsuppressed context based on the current one
-    /// let unsuppressed = Context::current_with_telemetry_unsuppressed();
-    /// assert_eq!(unsuppressed.is_telemetry_suppressed(), false);
-    /// ```
-    pub fn current_with_telemetry_unsuppressed() -> Self {
-        Self::map_current(|cx| cx.with_telemetry_unsuppressed())
-    }
-
     /// Enters a scope where telemetry is suppressed.
     ///
-    /// This is a convenience method that creates a new context with telemetry
-    /// suppression enabled and attaches it.
+    /// This is to be used when you want to suppress telemetry data for the
+    /// specific context, typically used by Exporters etc. to prevent
+    /// telemetry-induced-telemetry.
     ///
     /// # Examples
     ///
@@ -438,10 +355,10 @@ impl Context {
     /// use opentelemetry::Context;
     ///
     /// let _guard = Context::enter_suppressed();
-    /// assert_eq!(Context::current().is_telemetry_suppressed(), true);
+    /// assert_eq!(Context::is_current_suppressed(), true);
     /// ```
     pub fn enter_suppressed() -> ContextGuard {
-        Self::current_with_telemetry_suppressed().attach()
+        Self::map_current(|cx| cx.with_telemetry_suppressed()).attach()
     }
 
     /// Returns whether telemetry is suppressed in the current context.
@@ -464,32 +381,6 @@ impl Context {
     #[inline]
     pub fn is_current_suppressed() -> bool {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
-    }
-
-    /// Enters a scope where telemetry is not suppressed.
-    ///
-    /// This is a convenience method that creates a new context with telemetry
-    /// suppression disabled and attaches it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use opentelemetry::Context;
-    ///
-    /// let _guard = Context::enter_suppressed();
-    /// assert_eq!(Context::current().is_telemetry_suppressed(), true);
-    ///
-    /// // Inside a suppressed scope, create an unsuppressed one
-    /// {
-    ///     let _inner_guard = Context::enter_unsuppressed();
-    ///     assert_eq!(Context::current().is_telemetry_suppressed(), false);
-    /// }
-    ///
-    /// // After inner guard is dropped, we're back to the suppressed scope
-    /// assert_eq!(Context::current().is_telemetry_suppressed(), true);
-    /// ```
-    pub fn enter_unsuppressed() -> ContextGuard {
-        Self::current_with_telemetry_unsuppressed().attach()
     }
 
     #[cfg(feature = "trace")]
@@ -839,64 +730,111 @@ mod tests {
     }
 
     #[test]
-    fn telemetry_suppression() {
-        // Default context has telemetry suppression disabled
+    fn test_is_telemetry_suppressed() {
+        // Default context has suppression disabled
         let cx = Context::new();
-        assert!(!cx.is_telemetry_suppressed());
+        assert_eq!(cx.is_telemetry_suppressed(), false);
 
         // With suppression enabled
         let suppressed = cx.with_telemetry_suppressed();
-        assert!(suppressed.is_telemetry_suppressed());
-
-        // With suppression disabled again
-        let unsuppressed = suppressed.with_telemetry_unsuppressed();
-        assert!(!unsuppressed.is_telemetry_suppressed());
-
-        // Add a value while preserving suppression state
-        let suppressed_with_value = suppressed.with_value(ValueA(1));
-        assert!(suppressed_with_value.is_telemetry_suppressed());
-        assert_eq!(suppressed_with_value.get::<ValueA>(), Some(&ValueA(1)));
-
-        // Test entering a suppressed scope
-        {
-            let _guard = Context::enter_suppressed();
-            assert!(Context::current().is_telemetry_suppressed());
-
-            // Test nested scopes with different suppression states
-            {
-                let _inner_guard = Context::enter_unsuppressed();
-                assert!(!Context::current().is_telemetry_suppressed());
-            }
-
-            // Back to suppressed
-            assert!(Context::current().is_telemetry_suppressed());
-        }
-
-        // Back to default
-        assert!(!Context::current().is_telemetry_suppressed());
+        assert_eq!(suppressed.is_telemetry_suppressed(), true);
     }
 
     #[test]
-    fn is_current_suppressed_test() {
-        // Default context has telemetry suppression disabled
-        assert!(!Context::is_current_suppressed());
+    fn test_with_telemetry_suppressed() {
+        // Start with a normal context
+        let cx = Context::new();
+        assert_eq!(cx.is_telemetry_suppressed(), false);
+
+        // Create a suppressed context
+        let suppressed = cx.with_telemetry_suppressed();
+
+        // Original should remain unchanged
+        assert_eq!(cx.is_telemetry_suppressed(), false);
+
+        // New context should be suppressed
+        assert_eq!(suppressed.is_telemetry_suppressed(), true);
+
+        // Test with values to ensure they're preserved
+        let cx_with_value = cx.with_value(ValueA(42));
+        let suppressed_with_value = cx_with_value.with_telemetry_suppressed();
+
+        assert_eq!(cx_with_value.is_telemetry_suppressed(), false);
+        assert_eq!(suppressed_with_value.is_telemetry_suppressed(), true);
+        assert_eq!(suppressed_with_value.get::<ValueA>(), Some(&ValueA(42)));
+    }
+
+    #[test]
+    fn test_enter_suppressed() {
+        // Ensure we start with a clean context
+        let _reset_guard = Context::new().attach();
+
+        // Default context should not be suppressed
+        assert_eq!(Context::is_current_suppressed(), false);
 
         // Enter a suppressed scope
         {
             let _guard = Context::enter_suppressed();
-            assert!(Context::is_current_suppressed());
-
-            // Test nested scopes with different suppression states
-            {
-                let _inner_guard = Context::enter_unsuppressed();
-                assert!(!Context::is_current_suppressed());
-            }
-
-            // Back to suppressed
-            assert!(Context::is_current_suppressed());
+            assert_eq!(Context::is_current_suppressed(), true);
+            assert_eq!(Context::current().is_telemetry_suppressed(), true);
         }
 
-        // Back to default
-        assert!(!Context::is_current_suppressed());
+        // After guard is dropped, should be back to unsuppressed
+        assert_eq!(Context::is_current_suppressed(), false);
+        assert_eq!(Context::current().is_telemetry_suppressed(), false);
+    }
+
+    #[test]
+    fn test_is_current_suppressed() {
+        // Ensure we start with a clean context
+        let _reset_guard = Context::new().attach();
+
+        // Default context should not be suppressed
+        assert_eq!(Context::is_current_suppressed(), false);
+
+        // Enter a suppressed scope
+        {
+            let _guard = Context::enter_suppressed();
+            assert_eq!(Context::is_current_suppressed(), true);
+
+            // Test nested context - should not be suppressed
+            {
+                let _inner_guard = Context::new().attach();
+                assert_eq!(Context::is_current_suppressed(), false);
+            }
+
+            // Back to suppressed after inner guard is dropped
+            assert_eq!(Context::is_current_suppressed(), true);
+        }
+
+        // Back to unsuppressed after outer guard is dropped
+        assert_eq!(Context::is_current_suppressed(), false);
+    }
+
+    #[test]
+    fn test_nested_suppression_scopes() {
+        // Ensure we start with a clean context
+        let _reset_guard = Context::new().attach();
+
+        // Default context should not be suppressed
+        assert_eq!(Context::is_current_suppressed(), false);
+
+        // First level suppression
+        {
+            let _outer = Context::enter_suppressed();
+            assert_eq!(Context::is_current_suppressed(), true);
+
+            // Second level suppression (redundant but should work)
+            {
+                let _inner = Context::enter_suppressed();
+                assert_eq!(Context::is_current_suppressed(), true);
+            }
+
+            // Still suppressed after inner scope
+            assert_eq!(Context::is_current_suppressed(), true);
+        }
+
+        // Back to unsuppressed
+        assert_eq!(Context::is_current_suppressed(), false);
     }
 }
