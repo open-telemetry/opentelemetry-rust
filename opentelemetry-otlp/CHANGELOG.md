@@ -17,7 +17,9 @@
  `Error` which contained many variants unrelated to building an exporter, the
  new one returns specific variants applicable to building an exporter. Some
  variants might be applicable only on select features.
-- *Breaking* `ExportConfig`'s `timeout` field is now optional, and the order of
+- **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
+- **Breaking** Configuration done via code is final. ENV variables cannot be used to override the code config. Do not use code based config, if there is desire to control the settings via ENV variables.
+ List of ENV variables and corresponding setting being affected by this change.
   priority changed in favor of compile time values. Additionally the `endpoint`
   field prioritizes compile time values over environment variables.
 
