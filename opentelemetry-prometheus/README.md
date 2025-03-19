@@ -14,7 +14,7 @@ crate depends on the unmaintained `protobuf` crate and has unresolved security
 vulnerabilities. Version 0.29 will be the final release.
 
 For Prometheus integration, we strongly recommend using the [OTLP] exporter
-instead. Prometheus now [natively supports
+instead. Prometheus [natively supports
 OTLP](https://prometheus.io/docs/guides/opentelemetry/#enable-the-otlp-receiver),
 providing a more stable and actively maintained solution.
 
