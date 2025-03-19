@@ -590,7 +590,7 @@ mod tests {
 
         assert!(Context::map_current(|cx| {
             assert_eq!(cx.get(), Some(&ValueA(1)));
-            assert_eq!(cx.get(), Some(&ValueB(42)));
+            assert_eq!(cx.get::<ValueB>(), None);
             true
         }));
     }
