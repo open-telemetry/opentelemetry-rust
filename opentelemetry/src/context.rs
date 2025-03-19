@@ -780,7 +780,7 @@ mod tests {
 
     /// Tests that:
     /// 1. Parent context values are properly propagated to async operations
-    /// 2. Values added during async operations are captured by telemetry but don't affect parent
+    /// 2. Values added during async operations do not affect parent context 
     #[tokio::test]
     async fn test_async_context_propagation() {
         // Set up initial context with ValueA
