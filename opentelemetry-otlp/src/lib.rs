@@ -103,7 +103,60 @@
 //! After running your application configured with the OTLP exporter, view traces at:
 //! `http://localhost:16686`
 //!
-//! ## Using with Prometheus (TODO)
+//! ## Using with Prometheus
+//!
+//! Prometheus natively supports accepting metrics via the OTLP protocol (HTTP/protobuf).
+//! You can run Prometheus with the following command:
+//! (refer to https://prometheus.io/docs/prometheus/latest/installation/ for up-to-date installation instructions)
+//!
+//! ```shell
+//! docker run -p 9090:9090 -v ./prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver
+//! ```
+//!
+//! (An empty prometheus.yml file is sufficient for this example.)
+//! 
+//! Modify your application to export metrics via OTLP:
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "metrics", feature = "http-proto"))]
+//! # {
+//! use opentelemetry::global;
+//! use opentelemetry::metrics::Meter;
+//! use opentelemetry::KeyValue;
+//! use opentelemetry_otlp::Protocol;
+//! use opentelemetry_otlp::WithExportConfig;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
+//!         .with_http()
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_endpoint("http://localhost:9090/api/v1/otlp/v1/metrics")
+//!         .build()?;
+//!
+//!     // Create a meter provider with the OTLP Metric exporter
+//!     let meter_provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
+//!         .with_periodic_exporter(exporter)
+//!         .build();
+//!     global::set_meter_provider(meter_provider.clone());
+//!
+//!     // Get a meter
+//!     let meter = global::meter("my_meter");
+//!
+//!     // Create a metric
+//!     let counter = meter.u64_counter("my_counter").build();
+//!     counter.add(1, &[KeyValue::new("key", "value")]);
+//!
+//!     // Shutdown the meter provider. This will trigger an export of all metrics.
+//!     meter_provider.shutdown()?;
+//!
+//!     Ok(())
+//! # }
+//! }
+//! ```
+//!
+//! After running your application configured with the OTLP exporter, view metrics at:
+//! `http://localhost:9090`
 //! ## Show Logs, Metrics too (TODO)
 //!
 //! ## Performance

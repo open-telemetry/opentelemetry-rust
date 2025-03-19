@@ -1,9 +1,19 @@
 //! An OpenTelemetry exporter for [Prometheus] metrics.
 //!
-//! <div class="warning"> The development of prometheus exporter has halt until the Opentelemetry metrics API and SDK reaches 1.0. Current
-//! implementation is based on Opentelemetry API and SDK 0.23.</div>
+//! <div class="warning">
+//! <strong>Warning: This crate is no longer recommended for use.</strong><br><br>
+//! Development of the Prometheus exporter has been discontinued. See the related 
+//! [issue](https://github.com/open-telemetry/opentelemetry-rust/issues/2451).
+//! This crate depends on the unmaintained `protobuf` crate and has unresolved 
+//! security vulnerabilities. Version 0.29 will be the final release.
+//!
+//! For Prometheus integration, we strongly recommend using the [OTLP] exporter instead.
+//! Prometheus now [natively supports OTLP](https://prometheus.io/docs/guides/opentelemetry/#enable-the-otlp-receiver),
+//! providing a more stable and actively maintained solution.
+//! </div>
 //!
 //! [Prometheus]: https://prometheus.io
+//! [OTLP]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
 //!
 //! ```
 //! use opentelemetry::{metrics::MeterProvider, KeyValue};
