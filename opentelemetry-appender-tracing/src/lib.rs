@@ -112,7 +112,7 @@
 //! |----------------|-------------------------------|
 //! | `i64`          | `Int`                         |
 //! | `f32`, `f64`   | `Double`                      |
-//! | `u64`          | `Int` (if convertible without loss) else `String` |
+//! | `u64`,`u128` ,`i128`         | `Int` (if convertible without loss) else `String` |
 //! | `&str`         | `String`                      |
 //! | `bool`         | `Bool`                        |
 //! | `&[u8]`        | `Bytes`                       |
