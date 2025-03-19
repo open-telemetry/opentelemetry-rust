@@ -670,7 +670,7 @@ mod tests {
         for _ in 0..16 {
             let cx_guard = Context::current().with_value(ValueA(1)).attach();
             assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS);
-            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
+            assert_eq!(Context::current().get(), Some(&ValueA(2)));
             assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
             guards.push(cx_guard);
         }
