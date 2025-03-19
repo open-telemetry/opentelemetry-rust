@@ -653,20 +653,116 @@ mod tests {
         for _ in 0..16 {
             let cx_guard = Context::current().with_value(ValueA(1)).attach();
             assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS);
-            assert_eq!(Context::current().get(), Some(&ValueA(2)));
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
             assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
             guards.push(cx_guard);
         }
     }
 
+
+
+    /// Tests that a new ContextStack is created with the correct initial capacity.
     #[test]
-    fn context_stack_pop_id() {
-        // This is to get full line coverage of the `pop_id` function.
-        // In real life the `Drop`` implementation of `ContextGuard` ensures that
-        // the ids are valid and inside the bounds.
-        let mut stack = ContextStack::default();
-        stack.pop_id(ContextStack::BASE_POS);
-        stack.pop_id(ContextStack::MAX_POS);
-        stack.pop_id(4711);
+    fn test_initial_capacity() {
+        let stack = ContextStack::default();
+        assert_eq!(stack.stack.capacity(), ContextStack::INITIAL_CAPACITY);
     }
+
+    /// Tests that map_current_cx correctly accesses the current context.
+
+    #[test]
+    fn test_map_current_cx() {
+        let mut stack = ContextStack::default();
+        let test_value = ValueA(42);
+        stack.current_cx = Context::new().with_value(test_value);
+
+        let result = stack.map_current_cx(|cx| {
+            assert_eq!(cx.get::<ValueA>(), Some(&ValueA(42)));
+            true
+        });
+        assert!(result);
+    }
+
+    /// Tests popping contexts in non-sequential order.
+
+    #[test]
+    fn test_pop_id_out_of_order() {
+        let mut stack = ContextStack::default();
+
+        // Push three contexts
+        let cx1 = Context::new().with_value(ValueA(1));
+        let cx2 = Context::new().with_value(ValueA(2));
+        let cx3 = Context::new().with_value(ValueA(3));
+
+        let id1 = stack.push(cx1);
+        let id2 = stack.push(cx2);
+        let id3 = stack.push(cx3);
+
+        // Pop middle context first - should not affect current context
+        stack.pop_id(id2);
+        assert_eq!(stack.current_cx.get::<ValueA>(), Some(&ValueA(3)));
+        assert_eq!(stack.stack.len(), 3); // Length unchanged for middle pops
+
+        // Pop last context - should restore previous valid context
+        stack.pop_id(id3);
+        assert_eq!(stack.current_cx.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(stack.stack.len(), 1);
+
+        // Pop first context - should restore to empty state
+        stack.pop_id(id1);
+        assert_eq!(stack.current_cx.get::<ValueA>(), None);
+        assert_eq!(stack.stack.len(), 0);
+    }
+
+    /// Tests edge cases in context stack operations. IRL these should log
+    /// warnings, and definitely not panic. 
+    #[test]
+    fn test_pop_id_edge_cases() {
+        let mut stack = ContextStack::default();
+
+        // Test popping BASE_POS - should be no-op
+        stack.pop_id(ContextStack::BASE_POS);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping MAX_POS - should be no-op
+        stack.pop_id(ContextStack::MAX_POS);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping invalid position - should be no-op
+        stack.pop_id(1000);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping from empty stack - should be safe
+        stack.pop_id(1);
+        assert_eq!(stack.stack.len(), 0);
+    }
+
+    /// Tests stack behavior when reaching maximum capacity.
+    /// Once we push beyond this point, we should end up with a context
+    /// that points _somewhere_, but mutating it should not affect the current
+    /// active context. 
+    #[test]
+    fn test_push_overflow() {
+        let mut stack = ContextStack::default();
+        let max_pos = ContextStack::MAX_POS as usize;
+
+        // Fill stack up to max position
+        for i in 0..max_pos {
+            let cx = Context::new().with_value(ValueA(i as u64));
+            let id = stack.push(cx);
+            assert_eq!(id, (i + 1) as u16);
+        }
+
+        // Try to push beyond capacity
+        let cx = Context::new().with_value(ValueA(max_pos as u64));
+        let id = stack.push(cx);
+        assert_eq!(id, ContextStack::MAX_POS);
+
+        // Verify current context remains unchanged after overflow
+        assert_eq!(
+            stack.current_cx.get::<ValueA>(),
+            Some(&ValueA((max_pos - 2) as u64))
+        );
+    }
+    
 }
