@@ -105,9 +105,10 @@
 //!
 //! ## Using with Prometheus
 //!
-//! Prometheus natively supports accepting metrics via the OTLP protocol (HTTP/protobuf).
-//! You can run Prometheus with the following command:
-//! (refer to https://prometheus.io/docs/prometheus/latest/installation/ for up-to-date installation instructions)
+//! Prometheus natively supports accepting metrics via the OTLP protocol
+//! (HTTP/protobuf). You can [run
+//! Prometheus](https://prometheus.io/docs/prometheus/latest/installation/) with
+//! the following command:
 //!
 //! ```shell
 //! docker run -p 9090:9090 -v ./prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver
