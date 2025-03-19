@@ -155,7 +155,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown()
         } else {
             Err(OTelSdkError::InternalFailure(
@@ -1089,7 +1089,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
         fn set_resource(&mut self, resource: &Resource) {

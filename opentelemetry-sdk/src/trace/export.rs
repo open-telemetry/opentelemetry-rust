@@ -43,7 +43,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         Ok(())
     }
 

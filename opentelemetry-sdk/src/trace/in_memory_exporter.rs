@@ -138,7 +138,7 @@ impl SpanExporter for InMemorySpanExporter {
         result
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.reset();
         Ok(())
     }
