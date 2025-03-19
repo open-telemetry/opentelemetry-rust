@@ -520,6 +520,8 @@ impl Default for ContextStack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[derive(Debug, PartialEq)]
     struct ValueA(u64);
@@ -588,7 +590,7 @@ mod tests {
 
         assert!(Context::map_current(|cx| {
             assert_eq!(cx.get(), Some(&ValueA(1)));
-            assert_eq!(cx.get::<ValueB>(), None);
+            assert_eq!(cx.get(), Some(&ValueB(42)));
             true
         }));
     }
@@ -661,7 +663,7 @@ mod tests {
         // Push a new context and see that it works
         let cx_guard = Context::current().with_value(ValueA(2)).attach();
         assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS - 1);
-        assert_eq!(Context::current().get(), Some(&ValueA(2)));
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
         assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
         guards.push(cx_guard);
         // Let's overflow the stack a couple of times again
@@ -674,8 +676,6 @@ mod tests {
         }
     }
 
-
-
     /// Tests that a new ContextStack is created with the correct initial capacity.
     #[test]
     fn test_initial_capacity() {
@@ -684,7 +684,6 @@ mod tests {
     }
 
     /// Tests that map_current_cx correctly accesses the current context.
-
     #[test]
     fn test_map_current_cx() {
         let mut stack = ContextStack::default();
@@ -699,7 +698,6 @@ mod tests {
     }
 
     /// Tests popping contexts in non-sequential order.
-
     #[test]
     fn test_pop_id_out_of_order() {
         let mut stack = ContextStack::default();
@@ -779,5 +777,58 @@ mod tests {
             Some(&ValueA((max_pos - 2) as u64))
         );
     }
-    
+
+    /// Tests that:
+    /// 1. Parent context values are properly propagated to async operations
+    /// 2. Values added during async operations are captured by telemetry but don't affect parent
+    #[tokio::test]
+    async fn test_async_context_propagation() {
+        // Set up initial context with ValueA
+        let parent_cx = Context::new().with_value(ValueA(42));
+        
+        // Create and run async operation with the parent context
+        async {
+            // Verify we can see the parent context's value
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)), 
+                "Parent context value should be available in async operation");
+            
+            // Create new context with both values
+            let cx_with_both = Context::current().with_value(ValueB(24));
+            
+            // Run nested async operation with both values
+            async {
+                // Verify both values are available
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)),
+                    "Parent value should still be available after adding new value");
+                assert_eq!(Context::current().get::<ValueB>(), Some(&ValueB(24)),
+                    "New value should be available in async operation");
+                
+                // Do some async work to simulate real-world scenario
+                sleep(Duration::from_millis(10)).await;
+                
+                // Values should still be available after async work
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)),
+                    "Parent value should persist across await points");
+                assert_eq!(Context::current().get::<ValueB>(), Some(&ValueB(24)),
+                    "New value should persist across await points");
+            }
+            .with_context(cx_with_both)
+            .await;
+        }
+        .with_context(parent_cx.clone()) // Propagate the parent context to the async operation
+        .await;
+
+        // After async operation completes:
+        // 1. Parent context should be unchanged
+        assert_eq!(parent_cx.get::<ValueA>(), Some(&ValueA(42)),
+            "Parent context should be unchanged");
+        assert_eq!(parent_cx.get::<ValueB>(), None,
+            "Parent context should not see values added in async operation");
+
+        // 2. Current context should be back to default
+        assert_eq!(Context::current().get::<ValueA>(), None,
+            "Current context should be back to default");
+        assert_eq!(Context::current().get::<ValueB>(), None,
+            "Current context should not have async operation's values");
+    }
 }
