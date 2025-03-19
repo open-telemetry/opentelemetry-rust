@@ -17,6 +17,12 @@
  `Error` which contained many variants unrelated to building an exporter, the
  new one returns specific variants applicable to building an exporter. Some
  variants might be applicable only on select features.
+- **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
+- **Breaking** Export configuration done via code is final. ENV variables cannot be used to override the code config.
+  Do not use code based config, if there is desire to control the settings via ENV variables.
+  List of ENV variables and corresponding setting being affected by this change.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` -> `ExportConfig.endpoint`
+  - `OTEL_EXPORTER_OTLP_TIMEOUT` -> `ExportConfig.timeout`
 
 ## 0.28.0
 
