@@ -460,6 +460,15 @@ impl ContextStack {
             // The empty context is always at the bottom of the [`ContextStack`]
             // and cannot be popped, and the overflow position is invalid, so do
             // nothing.
+            otel_warn!(
+                name: "Context.PopInvalidPosition",
+                position = pos,
+                message = if pos == ContextStack::BASE_POS {
+                    "Attempted to pop the base context which is not allowed"
+                } else {
+                    "Attempted to pop the overflow position which is not allowed"
+                }
+            );
             return;
         }
         let len: u16 = self.stack.len() as u16;
@@ -479,6 +488,12 @@ impl ContextStack {
             // This is an out of order pop.
             if pos >= len {
                 // This is an invalid id, ignore it.
+                otel_warn!(
+                    name: "Context.PopOutOfBounds",
+                    position = pos,
+                    stack_length = len,
+                    message = "Attempted to pop beyond the end of the context stack"
+                );
                 return;
             }
             // Clear out the entry at the given id.
