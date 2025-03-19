@@ -345,17 +345,44 @@ impl Context {
 
     /// Enters a scope where telemetry is suppressed.
     ///
-    /// This is to be used when you want to suppress telemetry data for the
-    /// specific context, typically used by Exporters etc. to prevent
-    /// telemetry-induced-telemetry.
+    /// This method is specifically designed for OpenTelemetry components (like Exporters,
+    /// Processors etc.) to prevent generating recursive or self-referential
+    /// telemetry data when performing their own operations.
+    ///
+    /// Without suppression, we have a telemetry-induced-telemetry situation
+    /// where, operations like exporting telemetry could generate new telemetry
+    /// about the export process itself, potentially causing:
+    /// - Infinite telemetry feedback loops
+    /// - Excessive resource consumption
+    ///
+    /// This method:
+    /// 1. Takes the current context
+    /// 2. Creates a new context from current, with `suppress_telemetry` set to `true`
+    /// 3. Attaches it to the current thread
+    /// 4. Returns a guard that restores the previous context when dropped
+    ///
+    /// OTel SDK components would check `is_current_suppressed()` before
+    /// generating new telemetry, but not end users.
     ///
     /// # Examples
     ///
     /// ```
     /// use opentelemetry::Context;
     ///
-    /// let _guard = Context::enter_suppressed();
-    /// assert_eq!(Context::is_current_suppressed(), true);
+    /// // Example: Inside an exporter's implementation
+    /// fn example_export_function() {
+    ///     // Prevent telemetry-generating operations from creating more telemetry
+    ///     let _guard = Context::enter_suppressed();
+    ///     
+    ///     // Verify suppression is active
+    ///     assert_eq!(Context::is_current_suppressed(), true);
+    ///     
+    ///     // Here you would normally perform operations that might generate telemetry
+    ///     // but now they won't because the context has suppression enabled
+    /// }
+    ///
+    /// // Demonstrate the function
+    /// example_export_function();
     /// ```
     pub fn enter_suppressed() -> ContextGuard {
         Self::map_current(|cx| cx.with_telemetry_suppressed()).attach()
@@ -363,21 +390,14 @@ impl Context {
 
     /// Returns whether telemetry is suppressed in the current context.
     ///
-    /// This is a convenience method that combines `Context::current()` and
-    /// `is_telemetry_suppressed()`.
+    /// This method is used by OpenTelemetry components to determine whether they should
+    /// generate new telemetry in the current execution context. It provides a performant
+    /// way to check the suppression state.
     ///
-    /// # Examples
+    /// End-users generally should not use this method directly, as it is primarily intended for
+    /// OpenTelemetry SDK components.
     ///
-    /// ```
-    /// use opentelemetry::Context;
     ///
-    /// // Default context has telemetry suppression disabled
-    /// assert_eq!(Context::is_current_suppressed(), false);
-    ///
-    /// // Enter a suppressed scope
-    /// let _guard = Context::enter_suppressed();
-    /// assert_eq!(Context::is_current_suppressed(), true);
-    /// ```
     #[inline]
     pub fn is_current_suppressed() -> bool {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
