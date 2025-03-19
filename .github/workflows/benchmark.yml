@@ -23,7 +23,7 @@ jobs:
     # runners on arbitrary PRs, and we don't want to unleash that load on the pool anyway.     
     # If we're running on main, use the OTEL self-hosted runner pool. 
     runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'performance') }}
+    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance') }}
     env:
       # For PRs, compare against the base branch - e.g., 'main'. 
       # For pushes to main, compare against the previous commit
