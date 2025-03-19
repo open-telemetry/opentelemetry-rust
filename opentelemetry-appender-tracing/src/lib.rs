@@ -55,7 +55,7 @@
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
 //! Create `OpenTelemetryTracingBridge` layer using the `SdkLoggerProvider` created in the previous step.
-//! 
+//!
 //! ```rust
 //! # use opentelemetry_sdk::logs::SdkLoggerProvider;
 //! # use opentelemetry_stdout::LogExporter;
