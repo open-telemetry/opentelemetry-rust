@@ -29,10 +29,9 @@ jobs:
         github.event_name == 'push'
       }}
     env:
-      # For PRs, compare against the base branch
+      # For PRs, compare against the base branch - e.g., 'main'. 
       # For pushes to main, compare against the previous commit
-      #BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
-      BRANCH_NAME: ${{ github.event.before }}
+      BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
     steps:
       - uses: actions/checkout@v4
         with:
