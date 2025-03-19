@@ -80,6 +80,11 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
     }
 
+    fn record_bytes(&mut self, field: &tracing_core::Field, value: &[u8]) {
+        self.log_record
+            .add_attribute(Key::new(field.name()), AnyValue::from(value));
+    }
+
     fn record_str(&mut self, field: &tracing_core::Field, value: &str) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
@@ -112,6 +117,22 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
         self.log_record
             .add_attribute(Key::new(field.name()), AnyValue::from(value));
+    }
+
+    // TODO: We might need to do similar for record_i128,record_u128 too
+    // to avoid stringification, unless needed.
+    fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
     }
 
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
@@ -173,8 +194,7 @@ where
 
         let mut log_record = self.logger.create_log_record();
 
-        // TODO: Fix heap allocation
-        log_record.set_target(target.to_string());
+        log_record.set_target(target);
         log_record.set_event_name(name);
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
@@ -331,7 +351,11 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
-        error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+        let small_u64value: u64 = 42;
+        let big_u64value: u64 = u64::MAX;
+        let small_usizevalue: usize = 42;
+        let big_usizevalue: usize = usize::MAX;
+        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], small_u64value, big_u64value, small_usizevalue, big_usizevalue, user_name = "otel", user_email = "otel@opentelemetry.io");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -362,9 +386,9 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_iter().count(), 3);
+        assert_eq!(log.record.attributes_iter().count(), 8);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 7);
+        assert_eq!(log.record.attributes_iter().count(), 12);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -379,6 +403,31 @@ mod tests {
             &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u64value"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u64value"),
+            &AnyValue::String(format!("{}", u64::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_usizevalue"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_usizevalue"),
+            &AnyValue::String(format!("{}", u64::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bytes"),
+            &AnyValue::Bytes(Box::new(b"abc".to_vec()))
         ));
         #[cfg(feature = "experimental_metadata_attributes")]
         {
@@ -752,6 +801,10 @@ mod tests {
             log.record.trace_context().unwrap().trace_flags.unwrap(),
             TraceFlags::SAMPLED
         );
+
+        for attribute in log.record.attributes_iter() {
+            println!("key: {:?}, value: {:?}", attribute.0, attribute.1);
+        }
 
         // Attributes can be polluted when we don't use this feature.
         #[cfg(feature = "experimental_metadata_attributes")]

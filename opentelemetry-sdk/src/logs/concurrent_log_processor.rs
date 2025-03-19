@@ -1,6 +1,6 @@
 use opentelemetry::{otel_info, InstrumentationScope};
 
-use crate::error::OTelSdkResult;
+use crate::{error::OTelSdkResult, Resource};
 
 use super::{LogBatch, LogExporter, LogProcessor, SdkLogRecord};
 
@@ -48,6 +48,7 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(
         &self,
         level: opentelemetry::logs::Severity,
@@ -55,5 +56,9 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         name: Option<&str>,
     ) -> bool {
         self.exporter.event_enabled(level, target, name)
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        self.exporter.set_resource(resource);
     }
 }

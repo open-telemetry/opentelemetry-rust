@@ -94,10 +94,8 @@
 //! * `experimental_async_runtime`: Enables the experimental `Runtime` trait and related functionality.
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
-//! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! [tokio]: https://crates.io/crates/tokio
-//! [async-std]: https://crates.io/crates/async-std
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -136,7 +134,6 @@ pub mod runtime;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub mod testing;
 
-#[allow(deprecated)]
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;

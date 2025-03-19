@@ -34,14 +34,11 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
         //let mut log_record = record;
         if record.trace_context.is_none() {
-            let trace_context = Context::map_current(|cx| {
-                cx.has_active_span()
-                    .then(|| TraceContext::from(cx.span().span_context()))
+            Context::map_current(|cx| {
+                cx.has_active_span().then(|| {
+                    record.trace_context = Some(TraceContext::from(cx.span().span_context()))
+                })
             });
-
-            if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone());
-            }
         }
         if record.observed_timestamp.is_none() {
             record.observed_timestamp = Some(now());
@@ -53,6 +50,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         self.provider
             .log_processors()

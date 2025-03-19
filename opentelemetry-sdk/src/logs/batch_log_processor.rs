@@ -319,7 +319,7 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&mut self, resource: &Resource) {
         let resource = Arc::new(resource.clone());
         let _ = self
             .message_sender

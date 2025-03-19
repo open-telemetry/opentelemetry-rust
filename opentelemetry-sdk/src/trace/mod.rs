@@ -22,7 +22,7 @@ mod span_processor;
 pub mod span_processor_with_async_runtime;
 mod tracer;
 
-pub use config::{config, Config};
+pub use config::Config;
 pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};

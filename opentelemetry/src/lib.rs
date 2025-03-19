@@ -246,7 +246,7 @@ pub mod global;
 
 pub mod baggage;
 
-mod context;
+pub mod context;
 
 pub use context::{Context, ContextGuard};
 

@@ -42,6 +42,14 @@ transparent to most users.
   implementations (SDK, processor, exporters) to leverage this additional
   information to determine if an event is enabled.
 
+- `u64` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
+when conversion is feasible. Otherwise stored as
+`opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
+allocation when values can be represented in their original types.
+- Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
+of string.
+- perf - small perf improvement by avoiding string allocation of `target`
+
 ## 0.28.1
 
 Released 2025-Feb-12

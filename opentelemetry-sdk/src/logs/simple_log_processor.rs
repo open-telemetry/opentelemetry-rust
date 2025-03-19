@@ -127,13 +127,14 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&mut self, resource: &Resource) {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
         }
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(
         &self,
         level: opentelemetry::logs::Severity,

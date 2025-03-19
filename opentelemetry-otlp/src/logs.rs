@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 use opentelemetry_sdk::{error::OTelSdkResult, logs::LogBatch};
 
-use crate::{HasExportConfig, NoExporterBuilderSet};
+use crate::{ExporterBuildError, HasExportConfig, NoExporterBuilderSet};
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet};
@@ -61,7 +61,7 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl LogExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<LogExporter, opentelemetry_sdk::logs::LogError> {
+    pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         let result = self.client.0.build_log_exporter();
         otel_debug!(name: "LogExporterBuilt", result = format!("{:?}", &result));
         result
@@ -70,7 +70,7 @@ impl LogExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl LogExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<LogExporter, opentelemetry_sdk::logs::LogError> {
+    pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         self.client.0.build_log_exporter()
     }
 }
