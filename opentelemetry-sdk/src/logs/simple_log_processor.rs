@@ -26,7 +26,7 @@ use crate::{
 use opentelemetry::{otel_warn, InstrumentationScope};
 
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -60,7 +60,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[derive(Debug)]
 pub struct SimpleLogProcessor<T: LogExporter> {
     exporter: T,
-    is_exporting: AtomicBool,
+    export_mutex: Mutex<()>,
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
@@ -68,7 +68,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
     pub fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter,
-            is_exporting: AtomicBool::new(false),
+            export_mutex: Mutex::new(()),
         }
     }
 }
@@ -78,23 +78,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         // export() does not require mutable self and can be called in parallel
         // with other export() calls. However, OTel Spec requires that
         // existing export() must be completed before the next export() call.
-        while !self
-            .is_exporting
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            // Another thread is currently exporting, yield to let other work proceed
-            std::thread::yield_now();
-        }
+        let _guard = self.export_mutex.lock().unwrap();
 
         // We now have exclusive access to export
         let result = {
             let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
             futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)))
         };
-
-        // Release the lock
-        self.is_exporting.store(false, Ordering::Release);
         if let Err(err) = result {
             otel_warn!(
                 name: "SimpleLogProcessor.Emit.ExportError",
