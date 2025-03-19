@@ -824,10 +824,20 @@ mod tests {
             let _outer = Context::enter_suppressed();
             assert_eq!(Context::is_current_suppressed(), true);
 
-            // Second level suppression (redundant but should work)
+            // Second level. This component is unaware of Suppression,
+            // and just attaches a new context. Since it is from current,
+            // it'll already have suppression enabled.
             {
-                let _inner = Context::enter_suppressed();
+                let _inner = Context::current().with_value(ValueA(1)).attach();
                 assert_eq!(Context::is_current_suppressed(), true);
+            }
+
+            // Another scenario. This component is unaware of Suppression,
+            // and just attaches a new context, not from Current. Since it is
+            // not from current it will not have suppression enabled.
+            {
+                let _inner = Context::new().with_value(ValueA(1)).attach();
+                assert_eq!(Context::is_current_suppressed(), false);
             }
 
             // Still suppressed after inner scope
