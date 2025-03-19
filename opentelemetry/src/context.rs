@@ -663,7 +663,7 @@ mod tests {
         // Push a new context and see that it works
         let cx_guard = Context::current().with_value(ValueA(2)).attach();
         assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS - 1);
-        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
+        assert_eq!(Context::current().get(), Some(&ValueA(2)));
         assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
         guards.push(cx_guard);
         // Let's overflow the stack a couple of times again
