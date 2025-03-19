@@ -115,7 +115,7 @@
 //! ```
 //!
 //! (An empty prometheus.yml file is sufficient for this example.)
-//! 
+//!
 //! Modify your application to export metrics via OTLP:
 //!
 //! ```no_run
