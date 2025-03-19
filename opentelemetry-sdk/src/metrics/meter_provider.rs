@@ -289,6 +289,7 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Associates a [MeasurementProcessor] with a [MeterProvider].
     pub fn with_measurement_processor<T: MeasurementProcessor>(mut self, processor: T) -> Self {
         self.measurement_processors.push(Arc::new(processor));
         self

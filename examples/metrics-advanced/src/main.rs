@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use opentelemetry::{global, Context};
 use opentelemetry::Key;
 use opentelemetry::KeyValue;
@@ -179,16 +178,11 @@ impl UserType {
 struct UserTypeMeasurementProcessor;
 
 impl MeasurementProcessor for UserTypeMeasurementProcessor {
-    fn process<'a>(&self, attributes: Cow<'a, [KeyValue]>) -> Cow<'a, [KeyValue]> {
-        match Context::current().get::<UserType>() {
-            Some(user_type) => {
-                let mut attrs = attributes.to_vec();
-                attrs.push(KeyValue::new("user_type", user_type.as_str()));
-                Cow::Owned(attrs)
-            }
-
-            // No changes to the attributes
-            None => attributes,
-        }
+    fn process<'a>(&self, attributes: &[KeyValue]) -> Option<Vec<KeyValue>> {
+        Context::current().get::<UserType>().map(|user_type| {
+            let mut attrs = attributes.to_vec();
+            attrs.push(KeyValue::new("user_type", user_type.as_str()));
+            attrs
+        })
     }
 }

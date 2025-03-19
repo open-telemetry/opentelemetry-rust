@@ -106,7 +106,7 @@ type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 #[derive(Clone)]
 pub(crate) struct AttributeSetFilter {
     filter: Option<Filter>,
-    processor: Option<AggregateProcessor>
+    processor: Option<Arc<dyn MeasurementProcessor>>
 }
 
 impl AttributeSetFilter {
@@ -127,18 +127,28 @@ impl AttributeSetFilter {
             },
             (None, Some(processor)) => {
                 let attributes = Cow::Borrowed(attrs);
-                let attributes = processor.process(attributes);
 
-                run(attributes.as_ref());
+                match processor.process(&attributes) {
+                    Some(attributes) => {
+                        run(&attributes);
+                    }
+                    None => {
+                        run(attrs);
+                    }
+                }
             },
             (Some(filter), Some(processor)) => {
                 let filtered_attrs: Vec<KeyValue> =
                     attrs.iter().filter(|kv| filter(kv)).cloned().collect();
 
-                let attributes = Cow::Owned(filtered_attrs);
-                let attributes = processor.process(attributes);
-
-                run(attributes.as_ref());
+                match processor.process(&filtered_attrs) {
+                    Some(attributes) => {
+                        run(&attributes);
+                    }
+                    None => {
+                        run(attrs);
+                    }
+                }
             }
         }
     }
@@ -226,23 +236,35 @@ impl<T: Number> AggregateBuilder<T> {
 struct AggregateProcessor(Arc<Vec<Arc<dyn MeasurementProcessor>>>);
 
 impl AggregateProcessor {
-    pub fn try_create(
+    fn try_create(
         processors: Vec<Arc<dyn MeasurementProcessor>>,
-    ) -> Option<Self> {
-        if processors.is_empty() {
-            return None;
+    ) -> Option<Arc<dyn MeasurementProcessor>> {
+
+        match processors.len() {
+            0 => return None,
+            1 => Some(processors[0].clone()),
+            _ => Some(Arc::new(AggregateProcessor(Arc::new(processors)))),
         }
-        Some(Self(Arc::new(processors)))
     }
 }
 
 impl MeasurementProcessor for AggregateProcessor {
-    fn process<'a>(&self, mut attributes: Cow<'a, [KeyValue]>) -> Cow<'a, [KeyValue]> {
+    fn process<'a>(&self, attributes: &[KeyValue]) -> Option<Vec<KeyValue>> {
+        // Do not allocate if not necessary.
+        let mut new_attributes: Option<Vec<KeyValue>> = None;
+
         for processor in self.0.iter() {
-            attributes = processor.process(attributes);
+            let existing_or_new = match &new_attributes {
+                Some(new) => new,
+                None => attributes
+            };
+
+            if let Some(new) = processor.process(existing_or_new) {
+                new_attributes = Some(new);
+            }
         }
 
-        attributes
+        new_attributes
     }
 }
 

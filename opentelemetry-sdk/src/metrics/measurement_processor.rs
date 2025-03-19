@@ -1,7 +1,13 @@
 use opentelemetry::KeyValue;
-use std::borrow::Cow;
 
+/// A trait for processing measurement attributes.
 pub trait MeasurementProcessor: Send + Sync + 'static {
-    fn process<'a>(&self, attributes: Cow<'a, [KeyValue]>) -> Cow<'a, [KeyValue]>;
+
+    /// Processes the attributes of a measurement.
+    ///
+    /// The processor might decide to modify the attributes. In that case, it returns
+    /// `Some` with the modified attributes. If no attribute modification is needed,
+    /// it returns `None`.
+    fn process<'a>(&self, attributes: &[KeyValue]) -> Option<Vec<KeyValue>>;
 }
 
