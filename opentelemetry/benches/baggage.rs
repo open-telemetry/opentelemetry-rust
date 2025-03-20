@@ -11,10 +11,10 @@ const MAX_KEY_VALUE_PAIRS: usize = 64;
 // Apple M4 Pro
 //     Total Number of Cores:	14 (10 performance and 4 efficiency)
 // Results:
-// set_baggage_static_key_value 12 ns
-// set_baggage_static_key 28 ns
-// set_baggage_dynamic 60 ns
-// set_baggage_dynamic_with_metadata 112 ns
+// set_baggage_static_key_value 14 ns
+// set_baggage_static_key 26 ns
+// set_baggage_dynamic 54 ns
+// set_baggage_dynamic_with_metadata 75 ns
 
 fn criterion_benchmark(c: &mut Criterion) {
     set_baggage_static_key_value(c);
