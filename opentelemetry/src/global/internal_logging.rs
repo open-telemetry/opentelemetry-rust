@@ -142,7 +142,7 @@ macro_rules! otel_debug {
         {
             print!("otel_debug: name={}\n", $name);
         }
-        
+
         #[cfg(all(not(feature = "internal-logs"), not(test)))]
         {
             let _ = $name; // Compiler will optimize this out as it's unused.

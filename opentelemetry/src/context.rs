@@ -862,6 +862,10 @@ mod tests {
         );
     }
 
+    ///
+    /// Tests that unnatural parent->child relationships in nested async
+    /// operations behave properly.
+    ///
     #[tokio::test]
     async fn test_out_of_order_context_detachment_futures() {
         // This function returns a future, but doesn't await it
@@ -872,7 +876,6 @@ mod tests {
             async {
                 assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
 
-                let _guard = Context::new().with_value(ValueB(2)).attach();
                 // Longer work
                 sleep(Duration::from_millis(50)).await;
             }
@@ -885,8 +888,8 @@ mod tests {
         // await our nested function, which will create and detach a context
         let future = create_a_future().with_context(parent_cx).await;
 
-        // Execute the future. The completion of the future will result in an out-of-order drop,
-        // as the parent context created by create_a_future was already dropped earlier.
+        // Execute the future. The future that created it is long gone, but this shouldn't
+        // cause issues.
         let _a = future.await;
 
         // Nothing terrible (e.g., panics!) should happen, and we should definitely not have any
