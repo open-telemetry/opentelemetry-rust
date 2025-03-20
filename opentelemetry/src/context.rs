@@ -461,7 +461,7 @@ impl ContextStack {
             // and cannot be popped, and the overflow position is invalid, so do
             // nothing.
             otel_warn!(
-                name: "Context.PopInvalidPosition",
+                name: "Context.OutOfOrderDrop",
                 position = pos,
                 message = if pos == ContextStack::BASE_POS {
                     "Attempted to pop the base context which is not allowed"
@@ -783,11 +783,9 @@ mod tests {
     /// 2. Values added during async operations do not affect parent context
     #[tokio::test]
     async fn test_async_context_propagation() {
-        // Set up initial context with ValueA
-        let parent_cx = Context::new().with_value(ValueA(42));
 
-        // Create and run async operation with the parent context
-        async {
+        // A nested async operation we'll use to test propagation
+        async fn nested_operation() {
             // Verify we can see the parent context's value
             assert_eq!(
                 Context::current().get::<ValueA>(),
@@ -795,15 +793,17 @@ mod tests {
                 "Parent context value should be available in async operation"
             );
 
-            // Create new context with both values
-            let cx_with_both = Context::current().with_value(ValueB(24));
+            // Create new context
+            let cx_with_both = Context::current()
+                .with_value(ValueA(43))// override ValueA
+                .with_value(ValueB(24)); // Add new ValueB
 
             // Run nested async operation with both values
             async {
                 // Verify both values are available
                 assert_eq!(
                     Context::current().get::<ValueA>(),
-                    Some(&ValueA(42)),
+                    Some(&ValueA(43)),
                     "Parent value should still be available after adding new value"
                 );
                 assert_eq!(
@@ -818,7 +818,7 @@ mod tests {
                 // Values should still be available after async work
                 assert_eq!(
                     Context::current().get::<ValueA>(),
-                    Some(&ValueA(42)),
+                    Some(&ValueA(43)),
                     "Parent value should persist across await points"
                 );
                 assert_eq!(
@@ -827,11 +827,15 @@ mod tests {
                     "New value should persist across await points"
                 );
             }
-            .with_context(cx_with_both)
-            .await;
+                .with_context(cx_with_both)
+                .await;
         }
-        .with_context(parent_cx.clone()) // Propagate the parent context to the async operation
-        .await;
+
+        // Set up initial context with ValueA
+        let parent_cx = Context::new().with_value(ValueA(42));
+
+        // Create and run async operation with the parent context explicitly propagated
+        nested_operation().with_context(parent_cx.clone()).await;
 
         // After async operation completes:
         // 1. Parent context should be unchanged
