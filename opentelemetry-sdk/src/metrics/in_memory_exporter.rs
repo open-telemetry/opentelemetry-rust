@@ -2,8 +2,6 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::metrics::data::{self, Gauge, Sum};
 use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
 use crate::metrics::exporter::PushMetricExporter;
-use crate::metrics::MetricError;
-use crate::metrics::MetricResult;
 use crate::metrics::Temporality;
 use std::collections::VecDeque;
 use std::fmt;
@@ -143,11 +141,11 @@ impl InMemoryMetricExporter {
     /// let exporter = InMemoryMetricExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
     /// ```
-    pub fn get_finished_metrics(&self) -> MetricResult<Vec<ResourceMetrics>> {
+    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>, String> {
         self.metrics
             .lock()
             .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
-            .map_err(MetricError::from)
+            .map_err(|e| e.to_string())
     }
 
     /// Clears the internal storage of finished metrics.

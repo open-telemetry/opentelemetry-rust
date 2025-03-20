@@ -1,6 +1,5 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::trace::error::{TraceError, TraceResult};
 use crate::trace::{SpanData, SpanExporter};
 use std::sync::{Arc, Mutex};
 
@@ -104,11 +103,11 @@ impl InMemorySpanExporter {
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
     /// ```
-    pub fn get_finished_spans(&self) -> TraceResult<Vec<SpanData>> {
+    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, String> {
         self.spans
             .lock()
             .map(|spans_guard| spans_guard.iter().cloned().collect())
-            .map_err(TraceError::from)
+            .map_err(|e| e.to_string())
     }
 
     /// Clears the internal storage of finished spans.

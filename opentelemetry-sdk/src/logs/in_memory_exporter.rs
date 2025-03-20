@@ -7,8 +7,6 @@ use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-type LogResult<T> = Result<T, OTelSdkError>;
-
 /// An in-memory logs exporter that stores logs data in memory..
 ///
 /// This exporter is useful for testing and debugging purposes.
@@ -157,13 +155,13 @@ impl InMemoryLogExporter {
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
-    pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
+    pub fn get_emitted_logs(&self) -> Result<Vec<LogDataWithResource>, String> {
         let logs_guard = self
             .logs
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to lock logs: {}", e)))?;
+            .map_err(|e| e.to_string())?;
         let resource_guard = self.resource.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to lock resource: {}", e))
+            e.to_string()
         })?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()

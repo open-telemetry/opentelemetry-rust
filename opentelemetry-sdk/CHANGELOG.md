@@ -75,7 +75,10 @@
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
-- **Breaking** Removed deprecated functions and methods related to `trace::Config` 
+- **Breaking**: InMemoryExporter's return type change.
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, String>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, String>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, String>`
 
 ## 0.28.0
 
