@@ -83,11 +83,11 @@ impl ZipkinExporterBuilder {
                 client,
                 self.collector_endpoint
                     .parse()
-                    .map_err(|err| ExporterBuildError::InvalidUri(err))?,
+                    .map_err(ExporterBuildError::InvalidUri)?,
             );
             Ok(exporter)
         } else {
-            Err(ExporterBuildError::NoHttpClient.into())
+            Err(ExporterBuildError::NoHttpClient)
         }
     }
 
