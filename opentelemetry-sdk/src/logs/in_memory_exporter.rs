@@ -156,13 +156,8 @@ impl InMemoryLogExporter {
     /// ```
     ///
     pub fn get_emitted_logs(&self) -> Result<Vec<LogDataWithResource>, String> {
-        let logs_guard = self
-            .logs
-            .lock()
-            .map_err(|e| e.to_string())?;
-        let resource_guard = self.resource.lock().map_err(|e| {
-            e.to_string()
-        })?;
+        let logs_guard = self.logs.lock().map_err(|e| e.to_string())?;
+        let resource_guard = self.resource.lock().map_err(|e| e.to_string())?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
