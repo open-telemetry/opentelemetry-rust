@@ -8,6 +8,7 @@
   `opentelemetry_zipkin::Error`. Previously, this method returned a `TraceError`
   from the `opentelemetry_sdk` crate, which was unrelated to Zipkin builder
   failures.
+  [2839](https://github.com/open-telemetry/opentelemetry-rust/pull/2839)
 
 ## 0.28.0
 
