@@ -1,5 +1,5 @@
 use crate::metrics::{
-    data::{self, Aggregation, Gauge, GaugeDataPoint},
+    data::{self, AggregatedMetrics, GaugeDataPoint, MetricData},
     Temporality,
 };
 use opentelemetry::KeyValue;
@@ -59,13 +59,16 @@ impl<T: Number> LastValue<T> {
         }
     }
 
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+    pub(crate) fn delta(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.delta();
 
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
+        let s_data = dest.and_then(|d| {
+            if let MetricData::Gauge(gauge) = d {
+                Some(gauge)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -86,18 +89,21 @@ impl<T: Number> LastValue<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), new_agg.map(Into::into))
     }
 
     pub(crate) fn cumulative(
         &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+        dest: Option<&mut MetricData<T>>,
+    ) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<Gauge<T>>());
+        let s_data = dest.and_then(|d| {
+            if let MetricData::Gauge(gauge) = d {
+                Some(gauge)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if s_data.is_none() {
             Some(data::Gauge {
                 data_points: vec![],
@@ -119,10 +125,7 @@ impl<T: Number> LastValue<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), new_agg.map(Into::into))
     }
 }
 
@@ -141,10 +144,12 @@ impl<T> ComputeAggregation for LastValue<T>
 where
     T: Number,
 {
-    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
-        match self.temporality {
-            Temporality::Delta => self.delta(dest),
-            _ => self.cumulative(dest),
-        }
+    fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
+        let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
+        let (len, new) = match self.temporality {
+            Temporality::Delta => self.delta(data),
+            _ => self.cumulative(data),
+        };
+        (len, new.map(T::make_aggregated_metrics))
     }
 }

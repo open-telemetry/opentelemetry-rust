@@ -1,6 +1,5 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
-use crate::metrics::data::{self, Gauge, Sum};
-use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
+use crate::metrics::data::ResourceMetrics;
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::Temporality;
 use crate::InMemoryExporterError;
@@ -146,7 +145,7 @@ impl InMemoryMetricExporter {
         let metrics = self
             .metrics
             .lock()
-            .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
+            .map(|metrics_guard| metrics_guard.iter().cloned().collect())
             .map_err(InMemoryExporterError::from)?;
         Ok(metrics)
     }
@@ -167,109 +166,13 @@ impl InMemoryMetricExporter {
             .lock()
             .map(|mut metrics_guard| metrics_guard.clear());
     }
-
-    fn clone_metrics(metric: &ResourceMetrics) -> ResourceMetrics {
-        ResourceMetrics {
-            resource: metric.resource.clone(),
-            scope_metrics: metric
-                .scope_metrics
-                .iter()
-                .map(|scope_metric| ScopeMetrics {
-                    scope: scope_metric.scope.clone(),
-                    metrics: scope_metric
-                        .metrics
-                        .iter()
-                        .map(|metric| Metric {
-                            name: metric.name.clone(),
-                            description: metric.description.clone(),
-                            unit: metric.unit.clone(),
-                            // we don't expect any unknown data type here
-                            data: Self::clone_data(metric.data.as_ref()).unwrap(),
-                        })
-                        .collect(),
-                })
-                .collect(),
-        }
-    }
-
-    fn clone_data(data: &dyn data::Aggregation) -> Option<Box<dyn data::Aggregation>> {
-        if let Some(hist) = data.as_any().downcast_ref::<Histogram<i64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<f64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<u64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<i64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<f64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<u64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<i64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<f64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<u64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else {
-            // unknown data type
-            None
-        }
-    }
 }
 
 impl PushMetricExporter for InMemoryMetricExporter {
     async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
         self.metrics
             .lock()
-            .map(|mut metrics_guard| {
-                metrics_guard.push_back(InMemoryMetricExporter::clone_metrics(metrics))
-            })
+            .map(|mut metrics_guard| metrics_guard.push_back(metrics.clone()))
             .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
 
