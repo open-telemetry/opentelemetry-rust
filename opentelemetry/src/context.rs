@@ -870,6 +870,8 @@ mod tests {
             // Create a future that will do some work, referencing our current
             // context, but don't await it.
             async {
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
                 let _guard = Context::new().with_value(ValueB(2)).attach();
                 // Longer work
                 sleep(Duration::from_millis(50)).await;
@@ -885,7 +887,7 @@ mod tests {
 
         // Execute the future. The completion of the future will result in an out-of-order drop,
         // as the parent context created by create_a_future was already dropped earlier.
-        future.await;
+        let _a = future.await;
 
         // Nothing terrible (e.g., panics!) should happen, and we should definitely not have any
         // values attached to our current context that were set in the nested operations.
