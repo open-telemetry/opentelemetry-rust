@@ -6,7 +6,7 @@ const DEFAULT_COLLECTOR_ENDPOINT: &str = "http://127.0.0.1:9411/api/v2/spans";
 
 /// HTTP endpoint for Zipkin collector.
 /// e.g. "http://localhost:9411/api/v2/spans"
-const ENV_ENDPOINT: &str = "OTEL_EXPORTER_ZIPKIN_ENDPOINT";
+pub(crate) const ENV_ENDPOINT: &str = "OTEL_EXPORTER_ZIPKIN_ENDPOINT";
 
 /// Maximum time the Zipkin exporter will wait for each batch export
 const ENV_TIMEOUT: &str = "OTEL_EXPORTER_ZIPKIN_TIMEOUT";

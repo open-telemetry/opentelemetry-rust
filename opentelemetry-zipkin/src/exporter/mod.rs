@@ -93,6 +93,9 @@ impl ZipkinExporterBuilder {
     }
 
     /// Assign client implementation
+    ///
+    /// Note: Programmatically setting the timeout will override any value
+    /// set via the environment variable `OTEL_EXPORTER_ZIPKIN_TIMEOUT`.
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.client = Some(Arc::new(client));
         self
@@ -105,6 +108,9 @@ impl ZipkinExporterBuilder {
     }
 
     /// Assign the Zipkin collector endpoint
+    ///
+    /// Note: Programmatically setting this will override any value
+    /// set via the environment variable `OTEL_EXPORTER_ZIPKIN_ENDPOINT`.
     pub fn with_collector_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
         self.collector_endpoint = endpoint.into();
         self
@@ -159,5 +165,31 @@ pub enum Error {
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "zipkin"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::exporter::env::ENV_ENDPOINT;
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_endpoint() {
+        temp_env::with_vars([(ENV_ENDPOINT, Some("http://127.0.0.1:1234"))], || {
+            let builder =
+                ZipkinExporterBuilder::default().with_collector_endpoint("http://127.0.0.1:2345");
+            assert_eq!(builder.collector_endpoint, "http://127.0.0.1:2345");
+        });
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_endpoint() {
+        temp_env::with_vars([(ENV_ENDPOINT, None::<&str>)], || {
+            let builder = ZipkinExporterBuilder::default();
+            assert_eq!(
+                builder.collector_endpoint,
+                "http://127.0.0.1:9411/api/v2/spans"
+            );
+        });
     }
 }
