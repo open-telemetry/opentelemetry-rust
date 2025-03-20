@@ -6,8 +6,7 @@ use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry_http::HttpClient;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::trace::TraceError;
-use opentelemetry_sdk::{trace, ExportError};
+use opentelemetry_sdk::trace;
 use std::net::{AddrParseError, SocketAddr};
 use std::sync::Arc;
 
@@ -75,7 +74,7 @@ impl ZipkinExporterBuilder {
     /// Creates a new [ZipkinExporter] from this configuration.
     ///
     /// Returns error if the endpoint is not valid or if no http client is provided.
-    pub fn build(self) -> Result<ZipkinExporter, TraceError> {
+    pub fn build(self) -> Result<ZipkinExporter, ExporterBuildError> {
         let endpoint = Endpoint::new(self.service_addr);
 
         if let Some(client) = self.client {
@@ -84,18 +83,19 @@ impl ZipkinExporterBuilder {
                 client,
                 self.collector_endpoint
                     .parse()
-                    .map_err::<Error, _>(Into::into)?,
+                    .map_err(ExporterBuildError::InvalidUri)?,
             );
             Ok(exporter)
         } else {
-            Err(Error::NoHttpClient.into())
+            Err(ExporterBuildError::NoHttpClient)
         }
     }
 
     /// Assign client implementation
     ///
-    /// Note: Programmatically setting the timeout will override any value
-    /// set via the environment variable `OTEL_EXPORTER_ZIPKIN_TIMEOUT`.
+    /// When using this method, the export timeout will depend on the provided
+    /// client implementation and may not respect the timeout set via the
+    /// environment variable `OTEL_EXPORTER_ZIPKIN_TIMEOUT`.
     pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
         self.client = Some(Arc::new(client));
         self
@@ -140,14 +140,10 @@ impl trace::SpanExporter for ZipkinExporter {
 /// Wrap type for errors from opentelemetry zipkin
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
-pub enum Error {
+pub enum ExporterBuildError {
     /// No http client implementation found. User should provide one or enable features.
     #[error("http client must be set, users can enable reqwest feature to use http client implementation within create")]
     NoHttpClient,
-
-    /// Http requests failed
-    #[error("http request failed with {0}")]
-    RequestFailed(#[from] http::Error),
 
     /// The uri provided is invalid
     #[error("invalid uri")]
@@ -156,16 +152,6 @@ pub enum Error {
     /// The IP/socket address provided is invalid
     #[error("invalid address")]
     InvalidAddress(#[from] AddrParseError),
-
-    /// Other errors
-    #[error("export error: {0}")]
-    Other(String),
-}
-
-impl ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "zipkin"
-    }
 }
 
 #[cfg(test)]
