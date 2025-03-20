@@ -670,7 +670,7 @@ mod tests {
         for _ in 0..16 {
             let cx_guard = Context::current().with_value(ValueA(1)).attach();
             assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS);
-            assert_eq!(Context::current().get(), Some(&ValueA(2)));
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
             assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
             guards.push(cx_guard);
         }
@@ -783,7 +783,6 @@ mod tests {
     /// 2. Values added during async operations do not affect parent context
     #[tokio::test]
     async fn test_async_context_propagation() {
-
         // A nested async operation we'll use to test propagation
         async fn nested_operation() {
             // Verify we can see the parent context's value
@@ -795,7 +794,7 @@ mod tests {
 
             // Create new context
             let cx_with_both = Context::current()
-                .with_value(ValueA(43))// override ValueA
+                .with_value(ValueA(43)) // override ValueA
                 .with_value(ValueB(24)); // Add new ValueB
 
             // Run nested async operation with both values
@@ -827,8 +826,8 @@ mod tests {
                     "New value should persist across await points"
                 );
             }
-                .with_context(cx_with_both)
-                .await;
+            .with_context(cx_with_both)
+            .await;
         }
 
         // Set up initial context with ValueA
@@ -861,5 +860,36 @@ mod tests {
             None,
             "Current context should not have async operation's values"
         );
+    }
+
+    #[tokio::test]
+    async fn test_out_of_order_context_detachment_futures() {
+        // This function returns a future, but doesn't await it
+        // It will complete before the future that it creates.
+        async fn create_a_future() -> impl std::future::Future<Output = ()> {
+            // Create a future that will do some work, referencing our current
+            // context, but don't await it.
+            async {
+                let _guard = Context::new().with_value(ValueB(2)).attach();
+                // Longer work
+                sleep(Duration::from_millis(50)).await;
+            }
+            .with_context(Context::current())
+        }
+
+        // Create our base context
+        let parent_cx = Context::new().with_value(ValueA(42));
+
+        // await our nested function, which will create and detach a context
+        let future = create_a_future().with_context(parent_cx).await;
+
+        // Execute the future. The completion of the future will result in an out-of-order drop,
+        // as the parent context created by create_a_future was already dropped earlier.
+        future.await;
+
+        // Nothing terrible (e.g., panics!) should happen, and we should definitely not have any
+        // values attached to our current context that were set in the nested operations.
+        assert_eq!(Context::current().get::<ValueA>(), None);
+        assert_eq!(Context::current().get::<ValueB>(), None);
     }
 }
