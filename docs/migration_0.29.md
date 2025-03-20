@@ -5,11 +5,11 @@ facilitate a smooth migration for common use cases involving the
 `opentelemetry`, `opentelemetry_sdk`, `opentelemetry-otlp`, and
 `opentelemetry-appender-tracing` crates. For a comprehensive list of changes,
 please refer to the detailed changelog for each crate. This document covers only
-the most common scenarios. Note that changes that only affect
-custom exporter/processor authors are not mentioned in this doc.
+the most common scenarios. Note that changes that only affect custom
+exporter/processor authors are not mentioned in this doc.
 
-OpenTelemetry Metrics API, Log-Bridge API were declared stable in 0.28,
-and has no breaking changes.
+OpenTelemetry Metrics API, Log-Bridge API were declared stable in 0.28, and has
+no breaking changes.
 
 ## Baggage Changes
 
@@ -49,6 +49,8 @@ Prometheus interoperability remains a key goal for OpenTelemetry. However, the
 current `opentelemetry-prometheus` crate requires a major rewrite to eliminate
 dependencies on unmaintained crates. We may reintroduce a dedicated Prometheus
 exporter in the future once these issues are resolved.
+
+### Migration guide
 
 For those using Prometheus as a backend, you can integrate with Prometheus using
 the following methods:
