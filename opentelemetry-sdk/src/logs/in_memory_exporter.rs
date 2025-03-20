@@ -1,6 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::SdkLogRecord;
 use crate::logs::{LogBatch, LogExporter};
+use crate::InMemoryExporterError;
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
@@ -155,9 +156,9 @@ impl InMemoryLogExporter {
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
-    pub fn get_emitted_logs(&self) -> Result<Vec<LogDataWithResource>, String> {
-        let logs_guard = self.logs.lock().map_err(|e| e.to_string())?;
-        let resource_guard = self.resource.lock().map_err(|e| e.to_string())?;
+    pub fn get_emitted_logs(&self) -> Result<Vec<LogDataWithResource>, InMemoryExporterError> {
+        let logs_guard = self.logs.lock().map_err(InMemoryExporterError::from)?;
+        let resource_guard = self.resource.lock().map_err(InMemoryExporterError::from)?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
