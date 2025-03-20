@@ -76,9 +76,9 @@
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
 - **Breaking**: InMemoryExporter's return type change.
-  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, String>`
-  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, String>`
-  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, String>`
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, InMemoryExporterError>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, InMemoryExporterError>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, InMemoryExporterError>`
 
 ## 0.28.0
 
