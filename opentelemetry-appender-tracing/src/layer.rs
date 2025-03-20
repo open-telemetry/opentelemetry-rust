@@ -80,6 +80,18 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
     }
 
+    fn record_error(
+        &mut self,
+        _field: &tracing_core::Field,
+        value: &(dyn std::error::Error + 'static),
+    ) {
+        self.log_record.add_attribute(
+            Key::new("exception.message"),
+            AnyValue::from(value.to_string()),
+        );
+        // No ability to get exception.stacktrace or exception.type from the error today.
+    }
+
     fn record_bytes(&mut self, field: &tracing_core::Field, value: &[u8]) {
         self.log_record
             .add_attribute(Key::new(field.name()), AnyValue::from(value));
@@ -122,6 +134,34 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     // TODO: We might need to do similar for record_i128,record_u128 too
     // to avoid stringification, unless needed.
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
+    }
+
+    fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
+    }
+
+    fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
             return;
@@ -247,7 +287,7 @@ mod tests {
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::error::OTelSdkResult;
+    use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
@@ -355,7 +395,11 @@ mod tests {
         let big_u64value: u64 = u64::MAX;
         let small_usizevalue: usize = 42;
         let big_usizevalue: usize = usize::MAX;
-        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], small_u64value, big_u64value, small_usizevalue, big_usizevalue, user_name = "otel", user_email = "otel@opentelemetry.io");
+        let small_u128value: u128 = 42;
+        let big_u128value: u128 = u128::MAX;
+        let small_i128value: i128 = 42;
+        let big_i128value: i128 = i128::MAX;
+        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error, small_u64value, big_u64value, small_usizevalue, big_usizevalue, small_u128value, big_u128value, small_i128value, big_i128value, user_name = "otel", user_email = "otel@opentelemetry.io");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -386,9 +430,9 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 13);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 12);
+        assert_eq!(log.record.attributes_iter().count(), 17);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -403,6 +447,11 @@ mod tests {
             &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("exception.message"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
         ));
         assert!(attributes_contains(
             &log.record,
@@ -423,6 +472,26 @@ mod tests {
             &log.record,
             &Key::new("big_usizevalue"),
             &AnyValue::String(format!("{}", u64::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u128value"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u128value"),
+            &AnyValue::String(format!("{}", u128::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_i128value"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_i128value"),
+            &AnyValue::String(format!("{}", i128::MAX).into())
         ));
         assert!(attributes_contains(
             &log.record,

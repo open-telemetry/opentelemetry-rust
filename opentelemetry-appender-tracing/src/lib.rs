@@ -54,14 +54,16 @@
 //!
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
+//! Create `OpenTelemetryTracingBridge` layer using the `SdkLoggerProvider` created in the previous step.
+//!
 //! ```rust
 //! # use opentelemetry_sdk::logs::SdkLoggerProvider;
 //! # use opentelemetry_stdout::LogExporter;
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 //! # let exporter = LogExporter::default();
 //! # let provider = SdkLoggerProvider::builder()
-//!     .with_simple_exporter(exporter)
-//!     .build();
+//! #    .with_simple_exporter(exporter)
+//! #    .build();
 //! let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! ```
 //!
@@ -80,7 +82,7 @@
 //!
 //! tracing_subscriber::registry()
 //!     .with(otel_layer)
-//!     .with(tracing_subscriber::fmt::layer())
+//!     .with(tracing_subscriber::fmt::layer()) // In this example, `fmt` layer is also added.
 //!     .init();
 //! ```
 //!
@@ -112,7 +114,7 @@
 //! |----------------|-------------------------------|
 //! | `i64`          | `Int`                         |
 //! | `f32`, `f64`   | `Double`                      |
-//! | `u64`          | `Int` (if convertible without loss) else `String` |
+//! | `u64`,`u128` ,`i128`         | `Int` (if convertible to `i64` without loss) else `String` |
 //! | `&str`         | `String`                      |
 //! | `bool`         | `Bool`                        |
 //! | `&[u8]`        | `Bytes`                       |
