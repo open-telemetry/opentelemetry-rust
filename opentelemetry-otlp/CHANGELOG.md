@@ -17,6 +17,7 @@
  `Error` which contained many variants unrelated to building an exporter, the
  new one returns specific variants applicable to building an exporter. Some
  variants might be applicable only on select features.
+ Also, now unused `Error` enum is removed.
 - **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
 - **Breaking** Export configuration done via code is final. ENV variables cannot be used to override the code config.
   Do not use code based config, if there is desire to control the settings via ENV variables.
