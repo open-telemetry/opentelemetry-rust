@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency to 0.28.
+- Update `opentelemetry-http` dependency to 0.28.
 - **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
   for the changes.
 - Removed `async-std` support for `Runtime`, as [`async-std` crate is deprecated](https://crates.io/crates/async-std).

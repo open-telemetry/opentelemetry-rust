@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
 Fixes [1682](https://github.com/open-telemetry/opentelemetry-rust/issues/1682).
 "spec_unstable_logs_enabled" feature now do not suppress logs for other layers.
 
@@ -53,6 +57,7 @@ of string.
   instead of previously reporting the user provided attribute "error".
   `error!(....error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error...)`
 - perf - small perf improvement by avoiding string allocation of `target`
+- Update `opentelemetry` dependency version to 0.29.
 
 ## 0.28.1
 

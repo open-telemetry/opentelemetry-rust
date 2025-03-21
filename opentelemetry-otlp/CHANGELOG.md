@@ -2,6 +2,15 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+- Update `opentelemetry-http` dependency version to 0.29
+- Update `opentelemetry-proto` dependency version to 0.29
+
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
 - Fixed
