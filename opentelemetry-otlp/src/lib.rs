@@ -362,8 +362,6 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-use opentelemetry_sdk::ExportError;
-
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
 pub struct NoExporterBuilderSet;
@@ -390,104 +388,6 @@ pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
-
-/// Wrap type for errors from this crate.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// Wrap error from [`tonic::transport::Error`]
-    #[cfg(feature = "grpc-tonic")]
-    #[error("transport error {0}")]
-    Transport(#[from] tonic::transport::Error),
-
-    /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("invalid URI {0}")]
-    InvalidUri(#[from] http::uri::InvalidUri),
-
-    /// Wrap type for [`tonic::Status`]
-    #[cfg(feature = "grpc-tonic")]
-    #[error("the grpc server returns error ({code}): {message}")]
-    Status {
-        /// grpc status code
-        code: tonic::Code,
-        /// error message
-        message: String,
-    },
-
-    /// Http requests failed because no http client is provided.
-    #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    #[error(
-        "no http client, you must select one from features or provide your own implementation"
-    )]
-    NoHttpClient,
-
-    /// Http requests failed.
-    #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    #[error("http request failed with {0}")]
-    RequestFailed(#[from] opentelemetry_http::HttpError),
-
-    /// The provided value is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("http header value error {0}")]
-    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
-
-    /// The provided name is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("http header name error {0}")]
-    InvalidHeaderName(#[from] http::header::InvalidHeaderName),
-
-    /// Prost encode failed
-    #[cfg(any(
-        feature = "http-proto",
-        all(feature = "http-json", not(feature = "trace"))
-    ))]
-    #[error("prost encoding error {0}")]
-    EncodeError(#[from] prost::EncodeError),
-
-    /// The lock in exporters has been poisoned.
-    #[cfg(feature = "metrics")]
-    #[error("the lock of the {0} has been poisoned")]
-    PoisonedLock(&'static str),
-
-    /// Unsupported compression algorithm.
-    #[error("unsupported compression algorithm '{0}'")]
-    UnsupportedCompressionAlgorithm(String),
-
-    /// Feature required to use the specified compression algorithm.
-    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
-    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
-    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
-}
-
-#[cfg(feature = "grpc-tonic")]
-impl From<tonic::Status> for Error {
-    fn from(status: tonic::Status) -> Error {
-        Error::Status {
-            code: status.code(),
-            message: {
-                if !status.message().is_empty() {
-                    let mut result = ", detailed error message: ".to_string() + status.message();
-                    if status.code() == tonic::Code::Unknown {
-                        let source = (&status as &dyn std::error::Error)
-                            .source()
-                            .map(|e| format!("{:?}", e));
-                        result.push(' ');
-                        result.push_str(source.unwrap_or_default().as_ref());
-                    }
-                    result
-                } else {
-                    String::new()
-                }
-            },
-        }
-    }
-}
-
-impl ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "otlp"
-    }
-}
 
 /// The communication protocol to use when exporting data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
