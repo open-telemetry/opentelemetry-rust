@@ -31,12 +31,12 @@ documentation.
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
 | Context               | Beta               |
-| Baggage               | Beta               |
+| Baggage               | RC                 |
 | Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | RC                 |
+| Logs-SDK              | Stable              |
 | Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | RC                 |
+| Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
 | Metrics-SDK           | RC                 |
 | Metrics-OTLP Exporter | RC                 |
