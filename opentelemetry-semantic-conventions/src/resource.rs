@@ -282,6 +282,12 @@ pub use crate::attribute::K8S_DEPLOYMENT_NAME;
 pub use crate::attribute::K8S_DEPLOYMENT_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_UID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_JOB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -313,6 +319,18 @@ pub use crate::attribute::K8S_REPLICASET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_REPLICASET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICATIONCONTROLLER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICATIONCONTROLLER_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_RESOURCEQUOTA_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_RESOURCEQUOTA_UID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_NAME;
