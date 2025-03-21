@@ -1,6 +1,6 @@
 # Migration Guide from 0.28 to 0.29
 
-OpenTelemetry Rust 0.29 introduces few breaking changes. This guide aims to
+OpenTelemetry Rust 0.29 introduces a few breaking changes. This guide aims to
 facilitate a smooth migration for common use cases involving the
 `opentelemetry`, `opentelemetry_sdk`, `opentelemetry-otlp`, and
 `opentelemetry-appender-tracing` crates. For a comprehensive list of changes,
