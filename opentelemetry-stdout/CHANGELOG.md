@@ -6,8 +6,8 @@
 
 Released 2025-Mar-21
 
-- Update `opentelemetry` dependency version to 0.28.
-- Update `opentelemetry_sdk` dependency version to 0.28.
+- Update `opentelemetry` dependency version to 0.29.
+- Update `opentelemetry_sdk` dependency version to 0.29.
 
 ## 0.28.0
 
