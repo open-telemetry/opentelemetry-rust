@@ -65,8 +65,12 @@ focus on achieving a stable 1.0 release for OpenTelemetry Rust.
 
 ## Next Release
 
-In the next release, we expect to stabilize the Metrics SDK and resolve the
-long-standing question of `tokio-tracing` vs. `opentelemetry tracing`.
+In the [next
+release](https://github.com/open-telemetry/opentelemetry-rust/milestone/21), we
+expect to stabilize the Metrics SDK and resolve the long-standing question of
+`tokio-tracing` vs. `opentelemetry tracing`, which is an pre-req before
+stabilizing Distributed Tracing. Additionally `Context` is also expected to be
+enhanced with the ability to suppress telemetry-induced-telemetry.
 
 ## Instrumentation Libraries
 
