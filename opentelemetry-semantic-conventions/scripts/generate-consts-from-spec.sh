@@ -51,7 +51,5 @@ expression='
 
 "${SED[@]}" -E "${expression}" src/metric.rs
 "${SED[@]}" -E "${expression}" src/attribute.rs
-"${SED[@]}" -E "${link_fix_expression}" src/metric.rs
-
 
 cargo fmt
