@@ -2,10 +2,6 @@
 
 ## vNext
 
-## 0.29.0
-
-Released 2025-Mar-21
-
 ## 0.28.0
 
 Released 2025-Feb-10
