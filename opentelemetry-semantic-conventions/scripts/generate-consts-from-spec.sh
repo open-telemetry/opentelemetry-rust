@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.30.0
-WEAVER_VERSION=v0.12.0
+SPEC_VERSION=1.31.0
+WEAVER_VERSION=v0.13.0
 
 cd "$CRATE_DIR"
 
@@ -48,10 +48,6 @@ expression='
   s/\[([a-zA-Z0-9\.\s]+,[a-zA-Z0-9\.\s]+)\]/\\[\1\\]/g
   s/\\\[([^\]]+)\]\(([^)]+)\)/[\1](\2)/g
 '
-
-# TODO - remove this with semconv 1.31.0. Refer: https://github.com/open-telemetry/semantic-conventions/pull/1827
-# Fix broken and malformed K8s JobSpec link
-link_fix_expression='s/\\\[K8s JobSpec\\\]\(https:\/\/kubernetes\.io\/docs\/reference\/generated\/kubernetes-api\/v1\.30\/#jobspec-v1-batch\./[K8s JobSpec](https:\/\/kubernetes\.io\/docs\/reference\/generated\/kubernetes-api\/v1\.30\/#jobspec-v1-batch)./g'
 
 "${SED[@]}" -E "${expression}" src/metric.rs
 "${SED[@]}" -E "${expression}" src/attribute.rs
