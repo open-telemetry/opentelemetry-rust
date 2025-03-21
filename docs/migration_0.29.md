@@ -8,7 +8,7 @@ please refer to the detailed changelog for each crate. This document covers only
 the most common scenarios. Note that changes that only affect custom
 exporter/processor authors are not mentioned in this doc.
 
-OpenTelemetry Metrics API, Log-Bridge API were declared stable in 0.28, and has
+OpenTelemetry Metrics API and Log-Bridge API were declared stable in 0.28, and have
 no breaking changes.
 
 ## Baggage Changes
@@ -16,7 +16,7 @@ no breaking changes.
 The Baggage API has been redesigned to align with the OpenTelemetry
 specification. While the core API for interacting with Baggage remains the same,
 the accepted data types have changed. Baggage Keys now only allow strings (ASCII
-visual characters), and Baggage values are restricted to strings.
+printable characters), and Baggage values are restricted to strings.
 
 For detailed changes, see the [changelog](../opentelemetry/CHANGELOG.md). With
 version 0.29, the Baggage API has reached "Release Candidate" status, meaning
@@ -50,7 +50,7 @@ current `opentelemetry-prometheus` crate requires a major rewrite to eliminate
 dependencies on unmaintained crates. We may reintroduce a dedicated Prometheus
 exporter in the future once these issues are resolved.
 
-### Migration guide
+### Migration Guide
 
 For those using Prometheus as a backend, you can integrate with Prometheus using
 the following methods:
@@ -68,8 +68,8 @@ focus on achieving a stable 1.0 release for OpenTelemetry Rust.
 In the [next
 release](https://github.com/open-telemetry/opentelemetry-rust/milestone/21), we
 expect to stabilize the Metrics SDK and resolve the long-standing question of
-`tokio-tracing` vs. `opentelemetry tracing`, which is an pre-req before
-stabilizing Distributed Tracing. Additionally `Context` is also expected to be
+`tokio-tracing` vs. `opentelemetry tracing`, which is an prerequisite before
+stabilizing Distributed Tracing. Additionally, `Context` is also expected to be
 enhanced with the ability to suppress telemetry-induced-telemetry.
 
 ## Instrumentation Libraries
