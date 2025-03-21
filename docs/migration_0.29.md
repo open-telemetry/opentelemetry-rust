@@ -74,19 +74,19 @@ enhanced with the ability to suppress telemetry-induced-telemetry.
 
 ## Instrumentation Libraries
 
-Unlike other OpenTelemetry language implementations, OpenTelemetry Rust did not
-maintain any instrumentations on its own. This has recently changed with a
+Unlike other OpenTelemetry language implementations, OpenTelemetry Rust historically did not
+maintain any instrumentations directly. This has recently changed with a
 [contribution](https://github.com/open-telemetry/opentelemetry-rust-contrib/pull/202)
 from one of the founding members of the OpenTelemetry Rust project to the
-contrib repo, providing an instrumentation library for
+contrib repository, providing an instrumentation library for
 [`actix-web`](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/actix-web-opentelemetry).
-We expect this instrumentation to eventually showcase best practices for
-instrumentation.
+We expect that this instrumentation will serve as a reference implementation demonstrating best practices for
+creating OpenTelemetry instrumentations in Rust.
 
-We welcome more contributions for instrumentations to the contrib repo.
+We welcome additional contributions of instrumentation libraries to the contrib repository.
 
 ## Thanks
 
-Thanks to everyone who helped with this milestone. Please share your feedback
-via GitHub issues or the OTel-Rust Slack channel
+Thank you to everyone who contributed to this milestone. Please share your feedback
+through GitHub issues or join the discussion in the OTel-Rust Slack channel
 [here](https://cloud-native.slack.com/archives/C03GDP0H023).
