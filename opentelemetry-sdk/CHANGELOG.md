@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency to 0.29.
+- Update `opentelemetry-http` dependency to 0.29.
 - **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
   for the changes.
 - Removed `async-std` support for `Runtime`, as [`async-std` crate is deprecated](https://crates.io/crates/async-std).
@@ -75,7 +81,10 @@
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
-- **Breaking** Removed deprecated functions and methods related to `trace::Config` 
+- **Breaking**: InMemoryExporter's return type change.
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, InMemoryExporterError>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, InMemoryExporterError>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, InMemoryExporterError>`
 
 ## 0.28.0
 

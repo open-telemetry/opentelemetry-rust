@@ -458,11 +458,11 @@ impl fmt::Display for BaggageMetadata {
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyValueMetadata {
     /// Dimension or event key
-    pub key: Key,
+    pub(crate) key: Key,
     /// Dimension or event value
-    pub value: StringValue,
+    pub(crate) value: StringValue,
     /// Metadata associate with this key value pair
-    pub metadata: BaggageMetadata,
+    pub(crate) metadata: BaggageMetadata,
 }
 
 impl KeyValueMetadata {
