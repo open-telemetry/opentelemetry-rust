@@ -330,11 +330,13 @@ impl Context {
         }
     }
 
-    fn is_telemetry_suppressed(&self) -> bool {
+    /// Returns whether telemetry is suppressed in this context.
+    pub fn is_telemetry_suppressed(&self) -> bool {
         self.suppress_telemetry
     }
 
-    fn with_telemetry_suppressed(&self) -> Self {
+    /// Returns a new context with telemetry suppression enabled.
+    pub fn with_telemetry_suppressed(&self) -> Self {
         Context {
             entries: self.entries.clone(),
             #[cfg(feature = "trace")]
@@ -1093,6 +1095,54 @@ mod tests {
         }
 
         // Back to unsuppressed
+        assert!(!Context::is_current_suppressed());
+    }
+
+    #[tokio::test]
+    async fn test_async_suppression() {
+        async fn nested_operation() {
+            assert!(Context::is_current_suppressed());
+
+            let cx_with_additional_value = Context::current().with_value(ValueB(24));
+
+            async {
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert!(Context::is_current_suppressed());
+
+                // Do some async work to simulate real-world scenario
+                sleep(Duration::from_millis(10)).await;
+
+                // Values should still be available after async work
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert!(Context::is_current_suppressed());
+            }
+            .with_context(cx_with_additional_value)
+            .await;
+        }
+
+        // Set up suppressed context, but don't attach it to current
+        let suppressed_parent = Context::new().with_telemetry_suppressed();
+        // Current should not be suppressed as we haven't attached it
+        assert!(!Context::is_current_suppressed());
+
+        // Create and run async operation with the suppressed context explicitly propagated
+        nested_operation()
+            .with_context(suppressed_parent.clone())
+            .await;
+
+        // After async operation completes:
+        // Suppression should be active
+        assert!(suppressed_parent.is_telemetry_suppressed());
+
+        // Current should still be not suppressed
         assert!(!Context::is_current_suppressed());
     }
 }
