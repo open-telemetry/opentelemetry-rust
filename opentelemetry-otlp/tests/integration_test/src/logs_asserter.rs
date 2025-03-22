@@ -79,14 +79,14 @@ impl PartialEq for LogRecordWrapper {
         #[cfg(feature = "experimental_metadata_attributes")]
         let a_attrs: Vec<_> = a_attrs
             .into_iter()
-            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .filter(|opentelemetry::KeyValue { key, .. }| !key.as_str().starts_with("code."))
             .collect();
 
         let b_attrs = b.attributes.clone();
         #[cfg(feature = "experimental_metadata_attributes")]
         let b_attrs: Vec<_> = b_attrs
             .into_iter()
-            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .filter(|opentelemetry::KeyValue { key, .. }| !key.as_str().starts_with("code."))
             .collect();
 
         assert_eq!(a.body, b.body, "body does not match");
