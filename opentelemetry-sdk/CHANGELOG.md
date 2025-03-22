@@ -76,8 +76,7 @@ Released 2025-Mar-21
  intended to be public. If you are authoring custom processor/exporters, use
  `opentelemetry_sdk::error::OTelSdkError` and
  `opentelemetry_sdk::error::OTelSdkResult`.
- // PLACEHOLDER to fill in when the similar change is done for traces, metrics.
- // PLACEHOLDER to put all the PR links together.
+  [2790](https://github.com/open-telemetry/opentelemetry-rust/pull/2790)
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
